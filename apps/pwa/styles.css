@@ -1,0 +1,265 @@
+/*
+  Markenfarben daevo.
+
+  --brand ist das Logoblau aus dem Personal Coach Aaron Logo. Es hat auf Weiss
+  nur einen Kontrast von 1.57 zu 1 und taugt dort nicht fuer Text oder Knopf
+  Beschriftungen. Auf dunklem Grund liegt es bei 12.05 zu 1 und ist dort ideal.
+  --brand-deep ist die abgedunkelte Variante fuer helle Oberflaechen,
+  Kontrast 4.51 zu 1 gegen Weiss, damit erfuellt sie WCAG AA.
+
+  Deshalb zeigt --accent im dunklen Modus das Logoblau und im hellen Modus den
+  dunklen Ton. --on-accent ist jeweils die Schriftfarbe darauf.
+*/
+:root {
+  --brand: #96d8f0;
+  --brand-deep: #1e7fa8;
+
+  --bg: #0e1116;
+  --panel: #161b22;
+  --panel-2: #0d1117;
+  --border: #262d36;
+  --text: #e6edf3;
+  --muted: #929daa;
+  --accent: var(--brand);
+  --on-accent: #0b0d10;
+  --good: #3fb950;
+  --warn: #d29922;
+  --alt: #a371f7;
+  --water: #2ec5d3;
+  --bad: #f85149;
+  --radius: 14px;
+  --tabbar: 62px;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+/*
+  Das Attribut hidden muss jede Anzeigeregel schlagen. Ohne diese Zeile
+  gewinnt zum Beispiel .setup mit display flex gegen die Vorgabe des Browsers,
+  weil Angaben aus dem eigenen Stylesheet immer vor denen des Browsers kommen.
+  Folge waere: das Onboarding bleibt nach dem Speichern sichtbar.
+*/
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  overscroll-behavior-y: none;
+}
+
+body { padding-top: env(safe-area-inset-top); }
+
+.screen { max-width: 620px; margin: 0 auto; }
+
+/* Onboarding */
+.setup { min-height: 100dvh; display: flex; align-items: center; padding: 24px 18px; }
+.setup-inner { width: 100%; }
+.brand-lockup { margin: 0 0 26px; }
+.brand-lockup img { height: auto; max-width: 62vw; }
+.head-mark { height: 17px; width: auto; margin-bottom: 9px; opacity: 0.95; }
+h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -0.02em; }
+.lead { color: var(--muted); margin: 0 0 22px; }
+
+/* Formulare */
+.field { margin-bottom: 14px; flex: 1; min-width: 0; }
+.field-row { display: flex; gap: 12px; }
+label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 5px; }
+input, select, textarea {
+  width: 100%;
+  font: inherit;
+  font-size: 16px;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 11px 12px;
+  appearance: none;
+}
+textarea { resize: vertical; line-height: 1.45; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+
+button {
+  font: inherit; font-weight: 600; font-size: 16px;
+  border-radius: 11px; border: 1px solid transparent;
+  padding: 12px 18px; cursor: pointer;
+}
+button.primary { background: var(--accent); color: var(--on-accent); }
+button.ghost { background: transparent; border-color: var(--border); color: var(--text); }
+button.danger { background: transparent; border-color: var(--bad); color: var(--bad); }
+button.big { width: 100%; margin-bottom: 12px; }
+button:active { transform: scale(0.985); }
+button:disabled { opacity: 0.5; }
+
+.fineprint { font-size: 12.5px; color: var(--muted); line-height: 1.5; margin: 10px 0 24px; }
+
+/* App Layout */
+main.screen { padding: 8px 16px calc(var(--tabbar) + env(safe-area-inset-bottom) + 24px); }
+.page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin: 12px 0 18px; }
+.page-head h1 { font-size: 24px; margin: 0; }
+.sub { color: var(--muted); font-size: 14px; margin: 4px 0 0; }
+.badge {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 999px;
+  padding: 6px 13px; font-size: 13px; font-weight: 600; white-space: nowrap;
+}
+.section-title { font-size: 13px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin: 26px 0 10px; }
+
+/* Ring */
+.ring-card {
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 18px; display: flex; gap: 18px; align-items: center;
+}
+.ring-wrap { position: relative; width: 132px; height: 132px; flex: 0 0 132px; }
+.ring { width: 132px; height: 132px; transform: rotate(-90deg); }
+.ring circle { fill: none; stroke-width: 11; stroke-linecap: round; }
+/* Die Spur nimmt dieselbe Farbe wie der Ring, nur gedimmt. So sieht der
+   Kalorienring genauso aus wie der Ring im Logo. */
+.ring-bg { stroke: var(--brand); stroke-opacity: 0.28; }
+.ring-fg { stroke: var(--accent); stroke-dasharray: 326.7; stroke-dashoffset: 326.7; transition: stroke-dashoffset 0.5s ease; }
+.ring-center {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; text-align: center;
+}
+.ring-num { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.ring-label { font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+.ring-side { flex: 1; min-width: 0; }
+.mini { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+.mini:last-child { border-bottom: none; }
+.mini-k { color: var(--muted); }
+.mini-v { font-weight: 650; font-variant-numeric: tabular-nums; }
+
+/* Balken */
+.bars { margin-top: 16px; }
+.bar-row { margin-bottom: 13px; }
+.bar-head { display: flex; justify-content: space-between; font-size: 13.5px; margin-bottom: 6px; }
+.bar-head span:last-child { color: var(--muted); font-variant-numeric: tabular-nums; }
+.bar { height: 8px; border-radius: 4px; background: #21262d; overflow: hidden; }
+.bar > i { display: block; height: 100%; width: 0; background: var(--good); border-radius: 4px; transition: width 0.4s ease; }
+.bar > i.warn { background: var(--warn); }
+.bar > i.alt { background: var(--alt); }
+.bar > i.water { background: var(--water); }
+.bar > i.over { background: var(--bad); }
+
+.quick { display: flex; gap: 9px; margin-top: 16px; }
+.chip {
+  flex: 1; background: var(--panel); border: 1px solid var(--border); color: var(--text);
+  font-size: 14.5px; font-weight: 600; padding: 11px 6px;
+}
+
+/* Listen */
+.list { list-style: none; padding: 0; margin: 0; }
+.list li {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+  padding: 13px 14px; margin-bottom: 9px;
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+}
+.li-main { min-width: 0; }
+.li-title { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.li-sub { font-size: 13px; color: var(--muted); margin-top: 3px; overflow-wrap: anywhere; }
+.li-side { text-align: right; font-size: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--muted); }
+.li-side b { display: block; color: var(--text); font-size: 15px; }
+.empty { color: var(--muted); font-size: 14px; padding: 4px 2px 8px; }
+
+/* Composer */
+.composer { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
+.composer textarea { background: var(--panel-2); }
+.composer-actions { display: flex; gap: 10px; margin-top: 11px; }
+.composer-actions button { flex: 1; }
+.feedback {
+  margin-top: 14px; padding: 13px 14px; border-radius: 12px;
+  background: rgba(76, 141, 255, 0.1); border: 1px solid rgba(76, 141, 255, 0.35);
+  font-size: 14.5px; line-height: 1.55;
+}
+.feedback.err { background: rgba(248, 81, 73, 0.1); border-color: rgba(248, 81, 73, 0.4); }
+.feedback.ok { background: rgba(63, 185, 80, 0.1); border-color: rgba(63, 185, 80, 0.4); }
+
+.feelings { display: flex; gap: 9px; flex-wrap: wrap; }
+.feelings button {
+  flex: 1 1 auto; background: var(--panel); border: 1px solid var(--border);
+  color: var(--text); font-size: 14px; font-weight: 500; padding: 10px 12px;
+}
+.feelings button.on { border-color: var(--accent); color: var(--accent); }
+
+.card {
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px; margin-bottom: 14px;
+}
+.card h3 { margin: 0 0 10px; font-size: 17px; }
+.card ol, .card ul { margin: 10px 0 0; padding-left: 20px; }
+.card li { margin-bottom: 6px; font-size: 14.5px; }
+.kv { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 14.5px; }
+.kv:last-child { border-bottom: none; }
+.kv span { color: var(--muted); }
+.kv b { font-variant-numeric: tabular-nums; }
+
+/* Tab Bar */
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+  display: flex;
+  background: rgba(14, 17, 22, 0.92);
+  backdrop-filter: blur(14px);
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.tabbtn {
+  flex: 1; background: none; border: none; color: var(--muted);
+  font-size: 13px; font-weight: 600; padding: 0; height: var(--tabbar);
+}
+.tabbtn.active { color: var(--accent); }
+
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(var(--tabbar) + env(safe-area-inset-bottom) + 16px);
+  background: var(--panel); border: 1px solid var(--border); color: var(--text);
+  padding: 11px 18px; border-radius: 999px; font-size: 14px; font-weight: 500;
+  z-index: 40; max-width: 90vw; text-align: center;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.5);
+}
+
+/*
+  Die App ist dunkel gedacht. :root traegt deshalb die dunkle Palette.
+  Der helle Satz gilt in zwei Faellen: wenn das System hell steht und keine
+  ausdrueckliche Wahl getroffen wurde, oder wenn data-theme auf light steht.
+  Der letzte Fall ist noetig, weil manche Umgebungen das Thema am Wurzelelement
+  stempeln statt ueber prefers-color-scheme zu melden.
+*/
+:root[data-theme="light"] {
+    --bg: #f6f8fa; --panel: #ffffff; --panel-2: #f6f8fa; --border: #d8dee4;
+    --text: #1f2328; --muted: #656d76;
+    --accent: var(--brand-deep);
+    --on-accent: #ffffff;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f6f8fa; --panel: #ffffff; --panel-2: #f6f8fa; --border: #d8dee4;
+    --text: #1f2328; --muted: #656d76;
+    --accent: var(--brand-deep);
+    --on-accent: #ffffff;
+  }
+}
+
+:root[data-theme="light"] .ring-bg { stroke: var(--brand-deep); stroke-opacity: 0.25; }
+:root[data-theme="light"] .bar { background: #e4e8ec; }
+:root[data-theme="light"] .tabbar { background: rgba(255, 255, 255, 0.92); }
+:root[data-theme="light"] .toast { box-shadow: 0 8px 26px rgba(0, 0, 0, 0.14); }
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .ring-bg { stroke: var(--brand-deep); stroke-opacity: 0.25; }
+  :root:not([data-theme="dark"]) .bar { background: #e4e8ec; }
+  :root:not([data-theme="dark"]) .tabbar { background: rgba(255, 255, 255, 0.92); }
+  :root:not([data-theme="dark"]) .toast { box-shadow: 0 8px 26px rgba(0, 0, 0, 0.14); }
+}
+
+/* Logo Umschaltung, dieselbe Logik wie bei den Farben. */
+img.only-dark { display: block; }
+img.only-light { display: none; }
+:root[data-theme="light"] img.only-dark { display: none; }
+:root[data-theme="light"] img.only-light { display: block; }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) img.only-dark { display: none; }
+  :root:not([data-theme="dark"]) img.only-light { display: block; }
+}
+
+.li-side button { padding: 7px 13px; font-size: 13.5px; font-weight: 500; }

@@ -1,0 +1,27 @@
+{
+  "name": "daevo",
+  "private": true,
+  "version": "0.1.0",
+  "description": "daevo, dein privater Coach fuer Ernaehrung, Training und Alltag",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/api"
+  ],
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "clean": "tsc --build --clean",
+    "test": "npm run build && node --test --experimental-sqlite --no-warnings \"packages/*/dist/**/*.test.js\" \"apps/api/dist/**/*.test.js\"",
+    "dev": "npm run build && node --experimental-sqlite --no-warnings apps/api/dist/server.js",
+    "start": "node --experimental-sqlite --no-warnings apps/api/dist/server.js",
+    "build:pwa": "npm run build && node scripts/build-pwa.mjs",
+    "serve:pwa": "npm run build:pwa && node scripts/serve-pages.mjs"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "@types/node": "^22.9.0"
+  }
+}
