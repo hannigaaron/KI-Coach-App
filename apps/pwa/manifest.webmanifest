@@ -1,7 +1,7 @@
 {
-  "name": "KI Coach",
-  "short_name": "KI Coach",
-  "description": "Dein Coach fuer Ernaehrung, Training und Alltag",
+  "name": "daevo",
+  "short_name": "daevo",
+  "description": "Evolve your daily life. Dein privater Coach fuer Ernaehrung, Training und Alltag.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

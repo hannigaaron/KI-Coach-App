@@ -10,7 +10,33 @@
  * Export im Profil.
  */
 
-const PREFIX = "kicoach.v1.";
+const PREFIX = "daevo.v1.";
+const LEGACY_PREFIX = "kicoach.v1.";
+
+/**
+ * Uebernimmt Daten aus der Zeit vor der Umbenennung auf daevo.
+ * Laeuft einmal und laesst die alten Schluessel unberuehrt, damit nichts
+ * verloren geht, falls die Uebernahme schiefgeht.
+ */
+function migrateLegacyKeys() {
+  try {
+    if (localStorage.getItem(PREFIX + "migrated")) return;
+    const pairs = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(LEGACY_PREFIX)) pairs.push([key, localStorage.getItem(key)]);
+    }
+    for (const [key, value] of pairs) {
+      const target = PREFIX + key.slice(LEGACY_PREFIX.length);
+      if (localStorage.getItem(target) === null && value !== null) localStorage.setItem(target, value);
+    }
+    localStorage.setItem(PREFIX + "migrated", "1");
+  } catch {
+    // Kein Speicherzugriff. Die App startet dann mit leeren Daten.
+  }
+}
+
+migrateLegacyKeys();
 
 function read(key, fallback) {
   try {

@@ -22,7 +22,7 @@ die Datenschutzanforderungen und die Naehrwertdatenbank.
 - Onboarding, Tagesansicht mit Ring und Makrobalken, Serie
 - Mahlzeiten per Text oder Diktat, Wasser mit einem Tipp
 - Erinnerungsplan, Kuehlschrankvorschlag, Check-in, Trainingsplanung
-- Eigener Anthropic Schluessel aktiviert den KI Coach direkt im Browser
+- Eigener Anthropic Schluessel aktiviert den daevo direkt im Browser
 - Veroeffentlichung ueber GitHub Pages, Ablauf in .github/workflows/pages.yml
 - Anleitung in docs/PWA.md
 

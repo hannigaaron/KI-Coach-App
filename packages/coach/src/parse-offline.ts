@@ -1,4 +1,4 @@
-import type { FoodEntry } from "@kicoach/core";
+import type { FoodEntry } from "@daevo/core";
 import { findFood, normalize } from "./foods.js";
 
 const QUANTITY = /(\d+(?:[.,]\d+)?)\s*(g|gramm|kg|ml|l|stk|stueck|stück|scheiben?|el|tl|portionen?)?/i;

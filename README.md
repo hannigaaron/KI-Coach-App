@@ -1,4 +1,4 @@
-# KI Coach App
+# daevo
 
 Digitaler Ernaehrungs- und Fitnesscoach. Die App erfasst Mahlzeiten per Sprache oder Text,
 rechnet sie gegen die Tagesziele, erinnert zur richtigen Zeit und baut aus dem
@@ -14,15 +14,26 @@ Milestone 1 und 2 sind fertig: Rechenkern, Coach Layer, API und die
 installierbare Web App. Der echte Push Versand und die Apple Health Anbindung
 brauchen eine native App. Details in `docs/ROADMAP.md`.
 
+Der Claim lautet Evolve your daily life.
+
+## Marke
+
+Name klein geschrieben, Wortmarke mit `dae` fett und `vo` duenn, Logoblau
+`#96D8F0` aus dem bestehenden Coaching Logo. Alle Logodateien liegen in
+`apps/pwa/brand/` mit der Schrift als Pfade. Die vollstaendige Richtlinie steht
+in `docs/BRAND.md`, die Kurzfassung fuer Entwicklung in `CLAUDE.md`.
+
 ## Aufbau
 
 ```
 packages/core     Rechenkern ohne Abhaengigkeiten: Kalorien, Makros, Erinnerungslogik, Tagesscore
 packages/coach    Anbindung an das Sprachmodell plus regelbasierter Offline Fallback
 apps/pwa          Installierbare Web App fuer Handy und Desktop, laeuft ohne Server
+apps/pwa/brand    Logodateien, Schrift als Pfade eingebettet
 apps/api          HTTP API, SQLite Datenbank, Scheduler, Testkonsole im Browser
 scripts           Build der Web App und lokaler Vorschauserver
-docs              Architektur, Roadmap, Geschaeftsmodell, Anleitung fuer die Web App
+docs              Architektur, Marke, Roadmap, Geschaeftsmodell, Anleitung fuer die Web App
+CLAUDE.md         Kurzfassung der Regeln, wird von Claude Code automatisch gelesen
 ```
 
 Laufzeitabhaengigkeiten: keine. Der Server nutzt `node:http` und `node:sqlite`.

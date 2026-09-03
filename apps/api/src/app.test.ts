@@ -2,7 +2,7 @@ import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
-import { Coach, type CoachProvider } from "@kicoach/coach";
+import { Coach, type CoachProvider } from "@daevo/coach";
 import { createApp } from "./app.js";
 import { openDb, type Db } from "./db.js";
 

@@ -1,0 +1,78 @@
+# daevo
+
+Diese Datei wird von Claude Code in jeder Sitzung in diesem Repository
+automatisch gelesen. Was hier steht, gilt.
+
+## Marke, gilt in jeder Sitzung
+
+Der Name der App lautet **daevo**, immer klein geschrieben, auch am Satzanfang.
+Der Claim lautet **Evolve your daily life** und steht unter der Wortmarke.
+
+Die Wortmarke ist zweigeteilt: `dae` in Poppins SemiBold 600, `vo` in
+Poppins Light 300. Der Gewichtssprung ist das Erkennungsmerkmal und darf nie
+wegfallen.
+
+Farben:
+
+- Logoblau `#96D8F0`, aus dem Logo von Personal Coach Aaron uebernommen.
+  Nur auf dunklem Grund fuer Text und Bedienelemente einsetzen, Kontrast dort
+  12.05 zu 1. Auf Weiss liegt es bei 1.57 zu 1 und ist fuer Text unbrauchbar.
+- Blau dunkel `#1E7FA8` fuer alles Lesbare auf hellem Grund, Kontrast 4.51 zu 1.
+- Schwarz `#0B0D10`, Grundton dunkel `#0E1116`, Weiss `#FFFFFF`.
+
+Die Logodateien liegen in `apps/pwa/brand/` und tragen die Schrift als Pfade.
+Nie durch neu gesetzten Text ersetzen. Vollstaendige Richtlinie in
+`docs/BRAND.md`.
+
+## Was das Projekt ist
+
+Ein digitaler Ernaehrungs- und Fitnesscoach. Er erfasst Mahlzeiten per Sprache
+oder Text, rechnet sie gegen die Tagesziele, erinnert zur richtigen Zeit und
+baut aus dem Kuehlschrankinhalt eine passende Mahlzeit.
+
+```
+packages/core     Rechenkern ohne Abhaengigkeiten
+packages/coach    Sprachmodell plus regelbasierter Offline Fallback
+apps/pwa          Installierbare Web App, laeuft ohne Server
+apps/api          HTTP API, SQLite, Scheduler
+scripts           Build der Web App, lokaler Vorschauserver
+docs              Architektur, Marke, Roadmap, Geschaeftsmodell
+```
+
+## Regeln fuer den Code
+
+- Keine Laufzeitabhaengigkeiten. Der Server nutzt `node:http` und `node:sqlite`,
+  die Web App laeuft ohne Bundler ueber eine Import Map. Neue Abhaengigkeiten
+  brauchen eine Begruendung.
+- Kalorien und Makros kommen aus `packages/core`, nie aus dem Sprachmodell.
+  Jede Modellantwort wird in `packages/coach/src/validate.ts` gegen
+  `kcal = Protein*4 + Fett*9 + Kohlenhydrate*4` geprueft.
+- Jede Faehigkeit im Coach Layer braucht einen Offline Pfad. Die App muss ohne
+  API Schluessel bedienbar bleiben.
+- Kommentare erklaeren das Warum, nicht das Was. Quellen fuer Formeln gehoeren
+  in den Code.
+- Deutsche Texte in der Oberflaeche und in Kommentaren. Keine Umlaute in
+  Codekommentaren und Dokumentation, stattdessen ae, oe, ue, ss.
+- Vor jedem Commit `npm test` und `npm run build:pwa`. Beides muss gruen sein.
+
+## Befehle
+
+```bash
+npm install
+npm test           # 59 Tests
+npm run serve:pwa  # Web App auf http://localhost:8080
+npm run dev        # API auf http://localhost:8787
+npm run build:pwa  # statische Ausgabe nach dist-pages
+```
+
+## Veroeffentlichung
+
+Jeder Push auf `main` baut und veroeffentlicht die Web App ueber GitHub Pages.
+Der Ablauf steht in `.github/workflows/pages.yml`. Ist ein Test rot, wird nichts
+veroeffentlicht. Adresse: https://hannigaaron.github.io/KI-Coach-App/
+
+## Aktueller Stand
+
+Fertig: Rechenkern, Coach Layer, API, installierbare Web App, Marke.
+Offen: Push Benachrichtigungen bei geschlossener App, Apple Health, echte
+Naehrwertdatenbank, Anmeldung ueber Apple. Siehe `docs/ROADMAP.md`.

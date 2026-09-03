@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { buildDailyReminders, waterTargetMl } from "@kicoach/core";
-import type { Coach } from "@kicoach/coach";
+import { buildDailyReminders, waterTargetMl } from "@daevo/core";
+import type { Coach } from "@daevo/coach";
 import type { Db } from "./db.js";
 import { getMeals, getProfile, getWaterMl } from "./store.js";
 import type { Notifier } from "./notifier.js";

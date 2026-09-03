@@ -3,11 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0e1116">
+<meta name="theme-color" content="#0e1116" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="KI Coach">
-<title>KI Coach</title>
+<meta name="apple-mobile-web-app-title" content="daevo">
+<title>daevo</title>
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icons/icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
@@ -15,8 +16,8 @@
 <script type="importmap">
 {
   "imports": {
-    "@kicoach/core": "./lib/core/index.js",
-    "@kicoach/coach": "./lib/coach/index.js"
+    "@daevo/core": "./lib/core/index.js",
+    "@daevo/coach": "./lib/coach/index.js"
   }
 }
 </script>
@@ -25,8 +26,10 @@
 
 <div id="setup" class="screen setup">
   <div class="setup-inner">
-    <div class="logo"></div>
-    <h1>KI Coach</h1>
+    <div class="brand-lockup">
+      <img class="only-light" src="./brand/daevo-lockup-light.svg" alt="daevo, Evolve your daily life" width="230">
+      <img class="only-dark" src="./brand/daevo-lockup-dark.svg" alt="daevo, Evolve your daily life" width="230">
+    </div>
     <p class="lead">Zwei Minuten Einrichtung. Danach macht die App den Rest.</p>
 
     <div class="field"><label for="s-name">Wie heisst du</label><input id="s-name" autocomplete="given-name" placeholder="Aaron"></div>
@@ -59,7 +62,11 @@
 
   <section class="tab" data-tab="heute">
     <header class="page-head">
-      <div><h1 id="greeting">Heute</h1><p id="dateLine" class="sub"></p></div>
+      <div>
+        <img class="head-mark only-light" src="./brand/daevo-wordmark-deep.svg" alt="daevo" width="72">
+        <img class="head-mark only-dark" src="./brand/daevo-wordmark.svg" alt="daevo" width="72">
+        <h1 id="greeting">Heute</h1><p id="dateLine" class="sub"></p>
+      </div>
       <div id="streakBadge" class="badge"></div>
     </header>
 

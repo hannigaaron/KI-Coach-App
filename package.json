@@ -1,8 +1,8 @@
 {
-  "name": "ki-coach-app",
+  "name": "daevo",
   "private": true,
   "version": "0.1.0",
-  "description": "KI Coaching App fuer Ernaehrung, Training und Alltagsplanung",
+  "description": "daevo, dein privater Coach fuer Ernaehrung, Training und Alltag",
   "type": "module",
   "workspaces": [
     "packages/*",

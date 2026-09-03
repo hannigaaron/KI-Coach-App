@@ -1,5 +1,5 @@
-import type { FoodEntry, MacroTargets } from "@kicoach/core";
-import { remainingBudget, sumEntries, type RemainingBudget } from "@kicoach/core";
+import type { FoodEntry, MacroTargets } from "@daevo/core";
+import { remainingBudget, sumEntries, type RemainingBudget } from "@daevo/core";
 import { parseMealOffline } from "./parse-offline.js";
 import { CHECKIN_SYSTEM, MEAL_PARSE_SYSTEM, MEAL_SUGGEST_SYSTEM } from "./prompts.js";
 import { MEAL_SCHEMA, MESSAGE_SCHEMA, SUGGESTION_SCHEMA } from "./schemas.js";

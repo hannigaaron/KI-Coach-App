@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>KI Coach Testkonsole</title>
+<title>daevo Testkonsole</title>
 <style>
   :root {
     color-scheme: light dark;
@@ -91,7 +91,7 @@
 <body>
 <div class="wrap">
   <header>
-    <h1>KI Coach Testkonsole</h1>
+    <h1>daevo Testkonsole</h1>
     <p>Entwicklungsoberflaeche fuer die API. Kein Endkundenprodukt.</p>
   </header>
 
@@ -168,7 +168,7 @@
 </div>
 
 <script>
-const state = { token: localStorage.getItem("kicoach_token") || "" };
+const state = { token: localStorage.getItem("daevo_token") || "" };
 const $ = (id) => document.getElementById(id);
 
 function setStatus(el, text, kind) {
@@ -194,7 +194,7 @@ $("btnRegister").onclick = async () => {
   try {
     const data = await api("POST", "/api/users", { email: $("email").value, name: $("name").value });
     state.token = data.token;
-    localStorage.setItem("kicoach_token", data.token);
+    localStorage.setItem("daevo_token", data.token);
     showToken();
   } catch (e) { setStatus($("authStatus"), e.message, "err"); }
 };
@@ -203,7 +203,7 @@ $("btnUseToken").onclick = () => {
   const token = prompt("Token einfuegen");
   if (!token) return;
   state.token = token.trim();
-  localStorage.setItem("kicoach_token", state.token);
+  localStorage.setItem("daevo_token", state.token);
   showToken();
 };
 

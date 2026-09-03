@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Coach } from "./skills.js";
 import type { CoachProvider, JsonRequest } from "./provider.js";
-import type { MacroTargets } from "@kicoach/core";
+import type { MacroTargets } from "@daevo/core";
 
 const targets: MacroTargets = { kcal: 3000, proteinG: 139, fatG: 70, carbsG: 431, waterMl: 3050 };
 

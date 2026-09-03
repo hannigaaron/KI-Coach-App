@@ -14,8 +14,8 @@ import {
   type FoodEntry,
   type TrainingSession,
   type UserProfile,
-} from "@kicoach/core";
-import { Coach } from "@kicoach/coach";
+} from "@daevo/core";
+import { Coach } from "@daevo/coach";
 import { authenticate, createToken, type AuthUser } from "./auth.js";
 import type { Db } from "./db.js";
 import {

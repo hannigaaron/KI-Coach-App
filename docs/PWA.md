@@ -59,7 +59,7 @@ eine native App. In der Web App traegst du deine Schritte im Profil selbst ein.
 Browsers. Wechselst du das Geraet, faengst du bei null an. Nutze vorher den
 Export im Profil.
 
-## KI Coach aktivieren
+## daevo aktivieren
 
 Ohne Schluessel rechnet die App mit einer internen Tabelle von rund 40
 Lebensmitteln. Das reicht fuer Standardessen und funktioniert sofort.
@@ -71,7 +71,7 @@ echte Rezepte aus deinem Kuehlschrank.
 So geht es:
 
 1. Schluessel unter https://console.anthropic.com erstellen.
-2. In der App auf `Profil`, Abschnitt `KI Coach aktivieren`, Schluessel einfuegen,
+2. In der App auf `Profil`, Abschnitt `daevo aktivieren`, Schluessel einfuegen,
    speichern.
 
 Der Schluessel wird nur im Speicher deines Browsers abgelegt und direkt an

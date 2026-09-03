@@ -1,11 +1,11 @@
 {
-  "name": "@kicoach/api",
+  "name": "@daevo/api",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "main": "./dist/server.js",
   "dependencies": {
-    "@kicoach/core": "*",
-    "@kicoach/coach": "*"
+    "@daevo/core": "*",
+    "@daevo/coach": "*"
   }
 }

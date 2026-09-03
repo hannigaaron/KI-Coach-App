@@ -1,4 +1,4 @@
-import { AnthropicProvider, Coach } from "@kicoach/coach";
+import { AnthropicProvider, Coach } from "@daevo/coach";
 import { createApp } from "./app.js";
 import { openDb } from "./db.js";
 import { ConsoleNotifier } from "./notifier.js";

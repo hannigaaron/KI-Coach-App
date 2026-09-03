@@ -6,8 +6,8 @@ import {
   remainingBudget,
   scoreDay,
   waterTargetMl,
-} from "@kicoach/core";
-import { AnthropicProvider, Coach } from "@kicoach/coach";
+} from "@daevo/core";
+import { AnthropicProvider, Coach } from "@daevo/coach";
 import { nowTime, store, todayIso } from "./storage.js";
 
 const $ = (id) => document.getElementById(id);
@@ -196,7 +196,7 @@ function renderProfile() {
   const settings = store.getSettings();
   $("apiKey").value = settings.apiKey || "";
   $("modelSel").value = settings.model || "claude-sonnet-5";
-  $("versionLine").textContent = `KI Coach 0.2.0, Stand ${todayIso()}. Testversion, kein Medizinprodukt.`;
+  $("versionLine").textContent = `daevo 0.3.0, Stand ${todayIso()}. Testversion, kein Medizinprodukt.`;
 
   renderSessions();
 }
@@ -512,7 +512,7 @@ $("btnExport").addEventListener("click", () => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `kicoach-export-${todayIso()}.json`;
+  link.download = `daevo-export-${todayIso()}.json`;
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 });

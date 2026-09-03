@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Coach, type CoachProvider } from "@kicoach/coach";
+import { Coach, type CoachProvider } from "@daevo/coach";
 import { openDb } from "./db.js";
 import { runSchedulerTick } from "./scheduler.js";
 import { ConsoleNotifier } from "./notifier.js";

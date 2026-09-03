@@ -1,4 +1,4 @@
-import type { FoodEntry } from "@kicoach/core";
+import type { FoodEntry } from "@daevo/core";
 
 export interface ValidationResult {
   entries: FoodEntry[];

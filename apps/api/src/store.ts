@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { FoodEntry, TrainingSession, UserProfile } from "@kicoach/core";
+import type { FoodEntry, TrainingSession, UserProfile } from "@daevo/core";
 import type { Db } from "./db.js";
 
 export interface ProfileRow {

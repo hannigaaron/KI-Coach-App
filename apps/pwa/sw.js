@@ -5,7 +5,7 @@
  * Erinnerungen verschicken, wenn die App geschlossen ist. Dafuer braucht es
  * Web Push mit einem Server oder eine native App.
  */
-const CACHE = "kicoach-v2";
+const CACHE = "daevo-v1";
 const ASSETS = [
   "./",
   "./index.html",
@@ -17,6 +17,10 @@ const ASSETS = [
   "./lib/coach/index.js",
   "./icons/icon-192.png",
   "./icons/apple-touch-icon.png",
+  "./brand/daevo-lockup-light.svg",
+  "./brand/daevo-lockup-dark.svg",
+  "./brand/daevo-wordmark.svg",
+  "./brand/daevo-wordmark-deep.svg",
 ];
 
 self.addEventListener("install", (event) => {
