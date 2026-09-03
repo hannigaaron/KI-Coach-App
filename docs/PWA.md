@@ -6,14 +6,39 @@ Startbildschirm. Danach sieht sie aus und verhaelt sich wie eine App.
 
 ## Einrichtung
 
-Es ist nichts von Hand einzustellen. Der Workflow schaltet GitHub Pages beim
-ersten Lauf selbst ein. Dafuer sorgt der Schritt `actions/configure-pages` mit
-`enablement: true`. Jeder Push auf `main` baut und veroeffentlicht danach
-automatisch.
+Ein Schritt bleibt von Hand zu machen. Er geht nicht ueber den Workflow:
 
-Falls das Einschalten fehlschlaegt, weil die Berechtigungen im Konto es nicht
-zulassen, geht es auch von Hand: `Settings`, dann `Pages`, unter
-`Build and deployment` bei `Source` den Punkt `GitHub Actions` waehlen.
+1. Im Repository auf `Settings`, dann `Pages`.
+2. Unter `Build and deployment` bei `Source` den Punkt `GitHub Actions` waehlen.
+
+Danach veroeffentlicht jeder Push auf `main` automatisch.
+
+### Warum das nicht automatisch geht
+
+Der Versuch, Pages ueber `actions/configure-pages` mit `enablement: true`
+einzuschalten, scheitert mit `Create Pages site failed. Resource not accessible
+by integration`. Der Token, den GitHub einem Workflow gibt, darf keine Pages
+Seite anlegen. Das ist eine Grenze der Berechtigungen, kein Fehler im Ablauf.
+
+### Wenn der Punkt Pages fehlt oder gesperrt ist
+
+Dieses Repository ist privat. GitHub schreibt zur Veroeffentlichung aus
+privaten Repositories: "GitHub Pages sites are publicly available on the
+internet, even if the repository for the site is private (if your plan or
+organization allows it)." Ob dein Tarif es erlaubt, steht in der Einstellung
+selbst. Ist der Punkt gesperrt, gibt es zwei Wege:
+
+- Das Repository oeffentlich stellen. Pages ist dann in jedem Tarif verfuegbar.
+  Der Quelltext ist danach fuer jeden lesbar. Schluessel liegen keine im
+  Repository, der Anthropic Schluessel wird nur im Browser des Nutzers
+  gespeichert.
+- Den Tarif erhoehen oder einen anderen Hoster nehmen. Netlify, Vercel und
+  Cloudflare Pages veroeffentlichen auch aus privaten Repositories und sind
+  fuer dieses Projekt kostenlos. Sie brauchen ein eigenes Konto und den Zugriff
+  auf das Repository.
+
+Ausgabeordner fuer alle Hoster ist `dist-pages`, der Befehl lautet
+`npm run build:pwa`.
 
 Der Ablauf steht in `.github/workflows/pages.yml`. Er laeuft die Tests, baut die
 statischen Dateien und schiebt sie auf Pages. Ist ein Test rot, wird nichts
