@@ -33,6 +33,14 @@
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
+/*
+  Das Attribut hidden muss jede Anzeigeregel schlagen. Ohne diese Zeile
+  gewinnt zum Beispiel .setup mit display flex gegen die Vorgabe des Browsers,
+  weil Angaben aus dem eigenen Stylesheet immer vor denen des Browsers kommen.
+  Folge waere: das Onboarding bleibt nach dem Speichern sichtbar.
+*/
+[hidden] { display: none !important; }
+
 html, body {
   margin: 0;
   background: var(--bg);
@@ -108,7 +116,9 @@ main.screen { padding: 8px 16px calc(var(--tabbar) + env(safe-area-inset-bottom)
 .ring-wrap { position: relative; width: 132px; height: 132px; flex: 0 0 132px; }
 .ring { width: 132px; height: 132px; transform: rotate(-90deg); }
 .ring circle { fill: none; stroke-width: 11; stroke-linecap: round; }
-.ring-bg { stroke: #21262d; }
+/* Die Spur nimmt dieselbe Farbe wie der Ring, nur gedimmt. So sieht der
+   Kalorienring genauso aus wie der Ring im Logo. */
+.ring-bg { stroke: var(--brand); stroke-opacity: 0.28; }
 .ring-fg { stroke: var(--accent); stroke-dasharray: 326.7; stroke-dashoffset: 326.7; transition: stroke-dashoffset 0.5s ease; }
 .ring-center {
   position: absolute; inset: 0; display: flex; flex-direction: column;
@@ -222,7 +232,7 @@ main.screen { padding: 8px 16px calc(var(--tabbar) + env(safe-area-inset-bottom)
     --accent: var(--brand-deep);
     --on-accent: #ffffff;
   }
-  .ring-bg { stroke: #e4e8ec; }
+  .ring-bg { stroke: var(--brand-deep); stroke-opacity: 0.25; }
   .bar { background: #e4e8ec; }
   .tabbar { background: rgba(255, 255, 255, 0.92); }
   .toast { box-shadow: 0 8px 26px rgba(0, 0, 0, 0.14); }

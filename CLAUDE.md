@@ -12,6 +12,12 @@ Die Wortmarke ist zweigeteilt: `dae` in Poppins SemiBold 600, `vo` in
 Poppins Light 300. Der Gewichtssprung ist das Erkennungsmerkmal und darf nie
 wegfallen.
 
+Das d ist kein Schriftzeichen, sondern gebaut. Die Bowl ist ein Aktivitaetsring
+wie bei der Apple Watch: Start oben, 300 Grad im Uhrzeigersinn, runde Enden,
+darunter die volle Spur in derselben Farbe mit 28 Prozent Deckkraft. Die Spur
+darf nie fehlen, sonst hat der Buchstabe ein Loch. Der Bauplan steht in
+`docs/BRAND.md`, der Generator in `tools/brand/`.
+
 Farben:
 
 - Logoblau `#96D8F0`, aus dem Logo von Personal Coach Aaron uebernommen.

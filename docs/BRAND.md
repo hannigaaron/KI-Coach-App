@@ -21,8 +21,39 @@ Der Gewichtssprung ist das Erkennungsmerkmal. Er darf nicht wegfallen und nicht
 umgedreht werden. Laufweite minus 1.6 auf 100 Punkt Schriftgroesse, dazu ein
 halber Punkt zusaetzlicher Abstand an der Bruchstelle zwischen e und v.
 
+### Das d ist ein Aktivitaetsring
+
+Das d stammt nicht aus der Schrift, es ist gebaut. Die Bowl ist ein offener
+Ring wie die Ringe der Apple Watch, der Stamm bleibt ein gerader Balken.
+Damit traegt der Name die Funktion der App: ein Tag, der sich fuellt.
+
+Alle Masse stammen aus Poppins SemiBold, gemessen bei 1000 Einheiten je
+Geviert, damit das d exakt auf denselben Linien sitzt wie a, e, v und o:
+
+| Mass | Wert | Herkunft |
+| --- | --- | --- |
+| Strichstaerke | 140 | Breite des l |
+| Aussendurchmesser der Bowl | 570 | Breite des o |
+| Mittellinie des Rings | Radius 215 | 285 minus halbe Strichstaerke |
+| Mittelpunkt | 318 / 277 | Mitte der Bowl |
+| Oberkante des Stamms | 740 | Aufstrichhoehe |
+| Vorschub | 678 | Vorschub des d |
+
+Der Ring beginnt oben auf zwoelf Uhr und laeuft im Uhrzeigersinn ueber
+300 Grad, also 83 Prozent. Die restlichen 60 Grad zeigen die Spur in derselben
+Farbe mit 28 Prozent Deckkraft. Die Enden sind rund.
+
+Die Spur ist Pflicht. Ohne sie hat der Buchstabe an der Luecke ein Loch und
+liest sich nicht mehr sauber als d. Die Deckkraft statt einer festen Grauzahl
+sorgt dafuer, dass das Logo auf jedem Untergrund funktioniert.
+
+Die Variante `daevo-lockup-ring-offen.svg` zeigt den Ring bei 270 Grad. Sie
+liest sich staerker als Diagramm und schwaecher als Buchstabe. Sie ist die
+Ausnahme fuer grosse Flaechen, nicht die Hauptvariante.
+
 Alle Logodateien liegen in `apps/pwa/brand/` und haben die Schrift als Pfade
-eingebettet. Sie brauchen keine installierte Schrift.
+eingebettet. Sie brauchen keine installierte Schrift. Erzeugt werden sie mit
+`tools/brand/build-brand.py`, siehe die Anleitung daneben.
 
 | Datei | Einsatz |
 | --- | --- |
@@ -34,12 +65,11 @@ eingebettet. Sie brauchen keine installierte Schrift.
 | `daevo-wordmark.svg` | Nur Wortmarke, Logoblau |
 | `daevo-wordmark-deep.svg` | Nur Wortmarke, dunkles Blau fuer helle Flaechen |
 | `daevo-wordmark-white.svg` | Nur Wortmarke, weiss |
+| `daevo-mark.svg` | Nur das Ring d, fuer Favicon und kleine Flaechen |
+| `daevo-mark-deep.svg` | Nur das Ring d im dunklen Blau |
+| `daevo-lockup-ring-offen.svg` | Ring bei 270 Grad, staerkere Diagrammwirkung |
 | `daevo-icon.svg` | App Icon, dunkle Kachel mit hellblauem d |
 | `daevo-icon-maskable.svg` | App Icon mit groesserem Rand fuer Android Masken |
-| `daevo-lockup-alt-da-evo.svg` | Alternative Aufteilung `da` fett, `evo` duenn |
-
-Die Alternative greift das `evo` aus Evolve auf. Sie ist nicht die Hauptvariante,
-liegt aber bei, falls die Marke spaeter darauf umgestellt wird.
 
 ### Regeln
 
@@ -47,6 +77,10 @@ liegt aber bei, falls die Marke spaeter darauf umgestellt wird.
 - Mindestbreite der Wortmarke 90 Pixel auf dem Bildschirm, 25 Millimeter im Druck.
 - Nicht verzerren, nicht drehen, nicht mit Schlagschatten oder Verlauf versehen.
 - Auf Fotos nur die einfarbige Variante verwenden.
+- Den Ring nicht schliessen und nicht als Vollkreis zeichnen. Die Luecke ist
+  Teil der Marke.
+- Unter 24 Pixel Hoehe die einfarbige Variante nehmen. Die Spur mit 28 Prozent
+  Deckkraft verschwindet dort ohnehin.
 
 ## Farben
 
@@ -86,6 +120,10 @@ Poppins. Wortmarke SemiBold 600 und Light 300, Claim Regular 400.
 In der App laeuft die Oberflaeche in der Systemschrift, damit sie sich nativ
 anfuehlt und ohne Nachladen startet. Poppins steckt nur im Logo, und dort als
 Pfad. Es wird keine Schrift von einem fremden Server geladen.
+
+Der Kalorienring in der App nutzt bewusst dieselbe Anmutung wie der Ring im
+Logo: gleiche Spur mit 28 Prozent Deckkraft, gleiche runde Enden. Marke und
+Funktion zeigen dieselbe Form.
 
 ## Tonfall
 
