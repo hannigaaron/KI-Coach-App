@@ -6,16 +6,23 @@ Kuehlschrankinhalt eine passende Mahlzeit.
 
 ## Stand
 
-Milestone 1 ist fertig: Rechenkern, Coach Layer und API laufen, inklusive Tests.
-Die Mobile App und der echte Push Versand fehlen noch. Details in `docs/ROADMAP.md`.
+Die App laeuft auf dem Handy. Sie wird als Web App ueber GitHub Pages
+veroeffentlicht und laesst sich auf den Startbildschirm legen. Einrichtung und
+Grenzen stehen in `docs/PWA.md`.
+
+Milestone 1 und 2 sind fertig: Rechenkern, Coach Layer, API und die
+installierbare Web App. Der echte Push Versand und die Apple Health Anbindung
+brauchen eine native App. Details in `docs/ROADMAP.md`.
 
 ## Aufbau
 
 ```
 packages/core     Rechenkern ohne Abhaengigkeiten: Kalorien, Makros, Erinnerungslogik, Tagesscore
 packages/coach    Anbindung an das Sprachmodell plus regelbasierter Offline Fallback
+apps/pwa          Installierbare Web App fuer Handy und Desktop, laeuft ohne Server
 apps/api          HTTP API, SQLite Datenbank, Scheduler, Testkonsole im Browser
-docs              Architektur, Roadmap, Geschaeftsmodell
+scripts           Build der Web App und lokaler Vorschauserver
+docs              Architektur, Roadmap, Geschaeftsmodell, Anleitung fuer die Web App
 ```
 
 Laufzeitabhaengigkeiten: keine. Der Server nutzt `node:http` und `node:sqlite`.
@@ -23,9 +30,19 @@ TypeScript ist die einzige Entwicklungsabhaengigkeit.
 
 ## Starten
 
+Die Web App lokal ansehen:
+
 ```bash
 npm install
 npm test
+npm run serve:pwa
+```
+
+Danach `http://localhost:8080` im Browser oeffnen.
+
+Den API Server starten:
+
+```bash
 npm run dev
 ```
 

@@ -72,8 +72,11 @@ export function buildDailyReminders(params: {
         out.push({
           kind: "hydration",
           at: formatTime(at),
-          title: "Trinken",
-          body: `Dir fehlen noch etwa ${waterGap} ml bis zu deinem Tagesziel.`,
+          title: i === 0 ? "Trinken" : "Nachlegen",
+          body:
+            i === 0
+              ? `Dir fehlen noch etwa ${waterGap} ml bis zu deinem Tagesziel.`
+              : "Zweite Flasche. Danach bist du fuer heute durch.",
           priority: 40,
         });
       }

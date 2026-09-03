@@ -6,6 +6,15 @@ import { MEAL_SCHEMA, MESSAGE_SCHEMA, SUGGESTION_SCHEMA } from "./schemas.js";
 import type { CoachProvider } from "./provider.js";
 import { validateEntries } from "./validate.js";
 
+/**
+ * Debugausgabe. Der Zugriff auf process wird abgesichert, weil dieses Modul
+ * auch im Browser laeuft, wo es kein process Objekt gibt.
+ */
+function debugLog(message: string, error: unknown): void {
+  const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
+  if (env?.COACH_DEBUG) console.error(message, error);
+}
+
 export interface MealParseResult {
   entries: FoodEntry[];
   assumption: string;
@@ -53,7 +62,7 @@ export class Coach {
         }
       } catch (error) {
         // Fallback unten. Der Fehler wird vom Aufrufer geloggt.
-        if (process.env.COACH_DEBUG) console.error("parseMeal Modellfehler", error);
+        debugLog("parseMeal Modellfehler", error);
       }
     }
 
@@ -105,7 +114,7 @@ export class Coach {
           source: "model",
         };
       } catch (error) {
-        if (process.env.COACH_DEBUG) console.error("suggestMeal Modellfehler", error);
+        debugLog("suggestMeal Modellfehler", error);
       }
     }
 
@@ -129,7 +138,7 @@ export class Coach {
       });
       return raw.message?.trim() || params.fallback;
     } catch (error) {
-      if (process.env.COACH_DEBUG) console.error("checkInMessage Modellfehler", error);
+      debugLog("checkInMessage Modellfehler", error);
       return params.fallback;
     }
   }

@@ -8,6 +8,13 @@ export interface AnthropicOptions {
   model: string;
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
+  /**
+   * Setzt den Header anthropic-dangerous-direct-browser-access.
+   * Nur fuer Aufrufe direkt aus dem Browser noetig. Der Schluessel liegt dann
+   * im Geraet des Nutzers und ist dort einsehbar. Das ist fuer eigene Tests
+   * vertretbar, fuer eine oeffentliche App nicht.
+   */
+  browserAccess?: boolean;
 }
 
 /**
@@ -42,6 +49,7 @@ export class AnthropicProvider implements CoachProvider {
           "content-type": "application/json",
           "x-api-key": this.options.apiKey as string,
           "anthropic-version": API_VERSION,
+          ...(this.options.browserAccess ? { "anthropic-dangerous-direct-browser-access": "true" } : {}),
         },
         signal: controller.signal,
         body: JSON.stringify({
