@@ -1,0 +1,25 @@
+{
+  "name": "ki-coach-app",
+  "private": true,
+  "version": "0.1.0",
+  "description": "KI Coaching App fuer Ernaehrung, Training und Alltagsplanung",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/api"
+  ],
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "clean": "tsc --build --clean",
+    "test": "npm run build && node --test --experimental-sqlite --no-warnings \"packages/*/dist/**/*.test.js\" \"apps/api/dist/**/*.test.js\"",
+    "dev": "npm run build && node --experimental-sqlite --no-warnings apps/api/dist/server.js",
+    "start": "node --experimental-sqlite --no-warnings apps/api/dist/server.js"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "@types/node": "^22.9.0"
+  }
+}

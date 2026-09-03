@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KI Coach Testkonsole</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #0e1116;
+    --panel: #161b22;
+    --border: #262d36;
+    --text: #e6edf3;
+    --muted: #97a2b0;
+    --accent: #4c8dff;
+    --good: #3fb950;
+    --warn: #d29922;
+    --bad: #f85149;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding: 24px 16px 64px;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; }
+  header { margin-bottom: 24px; }
+  h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  header p { margin: 0; color: var(--muted); font-size: 14px; }
+  section {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    margin-bottom: 16px;
+  }
+  h2 { font-size: 15px; margin: 0 0 14px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  input, select, textarea, button {
+    font: inherit;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: #0d1117;
+    color: var(--text);
+    padding: 9px 11px;
+    width: 100%;
+  }
+  textarea { min-height: 78px; resize: vertical; }
+  .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+  .row button { width: auto; flex: 0 0 auto; }
+  button {
+    cursor: pointer;
+    background: var(--accent);
+    border-color: transparent;
+    color: #fff;
+    font-weight: 600;
+    padding: 9px 16px;
+  }
+  button.secondary { background: transparent; border-color: var(--border); color: var(--text); font-weight: 500; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .stats { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+  .stat { background: #0d1117; border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+  .stat .k { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .stat .v { font-size: 19px; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .bar { height: 6px; border-radius: 3px; background: #21262d; margin-top: 8px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: var(--accent); }
+  pre {
+    background: #0d1117;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    overflow-x: auto;
+    font-size: 12.5px;
+    margin: 12px 0 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .status { font-size: 13px; color: var(--muted); margin-top: 10px; min-height: 18px; }
+  .status.ok { color: var(--good); }
+  .status.err { color: var(--bad); }
+  .pill { display: inline-block; font-size: 12px; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }
+  ul.meals { list-style: none; padding: 0; margin: 12px 0 0; }
+  ul.meals li { border-top: 1px solid var(--border); padding: 9px 0; display: flex; justify-content: space-between; gap: 12px; }
+  ul.meals li span:last-child { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>KI Coach Testkonsole</h1>
+    <p>Entwicklungsoberflaeche fuer die API. Kein Endkundenprodukt.</p>
+  </header>
+
+  <section>
+    <h2>1 Konto</h2>
+    <div class="grid">
+      <div><label for="email">E-Mail</label><input id="email" value="test@example.com"></div>
+      <div><label for="name">Name</label><input id="name" value="Aaron"></div>
+    </div>
+    <div class="row">
+      <button id="btnRegister">Registrieren</button>
+      <button id="btnUseToken" class="secondary">Token einfuegen</button>
+    </div>
+    <div class="status" id="authStatus"></div>
+  </section>
+
+  <section>
+    <h2>2 Profil und Ziele</h2>
+    <div class="grid">
+      <div><label for="weight">Gewicht in kg</label><input id="weight" type="number" value="87" step="0.5"></div>
+      <div><label for="height">Groesse in cm</label><input id="height" type="number" value="184"></div>
+      <div><label for="age">Alter</label><input id="age" type="number" value="23"></div>
+      <div><label for="steps">Schritte pro Tag</label><input id="steps" type="number" value="12000"></div>
+      <div>
+        <label for="goal">Ziel</label>
+        <select id="goal">
+          <option value="maintain">Gewicht halten</option>
+          <option value="fat_loss">Fett verlieren</option>
+          <option value="lean_bulk">Masse aufbauen</option>
+        </select>
+      </div>
+      <div><label for="wake">Aufstehen</label><input id="wake" value="07:00"></div>
+      <div><label for="sleep">Schlafen</label><input id="sleep" value="23:00"></div>
+    </div>
+    <div class="row"><button id="btnProfile">Profil speichern</button></div>
+    <div class="status" id="profileStatus"></div>
+  </section>
+
+  <section>
+    <h2>3 Mahlzeit erfassen</h2>
+    <label for="meal">Was hast du gegessen</label>
+    <textarea id="meal" placeholder="200g Haehnchenbrust und 150g Reis"></textarea>
+    <div class="row">
+      <button id="btnMeal">Erfassen</button>
+      <button id="btnVoice" class="secondary">Diktieren</button>
+      <button id="btnWater" class="secondary">500 ml Wasser</button>
+    </div>
+    <div class="status" id="mealStatus"></div>
+  </section>
+
+  <section>
+    <h2>4 Tagesstand</h2>
+    <div class="stats" id="stats"></div>
+    <ul class="meals" id="mealList"></ul>
+    <div class="row"><button id="btnDay" class="secondary">Aktualisieren</button></div>
+  </section>
+
+  <section>
+    <h2>5 Kuehlschrank und Vorschlag</h2>
+    <label for="fridge">Zutaten, mit Komma getrennt</label>
+    <input id="fridge" value="Eier, Reis, Brokkoli, Magerquark">
+    <div class="row">
+      <button id="btnFridge" class="secondary">Speichern</button>
+      <button id="btnSuggest">Mahlzeit vorschlagen</button>
+    </div>
+    <pre id="suggestOut" hidden></pre>
+  </section>
+
+  <section>
+    <h2>6 Erinnerungen heute</h2>
+    <div class="row"><button id="btnReminders" class="secondary">Laden</button></div>
+    <ul class="meals" id="reminderList"></ul>
+  </section>
+</div>
+
+<script>
+const state = { token: localStorage.getItem("kicoach_token") || "" };
+const $ = (id) => document.getElementById(id);
+
+function setStatus(el, text, kind) {
+  el.textContent = text;
+  el.className = "status" + (kind ? " " + kind : "");
+}
+
+async function api(method, path, body) {
+  const headers = { "content-type": "application/json" };
+  if (state.token) headers.authorization = "Bearer " + state.token;
+  const res = await fetch(path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || data.followUpQuestion || ("HTTP " + res.status));
+  return data;
+}
+
+function showToken() {
+  setStatus($("authStatus"), state.token ? "Angemeldet. Token liegt im Browser." : "Kein Token.", state.token ? "ok" : "");
+}
+showToken();
+
+$("btnRegister").onclick = async () => {
+  try {
+    const data = await api("POST", "/api/users", { email: $("email").value, name: $("name").value });
+    state.token = data.token;
+    localStorage.setItem("kicoach_token", data.token);
+    showToken();
+  } catch (e) { setStatus($("authStatus"), e.message, "err"); }
+};
+
+$("btnUseToken").onclick = () => {
+  const token = prompt("Token einfuegen");
+  if (!token) return;
+  state.token = token.trim();
+  localStorage.setItem("kicoach_token", state.token);
+  showToken();
+};
+
+$("btnProfile").onclick = async () => {
+  try {
+    const data = await api("PUT", "/api/me/profile", {
+      sex: "male",
+      ageYears: Number($("age").value),
+      heightCm: Number($("height").value),
+      weightKg: Number($("weight").value),
+      goal: $("goal").value,
+      dailySteps: Number($("steps").value),
+      wakeTime: $("wake").value,
+      sleepTime: $("sleep").value,
+      sessions: [],
+    });
+    setStatus($("profileStatus"),
+      "Ziel " + data.targets.kcal + " kcal, " + data.targets.proteinG + " g Protein, TDEE geschaetzt auf " + data.energy.tdeeKcal + " kcal.",
+      "ok");
+    loadDay();
+  } catch (e) { setStatus($("profileStatus"), e.message, "err"); }
+};
+
+$("btnMeal").onclick = async () => {
+  try {
+    const data = await api("POST", "/api/me/meals", { text: $("meal").value });
+    const kcal = data.entries.reduce((s, e) => s + e.kcal, 0);
+    setStatus($("mealStatus"), "Erfasst: " + kcal + " kcal, Quelle " + data.source + ". " + (data.followUpQuestion || ""), "ok");
+    $("meal").value = "";
+    loadDay();
+  } catch (e) { setStatus($("mealStatus"), e.message, "err"); }
+};
+
+$("btnWater").onclick = async () => {
+  try {
+    await api("POST", "/api/me/water", { ml: 500 });
+    setStatus($("mealStatus"), "500 ml eingetragen.", "ok");
+    loadDay();
+  } catch (e) { setStatus($("mealStatus"), e.message, "err"); }
+};
+
+$("btnVoice").onclick = () => {
+  const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!Rec) { setStatus($("mealStatus"), "Dein Browser kann keine Spracherkennung. Nutze Safari oder Chrome.", "err"); return; }
+  const rec = new Rec();
+  rec.lang = "de-DE";
+  rec.interimResults = false;
+  rec.onresult = (event) => { $("meal").value = event.results[0][0].transcript; setStatus($("mealStatus"), "Aufnahme uebernommen.", "ok"); };
+  rec.onerror = () => setStatus($("mealStatus"), "Aufnahme fehlgeschlagen.", "err");
+  setStatus($("mealStatus"), "Sprich jetzt.");
+  rec.start();
+};
+
+function statTile(label, value, ratio) {
+  const pct = Math.max(0, Math.min(100, Math.round((ratio || 0) * 100)));
+  return '<div class="stat"><div class="k">' + label + '</div><div class="v">' + value +
+    '</div><div class="bar"><i style="width:' + pct + '%"></i></div></div>';
+}
+
+async function loadDay() {
+  try {
+    const d = await api("GET", "/api/me/day");
+    $("stats").innerHTML =
+      statTile("Kalorien", d.totals.kcal + " / " + d.targets.kcal, d.totals.kcal / d.targets.kcal) +
+      statTile("Protein", d.totals.proteinG + " / " + d.targets.proteinG + " g", d.totals.proteinG / d.targets.proteinG) +
+      statTile("Wasser", d.totals.waterMl + " / " + d.targets.waterMl + " ml", d.totals.waterMl / d.targets.waterMl) +
+      statTile("Tagesscore", d.score.total + " / 100", d.score.total / 100) +
+      statTile("Streak", d.streakDays + " Tage", Math.min(1, d.streakDays / 30));
+    $("mealList").innerHTML = d.meals.map((m) =>
+      "<li><span>" + escapeHtml(m.text) + ' <span class="pill">' + m.source + "</span></span><span>" + m.kcal + " kcal</span></li>",
+    ).join("");
+  } catch (e) {
+    $("stats").innerHTML = '<div class="stat"><div class="k">Hinweis</div><div class="v" style="font-size:14px">' + escapeHtml(e.message) + "</div></div>";
+    $("mealList").innerHTML = "";
+  }
+}
+
+$("btnDay").onclick = loadDay;
+
+$("btnFridge").onclick = async () => {
+  const items = $("fridge").value.split(",").map((s) => s.trim()).filter(Boolean);
+  await api("PUT", "/api/me/fridge", { items });
+  $("suggestOut").hidden = false;
+  $("suggestOut").textContent = "Gespeichert: " + items.join(", ");
+};
+
+$("btnSuggest").onclick = async () => {
+  try {
+    const data = await api("POST", "/api/me/suggest-meal", {});
+    const s = data.suggestion;
+    const lines = [s.title, "", s.reason];
+    if (s.ingredients.length) {
+      lines.push("", "Zutaten:");
+      for (const i of s.ingredients) lines.push("  " + i.quantity + " " + i.name + " (" + i.kcal + " kcal)");
+    }
+    if (s.steps.length) { lines.push("", "Schritte:"); s.steps.forEach((step, n) => lines.push("  " + (n + 1) + ". " + step)); }
+    lines.push("", "Restbudget: " + data.remaining.kcal + " kcal, " + data.remaining.proteinG + " g Protein");
+    $("suggestOut").hidden = false;
+    $("suggestOut").textContent = lines.join("\n");
+  } catch (e) {
+    $("suggestOut").hidden = false;
+    $("suggestOut").textContent = e.message;
+  }
+};
+
+$("btnReminders").onclick = async () => {
+  try {
+    const data = await api("GET", "/api/me/reminders");
+    $("reminderList").innerHTML = data.reminders.map((r) =>
+      "<li><span>" + escapeHtml(r.title) + "<br><span style='color:var(--muted);font-size:13px'>" + escapeHtml(r.body) + "</span></span><span>" + r.at + "</span></li>",
+    ).join("");
+  } catch (e) {
+    $("reminderList").innerHTML = "<li><span>" + escapeHtml(e.message) + "</span><span></span></li>";
+  }
+};
+
+function escapeHtml(text) {
+  return String(text).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+if (state.token) loadDay();
+</script>
+</body>
+</html>
