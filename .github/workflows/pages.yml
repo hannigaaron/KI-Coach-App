@@ -19,6 +19,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Schaltet GitHub Pages ein, falls es noch aus ist, und stellt die Quelle
+      # auf diesen Workflow. Ohne diesen Schritt scheitert der Deploy mit
+      # "Get Pages site failed", solange niemand die Einstellung von Hand
+      # gesetzt hat.
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/setup-node@v4
         with:
           node-version: 22

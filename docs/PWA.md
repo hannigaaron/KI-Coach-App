@@ -4,12 +4,16 @@ Die App laeuft als Web App auf GitHub Pages. Kein App Store, keine Installation,
 kein Server. Du oeffnest eine Adresse im Browser und legst sie auf den
 Startbildschirm. Danach sieht sie aus und verhaelt sich wie eine App.
 
-## Einmalige Einrichtung
+## Einrichtung
 
-1. Den Pull Request nach `main` mergen.
-2. Auf GitHub in dieses Repository gehen, dann `Settings`, dann `Pages`.
-3. Unter `Build and deployment` bei `Source` den Punkt `GitHub Actions` waehlen.
-4. Fertig. Jeder Push auf `main` baut und veroeffentlicht die App automatisch.
+Es ist nichts von Hand einzustellen. Der Workflow schaltet GitHub Pages beim
+ersten Lauf selbst ein. Dafuer sorgt der Schritt `actions/configure-pages` mit
+`enablement: true`. Jeder Push auf `main` baut und veroeffentlicht danach
+automatisch.
+
+Falls das Einschalten fehlschlaegt, weil die Berechtigungen im Konto es nicht
+zulassen, geht es auch von Hand: `Settings`, dann `Pages`, unter
+`Build and deployment` bei `Source` den Punkt `GitHub Actions` waehlen.
 
 Der Ablauf steht in `.github/workflows/pages.yml`. Er laeuft die Tests, baut die
 statischen Dateien und schiebt sie auf Pages. Ist ein Test rot, wird nichts
