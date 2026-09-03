@@ -56,6 +56,24 @@ function write(key, value) {
   }
 }
 
+/**
+ * Eindeutige Kennung fuer Eintraege.
+ *
+ * crypto.randomUUID gibt es nur in sicheren Kontexten und erst ab Safari 15.4.
+ * Der Rueckfall nutzt Zufallswerte aus der Krypto Schnittstelle, notfalls
+ * Math.random. Die Kennungen bleiben lokal, sie muessen nicht faelschungssicher
+ * sein, nur eindeutig.
+ */
+export function newId() {
+  const c = globalThis.crypto;
+  if (c && typeof c.randomUUID === "function") return c.randomUUID();
+  if (c && typeof c.getRandomValues === "function") {
+    const bytes = c.getRandomValues(new Uint8Array(16));
+    return [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  return `${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 12)}`;
+}
+
 export function todayIso(date = new Date()) {
   const offset = date.getTimezoneOffset() * 60000;
   return new Date(date.getTime() - offset).toISOString().slice(0, 10);

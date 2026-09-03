@@ -14,9 +14,9 @@ wegfallen.
 
 Das d ist kein Schriftzeichen, sondern gebaut. Die Bowl ist ein Aktivitaetsring
 wie bei der Apple Watch: Start oben, 300 Grad im Uhrzeigersinn, runde Enden,
-darunter die volle Spur in derselben Farbe mit 28 Prozent Deckkraft. Die Spur
-darf nie fehlen, sonst hat der Buchstabe ein Loch. Der Bauplan steht in
-`docs/BRAND.md`, der Generator in `tools/brand/`.
+die restlichen 60 Grad bleiben offen. Fuer kleine Groessen gibt es die
+Varianten mit gefuellter Spur, sonst faellt der Buchstabe auseinander. Der
+Bauplan steht in `docs/BRAND.md`, der Generator in `tools/brand/`.
 
 Farben:
 

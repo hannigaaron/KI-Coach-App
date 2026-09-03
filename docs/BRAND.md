@@ -40,16 +40,18 @@ Geviert, damit das d exakt auf denselben Linien sitzt wie a, e, v und o:
 | Vorschub | 678 | Vorschub des d |
 
 Der Ring beginnt oben auf zwoelf Uhr und laeuft im Uhrzeigersinn ueber
-300 Grad, also 83 Prozent. Die restlichen 60 Grad zeigen die Spur in derselben
-Farbe mit 28 Prozent Deckkraft. Die Enden sind rund.
+300 Grad, also 83 Prozent. Die restlichen 60 Grad bleiben offen. Die Enden
+sind rund.
 
-Die Spur ist Pflicht. Ohne sie hat der Buchstabe an der Luecke ein Loch und
-liest sich nicht mehr sauber als d. Die Deckkraft statt einer festen Grauzahl
-sorgt dafuer, dass das Logo auf jedem Untergrund funktioniert.
+Der offene Ring ist die Hauptvariante. Er zeigt den Fortschrittsgedanken am
+deutlichsten. Der Preis dafuer: an der Luecke fehlt dem Buchstaben ein Stueck.
+Ab etwa 24 Pixel Hoehe abwaerts kippt das d dadurch Richtung c mit Balken.
+Fuer diese Faelle gibt es zwei Auswege:
 
-Die Variante `daevo-lockup-ring-offen.svg` zeigt den Ring bei 270 Grad. Sie
-liest sich staerker als Diagramm und schwaecher als Buchstabe. Sie ist die
-Ausnahme fuer grosse Flaechen, nicht die Hauptvariante.
+- `daevo-lockup-mit-spur.svg` und `daevo-wordmark-mit-spur.svg` fuellen die
+  Luecke mit einer Spur in derselben Farbe bei 28 Prozent Deckkraft. Der Ring
+  bleibt sichtbar, der Buchstabe ist geschlossen.
+- Bei sehr kleinen Groessen die Wortmarke ohne Bildwirkung setzen.
 
 Alle Logodateien liegen in `apps/pwa/brand/` und haben die Schrift als Pfade
 eingebettet. Sie brauchen keine installierte Schrift. Erzeugt werden sie mit
@@ -67,7 +69,8 @@ eingebettet. Sie brauchen keine installierte Schrift. Erzeugt werden sie mit
 | `daevo-wordmark-white.svg` | Nur Wortmarke, weiss |
 | `daevo-mark.svg` | Nur das Ring d, fuer Favicon und kleine Flaechen |
 | `daevo-mark-deep.svg` | Nur das Ring d im dunklen Blau |
-| `daevo-lockup-ring-offen.svg` | Ring bei 270 Grad, staerkere Diagrammwirkung |
+| `daevo-lockup-mit-spur.svg` | Ring mit gefuellter Spur, fuer kleine Groessen |
+| `daevo-wordmark-mit-spur.svg` | Wortmarke mit gefuellter Spur |
 | `daevo-icon.svg` | App Icon, dunkle Kachel mit hellblauem d |
 | `daevo-icon-maskable.svg` | App Icon mit groesserem Rand fuer Android Masken |
 
@@ -79,8 +82,8 @@ eingebettet. Sie brauchen keine installierte Schrift. Erzeugt werden sie mit
 - Auf Fotos nur die einfarbige Variante verwenden.
 - Den Ring nicht schliessen und nicht als Vollkreis zeichnen. Die Luecke ist
   Teil der Marke.
-- Unter 24 Pixel Hoehe die einfarbige Variante nehmen. Die Spur mit 28 Prozent
-  Deckkraft verschwindet dort ohnehin.
+- Unter 24 Pixel Hoehe die Variante mit Spur nehmen, sonst faellt der
+  Buchstabe auseinander.
 
 ## Farben
 
@@ -121,9 +124,9 @@ In der App laeuft die Oberflaeche in der Systemschrift, damit sie sich nativ
 anfuehlt und ohne Nachladen startet. Poppins steckt nur im Logo, und dort als
 Pfad. Es wird keine Schrift von einem fremden Server geladen.
 
-Der Kalorienring in der App nutzt bewusst dieselbe Anmutung wie der Ring im
-Logo: gleiche Spur mit 28 Prozent Deckkraft, gleiche runde Enden. Marke und
-Funktion zeigen dieselbe Form.
+Der Kalorienring in der App nutzt dieselbe Form wie der Ring im Logo: gleiche
+runde Enden, gleiche Markenfarbe. Er behaelt eine Spur, weil er den Abstand
+zum Tagesziel zeigen muss. Das Logo braucht diese Aussage nicht.
 
 ## Tonfall
 

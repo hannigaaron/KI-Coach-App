@@ -59,9 +59,6 @@ body { padding-top: env(safe-area-inset-top); }
 .brand-lockup { margin: 0 0 26px; }
 .brand-lockup img { height: auto; max-width: 62vw; }
 .head-mark { height: 17px; width: auto; margin-bottom: 9px; opacity: 0.95; }
-/* Die Selektoren tragen img, damit sie die Regeln darueber sicher schlagen. */
-img.only-light { display: block; }
-img.only-dark { display: none; }
 h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -0.02em; }
 .lead { color: var(--muted); margin: 0 0 22px; }
 
@@ -220,22 +217,49 @@ main.screen { padding: 8px 16px calc(var(--tabbar) + env(safe-area-inset-bottom)
   box-shadow: 0 8px 26px rgba(0, 0, 0, 0.5);
 }
 
-@media (prefers-color-scheme: dark) {
-  img.only-dark { display: block; }
-  img.only-light { display: none; }
+/*
+  Die App ist dunkel gedacht. :root traegt deshalb die dunkle Palette.
+  Der helle Satz gilt in zwei Faellen: wenn das System hell steht und keine
+  ausdrueckliche Wahl getroffen wurde, oder wenn data-theme auf light steht.
+  Der letzte Fall ist noetig, weil manche Umgebungen das Thema am Wurzelelement
+  stempeln statt ueber prefers-color-scheme zu melden.
+*/
+:root[data-theme="light"] {
+    --bg: #f6f8fa; --panel: #ffffff; --panel-2: #f6f8fa; --border: #d8dee4;
+    --text: #1f2328; --muted: #656d76;
+    --accent: var(--brand-deep);
+    --on-accent: #ffffff;
 }
 
 @media (prefers-color-scheme: light) {
-  :root {
+  :root:not([data-theme="dark"]) {
     --bg: #f6f8fa; --panel: #ffffff; --panel-2: #f6f8fa; --border: #d8dee4;
     --text: #1f2328; --muted: #656d76;
     --accent: var(--brand-deep);
     --on-accent: #ffffff;
   }
-  .ring-bg { stroke: var(--brand-deep); stroke-opacity: 0.25; }
-  .bar { background: #e4e8ec; }
-  .tabbar { background: rgba(255, 255, 255, 0.92); }
-  .toast { box-shadow: 0 8px 26px rgba(0, 0, 0, 0.14); }
+}
+
+:root[data-theme="light"] .ring-bg { stroke: var(--brand-deep); stroke-opacity: 0.25; }
+:root[data-theme="light"] .bar { background: #e4e8ec; }
+:root[data-theme="light"] .tabbar { background: rgba(255, 255, 255, 0.92); }
+:root[data-theme="light"] .toast { box-shadow: 0 8px 26px rgba(0, 0, 0, 0.14); }
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .ring-bg { stroke: var(--brand-deep); stroke-opacity: 0.25; }
+  :root:not([data-theme="dark"]) .bar { background: #e4e8ec; }
+  :root:not([data-theme="dark"]) .tabbar { background: rgba(255, 255, 255, 0.92); }
+  :root:not([data-theme="dark"]) .toast { box-shadow: 0 8px 26px rgba(0, 0, 0, 0.14); }
+}
+
+/* Logo Umschaltung, dieselbe Logik wie bei den Farben. */
+img.only-dark { display: block; }
+img.only-light { display: none; }
+:root[data-theme="light"] img.only-dark { display: none; }
+:root[data-theme="light"] img.only-light { display: block; }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) img.only-dark { display: none; }
+  :root:not([data-theme="dark"]) img.only-light { display: block; }
 }
 
 .li-side button { padding: 7px 13px; font-size: 13.5px; font-weight: 500; }

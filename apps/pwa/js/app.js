@@ -8,7 +8,7 @@ import {
   waterTargetMl,
 } from "@daevo/core";
 import { AnthropicProvider, Coach } from "@daevo/coach";
-import { nowTime, store, todayIso } from "./storage.js";
+import { newId, nowTime, store, todayIso } from "./storage.js";
 
 const $ = (id) => document.getElementById(id);
 const WEEKDAYS = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
@@ -259,7 +259,7 @@ async function parseMeal() {
     }
     const kcal = Math.round(result.entries.reduce((s, e) => s + e.kcal, 0));
     const protein = Math.round(result.entries.reduce((s, e) => s + e.proteinG, 0));
-    lastMealId = crypto.randomUUID();
+    lastMealId = newId();
     store.addMeal(day, {
       id: lastMealId,
       text,
