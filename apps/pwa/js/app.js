@@ -444,6 +444,8 @@ function renderProfile() {
   $("apiKey").value = settings.apiKey || "";
   $("modelSel").value = settings.model || "claude-opus-5";
   $("themeSel").value = settings.theme || "system";
+  $("anweisungen").value = settings.anweisungen || "";
+  zeigeAnweisungsLaenge();
   $("optSpeak").checked = options.speak;
   $("optHandsFree").checked = options.handsFree;
   $("voiceNote").textContent = voiceSupport.erkennung
@@ -771,6 +773,57 @@ $("sessionList").addEventListener("click", (event) => {
   profile.sessions.splice(Number(button.dataset.del), 1);
   store.setProfile(profile);
   renderSessions();
+});
+
+/**
+ * Eigene Anweisungen des Nutzers.
+ *
+ * Sie landen im Systemprompt des Assistenten. Die Obergrenze liegt bei 4000
+ * Zeichen, weil jede Nachricht sie mitschickt und der Prompt sonst mehr kostet
+ * als die eigentliche Frage.
+ */
+const ANWEISUNGEN_MAX = 4000;
+
+/**
+ * Startpunkt für eigene Anweisungen.
+ *
+ * Bewusst ohne persönliche Angaben. Was daevo über den Nutzer weiss, gehört
+ * ins Gedächtnis und nicht in eine Vorlage, die jeder bekommt. Hier steht nur,
+ * wie geredet werden soll.
+ */
+const ANWEISUNGEN_VORLAGE = [
+  "Sag mir die Wahrheit, auch wenn sie unangenehm ist. Beschönige nichts.",
+  "Sei ehrlich und realistisch, nicht schmeichelnd. Lob nur, wenn Zahlen es hergeben.",
+  "Keine Floskeln, keine Einleitungen, keine Zusammenfassungen am Ende.",
+  "Erfinde nichts. Bist du unsicher, sag es. Zeig mir, wie du auf eine Zahl kommst.",
+  "Bei fachlichen Fragen will ich den Mechanismus und die Grössenordnung, nicht nur die Regel.",
+  "Bei persönlichen Themen: erst verstehen, dann Vorschläge. Geh unter die Oberfläche,",
+  "zeig mir das Muster dahinter, und gib mir am Ende genau eine Sache, die ich heute anders mache.",
+  "Sag mir, wenn ich mir etwas vormache.",
+  "Frag nach, wenn eine Antwort nicht zu dem passt, was du über mich weisst.",
+].join("\n");
+
+function zeigeAnweisungsLaenge() {
+  const laenge = $("anweisungen").value.length;
+  $("anweisungenNote").textContent = laenge === 0
+    ? "Noch nichts hinterlegt. daevo nutzt dann nur seine eingebaute Haltung."
+    : `${laenge} von ${ANWEISUNGEN_MAX} Zeichen. Wird bei jeder Nachricht mitgelesen.`;
+}
+
+$("anweisungen").addEventListener("input", zeigeAnweisungsLaenge);
+$("btnAnweisungen").addEventListener("click", () => {
+  const text = $("anweisungen").value.slice(0, ANWEISUNGEN_MAX);
+  $("anweisungen").value = text;
+  store.setSettings({ ...store.getSettings(), anweisungen: text });
+  zeigeAnweisungsLaenge();
+  toast(text ? "daevo liest das ab jetzt mit" : "Anweisungen gelöscht");
+});
+
+$("btnAnweisungenVorlage").addEventListener("click", () => {
+  if ($("anweisungen").value.trim() && !confirm("Das überschreibt, was da steht. Weiter?")) return;
+  $("anweisungen").value = ANWEISUNGEN_VORLAGE;
+  zeigeAnweisungsLaenge();
+  toast("Vorlage eingesetzt. Ändere sie und speichere dann.");
 });
 
 $("btnSaveKey").addEventListener("click", () => {

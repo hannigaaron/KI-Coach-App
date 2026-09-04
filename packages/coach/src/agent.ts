@@ -1,4 +1,5 @@
 import { AGENT_TOOLS } from "./tools.js";
+import { systemPrompt, type Modus } from "./persona.js";
 import type { ChatMessage, CoachProvider, ContentBlock } from "./provider.js";
 
 /**
@@ -20,6 +21,11 @@ export interface AgentContext {
   gedächtnis: string;
   /** Wochentag und Uhrzeit. */
   zeit: string;
+  /**
+   * Was der Nutzer selbst als Anweisung hinterlegt hat. Steht im Prompt ganz
+   * unten und wiegt am schwersten, ausser bei den Grenzen.
+   */
+  eigeneAnweisungen?: string;
 }
 
 /** Was der Assistent in der App auslösen kann. Die App liefert die Umsetzung. */
@@ -53,81 +59,11 @@ export interface AgentReply {
   source: "model" | "offline";
 }
 
-export const PERSONA = `Du bist daevo, der persönliche Coach dieses Nutzers für Ernährung, Training,
-Schlaf und Alltag. Du bist kein Chatbot mit Formularen, sondern ein Gesprächspartner, der etwas kann.
-
-## Was du bist
-
-Du hast das Wissen eines guten Trainers, eines Ernährungsberaters und eines nüchternen Kopfes:
-Energiebilanz, Makronährstoffe, Trainingsplanung und Periodisierung, progressive Belastungssteigerung,
-Regeneration, Schlaf, Stress und Nervensystem, Gewohnheiten und Verhaltensänderung.
-Du beantwortest echte Fragen wirklich, in der Tiefe, die die Frage verdient. Du sagst nicht
-"frag deinen Arzt" bei allem, sondern erklärst, was man weiss, wie sicher man es weiss und
-wo die Grenze zur ärztlichen Abklärung wirklich liegt.
-
-## Wie du antwortest
-
-- Du sprichst den Nutzer mit du an. Klare, einfache Sprache. Aktiv, kein Passiv.
-- Die Länge richtet sich nach der Frage, nicht nach einer Regel.
-  "Ich hatte zwei Eier" beantwortest du in einem Satz.
-  "Warum bin ich seit Wochen müde" beantwortest du in zehn, mit Struktur und einer klaren Reihenfolge.
-  Rede nie um eine Frage herum, nur um kurz zu sein.
-- Du bist ehrlich. Läuft etwas schlecht, sagst du das zuerst. Du lobst nur, wenn Zahlen es hergeben.
-- Keine Floskeln, keine Einleitungen wie "gute Frage", keine Zusammenfassungen am Ende.
-- Höchstens eine Frage pro Antwort, und nur wenn die Antwort davon abhängt.
-- Wenn du dir bei etwas nicht sicher bist, sagst du das und sagst auch, wie man es herausfinden würde.
-
-## Was du wirklich weisst und was du nicht weisst
-
-- Zahlen über diesen Nutzer kommen aus den Werkzeugen, nie aus deinem Kopf. Bevor du über
-  seine Kalorien, Makros, sein Wasser, seinen Verlauf oder seine Standards sprichst, holst du sie ab.
-  Eine geratene Zahl über einen echten Menschen ist schlimmer als keine Zahl.
-- Allgemeines Wissen darfst und sollst du benutzen: Physiologie, Trainingslehre, Nährwerte von
-  Lebensmitteln im Gespräch, Studienlage. Dafür brauchst du kein Werkzeug.
-- Erfinde keine Studien, keine Zahlen aus Studien und keine Quellenangaben. Sag lieber
-  "die Studienlage dazu ist uneinheitlich" als eine erfundene Prozentzahl zu nennen.
-- Du hast keinen Zugriff auf das Internet. Aktuelle Ereignisse kennst du nicht.
-
-## Was du tust, statt nur zu reden
-
-- Erzählt der Nutzer etwas, das auch in vier Wochen noch gilt, legst du es mit merken ab.
-  Das ist dein Gedächtnis. Ohne das vergisst du ihn.
-- Nennt er ein Gewicht, trägst du es ein. Nennt er eine Mahlzeit, trägst du sie ein.
-  Erzählt er von einem Training, trägst du es ein. Du fragst nicht um Erlaubnis für das Offensichtliche.
-- Ändert sich etwas dauerhaft, etwa sein Ziel oder seine Schlafenszeit, änderst du das Profil.
-- Du erwähnst Werkzeuge nie. Du sagst, was du getan hast, nicht wie.
-
-## Kalorienziel und Verlauf
-
-Die Formel im Rechenkern schätzt. Der Gewichtsverlauf misst. Nach vier Wochen mit genug Daten
-schlägt der Verlauf die Formel. Fragt der Nutzer, ob sein Ziel noch stimmt, oder klagt er, dass
-sich nichts tut, rufst du verlauf_abrufen auf und redest über die gemessene Rate, nicht über die Formel.
-
-## Mindeststandards
-
-- Ein Mindeststandard ist die Untergrenze, die auch in einer schlechten Woche steht, nicht das Ziel.
-  Setzt der Nutzer sich einen, legst du ihn mit standard_setzen ab.
-- Macht er sich fertig, weil er zu wenig geschafft hat, rufst du standards_abrufen auf und
-  redest über die Untergrenze, nicht über den Idealtag. Zahlen statt Trost.
-- Kommt ein Standard über Wochen nicht in Gang, schlägst du vor, ihn zu senken.
-  Ein Standard, der nie gehalten wird, ist falsch gesetzt, nicht der Nutzer.
-
-## Einkaufen
-
-- Fragt der Nutzer nach einer Einkaufsliste, rufst du einkaufsliste_erstellen auf und nennst danach
-  nur die Anzahl der Posten und die zwei bis drei wichtigsten. Die ganze Liste liest niemand vor.
-- Bevor du einen Posten als nötig bezeichnest, fragst du, ob er ihn noch zu Hause hat, und
-  trägst die Antwort mit einkaufsliste_abhaken ein.
-- Unverträglichkeiten aus deinem Gedächtnis gibst du immer als meiden mit.
-
-## Wo deine Grenze liegt
-
-Du stellst keine Diagnosen und verschreibst nichts. Du erklärst aber, was hinter Beschwerden stehen
-kann und was man selbst prüfen lassen kann. Bei diesen Dingen sagst du klar, dass es ärztlich
-abgeklärt gehört, und coachst dort nicht weiter: anhaltende Schmerzen, Blut, Ohnmacht, starkes
-Untergewicht, Anzeichen einer Essstörung, Verdacht auf eine Depression, Gedanken an Selbstverletzung.
-Bei Hormonwerten, Blutbildern und Medikamenten erklärst du die Zusammenhänge und schickst zur
-Abklärung, statt Werte zu bewerten, die du nicht gemessen hast.`;
+/**
+ * Die Persona steht in persona.js. Hier bleibt nur der Verweis, damit alter
+ * Code und Tests weiter etwas zum Anfassen haben.
+ */
+export { systemPrompt, PERSONA_TEILE, type Modus } from "./persona.js";
 
 /**
  * Wie viele Runden Werkzeug und Antwort erlaubt sind.
@@ -168,25 +104,18 @@ export class Agent {
     kontext: AgentContext;
     aktionen: AgentActions;
   }): Promise<AgentReply> {
-    const system = [
-      PERSONA,
-      "",
-      "Aktueller Zeitpunkt:",
-      params.kontext.zeit,
-      "",
-      "Der Nutzer:",
-      params.kontext.profil,
-      "",
-      "Sein heutiger Stand:",
-      params.kontext.tag,
-      "",
-      "Was du über ihn weißt:",
-      params.kontext.gedächtnis,
-    ].join("\n");
+    const tiefe = denktiefe(params.nachricht);
+    const system = systemPrompt({
+      modus: tiefe.modus,
+      zeit: params.kontext.zeit,
+      profil: params.kontext.profil,
+      tag: params.kontext.tag,
+      gedächtnis: params.kontext.gedächtnis,
+      eigeneAnweisungen: params.kontext.eigeneAnweisungen,
+    });
 
     const messages: ChatMessage[] = [...params.verlauf, { role: "user", content: params.nachricht }];
     const ausgeführt: string[] = [];
-    const tiefe = denktiefe(params.nachricht);
 
     for (let step = 0; step < MAX_STEPS; step++) {
       const response = await this.provider.converse({
@@ -236,34 +165,74 @@ export class Agent {
  * und Stress. Wer beides gleich behandelt, macht entweder das eine langsam
  * oder das andere dumm.
  */
-export function denktiefe(nachricht: string): { effort: "low" | "medium" | "high"; maxTokens: number } {
+export function denktiefe(nachricht: string): {
+  effort: "low" | "medium" | "high";
+  maxTokens: number;
+  modus: Modus;
+} {
   const text = foldUmlauts(nachricht.toLowerCase());
   const woerter = text.split(/\s+/).filter(Boolean).length;
 
-  // Echte Fragen. Alles, was nach Erklärung, Rat oder Einordnung verlangt.
-  const denkt = pattern(
+  // Alles, was wehtut. Das hat Vorrang vor jeder anderen Erkennung: wer von
+  // Schuld oder Trauer schreibt und dabei nebenbei Kalorien erwähnt, will
+  // nicht über Kalorien reden.
+  const psyche = pattern(
+    "schuld", "scham", "schäme", "schame", "traurig", "trauer", "einsam", "verletzt mich",
+    "angst", "panik", "druck", "überfordert", "uberfordert", "ausgebrannt", "burnout",
+    "hasse mich", "mag mich nicht", "selbstwert", "wertlos", "versagt", "versager",
+    "depress", "antrieb", "sinnlos", "kraftlos", "innerlich leer",
+    "beziehung", "trennung", "herz gebrochen", "verliebt", "ex freundin", "exfreundin",
+    "familie", "schwester", "bruder", "mutter", "vater", "eltern",
+    "therapie", "therapeut", "psycholog",
+    "aufschieben", "prokrastin", "impulskontrolle", "handysucht", "social media",
+    "porno", "rückfall", "ruckfall", "diszipliniert", "keine motivation", "keine lust mehr",
+    "libido", "erektion", "einsamkeit", "grübel", "grubel", "gedankenkarussell",
+    "schlechtes gewissen", "mach\\w* mich( \\w+){0,3} fertig", "mit den nerven",
+    "schaffe nichts", "schaffe es nicht", "nichts geschafft", "krieg nichts",
+  ).test(text);
+
+  // Arbeit, Geld, Zeit, Aufbau.
+  const planung = pattern(
+    "geld", "einkommen", "umsatz", "gewinn", "verdien", "gehalt", "preis", "preise",
+    "euro", "netto", "brutto", "monatlich", "honorar", "stundensatz", "einnahmen",
+    "kunden", "kundin", "angebot", "business", "selbstständig", "selbststandig", "firma",
+    "steuer", "rechnung", "vertrag", "gründ", "grund ung", "franchise", "investier",
+    "etf", "aktien", "vermögen", "vermogen", "sparen", "rente",
+    "zeitmanagement", "kalender", "woche planen", "tagesplan", "prioritäten", "prioritaten",
+    "content", "reichweite", "instagram", "tiktok", "marketing", "funnel",
+  ).test(text);
+
+  // Echte Fachfragen zu Training, Ernährung, Regeneration.
+  const fachlich = pattern(
+    "protein", "kalorien", "makro", "defizit", "überschuss", "uberschuss", "kohlenhydrat",
+    "kreatin", "supplement", "eiweiss", "eiweiß",
+    "training", "trainingsplan", "satz", "sätze", "satze", "wiederholung", "progression",
+    "periodisierung", "regeneration", "übertraining", "ubertraining", "muskelaufbau",
+    "abnehmen", "zunehmen", "diät", "diat", "refeed", "cheat",
+    "schlaf", "müde", "mude", "energielos", "erschöpft", "erschopft", "testosteron", "hormon",
+    "verletz", "schmerz", "plateau", "stagnation", "tut sich nichts",
+    "nehme nicht ab", "nehme nicht zu", "puls", "herzfrequenz",
+  ).test(text);
+
+  // Fragt er überhaupt etwas, oder erzählt er nur.
+  const fragt = pattern(
     "warum", "wieso", "weshalb", "erklär", "erklar", "wie kommt", "wie funktioniert",
     "was denkst", "was meinst", "was hältst", "was halt", "soll ich", "sollte ich",
     "lohnt sich", "besser", "vergleich", "unterschied", "sinnvoll", "wirklich",
-    "plan", "strategie", "wie schaffe", "wie kriege", "was kann ich tun",
-    "hilf mir", "ich verstehe nicht", "stimmt das", "richtig so",
-  ).test(text);
+    "wie schaffe", "wie kriege", "was kann ich tun", "hilf mir", "was mache ich",
+    "ich verstehe nicht", "stimmt das", "richtig so", "wie gehe ich",
+  ).test(text) || text.includes("?");
 
-  // Themen, die ohne Zusammenhang keine brauchbare Antwort ergeben.
-  const schwer = pattern(
-    "müde", "energielos", "erschöpft", "schlaf", "stress", "libido", "testosteron",
-    "hormone", "depress", "antrieb", "motivation", "verletzt", "schmerz",
-    "plateau", "stagnation", "tut sich nichts", "nehme nicht ab", "nehme nicht zu",
-    "periodisierung", "regeneration", "übertraining", "ubertraining",
-  ).test(text);
-
-  if (schwer || (denkt && woerter > 4)) return { effort: "high", maxTokens: 4096 };
+  if (psyche) return { effort: "high", maxTokens: 4096, modus: "psyche" };
+  if (planung && (fragt || woerter > 8)) return { effort: "high", maxTokens: 4096, modus: "planung" };
+  if (fachlich && (fragt || woerter > 8)) return { effort: "high", maxTokens: 4096, modus: "coaching" };
 
   // Reines Erfassen: kurz, und es geht um Essen, Trinken oder Gewicht.
   const erfassen = pattern("gegessen", "getrunken", "hatte", "wiege", "gewogen", "ml", "gramm").test(text);
-  if (erfassen && woerter <= 14 && !denkt) return { effort: "low", maxTokens: 1024 };
+  if (erfassen && woerter <= 14 && !fragt) return { effort: "low", maxTokens: 1024, modus: "erfassen" };
 
-  return { effort: "medium", maxTokens: 2048 };
+  if (fragt) return { effort: "medium", maxTokens: 2048, modus: "coaching" };
+  return { effort: "medium", maxTokens: 2048, modus: "standard" };
 }
 
 function textOf(content: ContentBlock[]): string {

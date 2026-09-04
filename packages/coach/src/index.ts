@@ -6,5 +6,6 @@ export * from "./shopping.js";
 export * from "./parse-offline.js";
 export * from "./validate.js";
 export * from "./prompts.js";
+export * from "./persona.js";
 export * from "./tools.js";
 export * from "./agent.js";
