@@ -323,25 +323,18 @@ img.only-light { display: none; }
 .orb::after {
   content: ""; position: absolute; inset: -22%;
   border-radius: 50%;
-  background: radial-gradient(circle, color-mix(in srgb, var(--brand) 55%, transparent) 0%, transparent 68%);
-  opacity: calc(var(--glow) * 0.85);
-  filter: blur(18px);
+  background: radial-gradient(circle, color-mix(in srgb, var(--brand) 45%, transparent) 0%, transparent 66%);
+  opacity: calc(var(--glow) * 0.5);
+  filter: blur(26px);
   transition: opacity 0.12s linear;
   pointer-events: none;
 }
-.orb-svg { position: relative; width: 100%; height: 100%; overflow: visible; }
-.orb-gauge-track { stroke: var(--brand); stroke-opacity: 0.12; }
-.orb-gauge { stroke: var(--brand); stroke-opacity: 0.75; }
-.orb-arc {
-  stroke: var(--brand);
-  filter: drop-shadow(0 0 calc(6px + var(--glow) * 16px) color-mix(in srgb, var(--brand) 70%, transparent));
+.orb-canvas {
+  position: relative; display: block; width: 100%; height: 100%;
+  filter:
+    drop-shadow(0 0 calc(3px + var(--glow) * 7px) color-mix(in srgb, var(--brand) 85%, transparent))
+    drop-shadow(0 0 calc(10px + var(--glow) * 22px) color-mix(in srgb, var(--brand) 45%, transparent));
 }
-.orb-stem { fill: var(--brand); }
-.orb-halo circle {
-  fill: none; stroke: var(--brand); stroke-width: 2;
-  stroke-opacity: calc(var(--glow) * 0.22);
-}
-.orb[data-state="listening"] .orb-halo circle { stroke-opacity: calc(0.1 + var(--level) * 0.3); }
 
 .orb-hint { color: var(--muted); font-size: 13.5px; margin: 0; text-align: center; }
 #assistant.has-chat .orb-hint { display: none; }

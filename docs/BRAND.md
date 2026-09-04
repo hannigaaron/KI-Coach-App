@@ -124,6 +124,10 @@ In der App laeuft die Oberflaeche in der Systemschrift, damit sie sich nativ
 anfuehlt und ohne Nachladen startet. Poppins steckt nur im Logo, und dort als
 Pfad. Es wird keine Schrift von einem fremden Server geladen.
 
+Der Kreis auf dem Startbildschirm der App ist dasselbe d, aufgeloest in
+Partikel. Er behaelt Radius, Strichstaerke und den offenen Bogen bei 300 Grad.
+Die Marke bleibt erkennbar, auch wenn sie sich bewegt.
+
 Der Kalorienring in der App nutzt dieselbe Form wie der Ring im Logo: gleiche
 runde Enden, gleiche Markenfarbe. Er behaelt eine Spur, weil er den Abstand
 zum Tagesziel zeigen muss. Das Logo braucht diese Aussage nicht.
