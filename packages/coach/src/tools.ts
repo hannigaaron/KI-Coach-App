@@ -92,6 +92,38 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: "foto_als_mahlzeit_erfassen",
+    description:
+      "Wertet das Bild aus, das der Nutzer gerade mitgeschickt hat, als Mahlzeit aus und trägt sie ein. " +
+      "Schätzt Mengen anhand von Bezugsgrössen im Bild und rechnet die Nährwerte aus. " +
+      "Nur nehmen, wenn wirklich ein Bild mitgeschickt wurde und darauf Essen zu sehen ist. " +
+      "Nicht nehmen für einen Kühlschrank oder einen Einkauf, dafür gibt es foto_als_vorrat_lesen.",
+    input_schema: {
+      type: "object",
+      properties: {
+        hinweis: {
+          type: "string",
+          description:
+            "Was der Nutzer selbst dazu gesagt hat, etwa eine Menge oder eine Zutat, die man nicht sieht. " +
+            "Hilft beim Schätzen. Leer lassen, wenn er nichts gesagt hat.",
+        },
+      },
+    },
+  },
+  {
+    name: "foto_als_vorrat_lesen",
+    description:
+      "Liest aus dem mitgeschickten Bild eines Kühlschranks, Vorrats oder Einkaufs die Lebensmittel " +
+      "und speichert sie als Vorrat. Danach kann mahlzeit_vorschlagen damit arbeiten. " +
+      "Nur nehmen, wenn wirklich ein Bild mitgeschickt wurde.",
+    input_schema: {
+      type: "object",
+      properties: {
+        hinweis: { type: "string", description: "Was der Nutzer dazu gesagt hat. Leer lassen, wenn nichts." },
+      },
+    },
+  },
+  {
     name: "verlauf_abrufen",
     description:
       "Liefert den Verlauf über mehrere Wochen: Gewichtstrend in kg je Woche, durchschnittliche Aufnahme, " +

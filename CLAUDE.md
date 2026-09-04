@@ -59,7 +59,7 @@ Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
 
-Der Assistent hat siebzehn Werkzeuge und verändert die App wirklich. Zahlen
+Der Assistent hat neunzehn Werkzeuge und verändert die App wirklich. Zahlen
 über den Nutzer kommen immer aus Werkzeugen, nie aus dem Modell. Allgemeines
 Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
@@ -115,7 +115,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 149 Tests
+npm test           # 161 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -129,7 +129,12 @@ veröffentlicht. Adresse: https://hannigaaron.github.io/KI-Coach-App/
 
 ## Aktueller Stand
 
-Fertig: Rechenkern, Gedächtnis, Assistent mit Werkzeugen und Sprache,
+Fotos, Videos und PDFs gehen in den Chat. Die Aufbereitung steht in
+`apps/pwa/js/media.js`, die Auswertung in `packages/coach/src/vision.ts`.
+Mengen aus Bildern werden an Bezugsgrössen geschätzt, und die Nährwerte laufen
+durch dieselbe Prüfung wie bei der Texteingabe.
+
+Fertig: Rechenkern, Gedächtnis, Assistent mit Werkzeugen, Sprache und Bildern,
 Anamnesebogen beim ersten Start, Einkaufsliste, Mindeststandards,
 Gewichtsverlauf mit Zielkorrektur, Tag und Nacht Modus, installierbare Web App,
 Marke, API.

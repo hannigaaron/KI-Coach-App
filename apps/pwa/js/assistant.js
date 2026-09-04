@@ -1,4 +1,4 @@
-import { Agent, AnthropicProvider, Coach, buildShoppingList } from "@daevo/coach";
+import { Agent, AnthropicProvider, Coach, buildShoppingList, mahlzeitAusFoto, vorratAusFoto } from "@daevo/coach";
 import {
   buildDailyReminders,
   currentStreak,
@@ -387,9 +387,11 @@ export function einkaufslisteText(liste) {
 
 /* ---------- Was der Assistent tun darf ---------- */
 
-export function buildActions({ onChange } = {}) {
+export function buildActions({ onChange, anhaenge = [] } = {}) {
   const changed = () => onChange?.();
-  const coach = new Coach(provider());
+  const anbieter = provider();
+  const coach = new Coach(anbieter);
+  const bilder = anhaenge.filter((a) => a.mediaType && a.data && !a.fehler);
 
   return {
     async mahlzeitErfassen(beschreibung) {
@@ -475,6 +477,59 @@ export function buildActions({ onChange } = {}) {
       const hits = brain.search(frage, 6);
       if (hits.length === 0) return "Dazu habe ich nichts notiert.";
       return hits.map((h) => `- ${h.entry.text} (${h.entry.at.slice(0, 10)})`).join("\n");
+    },
+
+    async fotoAlsMahlzeit({ hinweis } = {}) {
+      if (bilder.length === 0) return "Zu dieser Nachricht ist kein Bild dabei.";
+      const ergebnis = await mahlzeitAusFoto(anbieter, bilder.slice(0, 3), hinweis || "");
+      if (ergebnis.entries.length === 0) {
+        return `Auf dem Bild sehe ich kein Essen. ${ergebnis.beschreibung}`;
+      }
+      const day = todayIso();
+      store.addMeal(day, {
+        id: newId(),
+        text: ergebnis.beschreibung || "Foto",
+        at: nowTime(),
+        source: "foto",
+        entries: ergebnis.entries,
+        feeling: null,
+        sicherheit: ergebnis.sicherheit,
+        annahme: ergebnis.annahme,
+      });
+      changed();
+      const kcal = Math.round(ergebnis.entries.reduce((s, e) => s + e.kcal, 0));
+      const protein = Math.round(ergebnis.entries.reduce((s, e) => s + e.proteinG, 0));
+      const posten = ergebnis.entries.map((e) => `${e.quantity} ${e.name}`).join(", ");
+      const n = dayNumbers();
+      const teile = [
+        `Erkannt: ${posten}.`,
+        `Zusammen ${kcal} kcal und ${protein} g Protein.`,
+        `Sicherheit der Mengenschätzung: ${ergebnis.sicherheit}.`,
+        ergebnis.annahme ? `Angenommen: ${ergebnis.annahme}` : "",
+        `Offen sind noch ${n.rest.kcal} kcal und ${Math.max(0, n.rest.proteinG)} g Protein.`,
+        ergebnis.warnings.length ? ergebnis.warnings.join(" ") : "",
+        ergebnis.rueckfrage,
+      ];
+      return teile.filter(Boolean).join(" ");
+    },
+
+    async fotoAlsVorrat({ hinweis } = {}) {
+      if (bilder.length === 0) return "Zu dieser Nachricht ist kein Bild dabei.";
+      const ergebnis = await vorratAusFoto(anbieter, bilder.slice(0, 3), hinweis || "");
+      if (ergebnis.zutaten.length === 0) {
+        return `Ich erkenne keine Lebensmittel. ${ergebnis.beschreibung}`;
+      }
+      // Zum Vorhandenen dazu, nicht ersetzen. Ein Foto zeigt selten alles.
+      const vorher = store.getFridge();
+      const bekannt = new Set(vorher.map((v) => v.toLowerCase()));
+      const neu = ergebnis.zutaten.filter((z) => !bekannt.has(z.toLowerCase()));
+      store.setFridge([...vorher, ...neu].slice(0, 60));
+      changed();
+      return [
+        `${ergebnis.zutaten.length} Lebensmittel erkannt, ${neu.length} davon neu: ${ergebnis.zutaten.join(", ")}.`,
+        ergebnis.unsicher.length ? `Unsicher bin ich bei: ${ergebnis.unsicher.join(", ")}.` : "",
+        `Im Vorrat stehen jetzt ${store.getFridge().length} Zutaten.`,
+      ].filter(Boolean).join(" ");
     },
 
     async einkaufslisteErstellen({ tage, meiden } = {}) {
@@ -627,7 +682,7 @@ export function buildActions({ onChange } = {}) {
 
 /* ---------- Gespräch ---------- */
 
-export async function ask(nachricht, { onChange } = {}) {
+export async function ask(nachricht, { onChange, anhaenge = [] } = {}) {
   const agent = new Agent(provider());
   const n = dayNumbers();
   const now = new Date();
@@ -642,11 +697,21 @@ export async function ask(nachricht, { onChange } = {}) {
       zeit: `${WEEKDAYS[now.getDay()]}, ${now.getDate()}. ${now.toLocaleString("de-DE", { month: "long" })} ${now.getFullYear()}, ${nowTime()} Uhr.`,
       eigeneAnweisungen: store.getSettings().anweisungen || "",
     },
-    aktionen: buildActions({ onChange }),
+    aktionen: buildActions({ onChange, anhaenge }),
+    anhaenge: anhaenge.filter((a) => a.mediaType && a.data && !a.fehler)
+      .map((a) => ({ mediaType: a.mediaType, data: a.data, name: a.name })),
   });
 
   const chat = store.getChat();
-  chat.push({ role: "user", text: nachricht, at: new Date().toISOString() });
+  chat.push({
+    role: "user",
+    text: nachricht,
+    at: new Date().toISOString(),
+    // Nur das Vorschaubild wandert in den Verlauf. Ganze Bilder waeren nach
+    // wenigen Fotos am Limit des localStorage von rund fuenf Megabyte.
+    bilder: anhaenge.filter((a) => a.vorschau).map((a) => a.vorschau).slice(0, 4),
+    dateien: anhaenge.filter((a) => !a.vorschau && !a.fehler).map((a) => a.name).slice(0, 4),
+  });
   chat.push({ role: "assistant", text: reply.text, at: new Date().toISOString(), ausgeführt: reply.ausgeführt });
   store.setChat(chat);
   return reply;

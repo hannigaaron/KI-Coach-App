@@ -1,6 +1,6 @@
 import { AGENT_TOOLS } from "./tools.js";
 import { systemPrompt, type Modus } from "./persona.js";
-import type { ChatMessage, CoachProvider, ContentBlock } from "./provider.js";
+import { anhangBlock, type Anhang, type ChatMessage, type CoachProvider, type ContentBlock } from "./provider.js";
 
 /**
  * Der Assistent.
@@ -50,6 +50,8 @@ export interface AgentActions {
     ziel?: string; gewichtKg?: number; schritte?: number;
     aufstehen?: string; schlafen?: string; verbrauch?: number;
   }): Promise<string>;
+  fotoAlsMahlzeit(input: { hinweis?: string }): Promise<string>;
+  fotoAlsVorrat(input: { hinweis?: string }): Promise<string>;
 }
 
 export interface AgentReply {
@@ -82,20 +84,22 @@ export class Agent {
     verlauf: ChatMessage[];
     kontext: AgentContext;
     aktionen: AgentActions;
+    /** Bilder oder PDFs, die der Nutzer zu dieser Nachricht mitschickt. */
+    anhaenge?: Anhang[];
   }): Promise<AgentReply> {
     if (this.provider.available) {
       try {
         return await this.runModel(params);
       } catch (error) {
         if (isDebug()) console.error("Agent Modellfehler", error);
-        const offline = await runOffline(params.nachricht, params.aktionen);
+        const offline = await runOffline(params.nachricht, params.aktionen, Boolean(params.anhaenge?.length));
         return {
           ...offline,
           text: `${offline.text}\n\n(Der Coach ist gerade nicht erreichbar, ich habe es regelbasiert erledigt.)`,
         };
       }
     }
-    return runOffline(params.nachricht, params.aktionen);
+    return runOffline(params.nachricht, params.aktionen, Boolean(params.anhaenge?.length));
   }
 
   private async runModel(params: {
@@ -103,8 +107,9 @@ export class Agent {
     verlauf: ChatMessage[];
     kontext: AgentContext;
     aktionen: AgentActions;
+    anhaenge?: Anhang[];
   }): Promise<AgentReply> {
-    const tiefe = denktiefe(params.nachricht);
+    const tiefe = denktiefe(params.nachricht, Boolean(params.anhaenge?.length));
     const system = systemPrompt({
       modus: tiefe.modus,
       zeit: params.kontext.zeit,
@@ -114,7 +119,13 @@ export class Agent {
       eigeneAnweisungen: params.kontext.eigeneAnweisungen,
     });
 
-    const messages: ChatMessage[] = [...params.verlauf, { role: "user", content: params.nachricht }];
+    // Anhänge stehen vor dem Text. Sonst liest das Modell die Frage, bevor es
+    // das Bild kennt, und fängt an zu raten.
+    const anhaenge = params.anhaenge ?? [];
+    const inhalt: string | ContentBlock[] = anhaenge.length
+      ? [...anhaenge.map(anhangBlock), { type: "text" as const, text: params.nachricht || "Schau dir das an." }]
+      : params.nachricht;
+    const messages: ChatMessage[] = [...params.verlauf, { role: "user", content: inhalt }];
     const ausgeführt: string[] = [];
 
     for (let step = 0; step < MAX_STEPS; step++) {
@@ -165,7 +176,7 @@ export class Agent {
  * und Stress. Wer beides gleich behandelt, macht entweder das eine langsam
  * oder das andere dumm.
  */
-export function denktiefe(nachricht: string): {
+export function denktiefe(nachricht: string, mitAnhang = false): {
   effort: "low" | "medium" | "high";
   maxTokens: number;
   modus: Modus;
@@ -224,6 +235,10 @@ export function denktiefe(nachricht: string): {
   ).test(text) || text.includes("?");
 
   if (psyche) return { effort: "high", maxTokens: 4096, modus: "psyche" };
+
+  // Ein Bild auszuwerten heisst Mengen schätzen. Das ist der Teil, bei dem
+  // schnelles Raten am meisten kostet, deshalb nie auf der niedrigsten Stufe.
+  if (mitAnhang && !planung) return { effort: "high", maxTokens: 3072, modus: "coaching" };
   if (planung && (fragt || woerter > 8)) return { effort: "high", maxTokens: 4096, modus: "planung" };
   if (fachlich && (fragt || woerter > 8)) return { effort: "high", maxTokens: 4096, modus: "coaching" };
 
@@ -323,6 +338,18 @@ async function execute(
           verbrauch: Number.isFinite(Number(input.verbrauch)) ? Number(input.verbrauch) : undefined,
         });
         return { text, notiz: "Profil geändert" };
+      }
+      case "foto_als_mahlzeit_erfassen": {
+        const text = await actions.fotoAlsMahlzeit({
+          hinweis: typeof input.hinweis === "string" ? input.hinweis : undefined,
+        });
+        return { text, notiz: "Foto ausgewertet und eingetragen" };
+      }
+      case "foto_als_vorrat_lesen": {
+        const text = await actions.fotoAlsVorrat({
+          hinweis: typeof input.hinweis === "string" ? input.hinweis : undefined,
+        });
+        return { text, notiz: "Vorrat aus dem Foto übernommen" };
       }
       case "einkaufsliste_erstellen": {
         const text = await actions.einkaufslisteErstellen({
@@ -433,9 +460,26 @@ function parseAmount(raw: string | undefined): number | null {
  * Er erkennt Absichten an Schlüsselwörtern. Das ist grob, aber es deckt die
  * Fälle ab, die im Alltag zählen, und es sagt ehrlich, wenn es nicht reicht.
  */
-export async function runOffline(nachricht: string, actions: AgentActions): Promise<AgentReply> {
+export async function runOffline(
+  nachricht: string,
+  actions: AgentActions,
+  mitAnhang = false,
+): Promise<AgentReply> {
   const text = foldUmlauts(nachricht.toLowerCase());
   const ausgeführt: string[] = [];
+
+  // Ein Bild ohne Modell auszuwerten geht nicht. Das ehrlich sagen, statt so
+  // zu tun, als hätte man es gesehen.
+  if (mitAnhang) {
+    return {
+      text:
+        "Das Bild kann ich ohne KI Schlüssel nicht ansehen. Bilder auswerten geht nur mit Modell. " +
+        "Trag deinen Schlüssel im Menue unter Profil ein, dann lese ich Teller und Kühlschrank. " +
+        "Bis dahin: schreib mir, was drauf ist, dann rechne ich es aus.",
+      ausgeführt,
+      source: "offline",
+    };
+  }
 
   if (pattern("merk dir", "merke dir", "denk dran", "nicht vergessen", "behalte").test(text)) {
     const inhalt = nachricht.replace(/^.*?(merk dir|merke dir|denk dran|nicht vergessen|behalte)\s*,?\s*/i, "");

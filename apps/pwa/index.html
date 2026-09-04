@@ -82,13 +82,29 @@ try {
       <button data-say="Ich habe gerade 500 ml Wasser getrunken">500 ml Wasser</button>
       <button data-say="Ich bin heute ziemlich müde und habe schlecht geschlafen">Wie es mir geht</button>
       <button data-say="Mach mir eine Einkaufsliste für sieben Tage">Einkaufsliste</button>
+      <button data-chip-foto>Teller fotografieren</button>
     </div>
+
+    <!-- Was gleich mitgeschickt wird. Leer und ausgeblendet, solange nichts anhängt. -->
+    <div id="anhangLeiste" class="anhang-leiste" hidden></div>
 
     <form id="composer" class="composer-bar">
       <button type="button" id="btnMic" class="icon-btn mic" aria-label="Diktieren"><span class="mic-dot"></span></button>
+      <button type="button" id="btnAnhang" class="icon-btn clip" aria-label="Foto oder Datei anhängen"><span class="clip-icon"></span></button>
       <input id="chatInput" type="text" placeholder="Schreib oder sprich mit daevo" autocomplete="off" enterkeyhint="send">
       <button type="submit" id="btnSend" class="icon-btn send" aria-label="Senden"><span class="arrow"></span></button>
     </form>
+
+    <!-- Zwei Eingaben: eine öffnet die Kamera, eine die Mediathek. Ohne capture
+         zeigt iOS beides zur Auswahl, mit capture geht die Kamera direkt auf. -->
+    <input id="dateiWahl" type="file" accept="image/*,video/*,application/pdf" multiple hidden>
+    <input id="kameraWahl" type="file" accept="image/*" capture="environment" hidden>
+
+    <div id="anhangMenue" class="anhang-menue" hidden>
+      <button type="button" data-anhang="kamera">Foto aufnehmen</button>
+      <button type="button" data-anhang="datei">Aus der Mediathek</button>
+      <button type="button" data-anhang="abbrechen" class="ghost">Abbrechen</button>
+    </div>
   </section>
 
   <!-- Bereiche -->

@@ -6,6 +6,7 @@ import {
 } from "./assistant.js";
 import { brain } from "./brain.js";
 import { Orb } from "./orb.js";
+import { anhangAusDatei, grossInKb } from "./media.js";
 import { Listener, speak, stopSpeaking, voiceSupport } from "./voice.js";
 import { SetupFlow } from "./setup-ui.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
@@ -26,6 +27,8 @@ let orb = null;
 let listener = null;
 let busy = false;
 let options = { speak: true, handsFree: false };
+/** Was bei der nächsten Nachricht mitgeschickt wird. */
+let anhaenge = [];
 
 /* ---------- Startbildschirm ---------- */
 
@@ -72,6 +75,89 @@ function setStatus(text) {
   $("assistantStatus").textContent = text;
 }
 
+/* ---------- Anhänge ---------- */
+
+/** Höchstens vier Anhänge je Nachricht. Mehr Bilder machen die Antwort nicht besser. */
+const MAX_ANHAENGE = 4;
+
+function renderAnhaenge() {
+  const el = $("anhangLeiste");
+  el.hidden = anhaenge.length === 0;
+  el.innerHTML = anhaenge.map((a) => {
+    const inhalt = a.vorschau
+      ? `<img src="${a.vorschau}" alt="${escapeHtml(a.name)}">`
+      : `<span class="anhang-typ">${escapeHtml(a.fehler ? "Fehler" : a.art === "pdf" ? "PDF" : a.art)}</span>`;
+    const klassen = ["anhang", a.laedt ? "laedt" : "", a.fehler ? "fehler" : ""].filter(Boolean).join(" ");
+    return `<div class="${klassen}" title="${escapeHtml(a.fehler || a.name)}">${inhalt}` +
+      `<button class="anhang-weg" data-anhang-weg="${a.id}" aria-label="Anhang entfernen">×</button></div>`;
+  }).join("");
+  $("btnAnhang").setAttribute("aria-pressed", String(anhaenge.length > 0));
+}
+
+async function dateienAufnehmen(dateien) {
+  const platz = MAX_ANHAENGE - anhaenge.length;
+  if (platz <= 0) { toast(`Mehr als ${MAX_ANHAENGE} Anhänge gehen nicht.`); return; }
+  const auswahl = [...dateien].slice(0, platz);
+  if (dateien.length > platz) toast(`Ich nehme ${platz} davon, mehr passt nicht.`);
+
+  // Platzhalter sofort zeigen. Ein Video zu verkleinern dauert ein paar
+  // Sekunden, und ohne Rückmeldung tippt der Nutzer in der Zeit weiter.
+  const platzhalter = auswahl.map((datei) => ({
+    id: `laedt-${Math.random().toString(36).slice(2, 8)}`,
+    name: datei.name || "Anhang",
+    art: (datei.type || "").startsWith("video/") ? "video" : "bild",
+    laedt: true,
+  }));
+  anhaenge = [...anhaenge, ...platzhalter];
+  renderAnhaenge();
+
+  for (const [i, datei] of auswahl.entries()) {
+    const fertig = await anhangAusDatei(datei);
+    const stelle = anhaenge.findIndex((a) => a.id === platzhalter[i].id);
+    if (stelle !== -1) anhaenge[stelle] = fertig;
+    renderAnhaenge();
+    if (fertig.fehler) toast(fertig.fehler, 4200);
+    else if (fertig.hinweis) toast(fertig.hinweis, 4200);
+  }
+}
+
+$("btnAnhang").addEventListener("click", (event) => {
+  event.stopPropagation();
+  $("anhangMenue").hidden = !$("anhangMenue").hidden;
+});
+// Tippen ausserhalb schliesst das Menue. Ohne das bleibt es stehen und
+// verdeckt den Verlauf, bis jemand Abbrechen findet.
+document.addEventListener("click", (event) => {
+  if ($("anhangMenue").hidden) return;
+  if (event.target.closest("#anhangMenue") || event.target.closest("#btnAnhang")) return;
+  $("anhangMenue").hidden = true;
+});
+$("chatInput").addEventListener("focus", () => { $("anhangMenue").hidden = true; });
+$("anhangMenue").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-anhang]");
+  if (!button) return;
+  $("anhangMenue").hidden = true;
+  if (button.dataset.anhang === "kamera") $("kameraWahl").click();
+  if (button.dataset.anhang === "datei") $("dateiWahl").click();
+});
+for (const id of ["dateiWahl", "kameraWahl"]) {
+  $(id).addEventListener("change", async (event) => {
+    const dateien = event.target.files;
+    if (dateien?.length) await dateienAufnehmen(dateien);
+    // Zurücksetzen, sonst löst dieselbe Datei beim zweiten Mal kein change aus.
+    event.target.value = "";
+  });
+}
+$("anhangLeiste").addEventListener("click", (event) => {
+  const weg = event.target.closest("[data-anhang-weg]");
+  if (!weg) return;
+  anhaenge = anhaenge.filter((a) => a.id !== weg.dataset.anhangWeg);
+  renderAnhaenge();
+});
+$("chips").addEventListener("click", (event) => {
+  if (event.target.closest("[data-chip-foto]")) $("kameraWahl").click();
+});
+
 /* ---------- Assistent ---------- */
 
 function renderTranscript() {
@@ -81,7 +167,13 @@ function renderTranscript() {
     .slice(-40)
     .map((m) => {
       const done = m.ausgeführt?.length ? `<span class="msg-done">${escapeHtml(m.ausgeführt.join(" und "))}</span>` : "";
-      return `<div class="msg ${m.role === "user" ? "user" : "assistant"}">${escapeHtml(m.text)}${done}</div>`;
+      const bilder = m.bilder?.length
+        ? `<div class="msg-bilder">${m.bilder.map((b) => `<img src="${b}" alt="Mitgeschicktes Bild">`).join("")}</div>`
+        : "";
+      const dateien = m.dateien?.length
+        ? `<div class="msg-dateien">${escapeHtml(m.dateien.join(", "))}</div>`
+        : "";
+      return `<div class="msg ${m.role === "user" ? "user" : "assistant"}">${bilder}${dateien}${escapeHtml(m.text)}${done}</div>`;
     })
     .join("");
   // Erst wenn der Nutzer selbst etwas gesagt hat, schrumpft der Kreis. Die
@@ -90,11 +182,22 @@ function renderTranscript() {
   el.scrollTop = el.scrollHeight;
 }
 
-function appendBubble(role, text) {
+function appendBubble(role, text, bilder = []) {
   const el = $("transcript");
   const node = document.createElement("div");
   node.className = `msg ${role}`;
-  node.textContent = text;
+  if (bilder.length) {
+    const reihe = document.createElement("div");
+    reihe.className = "msg-bilder";
+    for (const quelle of bilder) {
+      const bild = document.createElement("img");
+      bild.src = quelle;
+      bild.alt = "Mitgeschicktes Bild";
+      reihe.appendChild(bild);
+    }
+    node.appendChild(reihe);
+  }
+  node.appendChild(document.createTextNode(text));
   el.appendChild(node);
   el.scrollTop = el.scrollHeight;
   return node;
@@ -112,21 +215,29 @@ function appendPending(text) {
 
 async function send(text) {
   const nachricht = text.trim();
-  if (!nachricht || busy) return;
+  const mit = anhaenge.filter((a) => !a.fehler && !a.laedt);
+  if ((!nachricht && mit.length === 0) || busy) return;
+  if (anhaenge.some((a) => a.laedt)) { toast("Ein Anhang wird noch verarbeitet."); return; }
   busy = true;
   stopSpeaking();
   $("chatInput").value = "";
 
+  // Ohne Text, aber mit Bild: der Coach soll trotzdem etwas zum Anfassen haben.
+  const frage = nachricht || (mit.length ? "Schau dir das an." : "");
+
   // Die Nachricht wird nur angezeigt, gespeichert wird sie in ask(). Sonst
   // landet sie zweimal im Verlauf.
-  appendBubble("user", nachricht);
+  appendBubble("user", frage, mit.map((a) => a.vorschau).filter(Boolean));
+  const gesendet = mit;
+  anhaenge = [];
+  renderAnhaenge();
   $("assistant").classList.add("has-chat");
-  const pending = appendPending("denkt nach");
+  const pending = appendPending(gesendet.length ? "schaut sich das Bild an" : "denkt nach");
   orb.setState("thinking");
   setStatus("denkt nach");
 
   try {
-    const reply = await ask(nachricht, { onChange: refreshAll });
+    const reply = await ask(frage, { onChange: refreshAll, anhaenge: gesendet });
     pending.remove();
     renderTranscript();
     refreshAll();
