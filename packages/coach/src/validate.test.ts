@@ -4,7 +4,7 @@ import { validateEntries } from "./validate.js";
 
 test("korrigiert falsch gerechnete Kalorien", () => {
   const result = validateEntries([
-    { name: "Haehnchenbrust", quantity: "200 g", kcal: 500, proteinG: 46, fatG: 5.2, carbsG: 0 },
+    { name: "Hähnchenbrust", quantity: "200 g", kcal: 500, proteinG: 46, fatG: 5.2, carbsG: 0 },
   ]);
   assert.equal(result.entries[0]!.kcal, 231);
   assert.equal(result.warnings.length, 1);
@@ -25,7 +25,7 @@ test("negative und fehlende Werte werden auf null gesetzt", () => {
   assert.equal(result.entries[0]!.kcal, 40);
 });
 
-test("Eintraege ohne Namen werden verworfen", () => {
+test("Einträge ohne Namen werden verworfen", () => {
   assert.equal(validateEntries([{ quantity: "200 g", kcal: 100 }]).entries.length, 0);
 });
 

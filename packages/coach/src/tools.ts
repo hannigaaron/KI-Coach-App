@@ -1,26 +1,26 @@
 import type { ToolDefinition } from "./provider.js";
 
 /**
- * Die Werkzeuge, die der Assistent im Gespraech benutzen darf.
+ * Die Werkzeuge, die der Assistent im Gespräch benutzen darf.
  *
- * Sie sind bewusst eng geschnitten. Der Assistent soll Dinge tun koennen,
- * nicht ueber Dinge reden, die er tun koennte. Jede Beschreibung sagt auch,
+ * Sie sind bewusst eng geschnitten. Der Assistent soll Dinge tun können,
+ * nicht über Dinge reden, die er tun könnte. Jede Beschreibung sagt auch,
  * wann das Werkzeug NICHT zu nehmen ist, weil Modelle sonst zu Werkzeugen
- * greifen, wo eine Antwort genuegt.
+ * greifen, wo eine Antwort genügt.
  */
 export const AGENT_TOOLS: ToolDefinition[] = [
   {
     name: "mahlzeit_erfassen",
     description:
-      "Traegt eine gegessene Mahlzeit ein und rechnet Kalorien und Makros aus. " +
+      "Trägt eine gegessene Mahlzeit ein und rechnet Kalorien und Makros aus. " +
       "Nur nehmen, wenn der Nutzer sagt, dass er etwas gegessen oder getrunken hat, das Kalorien liefert. " +
-      "Nicht nehmen fuer Plaene oder Fragen wie was soll ich essen.",
+      "Nicht nehmen für Pläne oder Fragen wie was soll ich essen.",
     input_schema: {
       type: "object",
       properties: {
         beschreibung: {
           type: "string",
-          description: "Was gegessen wurde, so woertlich wie moeglich, inklusive Mengen.",
+          description: "Was gegessen wurde, so wörtlich wie möglich, inklusive Mengen.",
         },
       },
       required: ["beschreibung"],
@@ -28,7 +28,7 @@ export const AGENT_TOOLS: ToolDefinition[] = [
   },
   {
     name: "wasser_eintragen",
-    description: "Traegt getrunkenes Wasser in Millilitern ein. Ein Glas sind 250 ml, eine Flasche 500 ml.",
+    description: "Trägt getrunkenes Wasser in Millilitern ein. Ein Glas sind 250 ml, eine Flasche 500 ml.",
     input_schema: {
       type: "object",
       properties: { ml: { type: "number", description: "Menge in Millilitern, 1 bis 5000." } },
@@ -39,7 +39,7 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     name: "tagesstand_abrufen",
     description:
       "Liefert die Zahlen von heute: Kalorien, Makros, Wasser, Restbudget, Trainingseinheiten. " +
-      "Vor jeder Aussage ueber Zahlen aufrufen. Nie Zahlen schaetzen.",
+      "Vor jeder Aussage über Zahlen aufrufen. Nie Zahlen schätzen.",
     input_schema: { type: "object", properties: {} },
   },
   {
@@ -57,8 +57,8 @@ export const AGENT_TOOLS: ToolDefinition[] = [
   {
     name: "checkin_speichern",
     description:
-      "Haelt Befinden fest: Energie, Schlafqualitaet, Stimmung, freie Notiz. " +
-      "Nehmen, wenn der Nutzer erzaehlt, wie es ihm geht oder wie er geschlafen hat.",
+      "Hält Befinden fest: Energie, Schlafqualität, Stimmung, freie Notiz. " +
+      "Nehmen, wenn der Nutzer erzählt, wie es ihm geht oder wie er geschlafen hat.",
     input_schema: {
       type: "object",
       properties: {
@@ -73,9 +73,9 @@ export const AGENT_TOOLS: ToolDefinition[] = [
   {
     name: "merken",
     description:
-      "Legt etwas dauerhaft im Gedaechtnis ab. Nehmen fuer alles, was auch in vier Wochen noch gilt: " +
-      "Unvertraeglichkeiten, Vorlieben, Ziele, Verletzungen, Lebensumstaende, wiederkehrende Muster. " +
-      "Nicht nehmen fuer den heutigen Tagesablauf, dafuer gibt es die anderen Werkzeuge.",
+      "Legt etwas dauerhaft im Gedächtnis ab. Nehmen für alles, was auch in vier Wochen noch gilt: " +
+      "Unverträglichkeiten, Vorlieben, Ziele, Verletzungen, Lebensumstände, wiederkehrende Muster. " +
+      "Nicht nehmen für den heutigen Tagesablauf, dafür gibt es die anderen Werkzeuge.",
     input_schema: {
       type: "object",
       properties: {
@@ -85,7 +85,7 @@ export const AGENT_TOOLS: ToolDefinition[] = [
           enum: ["fakt", "praeferenz", "ziel", "ereignis", "reflexion", "hinweis"],
           description: "Kategorie der Notiz.",
         },
-        wichtigkeit: { type: "number", description: "1 bis 5. 5 nur fuer Dinge, die immer mitgedacht werden muessen." },
+        wichtigkeit: { type: "number", description: "1 bis 5. 5 nur für Dinge, die immer mitgedacht werden müssen." },
         schlagworte: { type: "array", items: { type: "string" }, description: "Wenige Stichworte zum Wiederfinden." },
       },
       required: ["text", "art", "wichtigkeit"],
@@ -94,8 +94,8 @@ export const AGENT_TOOLS: ToolDefinition[] = [
   {
     name: "gedaechtnis_durchsuchen",
     description:
-      "Sucht in fruehreren Notizen. Nehmen, wenn der Nutzer sich auf etwas Frueheres bezieht " +
-      "oder wenn eine Antwort von seiner Vorgeschichte abhaengt.",
+      "Sucht in frühreren Notizen. Nehmen, wenn der Nutzer sich auf etwas Früheres bezieht " +
+      "oder wenn eine Antwort von seiner Vorgeschichte abhängt.",
     input_schema: {
       type: "object",
       properties: { frage: { type: "string", description: "Wonach gesucht wird." } },

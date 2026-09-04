@@ -1,7 +1,7 @@
 """Erzeugt alle daevo Markendateien.
 
 Das d ist kein Schriftzeichen mehr, sondern gebaut: die Bowl ist ein
-Aktivitaetsring wie bei den Ringen der Apple Watch, der Stamm bleibt gerade.
+Aktivitätsring wie bei den Ringen der Apple Watch, der Stamm bleibt gerade.
 Alle Masse stammen aus Poppins SemiBold, damit das d exakt auf denselben
 Linien sitzt wie a, e, v und o. Die restlichen Buchstaben sind ausgeschriebene
 Pfade, deshalb braucht keine Datei eine installierte Schrift.
@@ -24,7 +24,7 @@ TRACKING = -1.6
 CLAIM = "Evolve your daily life"
 GAP = 28.0
 PAD = 6.0
-SWEEP = 300.0          # gefuellter Anteil des Rings, entspricht 83 Prozent
+SWEEP = 300.0          # gefüllter Anteil des Rings, entspricht 83 Prozent
 TRACK_OPACITY = 0.28
 SHOW_TRACK = False     # Hauptvariante ist der offene Ring ohne Spur
 
@@ -83,7 +83,7 @@ files = {
     "daevo-wordmark-white.svg":    svg(WORD_VB, 260, wordmark("#FFFFFF"), "daevo"),
 }
 
-# Die Bildmarke allein, fuer Favicon, Wasserzeichen und kleine Flaechen.
+# Die Bildmarke allein, für Favicon, Wasserzeichen und kleine Flächen.
 d_body, d_adv = parts(BRAND)
 D_VB = f"{-PAD} {ASC_TOP - PAD:.1f} {61.0 + 2 * PAD:.1f} {(0.9 - ASC_TOP) + 2 * PAD:.1f}"
 files["daevo-mark.svg"] = svg(D_VB, 120, f"<g>{d_body}</g>", "daevo")

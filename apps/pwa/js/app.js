@@ -8,12 +8,13 @@ import { ask, buildActions, dayNumbers, greeting, recommendations } from "./assi
 import { brain } from "./brain.js";
 import { Orb } from "./orb.js";
 import { Listener, speak, stopSpeaking, voiceSupport } from "./voice.js";
+import { SetupFlow } from "./setup-ui.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
 
 const $ = (id) => document.getElementById(id);
 const WEEKDAYS = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
-const TYPE_LABEL = { strength: "Kraft", team_sport: "Mannschaftssport", cardio: "Ausdauer", mobility: "Mobility" };
-const FEELINGS = ["voll da", "satt und gut", "muede", "aufgeblaeht", "noch hungrig"];
+const TYPE_LABEL = { strength: "Kraft", team_sport: "Mannschaftssport", cardio: "Ausdaür", mobility: "Mobility" };
+const FEELINGS = ["voll da", "satt und gut", "müde", "aufgebläht", "noch hungrig"];
 const KIND_LABEL = {
   fakt: "Fakt", praeferenz: "Vorliebe", ziel: "Ziel",
   ereignis: "Ereignis", reflexion: "Reflexion", hinweis: "Hinweis",
@@ -53,12 +54,12 @@ function renderTranscript() {
   el.innerHTML = chat
     .slice(-40)
     .map((m) => {
-      const done = m.ausgefuehrt?.length ? `<span class="msg-done">${escapeHtml(m.ausgefuehrt.join(" und "))}</span>` : "";
+      const done = m.ausgeführt?.length ? `<span class="msg-done">${escapeHtml(m.ausgeführt.join(" und "))}</span>` : "";
       return `<div class="msg ${m.role === "user" ? "user" : "assistant"}">${escapeHtml(m.text)}${done}</div>`;
     })
     .join("");
   // Erst wenn der Nutzer selbst etwas gesagt hat, schrumpft der Kreis. Die
-  // Begruessung allein zaehlt nicht, sonst sieht man den grossen Kreis nie.
+  // Begrüssung allein zählt nicht, sonst sieht man den großen Kreis nie.
   $("assistant").classList.toggle("has-chat", chat.some((m) => m.role === "user"));
   el.scrollTop = el.scrollHeight;
 }
@@ -154,7 +155,7 @@ function setupAssistant() {
     onLevel: (level) => orb.setLevel(level),
     onState: (state, detail) => {
       $("btnMic").setAttribute("aria-pressed", state === "listening" ? "true" : "false");
-      if (state === "listening") { orb.setState("listening"); setStatus("hoert zu"); }
+      if (state === "listening") { orb.setState("listening"); setStatus("hört zu"); }
       else if (state === "error") { toast(`Mikrofon: ${detail}`); orb.setState("idle"); setStatus("bereit"); }
       else if (!busy) { orb.setState("idle"); setStatus("bereit"); }
     },
@@ -232,7 +233,7 @@ function renderToday() {
         `<li><div class="li-main"><div class="li-title">${escapeHtml(r.title)}</div>` +
         `<div class="li-sub">${escapeHtml(r.body)}</div></div>` +
         `<div class="li-side"><b>${r.at}</b>${r.at < time ? "vorbei" : "geplant"}</div></li>`).join("")
-    : `<li><div class="li-main"><div class="li-sub">Fuer heute ist alles erledigt.</div></div></li>`;
+    : `<li><div class="li-main"><div class="li-sub">Für heute ist alles erledigt.</div></div></li>`;
 
   renderMeals("mealList");
 }
@@ -283,7 +284,7 @@ function renderMemories() {
         `<div class="li-title">${escapeHtml(e.text)}</div>` +
         `<div class="li-sub">${e.at.slice(0, 10)}, Wichtigkeit ${e.weight}${e.tags.length ? ", " + escapeHtml(e.tags.join(", ")) : ""}</div></div>` +
         `<div class="li-side"><button class="ghost" data-mem-del="${e.id}">Weg</button></div></li>`).join("")
-    : `<li><div class="li-main"><div class="li-sub">${query ? "Nichts gefunden." : "Noch nichts gemerkt. Erzaehl dem Assistenten etwas ueber dich."}</div></div></li>`;
+    : `<li><div class="li-main"><div class="li-sub">${query ? "Nichts gefunden." : "Noch nichts gemerkt. Erzähl dem Assistenten etwas über dich."}</div></div></li>`;
 }
 
 function renderRecommendations() {
@@ -309,10 +310,11 @@ function renderProfile() {
   const settings = store.getSettings();
   $("apiKey").value = settings.apiKey || "";
   $("modelSel").value = settings.model || "claude-opus-5";
+  $("themeSel").value = settings.theme || "system";
   $("optSpeak").checked = options.speak;
   $("optHandsFree").checked = options.handsFree;
   $("voiceNote").textContent = voiceSupport.erkennung
-    ? "Spracherkennung laeuft ueber den Browser. Auf dem iPhone nur in Safari."
+    ? "Spracherkennung läuft über den Browser. Auf dem iPhone nur in Safari."
     : "Dieser Browser kann keine Spracherkennung. Tippen geht trotzdem.";
   $("versionLine").textContent = `daevo 0.4.0, Stand ${todayIso()}. Testversion, kein Medizinprodukt.`;
   renderSessions();
@@ -334,22 +336,10 @@ function renderFeelings() {
 
 /* ---------- Onboarding ---------- */
 
-function readSetupProfile() {
-  return {
-    name: $("s-name").value.trim(),
-    sex: $("s-sex").value,
-    ageYears: Number($("s-age").value),
-    heightCm: Number($("s-height").value),
-    weightKg: Number($("s-weight").value),
-    goal: $("s-goal").value,
-    dailySteps: Number($("s-steps").value),
-    wakeTime: $("s-wake").value,
-    sleepTime: $("s-sleep").value,
-    tdeeOverrideKcal: null,
-    sessions: [],
-  };
-}
-
+/**
+ * Prueft die Werte, die spaeter in Formeln landen. Ohne diese Grenzen kann
+ * eine Zahl aus dem Profil den Grundumsatz unbrauchbar machen.
+ */
 function validProfile(c) {
   return (
     c.ageYears >= 14 && c.ageYears <= 100 &&
@@ -358,6 +348,23 @@ function validProfile(c) {
     c.dailySteps >= 0 && c.dailySteps <= 60000 &&
     /^\d{2}:\d{2}$/.test(c.wakeTime) && /^\d{2}:\d{2}$/.test(c.sleepTime)
   );
+}
+
+/** Uebernimmt das Ergebnis des Anamnesebogens und startet die App. */
+function anamneseFertig(ergebnis) {
+  if (!validProfile(ergebnis.profile)) { toast("Bitte pruefe deine Angaben."); return; }
+  profile = ergebnis.profile;
+  store.setProfile(profile);
+  // Der Bogen ist die erste Erinnerung des Assistenten. Alles daraus geht ins
+  // Gedaechtnis, damit er ab dem ersten Satz weiss, mit wem er redet.
+  for (const notiz of ergebnis.notizen) {
+    brain.add({ text: notiz.text, art: notiz.art, wichtigkeit: notiz.wichtigkeit, schlagworte: notiz.schlagworte });
+  }
+  brain.add({
+    text: `Trainingsvorschlag zum Start: ${ergebnis.kraft.titel}.`,
+    art: "hinweis", wichtigkeit: 3, schlagworte: ["training"],
+  });
+  startApp();
 }
 
 function startApp() {
@@ -371,19 +378,6 @@ function startApp() {
 }
 
 /* ---------- Ereignisse ---------- */
-
-$("s-save").addEventListener("click", () => {
-  const candidate = readSetupProfile();
-  if (!validProfile(candidate)) { toast("Bitte pruefe deine Angaben."); return; }
-  profile = candidate;
-  store.setProfile(profile);
-  if (profile.name) brain.add({ text: `Heisst ${profile.name}.`, art: "fakt", wichtigkeit: 5 });
-  brain.add({
-    text: `Ziel ist ${{ fat_loss: "Fett verlieren", maintain: "Gewicht halten", lean_bulk: "Muskeln aufbauen" }[profile.goal]}.`,
-    art: "ziel", wichtigkeit: 5,
-  });
-  startApp();
-});
 
 $("composer").addEventListener("submit", (event) => {
   event.preventDefault();
@@ -457,7 +451,7 @@ $("btnVoice").addEventListener("click", () => {
   if (!listener?.supported) { toast("Dieser Browser kann keine Spracherkennung."); return; }
   const einmal = new Listener({
     onPartial: (t) => { $("mealText").value = t; },
-    onFinal: (t) => { $("mealText").value = t; toast("Aufnahme uebernommen"); },
+    onFinal: (t) => { $("mealText").value = t; toast("Aufnahme übernommen"); },
   });
   einmal.start();
   toast("Sprich jetzt");
@@ -540,7 +534,7 @@ $("btnSaveProfile").addEventListener("click", () => {
     wakeTime: $("e-wake").value,
     sleepTime: $("e-sleep").value,
   };
-  if (!validProfile(candidate)) { toast("Bitte pruefe deine Angaben."); return; }
+  if (!validProfile(candidate)) { toast("Bitte prüfe deine Angaben."); return; }
   profile = candidate;
   store.setProfile(profile);
   renderProfile();
@@ -557,7 +551,7 @@ $("btnAddSession").addEventListener("click", () => {
   ].slice(0, 21);
   store.setProfile(profile);
   renderSessions();
-  toast("Einheit hinzugefuegt");
+  toast("Einheit hinzugefügt");
 });
 
 $("sessionList").addEventListener("click", (event) => {
@@ -572,7 +566,29 @@ $("btnSaveKey").addEventListener("click", () => {
   const key = $("apiKey").value.trim();
   const settings = store.getSettings();
   store.setSettings({ ...settings, apiKey: key, model: $("modelSel").value });
-  toast(key ? "Schluessel gespeichert. daevo denkt jetzt selbst." : "Schluessel entfernt. Regelbetrieb aktiv.");
+  toast(key ? "Schlüssel gespeichert. daevo denkt jetzt selbst." : "Schlüssel entfernt. Regelbetrieb aktiv.");
+});
+
+/* ---------- Tag und Nacht ---------- */
+
+/**
+ * "system" bedeutet: kein Attribut setzen, dann entscheidet
+ * prefers-color-scheme im Stylesheet. Nur eine ausdrueckliche Wahl stempelt
+ * data-theme an die Wurzel.
+ */
+function applyTheme(wahl) {
+  if (wahl === "light" || wahl === "dark") document.documentElement.dataset.theme = wahl;
+  else delete document.documentElement.dataset.theme;
+  orb?.refreshTheme();
+}
+
+// Auch ohne eigene Wahl muss der Kreis umschalten, wenn das Geraet wechselt.
+globalThis.matchMedia?.("(prefers-color-scheme: light)").addEventListener?.("change", () => orb?.refreshTheme());
+
+$("themeSel").addEventListener("change", (e) => {
+  const wahl = e.target.value;
+  applyTheme(wahl);
+  store.setSettings({ ...store.getSettings(), theme: wahl });
 });
 
 function saveOptions() {
@@ -601,7 +617,7 @@ $("btnExport").addEventListener("click", () => {
 });
 
 $("btnReset").addEventListener("click", () => {
-  if (!confirm("Wirklich alle Daten auf diesem Geraet loeschen? Das kann nicht rueckgaengig gemacht werden.")) return;
+  if (!confirm("Wirklich alle Daten auf diesem Gerät löschen? Das kann nicht rückgängig gemacht werden.")) return;
   store.clearAll();
   location.reload();
 });
@@ -613,7 +629,10 @@ document.addEventListener("visibilitychange", () => {
   refreshAll();
 });
 
+applyTheme(store.getSettings().theme || "system");
+
 if (profile) startApp();
+else new SetupFlow($("setupFlow"), { onFertig: anamneseFertig });
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {

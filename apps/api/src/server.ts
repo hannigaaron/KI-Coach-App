@@ -16,12 +16,12 @@ const notifier = new ConsoleNotifier();
 const server = createApp({ db, coach });
 
 server.listen(port, () => {
-  console.log(`API laeuft auf http://localhost:${port}`);
+  console.log(`API läuft auf http://localhost:${port}`);
   console.log(`Datenbank: ${databasePath}`);
   console.log(
     provider.available
       ? `Coach Modell: ${model}`
-      : "Kein ANTHROPIC_API_KEY gesetzt. Der Coach laeuft im Offline Modus mit der internen Referenztabelle.",
+      : "Kein ANTHROPIC_API_KEY gesetzt. Der Coach läuft im Offline Modus mit der internen Referenztabelle.",
   );
 });
 

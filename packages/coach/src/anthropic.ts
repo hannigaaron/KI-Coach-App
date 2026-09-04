@@ -17,9 +17,9 @@ export interface AnthropicOptions {
   timeoutMs?: number;
   /**
    * Setzt den Header anthropic-dangerous-direct-browser-access.
-   * Nur fuer Aufrufe direkt aus dem Browser noetig. Der Schluessel liegt dann
-   * im Geraet des Nutzers und ist dort einsehbar. Das ist fuer eigene Tests
-   * vertretbar, fuer eine oeffentliche App nicht.
+   * Nur für Aufrufe direkt aus dem Browser nötig. Der Schlüssel liegt dann
+   * im Gerät des Nutzers und ist dort einsehbar. Das ist für eigene Tests
+   * vertretbar, für eine öffentliche App nicht.
    */
   browserAccess?: boolean;
 }
@@ -27,8 +27,8 @@ export interface AnthropicOptions {
 /**
  * Anbindung an die Anthropic Messages API.
  *
- * Strukturierte Antworten werden ueber einen erzwungenen Tool Call geholt.
- * Das ist zuverlaessiger als freies JSON im Text, weil das Modell das
+ * Strukturierte Antworten werden über einen erzwungenen Tool Call geholt.
+ * Das ist zuverlässiger als freies JSON im Text, weil das Modell das
  * Eingabeschema des Tools einhalten muss.
  * Doku: https://docs.anthropic.com/en/api/messages
  */
@@ -74,10 +74,10 @@ export class AnthropicProvider implements CoachProvider {
   }
 
   /**
-   * Gespraech mit Werkzeugen.
+   * Gespräch mit Werkzeugen.
    *
-   * Kein Denkbudget gesetzt. Auf den aktuellen Modellen laeuft adaptives Denken
-   * ohnehin von selbst, gesteuert wird die Tiefe ueber effort. Fuer einen
+   * Kein Denkbudget gesetzt. Auf den aktuellen Modellen läuft adaptives Denken
+   * ohnehin von selbst, gesteuert wird die Tiefe über effort. Für einen
    * Assistenten, der schnell antworten soll, ist low die richtige Stufe.
    */
   async converse(request: ConverseRequest): Promise<ConverseResponse> {
@@ -119,7 +119,7 @@ export class AnthropicProvider implements CoachProvider {
           tools: [
             {
               name: request.schemaName,
-              description: "Gib das Ergebnis ausschliesslich ueber dieses Tool zurueck.",
+              description: "Gib das Ergebnis ausschließlich über dieses Tool zurück.",
               input_schema: request.schema,
             },
           ],
@@ -136,7 +136,7 @@ export class AnthropicProvider implements CoachProvider {
         content?: Array<{ type: string; name?: string; input?: unknown }>;
       };
       const toolUse = payload.content?.find((block) => block.type === "tool_use");
-      if (!toolUse?.input) throw new Error("Antwort enthaelt keinen Tool Call");
+      if (!toolUse?.input) throw new Error("Antwort enthält keinen Tool Call");
       return toolUse.input as T;
     } finally {
       clearTimeout(timeout);

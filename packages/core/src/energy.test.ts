@@ -32,10 +32,34 @@ test("BMR Frau liegt 166 kcal unter dem Mann bei gleichen Werten", () => {
   assert.equal(m - f, 166);
 });
 
-test("Aktivitaetsfaktor bleibt in der PAL Spanne", () => {
-  assert.equal(activityFactor({ dailySteps: 0, weeklyTrainingMinutes: 0 }), 1.2);
-  const high = activityFactor({ dailySteps: 30000, weeklyTrainingMinutes: 900 });
+test("Aktivitätsfaktor bleibt in der PAL Spanne", () => {
+  // Ohne Angaben gilt sitzende Arbeit und gemischte Freizeit, das ergibt den
+  // Freizeitaufschlag von 0.02 auf den Grundwert.
+  assert.equal(activityFactor({ dailySteps: 0, weeklyTrainingMinutes: 0, leisure: "ruhig" }), 1.2);
+  const high = activityFactor({ dailySteps: 30000, weeklyTrainingMinutes: 900, occupation: "koerperlich", leisure: "aktiv" });
   assert.ok(high <= 1.9 && high > 1.5, `unerwartet: ${high}`);
+});
+
+test("körperliche Arbeit hebt den Faktor, Sitzen nicht", () => {
+  const sitzend = activityFactor({ dailySteps: 8000, weeklyTrainingMinutes: 180, occupation: "sitzend", leisure: "ruhig" });
+  const koerperlich = activityFactor({ dailySteps: 8000, weeklyTrainingMinutes: 180, occupation: "koerperlich", leisure: "ruhig" });
+  assert.ok(koerperlich - sitzend > 0.09 && koerperlich - sitzend < 0.11);
+});
+
+test("Protein rechnet auf die fettfreie Masse, wenn der Körperfettanteil bekannt ist", () => {
+  const basis = { ...aaron, goal: "fat_loss" as const };
+  const ohne = macroTargets(basis).proteinG;
+  const mit = macroTargets({ ...basis, bodyFatPercent: 30 }).proteinG;
+  // 87 kg mal 1.8 sind 157 g. Bei 30 Prozent Fett bleiben 60.9 kg fettfreie
+  // Masse, mal 2.4 sind 146 g.
+  assert.equal(ohne, 157);
+  assert.equal(mit, 146);
+});
+
+test("unsinnige Körperfettwerte werden ignoriert", () => {
+  const ohne = macroTargets(aaron).proteinG;
+  assert.equal(macroTargets({ ...aaron, bodyFatPercent: 0 }).proteinG, ohne);
+  assert.equal(macroTargets({ ...aaron, bodyFatPercent: 95 }).proteinG, ohne);
 });
 
 test("Zielkalorien im Erhalt entsprechen dem TDEE", () => {
@@ -51,7 +75,7 @@ test("Defizit senkt die Zielkalorien um 18 Prozent", () => {
   assert.ok(Math.abs(e.goalAdjustmentKcal / e.tdeeKcal + 0.18) < 0.001);
 });
 
-test("Manueller TDEE Wert ueberschreibt die Schaetzung", () => {
+test("Manüller TDEE Wert überschreibt die Schätzung", () => {
   const e = energyBreakdown({ ...aaron, tdeeOverrideKcal: 3000 });
   assert.equal(e.tdeeKcal, 3000);
   assert.equal(e.targetKcal, 3000);

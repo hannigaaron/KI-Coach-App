@@ -1,14 +1,14 @@
 /**
- * Sprache: zuhoeren, antworten, Pegel messen.
+ * Sprache: zuhören, antworten, Pegel messen.
  *
- * Drei Dinge, die unabhaengig voneinander ausfallen koennen:
+ * Drei Dinge, die unabhängig voneinander ausfallen können:
  * 1. Spracherkennung. In Safari und Chrome vorhanden, in Firefox nicht.
- * 2. Sprachausgabe. Fast ueberall vorhanden, die Stimmen unterscheiden sich.
- * 3. Mikrofonpegel ueber die Web Audio API, nur fuer die Animation.
+ * 2. Sprachausgabe. Fast überall vorhanden, die Stimmen unterscheiden sich.
+ * 3. Mikrofonpegel über die Web Audio API, nur für die Animation.
  *
- * Punkt 3 laeuft parallel zu Punkt 1 auf dieselbe Aufnahme. Manche Browser
- * lassen das nicht zu. Deshalb faellt der Pegel bei einem Fehler auf eine
- * erzeugte Welle zurueck, damit der Kreis trotzdem lebt.
+ * Punkt 3 läuft parallel zu Punkt 1 auf dieselbe Aufnahme. Manche Browser
+ * lassen das nicht zu. Deshalb fällt der Pegel bei einem Fehler auf eine
+ * erzeugte Welle zurück, damit der Kreis trotzdem lebt.
  */
 
 const Recognition = globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition;
@@ -59,7 +59,7 @@ export class Listener {
       this.onPartial((letzter + interim).trim());
     };
     recognition.onerror = (event) => {
-      // "no-speech" und "aborted" sind normal, kein Grund fuer eine Meldung.
+      // "no-speech" und "aborted" sind normal, kein Grund für eine Meldung.
       if (event.error !== "no-speech" && event.error !== "aborted") {
         this.onState("error", event.error);
       }
@@ -120,7 +120,7 @@ export class Listener {
       };
       tick();
     } catch {
-      // Kein Mikrofonzugriff fuer die Messung. Der Kreis pulsiert dann erzeugt.
+      // Kein Mikrofonzugriff für die Messung. Der Kreis pulsiert dann erzeugt.
       this.audio = null;
       let phase = 0;
       const tick = () => {
@@ -172,7 +172,7 @@ export function stopSpeaking() {
   if (voiceSupport.ausgabe) globalThis.speechSynthesis.cancel();
 }
 
-/** Zahlen und Einheiten so umschreiben, dass die Ausgabe natuerlich klingt. */
+/** Zahlen und Einheiten so umschreiben, dass die Ausgabe natürlich klingt. */
 function stripForSpeech(text) {
   return text
     .replace(/\bkcal\b/g, "Kilokalorien")

@@ -11,7 +11,7 @@ function stubActions(log: string[]): AgentActions {
     async mahlzeitVorschlagen(w) { log.push(`vorschlag:${w ?? ""}`); return "Reis mit Ei."; },
     async checkinSpeichern(i) { log.push(`checkin:${i.notiz}`); return "Check-in gespeichert."; },
     async merken(i) { log.push(`merken:${i.text}|${i.art}|${i.wichtigkeit}`); return "Habe ich mir gemerkt."; },
-    async gedaechtnisDurchsuchen(f) { log.push(`suche:${f}`); return "Vertraegt keine Laktose."; },
+    async gedaechtnisDurchsuchen(f) { log.push(`suche:${f}`); return "Verträgt keine Laktose."; },
   };
 }
 
@@ -40,11 +40,11 @@ class DeadProvider implements CoachProvider {
 class NoProvider implements CoachProvider {
   readonly name = "none";
   readonly available = false;
-  async generateJson<T>(): Promise<T> { throw new Error("nicht verfuegbar"); }
-  async converse(): Promise<ConverseResponse> { throw new Error("nicht verfuegbar"); }
+  async generateJson<T>(): Promise<T> { throw new Error("nicht verfügbar"); }
+  async converse(): Promise<ConverseResponse> { throw new Error("nicht verfügbar"); }
 }
 
-const KONTEXT = { profil: "Aaron, 23", tag: "0 kcal", gedaechtnis: "nichts", zeit: "Donnerstag 12:00" };
+const KONTEXT = { profil: "Aaron, 23", tag: "0 kcal", gedächtnis: "nichts", zeit: "Donnerstag 12:00" };
 const LEER: ChatMessage[] = [];
 
 function text(t: string): ContentBlock[] { return [{ type: "text", text: t }]; }
@@ -61,7 +61,7 @@ test("Antwort ohne Werkzeug kommt direkt durch", async () => {
   assert.deepEqual(log, []);
 });
 
-test("Werkzeugaufruf wird ausgefuehrt und das Ergebnis zurueckgegeben", async () => {
+test("Werkzeugaufruf wird ausgeführt und das Ergebnis zurückgegeben", async () => {
   const log: string[] = [];
   const provider = new ScriptedProvider([
     { content: toolUse("wasser_eintragen", { ml: 500 }), stopReason: "tool_use" },
@@ -70,10 +70,10 @@ test("Werkzeugaufruf wird ausgefuehrt und das Ergebnis zurueckgegeben", async ()
   const reply = await new Agent(provider).respond({ nachricht: "Ich hatte eine Flasche Wasser", verlauf: LEER, kontext: KONTEXT, aktionen: stubActions(log) });
   assert.equal(reply.text, "500 ml sind drin.");
   assert.deepEqual(log, ["wasser:500"]);
-  assert.deepEqual(reply.ausgefuehrt, ["500 ml Wasser eingetragen"]);
+  assert.deepEqual(reply.ausgeführt, ["500 ml Wasser eingetragen"]);
 });
 
-test("das Werkzeugergebnis wird dem Modell zurueckgereicht", async () => {
+test("das Werkzeugergebnis wird dem Modell zurückgereicht", async () => {
   const provider = new ScriptedProvider([
     { content: toolUse("tagesstand_abrufen", {}), stopReason: "tool_use" },
     { content: text("Du liegst gut."), stopReason: "end_turn" },
@@ -81,10 +81,10 @@ test("das Werkzeugergebnis wird dem Modell zurueckgereicht", async () => {
   await new Agent(provider).respond({ nachricht: "Wie stehe ich?", verlauf: LEER, kontext: KONTEXT, aktionen: stubActions([]) });
   const zweite = provider.seen[1]!;
   const letzte = zweite.messages[zweite.messages.length - 1]!;
-  const bloecke = letzte.content as ContentBlock[];
+  const blöcke = letzte.content as ContentBlock[];
   assert.equal(letzte.role, "user");
-  assert.equal(bloecke[0]!.type, "tool_result");
-  assert.match((bloecke[0] as { content: string }).content, /1200/);
+  assert.equal(blöcke[0]!.type, "tool_result");
+  assert.match((blöcke[0] as { content: string }).content, /1200/);
 });
 
 test("Kontext landet im Systemprompt", async () => {
@@ -103,7 +103,7 @@ test("unbegrenzte Werkzeugschleife wird gestoppt", async () => {
   assert.match(reply.text, /verrannt/);
 });
 
-test("ein Fehler im Werkzeug bricht das Gespraech nicht ab", async () => {
+test("ein Fehler im Werkzeug bricht das Gespräch nicht ab", async () => {
   const kaputt: AgentActions = { ...stubActions([]), async wasserEintragen() { throw new Error("Speicher voll"); } };
   const provider = new ScriptedProvider([
     { content: toolUse("wasser_eintragen", { ml: 500 }), stopReason: "tool_use" },
@@ -112,21 +112,21 @@ test("ein Fehler im Werkzeug bricht das Gespraech nicht ab", async () => {
   const reply = await new Agent(provider).respond({ nachricht: "500 ml", verlauf: LEER, kontext: KONTEXT, aktionen: kaputt });
   assert.equal(reply.text, "Das konnte ich nicht eintragen.");
   const zweite = provider.seen[1]!;
-  const bloecke = zweite.messages[zweite.messages.length - 1]!.content as ContentBlock[];
-  assert.equal((bloecke[0] as { is_error?: boolean }).is_error, true);
+  const blöcke = zweite.messages[zweite.messages.length - 1]!.content as ContentBlock[];
+  assert.equal((blöcke[0] as { is_error?: boolean }).is_error, true);
 });
 
-test("faellt bei Netzwerkfehler auf den Regelpfad zurueck", async () => {
+test("fällt bei Netzwerkfehler auf den Regelpfad zurück", async () => {
   const log: string[] = [];
   const reply = await new Agent(new DeadProvider()).respond({
-    nachricht: "Ich habe zwei Glaeser Wasser getrunken", verlauf: LEER, kontext: KONTEXT, aktionen: stubActions(log),
+    nachricht: "Ich habe zwei Gläser Wasser getrunken", verlauf: LEER, kontext: KONTEXT, aktionen: stubActions(log),
   });
   assert.equal(reply.source, "offline");
   assert.deepEqual(log, ["wasser:500"]);
   assert.match(reply.text, /nicht erreichbar/);
 });
 
-test("ohne Schluessel laeuft alles ueber den Regelpfad", async () => {
+test("ohne Schlüssel läuft alles über den Regelpfad", async () => {
   const log: string[] = [];
   const reply = await new Agent(new NoProvider()).respond({
     nachricht: "Wie viel habe ich heute noch?", verlauf: LEER, kontext: KONTEXT, aktionen: stubActions(log),
@@ -135,13 +135,13 @@ test("ohne Schluessel laeuft alles ueber den Regelpfad", async () => {
   assert.deepEqual(log, ["stand"]);
 });
 
-test("Regelpfad erkennt Mengen in Litern und Glaesern", async () => {
+test("Regelpfad erkennt Mengen in Litern und Gläsern", async () => {
   for (const [satz, erwartet] of [
     ["Ich habe 1,5 Liter getrunken", "wasser:1500"],
-    ["Zwei Glaeser Wasser", "wasser:500"],
+    ["Zwei Gläser Wasser", "wasser:500"],
     ["ein halber Liter Wasser", "wasser:500"],
-    ["Ich hatte zwoelf Glaeser", "wasser:3000"],
-    ["3 Glaeser getrunken", "wasser:750"],
+    ["Ich hatte zwölf Gläser", "wasser:3000"],
+    ["3 Gläser getrunken", "wasser:750"],
     ["Eine Flasche Wasser getrunken", "wasser:500"],
     ["750 ml getrunken", "wasser:750"],
   ] as const) {
@@ -151,7 +151,7 @@ test("Regelpfad erkennt Mengen in Litern und Glaesern", async () => {
   }
 });
 
-test("kalorienhaltige Getraenke landen in der Mahlzeit, nicht im Wasser", async () => {
+test("kalorienhaltige Getränke landen in der Mahlzeit, nicht im Wasser", async () => {
   const log: string[] = [];
   await runOffline("Ich hatte ein Glas Cola", stubActions(log));
   assert.match(log[0]!, /^mahlzeit:/);
@@ -165,7 +165,7 @@ test("Regelpfad merkt sich etwas auf Zuruf", async () => {
 });
 
 test("Regelpfad sagt ehrlich, wenn er nicht weiterweiss", async () => {
-  const reply = await runOffline("Erklaer mir die Weltwirtschaft", stubActions([]));
-  assert.match(reply.text, /verstehe ich nur einfache Saetze/);
-  assert.equal(reply.ausgefuehrt.length, 0);
+  const reply = await runOffline("Erklär mir die Weltwirtschaft", stubActions([]));
+  assert.match(reply.text, /verstehe ich nur einfache Sätze/);
+  assert.equal(reply.ausgeführt.length, 0);
 });

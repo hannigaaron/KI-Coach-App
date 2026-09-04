@@ -8,7 +8,7 @@ import { validateEntries } from "./validate.js";
 
 /**
  * Debugausgabe. Der Zugriff auf process wird abgesichert, weil dieses Modul
- * auch im Browser laeuft, wo es kein process Objekt gibt.
+ * auch im Browser läuft, wo es kein process Objekt gibt.
  */
 function debugLog(message: string, error: unknown): void {
   const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
@@ -36,7 +36,7 @@ export interface MealSuggestion {
 export class Coach {
   constructor(private readonly provider: CoachProvider) {}
 
-  /** Wandelt freien Text in Naehrwerte um. Faellt ohne Modell auf die Tabelle zurueck. */
+  /** Wandelt freien Text in Nährwerte um. Fällt ohne Modell auf die Tabelle zurück. */
   async parseMeal(text: string): Promise<MealParseResult> {
     if (this.provider.available) {
       try {
@@ -69,16 +69,16 @@ export class Coach {
     const offline = parseMealOffline(text);
     return {
       entries: offline.entries,
-      assumption: "Werte stammen aus der internen Referenztabelle, nicht aus einer Naehrwertdatenbank.",
+      assumption: "Werte stammen aus der internen Referenztabelle, nicht aus einer Nährwertdatenbank.",
       followUpQuestion: offline.unresolved.length
-        ? `Das konnte ich nicht zuordnen: ${offline.unresolved.join(", ")}. Wie viel war das ungefaehr?`
+        ? `Das konnte ich nicht zuordnen: ${offline.unresolved.join(", ")}. Wie viel war das ungefähr?`
         : "",
       warnings: [],
       source: "offline",
     };
   }
 
-  /** Baut aus Kuehlschrankinhalt und Restbudget eine Mahlzeit. */
+  /** Baut aus Kühlschrankinhalt und Restbudget eine Mahlzeit. */
   async suggestMeal(params: {
     fridge: string[];
     targets: MacroTargets;
@@ -121,7 +121,7 @@ export class Coach {
     return offlineSuggestion(params.fridge, remaining);
   }
 
-  /** Erzeugt die Check-in Nachricht fuer eine Erinnerung. */
+  /** Erzeugt die Check-in Nachricht für eine Erinnerung. */
   async checkInMessage(params: {
     reminderKind: string;
     fallback: string;
@@ -147,36 +147,36 @@ export class Coach {
 function buildSuggestionPrompt(fridge: string[], remaining: RemainingBudget): string {
   return [
     `Vorhandene Zutaten: ${fridge.join(", ") || "keine genannt"}`,
-    "Restbudget fuer heute:",
+    "Restbudget für heute:",
     `- Kalorien: ${remaining.kcal} kcal`,
     `- Protein: ${remaining.proteinG} g`,
     `- Fett: ${remaining.fatG} g`,
     `- Kohlenhydrate: ${remaining.carbsG} g`,
-    "Baue daraus eine Mahlzeit. Halte das Restbudget ein, Abweichung hoechstens zehn Prozent.",
+    "Baue daraus eine Mahlzeit. Halte das Restbudget ein, Abweichung höchstens zehn Prozent.",
   ].join("\n");
 }
 
 /**
  * Offline Vorschlag ohne Modell. Bewusst simpel: er kombiniert keine Rezepte,
  * sondern nennt die vorhandenen Zutaten und das Restbudget, damit der Nutzer
- * selbst entscheiden kann. Alles andere waere geraten.
+ * selbst entscheiden kann. Alles andere wäre geraten.
  */
 function offlineSuggestion(fridge: string[], remaining: RemainingBudget): MealSuggestion {
   const feasible = remaining.kcal >= 250 && fridge.length > 0;
   return {
-    title: feasible ? "Vorschlag aus deinen Zutaten" : "Kein Vorschlag moeglich",
+    title: feasible ? "Vorschlag aus deinen Zutaten" : "Kein Vorschlag möglich",
     feasible,
     reason: feasible
-      ? "Ohne Modellzugriff nenne ich dir nur den Rahmen. Die Kombination waere sonst geraten."
+      ? "Ohne Modellzugriff nenne ich dir nur den Rahmen. Die Kombination wäre sonst geraten."
       : remaining.kcal < 250
-        ? `Dein Restbudget liegt bei ${remaining.kcal} kcal. Das reicht fuer keine volle Mahlzeit.`
+        ? `Dein Restbudget liegt bei ${remaining.kcal} kcal. Das reicht für keine volle Mahlzeit.`
         : "Du hast keine Zutaten genannt.",
     ingredients: [],
     steps: feasible
       ? [
           `Du hast noch ${remaining.kcal} kcal und ${remaining.proteinG} g Protein offen.`,
-          `Nimm eine Proteinquelle aus deinem Vorrat: ${fridge.join(", ")}.`,
-          "Ergaenze eine Kohlenhydratquelle und Gemuese.",
+          `Nimm eine Proteinqülle aus deinem Vorrat: ${fridge.join(", ")}.`,
+          "Ergänze eine Kohlenhydratqülle und Gemüse.",
         ]
       : [],
     prepMinutes: 0,

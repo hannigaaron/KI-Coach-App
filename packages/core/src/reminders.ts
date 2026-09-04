@@ -15,7 +15,7 @@ export interface Reminder {
   at: string;
   title: string;
   body: string;
-  /** Hoehere Zahl bedeutet wichtiger. Wird zum Ausduennen genutzt. */
+  /** Höhere Zahl bedeutet wichtiger. Wird zum Ausdünnen genutzt. */
   priority: number;
 }
 
@@ -35,13 +35,13 @@ export interface DayState {
 const MAX_REMINDERS_PER_DAY = 6;
 
 /**
- * Erzeugt den Erinnerungsplan fuer einen Tag.
+ * Erzeugt den Erinnerungsplan für einen Tag.
  *
  * Regeln:
- * - Es gibt nie mehr als sechs Push Nachrichten pro Tag. Mehr fuehrt zu
+ * - Es gibt nie mehr als sechs Push Nachrichten pro Tag. Mehr führt zu
  *   Benachrichtigungsblindheit und Deinstallation.
  * - Erledigte Aufgaben erzeugen keine Erinnerung mehr.
- * - Trainingsbezogene Erinnerungen haengen am Kalender des Nutzers.
+ * - Trainingsbezogene Erinnerungen hängen am Kalender des Nutzers.
  */
 export function buildDailyReminders(params: {
   profile: UserProfile;
@@ -76,7 +76,7 @@ export function buildDailyReminders(params: {
           body:
             i === 0
               ? `Dir fehlen noch etwa ${waterGap} ml bis zu deinem Tagesziel.`
-              : "Zweite Flasche. Danach bist du fuer heute durch.",
+              : "Zweite Flasche. Danach bist du für heute durch.",
           priority: 40,
         });
       }
@@ -99,7 +99,7 @@ export function buildDailyReminders(params: {
       kind: "pre_training",
       at: formatTime(start - 90),
       title: "Training in 90 Minuten",
-      body: "Letzte Mahlzeit sollte jetzt sitzen. Trinkflasche gefuellt?",
+      body: "Letzte Mahlzeit sollte jetzt sitzen. Trinkflasche gefüllt?",
       priority: 90,
     });
     out.push({
@@ -116,7 +116,7 @@ export function buildDailyReminders(params: {
       kind: "evening_review",
       at: formatTime(sleep - 120),
       title: "Tagesabschluss",
-      body: "Zwei Fragen: Wie war der Tag und was nimmst du dir fuer morgen vor?",
+      body: "Zwei Fragen: Wie war der Tag und was nimmst du dir für morgen vor?",
       priority: 75,
     });
   }
@@ -125,7 +125,7 @@ export function buildDailyReminders(params: {
     kind: "wind_down",
     at: formatTime(sleep - 45),
     title: "Runterfahren",
-    body: "Handy weg. Dein Schlaf entscheidet ueber die Energie von morgen.",
+    body: "Handy weg. Dein Schlaf entscheidet über die Energie von morgen.",
     priority: 30,
   });
 
@@ -140,7 +140,7 @@ function parseTime(hhmm: string): number {
   const parts = hhmm.split(":");
   const h = Number(parts[0] ?? 0);
   const m = Number(parts[1] ?? 0);
-  if (!Number.isFinite(h) || !Number.isFinite(m)) throw new Error(`Ungueltige Zeit: ${hhmm}`);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) throw new Error(`Ungültige Zeit: ${hhmm}`);
   return h * 60 + m;
 }
 

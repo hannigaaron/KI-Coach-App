@@ -16,8 +16,8 @@ export const MEAL_SCHEMA = {
         required: ["name", "quantity", "kcal", "proteinG", "fatG", "carbsG"],
       },
     },
-    assumption: { type: "string", description: "Welche Mengen wurden geschaetzt. Leer lassen, wenn nichts geschaetzt wurde." },
-    followUpQuestion: { type: "string", description: "Rueckfrage an den Nutzer oder leer." },
+    assumption: { type: "string", description: "Welche Mengen wurden geschätzt. Leer lassen, wenn nichts geschätzt wurde." },
+    followUpQuestion: { type: "string", description: "Rückfrage an den Nutzer oder leer." },
   },
   required: ["entries", "assumption", "followUpQuestion"],
 } as const;
@@ -27,7 +27,7 @@ export const SUGGESTION_SCHEMA = {
   properties: {
     title: { type: "string" },
     feasible: { type: "boolean", description: "Falsch, wenn Zutaten oder Budget nicht reichen." },
-    reason: { type: "string", description: "Begruendung, falls feasible falsch ist." },
+    reason: { type: "string", description: "Begründung, falls feasible falsch ist." },
     ingredients: {
       type: "array",
       items: {

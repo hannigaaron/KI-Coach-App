@@ -12,97 +12,103 @@ Die Wortmarke ist zweigeteilt: `dae` in Poppins SemiBold 600, `vo` in
 Poppins Light 300. Der Gewichtssprung ist das Erkennungsmerkmal und darf nie
 wegfallen.
 
-Das d ist kein Schriftzeichen, sondern gebaut. Die Bowl ist ein Aktivitaetsring
+Das d ist kein Schriftzeichen, sondern gebaut. Die Bowl ist ein Aktivitätsring
 wie bei der Apple Watch: Start oben, 300 Grad im Uhrzeigersinn, runde Enden,
-die restlichen 60 Grad bleiben offen. Fuer kleine Groessen gibt es die
-Varianten mit gefuellter Spur, sonst faellt der Buchstabe auseinander. Der
+die restlichen 60 Grad bleiben offen. Auch der Stamm hat runde Enden, oben
+wie unten ein Halbkreis. Für kleine Grössen gibt es die
+Varianten mit gefüllter Spur, sonst fällt der Buchstabe auseinander. Der
 Bauplan steht in `docs/BRAND.md`, der Generator in `tools/brand/`.
 
 Farben:
 
-- Logoblau `#96D8F0`, aus dem Logo von Personal Coach Aaron uebernommen.
-  Nur auf dunklem Grund fuer Text und Bedienelemente einsetzen, Kontrast dort
-  12.05 zu 1. Auf Weiss liegt es bei 1.57 zu 1 und ist fuer Text unbrauchbar.
-- Blau dunkel `#1E7FA8` fuer alles Lesbare auf hellem Grund, Kontrast 4.51 zu 1.
-- Schwarz `#0B0D10`, Grundton dunkel `#0E1116`, Weiss `#FFFFFF`.
+- Logoblau `#96D8F0`, aus dem Logo von Personal Coach Aaron übernommen.
+  Nur auf dunklem Grund für Text und Bedienelemente einsetzen, Kontrast dort
+  12.05 zu 1. Auf Weiß liegt es bei 1.57 zu 1 und ist für Text unbrauchbar.
+- Blau dunkel `#1E7FA8` für alles Lesbare auf hellem Grund, Kontrast 4.51 zu 1.
+- Schwarz `#0B0D10`, Grundton dunkel `#0E1116`, Weiß `#FFFFFF`.
 
 Die Logodateien liegen in `apps/pwa/brand/` und tragen die Schrift als Pfade.
-Nie durch neu gesetzten Text ersetzen. Vollstaendige Richtlinie in
+Nie durch neu gesetzten Text ersetzen. Vollständige Richtlinie in
 `docs/BRAND.md`.
 
 ## Was das Projekt ist
 
-Ein digitaler Ernaehrungs- und Fitnesscoach. Er erfasst Mahlzeiten per Sprache
+Ein digitaler Ernährungs- und Fitnesscoach. Er erfasst Mahlzeiten per Sprache
 oder Text, rechnet sie gegen die Tagesziele, erinnert zur richtigen Zeit und
-baut aus dem Kuehlschrankinhalt eine passende Mahlzeit.
+baut aus dem Kühlschrankinhalt eine passende Mahlzeit.
 
 ```
-packages/core     Rechenkern und Gedaechtnis, ohne Abhaengigkeiten
+packages/core     Rechenkern und Gedächtnis, ohne Abhängigkeiten
 packages/coach    Assistent mit Werkzeugen, Sprachmodell, Regelpfad
-apps/pwa          Installierbare Web App, laeuft ohne Server
+apps/pwa          Installierbare Web App, läuft ohne Server
 apps/api          HTTP API, SQLite, Scheduler
 scripts           Build der Web App, lokaler Vorschauserver
-tools/brand       Generator fuer die Logodateien
-docs              Architektur, Marke, Roadmap, Geschaeftsmodell
+tools/brand       Generator für die Logodateien
+docs              Architektur, Marke, Roadmap, Geschäftsmodell
 ```
 
-## Die App oeffnet mit dem Assistenten
+## Die App öffnet mit dem Assistenten
 
-Nicht mit Zahlen. Der Kreis aus dem Logo ist die Oberflaeche, darunter das
-Gespraech, unten die Eingabe.
+Nicht mit Zahlen. Der Kreis aus dem Logo ist die Oberfläche, darunter das
+Gespräch, unten die Eingabe.
 
-Der Kreis liegt in `apps/pwa/js/orb.js` und laeuft auf Canvas. Er besteht aus
-rund 4100 Partikeln auf 30 Faeden um einen gedachten Schlauch. Die Geometrie
+Der Kreis liegt in `apps/pwa/js/orb.js` und läuft auf Canvas. Er besteht aus
+rund 4100 Partikeln auf 30 Fäden um einen gedachten Schlauch. Die Geometrie
 ist dieselbe wie im Logo. Canvas statt SVG, weil ein paar tausend Punkte pro
-Bild in SVG nicht fluessig laufen. Gemessen: 60 Bilder pro Sekunde bei
-dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das aendert,
-aendert den Kern des Produkts.
+Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
+dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
+ändert den Kern des Produkts.
 
-Der Assistent hat Werkzeuge und veraendert die App wirklich. Zahlen kommen
-immer aus `tagesstand_abrufen`, nie aus dem Modell. Jede Faehigkeit hat einen
-Regelpfad in `packages/coach/src/agent.ts`, damit die App ohne Schluessel
+Der Assistent hat Werkzeuge und verändert die App wirklich. Zahlen kommen
+immer aus `tagesstand_abrufen`, nie aus dem Modell. Jede Fähigkeit hat einen
+Regelpfad in `packages/coach/src/agent.ts`, damit die App ohne Schlüssel
 benutzbar bleibt.
 
-Das Gedaechtnis liegt in `packages/core/src/memory.ts`. Suche ueber
-Wortueberlappung mit inverser Dokumenthaeufigkeit, keine Einbettungen. Es ist
-fuer den Nutzer einsehbar und loeschbar.
+Das Gedächtnis liegt in `packages/core/src/memory.ts`. Suche über
+Wortüberlappung mit inverser Dokumenthäufigkeit, keine Einbettungen. Es ist
+für den Nutzer einsehbar und löschbar.
 
-## Regeln fuer den Code
+## Regeln für den Code
 
-- Keine Laufzeitabhaengigkeiten. Der Server nutzt `node:http` und `node:sqlite`,
-  die Web App laeuft ohne Bundler ueber eine Import Map. Neue Abhaengigkeiten
-  brauchen eine Begruendung.
+- Keine Laufzeitabhängigkeiten. Der Server nutzt `node:http` und `node:sqlite`,
+  die Web App läuft ohne Bundler über eine Import Map. Neue Abhängigkeiten
+  brauchen eine Begründung.
 - Kalorien und Makros kommen aus `packages/core`, nie aus dem Sprachmodell.
   Jede Modellantwort wird in `packages/coach/src/validate.ts` gegen
   `kcal = Protein*4 + Fett*9 + Kohlenhydrate*4` geprueft.
-- Jede Faehigkeit im Coach Layer braucht einen Offline Pfad. Die App muss ohne
-  API Schluessel bedienbar bleiben.
-- Kommentare erklaeren das Warum, nicht das Was. Quellen fuer Formeln gehoeren
+- Jede Fähigkeit im Coach Layer braucht einen Offline Pfad. Die App muss ohne
+  API Schlüssel bedienbar bleiben.
+- Kommentare erklären das Warum, nicht das Was. Quellen für Formeln gehören
   in den Code.
-- Deutsche Texte in der Oberflaeche und in Kommentaren. Keine Umlaute in
-  Codekommentaren und Dokumentation, stattdessen ae, oe, ue, ss.
-- Vor jedem Commit `npm test` und `npm run build:pwa`. Beides muss gruen sein.
+- Deutsche Texte in der Oberfläche, in Kommentaren und in der Dokumentation.
+  Echte Umlaute schreiben: ä, ö, ü, ß. Keine Umschreibungen wie ae oder ue.
+- ASCII bleibt nur dort, wo Werte gespeichert oder verglichen werden:
+  Bezeichner im Code, Enum Werte wie `praeferenz`, Werkzeugnamen, Dateinamen.
+  Wo Text gegen Listen oder Muster geprüft wird, laufen beide Seiten durch
+  `foldUmlauts`. Dadurch bricht eine spätere Textkorrektur die Erkennung nicht.
+- Vor jedem Commit `npm test` und `npm run build:pwa`. Beides muss grün sein.
 
 ## Befehle
 
 ```bash
 npm install
-npm test           # 84 Tests
+npm test           # 87 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
 ```
 
-## Veroeffentlichung
+## Veröffentlichung
 
-Jeder Push auf `main` baut und veroeffentlicht die Web App ueber GitHub Pages.
+Jeder Push auf `main` baut und veröffentlicht die Web App über GitHub Pages.
 Der Ablauf steht in `.github/workflows/pages.yml`. Ist ein Test rot, wird nichts
-veroeffentlicht. Adresse: https://hannigaaron.github.io/KI-Coach-App/
+veröffentlicht. Adresse: https://hannigaaron.github.io/KI-Coach-App/
 
 ## Aktueller Stand
 
-Fertig: Rechenkern, Gedaechtnis, Assistent mit Werkzeugen und Sprache,
-installierbare Web App, Marke, API.
+Fertig: Rechenkern, Gedächtnis, Assistent mit Werkzeugen und Sprache,
+Anamnesebogen beim ersten Start, Tag und Nacht Modus, installierbare Web App,
+Marke, API.
 Offen: Push Benachrichtigungen bei geschlossener App, Apple Health und
-Wearables, Wortaktivierung, echte Naehrwertdatenbank, Anmeldung ueber Apple.
+Wearables, Wortaktivierung, echte Nährwertdatenbank, Anmeldung über Apple.
 Siehe `docs/ROADMAP.md`.

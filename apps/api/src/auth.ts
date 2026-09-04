@@ -8,10 +8,10 @@ export interface AuthUser {
 }
 
 /**
- * Tokenbasierte Authentifizierung fuer den MVP.
+ * Tokenbasierte Authentifizierung für den MVP.
  *
  * Der Klartext Token wird einmal bei der Registrierung ausgegeben und danach
- * nur als SHA-256 Hash gespeichert. Fuer die Produktion gehoert hier
+ * nur als SHA-256 Hash gespeichert. Für die Produktion gehört hier
  * Sign in with Apple plus kurzlebige Zugriffstokens hin.
  * Siehe docs/ARCHITEKTUR.md, Abschnitt Sicherheit.
  */

@@ -1,7 +1,7 @@
 export interface JsonRequest {
   system: string;
   user: string;
-  /** JSON Schema, das die Antwort erfuellen muss. */
+  /** JSON Schema, das die Antwort erfüllen muss. */
   schema: Record<string, unknown>;
   schemaName: string;
   maxTokens?: number;
@@ -29,7 +29,7 @@ export interface ConverseRequest {
   messages: ChatMessage[];
   tools: ToolDefinition[];
   maxTokens?: number;
-  /** Steuert Tiefe und Kosten. Fuer ein Gespraech reicht low. */
+  /** Steuert Tiefe und Kosten. Für ein Gespräch reicht low. */
   effort?: "low" | "medium" | "high";
 }
 
@@ -42,7 +42,7 @@ export interface CoachProvider {
   readonly name: string;
   readonly available: boolean;
   generateJson<T>(request: JsonRequest): Promise<T>;
-  /** Mehrschrittiges Gespraech mit Werkzeugen. */
+  /** Mehrschrittiges Gespräch mit Werkzeugen. */
   converse(request: ConverseRequest): Promise<ConverseResponse>;
 }
 

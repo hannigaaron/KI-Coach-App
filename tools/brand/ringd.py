@@ -1,7 +1,7 @@
-"""Baut ein d, dessen Bogen ein Aktivitaetsring ist, passend zu Poppins SemiBold.
+"""Baut ein d, dessen Bogen ein Aktivitätsring ist, passend zu Poppins SemiBold.
 
 Alle Masse stammen aus der Schrift selbst, gemessen bei 1000 Einheiten je Geviert:
-Stammbreite 140, x-Hoehe 572, Bowl Durchmesser 570, Aufstrich 740, Vorschub 678.
+Stammbreite 140, x-Höhe 572, Bowl Durchmesser 570, Aufstrich 740, Vorschub 678.
 Damit sitzt das eigene d exakt auf denselben Linien wie a, e, v und o.
 """
 import math
@@ -34,7 +34,7 @@ def arc(start_deg, sweep_deg, radius=R):
 
 def ring_d(size, color, track_opacity=0.28, sweep=290.0, start=0.0,
            show_track=True, inner_ring=None):
-    """Liefert SVG Elemente fuer das d plus den Vorschub in Nutzereinheiten."""
+    """Liefert SVG Elemente für das d plus den Vorschub in Nutzereinheiten."""
     s = size / UPEM
     stroke = STEM * s
     parts = []
@@ -44,7 +44,7 @@ def ring_d(size, color, track_opacity=0.28, sweep=290.0, start=0.0,
             f'stroke="{color}" stroke-opacity="{track_opacity}" stroke-width="{stroke:.2f}"/>'
         )
     def scaled(path):
-        # y wird gespiegelt, weil SVG nach unten waechst, die Schrift nach oben.
+        # y wird gespiegelt, weil SVG nach unten wächst, die Schrift nach oben.
         out, tokens = [], path.split()
         i = 0
         while i < len(tokens):
@@ -53,7 +53,7 @@ def ring_d(size, color, track_opacity=0.28, sweep=290.0, start=0.0,
                 out.append(f"M {float(tokens[i+1]) * s:.2f} {-float(tokens[i+2]) * s:.2f}")
                 i += 3
             elif t == "A":
-                # Das Sweep Flag bleibt unveraendert. Die Schrift rechnet mit
+                # Das Sweep Flag bleibt unverändert. Die Schrift rechnet mit
                 # y nach oben, SVG mit y nach unten. Die Spiegelung der
                 # Koordinaten und der Achsenwechsel heben sich auf, die
                 # sichtbare Drehrichtung bleibt also gleich.
@@ -81,9 +81,11 @@ def ring_d(size, color, track_opacity=0.28, sweep=290.0, start=0.0,
             f'<path d="{scaled(arc(start, inner_ring, ir))}" fill="none" stroke="{color}" '
             f'stroke-width="{stroke * 0.62:.2f}" stroke-linecap="round"/>'
         )
-    # Stamm, oben und unten gerade wie in Poppins
+    # Stamm mit runden Enden, passend zu den runden Enden des Rings.
+    # rx entspricht der halben Strichstärke, damit oben und unten je ein
+    # Halbkreis entsteht.
     parts.append(
         f'<rect x="{(STEM_X1 - STEM) * s:.2f}" y="{-ASC * s:.2f}" '
-        f'width="{stroke:.2f}" height="{ASC * s:.2f}" fill="{color}"/>'
+        f'width="{stroke:.2f}" height="{ASC * s:.2f}" rx="{stroke / 2:.2f}" fill="{color}"/>'
     )
     return "\n    ".join(parts), ADV * s

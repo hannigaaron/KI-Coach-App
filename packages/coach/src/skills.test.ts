@@ -25,14 +25,14 @@ class NoProvider implements CoachProvider {
   readonly name = "none";
   readonly available = false;
   async generateJson<T>(): Promise<T> {
-    throw new Error("nicht verfuegbar");
+    throw new Error("nicht verfügbar");
   }
   async converse(): Promise<never> {
-    throw new Error("nicht verfuegbar");
+    throw new Error("nicht verfügbar");
   }
 }
 
-test("nutzt das Modell, wenn es verfuegbar ist", async () => {
+test("nutzt das Modell, wenn es verfügbar ist", async () => {
   const provider = new StubProvider({
     entries: [{ name: "Skyr", quantity: "500 g", kcal: 315, proteinG: 55, fatG: 1, carbsG: 20 }],
     assumption: "",
@@ -43,14 +43,14 @@ test("nutzt das Modell, wenn es verfuegbar ist", async () => {
   assert.equal(result.entries[0]!.name, "Skyr");
 });
 
-test("faellt bei Modellfehler auf die Tabelle zurueck", async () => {
+test("fällt bei Modellfehler auf die Tabelle zurück", async () => {
   const provider = new StubProvider(null, true);
-  const result = await new Coach(provider).parseMeal("200g Haehnchenbrust");
+  const result = await new Coach(provider).parseMeal("200g Hähnchenbrust");
   assert.equal(result.source, "offline");
   assert.equal(result.entries[0]!.kcal, 240);
 });
 
-test("ohne API Key laeuft alles offline", async () => {
+test("ohne API Key läuft alles offline", async () => {
   const result = await new Coach(new NoProvider()).parseMeal("3 Eier");
   assert.equal(result.source, "offline");
   assert.equal(result.entries.length, 1);

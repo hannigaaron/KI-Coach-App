@@ -10,10 +10,10 @@ class OfflineProvider implements CoachProvider {
   readonly name = "offline";
   readonly available = false;
   async generateJson<T>(): Promise<T> {
-    throw new Error("nicht verfuegbar");
+    throw new Error("nicht verfügbar");
   }
   async converse(): Promise<never> {
-    throw new Error("nicht verfuegbar");
+    throw new Error("nicht verfügbar");
   }
 }
 
@@ -90,7 +90,7 @@ test("Tagesabfrage ohne Profil gibt 409", async () => {
   assert.equal((await call("GET", "/api/me/day", undefined, true)).status, 409);
 });
 
-test("Profil speichern liefert Ziele zurueck", async () => {
+test("Profil speichern liefert Ziele zurück", async () => {
   const res = await call("PUT", "/api/me/profile", profileBody, true);
   assert.equal(res.status, 200);
   assert.equal(res.body.targets.kcal, 3000);
@@ -103,19 +103,19 @@ test("unplausible Profilwerte werden abgelehnt", async () => {
 });
 
 test("Mahlzeit wird geparst und gespeichert", async () => {
-  const res = await call("POST", `/api/me/meals?date=${DAY}`, { text: "200g Haehnchenbrust und 150g Reis" }, true);
+  const res = await call("POST", `/api/me/meals?date=${DAY}`, { text: "200g Hähnchenbrust und 150g Reis" }, true);
   assert.equal(res.status, 201);
   assert.equal(res.body.source, "offline");
   assert.equal(res.body.entries.length, 2);
 });
 
-test("unverstaendliche Mahlzeit gibt 422 mit Rueckfrage", async () => {
+test("unverständliche Mahlzeit gibt 422 mit Rückfrage", async () => {
   const res = await call("POST", `/api/me/meals?date=${DAY}`, { text: "irgendwas komisches" }, true);
   assert.equal(res.status, 422);
   assert.ok(res.body.followUpQuestion.length > 0);
 });
 
-test("Tagesuebersicht rechnet Summen und Restbudget", async () => {
+test("Tagesübersicht rechnet Summen und Restbudget", async () => {
   await call("POST", `/api/me/water?date=${DAY}`, { ml: 1000 }, true);
   const res = await call("GET", `/api/me/day?date=${DAY}`, undefined, true);
   assert.equal(res.status, 200);
@@ -125,7 +125,7 @@ test("Tagesuebersicht rechnet Summen und Restbudget", async () => {
   assert.equal(res.body.streakDays, 1);
 });
 
-test("ungueltiges Datum wird abgelehnt", async () => {
+test("ungültiges Datum wird abgelehnt", async () => {
   assert.equal((await call("GET", "/api/me/day?date=03.09.2026", undefined, true)).status, 400);
 });
 
@@ -137,7 +137,7 @@ test("Erinnerungen richten sich nach dem Trainingstag", async () => {
   assert.ok(res.body.reminders.length <= 6);
 });
 
-test("Kuehlschrank laesst sich setzen und lesen", async () => {
+test("Kühlschrank lässt sich setzen und lesen", async () => {
   const put = await call("PUT", "/api/me/fridge", { items: ["Eier", "Reis", "Brokkoli", ""] }, true);
   assert.deepEqual(put.body.items, ["Brokkoli", "Eier", "Reis"]);
   const get = await call("GET", "/api/me/fridge", undefined, true);

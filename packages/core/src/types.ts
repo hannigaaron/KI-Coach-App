@@ -14,6 +14,10 @@ export interface TrainingSession {
   startsAt: string;
 }
 
+/** Wie der Alltag außerhalb von Sport aussieht. Beeinflusst den Grundverbrauch. */
+export type Occupation = "sitzend" | "gemischt" | "stehend" | "koerperlich";
+export type Leisure = "ruhig" | "gemischt" | "aktiv";
+
 export interface UserProfile {
   sex: Sex;
   ageYears: number;
@@ -27,8 +31,18 @@ export interface UserProfile {
   wakeTime: string;
   /** Lokale Schlafenszeit HH:MM. */
   sleepTime: string;
-  /** Optionaler manueller Ueberschreibwert fuer den Kalorienbedarf. */
+  /** Optionaler manueller Überschreibwert für den Kalorienbedarf. */
   tdeeOverrideKcal?: number | null;
+  /** Wie der Arbeitstag aussieht. Ohne Angabe wird sitzend angenommen. */
+  occupation?: Occupation;
+  /** Wie die Freizeit aussieht. Ohne Angabe wird gemischt angenommen. */
+  leisure?: Leisure;
+  /**
+   * Geschätzter Körperfettanteil in Prozent. Nur gesetzt, wenn der Nutzer ihn
+   * angegeben hat. Wird genutzt, um Protein auf die fettfreie Masse zu
+   * beziehen statt auf das Gesamtgewicht.
+   */
+  bodyFatPercent?: number | null;
 }
 
 export interface MacroTargets {

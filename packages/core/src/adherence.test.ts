@@ -24,7 +24,7 @@ test("mehr Protein als geplant wird nicht bestraft", () => {
   assert.equal(scoreDay(totals, targets).protein, 100);
 });
 
-test("Streak zaehlt zusammenhaengende Tage", () => {
+test("Streak zählt zusammenhängende Tage", () => {
   assert.equal(currentStreak({ daysWithLog: ["2026-09-01", "2026-09-02", "2026-09-03"], today: "2026-09-03" }), 3);
 });
 
@@ -32,6 +32,6 @@ test("Streak bleibt am Morgen erhalten, wenn gestern geloggt wurde", () => {
   assert.equal(currentStreak({ daysWithLog: ["2026-09-01", "2026-09-02"], today: "2026-09-03" }), 2);
 });
 
-test("Luecke bricht die Streak", () => {
+test("Lücke bricht die Streak", () => {
   assert.equal(currentStreak({ daysWithLog: ["2026-08-28", "2026-09-03"], today: "2026-09-03" }), 1);
 });

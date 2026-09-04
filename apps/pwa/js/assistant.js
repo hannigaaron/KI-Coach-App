@@ -81,7 +81,7 @@ function profileText(profile) {
   const goal = { fat_loss: "Fett verlieren", maintain: "Gewicht halten", lean_bulk: "Muskeln aufbauen" }[profile.goal];
   return [
     `${profile.name || "Der Nutzer"}, ${profile.ageYears} Jahre, ${profile.heightCm} cm, ${profile.weightKg} kg.`,
-    `Ziel: ${goal}. Geschaetzter Bedarf ${energy.tdeeKcal} kcal, Zielwert ${macroTargets(profile).kcal} kcal.`,
+    `Ziel: ${goal}. Geschätzter Bedarf ${energy.tdeeKcal} kcal, Zielwert ${macroTargets(profile).kcal} kcal.`,
     `Etwa ${profile.dailySteps} Schritte am Tag. Steht gegen ${profile.wakeTime} auf, geht gegen ${profile.sleepTime} ins Bett.`,
   ].join(" ");
 }
@@ -180,7 +180,7 @@ export function buildActions({ onChange } = {}) {
   };
 }
 
-/* ---------- Gespraech ---------- */
+/* ---------- Gespräch ---------- */
 
 export async function ask(nachricht, { onChange } = {}) {
   const agent = new Agent(provider());
@@ -193,7 +193,7 @@ export async function ask(nachricht, { onChange } = {}) {
     kontext: {
       profil: profileText(n.profile),
       tag: daySummaryText(n),
-      gedaechtnis: brain.contextFor(nachricht),
+      gedächtnis: brain.contextFor(nachricht),
       zeit: `${WEEKDAYS[now.getDay()]}, ${now.getDate()}. ${now.toLocaleString("de-DE", { month: "long" })}, ${nowTime()} Uhr.`,
     },
     aktionen: buildActions({ onChange }),
@@ -201,15 +201,15 @@ export async function ask(nachricht, { onChange } = {}) {
 
   const chat = store.getChat();
   chat.push({ role: "user", text: nachricht, at: new Date().toISOString() });
-  chat.push({ role: "assistant", text: reply.text, at: new Date().toISOString(), ausgefuehrt: reply.ausgefuehrt });
+  chat.push({ role: "assistant", text: reply.text, at: new Date().toISOString(), ausgeführt: reply.ausgeführt });
   store.setChat(chat);
   return reply;
 }
 
 /**
- * Begruessung beim Oeffnen der App.
+ * Begrüssung beim Oeffnen der App.
  *
- * Bewusst ohne Modellaufruf. Wer die App oeffnet, soll sofort etwas sehen und
+ * Bewusst ohne Modellaufruf. Wer die App öffnet, soll sofort etwas sehen und
  * nicht auf eine Antwort warten, die Geld kostet.
  */
 export function greeting() {
@@ -222,7 +222,7 @@ export function greeting() {
     return `${gruss}. Noch nichts eingetragen heute. Sag mir, was du gegessen hast, oder frag mich was.`;
   }
   if (n.rest.kcal < 0) {
-    return `${gruss}. Du bist ${Math.abs(n.rest.kcal)} kcal ueber deinem Ziel. Kein Drama, aber gut zu wissen.`;
+    return `${gruss}. Du bist ${Math.abs(n.rest.kcal)} kcal über deinem Ziel. Kein Drama, aber gut zu wissen.`;
   }
   return `${gruss}. Du hast noch ${n.rest.kcal} kcal und ${Math.max(0, n.rest.proteinG)} g Protein offen.`;
 }
@@ -231,7 +231,7 @@ export function greeting() {
  * Empfehlungen aus den eigenen Daten, ohne Modell.
  *
  * Jede Regel nennt die Zahl, auf der sie beruht. Ein Hinweis ohne Zahl ist
- * geraten und gehoert nicht in eine Coaching App.
+ * geraten und gehört nicht in eine Coaching App.
  */
 export function recommendations() {
   const n = dayNumbers();
@@ -248,14 +248,14 @@ export function recommendations() {
   if (n.targets.waterMl - n.totals.waterMl > 1000 && now.getHours() >= 15) {
     out.push({
       titel: "Trinken nachholen",
-      text: `Dir fehlen ${n.targets.waterMl - n.totals.waterMl} ml. Zwei grosse Glaeser jetzt, dann liegst du wieder richtig.`,
+      text: `Dir fehlen ${n.targets.waterMl - n.totals.waterMl} ml. Zwei große Gläser jetzt, dann liegst du wieder richtig.`,
       grund: `Ziel ${n.targets.waterMl} ml, bisher ${n.totals.waterMl} ml.`,
     });
   }
   if (n.data.meals.length === 0 && now.getHours() >= 14) {
     out.push({
       titel: "Noch nichts erfasst",
-      text: "Ohne Eintraege kann ich nicht rechnen. Sag mir in einem Satz, was du heute hattest.",
+      text: "Ohne Einträge kann ich nicht rechnen. Sag mir in einem Satz, was du heute hattest.",
       grund: "Null Mahlzeiten bis jetzt.",
     });
   }
@@ -266,10 +266,10 @@ export function recommendations() {
     const abweichung = Math.round(schnitt - n.targets.kcal);
     if (Math.abs(abweichung) > 250) {
       out.push({
-        titel: abweichung > 0 ? "Du liegst ueber deinem Schnitt" : "Du liegst unter deinem Schnitt",
+        titel: abweichung > 0 ? "Du liegst über deinem Schnitt" : "Du liegst unter deinem Schnitt",
         text:
           abweichung > 0
-            ? `Im Schnitt ${abweichung} kcal ueber dem Ziel. Bei Gewicht halten wandert das nach oben.`
+            ? `Im Schnitt ${abweichung} kcal über dem Ziel. Bei Gewicht halten wandert das nach oben.`
             : `Im Schnitt ${Math.abs(abweichung)} kcal unter dem Ziel. Dauerhaft kostet das Kraft und Schlaf.`,
         grund: `Schnitt der letzten ${letzteWoche.length} Tage: ${Math.round(schnitt)} kcal.`,
       });
@@ -280,14 +280,14 @@ export function recommendations() {
   if (energien.length >= 3 && mittelwert(energien) < 5) {
     out.push({
       titel: "Deine Energie ist unten",
-      text: "Drei oder mehr Check-ins unter fuenf. Das ist ein Muster, kein Ausrutscher. Schlaf und Essenszeiten zuerst.",
+      text: "Drei oder mehr Check-ins unter fünf. Das ist ein Muster, kein Ausrutscher. Schlaf und Essenszeiten zuerst.",
       grund: `Schnitt der Energie: ${mittelwert(energien).toFixed(1)} von 10.`,
     });
   }
 
   if (out.length === 0) {
     out.push({
-      titel: "Nichts Auffaelliges",
+      titel: "Nichts Auffälliges",
       text: "Deine Zahlen liegen im Rahmen. Weiter so, ich melde mich, wenn sich etwas dreht.",
       grund: `Tagesscore ${n.score.total} von 100.`,
     });

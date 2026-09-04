@@ -1,21 +1,21 @@
 /**
  * Der Kreis.
  *
- * Das d aus dem Logo, aufgeloest in Partikel. Der Ring ist als Torus gedacht:
+ * Das d aus dem Logo, aufgelöst in Partikel. Der Ring ist als Torus gedacht:
  * jeder Punkt sitzt auf einem Winkel entlang des Bogens und auf einem Winkel
- * um den Schlauchquerschnitt. Daraus ergeben sich Tiefe und Helligkeit. Ueber
+ * um den Schlauchqürschnitt. Daraus ergeben sich Tiefe und Helligkeit. Ueber
  * den Radius laufen mehrere Sinuswellen, das erzeugt das Wogen.
  *
  * Canvas statt SVG, weil ein paar tausend Punkte pro Bild in SVG nicht
- * fluessig laufen.
+ * flüssig laufen.
  *
  * Die Geometrie ist dieselbe wie im Logo, gemessen aus Poppins SemiBold bei
  * 1000 Einheiten je Geviert und in einen Entwurfsraum von 800 gelegt:
- *   Grundlinie 760, Ringmitte 318 / 483, Radius 215, Strichstaerke 140
+ *   Grundlinie 760, Ringmitte 318 / 483, Radius 215, Strichstärke 140
  *   Stamm x 470 bis 610, von y 20 bis zur Grundlinie
  *
- * Zustaende:
- *   idle       ruhiges Wogen, ein duenner Innenring zeigt den Tagesfortschritt
+ * Zustände:
+ *   idle       ruhiges Wogen, ein dünner Innenring zeigt den Tagesfortschritt
  *   listening  Wellen und Helligkeit folgen dem Mikrofonpegel
  *   thinking   die Wellen wandern schnell um den Ring
  *   speaking   der ganze Ring pulsiert
@@ -25,37 +25,55 @@ const BASE = 760;
 const CX = 318;
 const CY = BASE - 277;
 const R = 215;
-const TUBE = 70;              // halbe Strichstaerke
+const TUBE = 70;              // halbe Strichstärke
 const SWEEP = 300;            // offener Ring wie im Logo
 const STEM_X = 470;
 const STEM_W = 140;
 const STEM_TOP = BASE - 740;
-const GAUGE_R = R - 96;
-const DESIGN = 800;           // Kantenlaenge des Entwurfsraums
+const DESIGN = 800;           // Kantenlänge des Entwurfsraums
 const ORIGIN_X = -78.5;       // Verschiebung, damit das d mittig sitzt
 const ORIGIN_Y = -6;
 
 /**
- * Die Punkte liegen auf Faeden. Ein Faden ist ein Ring bei festem Winkel um
- * den Schlauchquerschnitt. Jeder Faden wogt mit eigener Phase, dadurch
- * entstehen die sichtbaren Straenge statt eines gleichmaessigen Rauschens.
+ * Die Punkte liegen auf Fäden. Ein Faden ist ein Ring bei festem Winkel um
+ * den Schlauchqürschnitt. Jeder Faden wogt mit eigener Phase, dadurch
+ * entstehen die sichtbaren Stränge statt eines gleichmäßigen Rauschens.
  */
 const STRANDS = 30;
 const PER_STRAND = 108;
 const RING_PARTICLES = STRANDS * PER_STRAND;
-const STEM_PARTICLES = 900;
+const STEM_PARTICLES = 1500;
 const ALPHA_STEPS = 12;
 
+/**
+ * Die Punktfarbe kommt aus --accent. Im dunklen Modus ist das das Logoblau,
+ * im hellen der abgedunkelte Ton. Das Logoblau auf Weiss hat nur 1.57 zu 1
+ * und waere als Kreis kaum zu sehen.
+ */
 function brandColor(el) {
-  const value = getComputedStyle(el).getPropertyValue("--brand").trim();
-  return value || "#96d8f0";
+  // --accent enthaelt "var(--brand-deep)", nicht die Farbe selbst. Ein Probe
+  // Element loest die Kette auf, der Browser liefert dann rgb().
+  const probe = document.createElement("span");
+  probe.style.cssText = "position:absolute;visibility:hidden;color:var(--accent)";
+  el.appendChild(probe);
+  const farbe = getComputedStyle(probe).color;
+  probe.remove();
+  const teile = farbe.match(/\d+/g);
+  return teile ? teile.slice(0, 3).map(Number) : [150, 216, 240];
 }
 
-/** Zerlegt eine Hexfarbe in ihre Kanaele, damit die Deckkraft je Punkt gesetzt werden kann. */
-function rgbOf(hex) {
-  const clean = hex.replace("#", "");
-  const full = clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean;
-  return [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16));
+/**
+ * Auf dunklem Grund werden die Punkte addiert, dann leuchtet der Kreis.
+ * Auf hellem Grund wuerde Addieren ihn ausbleichen, dort wird normal gemalt.
+ * Entschieden wird an der Helligkeit des Hintergrunds, nicht am Attribut,
+ * damit auch die Einstellung "wie das Geraet" richtig liegt.
+ */
+function grundIstHell() {
+  const bg = getComputedStyle(document.body).backgroundColor;
+  const teile = bg.match(/\d+/g);
+  if (!teile) return false;
+  const [r, g, b] = teile.map(Number);
+  return (r * 299 + g * 587 + b * 114) / 1000 > 128;
 }
 
 export class Orb {
@@ -70,7 +88,8 @@ export class Orb {
     this.rafId = 0;
     this.state = "idle";
     this.reduced = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
-    this.rgb = rgbOf(brandColor(this.el));
+    this.rgb = brandColor(this.el);
+    this.hell = grundIstHell();
     this.buildParticles();
     this.resize();
     this.observer = new ResizeObserver(() => this.resize());
@@ -81,7 +100,7 @@ export class Orb {
 
   /**
    * Die Punkte werden einmal erzeugt und danach nur noch bewegt. Jeder Punkt
-   * behaelt seinen Platz auf dem Ring, sonst flimmert das Bild.
+   * behält seinen Platz auf dem Ring, sonst flimmert das Bild.
    */
   buildParticles() {
     const sweepRad = (SWEEP * Math.PI) / 180;
@@ -100,15 +119,37 @@ export class Orb {
         this.ring[k++] = 2.1 + Math.random() * 1.8;
       }
     }
-    this.stem = new Float32Array(STEM_PARTICLES * 4); // u, v, seed, size
+    // Der Stamm ist eine Kapsel: ein Rechteck mit je einem Halbkreis oben und
+    // unten. Genau so steht er im Logo, seit die Enden rund sind. Die Punkte
+    // werden im umschliessenden Rechteck gewuerfelt und ausserhalb der Kapsel
+    // verworfen. Ohne das Verwerfen bekaemen die runden Enden Ecken zurueck.
+    const stemCx = STEM_X + STEM_W / 2;
+    const capR = STEM_W / 2;
+    const yTopCap = STEM_TOP + capR;
+    const yBotCap = BASE - capR;
+    this.stem = new Float32Array(STEM_PARTICLES * 4); // x, y, seed, size
+    this.stemCount = 0;
     k = 0;
-    for (let i = 0; i < STEM_PARTICLES; i++) {
-      this.stem[k++] = Math.random();
-      this.stem[k++] = Math.random();
+    let versuche = 0;
+    while (this.stemCount < STEM_PARTICLES && versuche < STEM_PARTICLES * 40) {
+      versuche++;
+      const x = STEM_X + Math.random() * STEM_W;
+      const y = STEM_TOP + Math.random() * (BASE - STEM_TOP);
+      const dx = x - stemCx;
+      let drin;
+      if (y >= yTopCap && y <= yBotCap) drin = true;
+      else {
+        const dy = y < yTopCap ? y - yTopCap : y - yBotCap;
+        drin = dx * dx + dy * dy <= capR * capR;
+      }
+      if (!drin) continue;
+      this.stem[k++] = x;
+      this.stem[k++] = y;
       this.stem[k++] = Math.random() * Math.PI * 2;
       this.stem[k++] = 2.2 + Math.random() * 1.8;
+      this.stemCount++;
     }
-    // Ziel fuer die berechneten Bildpunkte: x, y, groesse, Helligkeitsstufe
+    // Ziel für die berechneten Bildpunkte: x, y, grösse, Helligkeitsstufe
     this.out = new Float32Array((RING_PARTICLES + STEM_PARTICLES) * 4);
   }
 
@@ -121,7 +162,13 @@ export class Orb {
     this.canvas.style.width = `${rect.width}px`;
     this.canvas.style.height = `${rect.height}px`;
     this.scale = (rect.width * dpr) / DESIGN;
-    this.rgb = rgbOf(brandColor(this.el));
+    this.refreshTheme();
+  }
+
+  /** Nach einem Wechsel zwischen hell und dunkel neu einlesen. */
+  refreshTheme() {
+    this.rgb = brandColor(this.el);
+    this.hell = grundIstHell();
   }
 
   setProgress(value) {
@@ -139,18 +186,30 @@ export class Orb {
 
   /** Wellenparameter je Zustand. */
   motion() {
+    // scale wächst beim Zuhören und Sprechen. Der ganze Kreis geht auf,
+    // so wie Siri grösser wird, wenn sie zuhört.
     if (this.state === "listening") {
-      return { amp: 12 + this.level * 44, speed: 1.7, bright: 0.95 + this.level * 0.05, spread: 1 + this.level * 0.45 };
+      return {
+        amp: 12 + this.level * 44, speed: 1.7,
+        bright: 0.95 + this.level * 0.05,
+        spread: 1 + this.level * 0.45,
+        scale: 1.06 + this.level * 0.16,
+      };
     }
     if (this.state === "thinking") {
-      return { amp: 22, speed: 4.2, bright: 0.96, spread: 1 };
+      return { amp: 22, speed: 4.2, bright: 0.96, spread: 1, scale: 1.04 + Math.sin(this.phase * 3) * 0.02 };
     }
     if (this.state === "speaking") {
       const pulse = Math.abs(Math.sin(this.phase * 4));
-      return { amp: 14 + pulse * 20, speed: 2.4, bright: 0.9 + pulse * 0.1, spread: 1 + pulse * 0.18 };
+      return {
+        amp: 14 + pulse * 20, speed: 2.4,
+        bright: 0.9 + pulse * 0.1,
+        spread: 1 + pulse * 0.18,
+        scale: 1.05 + pulse * 0.09,
+      };
     }
     const breath = (Math.sin(this.phase * 0.8) + 1) / 2;
-    return { amp: 8 + breath * 6, speed: 0.7, bright: 0.82 + breath * 0.1, spread: 1 };
+    return { amp: 8 + breath * 6, speed: 0.7, bright: 0.82 + breath * 0.1, spread: 1, scale: 1 + breath * 0.015 };
   }
 
   frame() {
@@ -165,19 +224,9 @@ export class Orb {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     ctx.setTransform(scale, 0, 0, scale, -ORIGIN_X * scale, -ORIGIN_Y * scale);
-    ctx.globalCompositeOperation = "lighter";
+    ctx.globalCompositeOperation = this.hell ? "source-over" : "lighter";
 
-    // Innenring fuer den Tagesfortschritt, ruhig und duenn.
-    if (this.progress > 0.005) {
-      ctx.beginPath();
-      ctx.arc(CX, CY, GAUGE_R, -Math.PI / 2, -Math.PI / 2 + this.progress * Math.PI * 2);
-      ctx.strokeStyle = `rgba(${r},${g},${b},0.45)`;
-      ctx.lineWidth = 14;
-      ctx.lineCap = "round";
-      ctx.stroke();
-    }
-
-    // Erst alle Bildpunkte rechnen, dann nach Helligkeit gebuendelt zeichnen.
+    // Erst alle Bildpunkte rechnen, dann nach Helligkeit gebündelt zeichnen.
     // Ein fillStyle je Punkt kostet pro Bild tausende Zeichenketten.
     const out = this.out;
     let o = 0;
@@ -204,24 +253,29 @@ export class Orb {
       out[o++] = depth * m.bright;
     }
 
-    for (let i = 0; i < STEM_PARTICLES; i++) {
+    for (let i = 0; i < this.stemCount; i++) {
       const p = i * 4;
-      const u = this.stem[p];
-      const v = this.stem[p + 1];
+      const x = this.stem[p];
+      const y = this.stem[p + 1];
       const seed = this.stem[p + 2];
       const size = this.stem[p + 3];
+      const v = (y - STEM_TOP) / (BASE - STEM_TOP);
+      const u = (x - STEM_X) / STEM_W;
       const wobble = Math.sin(v * 9 + t * 1.2 + seed) * m.amp * 0.22;
       const depth = 0.55 + 0.45 * Math.sin(u * Math.PI);
 
-      out[o++] = STEM_X + u * STEM_W + wobble;
-      out[o++] = STEM_TOP + v * (BASE - STEM_TOP);
+      out[o++] = x + wobble;
+      out[o++] = y;
       out[o++] = size * (0.6 + depth * 0.7);
       out[o++] = Math.min(1, depth * m.bright * 1.1);
     }
 
-    const total = RING_PARTICLES + STEM_PARTICLES;
+    const total = RING_PARTICLES + this.stemCount;
     for (let step = 0; step < ALPHA_STEPS; step++) {
-      const alpha = (step + 1) / ALPHA_STEPS;
+      // Auf hellem Grund sind kleine Punkte mit wenig Deckkraft kaum zu sehen.
+      // Deshalb dort ein Sockel, statt linear bei null zu beginnen.
+      const roh = (step + 1) / ALPHA_STEPS;
+      const alpha = this.hell ? 0.4 + roh * 0.6 : roh;
       ctx.fillStyle = `rgba(${r},${g},${b},${alpha.toFixed(3)})`;
       let drew = false;
       for (let i = 0; i < total; i++) {
@@ -238,6 +292,7 @@ export class Orb {
     ctx.globalCompositeOperation = "source-over";
     this.el.style.setProperty("--glow", m.bright.toFixed(3));
     this.el.style.setProperty("--level", this.level.toFixed(3));
+    this.el.style.setProperty("--orb-scale", m.scale.toFixed(3));
   }
 
   loop() {

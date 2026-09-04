@@ -6,7 +6,7 @@ export interface AdherenceScore {
   kcal: number;
   protein: number;
   water: number;
-  /** Klartext fuer den Coach. */
+  /** Klartext für den Coach. */
   verdict: "on_track" | "slightly_off" | "off_track";
 }
 
@@ -15,7 +15,7 @@ export interface AdherenceScore {
  *
  * Gewichtung: Kalorien 50 Prozent, Protein 30 Prozent, Wasser 20 Prozent.
  * Diese Gewichtung ist eine Produktentscheidung, keine wissenschaftliche Konstante.
- * Kalorien steuern die Gewichtsveraenderung, Protein schuetzt die Muskelmasse.
+ * Kalorien steuern die Gewichtsveränderung, Protein schützt die Muskelmasse.
  */
 export function scoreDay(totals: DayTotals, targets: MacroTargets): AdherenceScore {
   const kcal = bandScore(totals.kcal, targets.kcal, 0.1);
@@ -56,7 +56,7 @@ export interface StreakInput {
   today: string;
 }
 
-/** Zaehlt zusammenhaengende Tage mit Eintrag bis heute oder gestern. */
+/** Zählt zusammenhängende Tage mit Eintrag bis heute oder gestern. */
 export function currentStreak(input: StreakInput): number {
   const set = new Set(input.daysWithLog);
   let cursor = new Date(`${input.today}T00:00:00Z`);

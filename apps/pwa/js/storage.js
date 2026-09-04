@@ -1,12 +1,12 @@
 /**
  * Speicher der App.
  *
- * Alles liegt im localStorage des Geraets. Es gibt keinen Server und keine
+ * Alles liegt im localStorage des Geräts. Es gibt keinen Server und keine
  * Uebertragung. Das ist bewusst so: solange die App im Test ist, sollen keine
  * Gesundheitsdaten irgendwo landen.
  *
  * Grenze: localStorage ist an einen Browser gebunden. Wenn du den Browser
- * loeschst oder das Geraet wechselst, sind die Daten weg. Deshalb gibt es den
+ * löschst oder das Gerät wechselst, sind die Daten weg. Deshalb gibt es den
  * Export im Profil.
  */
 
@@ -15,7 +15,7 @@ const LEGACY_PREFIX = "kicoach.v1.";
 
 /**
  * Uebernimmt Daten aus der Zeit vor der Umbenennung auf daevo.
- * Laeuft einmal und laesst die alten Schluessel unberuehrt, damit nichts
+ * Läuft einmal und lässt die alten Schlüssel unberührt, damit nichts
  * verloren geht, falls die Uebernahme schiefgeht.
  */
 function migrateLegacyKeys() {
@@ -57,11 +57,11 @@ function write(key, value) {
 }
 
 /**
- * Eindeutige Kennung fuer Eintraege.
+ * Eindeutige Kennung für Einträge.
  *
  * crypto.randomUUID gibt es nur in sicheren Kontexten und erst ab Safari 15.4.
- * Der Rueckfall nutzt Zufallswerte aus der Krypto Schnittstelle, notfalls
- * Math.random. Die Kennungen bleiben lokal, sie muessen nicht faelschungssicher
+ * Der Rückfall nutzt Zufallswerte aus der Krypto Schnittstelle, notfalls
+ * Math.random. Die Kennungen bleiben lokal, sie müssen nicht fälschungssicher
  * sein, nur eindeutig.
  */
 export function newId() {
@@ -109,8 +109,8 @@ export const store = {
     return read("chat", []);
   },
   setChat(messages) {
-    // Nur die letzten Nachrichten behalten. Der Verlauf waechst sonst ohne
-    // Grenze und der localStorage ist bei rund fuenf Megabyte zu Ende.
+    // Nur die letzten Nachrichten behalten. Der Verlauf wächst sonst ohne
+    // Grenze und der localStorage ist bei rund fünf Megabyte zu Ende.
     write("chat", messages.slice(-60));
   },
 

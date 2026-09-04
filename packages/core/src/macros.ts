@@ -21,7 +21,7 @@ export function sumEntries(entries: FoodEntry[], waterMl = 0): DayTotals {
   );
 }
 
-/** Was heute noch uebrig ist. Negative Werte bedeuten Ueberschreitung. */
+/** Was heute noch übrig ist. Negative Werte bedeuten Ueberschreitung. */
 export function remainingBudget(totals: DayTotals, targets: MacroTargets): RemainingBudget {
   return {
     kcal: Math.round(targets.kcal - totals.kcal),
@@ -33,7 +33,7 @@ export function remainingBudget(totals: DayTotals, targets: MacroTargets): Remai
 }
 
 /**
- * Prueft, ob eine geplante Mahlzeit in das Restbudget passt.
+ * Prüft, ob eine geplante Mahlzeit in das Restbudget passt.
  * Toleranz: 10 Prozent der Zielkalorien des Tages.
  */
 export function fitsBudget(meal: FoodEntry[], remaining: RemainingBudget, dailyKcalTarget: number): boolean {
@@ -42,7 +42,7 @@ export function fitsBudget(meal: FoodEntry[], remaining: RemainingBudget, dailyK
   return mealTotals.kcal <= remaining.kcal + tolerance;
 }
 
-/** Kalorien aus Makros. Alkohol wird hier nicht beruecksichtigt. */
+/** Kalorien aus Makros. Alkohol wird hier nicht berücksichtigt. */
 export function kcalFromMacros(proteinG: number, fatG: number, carbsG: number): number {
   return Math.round(proteinG * 4 + fatG * 9 + carbsG * 4);
 }
