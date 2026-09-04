@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { BEREICHE, SCHRITTE, auswerten } from "./anamnese.js";
-import { BODY_FAT_LEVELS, koerpermasse, silhouetteSvg } from "./silhouette.js";
+import { existsSync } from "node:fs";
+import { BODY_FAT_LEVELS, figurBild, figurDatei, skala } from "./silhouette.js";
 
 const basis = {
   name: " Aaron ",
@@ -99,98 +100,77 @@ test("Bereiche der Auswahl und der Auswertung passen zusammen", () => {
   for (const option of feld.optionen) assert.ok(ids.has(option.id));
 });
 
-test("es gibt sechs Silhouetten je Geschlecht, aufsteigend im Prozentwert", () => {
+test("zu jeder Stufe gibt es wirklich eine Bilddatei", () => {
   for (const sex of ["male", "female"]) {
-    const stufen = BODY_FAT_LEVELS[sex];
-    assert.equal(stufen.length, 6);
-    for (let i = 1; i < stufen.length; i++) {
-      assert.ok(stufen[i].percent > stufen[i - 1].percent);
+    for (let i = 0; i < BODY_FAT_LEVELS[sex].length; i++) {
+      const datei = figurDatei(sex, i);
+      const pfad = new URL(`../img/koerperfett/${datei}`, import.meta.url);
+      assert.equal(existsSync(pfad), true, `${datei} fehlt`);
     }
   }
 });
 
-test("jede Silhouette ist ein gueltiges SVG", () => {
+test("das Bild verweist auf dieselbe Datei wie figurDatei", () => {
   for (const sex of ["male", "female"]) {
-    for (let i = 0; i < 6; i++) {
-      const svg = silhouetteSvg(sex, i);
-      assert.match(svg, /^<svg viewBox="0 0 128 282"/);
-      assert.match(svg, /<\/svg>$/);
-      assert.equal(svg.includes("NaN"), false);
-    }
-  }
-});
-
-test("Taille, Bauch und Oberschenkel wachsen mit jeder Stufe", () => {
-  for (const sex of ["male", "female"]) {
-    for (let i = 1; i < 6; i++) {
-      const vorher = koerpermasse(sex, i - 1);
-      const jetzt = koerpermasse(sex, i);
-      for (const teil of ["taille", "nabel", "oberschenkel", "huefte"]) {
-        assert.ok(jetzt[teil] > vorher[teil], `${sex} ${teil}: Stufe ${i} nicht breiter als ${i - 1}`);
-      }
-    }
-  }
-});
-
-test("die Taille wächst schneller als die Schulter", () => {
-  // Das ist der Kern der Darstellung. Wachsen beide gleich schnell, sehen
-  // alle sechs Stufen gleich aus, nur grösser.
-  for (const sex of ["male", "female"]) {
-    const unten = koerpermasse(sex, 0);
-    const oben = koerpermasse(sex, 5);
-    const taille = oben.taille / unten.taille;
-    const schulter = oben.schulter / unten.schulter;
-    assert.ok(taille > schulter * 1.5, `${sex}: Taille ${taille.toFixed(2)}, Schulter ${schulter.toFixed(2)}`);
-  }
-});
-
-test("die Proportionen bleiben menschlich", () => {
-  for (const sex of ["male", "female"]) {
-    for (let i = 0; i < 6; i++) {
-      const m = koerpermasse(sex, i);
-      // Kopfhöhe 35 Einheiten bei 282 Gesamthöhe, also gut siebeneinhalb Kopf.
-      assert.ok(m.kopf > 10 && m.kopf < 14);
-      // Die Figur muss in den Entwurfsraum von 128 passen, Arme eingerechnet.
-      const breiteste = Math.max(m.schulter, m.brust, m.nabel, m.huefte);
-      assert.ok(breiteste + m.unterarm * 0.75 + m.hand < 64, `${sex} Stufe ${i} läuft aus dem Bild`);
-    }
-  }
-  // Bei der Frau ist die Hüfte breiter als die Schulter, beim Mann umgekehrt.
-  assert.ok(koerpermasse("female", 0).huefte > koerpermasse("female", 0).schulter);
-  assert.ok(koerpermasse("male", 0).schulter > koerpermasse("male", 0).huefte);
-});
-
-test("die Kennungen der Verläufe sind je Figur eindeutig", () => {
-  // Mehrere Figuren stehen gleichzeitig auf der Seite. Gleiche Kennungen
-  // würden dazu führen, dass alle den Verlauf der ersten benutzen.
-  const alle = new Set();
-  for (const sex of ["male", "female"]) {
-    for (let i = 0; i < 6; i++) {
-      for (const treffer of silhouetteSvg(sex, i).matchAll(/id="([^"]+)"/g)) {
-        assert.equal(alle.has(treffer[1]), false, `Kennung ${treffer[1]} kommt doppelt vor`);
-        alle.add(treffer[1]);
-      }
-    }
-  }
-});
-
-test("jeder Verweis auf einen Verlauf zeigt auf eine vorhandene Kennung", () => {
-  for (const sex of ["male", "female"]) {
-    for (let i = 0; i < 6; i++) {
-      const svg = silhouetteSvg(sex, i);
-      const vorhanden = new Set([...svg.matchAll(/id="([^"]+)"/g)].map((t) => t[1]));
-      for (const treffer of svg.matchAll(/url\(#([^)]+)\)/g)) {
-        assert.equal(vorhanden.has(treffer[1]), true, `${treffer[1]} fehlt in defs`);
-      }
+    for (let i = 0; i < BODY_FAT_LEVELS[sex].length; i++) {
+      const html = figurBild(sex, i);
+      assert.ok(html.includes(`./img/koerperfett/${figurDatei(sex, i)}`), html);
+      // Ohne Maße im Markup springt die Auswahl beim Laden.
+      assert.match(html, /width="\d+" height="\d+"/);
+      assert.match(html, /alt="[^"]{10,}"/);
     }
   }
 });
 
 test("eine Stufe ausserhalb der Skala bricht nicht", () => {
   for (const wert of [-3, 99, NaN, undefined, null, "2"]) {
-    const svg = silhouetteSvg("male", wert);
-    assert.match(svg, /^<svg /);
-    assert.equal(svg.includes("NaN"), false);
-    assert.equal(svg.includes("undefined"), false);
+    const html = figurBild("male", wert);
+    assert.match(html, /^<img /);
+    assert.equal(html.includes("NaN"), false);
+    assert.equal(html.includes("undefined"), false);
+  }
+});
+
+test("die Skala nennt den kleinsten und groessten Wert mit Bild", () => {
+  assert.deepEqual(skala("male"), { min: 20, max: 35 });
+  assert.deepEqual(skala("female"), { min: 30, max: 45 });
+  // Unbekanntes Geschlecht faellt auf maennlich zurueck statt zu brechen.
+  assert.deepEqual(skala("keine Angabe"), { min: 20, max: 35 });
+});
+
+test("es gibt einen Weg fuer Werte unterhalb der Bilder", () => {
+  // Die Vorlage beginnt beim Mann erst bei 20 Prozent. Wer darunter liegt,
+  // braucht ein Zahlenfeld, sonst kann er sich nicht eintragen.
+  const schritt = SCHRITTE.find((s) => s.id === "koerperfett");
+  const feld = schritt.felder.find((f) => f.art === "zahl");
+  assert.ok(feld, "kein Zahlenfeld im Schritt");
+  assert.ok(feld.min < skala("male").min, "das Feld deckt den schlanken Bereich nicht ab");
+});
+
+test("ein eingetragener Wert schlaegt die gewaehlte Figur", () => {
+  const antworten = { ...basis, koerperfett: { step: 2, percent: 30 }, koerperfettWert: 14 };
+  assert.equal(auswerten(antworten).profile.bodyFatPercent, 14);
+});
+
+test("ein unsinniger Wert wird verworfen, die Figur bleibt", () => {
+  for (const unsinn of [0, 95, -5, "viel", null]) {
+    const antworten = { ...basis, koerperfett: { step: 1, percent: 25 }, koerperfettWert: unsinn };
+    assert.equal(auswerten(antworten).profile.bodyFatPercent, 25, String(unsinn));
+  }
+});
+
+test("ohne beides bleibt der Koerperfettanteil leer", () => {
+  const antworten = { ...basis, koerperfett: undefined, koerperfettWert: undefined };
+  assert.equal(auswerten(antworten).profile.bodyFatPercent, null);
+});
+
+test("es gibt vier Stufen je Geschlecht, aufsteigend im Prozentwert", () => {
+  for (const sex of ["male", "female"]) {
+    const stufen = BODY_FAT_LEVELS[sex];
+    assert.equal(stufen.length, 4);
+    for (let i = 1; i < stufen.length; i++) {
+      assert.ok(stufen[i].percent > stufen[i - 1].percent);
+      assert.ok(stufen[i].hint.length > 20, `${sex} ${i}: Hinweis zu knapp`);
+    }
   }
 });

@@ -1,4 +1,4 @@
-import { BODY_FAT_LEVELS, koerpermasse, silhouetteSvg } from "./silhouette.js";
+import { BODY_FAT_LEVELS, figurBild, skala } from "./silhouette.js";
 
 /**
  * Der Anamnesebogen beim ersten Start.
@@ -98,8 +98,11 @@ export const SCHRITTE = [
   {
     id: "koerperfett",
     titel: "Schätz deinen Körperfettanteil",
-    text: "Such die Figur, die dir am nächsten kommt. Eine Schätzung nach Augenmaß liegt gut fünf Prozentpunkte daneben, das reicht mir. Du kannst den Schritt auch überspringen.",
-    felder: [{ art: "silhouette", id: "koerperfett" }],
+    text: "Such die Figur, die dir am nächsten kommt. Eine Schätzung nach Augenmaß liegt gut fünf Prozentpunkte daneben, das reicht mir. Bist du schlanker als die erste Figur oder kennst du deinen Wert aus einer Messung, trag ihn unten ein. Du kannst den Schritt auch überspringen.",
+    felder: [
+      { art: "silhouette", id: "koerperfett" },
+      { art: "zahl", id: "koerperfettWert", label: "Oder dein Wert in Prozent, falls du ihn kennst", min: 3, max: 60, schritt: 0.5 },
+    ],
     ueberspringbar: true,
   },
   {
@@ -163,7 +166,9 @@ export function auswerten(antworten) {
     dailySteps: Number(antworten.dailySteps) || 8000,
     occupation: antworten.occupation || "sitzend",
     leisure: antworten.leisure || "gemischt",
-    bodyFatPercent: antworten.koerperfett?.percent ?? null,
+    // Ein selbst eingetragener Wert schlägt die Figur. Wer seinen Wert kennt,
+    // hat ihn gemessen, und eine Messung schlägt eine Schätzung nach Augenmaß.
+    bodyFatPercent: gueltigerKoerperfettWert(antworten.koerperfettWert) ?? antworten.koerperfett?.percent ?? null,
     wakeTime: antworten.wakeTime || "07:00",
     sleepTime: antworten.sleepTime || "23:00",
     tdeeOverrideKcal: null,
@@ -206,6 +211,12 @@ export function auswerten(antworten) {
   return { profile, notizen, kraft, sessions, bereiche };
 }
 
+/** Nimmt einen selbst eingetragenen Körperfettanteil nur in sinnvollen Grenzen an. */
+function gueltigerKoerperfettWert(wert) {
+  const zahl = Number(wert);
+  return Number.isFinite(zahl) && zahl >= 3 && zahl <= 60 ? Math.round(zahl * 10) / 10 : null;
+}
+
 /**
  * Legt Trainingseinheiten in die Woche.
  *
@@ -233,4 +244,4 @@ function startzeit(wake) {
   return `${String(Math.floor(minuten / 60)).padStart(2, "0")}:${String(minuten % 60).padStart(2, "0")}`;
 }
 
-export { silhouetteSvg, koerpermasse, BODY_FAT_LEVELS };
+export { figurBild, skala, BODY_FAT_LEVELS };
