@@ -4,6 +4,7 @@ import {
   type ContentBlock,
   type ConverseRequest,
   type ConverseResponse,
+  anhangBlock,
   type JsonRequest,
 } from "./provider.js";
 
@@ -37,7 +38,11 @@ export class AnthropicProvider implements CoachProvider {
   private readonly fetchImpl: typeof fetch;
 
   constructor(private readonly options: AnthropicOptions) {
-    this.fetchImpl = options.fetchImpl ?? fetch;
+    // fetch muss an globalThis gebunden bleiben. Speichert man die blanke
+    // Funktion in einem Feld und ruft sie als this.fetchImpl auf, ist this
+    // die Instanz und nicht window. Browser werfen dann "Illegal invocation",
+    // und der Aufruf scheitert, bevor eine einzige Anfrage rausgeht.
+    this.fetchImpl = options.fetchImpl ?? ((...args) => fetch(...args));
   }
 
   get available(): boolean {
@@ -57,7 +62,12 @@ export class AnthropicProvider implements CoachProvider {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const response = await this.fetchImpl(API_URL, {
+      // Erst in eine lokale Konstante, dann aufrufen. Ruft man
+      // this.fetchImpl(...) direkt auf, ist this die Instanz und nicht
+      // globalThis. Browser werfen dann "Illegal invocation", und es geht
+      // keine einzige Anfrage raus.
+      const holen = this.fetchImpl;
+      const response = await holen(API_URL, {
         method: "POST",
         headers: this.headers(),
         signal: controller.signal,
@@ -106,7 +116,8 @@ export class AnthropicProvider implements CoachProvider {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.options.timeoutMs ?? 30000);
     try {
-      const response = await this.fetchImpl(API_URL, {
+      const holen = this.fetchImpl;
+      const response = await holen(API_URL, {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -119,7 +130,14 @@ export class AnthropicProvider implements CoachProvider {
           model: this.options.model,
           max_tokens: request.maxTokens ?? 2048,
           system: request.system,
-          messages: [{ role: "user", content: request.user }],
+          // Anhänge stehen vor dem Text. Das Modell sieht sonst die Frage,
+          // bevor es das Bild kennt, und beginnt zu raten.
+          messages: [{
+            role: "user",
+            content: request.anhaenge?.length
+              ? [...request.anhaenge.map(anhangBlock), { type: "text", text: request.user }]
+              : request.user,
+          }],
           tools: [
             {
               name: request.schemaName,

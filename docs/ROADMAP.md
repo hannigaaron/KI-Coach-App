@@ -14,7 +14,7 @@ die Datenschutzanforderungen und die Nährwertdatenbank.
 - API mit Konto, Profil, Mahlzeiten, Wasser, Check-ins, Kühlschrank, Health Import
 - Scheduler mit Sperre gegen Doppelversand
 - Testkonsole im Browser mit Spracheingabe
-- 149 automatisierte Tests
+- 161 automatisierte Tests
 
 ## Milestone 2: Installierbare Web App (fertig)
 
@@ -145,7 +145,41 @@ dazu die sechs aus Einkauf und Standards. Insgesamt siebzehn.
   Tag. Ein Standard, der seit Wochen bei null steht, gehört gesenkt, nicht
   erinnert.
 
-## Milestone 7: Native App
+## Milestone 7: Fotos und Dateien (fertig)
+
+Der Chat nimmt jetzt Fotos, Videos und PDFs an, und der Coach sieht sie.
+
+- Ein Foto vom iPhone hat 12 Megapixel und bis zu 5 Megabyte. Die App bringt es
+  vorher auf 1568 Pixel an der langen Kante und kodiert es als JPEG mit
+  Qualität 82. Aus 4 Megabyte werden etwa 250 Kilobyte, ohne dass ein Teller
+  schlechter erkennbar wird. Die API rechnet Bilder ohnehin auf gut ein
+  Megapixel herunter.
+- Videos kann die API nicht lesen. Statt das zu verschweigen, zieht die App ein
+  Einzelbild aus der Mitte und sagt dem Nutzer, dass nur ein Bild ausgewertet
+  wurde.
+- Im gespeicherten Verlauf landet nur ein Vorschaubild mit 320 Pixel. Ganze
+  Bilder im localStorage wären nach wenigen Fotos am Limit von fünf Megabyte.
+- Teller: `mahlzeitAusFoto` schätzt Mengen an Bezugsgrössen im Bild, also
+  Tellerrand, Besteck, Glas. Das Schema verlangt eine Begründung der Schätzung
+  und eine Sicherheitsangabe. Die Nährwerte laufen durch dieselbe Prüfung wie
+  bei der Texteingabe: kcal muss zu Protein mal 4 plus Fett mal 9 plus
+  Kohlenhydrate mal 4 passen.
+- Kühlschrank: `vorratAusFoto` liest die Lebensmittel heraus und legt sie zum
+  Vorrat dazu, statt ihn zu ersetzen. Ein Foto zeigt selten alles. Was nur
+  vermutet ist, kommt in eine eigene Liste und nicht in den Vorrat.
+- Ohne Schlüssel sagt die App, dass sie das Bild nicht ansehen kann, statt so
+  zu tun, als hätte sie es gesehen.
+
+### Gefundener Fehler: es ging nie eine Anfrage raus
+
+Der Anbieter legte `fetch` in einem Feld ab und rief es als `this.fetchImpl`
+auf. Damit ist `this` die Instanz und nicht `globalThis`, und Browser werfen
+`Illegal invocation`. Jeder Modellaufruf scheiterte im Browser, bevor eine
+einzige Anfrage gestellt wurde, und fiel still auf den Regelpfad zurück. In
+Node fiel das nicht auf. Der Fehler ist behoben und durch einen Test gedeckt,
+der mit einem strengen `this` prüft.
+
+## Milestone 8: Native App
 
 Nötig für die zwei Dinge, die eine Web App auf dem iPhone nicht kann.
 
@@ -173,7 +207,7 @@ Erst mit HealthKit sinnvoll, deshalb hier und nicht früher:
   als Wirkversprechen. Das ist auch die Grenze, die der App Store zieht:
   Aussagen zu Diagnose oder Therapie machen die App zum Medizinprodukt.
 
-## Milestone 8: Datenqualität
+## Milestone 9: Datenqualität
 
 - Anbindung Open Food Facts inklusive Barcode Scanner
 - kuratierte Liste der 300 häufigsten Lebensmittel ohne Modellaufruf
@@ -181,7 +215,7 @@ Erst mit HealthKit sinnvoll, deshalb hier und nicht früher:
 - Gedächtnis auf Einbettungen umstellen, wenn die Wortsuche an Grenzen stösst
 - Nachjustierung des Kalorienbedarfs über den Vier Wochen Gewichtsverlauf
 
-## Milestone 9: Marktreife
+## Milestone 10: Marktreife
 
 - **Bildrechte für die Körperfiguren klären.** Die acht Figuren in
   `apps/pwa/img/koerperfett` stammen aus einer fremden Vergleichsreihe. Für den
@@ -196,7 +230,7 @@ Erst mit HealthKit sinnvoll, deshalb hier und nicht früher:
 - Datenschutzerklärung und Nutzungsbedingungen von einem Anwalt prüfen lassen
 - App Store Review, Puffer von vier Wochen einplanen
 
-## Milestone 10: Hebel
+## Milestone 11: Hebel
 
 - Trainerkonten: ein Coach betreut mehrere Kunden über die App
 - Whitelabel für Studios

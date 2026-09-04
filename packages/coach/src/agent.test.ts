@@ -22,6 +22,8 @@ function stubActions(log: string[]): AgentActions {
     async gewichtEintragen(kg) { log.push(`gewicht:${kg}`); return `${kg} kg eingetragen.`; },
     async trainingEintragen(i) { log.push(`training:${i.art}/${i.minuten}`); return "Training eingetragen."; },
     async profilAendern(i) { log.push(`profil:${JSON.stringify(i)}`); return "Profil geändert."; },
+    async fotoAlsMahlzeit(i) { log.push(`fotoMahlzeit:${i.hinweis ?? ""}`); return "Teller erfasst, 620 kcal."; },
+    async fotoAlsVorrat(i) { log.push(`fotoVorrat:${i.hinweis ?? ""}`); return "Zwölf Zutaten übernommen."; },
   };
 }
 
