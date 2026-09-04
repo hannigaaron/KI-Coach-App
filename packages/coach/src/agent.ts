@@ -4,11 +4,11 @@ import type { ChatMessage, CoachProvider, ContentBlock } from "./provider.js";
 /**
  * Der Assistent.
  *
- * Er fuehrt das Gespraech und darf dabei Werkzeuge benutzen, also wirklich
- * etwas in der App veraendern. Ohne Modellzugriff uebernimmt ein regelbasierter
+ * Er führt das Gespräch und darf dabei Werkzeuge benutzen, also wirklich
+ * etwas in der App verändern. Ohne Modellzugriff übernimmt ein regelbasierter
  * Pfad. Der versteht weniger, tut aber dasselbe: Mahlzeit erfassen, Wasser
  * eintragen, Stand nennen, sich etwas merken. Damit ist die App auch ohne
- * Schluessel benutzbar und nicht nur eine leere Huelle.
+ * Schlüssel benutzbar und nicht nur eine leere Hülle.
  */
 
 export interface AgentContext {
@@ -17,12 +17,12 @@ export interface AgentContext {
   /** Zahlen von heute, bereits gerechnet. */
   tag: string;
   /** Verdichtete Erinnerungen. */
-  gedaechtnis: string;
+  gedächtnis: string;
   /** Wochentag und Uhrzeit. */
   zeit: string;
 }
 
-/** Was der Assistent in der App ausloesen kann. Die App liefert die Umsetzung. */
+/** Was der Assistent in der App auslösen kann. Die App liefert die Umsetzung. */
 export interface AgentActions {
   mahlzeitErfassen(beschreibung: string): Promise<string>;
   wasserEintragen(ml: number): Promise<string>;
@@ -35,30 +35,30 @@ export interface AgentActions {
 
 export interface AgentReply {
   text: string;
-  /** Was tatsaechlich passiert ist, fuer die Anzeige unter der Antwort. */
-  ausgefuehrt: string[];
+  /** Was tatsächlich passiert ist, für die Anzeige unter der Antwort. */
+  ausgeführt: string[];
   source: "model" | "offline";
 }
 
-export const PERSONA = `Du bist daevo, der persoenliche Coach dieses Nutzers fuer Ernaehrung, Training und Alltag.
+export const PERSONA = `Du bist daevo, der persönliche Coach dieses Nutzers für Ernährung, Training und Alltag.
 
 Haltung:
-- Du sprichst den Nutzer mit du an. Kurze Saetze. Kein Geschwafel, keine Floskeln.
-- Du bist ehrlich. Laeuft etwas schlecht, sagst du das. Du lobst nur, wenn Zahlen es hergeben.
-- Du stellst hoechstens eine Frage pro Antwort.
-- Du antwortest so kurz, dass man es vorgelesen bekommen kann. Zwei bis vier Saetze sind die Regel.
-- Keine Aufzaehlungen, ausser der Nutzer bittet um eine Liste.
+- Du sprichst den Nutzer mit du an. Kurze Sätze. Kein Geschwafel, keine Floskeln.
+- Du bist ehrlich. Läuft etwas schlecht, sagst du das. Du lobst nur, wenn Zahlen es hergeben.
+- Du stellst höchstens eine Frage pro Antwort.
+- Du antwortest so kurz, dass man es vorgelesen bekommen kann. Zwei bis vier Sätze sind die Regel.
+- Keine Aufzählungen, ausser der Nutzer bittet um eine Liste.
 
 Regeln, die nicht verhandelbar sind:
-- Zahlen kommen aus den Werkzeugen, nie aus deinem Kopf. Bevor du ueber Kalorien, Makros oder
+- Zahlen kommen aus den Werkzeugen, nie aus deinem Kopf. Bevor du über Kalorien, Makros oder
   Wasser sprichst, rufst du tagesstand_abrufen auf.
-- Naehrwerte erfindest du nicht. Ist eine Menge unklar, fragst du danach.
+- Nährwerte erfindest du nicht. Ist eine Menge unklar, fragst du danach.
 - Du gibst keine medizinischen Diagnosen. Bei Warnzeichen wie starkem Untergewicht, Anzeichen einer
-  Essstoerung, anhaltenden Schmerzen oder Gedanken an Selbstverletzung verweist du klar auf
-  aerztliche oder therapeutische Hilfe und machst dort keine Coachingansage.
-- Erzaehlt der Nutzer etwas, das auch in vier Wochen noch gilt, legst du es mit merken ab.
-  Das ist dein Gedaechtnis. Ohne das vergisst du ihn.
-- Du erwaehnst Werkzeuge nie. Du sagst, was du getan hast, nicht wie.`;
+  Essstörung, anhaltenden Schmerzen oder Gedanken an Selbstverletzung verweist du klar auf
+  ärztliche oder therapeutische Hilfe und machst dort keine Coachingansage.
+- Erzählt der Nutzer etwas, das auch in vier Wochen noch gilt, legst du es mit merken ab.
+  Das ist dein Gedächtnis. Ohne das vergisst du ihn.
+- Du erwähnst Werkzeuge nie. Du sagst, was du getan hast, nicht wie.`;
 
 const MAX_STEPS = 6;
 
@@ -104,12 +104,12 @@ export class Agent {
       "Sein heutiger Stand:",
       params.kontext.tag,
       "",
-      "Was du ueber ihn weisst:",
-      params.kontext.gedaechtnis,
+      "Was du über ihn weißt:",
+      params.kontext.gedächtnis,
     ].join("\n");
 
     const messages: ChatMessage[] = [...params.verlauf, { role: "user", content: params.nachricht }];
-    const ausgefuehrt: string[] = [];
+    const ausgeführt: string[] = [];
 
     for (let step = 0; step < MAX_STEPS; step++) {
       const response = await this.provider.converse({ system, messages, tools: AGENT_TOOLS });
@@ -118,14 +118,14 @@ export class Agent {
       );
 
       if (toolUses.length === 0 || response.stopReason !== "tool_use") {
-        return { text: textOf(response.content), ausgefuehrt, source: "model" };
+        return { text: textOf(response.content), ausgeführt, source: "model" };
       }
 
       messages.push({ role: "assistant", content: response.content });
       const results: ContentBlock[] = [];
       for (const call of toolUses) {
         const outcome = await execute(call.name, call.input, params.aktionen);
-        if (outcome.notiz) ausgefuehrt.push(outcome.notiz);
+        if (outcome.notiz) ausgeführt.push(outcome.notiz);
         results.push({
           type: "tool_result",
           tool_use_id: call.id,
@@ -138,7 +138,7 @@ export class Agent {
 
     return {
       text: "Da habe ich mich verrannt. Sag es mir nochmal in einem Satz.",
-      ausgefuehrt,
+      ausgeführt,
       source: "model",
     };
   }
@@ -226,24 +226,35 @@ function isDebug(): boolean {
 /* ---------- Offline Pfad ---------- */
 
 const ML_PER_UNIT: Array<[RegExp, number]> = [
-  [/glas|glaeser|gläser/, 250],
-  [/flasche/, 500],
-  [/liter/, 1000],
+  [pattern("glas", "gläser"), 250],
+  [pattern("flasche"), 500],
+  [pattern("liter"), 1000],
 ];
 
 /**
- * Zahlwoerter. Wer spricht, sagt "zwei Glaeser", nicht "2 Glaeser".
- * Ohne diese Liste verliert der Regelpfad die haeufigste Formulierung.
+ * Zahlwörter. Wer spricht, sagt "zwei Gläser", nicht "2 Gläser".
+ * Ohne diese Liste verliert der Regelpfad die häufigste Formulierung.
  */
-const NUMBER_WORDS: Record<string, number> = {
-  ein: 1, eine: 1, einen: 1, eins: 1,
-  zwei: 2, drei: 3, vier: 4, fuenf: 5, sechs: 6, sieben: 7,
-  acht: 8, neun: 9, zehn: 10, elf: 11, zwoelf: 12,
-  halben: 0.5, halbe: 0.5, halber: 0.5,
-};
+const NUMBER_WORDS: Record<string, number> = Object.fromEntries(
+  Object.entries({
+    ein: 1, eine: 1, einen: 1, eins: 1,
+    zwei: 2, drei: 3, vier: 4, fünf: 5, sechs: 6, sieben: 7,
+    acht: 8, neun: 9, zehn: 10, elf: 11, zwölf: 12,
+    halben: 0.5, halbe: 0.5, halber: 0.5,
+  }).map(([wort, zahl]) => [foldUmlauts(wort), zahl]),
+);
 
 function foldUmlauts(text: string): string {
   return text.replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss");
+}
+
+/**
+ * Baut einen Ausdruck aus deutschen Woertern. Die Woerter duerfen Umlaute
+ * tragen, sie werden gefaltet wie der zu pruefende Text. Sonst braecht jede
+ * spaetere Textkorrektur die Erkennung.
+ */
+function pattern(...woerter: string[]): RegExp {
+  return new RegExp(woerter.map(foldUmlauts).join("|"));
 }
 
 /** Liest eine Zahl als Ziffer oder als Wort. */
@@ -258,59 +269,59 @@ function parseAmount(raw: string | undefined): number | null {
 /**
  * Regelbasierter Assistent ohne Modell.
  *
- * Er erkennt Absichten an Schluesselwoertern. Das ist grob, aber es deckt die
- * Faelle ab, die im Alltag zaehlen, und es sagt ehrlich, wenn es nicht reicht.
+ * Er erkennt Absichten an Schlüsselwörtern. Das ist grob, aber es deckt die
+ * Fälle ab, die im Alltag zählen, und es sagt ehrlich, wenn es nicht reicht.
  */
 export async function runOffline(nachricht: string, actions: AgentActions): Promise<AgentReply> {
   const text = foldUmlauts(nachricht.toLowerCase());
-  const ausgefuehrt: string[] = [];
+  const ausgeführt: string[] = [];
 
-  if (/merk dir|merke dir|denk dran|nicht vergessen|behalte/.test(text)) {
+  if (pattern("merk dir", "merke dir", "denk dran", "nicht vergessen", "behalte").test(text)) {
     const inhalt = nachricht.replace(/^.*?(merk dir|merke dir|denk dran|nicht vergessen|behalte)\s*,?\s*/i, "");
     const antwort = await actions.merken({ text: inhalt || nachricht, art: "fakt", wichtigkeit: 4, schlagworte: [] });
-    return { text: `Notiert. ${antwort}`, ausgefuehrt: ["Gemerkt"], source: "offline" };
+    return { text: `Notiert. ${antwort}`, ausgeführt: ["Gemerkt"], source: "offline" };
   }
 
-  // Getraenke mit Kalorien gehoeren in die Mahlzeit, nicht in die Trinkmenge.
-  const kalorienGetraenk = /cola|limo|saft|bier|wein|milch|shake|smoothie|kaffee mit|latte|apfelschorle/.test(text);
-  const trinkAbsicht = /getrunken|trinken|durst|wasser|glaeser|glas|flasche/.test(text);
-  if (trinkAbsicht && !kalorienGetraenk) {
+  // Getränke mit Kalorien gehören in die Mahlzeit, nicht in die Trinkmenge.
+  const kalorienGetränk = pattern("cola", "limo", "saft", "bier", "wein", "milch", "shake", "smoothie", "kaffee mit", "latte", "apfelschorle").test(text);
+  const trinkAbsicht = pattern("getrunken", "trinken", "durst", "wasser", "gläser", "glas", "flasche").test(text);
+  if (trinkAbsicht && !kalorienGetränk) {
     const ml = extractMl(text);
     if (ml) {
       const antwort = await actions.wasserEintragen(ml);
-      return { text: antwort, ausgefuehrt: [`${ml} ml Wasser eingetragen`], source: "offline" };
+      return { text: antwort, ausgeführt: [`${ml} ml Wasser eingetragen`], source: "offline" };
     }
   }
 
-  if (/gegessen|esse|hatte|fruehstueck|frühstück|mittag|abendessen|snack/.test(text)) {
+  if (pattern("gegessen", "esse", "hatte", "frühstück", "mittag", "abendessen", "snack").test(text)) {
     const antwort = await actions.mahlzeitErfassen(nachricht);
-    ausgefuehrt.push("Mahlzeit eingetragen");
-    return { text: antwort, ausgefuehrt, source: "offline" };
+    ausgeführt.push("Mahlzeit eingetragen");
+    return { text: antwort, ausgeführt, source: "offline" };
   }
 
-  if (/was soll ich essen|vorschlag|kuehlschrank|kühlschrank|kochen|rezept/.test(text)) {
-    return { text: await actions.mahlzeitVorschlagen(), ausgefuehrt, source: "offline" };
+  if (pattern("was soll ich essen", "vorschlag", "kühlschrank", "kochen", "rezept").test(text)) {
+    return { text: await actions.mahlzeitVorschlagen(), ausgeführt, source: "offline" };
   }
 
-  if (/wie (viel|weit|steht|stehe)|rest|noch offen|bilanz|stand/.test(text)) {
-    return { text: await actions.tagesstandAbrufen(), ausgefuehrt, source: "offline" };
+  if (pattern("wie (viel|weit|steht|stehe)", "rest", "noch offen", "bilanz", "stand").test(text)) {
+    return { text: await actions.tagesstandAbrufen(), ausgeführt, source: "offline" };
   }
 
-  if (/geschlafen|energie|fuehle|fühle|muede|müde|stress|erschoepft|erschöpft|kaputt/.test(text)) {
+  if (pattern("geschlafen", "energie", "fühle", "müde", "stress", "erschöpft", "kaputt").test(text)) {
     const antwort = await actions.checkinSpeichern({
       notiz: nachricht,
       energie: extractScore(text, /energie\D{0,10}(\d{1,2})/),
       schlaf: extractScore(text, /schlaf\D{0,10}(\d{1,2})/),
     });
-    return { text: `${antwort} Was nimmst du dir fuer den Rest des Tages vor?`, ausgefuehrt: ["Check-in gespeichert"], source: "offline" };
+    return { text: `${antwort} Was nimmst du dir für den Rest des Tages vor?`, ausgeführt: ["Check-in gespeichert"], source: "offline" };
   }
 
   return {
     text:
-      "Ohne KI Schluessel verstehe ich nur einfache Saetze. Das hier kann ich sicher: " +
+      "Ohne KI Schlüssel verstehe ich nur einfache Sätze. Das hier kann ich sicher: " +
       "sag mir, was du gegessen hast, wie viel du getrunken hast, wie es dir geht, " +
       "oder frag nach deinem Stand. Den vollen Coach schaltest du im Menue unter Profil frei.",
-    ausgefuehrt,
+    ausgeführt,
     source: "offline",
   };
 }
@@ -326,7 +337,7 @@ function extractMl(input: string): number | null {
     if (amount !== null) return Math.round(amount * (unit === "ml" || unit === "milliliter" ? 1 : 1000));
   }
 
-  const count = new RegExp(`${zahl}\\s*(glaeser|glas|flaschen|flasche|liter)`).exec(text);
+  const count = new RegExp(`${zahl}\\s*(${foldUmlauts("gläser|glas|flaschen|flasche|liter")})`).exec(text);
   if (count) {
     const amount = parseAmount(count[1]);
     const unit = count[2] ?? "glas";

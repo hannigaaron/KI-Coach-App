@@ -14,7 +14,7 @@ export async function readJson(req: IncomingMessage): Promise<Record<string, unk
   let size = 0;
   for await (const chunk of req) {
     size += (chunk as Buffer).length;
-    if (size > MAX_BODY_BYTES) throw new HttpError(413, "Anfrage zu gross");
+    if (size > MAX_BODY_BYTES) throw new HttpError(413, "Anfrage zu groß");
     chunks.push(chunk as Buffer);
   }
   if (chunks.length === 0) return {};
@@ -26,7 +26,7 @@ export async function readJson(req: IncomingMessage): Promise<Record<string, unk
     return parsed as Record<string, unknown>;
   } catch (error) {
     if (error instanceof HttpError) throw error;
-    throw new HttpError(400, "Ungueltiges JSON");
+    throw new HttpError(400, "Ungültiges JSON");
   }
 }
 

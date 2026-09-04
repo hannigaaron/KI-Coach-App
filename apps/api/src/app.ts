@@ -94,7 +94,7 @@ async function handle(
   const user = authenticate(deps.db, req.headers.authorization);
   if (!user) {
     res.setHeader("www-authenticate", "Bearer");
-    return sendJson(res, 401, { error: "Kein gueltiges Token" });
+    return sendJson(res, 401, { error: "Kein gültiges Token" });
   }
 
   const day = parseDate(url.searchParams.get("date"), now());
@@ -425,7 +425,7 @@ function parseSessions(value: unknown): TrainingSession[] {
   if (value === undefined || value === null) return [];
   if (!Array.isArray(value)) throw new HttpError(400, "Feld sessions muss eine Liste sein");
   return value.slice(0, 21).map((raw) => {
-    if (typeof raw !== "object" || raw === null) throw new HttpError(400, "Ungueltige Einheit");
+    if (typeof raw !== "object" || raw === null) throw new HttpError(400, "Ungültige Einheit");
     const session = raw as Record<string, unknown>;
     return {
       type: enumValue(session, "type", ["strength", "team_sport", "cardio", "mobility"]) as TrainingSession["type"],

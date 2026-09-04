@@ -1,8 +1,8 @@
 /**
- * Baut die statische Version der App fuer GitHub Pages.
+ * Baut die statische Version der App für GitHub Pages.
  *
  * Ablauf: die kompilierten Pakete aus packages/*\/dist werden neben die
- * statischen Dateien aus apps/pwa kopiert. Die Importe im Browser laufen ueber
+ * statischen Dateien aus apps/pwa kopiert. Die Importe im Browser laufen über
  * die Import Map in index.html, deshalb braucht es keinen Bundler.
  */
 import { cp, mkdir, rm, readdir, readFile, writeFile } from "node:fs/promises";
@@ -18,7 +18,7 @@ const required = [
 ];
 for (const file of required) {
   if (!existsSync(file)) {
-    console.error(`Fehlt: ${file}\nZuerst "npm run build" ausfuehren.`);
+    console.error(`Fehlt: ${file}\nZuerst "npm run build" ausführen.`);
     process.exit(1);
   }
 }
@@ -26,7 +26,11 @@ for (const file of required) {
 await rm(outDir, { recursive: true, force: true });
 await mkdir(outDir, { recursive: true });
 
-await cp(join(root, "apps/pwa"), outDir, { recursive: true });
+// Tests gehoeren nicht in die veroeffentlichte App.
+await cp(join(root, "apps/pwa"), outDir, {
+  recursive: true,
+  filter: (quelle) => !quelle.endsWith(".test.js"),
+});
 await mkdir(join(outDir, "lib/core"), { recursive: true });
 await mkdir(join(outDir, "lib/coach"), { recursive: true });
 
@@ -43,7 +47,7 @@ async function copyRuntime(from, to) {
 await copyRuntime(join(root, "packages/core/dist"), join(outDir, "lib/core"));
 await copyRuntime(join(root, "packages/coach/dist"), join(outDir, "lib/coach"));
 
-// GitHub Pages laeuft sonst durch Jekyll und wirft Ordner mit Unterstrich weg.
+// GitHub Pages läuft sonst durch Jekyll und wirft Ordner mit Unterstrich weg.
 await writeFile(join(outDir, ".nojekyll"), "");
 
 const files = [];

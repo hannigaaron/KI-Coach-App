@@ -13,6 +13,17 @@
 <link rel="icon" href="./icons/icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
 <link rel="stylesheet" href="./styles.css">
+<script>
+/*
+  Das Thema wird vor dem ersten Bild gesetzt, sonst blitzt beim Start der
+  falsche Grund auf. Der Wert steht im selben Speicher wie die Einstellungen,
+  wird hier aber nur gelesen, damit dieses Stück ohne Module auskommt.
+*/
+try {
+  var wahl = JSON.parse(localStorage.getItem("daevo.v1.settings") || "{}").theme;
+  if (wahl === "light" || wahl === "dark") document.documentElement.dataset.theme = wahl;
+} catch (e) {}
+</script>
 <script type="importmap">
 {
   "imports": {
@@ -24,46 +35,19 @@
 </head>
 <body>
 
-<div id="setup" class="screen setup">
-  <div class="setup-inner">
-    <div class="brand-lockup">
-      <img class="only-light" src="./brand/daevo-lockup-light.svg" alt="daevo, Evolve your daily life" width="230">
-      <img class="only-dark" src="./brand/daevo-lockup-dark.svg" alt="daevo, Evolve your daily life" width="230">
-    </div>
-    <p class="lead">Zwei Minuten Einrichtung. Danach redest du einfach mit mir.</p>
-
-    <div class="field"><label for="s-name">Wie heisst du</label><input id="s-name" autocomplete="given-name" placeholder="Aaron"></div>
-    <div class="field-row">
-      <div class="field"><label for="s-sex">Geschlecht</label>
-        <select id="s-sex"><option value="male">maennlich</option><option value="female">weiblich</option></select></div>
-      <div class="field"><label for="s-age">Alter</label><input id="s-age" type="number" inputmode="numeric" value="23"></div>
-    </div>
-    <div class="field-row">
-      <div class="field"><label for="s-height">Groesse in cm</label><input id="s-height" type="number" inputmode="numeric" value="184"></div>
-      <div class="field"><label for="s-weight">Gewicht in kg</label><input id="s-weight" type="number" inputmode="decimal" step="0.1" value="87"></div>
-    </div>
-    <div class="field"><label for="s-goal">Dein Ziel</label>
-      <select id="s-goal">
-        <option value="maintain">Gewicht halten</option>
-        <option value="fat_loss">Fett verlieren</option>
-        <option value="lean_bulk">Muskeln aufbauen</option>
-      </select></div>
-    <div class="field"><label for="s-steps">Schritte pro Tag im Schnitt</label><input id="s-steps" type="number" inputmode="numeric" value="10000"></div>
-    <div class="field-row">
-      <div class="field"><label for="s-wake">Aufstehen</label><input id="s-wake" type="time" value="07:00"></div>
-      <div class="field"><label for="s-sleep">Schlafen</label><input id="s-sleep" type="time" value="23:00"></div>
-    </div>
-    <button id="s-save" class="primary big">Los geht es</button>
-    <p class="fineprint">Alle Daten bleiben auf deinem Geraet. Nichts wird hochgeladen.</p>
-  </div>
-</div>
+<!--
+  Der Anamnesebogen wird von js/setup-ui.js gebaut. Er steht nicht im HTML,
+  weil die Schritte aus js/anamnese.js kommen und dort auch getestet werden.
+  Zwei Quellen für dieselben Fragen wären eine Fehlerquelle.
+-->
+<div id="setup" class="screen setup"><div id="setupFlow" class="setup-flow"></div></div>
 
 <main id="app" hidden>
 
   <!-- Der Assistent, der beim Oeffnen erscheint -->
   <section id="assistant" class="view" data-view="assistant">
     <header class="bar">
-      <button id="btnMenu" class="icon-btn" aria-label="Menue oeffnen">
+      <button id="btnMenu" class="icon-btn" aria-label="Menü öffnen">
         <span class="bars"></span>
       </button>
       <div id="assistantStatus" class="bar-status">bereit</div>
@@ -83,7 +67,7 @@
       <button data-say="Wie stehe ich heute?">Wie stehe ich?</button>
       <button data-say="Was soll ich jetzt essen?">Was essen?</button>
       <button data-say="Ich habe gerade 500 ml Wasser getrunken">500 ml Wasser</button>
-      <button data-say="Ich bin heute ziemlich muede und habe schlecht geschlafen">Wie es mir geht</button>
+      <button data-say="Ich bin heute ziemlich müde und habe schlecht geschlafen">Wie es mir geht</button>
     </div>
 
     <form id="composer" class="composer-bar">
@@ -95,7 +79,7 @@
 
   <!-- Bereiche -->
   <section class="view" data-view="heute" hidden>
-    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurueck"><span class="chev"></span></button><h1>Heute</h1><div class="bar-spacer"></div></header>
+    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Heute</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
       <div class="ring-card">
         <div class="ring-wrap">
@@ -105,7 +89,7 @@
           </svg>
           <div class="ring-center">
             <div id="kcalLeft" class="ring-num">0</div>
-            <div class="ring-label">kcal uebrig</div>
+            <div class="ring-label">kcal übrig</div>
           </div>
         </div>
         <div class="ring-side">
@@ -128,7 +112,7 @@
         <button class="chip" data-water="750">+750 ml</button>
       </div>
 
-      <h2 class="section-title">Naechste Erinnerungen</h2>
+      <h2 class="section-title">Nächste Erinnerungen</h2>
       <ul id="reminderList" class="list"></ul>
 
       <h2 class="section-title">Heute gegessen</h2>
@@ -137,10 +121,10 @@
   </section>
 
   <section class="view" data-view="essen" hidden>
-    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurueck"><span class="chev"></span></button><h1>Essen</h1><div class="bar-spacer"></div></header>
+    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Essen</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
       <div class="composer">
-        <textarea id="mealText" rows="3" placeholder="200 g Haehnchenbrust, 150 g Reis und ein Apfel"></textarea>
+        <textarea id="mealText" rows="3" placeholder="200 g Hähnchenbrust, 150 g Reis und ein Apfel"></textarea>
         <div class="composer-actions">
           <button id="btnVoice" class="ghost">Diktieren</button>
           <button id="btnParse" class="primary">Erfassen</button>
@@ -166,7 +150,7 @@
   </section>
 
   <section class="view" data-view="checkin" hidden>
-    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurueck"><span class="chev"></span></button><h1>Check-in</h1><div class="bar-spacer"></div></header>
+    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Check-in</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
       <p class="sub">Kurz festhalten, wie es dir geht. Daraus erkennt der Coach Muster, die dir selbst entgehen.</p>
       <div class="field-row">
@@ -183,9 +167,9 @@
   </section>
 
   <section class="view" data-view="reflexion" hidden>
-    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurueck"><span class="chev"></span></button><h1>Gedaechtnis</h1><div class="bar-spacer"></div></header>
+    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Gedächtnis</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
-      <p class="sub">Alles, was daevo ueber dich weiss. Du kannst jederzeit etwas hinzufuegen oder loeschen.</p>
+      <p class="sub">Alles, was daevo über dich weiß. Du kannst jederzeit etwas hinzufügen oder löschen.</p>
       <div class="field"><label for="memSearch">Durchsuchen</label><input id="memSearch" type="search" placeholder="Laktose, Knie, Volleyball"></div>
       <div class="field"><label for="memNew">Neue Notiz</label><input id="memNew" type="text" placeholder="Ich vertrage keine Laktose"></div>
       <div class="field-row">
@@ -204,7 +188,7 @@
   </section>
 
   <section class="view" data-view="empfehlungen" hidden>
-    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurueck"><span class="chev"></span></button><h1>Empfehlungen</h1><div class="bar-spacer"></div></header>
+    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Empfehlungen</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
       <p class="sub">Abgeleitet aus deinen eigenen Zahlen. Jede Empfehlung nennt den Wert, auf dem sie beruht.</p>
       <div id="recoList"></div>
@@ -212,11 +196,11 @@
   </section>
 
   <section class="view" data-view="profil" hidden>
-    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurueck"><span class="chev"></span></button><h1>Profil</h1><div class="bar-spacer"></div></header>
+    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Profil</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
       <div class="card">
         <div class="kv"><span>Grundumsatz</span><b id="pBmr"></b></div>
-        <div class="kv"><span>Aktivitaetsfaktor</span><b id="pAf"></b></div>
+        <div class="kv"><span>Aktivitätsfaktor</span><b id="pAf"></b></div>
         <div class="kv"><span>Gesamtbedarf</span><b id="pTdee"></b></div>
         <div class="kv"><span>Zielkalorien</span><b id="pTarget"></b></div>
       </div>
@@ -252,32 +236,40 @@
         <div class="field"><label for="t-type">Art</label>
           <select id="t-type">
             <option value="strength">Krafttraining</option><option value="team_sport">Mannschaftssport</option>
-            <option value="cardio">Ausdauer</option><option value="mobility">Mobility</option>
+            <option value="cardio">Ausdaür</option><option value="mobility">Mobility</option>
           </select></div>
         <div class="field"><label for="t-min">Dauer in Minuten</label><input id="t-min" type="number" inputmode="numeric" value="75"></div>
       </div>
-      <button id="btnAddSession" class="ghost">Einheit hinzufuegen</button>
+      <button id="btnAddSession" class="ghost">Einheit hinzufügen</button>
 
       <h2 class="section-title">Den echten Coach freischalten</h2>
-      <p class="sub">Ohne Schluessel versteht daevo nur einfache Saetze und rechnet mit einer internen Tabelle. Mit deinem eigenen Anthropic Schluessel wird er zum echten Gespraechspartner mit Gedaechtnis.</p>
-      <div class="field"><label for="apiKey">Anthropic API Schluessel</label><input id="apiKey" type="password" placeholder="sk-ant-..." autocomplete="off"></div>
+      <p class="sub">Ohne Schlüssel versteht daevo nur einfache Sätze und rechnet mit einer internen Tabelle. Mit deinem eigenen Anthropic Schlüssel wird er zum echten Gesprächspartner mit Gedächtnis.</p>
+      <div class="field"><label for="apiKey">Anthropic API Schlüssel</label><input id="apiKey" type="password" placeholder="sk-ant-..." autocomplete="off"></div>
       <div class="field"><label for="modelSel">Modell</label>
         <select id="modelSel">
           <option value="claude-opus-5">Opus 5, am schlausten</option>
-          <option value="claude-sonnet-5">Sonnet 5, guenstiger</option>
-          <option value="claude-haiku-4-5">Haiku 4.5, am guenstigsten</option>
+          <option value="claude-sonnet-5">Sonnet 5, günstiger</option>
+          <option value="claude-haiku-4-5">Haiku 4.5, am günstigsten</option>
         </select></div>
-      <button id="btnSaveKey" class="ghost">Schluessel speichern</button>
-      <p class="fineprint">Der Schluessel bleibt in diesem Browser und geht direkt an Anthropic. Er steht nicht in der Website. Setz dir in der Anthropic Console ein Ausgabenlimit, bevor du ihn eintraegst.</p>
+      <button id="btnSaveKey" class="ghost">Schlüssel speichern</button>
+      <p class="fineprint">Der Schlüssel bleibt in diesem Browser und geht direkt an Anthropic. Er steht nicht in der Website. Setz dir in der Anthropic Console ein Ausgabenlimit, bevor du ihn einträgst.</p>
+
+      <h2 class="section-title">Aussehen</h2>
+      <div class="field"><label for="themeSel">Tag oder Nacht</label>
+        <select id="themeSel">
+          <option value="system">wie das Gerät</option>
+          <option value="light">hell</option>
+          <option value="dark">dunkel</option>
+        </select></div>
 
       <h2 class="section-title">Sprache</h2>
       <label class="switch"><input type="checkbox" id="optSpeak" checked><span>Antworten vorlesen</span></label>
-      <label class="switch"><input type="checkbox" id="optHandsFree"><span>Freihand, hoert nach jeder Antwort weiter zu</span></label>
+      <label class="switch"><input type="checkbox" id="optHandsFree"><span>Freihand, hört nach jeder Antwort weiter zu</span></label>
       <p class="fineprint" id="voiceNote"></p>
 
       <h2 class="section-title">Daten</h2>
       <button id="btnExport" class="ghost">Daten exportieren</button>
-      <button id="btnReset" class="danger">Alles loeschen</button>
+      <button id="btnReset" class="danger">Alles löschen</button>
       <p class="fineprint" id="versionLine"></p>
     </div>
   </section>
@@ -286,15 +278,15 @@
     <div class="menu-head">
       <img class="only-light" src="./brand/daevo-wordmark-deep.svg" alt="daevo" width="88">
       <img class="only-dark" src="./brand/daevo-wordmark.svg" alt="daevo" width="88">
-      <button id="btnMenuClose" class="icon-btn" aria-label="Menue schliessen"><span class="close"></span></button>
+      <button id="btnMenuClose" class="icon-btn" aria-label="Menü schließen"><span class="close"></span></button>
     </div>
     <button class="menu-item" data-go="assistant"><b>Assistent</b><span>Reden, fragen, erfassen</span></button>
     <button class="menu-item" data-go="heute"><b>Heute</b><span>Kalorien, Makros, Wasser, Erinnerungen</span></button>
-    <button class="menu-item" data-go="essen"><b>Essen</b><span>Erfassen, Vorrat, Vorschlaege</span></button>
+    <button class="menu-item" data-go="essen"><b>Essen</b><span>Erfassen, Vorrat, Vorschläge</span></button>
     <button class="menu-item" data-go="checkin"><b>Check-in</b><span>Energie, Schlaf, Stimmung</span></button>
-    <button class="menu-item" data-go="reflexion"><b>Gedaechtnis</b><span>Was daevo ueber dich weiss</span></button>
+    <button class="menu-item" data-go="reflexion"><b>Gedächtnis</b><span>Was daevo über dich weiß</span></button>
     <button class="menu-item" data-go="empfehlungen"><b>Empfehlungen</b><span>Aus deinen eigenen Zahlen</span></button>
-    <button class="menu-item" data-go="profil"><b>Profil</b><span>Ziele, Training, Schluessel</span></button>
+    <button class="menu-item" data-go="profil"><b>Profil</b><span>Ziele, Training, Schlüssel</span></button>
   </nav>
 </main>
 

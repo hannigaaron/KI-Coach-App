@@ -92,7 +92,7 @@
 <div class="wrap">
   <header>
     <h1>daevo Testkonsole</h1>
-    <p>Entwicklungsoberflaeche fuer die API. Kein Endkundenprodukt.</p>
+    <p>Entwicklungsoberfläche für die API. Kein Endkundenprodukt.</p>
   </header>
 
   <section>
@@ -103,7 +103,7 @@
     </div>
     <div class="row">
       <button id="btnRegister">Registrieren</button>
-      <button id="btnUseToken" class="secondary">Token einfuegen</button>
+      <button id="btnUseToken" class="secondary">Token einfügen</button>
     </div>
     <div class="status" id="authStatus"></div>
   </section>
@@ -112,7 +112,7 @@
     <h2>2 Profil und Ziele</h2>
     <div class="grid">
       <div><label for="weight">Gewicht in kg</label><input id="weight" type="number" value="87" step="0.5"></div>
-      <div><label for="height">Groesse in cm</label><input id="height" type="number" value="184"></div>
+      <div><label for="height">Grösse in cm</label><input id="height" type="number" value="184"></div>
       <div><label for="age">Alter</label><input id="age" type="number" value="23"></div>
       <div><label for="steps">Schritte pro Tag</label><input id="steps" type="number" value="12000"></div>
       <div>
@@ -133,7 +133,7 @@
   <section>
     <h2>3 Mahlzeit erfassen</h2>
     <label for="meal">Was hast du gegessen</label>
-    <textarea id="meal" placeholder="200g Haehnchenbrust und 150g Reis"></textarea>
+    <textarea id="meal" placeholder="200g Hähnchenbrust und 150g Reis"></textarea>
     <div class="row">
       <button id="btnMeal">Erfassen</button>
       <button id="btnVoice" class="secondary">Diktieren</button>
@@ -150,7 +150,7 @@
   </section>
 
   <section>
-    <h2>5 Kuehlschrank und Vorschlag</h2>
+    <h2>5 Kühlschrank und Vorschlag</h2>
     <label for="fridge">Zutaten, mit Komma getrennt</label>
     <input id="fridge" value="Eier, Reis, Brokkoli, Magerquark">
     <div class="row">
@@ -200,7 +200,7 @@ $("btnRegister").onclick = async () => {
 };
 
 $("btnUseToken").onclick = () => {
-  const token = prompt("Token einfuegen");
+  const token = prompt("Token einfügen");
   if (!token) return;
   state.token = token.trim();
   localStorage.setItem("daevo_token", state.token);
@@ -221,7 +221,7 @@ $("btnProfile").onclick = async () => {
       sessions: [],
     });
     setStatus($("profileStatus"),
-      "Ziel " + data.targets.kcal + " kcal, " + data.targets.proteinG + " g Protein, TDEE geschaetzt auf " + data.energy.tdeeKcal + " kcal.",
+      "Ziel " + data.targets.kcal + " kcal, " + data.targets.proteinG + " g Protein, TDEE geschätzt auf " + data.energy.tdeeKcal + " kcal.",
       "ok");
     loadDay();
   } catch (e) { setStatus($("profileStatus"), e.message, "err"); }
@@ -251,7 +251,7 @@ $("btnVoice").onclick = () => {
   const rec = new Rec();
   rec.lang = "de-DE";
   rec.interimResults = false;
-  rec.onresult = (event) => { $("meal").value = event.results[0][0].transcript; setStatus($("mealStatus"), "Aufnahme uebernommen.", "ok"); };
+  rec.onresult = (event) => { $("meal").value = event.results[0][0].transcript; setStatus($("mealStatus"), "Aufnahme übernommen.", "ok"); };
   rec.onerror = () => setStatus($("mealStatus"), "Aufnahme fehlgeschlagen.", "err");
   setStatus($("mealStatus"), "Sprich jetzt.");
   rec.start();

@@ -10,16 +10,16 @@ export interface SchedulerDeps {
   db: Db;
   coach: Coach;
   notifier: Notifier;
-  /** Aktuelle lokale Uhrzeit HH:MM. Fuer Tests injizierbar. */
+  /** Aktuelle lokale Uhrzeit HH:MM. Für Tests injizierbar. */
   clock?: () => { day: string; time: string };
 }
 
 /**
- * Prueft einmal pro Aufruf, welche Erinnerungen faellig sind, und verschickt sie.
+ * Prüft einmal pro Aufruf, welche Erinnerungen fällig sind, und verschickt sie.
  *
- * Eine Erinnerung gilt als faellig, wenn ihre Uhrzeit erreicht oder bis zu
- * 15 Minuten ueberschritten ist und sie an diesem Tag noch nicht raus ist.
- * Die Sperre laeuft ueber den UNIQUE Index auf reminder_log.
+ * Eine Erinnerung gilt als fällig, wenn ihre Uhrzeit erreicht oder bis zu
+ * 15 Minuten überschritten ist und sie an diesem Tag noch nicht raus ist.
+ * Die Sperre läuft über den UNIQUE Index auf reminder_log.
  */
 export async function runSchedulerTick(deps: SchedulerDeps): Promise<number> {
   const clock = deps.clock ?? defaultClock;
@@ -83,7 +83,7 @@ function isDue(scheduledAt: string, nowTime: string): boolean {
   return diff >= 0 && diff <= GRACE_MINUTES;
 }
 
-/** Legt den Log Eintrag an. Gibt false zurueck, wenn er schon existiert. */
+/** Legt den Log Eintrag an. Gibt false zurück, wenn er schon existiert. */
 function claim(db: Db, userId: string, day: string, kind: string, scheduledAt: string): boolean {
   const result = db
     .prepare(

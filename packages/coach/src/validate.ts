@@ -8,16 +8,16 @@ export interface ValidationResult {
 const MAX_KCAL_PER_ENTRY = 3000;
 
 /**
- * Prueft Modellantworten auf Rechenfehler und Ausreisser.
+ * Prüft Modellantworten auf Rechenfehler und Ausreisser.
  *
- * Sprachmodelle rechnen Kalorien haeufig falsch. Deshalb gilt hier die
+ * Sprachmodelle rechnen Kalorien häufig falsch. Deshalb gilt hier die
  * Makrorechnung als Wahrheit: kcal = Protein*4 + Fett*9 + Kohlenhydrate*4.
  * Weicht der gelieferte Wert um mehr als 10 Prozent ab, wird er korrigiert.
  */
 export function validateEntries(raw: unknown): ValidationResult {
   const warnings: string[] = [];
   const entries: FoodEntry[] = [];
-  if (!Array.isArray(raw)) return { entries, warnings: ["Antwort enthielt keine Liste von Eintraegen."] };
+  if (!Array.isArray(raw)) return { entries, warnings: ["Antwort enthielt keine Liste von Einträgen."] };
 
   for (const item of raw) {
     if (typeof item !== "object" || item === null) continue;
@@ -37,7 +37,7 @@ export function validateEntries(raw: unknown): ValidationResult {
       kcal = derivedKcal;
     }
     if (kcal > MAX_KCAL_PER_ENTRY) {
-      warnings.push(`${name}: ${kcal} kcal fuer einen Posten ist unplausibel. Bitte Menge pruefen.`);
+      warnings.push(`${name}: ${kcal} kcal für einen Posten ist unplausibel. Bitte Menge prüfen.`);
     }
 
     entries.push({

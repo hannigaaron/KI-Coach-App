@@ -5,7 +5,7 @@
  * Erinnerungen verschicken, wenn die App geschlossen ist. Dafuer braucht es
  * Web Push mit einem Server oder eine native App.
  */
-const CACHE = "daevo-v4";
+const CACHE = "daevo-v5";
 const ASSETS = [
   "./",
   "./index.html",
@@ -17,12 +17,16 @@ const ASSETS = [
   "./js/brain.js",
   "./js/orb.js",
   "./js/voice.js",
+  "./js/anamnese.js",
+  "./js/silhouette.js",
+  "./js/setup-ui.js",
   "./lib/core/index.js",
   "./lib/coach/index.js",
   "./icons/icon-192.png",
   "./icons/apple-touch-icon.png",
   "./brand/daevo-lockup-light.svg",
   "./brand/daevo-lockup-dark.svg",
+  "./brand/daevo-lockup-deep.svg",
   "./brand/daevo-wordmark.svg",
   "./brand/daevo-wordmark-deep.svg",
   "./brand/daevo-mark.svg",

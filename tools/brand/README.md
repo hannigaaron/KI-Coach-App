@@ -1,7 +1,7 @@
 # Logogenerator
 
-Erzeugt alle Dateien in `apps/pwa/brand/`. Das laeuft nicht im normalen Build.
-Es ist nur noetig, wenn sich die Marke aendert, etwa die Farbe, der Ringstand
+Erzeugt alle Dateien in `apps/pwa/brand/`. Das läuft nicht im normalen Build.
+Es ist nur nötig, wenn sich die Marke ändert, etwa die Farbe, der Ringstand
 oder die Laufweite.
 
 ## Warum es das gibt
@@ -44,10 +44,10 @@ Die PNG Symbole entstehen daraus mit einem Browser, siehe `docs/BRAND.md`.
 
 Alles steht oben in `build-brand.py`:
 
-- `SWEEP` gefuellter Anteil des Rings in Grad, aktuell 300
+- `SWEEP` gefüllter Anteil des Rings in Grad, aktuell 300
 - `TRACK_OPACITY` Deckkraft der Spur, aktuell 0.28
 - `BRAND`, `DEEP`, `INK`, `BG` die Farben
 - `TRACKING` Laufweite, `GAP` Abstand zum Claim
 
 Die Masse des d stehen in `ringd.py` und sind aus der Schrift gemessen. Sie
-aendern sich nur, wenn die Schrift gewechselt wird.
+ändern sich nur, wenn die Schrift gewechselt wird.

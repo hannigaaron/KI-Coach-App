@@ -1,7 +1,7 @@
 import type { FoodEntry } from "@daevo/core";
 import { findFood, normalize } from "./foods.js";
 
-const QUANTITY = /(\d+(?:[.,]\d+)?)\s*(g|gramm|kg|ml|l|stk|stueck|stück|scheiben?|el|tl|portionen?)?/i;
+const QUANTITY = /(\d+(?:[.,]\d+)?)\s*(g|gramm|kg|ml|l|stk|stück|stück|scheiben?|el|tl|portionen?)?/i;
 
 const UNIT_TO_GRAM: Record<string, number> = {
   g: 1,
@@ -14,18 +14,18 @@ const UNIT_TO_GRAM: Record<string, number> = {
 };
 
 /**
- * Regelbasierter Parser fuer Mahlzeitentexte.
+ * Regelbasierter Parser für Mahlzeitentexte.
  *
  * Er ersetzt kein Sprachmodell. Er dient zwei Zwecken:
  * 1. Die App bleibt ohne API Key nutzbar und testbar.
- * 2. Er liefert eine unabhaengige Zweitmeinung, gegen die Modellantworten
- *    auf grobe Ausreisser geprueft werden koennen.
+ * 2. Er liefert eine unabhängige Zweitmeinung, gegen die Modellantworten
+ *    auf grobe Ausreisser geprueft werden können.
  */
 export function parseMealOffline(text: string): { entries: FoodEntry[]; unresolved: string[] } {
   const entries: FoodEntry[] = [];
   const unresolved: string[] = [];
   // Komma trennt nur, wenn es nicht zwischen zwei Ziffern steht. Sonst
-  // wuerde "1,5 EL" in zwei Teile zerfallen.
+  // würde "1,5 EL" in zwei Teile zerfallen.
   const chunks = text
     .split(/(?<!\d),(?!\d)| und | mit |\+|\n/i)
     .map((c) => c.trim())

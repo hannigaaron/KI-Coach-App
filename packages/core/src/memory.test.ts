@@ -24,26 +24,29 @@ function entry(text: string, over: Partial<MemoryEntry> = {}): MemoryEntry {
   };
 }
 
-test("Tokenizer entfernt Fuellwoerter und loest Umlaute auf", () => {
-  assert.deepEqual(tokenize("Ich habe eine Unvertraeglichkeit gegen Laktose"), [
+test("Tokenizer entfernt Füllwörter und löst Umlaute auf", () => {
+  // Der Tokenizer faltet Umlaute bewusst auf ae, oe, ue. Nur so findet eine
+  // Suche nach "Unvertraeglichkeit" auch die Notiz mit "Unverträglichkeit".
+  assert.deepEqual(tokenize("Ich habe eine Unverträglichkeit gegen Laktose"), [
     "unvertraeglichkeit",
     "laktose",
   ]);
   assert.deepEqual(tokenize("Grüne Äpfel"), ["gruene", "aepfel"]);
+  assert.deepEqual(tokenize("Unvertraeglichkeit"), tokenize("Unverträglichkeit"));
 });
 
 test("Suche findet den thematisch passenden Eintrag", () => {
   const entries = [
-    entry("Vertraegt keine Laktose, bekommt sonst Bauchschmerzen"),
+    entry("Verträgt keine Laktose, bekommt sonst Bauchschmerzen"),
     entry("Spielt zweimal die Woche Volleyball"),
-    entry("Trainiert am liebsten am spaeten Nachmittag"),
+    entry("Trainiert am liebsten am späten Nachmittag"),
   ];
   const hits = searchMemories(entries, "Kann ich Magerquark essen oder ist das mit Laktose ein Problem?", { now: NOW });
   assert.ok(hits.length > 0);
   assert.match(hits[0]!.entry.text, /Laktose/);
 });
 
-test("Eintraege ohne gemeinsames Wort tauchen nie auf", () => {
+test("Einträge ohne gemeinsames Wort tauchen nie auf", () => {
   const entries = [entry("Spielt Volleyball")];
   assert.equal(searchMemories(entries, "Wie war mein Schlaf?", { now: NOW }).length, 0);
 });
@@ -52,7 +55,7 @@ test("leere Frage liefert nichts", () => {
   assert.equal(searchMemories([entry("Irgendwas")], "und der", { now: NOW }).length, 0);
 });
 
-test("neuere Eintraege ranken vor aelteren bei gleichem Inhalt", () => {
+test("neuere Einträge ranken vor älteren bei gleichem Inhalt", () => {
   const entries = [
     entry("Knieschmerzen beim Kniebeugen", { id: "alt", at: "2026-01-01T10:00:00Z" }),
     entry("Knieschmerzen beim Kniebeugen aufgetreten", { id: "neu", at: "2026-09-01T10:00:00Z" }),
@@ -71,16 +74,16 @@ test("Wichtigkeit hebt einen Eintrag an", () => {
 });
 
 test("Aehnlichkeit erkennt Umformulierungen", () => {
-  assert.ok(similarity("Vertraegt keine Laktose", "Laktose vertraegt er nicht") >= 0.72);
+  assert.ok(similarity("Verträgt keine Laktose", "Laktose verträgt er nicht") >= 0.72);
   assert.ok(similarity("Spielt Volleyball", "Mag keinen Kaffee") < 0.3);
 });
 
-test("fast gleicher Eintrag wird zusammengefuehrt statt verdoppelt", () => {
-  const first = upsertMemory([], { kind: "fakt", text: "Vertraegt keine Laktose", tags: [], weight: 3, source: "nutzer" });
-  assert.equal(first.action, "hinzugefuegt");
+test("fast gleicher Eintrag wird zusammengeführt statt verdoppelt", () => {
+  const first = upsertMemory([], { kind: "fakt", text: "Verträgt keine Laktose", tags: [], weight: 3, source: "nutzer" });
+  assert.equal(first.action, "hinzugefügt");
   const second = upsertMemory(first.entries, {
     kind: "fakt",
-    text: "Laktose vertraegt er nicht gut",
+    text: "Laktose verträgt er nicht gut",
     tags: ["ernaehrung"],
     weight: 5,
     source: "nutzer",
@@ -92,7 +95,7 @@ test("fast gleicher Eintrag wird zusammengefuehrt statt verdoppelt", () => {
 });
 
 test("unterschiedliche Aussagen bleiben getrennt", () => {
-  const a = upsertMemory([], { kind: "fakt", text: "Vertraegt keine Laktose", tags: [], weight: 3, source: "nutzer" });
+  const a = upsertMemory([], { kind: "fakt", text: "Verträgt keine Laktose", tags: [], weight: 3, source: "nutzer" });
   const b = upsertMemory(a.entries, { kind: "fakt", text: "Spielt zweimal die Woche Volleyball", tags: [], weight: 3, source: "nutzer" });
   assert.equal(b.entries.length, 2);
 });
@@ -115,7 +118,7 @@ test("Kernerinnerungen sortieren nach Wichtigkeit", () => {
 });
 
 test("Prompt Block bleibt lesbar und nennt das Datum", () => {
-  const text = memoriesToPrompt([entry("Vertraegt keine Laktose", { kind: "fakt", at: "2026-08-30T09:00:00Z" })]);
-  assert.equal(text, "- [fakt, 2026-08-30] Vertraegt keine Laktose");
+  const text = memoriesToPrompt([entry("Verträgt keine Laktose", { kind: "fakt", at: "2026-08-30T09:00:00Z" })]);
+  assert.equal(text, "- [fakt, 2026-08-30] Verträgt keine Laktose");
   assert.match(memoriesToPrompt([]), /Noch keine Notizen/);
 });

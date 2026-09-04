@@ -1,4 +1,4 @@
-/** Kleiner Server, um dist-pages lokal zu testen. Nicht fuer die Produktion. */
+/** Kleiner Server, um dist-pages lokal zu testen. Nicht für die Produktion. */
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { join, extname, normalize } from "node:path";

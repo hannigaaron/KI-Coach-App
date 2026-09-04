@@ -2,10 +2,10 @@ import { coreMemories, memoriesToPrompt, searchMemories, upsertMemory } from "@d
 import { store } from "./storage.js";
 
 /**
- * Das Gedaechtnis der App, so wie die Oberflaeche es benutzt.
+ * Das Gedächtnis der App, so wie die Oberfläche es benutzt.
  *
  * Die Logik steckt in @daevo/core und ist dort getestet. Hier liegt nur die
- * Verbindung zum Speicher und die Aufbereitung fuer den Assistenten.
+ * Verbindung zum Speicher und die Aufbereitung für den Assistenten.
  */
 
 export const brain = {
@@ -34,12 +34,12 @@ export const brain = {
   },
 
   /**
-   * Baut den Gedaechtnisblock fuer den Systemprompt.
+   * Baut den Gedächtnisblock für den Systemprompt.
    * Die wichtigsten Notizen kommen immer mit, dazu das, was zur Frage passt.
    */
   contextFor(query) {
     const entries = store.getMemories();
-    if (entries.length === 0) return "Noch keine Notizen ueber diesen Nutzer.";
+    if (entries.length === 0) return "Noch keine Notizen über diesen Nutzer.";
     const relevant = searchMemories(entries, query, { limit: 6 }).map((h) => h.entry);
     const core = coreMemories(entries, 6);
     const seen = new Set();

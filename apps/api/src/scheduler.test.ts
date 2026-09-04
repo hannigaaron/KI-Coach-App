@@ -11,10 +11,10 @@ class OfflineProvider implements CoachProvider {
   readonly name = "offline";
   readonly available = false;
   async generateJson<T>(): Promise<T> {
-    throw new Error("nicht verfuegbar");
+    throw new Error("nicht verfügbar");
   }
   async converse(): Promise<never> {
-    throw new Error("nicht verfuegbar");
+    throw new Error("nicht verfügbar");
   }
 }
 
@@ -43,7 +43,7 @@ function setup() {
   return { db, coach: new Coach(new OfflineProvider()), notifier: new ConsoleNotifier() };
 }
 
-test("verschickt eine faellige Erinnerung genau einmal", async () => {
+test("verschickt eine fällige Erinnerung genau einmal", async () => {
   const deps = { ...setup(), clock: () => ({ day: "2026-09-03", time: "07:35" }) };
   assert.equal(await runSchedulerTick(deps), 1);
   assert.equal(await runSchedulerTick(deps), 0);

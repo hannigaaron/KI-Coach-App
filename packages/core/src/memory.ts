@@ -1,19 +1,19 @@
 /**
- * Das Gedaechtnis der App.
+ * Das Gedächtnis der App.
  *
- * Ziel ist ein eigenes Gehirn: alles, was der Nutzer erzaehlt, bleibt in der
- * App und steht spaeter wieder zur Verfuegung. Der Coach soll sich an eine
+ * Ziel ist ein eigenes Gehirn: alles, was der Nutzer erzählt, bleibt in der
+ * App und steht später wieder zur Verfügung. Der Coach soll sich an eine
  * Verletzung von vor drei Wochen erinnern, ohne dass jemand danach sucht.
  *
- * Bewusst ohne Einbettungen und ohne Vektordatenbank. Die Suche laeuft ueber
- * Wortueberlappung mit inverser Dokumenthaeufigkeit. Das ist nachvollziehbar,
- * braucht kein Modell, laeuft offline und ist schnell genug fuer die Menge an
- * Notizen, die ein einzelner Mensch in Jahren erzeugt. Fuer eine bessere Suche
- * waeren Einbettungen der naechste Schritt, siehe docs/ROADMAP.md.
+ * Bewusst ohne Einbettungen und ohne Vektordatenbank. Die Suche läuft über
+ * Wortüberlappung mit inverser Dokumenthäufigkeit. Das ist nachvollziehbar,
+ * braucht kein Modell, läuft offline und ist schnell genug für die Menge an
+ * Notizen, die ein einzelner Mensch in Jahren erzeugt. Für eine bessere Suche
+ * wären Einbettungen der nächste Schritt, siehe docs/ROADMAP.md.
  */
 
 export type MemoryKind =
-  | "fakt"        // stabile Tatsache, etwa eine Unvertraeglichkeit
+  | "fakt"        // stabile Tatsache, etwa eine Unverträglichkeit
   | "praeferenz"  // Vorliebe oder Abneigung
   | "ziel"        // was der Nutzer erreichen will
   | "ereignis"    // etwas Datiertes, etwa eine Verletzung
@@ -32,33 +32,43 @@ export interface MemoryEntry {
   source: "nutzer" | "coach";
 }
 
-const STOPWORDS = new Set([
+/**
+ * Faltet Umlaute auf ihre Umschreibung. Beide Seiten eines Vergleichs laufen
+ * durch diese Funktion, deshalb duerfen Listen und Texte Umlaute enthalten,
+ * ohne dass die Erkennung bricht.
+ */
+export function foldUmlauts(text: string): string {
+  return text
+    .replace(/ä/g, "ae")
+    .replace(/ö/g, "oe")
+    .replace(/ü/g, "ue")
+    .replace(/ß/g, "ss");
+}
+
+const STOPWORD_LIST = [
   "und", "oder", "aber", "dass", "das", "der", "die", "den", "dem", "des", "ein",
   "eine", "einen", "einem", "einer", "eines", "ich", "du", "er", "sie", "es",
   "wir", "ihr", "mir", "mich", "dir", "dich", "sich", "mein", "meine", "meinen",
   "dein", "deine", "ist", "sind", "war", "waren", "bin", "bist", "habe", "hab",
-  "hat", "haben", "hatte", "hatten", "wird", "werden", "wurde", "kann", "koennen",
-  "will", "willst", "wollen", "soll", "sollen", "muss", "muessen", "nicht", "kein",
+  "hat", "haben", "hatte", "hatten", "wird", "werden", "wurde", "kann", "können",
+  "will", "willst", "wollen", "soll", "sollen", "muss", "müssen", "nicht", "kein",
   "keine", "noch", "schon", "auch", "sehr", "mehr", "wenig", "viel", "immer", "nie",
-  "heute", "gestern", "morgen", "jetzt", "dann", "wenn", "weil", "fuer", "mit",
-  "ohne", "von", "vom", "zum", "zur", "auf", "aus", "bei", "nach", "vor", "ueber",
+  "heute", "gestern", "morgen", "jetzt", "dann", "wenn", "weil", "für", "mit",
+  "ohne", "von", "vom", "zum", "zur", "auf", "aus", "bei", "nach", "vor", "über",
   "unter", "durch", "gegen", "um", "an", "am", "im", "in", "zu", "so", "wie", "was",
   "wer", "wo", "warum", "sich", "man", "als", "am", "the", "and", "for", "with",
-]);
+];
+
+const STOPWORDS = new Set(STOPWORD_LIST.map(foldUmlauts));
 
 export function tokenize(text: string): string[] {
-  return text
-    .toLowerCase()
-    .replace(/ä/g, "ae")
-    .replace(/ö/g, "oe")
-    .replace(/ü/g, "ue")
-    .replace(/ß/g, "ss")
+  return foldUmlauts(text.toLowerCase())
     .replace(/[^a-z0-9]+/g, " ")
     .split(" ")
     .filter((t) => t.length >= 3 && !STOPWORDS.has(t));
 }
 
-/** Inverse Dokumenthaeufigkeit ueber alle Eintraege. Seltene Woerter wiegen mehr. */
+/** Inverse Dokumenthäufigkeit über alle Einträge. Seltene Wörter wiegen mehr. */
 function buildIdf(entries: MemoryEntry[]): Map<string, number> {
   const df = new Map<string, number>();
   for (const entry of entries) {
@@ -76,7 +86,7 @@ function buildIdf(entries: MemoryEntry[]): Map<string, number> {
 
 const HALF_LIFE_DAYS = 60;
 
-/** Neuere Eintraege bekommen einen Bonus, alte verschwinden nicht. */
+/** Neüre Einträge bekommen einen Bonus, alte verschwinden nicht. */
 function recencyBoost(at: string, now: Date): number {
   const ageDays = (now.getTime() - new Date(at).getTime()) / 86_400_000;
   if (!Number.isFinite(ageDays) || ageDays < 0) return 1;
@@ -90,7 +100,7 @@ export interface ScoredMemory {
 
 /**
  * Sucht die passendsten Erinnerungen zu einer Frage.
- * Ein Eintrag ohne ein einziges gemeinsames Wort wird nie zurueckgegeben.
+ * Ein Eintrag ohne ein einziges gemeinsames Wort wird nie zurückgegeben.
  */
 export function searchMemories(
   entries: MemoryEntry[],
@@ -117,7 +127,7 @@ export function searchMemories(
   return scored.sort((a, b) => b.score - a.score || b.entry.at.localeCompare(a.entry.at)).slice(0, limit);
 }
 
-/** Die wichtigsten Eintraege ohne Suchbegriff, fuer den Einstieg ins Gespraech. */
+/** Die wichtigsten Einträge ohne Suchbegriff, für den Einstieg ins Gespräch. */
 export function coreMemories(entries: MemoryEntry[], limit = 8, now = new Date()): MemoryEntry[] {
   return [...entries]
     .sort((a, b) => {
@@ -130,7 +140,7 @@ export function coreMemories(entries: MemoryEntry[], limit = 8, now = new Date()
 
 const DUPLICATE_THRESHOLD = 0.72;
 
-/** Anteil gemeinsamer Woerter, unabhaengig von der Reihenfolge. */
+/** Anteil gemeinsamer Wörter, unabhängig von der Reihenfolge. */
 export function similarity(a: string, b: string): number {
   const setA = new Set(tokenize(a));
   const setB = new Set(tokenize(b));
@@ -142,7 +152,7 @@ export function similarity(a: string, b: string): number {
 
 export interface UpsertResult {
   entries: MemoryEntry[];
-  action: "hinzugefuegt" | "aktualisiert" | "verworfen";
+  action: "hinzugefügt" | "aktualisiert" | "verworfen";
   entry: MemoryEntry | null;
 }
 
@@ -150,8 +160,8 @@ export interface UpsertResult {
  * Nimmt einen neuen Eintrag auf.
  *
  * Sagt der Nutzer zweimal fast dasselbe, entsteht kein zweiter Eintrag. Der
- * bestehende wird aufgefrischt und seine Wichtigkeit steigt. Sonst waere das
- * Gedaechtnis nach wenigen Wochen voller Dubletten.
+ * bestehende wird aufgefrischt und seine Wichtigkeit steigt. Sonst wäre das
+ * Gedächtnis nach wenigen Wochen voller Dubletten.
  */
 export function upsertMemory(
   entries: MemoryEntry[],
@@ -188,12 +198,12 @@ export function upsertMemory(
     weight: Math.min(5, Math.max(1, Math.round(candidate.weight))),
     source: candidate.source,
   };
-  return { entries: [...entries, entry], action: "hinzugefuegt", entry };
+  return { entries: [...entries, entry], action: "hinzugefügt", entry };
 }
 
-/** Verdichtet Erinnerungen zu einem Block fuer den Systemprompt. */
+/** Verdichtet Erinnerungen zu einem Block für den Systemprompt. */
 export function memoriesToPrompt(entries: MemoryEntry[]): string {
-  if (entries.length === 0) return "Noch keine Notizen ueber diesen Nutzer.";
+  if (entries.length === 0) return "Noch keine Notizen über diesen Nutzer.";
   return entries
     .map((e) => `- [${e.kind}, ${e.at.slice(0, 10)}] ${e.text}`)
     .join("\n");

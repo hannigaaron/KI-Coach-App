@@ -2,5 +2,5 @@
   <title>daevo</title>
   <rect width="512" height="512" rx="112.6" fill="#0E1116"/>
   <g transform="translate(154.91 370.93) scale(3.1445)"><path d="M 31.80 -49.20 A 21.50 21.50 0 1 1 13.18 -38.45" fill="none" stroke="#96D8F0" stroke-width="14.00" stroke-linecap="round"/>
-    <rect x="47.00" y="-74.00" width="14.00" height="74.00" fill="#96D8F0"/></g>
+    <rect x="47.00" y="-74.00" width="14.00" height="74.00" rx="7.00" fill="#96D8F0"/></g>
 </svg>
