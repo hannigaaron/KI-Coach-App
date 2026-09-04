@@ -44,7 +44,7 @@ export function parseMealOffline(text: string): { entries: FoodEntry[]; unresolv
     }
     const factor = grams / 100;
     entries.push({
-      name: food.key,
+      name: food.label,
       quantity: `${Math.round(grams)} g`,
       kcal: Math.round(food.per100.kcal * factor),
       proteinG: round1(food.per100.proteinG * factor),

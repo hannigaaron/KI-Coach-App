@@ -1,36 +1,33 @@
 import {
   buildDailyReminders,
-  currentStreak,
   energyBreakdown,
   macroTargets,
-  remainingBudget,
-  scoreDay,
-  waterTargetMl,
 } from "@daevo/core";
-import { AnthropicProvider, Coach } from "@daevo/coach";
+import { Coach, AnthropicProvider } from "@daevo/coach";
+import { ask, buildActions, dayNumbers, greeting, recommendations } from "./assistant.js";
+import { brain } from "./brain.js";
+import { Orb } from "./orb.js";
+import { Listener, speak, stopSpeaking, voiceSupport } from "./voice.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
 
 const $ = (id) => document.getElementById(id);
 const WEEKDAYS = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
 const TYPE_LABEL = { strength: "Kraft", team_sport: "Mannschaftssport", cardio: "Ausdauer", mobility: "Mobility" };
 const FEELINGS = ["voll da", "satt und gut", "muede", "aufgeblaeht", "noch hungrig"];
+const KIND_LABEL = {
+  fakt: "Fakt", praeferenz: "Vorliebe", ziel: "Ziel",
+  ereignis: "Ereignis", reflexion: "Reflexion", hinweis: "Hinweis",
+};
 
 let profile = store.getProfile();
 let day = todayIso();
 let lastMealId = null;
+let orb = null;
+let listener = null;
+let busy = false;
+let options = { speak: true, handsFree: false };
 
-/* Coach mit dem Schluessel des Nutzers. Ohne Schluessel laeuft alles offline. */
-function buildCoach() {
-  const settings = store.getSettings();
-  return new Coach(
-    new AnthropicProvider({
-      apiKey: settings.apiKey || undefined,
-      model: settings.model || "claude-sonnet-5",
-      browserAccess: true,
-      timeoutMs: 45000,
-    }),
-  );
-}
+/* ---------- Helfer ---------- */
 
 function toast(message, ms = 2600) {
   const el = $("toast");
@@ -44,79 +41,200 @@ function escapeHtml(text) {
   return String(text).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
-/* ---------- Berechnung ---------- */
-
-function trainingMinutesToday() {
-  const weekday = new Date(`${day}T12:00:00`).getDay();
-  return (profile.sessions || []).filter((s) => s.weekday === weekday).reduce((sum, s) => sum + s.minutes, 0);
+function setStatus(text) {
+  $("assistantStatus").textContent = text;
 }
 
-function targetsToday() {
-  return { ...macroTargets(profile), waterMl: waterTargetMl(profile, trainingMinutesToday()) };
+/* ---------- Assistent ---------- */
+
+function renderTranscript() {
+  const chat = store.getChat();
+  const el = $("transcript");
+  el.innerHTML = chat
+    .slice(-40)
+    .map((m) => {
+      const done = m.ausgefuehrt?.length ? `<span class="msg-done">${escapeHtml(m.ausgefuehrt.join(" und "))}</span>` : "";
+      return `<div class="msg ${m.role === "user" ? "user" : "assistant"}">${escapeHtml(m.text)}${done}</div>`;
+    })
+    .join("");
+  // Erst wenn der Nutzer selbst etwas gesagt hat, schrumpft der Kreis. Die
+  // Begruessung allein zaehlt nicht, sonst sieht man den grossen Kreis nie.
+  $("assistant").classList.toggle("has-chat", chat.some((m) => m.role === "user"));
+  el.scrollTop = el.scrollHeight;
 }
 
-function totalsToday() {
-  const data = store.getDay(day);
-  const totals = { kcal: 0, proteinG: 0, fatG: 0, carbsG: 0, waterMl: data.waterMl || 0 };
-  for (const meal of data.meals) {
-    for (const entry of meal.entries) {
-      totals.kcal += entry.kcal;
-      totals.proteinG += entry.proteinG;
-      totals.fatG += entry.fatG;
-      totals.carbsG += entry.carbsG;
+function appendBubble(role, text) {
+  const el = $("transcript");
+  const node = document.createElement("div");
+  node.className = `msg ${role}`;
+  node.textContent = text;
+  el.appendChild(node);
+  el.scrollTop = el.scrollHeight;
+  return node;
+}
+
+function appendPending(text) {
+  const el = $("transcript");
+  const node = document.createElement("div");
+  node.className = "msg assistant pending";
+  node.textContent = text;
+  el.appendChild(node);
+  el.scrollTop = el.scrollHeight;
+  return node;
+}
+
+async function send(text) {
+  const nachricht = text.trim();
+  if (!nachricht || busy) return;
+  busy = true;
+  stopSpeaking();
+  $("chatInput").value = "";
+
+  // Die Nachricht wird nur angezeigt, gespeichert wird sie in ask(). Sonst
+  // landet sie zweimal im Verlauf.
+  appendBubble("user", nachricht);
+  $("assistant").classList.add("has-chat");
+  const pending = appendPending("denkt nach");
+  orb.setState("thinking");
+  setStatus("denkt nach");
+
+  try {
+    const reply = await ask(nachricht, { onChange: refreshAll });
+    pending.remove();
+    renderTranscript();
+    refreshAll();
+    if (options.speak) {
+      orb.setState("speaking");
+      setStatus("spricht");
+      speak(reply.text, {
+        enabled: options.speak,
+        onEnd: () => {
+          orb.setState("idle");
+          setStatus("bereit");
+          if (options.handsFree) startListening();
+        },
+      });
+    } else {
+      orb.setState("idle");
+      setStatus("bereit");
+      if (options.handsFree) startListening();
     }
+  } catch (error) {
+    pending.remove();
+    const chatNow = store.getChat();
+    chatNow.push({ role: "assistant", text: `Das hat nicht geklappt: ${error.message}`, at: new Date().toISOString() });
+    store.setChat(chatNow);
+    renderTranscript();
+    orb.setState("idle");
+    setStatus("bereit");
+  } finally {
+    busy = false;
   }
-  return {
-    kcal: Math.round(totals.kcal),
-    proteinG: Math.round(totals.proteinG),
-    fatG: Math.round(totals.fatG),
-    carbsG: Math.round(totals.carbsG),
-    waterMl: totals.waterMl,
-  };
 }
 
-/* ---------- Rendern ---------- */
+function startListening() {
+  if (!listener?.supported) {
+    toast("Dieser Browser kann keine Spracherkennung. Nutze Safari oder Chrome.");
+    return;
+  }
+  if (listener.active) {
+    listener.stop();
+    return;
+  }
+  stopSpeaking();
+  listener.handsFree = options.handsFree;
+  listener.start();
+}
+
+function setupAssistant() {
+  orb = new Orb($("orb"));
+  listener = new Listener({
+    onPartial: (text) => { $("chatInput").value = text; },
+    onFinal: (text) => { send(text); },
+    onLevel: (level) => orb.setLevel(level),
+    onState: (state, detail) => {
+      $("btnMic").setAttribute("aria-pressed", state === "listening" ? "true" : "false");
+      if (state === "listening") { orb.setState("listening"); setStatus("hoert zu"); }
+      else if (state === "error") { toast(`Mikrofon: ${detail}`); orb.setState("idle"); setStatus("bereit"); }
+      else if (!busy) { orb.setState("idle"); setStatus("bereit"); }
+    },
+  });
+
+  if (store.getChat().length === 0) {
+    const text = greeting();
+    store.setChat([{ role: "assistant", text, at: new Date().toISOString() }]);
+  }
+  renderTranscript();
+  setStatus("bereit");
+}
+
+/* ---------- Bereiche ---------- */
+
+function showView(name) {
+  for (const view of document.querySelectorAll(".view")) view.hidden = view.dataset.view !== name;
+  $("menu").hidden = true;
+  if (name === "heute") renderToday();
+  if (name === "essen") { $("fridgeInput").value = store.getFridge().join(", "); renderMeals("mealList2"); }
+  if (name === "checkin") renderCheckins();
+  if (name === "reflexion") renderMemories();
+  if (name === "empfehlungen") renderRecommendations();
+  if (name === "profil") renderProfile();
+  if (name === "assistant") renderTranscript();
+}
+
+function refreshAll() {
+  const visible = document.querySelector(".view:not([hidden])");
+  const numbers = dayNumbers(day);
+  orb?.setProgress(numbers.targets.kcal > 0 ? numbers.totals.kcal / numbers.targets.kcal : 0);
+  if (!visible) return;
+  const name = visible.dataset.view;
+  if (name === "heute") renderToday();
+  if (name === "essen") renderMeals("mealList2");
+  if (name === "checkin") renderCheckins();
+  if (name === "reflexion") renderMemories();
+}
 
 function renderToday() {
-  const targets = targetsToday();
-  const totals = totalsToday();
-  const rest = remainingBudget(totals, targets);
-  const score = scoreDay(totals, targets);
-  const data = store.getDay(day);
-
-  const hour = new Date().getHours();
-  const greet = hour < 11 ? "Guten Morgen" : hour < 18 ? "Hallo" : "Guten Abend";
-  $("greeting").textContent = `${greet}${profile.name ? ", " + profile.name : ""}`;
-  const d = new Date(`${day}T12:00:00`);
-  $("dateLine").textContent = `${WEEKDAYS[d.getDay()]}, ${d.getDate()}. ${d.toLocaleString("de-DE", { month: "long" })}`;
-
-  const streak = currentStreak({ daysWithLog: store.allDays().filter((x) => store.getDay(x).meals.length > 0), today: day });
-  $("streakBadge").textContent = streak > 0 ? `${streak} Tage Serie` : "Start heute";
-
-  const ratio = targets.kcal > 0 ? Math.min(1, totals.kcal / targets.kcal) : 0;
+  const n = dayNumbers(day);
+  const ratio = n.targets.kcal > 0 ? Math.min(1, n.totals.kcal / n.targets.kcal) : 0;
   const circumference = 2 * Math.PI * 52;
   $("ringKcal").style.strokeDashoffset = String(circumference * (1 - ratio));
-  $("ringKcal").style.stroke = totals.kcal > targets.kcal ? "var(--bad)" : "var(--accent)";
-  $("kcalLeft").textContent = String(rest.kcal);
-  $("kcalEaten").textContent = `${totals.kcal} kcal`;
-  $("kcalTarget").textContent = `${targets.kcal} kcal`;
-  // Der Score misst den ganzen Tag. Morgens waere er immer nahe null und damit
-  // wertlos. Bis zum spaeten Nachmittag zeigt die Kachel deshalb das offene
-  // Protein, danach den Score.
-  const scoreIsMeaningful = new Date().getHours() >= 18 || totals.kcal >= targets.kcal * 0.7;
+  $("ringKcal").style.stroke = n.totals.kcal > n.targets.kcal ? "var(--bad)" : "var(--accent)";
+  $("kcalLeft").textContent = String(n.rest.kcal);
+  $("kcalEaten").textContent = `${n.totals.kcal} kcal`;
+  $("kcalTarget").textContent = `${n.targets.kcal} kcal`;
+
+  const scoreIsMeaningful = new Date().getHours() >= 18 || n.totals.kcal >= n.targets.kcal * 0.7;
   $("scoreLabel").textContent = scoreIsMeaningful ? "Tagesscore" : "Protein offen";
-  $("scoreVal").textContent = scoreIsMeaningful
-    ? `${score.total} / 100`
-    : `${Math.max(0, rest.proteinG)} g`;
+  $("scoreVal").textContent = scoreIsMeaningful ? `${n.score.total} / 100` : `${Math.max(0, n.rest.proteinG)} g`;
 
-  setBar("p", totals.proteinG, targets.proteinG, "g");
-  setBar("f", totals.fatG, targets.fatG, "g");
-  setBar("c", totals.carbsG, targets.carbsG, "g");
-  setBar("w", totals.waterMl, targets.waterMl, "ml");
+  setBar("p", n.totals.proteinG, n.targets.proteinG, "g");
+  setBar("f", n.totals.fatG, n.targets.fatG, "g");
+  setBar("c", n.totals.carbsG, n.targets.carbsG, "g");
+  setBar("w", n.totals.waterMl, n.targets.waterMl, "ml");
 
-  renderReminders(targets, data);
+  const reminders = buildDailyReminders({
+    profile,
+    weekday: n.weekday,
+    state: {
+      mealsLogged: n.data.meals.length,
+      waterMl: n.totals.waterMl,
+      waterTargetMl: n.targets.waterMl,
+      morningCheckinDone: n.data.checkins.some((c) => c.kind === "morning"),
+      eveningReviewDone: n.data.checkins.some((c) => c.kind === "evening"),
+    },
+  });
+  const time = nowTime();
+  const upcoming = reminders.filter((r) => r.at >= time).slice(0, 3);
+  const list = upcoming.length ? upcoming : reminders.slice(-2);
+  $("reminderList").innerHTML = list.length
+    ? list.map((r) =>
+        `<li><div class="li-main"><div class="li-title">${escapeHtml(r.title)}</div>` +
+        `<div class="li-sub">${escapeHtml(r.body)}</div></div>` +
+        `<div class="li-side"><b>${r.at}</b>${r.at < time ? "vorbei" : "geplant"}</div></li>`).join("")
+    : `<li><div class="li-main"><div class="li-sub">Fuer heute ist alles erledigt.</div></div></li>`;
+
   renderMeals("mealList");
-  renderMeals("mealList2");
 }
 
 function setBar(prefix, actual, target, unit) {
@@ -126,62 +244,57 @@ function setBar(prefix, actual, target, unit) {
   $(`${prefix}Txt`).textContent = `${actual} / ${target} ${unit}`;
 }
 
-function renderReminders(targets, data) {
-  const reminders = buildDailyReminders({
-    profile,
-    weekday: new Date(`${day}T12:00:00`).getDay(),
-    state: {
-      mealsLogged: data.meals.length,
-      waterMl: data.waterMl || 0,
-      waterTargetMl: targets.waterMl,
-      morningCheckinDone: data.checkins.some((c) => c.kind === "morning"),
-      eveningReviewDone: data.checkins.some((c) => c.kind === "evening"),
-    },
-  });
-  const time = nowTime();
-  const upcoming = reminders.filter((r) => r.at >= time).slice(0, 3);
-  const list = upcoming.length ? upcoming : reminders.slice(-2);
-  $("reminderList").innerHTML = list.length
-    ? list
-        .map(
-          (r) =>
-            `<li><div class="li-main"><div class="li-title">${escapeHtml(r.title)}</div>` +
-            `<div class="li-sub">${escapeHtml(r.body)}</div></div>` +
-            `<div class="li-side"><b>${r.at}</b>${r.at < time ? "vorbei" : "geplant"}</div></li>`,
-        )
-        .join("")
-    : `<li><div class="li-main"><div class="li-sub">Fuer heute ist alles erledigt.</div></div></li>`;
-}
-
 function renderMeals(targetId) {
-  const data = store.getDay(day);
   const el = $(targetId);
   if (!el) return;
-  if (data.meals.length === 0) {
-    el.innerHTML = `<li><div class="li-main"><div class="li-sub">Noch nichts erfasst.</div></div></li>`;
-    return;
-  }
-  el.innerHTML = data.meals
-    .map((meal) => {
-      const kcal = Math.round(meal.entries.reduce((s, e) => s + e.kcal, 0));
-      const protein = Math.round(meal.entries.reduce((s, e) => s + e.proteinG, 0));
-      const items = meal.entries.map((e) => `${e.quantity} ${e.name}`).join(", ");
-      return (
-        `<li data-meal="${meal.id}"><div class="li-main">` +
-        `<div class="li-title">${escapeHtml(items || meal.text)}</div>` +
-        `<div class="li-sub">${meal.at} Uhr, ${protein} g Protein` +
-        (meal.feeling ? `, danach ${escapeHtml(meal.feeling)}` : "") +
-        (meal.source === "offline" ? ", Tabellenwert" : "") +
-        `</div></div>` +
-        `<div class="li-side"><b>${kcal}</b>kcal</div></li>`
-      );
-    })
+  const meals = store.getDay(day).meals;
+  el.innerHTML = meals.length
+    ? meals.map((meal) => {
+        const kcal = Math.round(meal.entries.reduce((s, e) => s + e.kcal, 0));
+        const protein = Math.round(meal.entries.reduce((s, e) => s + e.proteinG, 0));
+        const items = meal.entries.map((e) => `${e.quantity} ${e.name}`).join(", ");
+        return `<li data-meal="${meal.id}"><div class="li-main">` +
+          `<div class="li-title">${escapeHtml(items || meal.text)}</div>` +
+          `<div class="li-sub">${meal.at} Uhr, ${protein} g Protein` +
+          (meal.feeling ? `, danach ${escapeHtml(meal.feeling)}` : "") +
+          (meal.source === "offline" ? ", Tabellenwert" : "") +
+          `</div></div><div class="li-side"><b>${kcal}</b>kcal</div></li>`;
+      }).join("")
+    : `<li><div class="li-main"><div class="li-sub">Noch nichts erfasst.</div></div></li>`;
+}
+
+function renderCheckins() {
+  const checkins = store.getDay(day).checkins;
+  $("checkinList").innerHTML = checkins.length
+    ? checkins.slice().reverse().map((c) =>
+        `<li><div class="li-main"><div class="li-title">${escapeHtml(c.note || "Check-in")}</div>` +
+        `<div class="li-sub">${c.at} Uhr, Schlaf ${c.sleepQuality ?? "-"}, Stimmung ${c.mood ?? "-"}</div></div>` +
+        `<div class="li-side"><b>${c.energy ?? "-"}</b>Energie</div></li>`).join("")
+    : `<li><div class="li-main"><div class="li-sub">Heute noch kein Check-in.</div></div></li>`;
+}
+
+function renderMemories() {
+  const query = $("memSearch").value.trim();
+  const entries = query ? brain.search(query, 40).map((h) => h.entry) : brain.all().slice().reverse();
+  $("memCount").textContent = String(brain.all().length);
+  $("memList").innerHTML = entries.length
+    ? entries.map((e) =>
+        `<li><div class="li-main"><span class="mem-kind">${KIND_LABEL[e.kind] ?? e.kind}</span>` +
+        `<div class="li-title">${escapeHtml(e.text)}</div>` +
+        `<div class="li-sub">${e.at.slice(0, 10)}, Wichtigkeit ${e.weight}${e.tags.length ? ", " + escapeHtml(e.tags.join(", ")) : ""}</div></div>` +
+        `<div class="li-side"><button class="ghost" data-mem-del="${e.id}">Weg</button></div></li>`).join("")
+    : `<li><div class="li-main"><div class="li-sub">${query ? "Nichts gefunden." : "Noch nichts gemerkt. Erzaehl dem Assistenten etwas ueber dich."}</div></div></li>`;
+}
+
+function renderRecommendations() {
+  $("recoList").innerHTML = recommendations()
+    .map((r) => `<div class="reco"><h3>${escapeHtml(r.titel)}</h3><p>${escapeHtml(r.text)}</p><div class="grund">${escapeHtml(r.grund)}</div></div>`)
     .join("");
 }
 
 function renderProfile() {
   const energy = energyBreakdown(profile);
-  const targets = targetsToday();
+  const targets = dayNumbers(day).targets;
   $("pBmr").textContent = `${energy.bmrKcal} kcal`;
   $("pAf").textContent = String(energy.activityFactor);
   $("pTdee").textContent = `${energy.tdeeKcal} kcal`;
@@ -195,178 +308,31 @@ function renderProfile() {
 
   const settings = store.getSettings();
   $("apiKey").value = settings.apiKey || "";
-  $("modelSel").value = settings.model || "claude-sonnet-5";
-  $("versionLine").textContent = `daevo 0.3.0, Stand ${todayIso()}. Testversion, kein Medizinprodukt.`;
-
+  $("modelSel").value = settings.model || "claude-opus-5";
+  $("optSpeak").checked = options.speak;
+  $("optHandsFree").checked = options.handsFree;
+  $("voiceNote").textContent = voiceSupport.erkennung
+    ? "Spracherkennung laeuft ueber den Browser. Auf dem iPhone nur in Safari."
+    : "Dieser Browser kann keine Spracherkennung. Tippen geht trotzdem.";
+  $("versionLine").textContent = `daevo 0.4.0, Stand ${todayIso()}. Testversion, kein Medizinprodukt.`;
   renderSessions();
 }
 
 function renderSessions() {
   const sessions = profile.sessions || [];
   $("sessionList").innerHTML = sessions.length
-    ? sessions
-        .map(
-          (s, i) =>
-            `<li><div class="li-main"><div class="li-title">${WEEKDAYS[s.weekday]} ${s.startsAt}</div>` +
-            `<div class="li-sub">${TYPE_LABEL[s.type] || s.type}, ${s.minutes} Minuten</div></div>` +
-            `<div class="li-side"><button class="ghost" data-del="${i}">Weg</button></div></li>`,
-        )
-        .join("")
+    ? sessions.map((s, i) =>
+        `<li><div class="li-main"><div class="li-title">${WEEKDAYS[s.weekday]} ${s.startsAt}</div>` +
+        `<div class="li-sub">${TYPE_LABEL[s.type] || s.type}, ${s.minutes} Minuten</div></div>` +
+        `<div class="li-side"><button class="ghost" data-del="${i}">Weg</button></div></li>`).join("")
     : `<li><div class="li-main"><div class="li-sub">Noch keine Einheit eingetragen.</div></div></li>`;
 }
 
-function renderCheckins() {
-  const data = store.getDay(day);
-  $("checkinList").innerHTML = data.checkins.length
-    ? data.checkins
-        .slice()
-        .reverse()
-        .map(
-          (c) =>
-            `<li><div class="li-main"><div class="li-title">${escapeHtml(c.note || "Check-in")}</div>` +
-            `<div class="li-sub">${c.at} Uhr</div></div>` +
-            `<div class="li-side"><b>${c.energy ?? "-"}</b>Energie</div></li>`,
-        )
-        .join("")
-    : "";
-}
-
 function renderFeelings() {
-  $("feelingRow").innerHTML = FEELINGS.map(
-    (f) => `<button data-feel="${escapeHtml(f)}">${escapeHtml(f)}</button>`,
-  ).join("");
+  $("feelingRow").innerHTML = FEELINGS.map((f) => `<button data-feel="${escapeHtml(f)}">${escapeHtml(f)}</button>`).join("");
 }
 
-/* ---------- Aktionen ---------- */
-
-async function parseMeal() {
-  const text = $("mealText").value.trim();
-  if (!text) return;
-  const button = $("btnParse");
-  const feedback = $("mealFeedback");
-  button.disabled = true;
-  button.textContent = "Rechne";
-  feedback.hidden = false;
-  feedback.className = "feedback";
-  feedback.textContent = "Ich rechne das gerade durch.";
-
-  try {
-    const result = await buildCoach().parseMeal(text);
-    if (result.entries.length === 0) {
-      feedback.className = "feedback err";
-      feedback.textContent = result.followUpQuestion || "Das konnte ich nicht zuordnen. Nenn mir die Menge in Gramm.";
-      return;
-    }
-    const kcal = Math.round(result.entries.reduce((s, e) => s + e.kcal, 0));
-    const protein = Math.round(result.entries.reduce((s, e) => s + e.proteinG, 0));
-    lastMealId = newId();
-    store.addMeal(day, {
-      id: lastMealId,
-      text,
-      at: nowTime(),
-      source: result.source,
-      entries: result.entries,
-      feeling: null,
-    });
-    $("mealText").value = "";
-    const lines = [`Eingetragen: ${kcal} kcal, ${protein} g Protein.`];
-    if (result.warnings.length) lines.push(result.warnings.join(" "));
-    if (result.followUpQuestion) lines.push(result.followUpQuestion);
-    if (result.source === "offline") lines.push("Gerechnet mit der internen Tabelle. Mit API Schluessel wird es genauer.");
-    feedback.className = "feedback ok";
-    feedback.textContent = lines.join(" ");
-    renderToday();
-  } catch (error) {
-    feedback.className = "feedback err";
-    feedback.textContent = `Das hat nicht geklappt: ${error.message}`;
-  } finally {
-    button.disabled = false;
-    button.textContent = "Erfassen";
-  }
-}
-
-function startVoice() {
-  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!Recognition) {
-    toast("Dieser Browser kann keine Spracherkennung. Tipp es ein.");
-    return;
-  }
-  const recognition = new Recognition();
-  recognition.lang = "de-DE";
-  recognition.interimResults = false;
-  recognition.onresult = (event) => {
-    $("mealText").value = event.results[0][0].transcript;
-    toast("Aufnahme uebernommen");
-  };
-  recognition.onerror = () => toast("Aufnahme fehlgeschlagen");
-  toast("Sprich jetzt");
-  recognition.start();
-}
-
-async function suggestMeal() {
-  const fridgeText = $("fridgeInput").value;
-  const fridge = fridgeText.split(",").map((s) => s.trim()).filter(Boolean);
-  store.setFridge(fridge);
-  const out = $("suggestOut");
-  const button = $("btnSuggest");
-  button.disabled = true;
-  button.textContent = "Denke nach";
-  out.hidden = false;
-  out.innerHTML = "<p>Ich schaue, was passt.</p>";
-
-  try {
-    const data = store.getDay(day);
-    const consumed = data.meals.flatMap((m) => m.entries);
-    const suggestion = await buildCoach().suggestMeal({
-      fridge,
-      targets: targetsToday(),
-      consumed,
-      waterMl: data.waterMl || 0,
-    });
-    const rest = remainingBudget(totalsToday(), targetsToday());
-    const parts = [`<h3>${escapeHtml(suggestion.title)}</h3>`];
-    if (suggestion.reason) parts.push(`<p class="sub">${escapeHtml(suggestion.reason)}</p>`);
-    if (suggestion.ingredients.length) {
-      parts.push(
-        "<ul>" +
-          suggestion.ingredients
-            .map((i) => `<li>${escapeHtml(i.quantity)} ${escapeHtml(i.name)}, ${i.kcal} kcal</li>`)
-            .join("") +
-          "</ul>",
-      );
-    }
-    if (suggestion.steps.length) {
-      parts.push("<ol>" + suggestion.steps.map((s) => `<li>${escapeHtml(s)}</li>`).join("") + "</ol>");
-    }
-    parts.push(
-      `<div class="kv"><span>Restbudget</span><b>${rest.kcal} kcal, ${rest.proteinG} g Protein</b></div>`,
-    );
-    if (suggestion.prepMinutes > 0) {
-      parts.push(`<div class="kv"><span>Zubereitung</span><b>${suggestion.prepMinutes} Minuten</b></div>`);
-    }
-    out.innerHTML = parts.join("");
-  } catch (error) {
-    out.innerHTML = `<p>Das hat nicht geklappt: ${escapeHtml(error.message)}</p>`;
-  } finally {
-    button.disabled = false;
-    button.textContent = "Mahlzeit vorschlagen";
-  }
-}
-
-function saveCheckin() {
-  const hour = new Date().getHours();
-  store.addCheckin(day, {
-    kind: hour < 12 ? "morning" : hour >= 19 ? "evening" : "adhoc",
-    at: nowTime(),
-    note: $("checkNote").value.trim(),
-    energy: Number($("energy").value) || null,
-    sleepQuality: Number($("sleepQ").value) || null,
-  });
-  $("checkNote").value = "";
-  renderCheckins();
-  renderToday();
-  toast("Check-in gespeichert");
-}
+/* ---------- Onboarding ---------- */
 
 function readSetupProfile() {
   return {
@@ -384,76 +350,185 @@ function readSetupProfile() {
   };
 }
 
-function validProfile(candidate) {
+function validProfile(c) {
   return (
-    candidate.ageYears >= 14 && candidate.ageYears <= 100 &&
-    candidate.heightCm >= 120 && candidate.heightCm <= 230 &&
-    candidate.weightKg >= 35 && candidate.weightKg <= 300 &&
-    candidate.dailySteps >= 0 && candidate.dailySteps <= 60000 &&
-    /^\d{2}:\d{2}$/.test(candidate.wakeTime) && /^\d{2}:\d{2}$/.test(candidate.sleepTime)
+    c.ageYears >= 14 && c.ageYears <= 100 &&
+    c.heightCm >= 120 && c.heightCm <= 230 &&
+    c.weightKg >= 35 && c.weightKg <= 300 &&
+    c.dailySteps >= 0 && c.dailySteps <= 60000 &&
+    /^\d{2}:\d{2}$/.test(c.wakeTime) && /^\d{2}:\d{2}$/.test(c.sleepTime)
   );
-}
-
-/* ---------- Navigation ---------- */
-
-function showTab(name) {
-  for (const section of document.querySelectorAll(".tab")) section.hidden = section.dataset.tab !== name;
-  for (const button of document.querySelectorAll(".tabbtn")) button.classList.toggle("active", button.dataset.go === name);
-  window.scrollTo({ top: 0 });
-  if (name === "profil") renderProfile();
-  if (name === "coach") { $("fridgeInput").value = store.getFridge().join(", "); renderCheckins(); }
-  if (name === "essen") renderMeals("mealList2");
 }
 
 function startApp() {
   $("setup").hidden = true;
   $("app").hidden = false;
+  options = { ...options, ...(store.getSettings().voice || {}) };
   renderFeelings();
-  renderToday();
+  setupAssistant();
+  showView("assistant");
+  refreshAll();
 }
 
 /* ---------- Ereignisse ---------- */
 
 $("s-save").addEventListener("click", () => {
   const candidate = readSetupProfile();
-  if (!validProfile(candidate)) {
-    toast("Bitte pruefe deine Angaben.");
-    return;
-  }
+  if (!validProfile(candidate)) { toast("Bitte pruefe deine Angaben."); return; }
   profile = candidate;
   store.setProfile(profile);
+  if (profile.name) brain.add({ text: `Heisst ${profile.name}.`, art: "fakt", wichtigkeit: 5 });
+  brain.add({
+    text: `Ziel ist ${{ fat_loss: "Fett verlieren", maintain: "Gewicht halten", lean_bulk: "Muskeln aufbauen" }[profile.goal]}.`,
+    art: "ziel", wichtigkeit: 5,
+  });
   startApp();
 });
 
-for (const button of document.querySelectorAll(".tabbtn")) {
-  button.addEventListener("click", () => showTab(button.dataset.go));
+$("composer").addEventListener("submit", (event) => {
+  event.preventDefault();
+  send($("chatInput").value);
+});
+$("btnMic").addEventListener("click", startListening);
+$("orb").addEventListener("click", startListening);
+$("chips").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-say]");
+  if (button) send(button.dataset.say);
+});
+
+$("btnMenu").addEventListener("click", () => { $("menu").hidden = false; });
+$("btnMenuClose").addEventListener("click", () => { $("menu").hidden = true; });
+$("menu").addEventListener("click", (event) => {
+  const item = event.target.closest("[data-go]");
+  if (item) showView(item.dataset.go);
+});
+for (const button of document.querySelectorAll("[data-back]")) {
+  button.addEventListener("click", () => showView("assistant"));
 }
 
+$("btnSpeaker").addEventListener("click", () => {
+  options.speak = !options.speak;
+  $("btnSpeaker").setAttribute("aria-pressed", String(options.speak));
+  if (!options.speak) stopSpeaking();
+  saveOptions();
+  toast(options.speak ? "Ich lese Antworten vor" : "Vorlesen aus");
+});
+
 for (const chip of document.querySelectorAll("[data-water]")) {
-  chip.addEventListener("click", () => {
-    store.addWater(day, Number(chip.dataset.water));
-    renderToday();
+  chip.addEventListener("click", async () => {
+    await buildActions({ onChange: refreshAll }).wasserEintragen(Number(chip.dataset.water));
     toast(`${chip.dataset.water} ml eingetragen`);
   });
 }
 
-$("btnParse").addEventListener("click", parseMeal);
-$("btnVoice").addEventListener("click", startVoice);
-$("btnSuggest").addEventListener("click", suggestMeal);
-$("btnCheckin").addEventListener("click", saveCheckin);
+$("btnParse").addEventListener("click", async () => {
+  const text = $("mealText").value.trim();
+  if (!text) return;
+  const feedback = $("mealFeedback");
+  const button = $("btnParse");
+  button.disabled = true;
+  button.textContent = "Rechne";
+  feedback.hidden = false;
+  feedback.className = "feedback";
+  feedback.textContent = "Ich rechne das gerade durch.";
+  try {
+    const before = store.getDay(day).meals.length;
+    const antwort = await buildActions({ onChange: refreshAll }).mahlzeitErfassen(text);
+    const after = store.getDay(day).meals;
+    if (after.length > before) {
+      lastMealId = after[after.length - 1].id;
+      $("mealText").value = "";
+      feedback.className = "feedback ok";
+    } else {
+      feedback.className = "feedback err";
+    }
+    feedback.textContent = antwort;
+    refreshAll();
+  } catch (error) {
+    feedback.className = "feedback err";
+    feedback.textContent = `Das hat nicht geklappt: ${error.message}`;
+  } finally {
+    button.disabled = false;
+    button.textContent = "Erfassen";
+  }
+});
+
+$("btnVoice").addEventListener("click", () => {
+  if (!listener?.supported) { toast("Dieser Browser kann keine Spracherkennung."); return; }
+  const einmal = new Listener({
+    onPartial: (t) => { $("mealText").value = t; },
+    onFinal: (t) => { $("mealText").value = t; toast("Aufnahme uebernommen"); },
+  });
+  einmal.start();
+  toast("Sprich jetzt");
+});
 
 $("feelingRow").addEventListener("click", (event) => {
   const button = event.target.closest("[data-feel]");
-  if (!button || !lastMealId) {
-    if (button) toast("Erfasse zuerst eine Mahlzeit.");
-    return;
-  }
+  if (!button) return;
+  if (!lastMealId) { toast("Erfasse zuerst eine Mahlzeit."); return; }
   store.setMealFeeling(day, lastMealId, button.dataset.feel);
   for (const other of $("feelingRow").children) other.classList.remove("on");
   button.classList.add("on");
   renderMeals("mealList2");
-  renderMeals("mealList");
   toast("Notiert");
+});
+
+$("btnFridge").addEventListener("click", () => {
+  const items = $("fridgeInput").value.split(",").map((s) => s.trim()).filter(Boolean);
+  store.setFridge(items);
+  toast(`${items.length} Zutaten gespeichert`);
+});
+
+$("btnSuggest").addEventListener("click", async () => {
+  const out = $("suggestOut");
+  const button = $("btnSuggest");
+  const items = $("fridgeInput").value.split(",").map((s) => s.trim()).filter(Boolean);
+  store.setFridge(items);
+  button.disabled = true;
+  button.textContent = "Denke nach";
+  out.hidden = false;
+  out.textContent = "Ich schaue, was passt.";
+  try {
+    out.textContent = await buildActions({ onChange: refreshAll }).mahlzeitVorschlagen();
+  } catch (error) {
+    out.textContent = `Das hat nicht geklappt: ${error.message}`;
+  } finally {
+    button.disabled = false;
+    button.textContent = "Mahlzeit vorschlagen";
+  }
+});
+
+$("btnCheckin").addEventListener("click", async () => {
+  await buildActions({ onChange: refreshAll }).checkinSpeichern({
+    energie: Number($("energy").value) || undefined,
+    schlaf: Number($("sleepQ").value) || undefined,
+    stimmung: Number($("mood").value) || undefined,
+    notiz: $("checkNote").value.trim() || "Check-in ohne Notiz",
+  });
+  $("checkNote").value = "";
+  renderCheckins();
+  toast("Check-in gespeichert");
+});
+
+$("memSearch").addEventListener("input", renderMemories);
+$("btnMemAdd").addEventListener("click", () => {
+  const text = $("memNew").value.trim();
+  if (!text) return;
+  const result = brain.add({
+    text,
+    art: $("memKind").value,
+    wichtigkeit: Number($("memWeight").value) || 3,
+  });
+  $("memNew").value = "";
+  renderMemories();
+  toast(result.action === "aktualisiert" ? "Bestehende Notiz aufgefrischt" : "Gemerkt");
+});
+$("memList").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-mem-del]");
+  if (!button) return;
+  brain.remove(button.dataset.memDel);
+  renderMemories();
 });
 
 $("btnSaveProfile").addEventListener("click", () => {
@@ -465,30 +540,23 @@ $("btnSaveProfile").addEventListener("click", () => {
     wakeTime: $("e-wake").value,
     sleepTime: $("e-sleep").value,
   };
-  if (!validProfile(candidate)) {
-    toast("Bitte pruefe deine Angaben.");
-    return;
-  }
+  if (!validProfile(candidate)) { toast("Bitte pruefe deine Angaben."); return; }
   profile = candidate;
   store.setProfile(profile);
   renderProfile();
-  renderToday();
+  refreshAll();
   toast("Gespeichert");
 });
 
 $("btnAddSession").addEventListener("click", () => {
   const minutes = Number($("t-min").value);
-  if (!(minutes >= 5 && minutes <= 480)) {
-    toast("Dauer muss zwischen 5 und 480 Minuten liegen.");
-    return;
-  }
+  if (!(minutes >= 5 && minutes <= 480)) { toast("Dauer muss zwischen 5 und 480 Minuten liegen."); return; }
   profile.sessions = [
     ...(profile.sessions || []),
     { type: $("t-type").value, minutes, weekday: Number($("t-day").value), startsAt: $("t-time").value },
   ].slice(0, 21);
   store.setProfile(profile);
   renderSessions();
-  renderToday();
   toast("Einheit hinzugefuegt");
 });
 
@@ -498,13 +566,28 @@ $("sessionList").addEventListener("click", (event) => {
   profile.sessions.splice(Number(button.dataset.del), 1);
   store.setProfile(profile);
   renderSessions();
-  renderToday();
 });
 
 $("btnSaveKey").addEventListener("click", () => {
   const key = $("apiKey").value.trim();
-  store.setSettings({ apiKey: key, model: $("modelSel").value });
-  toast(key ? "Schluessel gespeichert. Der Coach denkt jetzt selbst." : "Schluessel entfernt. Offline Modus aktiv.");
+  const settings = store.getSettings();
+  store.setSettings({ ...settings, apiKey: key, model: $("modelSel").value });
+  toast(key ? "Schluessel gespeichert. daevo denkt jetzt selbst." : "Schluessel entfernt. Regelbetrieb aktiv.");
+});
+
+function saveOptions() {
+  const settings = store.getSettings();
+  store.setSettings({ ...settings, voice: options });
+}
+$("optSpeak").addEventListener("change", (e) => {
+  options.speak = e.target.checked;
+  $("btnSpeaker").setAttribute("aria-pressed", String(options.speak));
+  saveOptions();
+});
+$("optHandsFree").addEventListener("change", (e) => {
+  options.handsFree = e.target.checked;
+  saveOptions();
+  if (!options.handsFree && listener) listener.handsFree = false;
 });
 
 $("btnExport").addEventListener("click", () => {
@@ -523,12 +606,11 @@ $("btnReset").addEventListener("click", () => {
   location.reload();
 });
 
-/* Tageswechsel abfangen, wenn die App im Hintergrund lag. */
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "visible" || !profile) return;
   const current = todayIso();
   if (current !== day) day = current;
-  renderToday();
+  refreshAll();
 });
 
 if (profile) startApp();

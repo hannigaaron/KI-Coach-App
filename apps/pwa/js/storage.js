@@ -98,6 +98,22 @@ export const store = {
     write("settings", settings);
   },
 
+  getMemories() {
+    return read("memories", []);
+  },
+  setMemories(entries) {
+    write("memories", entries);
+  },
+
+  getChat() {
+    return read("chat", []);
+  },
+  setChat(messages) {
+    // Nur die letzten Nachrichten behalten. Der Verlauf waechst sonst ohne
+    // Grenze und der localStorage ist bei rund fuenf Megabyte zu Ende.
+    write("chat", messages.slice(-60));
+  },
+
   getFridge() {
     return read("fridge", []);
   },
@@ -149,6 +165,8 @@ export const store = {
     const out = { exportedAt: new Date().toISOString(), version: 1, days: {} };
     out.profile = this.getProfile();
     out.fridge = this.getFridge();
+    out.memories = this.getMemories();
+    out.chat = this.getChat();
     for (const day of this.allDays()) out.days[day] = this.getDay(day);
     return out;
   },
