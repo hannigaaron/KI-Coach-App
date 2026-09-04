@@ -16,12 +16,18 @@ class StubProvider implements CoachProvider {
     if (this.fail) throw new Error("Modell nicht erreichbar");
     return this.response as T;
   }
+  async converse(): Promise<never> {
+    throw new Error("in diesem Test nicht benutzt");
+  }
 }
 
 class NoProvider implements CoachProvider {
   readonly name = "none";
   readonly available = false;
   async generateJson<T>(): Promise<T> {
+    throw new Error("nicht verfuegbar");
+  }
+  async converse(): Promise<never> {
     throw new Error("nicht verfuegbar");
   }
 }

@@ -1,4 +1,11 @@
-import { ProviderUnavailableError, type CoachProvider, type JsonRequest } from "./provider.js";
+import {
+  ProviderUnavailableError,
+  type CoachProvider,
+  type ContentBlock,
+  type ConverseRequest,
+  type ConverseResponse,
+  type JsonRequest,
+} from "./provider.js";
 
 const API_URL = "https://api.anthropic.com/v1/messages";
 const API_VERSION = "2023-06-01";
@@ -35,6 +42,58 @@ export class AnthropicProvider implements CoachProvider {
 
   get available(): boolean {
     return Boolean(this.options.apiKey);
+  }
+
+  private headers(): Record<string, string> {
+    return {
+      "content-type": "application/json",
+      "x-api-key": this.options.apiKey as string,
+      "anthropic-version": API_VERSION,
+      ...(this.options.browserAccess ? { "anthropic-dangerous-direct-browser-access": "true" } : {}),
+    };
+  }
+
+  private async post(body: unknown, timeoutMs: number): Promise<unknown> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await this.fetchImpl(API_URL, {
+        method: "POST",
+        headers: this.headers(),
+        signal: controller.signal,
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Anthropic API ${response.status}: ${text.slice(0, 500)}`);
+      }
+      return await response.json();
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  /**
+   * Gespraech mit Werkzeugen.
+   *
+   * Kein Denkbudget gesetzt. Auf den aktuellen Modellen laeuft adaptives Denken
+   * ohnehin von selbst, gesteuert wird die Tiefe ueber effort. Fuer einen
+   * Assistenten, der schnell antworten soll, ist low die richtige Stufe.
+   */
+  async converse(request: ConverseRequest): Promise<ConverseResponse> {
+    if (!this.available) throw new ProviderUnavailableError("ANTHROPIC_API_KEY fehlt");
+    const payload = (await this.post(
+      {
+        model: this.options.model,
+        max_tokens: request.maxTokens ?? 1024,
+        system: request.system,
+        messages: request.messages,
+        tools: request.tools,
+        output_config: { effort: request.effort ?? "low" },
+      },
+      this.options.timeoutMs ?? 60000,
+    )) as { content?: ContentBlock[]; stop_reason?: string };
+    return { content: payload.content ?? [], stopReason: payload.stop_reason ?? "end_turn" };
   }
 
   async generateJson<T>(request: JsonRequest): Promise<T> {

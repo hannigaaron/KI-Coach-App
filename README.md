@@ -1,8 +1,8 @@
 # daevo
 
-Digitaler Ernaehrungs- und Fitnesscoach. Die App erfasst Mahlzeiten per Sprache oder Text,
-rechnet sie gegen die Tagesziele, erinnert zur richtigen Zeit und baut aus dem
-Kuehlschrankinhalt eine passende Mahlzeit.
+Ein Assistent fuer Ernaehrung, Training und Alltag. Die App oeffnet nicht mit
+Zahlen, sondern mit einem Gespraech. Du redest oder tippst, daevo rechnet,
+traegt ein, erinnert und merkt sich, was du erzaehlst.
 
 ## Stand
 
@@ -26,8 +26,8 @@ in `docs/BRAND.md`, die Kurzfassung fuer Entwicklung in `CLAUDE.md`.
 ## Aufbau
 
 ```
-packages/core     Rechenkern ohne Abhaengigkeiten: Kalorien, Makros, Erinnerungslogik, Tagesscore
-packages/coach    Anbindung an das Sprachmodell plus regelbasierter Offline Fallback
+packages/core     Rechenkern und Gedaechtnis: Kalorien, Makros, Erinnerungen, Tagesscore, Notizsuche
+packages/coach    Assistent mit Werkzeugen, Sprachmodell, regelbasierter Fallback
 apps/pwa          Installierbare Web App fuer Handy und Desktop, laeuft ohne Server
 apps/pwa/brand    Logodateien, Schrift als Pfade eingebettet
 apps/api          HTTP API, SQLite Datenbank, Scheduler, Testkonsole im Browser
@@ -65,6 +65,23 @@ Referenztabelle in `packages/coach/src/foods.ts`. Alles bleibt bedienbar und tes
 Mit Key uebernimmt das Sprachmodell die Texterkennung und die Rezeptvorschlaege.
 Konfiguration siehe `.env.example`.
 
+## Was die App kann
+
+Der Assistent fuehrt das Gespraech und benutzt dabei Werkzeuge. Er traegt
+Mahlzeiten ein, rechnet Wasser mit, ruft den Tagesstand ab, schlaegt aus deinem
+Vorrat eine Mahlzeit vor, speichert Check-ins und merkt sich alles, was
+laenger gilt.
+
+Das Gedaechtnis liegt in der App. Es ist durchsuchbar, einsehbar und loeschbar.
+Die Suche laeuft ueber Wortueberlappung mit inverser Dokumenthaeufigkeit, ohne
+Modell und ohne Vektordatenbank.
+
+Sprache geht in beide Richtungen. Diktat ueber die Spracherkennung des
+Browsers, Antworten werden vorgelesen. Auf dem iPhone nur in Safari.
+
+Ohne API Schluessel uebernimmt ein regelbasierter Pfad. Er versteht Mengen,
+Zahlwoerter und einfache Absichten und ruft dieselben Werkzeuge auf.
+
 ## API
 
 | Methode | Pfad | Zweck |
@@ -91,8 +108,9 @@ Alle Routen ausser `POST /api/users` und `GET /health` brauchen den Header
 npm test
 ```
 
-59 Tests. Sie decken die Energierechnung gegen Handrechnungen ab, den Textparser,
-die Pruefung von Modellantworten, die Erinnerungslogik, die API Endpunkte und den Scheduler.
+84 Tests. Sie decken die Energierechnung gegen Handrechnungen ab, den Textparser,
+die Pruefung von Modellantworten, das Gedaechtnis, die Werkzeugschleife des
+Assistenten, den Regelpfad, die Erinnerungslogik, die API Endpunkte und den Scheduler.
 
 ## Grenzen
 

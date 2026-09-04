@@ -6,7 +6,7 @@ test("erkennt Grammangaben", () => {
   const { entries } = parseMealOffline("200g Haehnchenbrust und 150g Reis");
   assert.equal(entries.length, 2);
   const chicken = entries[0]!;
-  assert.equal(chicken.name, "haehnchenbrust");
+  assert.equal(chicken.name, "Haehnchenbrust");
   assert.equal(chicken.kcal, 240);
   assert.equal(chicken.proteinG, 46);
 });

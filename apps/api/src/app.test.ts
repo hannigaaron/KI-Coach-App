@@ -12,6 +12,9 @@ class OfflineProvider implements CoachProvider {
   async generateJson<T>(): Promise<T> {
     throw new Error("nicht verfuegbar");
   }
+  async converse(): Promise<never> {
+    throw new Error("nicht verfuegbar");
+  }
 }
 
 const DAY = "2026-09-03";

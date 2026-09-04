@@ -37,13 +37,29 @@ oder Text, rechnet sie gegen die Tagesziele, erinnert zur richtigen Zeit und
 baut aus dem Kuehlschrankinhalt eine passende Mahlzeit.
 
 ```
-packages/core     Rechenkern ohne Abhaengigkeiten
-packages/coach    Sprachmodell plus regelbasierter Offline Fallback
+packages/core     Rechenkern und Gedaechtnis, ohne Abhaengigkeiten
+packages/coach    Assistent mit Werkzeugen, Sprachmodell, Regelpfad
 apps/pwa          Installierbare Web App, laeuft ohne Server
 apps/api          HTTP API, SQLite, Scheduler
 scripts           Build der Web App, lokaler Vorschauserver
+tools/brand       Generator fuer die Logodateien
 docs              Architektur, Marke, Roadmap, Geschaeftsmodell
 ```
+
+## Die App oeffnet mit dem Assistenten
+
+Nicht mit Zahlen. Der Kreis aus dem Logo ist die Oberflaeche, darunter das
+Gespraech, unten die Eingabe. Alles andere liegt im Menue. Wer das aendert,
+aendert den Kern des Produkts.
+
+Der Assistent hat Werkzeuge und veraendert die App wirklich. Zahlen kommen
+immer aus `tagesstand_abrufen`, nie aus dem Modell. Jede Faehigkeit hat einen
+Regelpfad in `packages/coach/src/agent.ts`, damit die App ohne Schluessel
+benutzbar bleibt.
+
+Das Gedaechtnis liegt in `packages/core/src/memory.ts`. Suche ueber
+Wortueberlappung mit inverser Dokumenthaeufigkeit, keine Einbettungen. Es ist
+fuer den Nutzer einsehbar und loeschbar.
 
 ## Regeln fuer den Code
 
@@ -65,7 +81,7 @@ docs              Architektur, Marke, Roadmap, Geschaeftsmodell
 
 ```bash
 npm install
-npm test           # 59 Tests
+npm test           # 84 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -79,6 +95,8 @@ veroeffentlicht. Adresse: https://hannigaaron.github.io/KI-Coach-App/
 
 ## Aktueller Stand
 
-Fertig: Rechenkern, Coach Layer, API, installierbare Web App, Marke.
-Offen: Push Benachrichtigungen bei geschlossener App, Apple Health, echte
-Naehrwertdatenbank, Anmeldung ueber Apple. Siehe `docs/ROADMAP.md`.
+Fertig: Rechenkern, Gedaechtnis, Assistent mit Werkzeugen und Sprache,
+installierbare Web App, Marke, API.
+Offen: Push Benachrichtigungen bei geschlossener App, Apple Health und
+Wearables, Wortaktivierung, echte Naehrwertdatenbank, Anmeldung ueber Apple.
+Siehe `docs/ROADMAP.md`.

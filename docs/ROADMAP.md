@@ -26,24 +26,50 @@ die Datenschutzanforderungen und die Naehrwertdatenbank.
 - Veroeffentlichung ueber GitHub Pages, Ablauf in .github/workflows/pages.yml
 - Anleitung in docs/PWA.md
 
-## Milestone 3: Native App
+## Milestone 3: Der Assistent (fertig)
+
+Die App oeffnet nicht mehr mit Zahlen, sondern mit dem Assistenten.
+
+- Der Kreis aus dem Logo ist die Oberflaeche. Er atmet im Ruhezustand, folgt
+  beim Zuhoeren dem Mikrofonpegel, dreht sich beim Nachdenken und pulsiert beim
+  Sprechen. Ein duenner Innenring zeigt den Tagesfortschritt.
+- Sprache in beide Richtungen: Diktat ueber die Spracherkennung des Browsers,
+  Antworten werden vorgelesen. Freihand Modus hoert nach jeder Antwort weiter zu.
+- Der Assistent benutzt Werkzeuge und veraendert die App wirklich: Mahlzeit
+  erfassen, Wasser eintragen, Tagesstand abrufen, Mahlzeit vorschlagen,
+  Check-in speichern, sich etwas merken, im Gedaechtnis suchen.
+- Gedaechtnis: alles, was der Nutzer erzaehlt, bleibt in der App. Suche ueber
+  Wortueberlappung mit inverser Dokumenthaeufigkeit, Dubletten werden
+  zusammengefuehrt. Einsehbar und loeschbar unter Gedaechtnis.
+- Ohne API Schluessel uebernimmt ein regelbasierter Pfad. Er versteht Mengen,
+  Zahlwoerter und einfache Absichten und ruft dieselben Werkzeuge auf.
+- Menue statt Tableiste. Bereiche: Assistent, Heute, Essen, Check-in,
+  Gedaechtnis, Empfehlungen, Profil.
+- Empfehlungen entstehen aus den eigenen Zahlen. Jede nennt den Wert, auf dem
+  sie beruht.
+
+## Milestone 4: Native App
 
 Noetig fuer die zwei Dinge, die eine Web App auf dem iPhone nicht kann.
 
 - Expo Projekt mit React Native, Ziel iOS zuerst
 - Push Benachrichtigungen ueber APNs, auch wenn die App geschlossen ist
-- HealthKit Anbindung fuer Schritte, Schlaf, Gewicht
+- HealthKit Anbindung fuer Schritte, Schlaf, Gewicht, Herzfrequenz
+- Apple Fitness und Apple Watch, spaeter Whoop und Oura ueber deren APIs
+- Wortaktivierung, also Hey daevo ohne Tippen. Im Browser nicht zuverlaessig
+  moeglich, nativ schon.
 - Synchronisation mit dem Server statt Speicher im Browser
 - Aufwand: sechs bis acht Wochen nebenbei
 
-## Milestone 4: Datenqualitaet
+## Milestone 5: Datenqualitaet
 
 - Anbindung Open Food Facts inklusive Barcode Scanner
 - kuratierte Liste der 300 haeufigsten Lebensmittel ohne Modellaufruf
 - Foto Erkennung von Mahlzeiten pruefen, Genauigkeit vorher an 100 Bildern messen
+- Gedaechtnis auf Einbettungen umstellen, wenn die Wortsuche an Grenzen stoesst
 - Nachjustierung des Kalorienbedarfs ueber den Vier Wochen Gewichtsverlauf
 
-## Milestone 5: Marktreife
+## Milestone 6: Marktreife
 
 - Sign in with Apple
 - Abo ueber StoreKit, Gratis Stufe und Premium
@@ -51,7 +77,7 @@ Noetig fuer die zwei Dinge, die eine Web App auf dem iPhone nicht kann.
 - Datenschutzerklaerung und Nutzungsbedingungen von einem Anwalt pruefen lassen
 - App Store Review, Puffer von vier Wochen einplanen
 
-## Milestone 6: Hebel
+## Milestone 7: Hebel
 
 - Trainerkonten: ein Coach betreut mehrere Kunden ueber die App
 - Whitelabel fuer Studios
