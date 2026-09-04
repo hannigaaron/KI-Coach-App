@@ -1,5 +1,5 @@
 import { energyBreakdown, macroTargets, waterTargetMl } from "@daevo/core";
-import { BODY_FAT_LEVELS, SCHRITTE, auswerten, silhouetteSvg } from "./anamnese.js";
+import { BODY_FAT_LEVELS, SCHRITTE, auswerten, figurBild } from "./anamnese.js";
 
 /**
  * Zeigt den Anamnesebogen an.
@@ -193,7 +193,7 @@ export class SetupFlow {
       const gewaehlt = this.antworten.koerperfett?.step;
       const figuren = BODY_FAT_LEVELS[sex].map((stufe, i) =>
         `<button type="button" class="figur${gewaehlt === i ? " on" : ""}" data-figur="${i}">
-          ${silhouetteSvg(sex, i)}<b>${stufe.percent} %</b><span>${escapeHtml(stufe.label)}</span></button>`).join("");
+          ${figurBild(sex, i)}<b>${stufe.percent} %</b><span>${escapeHtml(stufe.label)}</span></button>`).join("");
       const gewaehltText = gewaehlt === undefined ? "" :
         `<div class="figur-hinweis">${escapeHtml(BODY_FAT_LEVELS[sex][gewaehlt].hint)}</div>`;
       return `<div class="field"><div class="figuren">${figuren}</div>${gewaehltText}</div>`;

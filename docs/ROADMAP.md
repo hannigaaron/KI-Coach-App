@@ -14,7 +14,7 @@ die Datenschutzanforderungen und die Nährwertdatenbank.
 - API mit Konto, Profil, Mahlzeiten, Wasser, Check-ins, Kühlschrank, Health Import
 - Scheduler mit Sperre gegen Doppelversand
 - Testkonsole im Browser mit Spracheingabe
-- 148 automatisierte Tests
+- 149 automatisierte Tests
 
 ## Milestone 2: Installierbare Web App (fertig)
 
@@ -183,6 +183,13 @@ Erst mit HealthKit sinnvoll, deshalb hier und nicht früher:
 
 ## Milestone 9: Marktreife
 
+- **Bildrechte für die Körperfiguren klären.** Die acht Figuren in
+  `apps/pwa/img/koerperfett` stammen aus einer fremden Vergleichsreihe. Für den
+  privaten Test reicht das, für eine App im Store nicht. Zwei Wege: eine Lizenz
+  für genau diese Reihe kaufen, oder eine eigene Reihe erstellen lassen. Eine
+  eigene Reihe hat den Vorteil, dass sie auch den schlanken Bereich abdeckt,
+  der in der Vorlage fehlt: beim Mann unter 20 Prozent, bei der Frau unter 30.
+  Bis dahin gibt es dafür das Zahlenfeld daneben.
 - Sign in with Apple
 - Abo über StoreKit, Gratis Stufe und Premium
 - Löschfunktion und Datenexport nach DSGVO
