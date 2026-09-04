@@ -76,22 +76,26 @@ export class AnthropicProvider implements CoachProvider {
   /**
    * Gespräch mit Werkzeugen.
    *
-   * Kein Denkbudget gesetzt. Auf den aktuellen Modellen läuft adaptives Denken
-   * ohnehin von selbst, gesteuert wird die Tiefe über effort. Für einen
-   * Assistenten, der schnell antworten soll, ist low die richtige Stufe.
+   * Kein festes Denkbudget. Auf den aktuellen Modellen läuft adaptives Denken
+   * von selbst, gesteuert wird die Tiefe über effort. Die Stufe kommt vom
+   * Agenten und hängt an der Nachricht: eine Mahlzeit einzutragen braucht
+   * kein Nachdenken, "warum ist mein Testosteron niedrig" schon.
+   *
+   * medium ist die Grundstufe, nicht low. Ein Coach, der nur schnell ist,
+   * ist kein Coach.
    */
   async converse(request: ConverseRequest): Promise<ConverseResponse> {
     if (!this.available) throw new ProviderUnavailableError("ANTHROPIC_API_KEY fehlt");
     const payload = (await this.post(
       {
         model: this.options.model,
-        max_tokens: request.maxTokens ?? 1024,
+        max_tokens: request.maxTokens ?? 2048,
         system: request.system,
         messages: request.messages,
         tools: request.tools,
-        output_config: { effort: request.effort ?? "low" },
+        output_config: { effort: request.effort ?? "medium" },
       },
-      this.options.timeoutMs ?? 60000,
+      this.options.timeoutMs ?? 90000,
     )) as { content?: ContentBlock[]; stop_reason?: string };
     return { content: payload.content ?? [], stopReason: payload.stop_reason ?? "end_turn" };
   }

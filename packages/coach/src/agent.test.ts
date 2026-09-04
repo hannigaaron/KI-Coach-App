@@ -12,6 +12,16 @@ function stubActions(log: string[]): AgentActions {
     async checkinSpeichern(i) { log.push(`checkin:${i.notiz}`); return "Check-in gespeichert."; },
     async merken(i) { log.push(`merken:${i.text}|${i.art}|${i.wichtigkeit}`); return "Habe ich mir gemerkt."; },
     async gedaechtnisDurchsuchen(f) { log.push(`suche:${f}`); return "Verträgt keine Laktose."; },
+    async einkaufslisteErstellen(i) { log.push(`einkauf:${i.tage ?? ""}`); return "Liste für 7 Tage, 14 Posten."; },
+    async einkaufslisteAbrufen() { log.push("einkauf:abrufen"); return "14 Posten, 3 davon zu Hause."; },
+    async einkaufslisteAbhaken(i) { log.push(`einkauf:${i.posten}=${i.stand}`); return "Notiert."; },
+    async standardsAbrufen() { log.push("standards"); return "Protein: an 5 von 7 Tagen gehalten."; },
+    async standardSetzen(i) { log.push(`standard:${i.text}`); return "Standard steht."; },
+    async standardBestaetigen(i) { log.push(`standard:${i.id}=${i.gehalten}`); return "Eingetragen."; },
+    async verlaufAbrufen(i) { log.push(`verlauf:${i.tage ?? ""}`); return "Minus 0,4 kg die Woche, Bedarf etwa 2900 kcal."; },
+    async gewichtEintragen(kg) { log.push(`gewicht:${kg}`); return `${kg} kg eingetragen.`; },
+    async trainingEintragen(i) { log.push(`training:${i.art}/${i.minuten}`); return "Training eingetragen."; },
+    async profilAendern(i) { log.push(`profil:${JSON.stringify(i)}`); return "Profil geändert."; },
   };
 }
 
@@ -93,11 +103,11 @@ test("Kontext landet im Systemprompt", async () => {
   const system = provider.seen[0]!.system;
   assert.match(system, /Aaron, 23/);
   assert.match(system, /Donnerstag 12:00/);
-  assert.match(system, /Zahlen kommen aus den Werkzeugen/);
+  assert.match(system, /Zahlen über diesen Nutzer kommen aus den Werkzeugen/);
 });
 
 test("unbegrenzte Werkzeugschleife wird gestoppt", async () => {
-  const endlos = Array.from({ length: 10 }, () => ({ content: toolUse("tagesstand_abrufen", {}), stopReason: "tool_use" }));
+  const endlos = Array.from({ length: 16 }, () => ({ content: toolUse("tagesstand_abrufen", {}), stopReason: "tool_use" }));
   const provider = new ScriptedProvider(endlos);
   const reply = await new Agent(provider).respond({ nachricht: "Hi", verlauf: LEER, kontext: KONTEXT, aktionen: stubActions([]) });
   assert.match(reply.text, /verrannt/);

@@ -1,4 +1,4 @@
-import { Agent, AnthropicProvider, Coach } from "@daevo/coach";
+import { Agent, AnthropicProvider, Coach, buildShoppingList } from "@daevo/coach";
 import {
   buildDailyReminders,
   currentStreak,
@@ -6,7 +6,13 @@ import {
   macroTargets,
   remainingBudget,
   scoreDay,
+  estimateTdee,
+  standardZumNachhaken,
+  standardsStatus,
+  suggestStandards,
+  targetCorrection,
   waterTargetMl,
+  weightTrend,
 } from "@daevo/core";
 import { brain } from "./brain.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
@@ -76,14 +82,307 @@ function daySummaryText(n) {
   ].join(" ");
 }
 
+const ARBEIT_LABEL = {
+  sitzend: "sitzt auf der Arbeit fast nur",
+  gemischt: "sitzt auf der Arbeit mal, steht mal",
+  stehend: "ist auf der Arbeit überwiegend auf den Beinen",
+  koerperlich: "arbeitet körperlich",
+};
+const FREIZEIT_LABEL = { ruhig: "in der Freizeit eher ruhig", gemischt: "in der Freizeit gemischt", aktiv: "in der Freizeit viel unterwegs" };
+
 function profileText(profile) {
   const energy = energyBreakdown(profile);
+  const ziele = macroTargets(profile);
   const goal = { fat_loss: "Fett verlieren", maintain: "Gewicht halten", lean_bulk: "Muskeln aufbauen" }[profile.goal];
+  const zeilen = [
+    `${profile.name || "Der Nutzer"}, ${profile.ageYears} Jahre, ${profile.heightCm} cm, ${profile.weightKg} kg, ` +
+      `${profile.sex === "female" ? "weiblich" : "männlich"}.` +
+      (profile.bodyFatPercent ? ` Geschätzter Körperfettanteil ${profile.bodyFatPercent} Prozent.` : ""),
+    `Ziel: ${goal}.`,
+    profile.tdeeOverrideKcal
+      ? `Bedarf ${energy.tdeeKcal} kcal, gemessen aus dem eigenen Verlauf und nicht aus der Formel. Tagesziel ${ziele.kcal} kcal.`
+      : `Bedarf ${energy.tdeeKcal} kcal, geschätzt über Mifflin-St Jeor mit Aktivitätsfaktor ${energy.activityFactor}. Tagesziel ${ziele.kcal} kcal.`,
+    `Makroziele: ${ziele.proteinG} g Protein, ${ziele.fatG} g Fett, ${ziele.carbsG} g Kohlenhydrate.`,
+    `Etwa ${profile.dailySteps} Schritte am Tag, ${ARBEIT_LABEL[profile.occupation] || ARBEIT_LABEL.sitzend}, ` +
+      `${FREIZEIT_LABEL[profile.leisure] || FREIZEIT_LABEL.gemischt}.`,
+    `Steht gegen ${profile.wakeTime} auf, geht gegen ${profile.sleepTime} ins Bett.`,
+  ];
+  const plan = (profile.sessions || []);
+  zeilen.push(
+    plan.length
+      ? `Trainingsplan: ${plan.map((s) => `${WEEKDAYS[s.weekday]} ${s.startsAt}, ${TYP_LABEL[s.type] || s.type}, ${s.minutes} Minuten`).join("; ")}.`
+      : "Trainingsplan: keine Einheiten hinterlegt.",
+  );
+  return zeilen.join("\n");
+}
+
+/**
+ * Was sonst noch gilt: Standards, offene Einkäufe, letzte Woche in Zahlen.
+ *
+ * Das steht bei jeder Nachricht im Systemprompt, damit der Assistent nicht
+ * erst drei Werkzeuge aufrufen muss, um zu wissen, wie es gerade steht. Die
+ * genauen Zahlen holt er trotzdem aus den Werkzeugen, bevor er sie nennt.
+ */
+function lageText() {
+  const zeilen = [];
+  const status = standardsUebersicht();
+  if (status.length) {
+    zeilen.push("Vereinbarte Mindeststandards:");
+    for (const s of status) zeilen.push(`- [${s.standard.id}] ${s.satz}`);
+  }
+
+  const liste = store.getShoppingList();
+  const offen = (liste?.items || []).filter((i) => i.stand === "offen");
+  if (liste) {
+    zeilen.push(`Einkaufsliste: ${liste.items.length} Posten für ${liste.tage} Tage, ${offen.length} noch offen.`);
+  }
+
+  const woche = letzteTage(7);
+  if (woche.length) {
+    const kcal = woche.map((d) => d.totals.kcal).filter((k) => k > 0);
+    const protein = woche.map((d) => d.totals.proteinG).filter((p) => p > 0);
+    if (kcal.length) {
+      zeilen.push(
+        `Letzte sieben Tage: an ${kcal.length} Tagen erfasst, im Schnitt ${Math.round(mittelwert(kcal))} kcal ` +
+        `und ${Math.round(mittelwert(protein))} g Protein.`,
+      );
+    }
+    const einheiten = woche.reduce((sum, d) => sum + (d.data.trainings || []).length, 0);
+    if (einheiten > 0) zeilen.push(`Absolvierte Trainingseinheiten in den letzten sieben Tagen: ${einheiten}.`);
+  }
+
+  const trend = weightTrend(verlaufPunkte(56));
+  if (trend.belastbar) {
+    zeilen.push(
+      `Gewichtsverlauf: ${trend.aktuellKg} kg geglättet, ${trend.kgProWoche > 0 ? "plus" : "minus"} ` +
+      `${Math.abs(trend.kgProWoche).toFixed(2)} kg je Woche über ${trend.spanneTage} Tage. ` +
+      "Für Details verlauf_abrufen benutzen.",
+    );
+  } else if (trend.messungen > 0) {
+    zeilen.push(`Gewichtsverlauf: erst ${trend.messungen} Wiegungen, noch keine belastbare Richtung.`);
+  } else {
+    zeilen.push("Gewichtsverlauf: noch keine Wiegung. Ohne Wiegungen bleibt jede Zielkorrektur geraten.");
+  }
+  return zeilen.join("\n");
+}
+
+/* ---------- Verlauf über Wochen ---------- */
+
+const TYP_LABEL = { strength: "Kraft", team_sport: "Mannschaftssport", cardio: "Ausdauer", mobility: "Mobility" };
+
+/** Die letzten Tage als Reihe für den Rechenkern, ältester Tag zuerst. */
+export function verlaufPunkte(tage = 28) {
+  const heute = todayIso();
+  const out = [];
+  for (let i = tage - 1; i >= 0; i--) {
+    const d = new Date(`${heute}T12:00:00`);
+    d.setDate(d.getDate() - i);
+    const iso = d.toISOString().slice(0, 10);
+    const data = store.getDay(iso);
+    let kcal = 0;
+    for (const meal of data.meals) for (const e of meal.entries) kcal += e.kcal;
+    out.push({
+      day: iso,
+      weightKg: typeof data.weightKg === "number" ? data.weightKg : null,
+      kcal: data.meals.length > 0 ? Math.round(kcal) : null,
+    });
+  }
+  return out;
+}
+
+/**
+ * Der Verlauf in Worten, mit allen Zahlen, auf denen er beruht.
+ *
+ * Das ist die ehrlichste Auskunft, die die App geben kann: gemessen statt
+ * gerechnet. Sie sagt aber auch, wann sie nichts sagen kann.
+ */
+export function verlaufText(tage = 28) {
+  const profile = store.getProfile();
+  const punkte = verlaufPunkte(tage);
+  const schaetzung = estimateTdee(punkte);
+  const trend = schaetzung.trend;
+  const ziel = macroTargets(profile);
+  const korrektur = targetCorrection({
+    schaetzung,
+    goal: profile.goal,
+    weightKg: trend.aktuellKg ?? profile.weightKg,
+    aktuellesZielKcal: ziel.kcal,
+  });
+
+  const zeilen = [
+    `Zeitraum: ${tage} Tage. Wiegungen: ${trend.messungen}, Tage mit Essenseintrag: ${schaetzung.tageMitEintrag}.`,
+  ];
+  if (trend.messungen >= 2) {
+    zeilen.push(
+      `Gewicht: ${trend.aktuellKg} kg geglättet, ${trend.kgProWoche > 0 ? "plus" : "minus"} ` +
+      `${Math.abs(trend.kgProWoche).toFixed(2)} kg je Woche über ${trend.spanneTage} Tage.`,
+    );
+  } else {
+    zeilen.push("Gewicht: zu wenige Wiegungen für eine Richtung.");
+  }
+  if (schaetzung.tageMitEintrag > 0) {
+    zeilen.push(`Aufnahme im Schnitt: ${schaetzung.schnittAufnahmeKcal} kcal, Ziel ${ziel.kcal} kcal.`);
+  }
+  zeilen.push(
+    schaetzung.tdeeKcal !== null
+      ? `Gemessener Verbrauch: etwa ${schaetzung.tdeeKcal} kcal am Tag. Die Formel schätzt ${energyBreakdown(profile).tdeeKcal} kcal.`
+      : `Gemessener Verbrauch: noch nicht bestimmbar. ${schaetzung.grund}`,
+  );
+  zeilen.push(`Beurteilung: ${korrektur.begruendung}`);
+  if (korrektur.neuesZielKcal !== null) {
+    zeilen.push(
+      `Vorschlag: gemessenen Verbrauch von ${schaetzung.tdeeKcal} kcal über profil_aendern setzen. ` +
+      `Das Tagesziel landet dann bei etwa ${korrektur.neuesZielKcal} kcal.`,
+    );
+  }
+
+  // Was sonst noch auffällt, ohne Bewertung.
+  const werte = letzteTage(Math.min(tage, 28));
+  const energien = werte.flatMap((d) => d.data.checkins.map((c) => c.energy).filter((e) => typeof e === "number"));
+  const schlaf = werte.flatMap((d) => d.data.checkins.map((c) => c.sleepQuality).filter((e) => typeof e === "number"));
+  if (energien.length >= 3) zeilen.push(`Energie im Schnitt ${mittelwert(energien).toFixed(1)} von 10 aus ${energien.length} Check-ins.`);
+  if (schlaf.length >= 3) zeilen.push(`Schlafqualität im Schnitt ${mittelwert(schlaf).toFixed(1)} von 10.`);
+  const einheiten = werte.reduce((sum, d) => sum + (d.data.trainings || []).length, 0);
+  zeilen.push(`Absolvierte Einheiten in den letzten ${werte.length} erfassten Tagen: ${einheiten}.`);
+  const protein = werte.map((d) => d.totals.proteinG).filter((p) => p > 0);
+  if (protein.length >= 3) zeilen.push(`Protein im Schnitt ${Math.round(mittelwert(protein))} g, Ziel ${ziel.proteinG} g.`);
+
+  return zeilen.join("\n");
+}
+
+/* ---------- Mindeststandards ---------- */
+
+/**
+ * Baut die Tagesreihe, gegen die Standards geprüft werden.
+ *
+ * Absteigend nach Datum, heute zuerst, so wie standardStatus es erwartet.
+ * Ein Tag ohne Daten zählt als nicht gehalten. Das ist gewollt: ein Tag ohne
+ * Eintrag ist kein Beweis dafür, dass etwas geklappt hat.
+ */
+export function standardTage(anzahl = 28) {
+  const heute = todayIso();
+  const out = [];
+  for (let i = 0; i < anzahl; i++) {
+    const d = new Date(`${heute}T12:00:00`);
+    d.setDate(d.getDate() - i);
+    const iso = d.toISOString().slice(0, 10);
+    const data = store.getDay(iso);
+    const weekday = d.getDay();
+    let proteinG = 0;
+    for (const meal of data.meals) for (const e of meal.entries) proteinG += e.proteinG;
+    const profile = store.getProfile();
+    out.push({
+      day: iso,
+      proteinG: Math.round(proteinG),
+      waterMl: data.waterMl || 0,
+      // Schritte kommen erst mit Apple Health. Bis dahin steht hier der
+      // Durchschnitt aus dem Profil, damit ein Schrittstandard nicht
+      // fälschlich als gerissen gilt.
+      steps: data.steps || profile?.dailySteps || 0,
+      meals: data.meals.length,
+      trainings: (profile?.sessions || []).filter((s) => s.weekday === weekday).length > 0 && data.meals.length > 0 ? 1 : 0,
+      bestaetigt: data.standards || {},
+    });
+  }
+  return out;
+}
+
+/** Legt beim ersten Aufruf Standards an, passend zu Profil und Schwerpunkten. */
+export function ensureStandards() {
+  const vorhanden = store.getStandards();
+  if (vorhanden.length > 0) return vorhanden;
+  const profile = store.getProfile();
+  if (!profile) return [];
+  const bereiche = brain
+    .all()
+    .filter((e) => e.tags.includes("fokus"))
+    .flatMap((e) => e.text.toLowerCase().match(/ernährung|krafttraining|ausdauer|schlaf|stress|trinken|routinen|gewicht/g) || [])
+    .map((wort) => ({
+      "ernährung": "ernaehrung", krafttraining: "kraft", ausdauer: "ausdauer", schlaf: "schlaf",
+      stress: "stress", trinken: "trinken", routinen: "routine", gewicht: "gewicht",
+    })[wort])
+    .filter(Boolean);
+  const targets = macroTargets(profile);
+  const neu = suggestStandards({
+    profile,
+    bereiche,
+    proteinTargetG: targets.proteinG,
+    waterTargetMl: waterTargetMl(profile, 0),
+  });
+  store.setStandards(neu);
+  return neu;
+}
+
+export function standardsUebersicht() {
+  return standardsStatus(ensureStandards(), standardTage());
+}
+
+/**
+ * Formuliert die Nachfrage zu einem Standard.
+ *
+ * Messbare Standards werden mit ihrer Zahl konfrontiert. Bei den anderen
+ * bleibt nur die Frage, weil die App es nicht wissen kann.
+ */
+export function standardFrage(status) {
+  const s = status.standard;
+  if (s.kadenz === "woechentlich") {
+    const fehlt = Math.max(0, s.ziel - status.gehalten);
+    return `${s.text}. Diese Woche fehlen noch ${fehlt || s.ziel}. Kriegst du das heute unter?`;
+  }
+  return `${s.text}. Heute noch nicht erledigt. Schaffst du es noch?`;
+}
+
+/**
+ * Der Erinnerungsplan für einen Tag, inklusive Einkauf und Standards.
+ *
+ * Liegt hier und nicht in app.js, weil sonst zwei Stellen wissen müssten,
+ * wie der Zustand für den Rechenkern aufgebaut wird.
+ */
+export function tagesErinnerungen(day = todayIso()) {
+  const n = dayNumbers(day);
+  const liste = store.getShoppingList();
+  const status = standardsUebersicht();
+  const offen = standardZumNachhaken(status);
+  return buildDailyReminders({
+    profile: n.profile,
+    weekday: n.weekday,
+    state: {
+      mealsLogged: n.data.meals.length,
+      waterMl: n.totals.waterMl,
+      waterTargetMl: n.targets.waterMl,
+      morningCheckinDone: n.data.checkins.some((c) => c.kind === "morning"),
+      eveningReviewDone: n.data.checkins.some((c) => c.kind === "evening"),
+      offeneEinkaeufe: (liste?.items || []).filter((i) => i.stand === "offen").length,
+      standardHinweis: offen ? { id: offen.standard.id, frage: standardFrage(offen) } : null,
+    },
+  });
+}
+
+/* ---------- Einkaufsliste ---------- */
+
+/** Was der Nutzer nicht verträgt, aus dem Gedächtnis gelesen. */
+function unvertraeglichkeiten() {
+  return brain
+    .all()
+    .filter((e) => e.tags.includes("unverträglichkeit"))
+    .flatMap((e) => {
+      const match = /(?:Verträgt kein|Verträgt nicht:)\s*(.+?)\.?$/i.exec(e.text);
+      return match ? match[1].split(/,|und/).map((t) => t.trim()) : [];
+    })
+    .filter(Boolean);
+}
+
+export function einkaufslisteText(liste) {
+  if (!liste || liste.items.length === 0) return "Es gibt noch keine Einkaufsliste.";
+  const offen = liste.items.filter((i) => i.stand === "offen");
+  const zuhause = liste.items.filter((i) => i.stand === "zuhause");
+  const gekauft = liste.items.filter((i) => i.stand === "gekauft");
+  const zeilen = offen.map((i) => `- ${i.name}, ${i.menge}`);
   return [
-    `${profile.name || "Der Nutzer"}, ${profile.ageYears} Jahre, ${profile.heightCm} cm, ${profile.weightKg} kg.`,
-    `Ziel: ${goal}. Geschätzter Bedarf ${energy.tdeeKcal} kcal, Zielwert ${macroTargets(profile).kcal} kcal.`,
-    `Etwa ${profile.dailySteps} Schritte am Tag. Steht gegen ${profile.wakeTime} auf, geht gegen ${profile.sleepTime} ins Bett.`,
-  ].join(" ");
+    `Liste für ${liste.tage} Tage, ${liste.items.length} Posten. ` +
+      `Offen ${offen.length}, zu Hause ${zuhause.length}, gekauft ${gekauft.length}.`,
+    ...zeilen,
+  ].join("\n");
 }
 
 /* ---------- Was der Assistent tun darf ---------- */
@@ -177,6 +476,152 @@ export function buildActions({ onChange } = {}) {
       if (hits.length === 0) return "Dazu habe ich nichts notiert.";
       return hits.map((h) => `- ${h.entry.text} (${h.entry.at.slice(0, 10)})`).join("\n");
     },
+
+    async einkaufslisteErstellen({ tage, meiden } = {}) {
+      const n = dayNumbers();
+      const roh = buildShoppingList({
+        targets: n.targets,
+        goal: n.profile.goal,
+        tage: tage ?? 7,
+        vorrat: store.getFridge(),
+        meiden: [...(meiden || []), ...unvertraeglichkeiten()],
+      });
+      // Der Stand je Posten gehört der App, nicht der Rechnung. Deshalb wird
+      // er hier ergänzt und beim Neuberechnen für bekannte Posten übernommen.
+      const alt = store.getShoppingList();
+      const alterStand = new Map((alt?.items || []).map((i) => [i.key, i.stand]));
+      const liste = {
+        ...roh,
+        erstelltAm: new Date().toISOString(),
+        items: roh.items.map((item) => ({ ...item, stand: alterStand.get(item.key) || "offen" })),
+      };
+      store.setShoppingList(liste);
+      changed();
+      const offen = liste.items.filter((i) => i.stand === "offen");
+      const top = offen.slice(0, 3).map((i) => `${i.name} ${i.menge}`).join(", ");
+      return `Liste steht: ${liste.items.length} Posten für ${liste.tage} Tage, davon ${offen.length} offen. ` +
+        `Die wichtigsten sind ${top}. ${liste.hinweis}`;
+    },
+
+    async einkaufslisteAbrufen() {
+      return einkaufslisteText(store.getShoppingList());
+    },
+
+    async einkaufslisteAbhaken({ posten, stand }) {
+      const liste = store.getShoppingList();
+      if (!liste) return "Es gibt noch keine Einkaufsliste.";
+      const suche = posten.toLowerCase().trim();
+      const treffer = liste.items.find(
+        (i) => i.name.toLowerCase() === suche || i.key === suche ||
+          i.name.toLowerCase().includes(suche) || suche.includes(i.name.toLowerCase()),
+      );
+      if (!treffer) return `${posten} steht nicht auf der Liste.`;
+      treffer.stand = stand;
+      store.setShoppingList(liste);
+      changed();
+      const offen = liste.items.filter((i) => i.stand === "offen").length;
+      const wort = { gekauft: "gekauft", zuhause: "hast du noch", offen: "wieder offen" }[stand];
+      return `${treffer.name}: ${wort}. Noch ${offen} Posten offen.`;
+    },
+
+    async standardsAbrufen() {
+      const status = standardsUebersicht();
+      if (status.length === 0) return "Es sind noch keine Mindeststandards vereinbart.";
+      return status.map((s) => `- [${s.standard.id}] ${s.satz}`).join("\n");
+    },
+
+    async standardSetzen({ text, kadenz, art, ziel, id }) {
+      const standards = ensureStandards();
+      const vorhanden = id ? standards.find((s) => s.id === id) : null;
+      if (vorhanden) {
+        Object.assign(vorhanden, { text, kadenz, kind: art, ziel, aktiv: true });
+      } else {
+        standards.push({
+          id: `std_${newId().slice(0, 8)}`,
+          kind: art,
+          text,
+          kadenz,
+          ziel,
+          aktiv: true,
+          seit: todayIso(),
+        });
+      }
+      store.setStandards(standards.slice(0, 8));
+      changed();
+      return vorhanden ? `Standard geändert: ${text}.` : `Standard steht: ${text}.`;
+    },
+
+    async verlaufAbrufen({ tage } = {}) {
+      return verlaufText(Math.max(7, Math.min(120, tage || 28)));
+    },
+
+    async gewichtEintragen(kg) {
+      const day = todayIso();
+      store.setWeight(day, kg);
+      changed();
+      const trend = weightTrend(verlaufPunkte(56));
+      if (!trend.belastbar) {
+        return `${kg} kg eingetragen. Für eine Richtung brauche ich mindestens vier Wiegungen über zwei Wochen, ` +
+          `bisher sind es ${trend.messungen}.`;
+      }
+      return `${kg} kg eingetragen. Geglättet ${trend.aktuellKg} kg, ` +
+        `${trend.kgProWoche > 0 ? "plus" : "minus"} ${Math.abs(trend.kgProWoche).toFixed(2)} kg je Woche ` +
+        `über ${trend.spanneTage} Tage.`;
+    },
+
+    async trainingEintragen({ art, minuten, notiz }) {
+      const day = todayIso();
+      store.addTraining(day, { id: newId(), type: art, minutes: minuten, at: nowTime(), note: notiz || "" });
+      changed();
+      const heute = store.getDay(day).trainings.length;
+      return `${TYP_LABEL[art] || art}, ${minuten} Minuten eingetragen. Heute ${heute} ${heute === 1 ? "Einheit" : "Einheiten"}.`;
+    },
+
+    async profilAendern(aenderung) {
+      const alt = store.getProfile();
+      const neu = { ...alt };
+      const notiert = [];
+      if (aenderung.ziel && ["fat_loss", "maintain", "lean_bulk"].includes(aenderung.ziel)) {
+        neu.goal = aenderung.ziel;
+        notiert.push(`Ziel auf ${{ fat_loss: "Fett verlieren", maintain: "Gewicht halten", lean_bulk: "Muskeln aufbauen" }[aenderung.ziel]}`);
+      }
+      if (aenderung.gewichtKg >= 30 && aenderung.gewichtKg <= 300) {
+        neu.weightKg = Math.round(aenderung.gewichtKg * 10) / 10;
+        notiert.push(`Gewicht auf ${neu.weightKg} kg`);
+      }
+      if (aenderung.schritte >= 0 && aenderung.schritte <= 60000) {
+        neu.dailySteps = Math.round(aenderung.schritte);
+        notiert.push(`Schritte auf ${neu.dailySteps}`);
+      }
+      if (/^\d{2}:\d{2}$/.test(aenderung.aufstehen || "")) {
+        neu.wakeTime = aenderung.aufstehen;
+        notiert.push(`Aufstehen auf ${neu.wakeTime}`);
+      }
+      if (/^\d{2}:\d{2}$/.test(aenderung.schlafen || "")) {
+        neu.sleepTime = aenderung.schlafen;
+        notiert.push(`Schlafen auf ${neu.sleepTime}`);
+      }
+      // Der gemessene Verbrauch ersetzt die Formel. Der Zuschlag oder Abzug
+      // fürs Ziel kommt danach aus dem Rechenkern, nicht vom Modell.
+      if (aenderung.verbrauch >= 1200 && aenderung.verbrauch <= 6000) {
+        neu.tdeeOverrideKcal = Math.round(aenderung.verbrauch);
+        notiert.push(`gemessener Verbrauch auf ${neu.tdeeOverrideKcal} kcal`);
+      }
+      if (notiert.length === 0) return "Da war nichts dabei, was ich ändern könnte.";
+      store.setProfile(neu);
+      changed();
+      const z = macroTargets(neu);
+      return `Geändert: ${notiert.join(", ")}. Neues Tagesziel: ${z.kcal} kcal, ${z.proteinG} g Protein.`;
+    },
+
+    async standardBestaetigen({ id, gehalten }) {
+      const standards = store.getStandards();
+      const standard = standards.find((s) => s.id === id);
+      if (!standard) return "Diesen Standard kenne ich nicht.";
+      store.setStandardConfirmed(todayIso(), id, gehalten);
+      changed();
+      return gehalten ? "Gehalten, eingetragen." : "Nicht gehalten, eingetragen. Morgen neuer Versuch.";
+    },
   };
 }
 
@@ -189,12 +634,12 @@ export async function ask(nachricht, { onChange } = {}) {
 
   const reply = await agent.respond({
     nachricht,
-    verlauf: store.getChat().slice(-12).map((m) => ({ role: m.role, content: m.text })),
+    verlauf: store.getChat().slice(-24).map((m) => ({ role: m.role, content: m.text })),
     kontext: {
       profil: profileText(n.profile),
-      tag: daySummaryText(n),
+      tag: `${daySummaryText(n)}\n\n${lageText()}`,
       gedächtnis: brain.contextFor(nachricht),
-      zeit: `${WEEKDAYS[now.getDay()]}, ${now.getDate()}. ${now.toLocaleString("de-DE", { month: "long" })}, ${nowTime()} Uhr.`,
+      zeit: `${WEEKDAYS[now.getDay()]}, ${now.getDate()}. ${now.toLocaleString("de-DE", { month: "long" })} ${now.getFullYear()}, ${nowTime()} Uhr.`,
     },
     aktionen: buildActions({ onChange }),
   });
@@ -257,6 +702,33 @@ export function recommendations() {
       titel: "Noch nichts erfasst",
       text: "Ohne Einträge kann ich nicht rechnen. Sag mir in einem Satz, was du heute hattest.",
       grund: "Null Mahlzeiten bis jetzt.",
+    });
+  }
+
+  // Mindeststandards vor allem anderen. Sie sind die Untergrenze, alles
+  // andere ist Feinschliff.
+  for (const status of standardsUebersicht()) {
+    if (status.moeglich === 0 || status.aktuell) continue;
+    if (status.quote >= 0.8) continue;
+    out.push({
+      titel: status.quote < 0.3 ? "Dieser Standard trägt nicht" : "Ein Standard wackelt",
+      text:
+        status.quote < 0.3
+          ? `${status.standard.text}. Das läuft seit Wochen nicht. Setz ihn niedriger, statt ihn weiter zu reissen.`
+          : `${status.standard.text}. Heute noch offen. Untergrenze, nicht Bestleistung.`,
+      grund: status.satz,
+    });
+    break;
+  }
+
+  const liste = store.getShoppingList();
+  const offeneposten = (liste?.items || []).filter((i) => i.stand === "offen");
+  if (offeneposten.length > 0) {
+    out.push({
+      titel: "Einkauf steht noch aus",
+      text: `${offeneposten.length} Posten sind offen, zuerst ${offeneposten.slice(0, 2).map((i) => i.name).join(" und ")}. ` +
+        "Sag mir, was du davon noch zu Hause hast, dann streiche ich es.",
+      grund: `Liste vom ${(liste.erstelltAm || "").slice(0, 10)} für ${liste.tage} Tage.`,
     });
   }
 

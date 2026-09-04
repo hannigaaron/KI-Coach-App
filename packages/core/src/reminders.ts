@@ -7,7 +7,9 @@ export type ReminderKind =
   | "pre_training"
   | "post_training"
   | "evening_review"
-  | "wind_down";
+  | "wind_down"
+  | "shopping"
+  | "standards_check";
 
 export interface Reminder {
   kind: ReminderKind;
@@ -30,6 +32,13 @@ export interface DayState {
   morningCheckinDone: boolean;
   /** Abend Review schon beantwortet. */
   eveningReviewDone: boolean;
+  /** Offene Posten auf der Einkaufsliste. Ohne Liste 0. */
+  offeneEinkaeufe?: number;
+  /**
+   * Der Mindeststandard, bei dem Nachhaken gerade am meisten bringt.
+   * Kommt aus standardZumNachhaken. Ohne Wert wird nicht nachgehakt.
+   */
+  standardHinweis?: { id: string; frage: string } | null;
 }
 
 const MAX_REMINDERS_PER_DAY = 6;
@@ -118,6 +127,30 @@ export function buildDailyReminders(params: {
       title: "Tagesabschluss",
       body: "Zwei Fragen: Wie war der Tag und was nimmst du dir für morgen vor?",
       priority: 75,
+    });
+  }
+
+  // Einkaufen wird am Vorabend erinnert, nicht am Morgen. Wer morgens von
+  // einer Liste liest, kauft trotzdem erst nach der Arbeit.
+  if ((state.offeneEinkaeufe ?? 0) > 0) {
+    out.push({
+      kind: "shopping",
+      at: formatTime(clampMinutes(17 * 60, wake + 240, sleep - 90)),
+      title: "Einkaufen",
+      body: `${state.offeneEinkaeufe} Posten stehen noch offen. Sag mir, was du davon noch zu Hause hast.`,
+      priority: 55,
+    });
+  }
+
+  // Nachhaken auf einen Mindeststandard. Nur einer pro Tag, sonst wird aus
+  // der Untergrenze eine Nörgelei und die Nachricht wird weggewischt.
+  if (state.standardHinweis) {
+    out.push({
+      kind: "standards_check",
+      at: formatTime(clampMinutes(sleep - 180, wake + 300, sleep - 60)),
+      title: "Dein Mindeststandard",
+      body: state.standardHinweis.frage,
+      priority: 78,
     });
   }
 

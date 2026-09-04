@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { BEREICHE, SCHRITTE, auswerten } from "./anamnese.js";
-import { BODY_FAT_LEVELS, silhouetteSvg } from "./silhouette.js";
+import { BODY_FAT_LEVELS, koerpermasse, silhouetteSvg } from "./silhouette.js";
 
 const basis = {
   name: " Aaron ",
@@ -109,17 +109,88 @@ test("es gibt sechs Silhouetten je Geschlecht, aufsteigend im Prozentwert", () =
   }
 });
 
-test("jede Silhouette ist ein gueltiges SVG und wird zur naechsten breiter", () => {
-  const breiten = [];
-  for (let i = 0; i < 6; i++) {
-    const svg = silhouetteSvg("male", i);
-    assert.match(svg, /^<svg viewBox="0 0 100 104"/);
-    assert.match(svg, /<\/svg>$/);
-    // Die breiteste x Koordinate im Pfad steht fuer die Taille.
-    const zahlen = [...svg.matchAll(/[ ,](\d+\.\d)/g)].map((m) => Number(m[1]));
-    breiten.push(Math.max(...zahlen));
+test("jede Silhouette ist ein gueltiges SVG", () => {
+  for (const sex of ["male", "female"]) {
+    for (let i = 0; i < 6; i++) {
+      const svg = silhouetteSvg(sex, i);
+      assert.match(svg, /^<svg viewBox="0 0 128 282"/);
+      assert.match(svg, /<\/svg>$/);
+      assert.equal(svg.includes("NaN"), false);
+    }
   }
-  for (let i = 1; i < breiten.length; i++) {
-    assert.ok(breiten[i] > breiten[i - 1], `Stufe ${i} ist nicht breiter als ${i - 1}`);
+});
+
+test("Taille, Bauch und Oberschenkel wachsen mit jeder Stufe", () => {
+  for (const sex of ["male", "female"]) {
+    for (let i = 1; i < 6; i++) {
+      const vorher = koerpermasse(sex, i - 1);
+      const jetzt = koerpermasse(sex, i);
+      for (const teil of ["taille", "nabel", "oberschenkel", "huefte"]) {
+        assert.ok(jetzt[teil] > vorher[teil], `${sex} ${teil}: Stufe ${i} nicht breiter als ${i - 1}`);
+      }
+    }
+  }
+});
+
+test("die Taille wächst schneller als die Schulter", () => {
+  // Das ist der Kern der Darstellung. Wachsen beide gleich schnell, sehen
+  // alle sechs Stufen gleich aus, nur grösser.
+  for (const sex of ["male", "female"]) {
+    const unten = koerpermasse(sex, 0);
+    const oben = koerpermasse(sex, 5);
+    const taille = oben.taille / unten.taille;
+    const schulter = oben.schulter / unten.schulter;
+    assert.ok(taille > schulter * 1.5, `${sex}: Taille ${taille.toFixed(2)}, Schulter ${schulter.toFixed(2)}`);
+  }
+});
+
+test("die Proportionen bleiben menschlich", () => {
+  for (const sex of ["male", "female"]) {
+    for (let i = 0; i < 6; i++) {
+      const m = koerpermasse(sex, i);
+      // Kopfhöhe 35 Einheiten bei 282 Gesamthöhe, also gut siebeneinhalb Kopf.
+      assert.ok(m.kopf > 10 && m.kopf < 14);
+      // Die Figur muss in den Entwurfsraum von 128 passen, Arme eingerechnet.
+      const breiteste = Math.max(m.schulter, m.brust, m.nabel, m.huefte);
+      assert.ok(breiteste + m.unterarm * 0.75 + m.hand < 64, `${sex} Stufe ${i} läuft aus dem Bild`);
+    }
+  }
+  // Bei der Frau ist die Hüfte breiter als die Schulter, beim Mann umgekehrt.
+  assert.ok(koerpermasse("female", 0).huefte > koerpermasse("female", 0).schulter);
+  assert.ok(koerpermasse("male", 0).schulter > koerpermasse("male", 0).huefte);
+});
+
+test("die Kennungen der Verläufe sind je Figur eindeutig", () => {
+  // Mehrere Figuren stehen gleichzeitig auf der Seite. Gleiche Kennungen
+  // würden dazu führen, dass alle den Verlauf der ersten benutzen.
+  const alle = new Set();
+  for (const sex of ["male", "female"]) {
+    for (let i = 0; i < 6; i++) {
+      for (const treffer of silhouetteSvg(sex, i).matchAll(/id="([^"]+)"/g)) {
+        assert.equal(alle.has(treffer[1]), false, `Kennung ${treffer[1]} kommt doppelt vor`);
+        alle.add(treffer[1]);
+      }
+    }
+  }
+});
+
+test("jeder Verweis auf einen Verlauf zeigt auf eine vorhandene Kennung", () => {
+  for (const sex of ["male", "female"]) {
+    for (let i = 0; i < 6; i++) {
+      const svg = silhouetteSvg(sex, i);
+      const vorhanden = new Set([...svg.matchAll(/id="([^"]+)"/g)].map((t) => t[1]));
+      for (const treffer of svg.matchAll(/url\(#([^)]+)\)/g)) {
+        assert.equal(vorhanden.has(treffer[1]), true, `${treffer[1]} fehlt in defs`);
+      }
+    }
+  }
+});
+
+test("eine Stufe ausserhalb der Skala bricht nicht", () => {
+  for (const wert of [-3, 99, NaN, undefined, null, "2"]) {
+    const svg = silhouetteSvg("male", wert);
+    assert.match(svg, /^<svg /);
+    assert.equal(svg.includes("NaN"), false);
+    assert.equal(svg.includes("undefined"), false);
   }
 });

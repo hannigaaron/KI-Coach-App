@@ -1,10 +1,9 @@
-import {
-  buildDailyReminders,
-  energyBreakdown,
-  macroTargets,
-} from "@daevo/core";
+import { energyBreakdown, weightTrend } from "@daevo/core";
 import { Coach, AnthropicProvider } from "@daevo/coach";
-import { ask, buildActions, dayNumbers, greeting, recommendations } from "./assistant.js";
+import {
+  ask, buildActions, dayNumbers, einkaufslisteText, ensureStandards, greeting,
+  recommendations, standardsUebersicht, tagesErinnerungen, verlaufPunkte,
+} from "./assistant.js";
 import { brain } from "./brain.js";
 import { Orb } from "./orb.js";
 import { Listener, speak, stopSpeaking, voiceSupport } from "./voice.js";
@@ -27,6 +26,33 @@ let orb = null;
 let listener = null;
 let busy = false;
 let options = { speak: true, handsFree: false };
+
+/* ---------- Startbildschirm ---------- */
+
+/** Wie lange die Marke steht und wie lange sie ausblendet. Passt zu styles.css. */
+const SPLASH_MS = 1300;
+const SPLASH_FADE_MS = 400;
+
+/**
+ * Blendet den Startbildschirm aus.
+ *
+ * Insgesamt 1,7 Sekunden. Lang genug, dass die Marke ankommt, kurz genug,
+ * dass niemand wartet. Ein Tipp bricht sofort ab. Der Knoten wird danach aus
+ * dem Baum genommen, sonst fängt er weiter Berührungen ab.
+ */
+function splashWeg(sofort = false) {
+  const el = $("splash");
+  if (!el || el.dataset.weg) return;
+  el.dataset.weg = "1";
+  el.classList.add("geht");
+  setTimeout(() => el.remove(), sofort ? 0 : SPLASH_FADE_MS);
+}
+
+const splash = $("splash");
+if (splash) {
+  splash.addEventListener("click", () => splashWeg(true));
+  setTimeout(() => splashWeg(), SPLASH_MS);
+}
 
 /* ---------- Helfer ---------- */
 
@@ -155,9 +181,23 @@ function setupAssistant() {
     onLevel: (level) => orb.setLevel(level),
     onState: (state, detail) => {
       $("btnMic").setAttribute("aria-pressed", state === "listening" ? "true" : "false");
-      if (state === "listening") { orb.setState("listening"); setStatus("hört zu"); }
-      else if (state === "error") { toast(`Mikrofon: ${detail}`); orb.setState("idle"); setStatus("bereit"); }
-      else if (!busy) { orb.setState("idle"); setStatus("bereit"); }
+      if (state === "listening") {
+        orb.setState("listening");
+        setStatus("hört zu, tipp auf Fertig");
+        $("btnMic").classList.add("hoert");
+        $("orbHint").textContent = "Sprich in Ruhe. Tipp auf den Kreis, wenn du fertig bist.";
+      }
+      else if (state === "error") {
+        toast(`Mikrofon: ${detail}`);
+        orb.setState("idle"); setStatus("bereit");
+        $("btnMic").classList.remove("hoert");
+        $("orbHint").textContent = "Tipp auf den Kreis und sprich";
+      }
+      else {
+        $("btnMic").classList.remove("hoert");
+        $("orbHint").textContent = "Tipp auf den Kreis und sprich";
+        if (!busy) { orb.setState("idle"); setStatus("bereit"); }
+      }
     },
   });
 
@@ -178,6 +218,8 @@ function showView(name) {
   if (name === "essen") { $("fridgeInput").value = store.getFridge().join(", "); renderMeals("mealList2"); }
   if (name === "checkin") renderCheckins();
   if (name === "reflexion") renderMemories();
+  if (name === "einkauf") renderEinkauf();
+  if (name === "standards") renderStandards();
   if (name === "empfehlungen") renderRecommendations();
   if (name === "profil") renderProfile();
   if (name === "assistant") renderTranscript();
@@ -193,6 +235,8 @@ function refreshAll() {
   if (name === "essen") renderMeals("mealList2");
   if (name === "checkin") renderCheckins();
   if (name === "reflexion") renderMemories();
+  if (name === "einkauf") renderEinkauf();
+  if (name === "standards") renderStandards();
 }
 
 function renderToday() {
@@ -214,17 +258,7 @@ function renderToday() {
   setBar("c", n.totals.carbsG, n.targets.carbsG, "g");
   setBar("w", n.totals.waterMl, n.targets.waterMl, "ml");
 
-  const reminders = buildDailyReminders({
-    profile,
-    weekday: n.weekday,
-    state: {
-      mealsLogged: n.data.meals.length,
-      waterMl: n.totals.waterMl,
-      waterTargetMl: n.targets.waterMl,
-      morningCheckinDone: n.data.checkins.some((c) => c.kind === "morning"),
-      eveningReviewDone: n.data.checkins.some((c) => c.kind === "evening"),
-    },
-  });
+  const reminders = tagesErinnerungen(day);
   const time = nowTime();
   const upcoming = reminders.filter((r) => r.at >= time).slice(0, 3);
   const list = upcoming.length ? upcoming : reminders.slice(-2);
@@ -235,7 +269,36 @@ function renderToday() {
         `<div class="li-side"><b>${r.at}</b>${r.at < time ? "vorbei" : "geplant"}</div></li>`).join("")
     : `<li><div class="li-main"><div class="li-sub">Für heute ist alles erledigt.</div></div></li>`;
 
+  renderWeight();
   renderMeals("mealList");
+}
+
+/**
+ * Gewicht und Richtung.
+ *
+ * Die Richtung kommt aus einer Geraden durch alle Wiegungen, nicht aus dem
+ * Vergleich zweier Tage. Das Gewicht schwankt je nach Salz, Kohlenhydraten
+ * und Darminhalt um ein bis zwei Kilo, zwei einzelne Tage sagen deshalb nichts.
+ */
+function renderWeight() {
+  const heute = store.getDay(day).weightKg;
+  const feld = $("weightInput");
+  if (document.activeElement !== feld) feld.value = heute ?? "";
+  const trend = weightTrend(verlaufPunkte(56));
+  if (trend.messungen === 0) {
+    $("weightTrend").textContent = "Noch keine Wiegung. Wieg dich am besten morgens nach dem Klo, dann schwankt es am wenigsten.";
+    return;
+  }
+  if (!trend.belastbar) {
+    $("weightTrend").textContent =
+      `${trend.messungen} ${trend.messungen === 1 ? "Wiegung" : "Wiegungen"} bisher. ` +
+      "Ab vier Wiegungen über zwei Wochen kann ich eine Richtung sagen.";
+    return;
+  }
+  const richtung = trend.kgProWoche > 0 ? "plus" : "minus";
+  $("weightTrend").textContent =
+    `Geglättet ${trend.aktuellKg} kg, ${richtung} ${Math.abs(trend.kgProWoche).toFixed(2)} kg je Woche ` +
+    `über ${trend.spanneTage} Tage aus ${trend.messungen} Wiegungen. Frag mich nach deinem Verlauf, dann rechne ich dein Ziel nach.`;
 }
 
 function setBar(prefix, actual, target, unit) {
@@ -285,6 +348,76 @@ function renderMemories() {
         `<div class="li-sub">${e.at.slice(0, 10)}, Wichtigkeit ${e.weight}${e.tags.length ? ", " + escapeHtml(e.tags.join(", ")) : ""}</div></div>` +
         `<div class="li-side"><button class="ghost" data-mem-del="${e.id}">Weg</button></div></li>`).join("")
     : `<li><div class="li-main"><div class="li-sub">${query ? "Nichts gefunden." : "Noch nichts gemerkt. Erzähl dem Assistenten etwas über dich."}</div></div></li>`;
+}
+
+/* ---------- Einkaufsliste ---------- */
+
+const EK_TITEL = {
+  protein: "Protein", kohlenhydrate: "Kohlenhydrate", gemuese: "Gemüse",
+  obst: "Obst", fett: "Fett", sonstiges: "Sonstiges",
+};
+const EK_STAND = { offen: "offen", gekauft: "gekauft", zuhause: "hab ich" };
+
+function renderEinkauf() {
+  const liste = store.getShoppingList();
+  const el = $("einkaufList");
+  if (!liste || liste.items.length === 0) {
+    el.innerHTML = `<li><div class="li-main"><div class="li-sub">Noch keine Liste. Tipp auf Liste rechnen.</div></div></li>`;
+    $("einkaufHinweis").textContent = "";
+    $("einkaufSub").textContent = "Gerechnet aus deinen Tageszielen.";
+    return;
+  }
+  $("einkaufTage").value = liste.tage;
+  const offen = liste.items.filter((i) => i.stand === "offen").length;
+  $("einkaufSub").textContent =
+    `${liste.items.length} Posten, ${offen} noch offen. Tipp auf Gekauft oder auf Hab ich noch.`;
+  $("einkaufHinweis").textContent = liste.hinweis +
+    (liste.gemieden.length ? ` Ausgelassen: ${liste.gemieden.join(", ")}.` : "");
+
+  el.innerHTML = liste.items.map((item) => {
+    const erledigt = item.stand !== "offen";
+    return `<li${erledigt ? ' class="erledigt"' : ""}>
+      <div class="li-main">
+        <span class="ek-stand ${item.stand}">${EK_TITEL[item.kategorie]}${item.stand === "offen" ? "" : `, ${EK_STAND[item.stand]}`}</span>
+        <div class="li-title">${escapeHtml(item.name)}, ${escapeHtml(item.menge)}</div>
+        <div class="li-sub">${escapeHtml(item.grund)}</div>
+      </div>
+      <div class="li-side ek-knoepfe">
+        <button class="ghost" data-ek="${item.key}" data-stand="${item.stand === "gekauft" ? "offen" : "gekauft"}">${item.stand === "gekauft" ? "Zurück" : "Gekauft"}</button>
+        <button class="ghost" data-ek="${item.key}" data-stand="${item.stand === "zuhause" ? "offen" : "zuhause"}">${item.stand === "zuhause" ? "Zurück" : "Hab ich"}</button>
+      </div>
+    </li>`;
+  }).join("");
+}
+
+/* ---------- Mindeststandards ---------- */
+
+function renderStandards() {
+  const status = standardsUebersicht();
+  const el = $("standardList");
+  if (status.length === 0) {
+    el.innerHTML = `<li><div class="li-main"><div class="li-sub">Noch keine Standards. Setz dir unten einen.</div></div></li>`;
+    return;
+  }
+  el.innerHTML = status.map((s) => {
+    const prozent = Math.round(s.quote * 100);
+    const klasse = prozent >= 80 ? "" : prozent >= 40 ? "schwach" : "rot";
+    const messbar = ["protein", "wasser", "schritte", "erfassen"].includes(s.standard.kind);
+    return `<li>
+      <div class="li-main">
+        <div class="li-title">${escapeHtml(s.standard.text)}</div>
+        <div class="li-sub">${escapeHtml(s.zahlen)}, seit ${s.standard.seit.slice(8, 10)}.${s.standard.seit.slice(5, 7)}.</div>
+        <div class="std-quote">
+          <div class="std-bar"><i class="${klasse}" style="width:${prozent}%"></i></div>
+          <span class="std-zahl">${prozent} %</span>
+        </div>
+      </div>
+      <div class="li-side ek-knoepfe">
+        ${messbar ? "" : `<button class="ghost" data-std-ok="${s.standard.id}">${s.aktuell ? "Gehalten" : "Heute ok"}</button>`}
+        <button class="ghost" data-std-del="${s.standard.id}">Weg</button>
+      </div>
+    </li>`;
+  }).join("");
 }
 
 function renderRecommendations() {
@@ -372,6 +505,7 @@ function startApp() {
   $("app").hidden = false;
   options = { ...options, ...(store.getSettings().voice || {}) };
   renderFeelings();
+  ensureStandards();
   setupAssistant();
   showView("assistant");
   refreshAll();
@@ -503,6 +637,83 @@ $("btnCheckin").addEventListener("click", async () => {
   $("checkNote").value = "";
   renderCheckins();
   toast("Check-in gespeichert");
+});
+
+$("btnWeight").addEventListener("click", async () => {
+  const kg = Number(String($("weightInput").value).replace(",", "."));
+  if (!(kg >= 30 && kg <= 300)) { toast("Das Gewicht muss zwischen 30 und 300 kg liegen."); return; }
+  const antwort = await buildActions({ onChange: refreshAll }).gewichtEintragen(Math.round(kg * 10) / 10);
+  renderWeight();
+  toast(antwort.split(".")[0]);
+});
+
+$("btnEinkaufNeu").addEventListener("click", async () => {
+  const button = $("btnEinkaufNeu");
+  button.disabled = true;
+  button.textContent = "Rechne";
+  try {
+    await buildActions({ onChange: refreshAll }).einkaufslisteErstellen({
+      tage: Number($("einkaufTage").value) || 7,
+    });
+    renderEinkauf();
+    toast("Liste steht");
+  } finally {
+    button.disabled = false;
+    button.textContent = "Liste rechnen";
+  }
+});
+
+$("einkaufList").addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-ek]");
+  if (!button) return;
+  const liste = store.getShoppingList();
+  const item = liste?.items.find((i) => i.key === button.dataset.ek);
+  if (!item) return;
+  item.stand = button.dataset.stand;
+  store.setShoppingList(liste);
+  // Was zu Hause ist, gehört in den Vorrat. Dann rechnet die nächste Liste
+  // damit und der Vorschlag für heute Abend kennt es auch.
+  if (item.stand === "zuhause" || item.stand === "gekauft") {
+    const vorrat = store.getFridge();
+    if (!vorrat.some((v) => v.toLowerCase() === item.name.toLowerCase())) {
+      store.setFridge([...vorrat, item.name].slice(0, 40));
+    }
+  }
+  renderEinkauf();
+});
+
+$("btnStdAdd").addEventListener("click", () => {
+  const text = $("stdText").value.trim();
+  if (text.length < 8) { toast("Schreib den Standard als ganzen Satz."); return; }
+  const standards = ensureStandards();
+  standards.push({
+    id: `std_${newId().slice(0, 8)}`,
+    kind: "frei",
+    text,
+    kadenz: $("stdKadenz").value,
+    ziel: Math.max(1, Number($("stdZiel").value) || 1),
+    aktiv: true,
+    seit: todayIso(),
+  });
+  store.setStandards(standards.slice(0, 8));
+  $("stdText").value = "";
+  renderStandards();
+  toast("Standard steht");
+});
+
+$("standardList").addEventListener("click", (event) => {
+  const ok = event.target.closest("[data-std-ok]");
+  if (ok) {
+    store.setStandardConfirmed(day, ok.dataset.stdOk, true);
+    renderStandards();
+    toast("Eingetragen");
+    return;
+  }
+  const del = event.target.closest("[data-std-del]");
+  if (del) {
+    store.setStandards(store.getStandards().filter((s) => s.id !== del.dataset.stdDel));
+    renderStandards();
+  }
 });
 
 $("memSearch").addEventListener("input", renderMemories);

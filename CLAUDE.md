@@ -59,10 +59,20 @@ Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
 
-Der Assistent hat Werkzeuge und verändert die App wirklich. Zahlen kommen
-immer aus `tagesstand_abrufen`, nie aus dem Modell. Jede Fähigkeit hat einen
-Regelpfad in `packages/coach/src/agent.ts`, damit die App ohne Schlüssel
-benutzbar bleibt.
+Der Assistent hat siebzehn Werkzeuge und verändert die App wirklich. Zahlen
+über den Nutzer kommen immer aus Werkzeugen, nie aus dem Modell. Allgemeines
+Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
+Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
+ohne Schlüssel benutzbar bleibt.
+
+Wie tief er nachdenkt, hängt an der Nachricht und steht in `denktiefe()`.
+Erfassen läuft auf der niedrigsten Stufe, eine echte Frage auf der höchsten.
+Eine Regel, die kurze Antworten erzwingt, macht einen Coach dumm.
+
+Der Kalorienbedarf kommt aus der Formel, solange nichts Besseres da ist. Ab
+vier Wiegungen über 14 Tage und zehn Tagen mit Essenseintrag misst
+`packages/core/src/trend.ts` den tatsächlichen Verbrauch aus dem
+Gewichtsverlauf. Die Messung schlägt dann die Schätzung.
 
 Das Gedächtnis liegt in `packages/core/src/memory.ts`. Suche über
 Wortüberlappung mit inverser Dokumenthäufigkeit, keine Einbettungen. Es ist
@@ -92,7 +102,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 87 Tests
+npm test           # 131 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -107,7 +117,8 @@ veröffentlicht. Adresse: https://hannigaaron.github.io/KI-Coach-App/
 ## Aktueller Stand
 
 Fertig: Rechenkern, Gedächtnis, Assistent mit Werkzeugen und Sprache,
-Anamnesebogen beim ersten Start, Tag und Nacht Modus, installierbare Web App,
+Anamnesebogen beim ersten Start, Einkaufsliste, Mindeststandards,
+Gewichtsverlauf mit Zielkorrektur, Tag und Nacht Modus, installierbare Web App,
 Marke, API.
 Offen: Push Benachrichtigungen bei geschlossener App, Apple Health und
 Wearables, Wortaktivierung, echte Nährwertdatenbank, Anmeldung über Apple.
