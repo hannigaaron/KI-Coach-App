@@ -65,9 +65,22 @@ Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
 ohne Schlüssel benutzbar bleibt.
 
-Wie tief er nachdenkt, hängt an der Nachricht und steht in `denktiefe()`.
-Erfassen läuft auf der niedrigsten Stufe, eine echte Frage auf der höchsten.
-Eine Regel, die kurze Antworten erzwingt, macht einen Coach dumm.
+Wer daevo ist, steht in `packages/coach/src/persona.ts`, nicht im Agenten.
+Das ist der wertvollste Teil der App: Rechenkern und Werkzeuge lassen sich
+nachbauen, die Haltung nicht. Aufbau: eine Grundhaltung und ein Schreibstil,
+die immer gelten, dazu fünf Modi. Der Modus hängt an der Nachricht und wird in
+`denktiefe()` erkannt: erfassen, coaching, psyche, planung, standard.
+
+Eine Mahlzeit einzutragen und ein Gespräch über Schuldgefühle sind nicht
+dieselbe Aufgabe. Alle Anweisungen in einen Prompt zu packen macht ihn nicht
+besser: ein Modell, das gleichzeitig "halte es kurz" und "geh in die Tiefe"
+liest, tut weder das eine noch das andere richtig. Deshalb kommt nur der Block
+des erkannten Modus in den Prompt.
+
+Der Nutzer kann eigene Anweisungen hinterlegen. Sie stehen im Prompt ganz
+unten und gehen allem vor, ausser den Grenzen und der Regel, keine Zahlen zu
+erfinden. Gespeichert unter `settings.anweisungen`, Obergrenze 4000 Zeichen,
+weil jede Nachricht sie mitschickt.
 
 Der Kalorienbedarf kommt aus der Formel, solange nichts Besseres da ist. Ab
 vier Wiegungen über 14 Tage und zehn Tagen mit Essenseintrag misst
@@ -102,7 +115,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 131 Tests
+npm test           # 148 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages

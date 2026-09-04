@@ -640,6 +640,7 @@ export async function ask(nachricht, { onChange } = {}) {
       tag: `${daySummaryText(n)}\n\n${lageText()}`,
       gedächtnis: brain.contextFor(nachricht),
       zeit: `${WEEKDAYS[now.getDay()]}, ${now.getDate()}. ${now.toLocaleString("de-DE", { month: "long" })} ${now.getFullYear()}, ${nowTime()} Uhr.`,
+      eigeneAnweisungen: store.getSettings().anweisungen || "",
     },
     aktionen: buildActions({ onChange }),
   });

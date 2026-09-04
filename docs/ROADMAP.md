@@ -14,7 +14,7 @@ die Datenschutzanforderungen und die Nährwertdatenbank.
 - API mit Konto, Profil, Mahlzeiten, Wasser, Check-ins, Kühlschrank, Health Import
 - Scheduler mit Sperre gegen Doppelversand
 - Testkonsole im Browser mit Spracheingabe
-- 131 automatisierte Tests
+- 148 automatisierte Tests
 
 ## Milestone 2: Installierbare Web App (fertig)
 
@@ -97,6 +97,30 @@ schlägt die Messung die Schätzung.
 - Liegt die gemessene Rate ausserhalb der erwarteten Spanne, schlägt die App
   ein neues Ziel vor. Erst ab vier Wiegungen über 14 Tage und ab zehn Tagen mit
   Essenseintrag, davor sagt sie, was ihr fehlt.
+
+### Haltung statt Vorschrift
+
+Die Persona steht seit diesem Schritt in `packages/coach/src/persona.ts`, in
+fünf Modi geteilt. Der Modus hängt an der Nachricht.
+
+- `erfassen`: ein Satz, keine Belehrung. Wer beim Eintragen einen Vortrag
+  bekommt, trägt bald nichts mehr ein.
+- `coaching`: Antwort zuerst, dann Mechanismus, dann Grössenordnung, dann was
+  konkret zu tun ist und woran man in vier Wochen merkt, ob es gewirkt hat.
+- `psyche`: erst verstehen, dann vorschlagen. Die Schleife aus Auslöser,
+  Reaktion im Körper, Bedeutung, Verhalten, Ergebnis und Scham benennen. Am
+  Ende eine Sache, nicht fünf. Keine Diagnose, kein Ersatz für eine Therapie.
+- `planung`: nach Zahlen fragen, bevor geraten wird. Schritte mit Reihenfolge,
+  Zeitpunkt und Messwert. Bei Steuern und Recht an die Fachleute verweisen.
+- `standard`: so antworten, wie die Nachricht es verlangt.
+
+Dazu ein Feld im Profil für eigene Anweisungen. Sie stehen im Prompt zuletzt
+und gehen allem vor, ausser den Grenzen und der Regel, keine Zahlen zu
+erfinden. Es gibt eine Vorlage zum Einsetzen und Ändern.
+
+Die Grenzen nennen die Telefonseelsorge mit beiden Nummern und sagen
+ausdrücklich, dass keine weiteren Anlaufstellen erfunden werden dürfen. Ein
+Test prüft, dass genau diese zwei Nummern dort stehen.
 
 ### Neue Werkzeuge
 
