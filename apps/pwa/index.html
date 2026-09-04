@@ -36,6 +36,19 @@ try {
 <body>
 
 <!--
+  Der Startbildschirm. Er zeigt die Marke und verschwindet nach knapp zwei
+  Sekunden von selbst. Ein Tipp bricht ihn sofort ab, damit er niemanden
+  aufhält, der es eilig hat. Er liegt vor dem Skript, damit er schon beim
+  ersten Bild steht und nicht erst nachlädt.
+-->
+<div id="splash" class="splash">
+  <div class="splash-inner">
+    <img class="only-light" src="./brand/daevo-lockup-deep.svg" alt="daevo, Evolve your daily life" width="260">
+    <img class="only-dark" src="./brand/daevo-lockup-dark.svg" alt="daevo, Evolve your daily life" width="260">
+  </div>
+</div>
+
+<!--
   Der Anamnesebogen wird von js/setup-ui.js gebaut. Er steht nicht im HTML,
   weil die Schritte aus js/anamnese.js kommen und dort auch getestet werden.
   Zwei Quellen für dieselben Fragen wären eine Fehlerquelle.
@@ -68,6 +81,7 @@ try {
       <button data-say="Was soll ich jetzt essen?">Was essen?</button>
       <button data-say="Ich habe gerade 500 ml Wasser getrunken">500 ml Wasser</button>
       <button data-say="Ich bin heute ziemlich müde und habe schlecht geschlafen">Wie es mir geht</button>
+      <button data-say="Mach mir eine Einkaufsliste für sieben Tage">Einkaufsliste</button>
     </div>
 
     <form id="composer" class="composer-bar">
@@ -110,6 +124,17 @@ try {
         <button class="chip" data-water="250">+250 ml</button>
         <button class="chip" data-water="500">+500 ml</button>
         <button class="chip" data-water="750">+750 ml</button>
+      </div>
+
+      <h2 class="section-title">Gewicht</h2>
+      <div class="card">
+        <div class="field-row">
+          <div class="field"><label for="weightInput">Heute gewogen, in kg</label>
+            <input id="weightInput" type="number" inputmode="decimal" step="0.1" min="30" max="300" placeholder="87,0"></div>
+          <div class="field"><label for="btnWeight">&nbsp;</label>
+            <button id="btnWeight" class="primary" style="width:100%">Eintragen</button></div>
+        </div>
+        <p class="fineprint" id="weightTrend" style="margin-bottom:0"></p>
       </div>
 
       <h2 class="section-title">Nächste Erinnerungen</h2>
@@ -192,6 +217,41 @@ try {
     <div class="scroll">
       <p class="sub">Abgeleitet aus deinen eigenen Zahlen. Jede Empfehlung nennt den Wert, auf dem sie beruht.</p>
       <div id="recoList"></div>
+    </div>
+  </section>
+
+  <section class="view" data-view="einkauf" hidden>
+    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Einkaufen</h1><div class="bar-spacer"></div></header>
+    <div class="scroll">
+      <p class="sub" id="einkaufSub">Gerechnet aus deinen Tageszielen. Tippe einen Posten an, wenn du ihn gekauft hast.</p>
+      <div class="field-row">
+        <div class="field"><label for="einkaufTage">Für wie viele Tage</label>
+          <input id="einkaufTage" type="number" inputmode="numeric" min="1" max="14" value="7"></div>
+        <div class="field"><label for="einkaufNeu">&nbsp;</label>
+          <button id="btnEinkaufNeu" class="primary" style="width:100%">Liste rechnen</button></div>
+      </div>
+      <ul class="list" id="einkaufList"></ul>
+      <p class="fineprint" id="einkaufHinweis"></p>
+    </div>
+  </section>
+
+  <section class="view" data-view="standards" hidden>
+    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Mindeststandards</h1><div class="bar-spacer"></div></header>
+    <div class="scroll">
+      <p class="sub">Deine Untergrenze, nicht dein Ziel. Was auch in einer schlechten Woche steht.</p>
+      <ul class="list" id="standardList"></ul>
+
+      <h2 class="section-title">Neuen Standard setzen</h2>
+      <div class="field"><label for="stdText">Der Satz</label>
+        <input id="stdText" placeholder="Ich gehe an fünf Tagen die Woche vor 23 Uhr ins Bett"></div>
+      <div class="field-row">
+        <div class="field"><label for="stdKadenz">Gilt</label>
+          <select id="stdKadenz"><option value="taeglich">jeden Tag</option><option value="woechentlich">je Woche</option></select></div>
+        <div class="field"><label for="stdZiel">Mindestens</label>
+          <input id="stdZiel" type="number" inputmode="numeric" min="1" value="5"></div>
+      </div>
+      <button id="btnStdAdd" class="ghost">Standard hinzufügen</button>
+      <p class="fineprint">Standards, die die App nicht selbst messen kann, hakst du hier oder im Gespräch selbst ab.</p>
     </div>
   </section>
 
@@ -284,6 +344,8 @@ try {
     <button class="menu-item" data-go="heute"><b>Heute</b><span>Kalorien, Makros, Wasser, Erinnerungen</span></button>
     <button class="menu-item" data-go="essen"><b>Essen</b><span>Erfassen, Vorrat, Vorschläge</span></button>
     <button class="menu-item" data-go="checkin"><b>Check-in</b><span>Energie, Schlaf, Stimmung</span></button>
+    <button class="menu-item" data-go="einkauf"><b>Einkaufen</b><span>Liste aus deinen Zielen</span></button>
+    <button class="menu-item" data-go="standards"><b>Mindeststandards</b><span>Deine Untergrenze, jede Woche</span></button>
     <button class="menu-item" data-go="reflexion"><b>Gedächtnis</b><span>Was daevo über dich weiß</span></button>
     <button class="menu-item" data-go="empfehlungen"><b>Empfehlungen</b><span>Aus deinen eigenen Zahlen</span></button>
     <button class="menu-item" data-go="profil"><b>Profil</b><span>Ziele, Training, Schlüssel</span></button>

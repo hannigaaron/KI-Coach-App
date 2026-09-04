@@ -111,7 +111,7 @@ export const store = {
   setChat(messages) {
     // Nur die letzten Nachrichten behalten. Der Verlauf wächst sonst ohne
     // Grenze und der localStorage ist bei rund fünf Megabyte zu Ende.
-    write("chat", messages.slice(-60));
+    write("chat", messages.slice(-100));
   },
 
   getFridge() {
@@ -121,8 +121,22 @@ export const store = {
     write("fridge", items);
   },
 
+  getShoppingList() {
+    return read("shopping", null);
+  },
+  setShoppingList(liste) {
+    write("shopping", liste);
+  },
+
+  getStandards() {
+    return read("standards", []);
+  },
+  setStandards(standards) {
+    write("standards", standards);
+  },
+
   getDay(day) {
-    return read(`day.${day}`, { meals: [], waterMl: 0, checkins: [] });
+    return read(`day.${day}`, { meals: [], waterMl: 0, checkins: [], steps: 0, standards: {}, weightKg: null, trainings: [] });
   },
   setDay(day, data) {
     write(`day.${day}`, data);
@@ -155,6 +169,31 @@ export const store = {
     data.waterMl = Math.max(0, (data.waterMl || 0) + ml);
     this.setDay(day, data);
   },
+  /**
+   * Hält fest, ob ein Mindeststandard an diesem Tag gehalten wurde.
+   * Nötig für Standards, die die App nicht selbst messen kann, etwa die
+   * Schlafenszeit. Alles andere wird aus den Tagesdaten gerechnet.
+   */
+  setStandardConfirmed(day, id, gehalten) {
+    const data = this.getDay(day);
+    data.standards = { ...(data.standards || {}), [id]: Boolean(gehalten) };
+    this.setDay(day, data);
+  },
+
+  /** Eine Wiegung. Ein Wert je Tag, eine spätere ersetzt die frühere. */
+  setWeight(day, kg) {
+    const data = this.getDay(day);
+    data.weightKg = kg;
+    this.setDay(day, data);
+  },
+
+  /** Eine absolvierte Trainingseinheit, im Unterschied zum Plan im Profil. */
+  addTraining(day, training) {
+    const data = this.getDay(day);
+    data.trainings = [...(data.trainings || []), training];
+    this.setDay(day, data);
+  },
+
   addCheckin(day, checkin) {
     const data = this.getDay(day);
     data.checkins.push(checkin);
@@ -165,6 +204,8 @@ export const store = {
     const out = { exportedAt: new Date().toISOString(), version: 1, days: {} };
     out.profile = this.getProfile();
     out.fridge = this.getFridge();
+    out.shopping = this.getShoppingList();
+    out.standards = this.getStandards();
     out.memories = this.getMemories();
     out.chat = this.getChat();
     for (const day of this.allDays()) out.days[day] = this.getDay(day);

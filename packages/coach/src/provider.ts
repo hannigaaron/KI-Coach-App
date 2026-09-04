@@ -29,7 +29,11 @@ export interface ConverseRequest {
   messages: ChatMessage[];
   tools: ToolDefinition[];
   maxTokens?: number;
-  /** Steuert Tiefe und Kosten. Für ein Gespräch reicht low. */
+  /**
+   * Steuert, wie gründlich das Modell nachdenkt, und damit auch die Kosten.
+   * low reicht für "ich hatte zwei Eier", eine echte Frage braucht high.
+   * Welche Stufe wann genommen wird, entscheidet der Agent je Nachricht.
+   */
   effort?: "low" | "medium" | "high";
 }
 

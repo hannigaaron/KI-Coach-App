@@ -14,7 +14,7 @@ die Datenschutzanforderungen und die Nährwertdatenbank.
 - API mit Konto, Profil, Mahlzeiten, Wasser, Check-ins, Kühlschrank, Health Import
 - Scheduler mit Sperre gegen Doppelversand
 - Testkonsole im Browser mit Spracheingabe
-- 87 automatisierte Tests
+- 131 automatisierte Tests
 
 ## Milestone 2: Installierbare Web App (fertig)
 
@@ -65,7 +65,63 @@ Die App öffnet nicht mehr mit Zahlen, sondern mit dem Assistenten.
 - Tag und Nacht: hell, dunkel oder wie das Gerät. Der Kreis wechselt mit,
   auf hellem Grund malt er in Blau dunkel statt zu leuchten.
 
-## Milestone 5: Native App
+## Milestone 5: Der Coach wird schlau (fertig)
+
+Bis hierhin konnte der Assistent erfassen und rechnen. Jetzt beantwortet er
+auch Fragen, für die man sonst einen Trainer fragt.
+
+- Die Denktiefe hängt an der Nachricht. "Zwei Eier gegessen" läuft auf der
+  niedrigsten Stufe, "warum bin ich seit Wochen müde" auf der höchsten mit
+  viermal so viel Platz für die Antwort. Der Schalter steht in
+  `denktiefe()` in `packages/coach/src/agent.ts`.
+- Die Persona sagt nicht mehr "zwei bis vier Sätze", sondern "so lang wie die
+  Frage es verdient". Eine Regel, die kurze Antworten erzwingt, macht einen
+  Coach dumm.
+- Bis zu zwölf Werkzeugrunden statt sechs. Eine ernsthafte Frage kostet leicht
+  drei bis vier Aufrufe, bevor überhaupt geantwortet wird.
+- Der Systemprompt trägt jetzt den ganzen Stand: Profil mit Trainingsplan,
+  Tageszahlen, Mindeststandards, offene Einkäufe, die letzten sieben Tage in
+  Zahlen und den Gewichtsverlauf.
+
+### Gewichtsverlauf statt Formel
+
+Die Formel schätzt den Bedarf, der Gewichtsverlauf misst ihn. Nach vier Wochen
+schlägt die Messung die Schätzung.
+
+- `packages/core/src/trend.ts` legt eine Gerade durch alle Wiegungen. Kleinste
+  Quadrate, weil das Gewicht je nach Salz und Kohlenhydraten um ein bis zwei
+  Kilo schwankt und ein Vergleich zweier Tage nichts sagt.
+- Daraus und aus der durchschnittlichen Aufnahme kommt der tatsächliche
+  Verbrauch: Aufnahme minus der Energie, die im Körper gelandet ist, gerechnet
+  mit rund 7700 kcal je Kilogramm.
+- Liegt die gemessene Rate ausserhalb der erwarteten Spanne, schlägt die App
+  ein neues Ziel vor. Erst ab vier Wiegungen über 14 Tage und ab zehn Tagen mit
+  Essenseintrag, davor sagt sie, was ihr fehlt.
+
+### Neue Werkzeuge
+
+`verlauf_abrufen`, `gewicht_eintragen`, `training_eintragen`, `profil_aendern`,
+dazu die sechs aus Einkauf und Standards. Insgesamt siebzehn.
+
+## Milestone 6: Einkauf und Mindeststandards (fertig)
+
+- Einkaufsliste aus den Tageszielen mal der Anzahl der Tage, umgerechnet in
+  Ware. Ohne Sprachmodell, weil es eine Rechnung ist. Nährwerte kommen aus
+  derselben Tabelle wie die Mahlzeitenerfassung.
+- Unverträglichkeiten wirken auf die Liste. Wer keine Laktose verträgt, bekommt
+  keinen Magerquark vorgeschlagen, auch wenn er nie "Magerquark" gesagt hat.
+- Höchstmengen je Lebensmittel und Tag, damit bei hohen Zielen nicht 270 g
+  Haferflocken am Tag auf der Liste stehen. Was durch den Deckel fällt, geht an
+  die anderen Posten.
+- Jeder Posten kennt drei Stände: offen, gekauft, hab ich noch. Der letzte
+  wandert in den Vorrat und wirkt auf den nächsten Mahlzeitenvorschlag.
+- Mindeststandards als Untergrenze, nicht als Ziel. Vier Stück, aus den
+  Schwerpunkten des Anamnesebogens abgeleitet, mit Quote über 14 oder 28 Tage.
+- Nachgehakt wird beim schlechtesten Standard, der noch zu retten ist. Einer pro
+  Tag. Ein Standard, der seit Wochen bei null steht, gehört gesenkt, nicht
+  erinnert.
+
+## Milestone 7: Native App
 
 Nötig für die zwei Dinge, die eine Web App auf dem iPhone nicht kann.
 
@@ -93,7 +149,7 @@ Erst mit HealthKit sinnvoll, deshalb hier und nicht früher:
   als Wirkversprechen. Das ist auch die Grenze, die der App Store zieht:
   Aussagen zu Diagnose oder Therapie machen die App zum Medizinprodukt.
 
-## Milestone 6: Datenqualität
+## Milestone 8: Datenqualität
 
 - Anbindung Open Food Facts inklusive Barcode Scanner
 - kuratierte Liste der 300 häufigsten Lebensmittel ohne Modellaufruf
@@ -101,7 +157,7 @@ Erst mit HealthKit sinnvoll, deshalb hier und nicht früher:
 - Gedächtnis auf Einbettungen umstellen, wenn die Wortsuche an Grenzen stösst
 - Nachjustierung des Kalorienbedarfs über den Vier Wochen Gewichtsverlauf
 
-## Milestone 7: Marktreife
+## Milestone 9: Marktreife
 
 - Sign in with Apple
 - Abo über StoreKit, Gratis Stufe und Premium
@@ -109,7 +165,7 @@ Erst mit HealthKit sinnvoll, deshalb hier und nicht früher:
 - Datenschutzerklärung und Nutzungsbedingungen von einem Anwalt prüfen lassen
 - App Store Review, Puffer von vier Wochen einplanen
 
-## Milestone 8: Hebel
+## Milestone 10: Hebel
 
 - Trainerkonten: ein Coach betreut mehrere Kunden über die App
 - Whitelabel für Studios

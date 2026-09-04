@@ -31,6 +31,19 @@ export interface AgentActions {
   checkinSpeichern(input: { energie?: number; schlaf?: number; stimmung?: number; notiz: string }): Promise<string>;
   merken(input: { text: string; art: string; wichtigkeit: number; schlagworte?: string[] }): Promise<string>;
   gedaechtnisDurchsuchen(frage: string): Promise<string>;
+  einkaufslisteErstellen(input: { tage?: number; meiden?: string[] }): Promise<string>;
+  einkaufslisteAbrufen(): Promise<string>;
+  einkaufslisteAbhaken(input: { posten: string; stand: "gekauft" | "zuhause" | "offen" }): Promise<string>;
+  standardsAbrufen(): Promise<string>;
+  standardSetzen(input: { text: string; kadenz: string; art: string; ziel: number; id?: string }): Promise<string>;
+  standardBestaetigen(input: { id: string; gehalten: boolean }): Promise<string>;
+  verlaufAbrufen(input: { tage?: number }): Promise<string>;
+  gewichtEintragen(kg: number): Promise<string>;
+  trainingEintragen(input: { art: string; minuten: number; notiz?: string }): Promise<string>;
+  profilAendern(input: {
+    ziel?: string; gewichtKg?: number; schritte?: number;
+    aufstehen?: string; schlafen?: string; verbrauch?: number;
+  }): Promise<string>;
 }
 
 export interface AgentReply {
@@ -40,27 +53,90 @@ export interface AgentReply {
   source: "model" | "offline";
 }
 
-export const PERSONA = `Du bist daevo, der persönliche Coach dieses Nutzers für Ernährung, Training und Alltag.
+export const PERSONA = `Du bist daevo, der persönliche Coach dieses Nutzers für Ernährung, Training,
+Schlaf und Alltag. Du bist kein Chatbot mit Formularen, sondern ein Gesprächspartner, der etwas kann.
 
-Haltung:
-- Du sprichst den Nutzer mit du an. Kurze Sätze. Kein Geschwafel, keine Floskeln.
-- Du bist ehrlich. Läuft etwas schlecht, sagst du das. Du lobst nur, wenn Zahlen es hergeben.
-- Du stellst höchstens eine Frage pro Antwort.
-- Du antwortest so kurz, dass man es vorgelesen bekommen kann. Zwei bis vier Sätze sind die Regel.
-- Keine Aufzählungen, ausser der Nutzer bittet um eine Liste.
+## Was du bist
 
-Regeln, die nicht verhandelbar sind:
-- Zahlen kommen aus den Werkzeugen, nie aus deinem Kopf. Bevor du über Kalorien, Makros oder
-  Wasser sprichst, rufst du tagesstand_abrufen auf.
-- Nährwerte erfindest du nicht. Ist eine Menge unklar, fragst du danach.
-- Du gibst keine medizinischen Diagnosen. Bei Warnzeichen wie starkem Untergewicht, Anzeichen einer
-  Essstörung, anhaltenden Schmerzen oder Gedanken an Selbstverletzung verweist du klar auf
-  ärztliche oder therapeutische Hilfe und machst dort keine Coachingansage.
+Du hast das Wissen eines guten Trainers, eines Ernährungsberaters und eines nüchternen Kopfes:
+Energiebilanz, Makronährstoffe, Trainingsplanung und Periodisierung, progressive Belastungssteigerung,
+Regeneration, Schlaf, Stress und Nervensystem, Gewohnheiten und Verhaltensänderung.
+Du beantwortest echte Fragen wirklich, in der Tiefe, die die Frage verdient. Du sagst nicht
+"frag deinen Arzt" bei allem, sondern erklärst, was man weiss, wie sicher man es weiss und
+wo die Grenze zur ärztlichen Abklärung wirklich liegt.
+
+## Wie du antwortest
+
+- Du sprichst den Nutzer mit du an. Klare, einfache Sprache. Aktiv, kein Passiv.
+- Die Länge richtet sich nach der Frage, nicht nach einer Regel.
+  "Ich hatte zwei Eier" beantwortest du in einem Satz.
+  "Warum bin ich seit Wochen müde" beantwortest du in zehn, mit Struktur und einer klaren Reihenfolge.
+  Rede nie um eine Frage herum, nur um kurz zu sein.
+- Du bist ehrlich. Läuft etwas schlecht, sagst du das zuerst. Du lobst nur, wenn Zahlen es hergeben.
+- Keine Floskeln, keine Einleitungen wie "gute Frage", keine Zusammenfassungen am Ende.
+- Höchstens eine Frage pro Antwort, und nur wenn die Antwort davon abhängt.
+- Wenn du dir bei etwas nicht sicher bist, sagst du das und sagst auch, wie man es herausfinden würde.
+
+## Was du wirklich weisst und was du nicht weisst
+
+- Zahlen über diesen Nutzer kommen aus den Werkzeugen, nie aus deinem Kopf. Bevor du über
+  seine Kalorien, Makros, sein Wasser, seinen Verlauf oder seine Standards sprichst, holst du sie ab.
+  Eine geratene Zahl über einen echten Menschen ist schlimmer als keine Zahl.
+- Allgemeines Wissen darfst und sollst du benutzen: Physiologie, Trainingslehre, Nährwerte von
+  Lebensmitteln im Gespräch, Studienlage. Dafür brauchst du kein Werkzeug.
+- Erfinde keine Studien, keine Zahlen aus Studien und keine Quellenangaben. Sag lieber
+  "die Studienlage dazu ist uneinheitlich" als eine erfundene Prozentzahl zu nennen.
+- Du hast keinen Zugriff auf das Internet. Aktuelle Ereignisse kennst du nicht.
+
+## Was du tust, statt nur zu reden
+
 - Erzählt der Nutzer etwas, das auch in vier Wochen noch gilt, legst du es mit merken ab.
   Das ist dein Gedächtnis. Ohne das vergisst du ihn.
-- Du erwähnst Werkzeuge nie. Du sagst, was du getan hast, nicht wie.`;
+- Nennt er ein Gewicht, trägst du es ein. Nennt er eine Mahlzeit, trägst du sie ein.
+  Erzählt er von einem Training, trägst du es ein. Du fragst nicht um Erlaubnis für das Offensichtliche.
+- Ändert sich etwas dauerhaft, etwa sein Ziel oder seine Schlafenszeit, änderst du das Profil.
+- Du erwähnst Werkzeuge nie. Du sagst, was du getan hast, nicht wie.
 
-const MAX_STEPS = 6;
+## Kalorienziel und Verlauf
+
+Die Formel im Rechenkern schätzt. Der Gewichtsverlauf misst. Nach vier Wochen mit genug Daten
+schlägt der Verlauf die Formel. Fragt der Nutzer, ob sein Ziel noch stimmt, oder klagt er, dass
+sich nichts tut, rufst du verlauf_abrufen auf und redest über die gemessene Rate, nicht über die Formel.
+
+## Mindeststandards
+
+- Ein Mindeststandard ist die Untergrenze, die auch in einer schlechten Woche steht, nicht das Ziel.
+  Setzt der Nutzer sich einen, legst du ihn mit standard_setzen ab.
+- Macht er sich fertig, weil er zu wenig geschafft hat, rufst du standards_abrufen auf und
+  redest über die Untergrenze, nicht über den Idealtag. Zahlen statt Trost.
+- Kommt ein Standard über Wochen nicht in Gang, schlägst du vor, ihn zu senken.
+  Ein Standard, der nie gehalten wird, ist falsch gesetzt, nicht der Nutzer.
+
+## Einkaufen
+
+- Fragt der Nutzer nach einer Einkaufsliste, rufst du einkaufsliste_erstellen auf und nennst danach
+  nur die Anzahl der Posten und die zwei bis drei wichtigsten. Die ganze Liste liest niemand vor.
+- Bevor du einen Posten als nötig bezeichnest, fragst du, ob er ihn noch zu Hause hat, und
+  trägst die Antwort mit einkaufsliste_abhaken ein.
+- Unverträglichkeiten aus deinem Gedächtnis gibst du immer als meiden mit.
+
+## Wo deine Grenze liegt
+
+Du stellst keine Diagnosen und verschreibst nichts. Du erklärst aber, was hinter Beschwerden stehen
+kann und was man selbst prüfen lassen kann. Bei diesen Dingen sagst du klar, dass es ärztlich
+abgeklärt gehört, und coachst dort nicht weiter: anhaltende Schmerzen, Blut, Ohnmacht, starkes
+Untergewicht, Anzeichen einer Essstörung, Verdacht auf eine Depression, Gedanken an Selbstverletzung.
+Bei Hormonwerten, Blutbildern und Medikamenten erklärst du die Zusammenhänge und schickst zur
+Abklärung, statt Werte zu bewerten, die du nicht gemessen hast.`;
+
+/**
+ * Wie viele Runden Werkzeug und Antwort erlaubt sind.
+ *
+ * Sechs waren zu wenig: eine ernsthafte Frage kostet leicht drei bis vier
+ * Aufrufe, bevor überhaupt geantwortet wird. Zwölf reichen auch für eine
+ * Kette aus Verlauf, Gedächtnis, Standards und einer Aenderung am Profil.
+ */
+const MAX_STEPS = 12;
 
 export class Agent {
   constructor(private readonly provider: CoachProvider) {}
@@ -110,9 +186,16 @@ export class Agent {
 
     const messages: ChatMessage[] = [...params.verlauf, { role: "user", content: params.nachricht }];
     const ausgeführt: string[] = [];
+    const tiefe = denktiefe(params.nachricht);
 
     for (let step = 0; step < MAX_STEPS; step++) {
-      const response = await this.provider.converse({ system, messages, tools: AGENT_TOOLS });
+      const response = await this.provider.converse({
+        system,
+        messages,
+        tools: AGENT_TOOLS,
+        effort: tiefe.effort,
+        maxTokens: tiefe.maxTokens,
+      });
       const toolUses = response.content.filter(
         (block): block is Extract<ContentBlock, { type: "tool_use" }> => block.type === "tool_use",
       );
@@ -142,6 +225,45 @@ export class Agent {
       source: "model",
     };
   }
+}
+
+/**
+ * Entscheidet, wie gründlich das Modell für diese Nachricht nachdenken soll.
+ *
+ * Der Grund ist nicht Geiz, sondern Passung. "Zwei Eier gegessen" braucht ein
+ * Werkzeug und einen Satz, da ist Nachdenken verschwendete Zeit. "Warum bin
+ * ich seit Wochen müde" braucht Zusammenhänge über Schlaf, Kalorien, Training
+ * und Stress. Wer beides gleich behandelt, macht entweder das eine langsam
+ * oder das andere dumm.
+ */
+export function denktiefe(nachricht: string): { effort: "low" | "medium" | "high"; maxTokens: number } {
+  const text = foldUmlauts(nachricht.toLowerCase());
+  const woerter = text.split(/\s+/).filter(Boolean).length;
+
+  // Echte Fragen. Alles, was nach Erklärung, Rat oder Einordnung verlangt.
+  const denkt = pattern(
+    "warum", "wieso", "weshalb", "erklär", "erklar", "wie kommt", "wie funktioniert",
+    "was denkst", "was meinst", "was hältst", "was halt", "soll ich", "sollte ich",
+    "lohnt sich", "besser", "vergleich", "unterschied", "sinnvoll", "wirklich",
+    "plan", "strategie", "wie schaffe", "wie kriege", "was kann ich tun",
+    "hilf mir", "ich verstehe nicht", "stimmt das", "richtig so",
+  ).test(text);
+
+  // Themen, die ohne Zusammenhang keine brauchbare Antwort ergeben.
+  const schwer = pattern(
+    "müde", "energielos", "erschöpft", "schlaf", "stress", "libido", "testosteron",
+    "hormone", "depress", "antrieb", "motivation", "verletzt", "schmerz",
+    "plateau", "stagnation", "tut sich nichts", "nehme nicht ab", "nehme nicht zu",
+    "periodisierung", "regeneration", "übertraining", "ubertraining",
+  ).test(text);
+
+  if (schwer || (denkt && woerter > 4)) return { effort: "high", maxTokens: 4096 };
+
+  // Reines Erfassen: kurz, und es geht um Essen, Trinken oder Gewicht.
+  const erfassen = pattern("gegessen", "getrunken", "hatte", "wiege", "gewogen", "ml", "gramm").test(text);
+  if (erfassen && woerter <= 14 && !denkt) return { effort: "low", maxTokens: 1024 };
+
+  return { effort: "medium", maxTokens: 2048 };
 }
 
 function textOf(content: ContentBlock[]): string {
@@ -200,6 +322,76 @@ async function execute(
       }
       case "gedaechtnis_durchsuchen":
         return { text: await actions.gedaechtnisDurchsuchen(String(input.frage ?? "")) };
+      case "verlauf_abrufen": {
+        const tage = Number.isFinite(Number(input.tage)) ? clamp(Number(input.tage), 7, 120) : undefined;
+        return { text: await actions.verlaufAbrufen({ tage }) };
+      }
+      case "gewicht_eintragen": {
+        const kg = Number(input.kg);
+        if (!Number.isFinite(kg) || kg < 30 || kg > 300) {
+          return { text: "Das Gewicht muss zwischen 30 und 300 kg liegen.", fehler: true };
+        }
+        const text = await actions.gewichtEintragen(Math.round(kg * 10) / 10);
+        return { text, notiz: `${Math.round(kg * 10) / 10} kg eingetragen` };
+      }
+      case "training_eintragen": {
+        const erlaubt = ["strength", "team_sport", "cardio", "mobility"];
+        const art = erlaubt.includes(String(input.art)) ? String(input.art) : "strength";
+        const text = await actions.trainingEintragen({
+          art,
+          minuten: clamp(Number(input.minuten) || 60, 5, 480),
+          notiz: typeof input.notiz === "string" ? input.notiz : undefined,
+        });
+        return { text, notiz: "Training eingetragen" };
+      }
+      case "profil_aendern": {
+        const text = await actions.profilAendern({
+          ziel: typeof input.ziel === "string" ? input.ziel : undefined,
+          gewichtKg: Number.isFinite(Number(input.gewichtKg)) ? Number(input.gewichtKg) : undefined,
+          schritte: Number.isFinite(Number(input.schritte)) ? Number(input.schritte) : undefined,
+          aufstehen: typeof input.aufstehen === "string" ? input.aufstehen : undefined,
+          schlafen: typeof input.schlafen === "string" ? input.schlafen : undefined,
+          verbrauch: Number.isFinite(Number(input.verbrauch)) ? Number(input.verbrauch) : undefined,
+        });
+        return { text, notiz: "Profil geändert" };
+      }
+      case "einkaufsliste_erstellen": {
+        const text = await actions.einkaufslisteErstellen({
+          tage: Number.isFinite(Number(input.tage)) ? clamp(Number(input.tage), 1, 14) : undefined,
+          meiden: Array.isArray(input.meiden) ? input.meiden.map(String) : [],
+        });
+        return { text, notiz: "Einkaufsliste erstellt" };
+      }
+      case "einkaufsliste_abrufen":
+        return { text: await actions.einkaufslisteAbrufen() };
+      case "einkaufsliste_abhaken": {
+        const stand = String(input.stand ?? "gekauft");
+        const erlaubt = stand === "zuhause" || stand === "offen" ? stand : "gekauft";
+        const text = await actions.einkaufslisteAbhaken({
+          posten: String(input.posten ?? ""),
+          stand: erlaubt as "gekauft" | "zuhause" | "offen",
+        });
+        return { text, notiz: "Einkaufsliste aktualisiert" };
+      }
+      case "standards_abrufen":
+        return { text: await actions.standardsAbrufen() };
+      case "standard_setzen": {
+        const text = await actions.standardSetzen({
+          text: String(input.text ?? ""),
+          kadenz: String(input.kadenz ?? "taeglich"),
+          art: String(input.art ?? "frei"),
+          ziel: Number(input.ziel) || 1,
+          id: typeof input.id === "string" ? input.id : undefined,
+        });
+        return { text, notiz: "Mindeststandard gesetzt" };
+      }
+      case "standard_bestaetigen": {
+        const text = await actions.standardBestaetigen({
+          id: String(input.id ?? ""),
+          gehalten: input.gehalten !== false,
+        });
+        return { text, notiz: "Standard eingetragen" };
+      }
       default:
         return { text: `Unbekanntes Werkzeug: ${name}`, fehler: true };
     }
@@ -299,6 +491,26 @@ export async function runOffline(nachricht: string, actions: AgentActions): Prom
     return { text: antwort, ausgeführt, source: "offline" };
   }
 
+  const gewicht = extractGewicht(text);
+  if (gewicht !== null) {
+    const antwort = await actions.gewichtEintragen(gewicht);
+    return { text: antwort, ausgeführt: [`${gewicht} kg eingetragen`], source: "offline" };
+  }
+
+  if (pattern("verlauf", "fortschritt", "abgenommen", "zugenommen", "tut sich nichts", "stagniere", "letzte wochen").test(text)) {
+    return { text: await actions.verlaufAbrufen({}), ausgeführt, source: "offline" };
+  }
+
+  if (pattern("einkaufsliste", "einkaufen", "einkauf", "supermarkt", "was muss ich kaufen", "besorgen").test(text)) {
+    const tage = extractTage(text);
+    const antwort = await actions.einkaufslisteErstellen({ tage });
+    return { text: antwort, ausgeführt: ["Einkaufsliste erstellt"], source: "offline" };
+  }
+
+  if (pattern("mindeststandard", "standard", "untergrenze", "dranbleiben", "durchgezogen", "vorgenommen").test(text)) {
+    return { text: await actions.standardsAbrufen(), ausgeführt, source: "offline" };
+  }
+
   if (pattern("was soll ich essen", "vorschlag", "kühlschrank", "kochen", "rezept").test(text)) {
     return { text: await actions.mahlzeitVorschlagen(), ausgeführt, source: "offline" };
   }
@@ -320,7 +532,7 @@ export async function runOffline(nachricht: string, actions: AgentActions): Prom
     text:
       "Ohne KI Schlüssel verstehe ich nur einfache Sätze. Das hier kann ich sicher: " +
       "sag mir, was du gegessen hast, wie viel du getrunken hast, wie es dir geht, " +
-      "oder frag nach deinem Stand. Den vollen Coach schaltest du im Menue unter Profil frei.",
+      "frag nach deinem Stand, nach deiner Einkaufsliste oder nach deinen Mindeststandards. Den vollen Coach schaltest du im Menue unter Profil frei.",
     ausgeführt,
     source: "offline",
   };
@@ -349,6 +561,30 @@ function extractMl(input: string): number | null {
     if (pattern.test(text)) return ml;
   }
   return null;
+}
+
+/**
+ * Liest eine Wiegung aus dem Satz.
+ *
+ * Nur wenn wirklich von Wiegen oder Gewicht die Rede ist. Sonst würde
+ * "ich hatte 80 g Reis" als Wiegung durchgehen.
+ */
+function extractGewicht(text: string): number | null {
+  if (!pattern("wiege", "gewogen", "gewicht", "waage").test(text)) return null;
+  const match = /(\d{2,3}(?:[.,]\d)?)\s*(kg|kilo)/.exec(text) ?? /(\d{2,3}(?:[.,]\d)?)/.exec(text);
+  if (!match) return null;
+  const wert = Number(match[1]!.replace(",", "."));
+  return Number.isFinite(wert) && wert >= 30 && wert <= 300 ? Math.round(wert * 10) / 10 : null;
+}
+
+/** Liest "für fünf Tage" oder "für eine Woche" aus dem Satz. */
+function extractTage(text: string): number | undefined {
+  if (pattern("woche").test(text)) return 7;
+  const zahl = "(\\d{1,2}|" + Object.keys(NUMBER_WORDS).join("|") + ")";
+  const match = new RegExp(`${zahl}\\s*tage`).exec(text);
+  if (!match) return undefined;
+  const amount = parseAmount(match[1]);
+  return amount !== null && amount >= 1 && amount <= 14 ? Math.round(amount) : undefined;
 }
 
 function extractScore(text: string, pattern: RegExp): number | undefined {

@@ -4,3 +4,5 @@ export * from "./macros.js";
 export * from "./reminders.js";
 export * from "./adherence.js";
 export * from "./memory.js";
+export * from "./standards.js";
+export * from "./trend.js";

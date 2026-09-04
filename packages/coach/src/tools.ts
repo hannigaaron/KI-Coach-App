@@ -92,6 +92,161 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: "verlauf_abrufen",
+    description:
+      "Liefert den Verlauf über mehrere Wochen: Gewichtstrend in kg je Woche, durchschnittliche Aufnahme, " +
+      "den daraus gemessenen tatsächlichen Kalorienverbrauch und ob das Tagesziel noch passt. " +
+      "Nehmen, wenn der Nutzer fragt ob sein Ziel stimmt, wenn er sagt dass sich nichts tut, " +
+      "wenn er über Fortschritt oder Stillstand redet, oder wenn du über mehr als den heutigen Tag sprichst. " +
+      "Nicht nehmen für die Zahlen von heute, dafür gibt es tagesstand_abrufen.",
+    input_schema: {
+      type: "object",
+      properties: {
+        tage: { type: "number", description: "Zeitraum in Tagen, 7 bis 120. Ohne Angabe 28." },
+      },
+    },
+  },
+  {
+    name: "gewicht_eintragen",
+    description:
+      "Trägt eine Wiegung ein. Nehmen, sobald der Nutzer ein Gewicht nennt, auch nebenbei. " +
+      "Ohne regelmässige Wiegungen kann der Verlauf nichts messen und jede Zielkorrektur bleibt geraten.",
+    input_schema: {
+      type: "object",
+      properties: {
+        kg: { type: "number", description: "Gewicht in Kilogramm, 30 bis 300." },
+      },
+      required: ["kg"],
+    },
+  },
+  {
+    name: "training_eintragen",
+    description:
+      "Hält eine absolvierte Trainingseinheit fest. Nehmen, wenn der Nutzer von einem Training erzählt, " +
+      "das schon stattgefunden hat. Nicht nehmen für geplante Einheiten im Kalender.",
+    input_schema: {
+      type: "object",
+      properties: {
+        art: {
+          type: "string",
+          enum: ["strength", "team_sport", "cardio", "mobility"],
+          description: "Art der Einheit.",
+        },
+        minuten: { type: "number", description: "Dauer in Minuten, 5 bis 480." },
+        notiz: { type: "string", description: "Was gemacht wurde, wie es lief, kurz gefasst." },
+      },
+      required: ["art", "minuten"],
+    },
+  },
+  {
+    name: "profil_aendern",
+    description:
+      "Ändert dauerhafte Angaben im Profil. Nehmen, wenn sich etwas wirklich geändert hat: " +
+      "neues Ziel, neue Schlafenszeit, andere Schrittzahl im Alltag, anderer Job. " +
+      "Nicht nehmen für eine einzelne Wiegung, dafür gibt es gewicht_eintragen. " +
+      "Nur die Felder mitgeben, die sich ändern.",
+    input_schema: {
+      type: "object",
+      properties: {
+        ziel: { type: "string", enum: ["fat_loss", "maintain", "lean_bulk"], description: "Neues Ziel." },
+        gewichtKg: { type: "number", description: "Neues Ausgangsgewicht für die Rechnung." },
+        schritte: { type: "number", description: "Durchschnittliche Schritte am Tag." },
+        aufstehen: { type: "string", description: "Neue Aufstehzeit im Format HH:MM." },
+        schlafen: { type: "string", description: "Neue Schlafenszeit im Format HH:MM." },
+        verbrauch: {
+          type: "number",
+          description:
+            "Der gemessene tatsächliche Kalorienverbrauch am Tag. Ersetzt die Schätzung aus der Formel. " +
+            "Das Tagesziel rechnet die App daraus selbst, je nach Ziel des Nutzers. " +
+            "Nur nach verlauf_abrufen setzen und nur mit dem Wert, der dort als gemessener Verbrauch steht.",
+        },
+      },
+    },
+  },
+  {
+    name: "einkaufsliste_erstellen",
+    description:
+      "Rechnet aus den Tageszielen eine Einkaufsliste und speichert sie. " +
+      "Nehmen, wenn der Nutzer einkaufen geht, nach einer Liste fragt oder sagt, sein Kühlschrank sei leer. " +
+      "Nicht nehmen, wenn er nur wissen will, was er jetzt essen soll, dafür gibt es mahlzeit_vorschlagen.",
+    input_schema: {
+      type: "object",
+      properties: {
+        tage: { type: "number", description: "Für wie viele Tage eingekauft wird, 1 bis 14. Ohne Angabe 7." },
+        meiden: {
+          type: "array",
+          items: { type: "string" },
+          description: "Lebensmittel, die nicht auf die Liste dürfen. Unverträglichkeiten aus dem Gedächtnis gehören hier rein.",
+        },
+      },
+    },
+  },
+  {
+    name: "einkaufsliste_abrufen",
+    description:
+      "Liest die gespeicherte Einkaufsliste mit dem Stand jedes Postens. " +
+      "Nehmen, bevor du über die Liste sprichst, und wenn der Nutzer im Laden steht.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "einkaufsliste_abhaken",
+    description:
+      "Setzt den Stand eines Postens auf der Einkaufsliste. " +
+      "gekauft, wenn er im Wagen liegt. zuhause, wenn der Nutzer sagt, dass er es noch hat. offen macht das rückgängig.",
+    input_schema: {
+      type: "object",
+      properties: {
+        posten: { type: "string", description: "Name des Postens, so wie er auf der Liste steht." },
+        stand: { type: "string", enum: ["gekauft", "zuhause", "offen"], description: "Neuer Stand." },
+      },
+      required: ["posten", "stand"],
+    },
+  },
+  {
+    name: "standards_abrufen",
+    description:
+      "Liefert die vereinbarten Mindeststandards und wie gut sie zuletzt gehalten wurden. " +
+      "Vor jeder Aussage über Standards aufrufen. Nehmen, wenn der Nutzer unzufrieden mit sich ist, " +
+      "wenn er eine schlechte Woche hatte oder wenn er fragt, wie er dasteht.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "standard_setzen",
+    description:
+      "Legt einen neuen Mindeststandard an oder ändert einen bestehenden. " +
+      "Ein Mindeststandard ist die Untergrenze, nicht das Ziel. Er muss auch in einer schlechten Woche zu halten sein. " +
+      "Nehmen, wenn der Nutzer sich auf etwas festlegt, das ab jetzt immer gelten soll.",
+    input_schema: {
+      type: "object",
+      properties: {
+        text: { type: "string", description: "Der Standard als ein Satz aus Sicht des Nutzers, beginnend mit Ich." },
+        kadenz: { type: "string", enum: ["taeglich", "woechentlich"], description: "Gilt er je Tag oder je Woche." },
+        art: {
+          type: "string",
+          enum: ["protein", "wasser", "training", "schritte", "erfassen", "schlafenszeit", "handy_aus", "frei"],
+          description: "Woran der Standard gemessen wird. frei, wenn die App ihn nicht selbst messen kann.",
+        },
+        ziel: { type: "number", description: "Der Mindestwert. Bei frei die Anzahl der Tage oder Male." },
+        id: { type: "string", description: "Nur setzen, wenn ein bestehender Standard geändert wird." },
+      },
+      required: ["text", "kadenz", "art", "ziel"],
+    },
+  },
+  {
+    name: "standard_bestaetigen",
+    description:
+      "Hält fest, dass ein Standard heute gehalten wurde, den die App nicht selbst messen kann, " +
+      "etwa Schlafenszeit oder Handy weglegen. Nehmen, wenn der Nutzer das von sich aus sagt oder auf Nachfrage bejaht.",
+    input_schema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Kennung des Standards aus standards_abrufen." },
+        gehalten: { type: "boolean", description: "true wenn gehalten, false wenn nicht." },
+      },
+      required: ["id", "gehalten"],
+    },
+  },
+  {
     name: "gedaechtnis_durchsuchen",
     description:
       "Sucht in frühreren Notizen. Nehmen, wenn der Nutzer sich auf etwas Früheres bezieht " +
