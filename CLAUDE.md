@@ -49,7 +49,13 @@ docs              Architektur, Marke, Roadmap, Geschaeftsmodell
 ## Die App oeffnet mit dem Assistenten
 
 Nicht mit Zahlen. Der Kreis aus dem Logo ist die Oberflaeche, darunter das
-Gespraech, unten die Eingabe. Alles andere liegt im Menue. Wer das aendert,
+Gespraech, unten die Eingabe.
+
+Der Kreis liegt in `apps/pwa/js/orb.js` und laeuft auf Canvas. Er besteht aus
+rund 4100 Partikeln auf 30 Faeden um einen gedachten Schlauch. Die Geometrie
+ist dieselbe wie im Logo. Canvas statt SVG, weil ein paar tausend Punkte pro
+Bild in SVG nicht fluessig laufen. Gemessen: 60 Bilder pro Sekunde bei
+dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das aendert,
 aendert den Kern des Produkts.
 
 Der Assistent hat Werkzeuge und veraendert die App wirklich. Zahlen kommen
