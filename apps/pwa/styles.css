@@ -159,11 +159,14 @@ body { padding-top: env(safe-area-inset-top); }
 /* Koerperfett Schaetzung ueber Silhouetten. */
 .figuren { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .figur {
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
   background: var(--panel); border: 1px solid var(--border); color: var(--text);
-  padding: 10px 6px 9px;
+  padding: 12px 4px 10px;
 }
-.figur svg { width: 100%; height: auto; max-height: 132px; display: block; }
+/* Die Höhe führt, nicht die Breite. Mit width 100 Prozent und max-height
+   passt der Browser das Bild in eine Box, die breiter ist als nötig, und die
+   Figur wird winzig in der Mitte. */
+.figur svg { height: 150px; width: auto; max-width: 100%; display: block; margin: 0 auto; }
 .figur b { font-size: 14px; font-weight: 600; }
 .figur span { font-size: 11.5px; color: var(--muted); line-height: 1.25; text-align: center; }
 .figur.on { border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--accent); }
