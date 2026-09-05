@@ -2,7 +2,9 @@ import { energyBreakdown, uhrzeit, weightTrend } from "@daevo/core";
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE } from "@daevo/coach";
 import { Coach, AnthropicProvider } from "@daevo/coach";
 import {
-  ablaufFuer, ask, buildActions, dayNumbers, einkaufslisteText, ensureStandards, greeting,
+  ablaufFuer, ask, aufgabeAbhaken, aufgabeAnlegen, aufgabeLoeschen, aufgabenPlan, briefing,
+  buildActions, dayNumbers, einkaufslisteText, ensureStandards, greeting, herausforderungSpeichern,
+  mittagscheck, mittagscheckText,
   kalenderEntfernen, kalenderImportieren, kalenderStand, kalenderUebersicht,
   kostenUebersicht, recommendations, standardsUebersicht, tagesErinnerungen, verlaufPunkte,
 } from "./assistant.js";
@@ -345,6 +347,7 @@ function showView(name) {
   if (name === "reflexion") renderMemories();
   if (name === "einkauf") renderEinkauf();
   if (name === "kalender") renderKalender();
+  if (name === "tag") renderTag();
   if (name === "standards") renderStandards();
   if (name === "empfehlungen") renderRecommendations();
   if (name === "profil") renderProfile();
@@ -363,6 +366,7 @@ function refreshAll() {
   if (name === "reflexion") renderMemories();
   if (name === "einkauf") renderEinkauf();
   if (name === "kalender") renderKalender();
+  if (name === "tag") renderTag();
   if (name === "standards") renderStandards();
 }
 
@@ -876,6 +880,130 @@ $("btnWeight").addEventListener("click", async () => {
   const antwort = await buildActions({ onChange: refreshAll }).gewichtEintragen(Math.round(kg * 10) / 10);
   renderWeight();
   toast(antwort.split(".")[0]);
+});
+
+/* ---------- Dein Tag ---------- */
+
+/**
+ * Aufgabenliste und Mittagscheck.
+ *
+ * Die Reihenfolge der Aufgaben kommt aus dem Rechenkern, nicht aus dieser
+ * Datei. Hier wird nur angezeigt und angetippt.
+ */
+function renderTag() {
+  const plan = aufgabenPlan();
+
+  fuelleAufgaben("aufgabenHeute", plan.heute, "Heute steht nichts mehr an.");
+  fuelleAufgaben("aufgabenMorgen", [...plan.morgen, ...plan.spaeter], "Nichts, was warten müsste.");
+  $("aufgabenGrund").textContent = plan.begruendung.join(" ");
+
+  const heute = dayNumbers(todayIso());
+  const schonGemacht = heute.data.checkins.some((c) => c.kind === "midday");
+  $("mittagSub").textContent = schonGemacht
+    ? "Heute schon beantwortet. Du kannst es überschreiben, wenn sich etwas geändert hat."
+    : "Nach dem Mittagessen. Drei Zahlen, danach sage ich dir, ob es am Essen lag.";
+
+  const herausGemacht = heute.data.checkins.find((c) => c.kind === "herausforderung");
+  $("herausHinweis").textContent = herausGemacht
+    ? `Heute schon beantwortet: ${herausGemacht.note}`
+    : "Die Antwort geht an den Coach, der darauf eingeht.";
+}
+
+function fuelleAufgaben(id, aufgaben, leerText) {
+  const el = $(id);
+  el.innerHTML = "";
+  if (aufgaben.length === 0) {
+    el.innerHTML = `<li class="empty">${escapeHtml(leerText)}</li>`;
+    return;
+  }
+  for (const a of aufgaben) {
+    const li = document.createElement("li");
+    const frist = a.faellig ? `, fällig ${a.faellig}` : "";
+    const wichtig = ["nebensächlich", "normal", "wichtig"][a.wichtigkeit - 1] || "normal";
+    li.innerHTML =
+      `<div class="li-main"><div class="li-title">${escapeHtml(a.text)}</div>` +
+      `<div class="li-sub">${a.minuten} Minuten, ${wichtig}${escapeHtml(frist)}</div></div>`;
+    const knoepfe = document.createElement("div");
+    const fertig = document.createElement("button");
+    fertig.className = "ghost";
+    fertig.textContent = "Erledigt";
+    fertig.addEventListener("click", () => {
+      aufgabeAbhaken(a.id);
+      renderTag();
+      toast("Abgehakt");
+    });
+    const weg = document.createElement("button");
+    weg.className = "ghost";
+    weg.textContent = "Weg";
+    weg.addEventListener("click", () => {
+      aufgabeLoeschen(a.id);
+      renderTag();
+    });
+    knoepfe.appendChild(fertig);
+    knoepfe.appendChild(weg);
+    li.appendChild(knoepfe);
+    el.appendChild(li);
+  }
+}
+
+$("btnAufgabe").addEventListener("click", () => {
+  const a = aufgabeAnlegen({
+    text: $("aufgabeText").value,
+    minuten: Number($("aufgabeMin").value) || 30,
+    wichtigkeit: Number($("aufgabeWichtig").value) || 2,
+    faellig: $("aufgabeFrist").value || null,
+  });
+  if (!a) { toast("Schreib kurz, was zu tun ist."); return; }
+  $("aufgabeText").value = "";
+  $("aufgabeFrist").value = "";
+  renderTag();
+  refreshAll();
+  toast("Angelegt");
+});
+
+$("btnBriefingMorgen").addEventListener("click", () => { $("briefingText").textContent = briefing("morgen"); });
+$("btnBriefingAbend").addEventListener("click", () => { $("briefingText").textContent = briefing("abend"); });
+
+$("btnMittag").addEventListener("click", () => {
+  const zahl = (id, min, max) => Math.max(min, Math.min(max, Number($(id).value) || min));
+  const befund = mittagscheck({
+    energie: zahl("mEnergie", 1, 10),
+    konzentration: zahl("mKonz", 1, 10),
+    saettigung: zahl("mSatt", 1, 10),
+  });
+  const text = mittagscheckText(befund);
+  $("mittagBefund").textContent = text;
+  $("mittagBefund").hidden = false;
+  $("btnMittagAlternative").hidden = !befund.auffaellig;
+  renderTag();
+  refreshAll();
+});
+
+/**
+ * Bei schlechten Werten direkt eine bessere Mahlzeit rechnen.
+ *
+ * Der Vorschlag kommt aus derselben Funktion wie sonst, damit die Nährwerte
+ * aus einer Quelle stammen. Der Mittagscheck sagt nur, was sich ändern soll.
+ */
+$("btnMittagAlternative").addEventListener("click", async () => {
+  const button = $("btnMittagAlternative");
+  button.disabled = true;
+  try {
+    const text = await buildActions({ onChange: refreshAll }).mahlzeitVorschlagen("viel Protein, nicht schwer");
+    $("mittagBefund").textContent += `\n\n${text}`;
+  } finally {
+    button.disabled = false;
+  }
+});
+
+$("btnHeraus").addEventListener("click", async () => {
+  const text = $("herausText").value.trim();
+  if (text.length < 3) { toast("Schreib einen Satz."); return; }
+  $("herausText").value = "";
+  herausforderungSpeichern(text);
+  renderTag();
+  showView("assistant");
+  await send(`Meine grösste Herausforderung heute: ${text}. Was würdest du dagegen machen?`);
 });
 
 /* ---------- Kalender ---------- */

@@ -347,6 +347,35 @@ function pruefe(p: {
 }
 
 /**
+ * Was vom Tag noch übrig ist.
+ *
+ * Für die Priorisierung am Nachmittag: wie viel Zeit steht bis zur
+ * Schlafenszeit noch frei, und wie viel war heute schon belegt. Das zweite ist
+ * ein Näherungswert für gearbeitete Zeit. Ein Termin ist nicht immer Arbeit,
+ * aber es ist die einzige Zahl, die die App wirklich hat, und sie steht in
+ * jeder Begründung dabei.
+ */
+export function restDesTages(a: Tagesablauf, jetzt: number): {
+  freieMinuten: number;
+  belegtBisJetzt: number;
+  restMinuten: number;
+} {
+  const bis = a.wachBis;
+  const von = Math.max(a.wachVon, Math.min(jetzt, bis));
+  const frei = a.luecken
+    .map((l) => Math.max(0, Math.min(l.bis, bis) - Math.max(l.von, von)))
+    .reduce((s, ms) => s + ms, 0);
+  const belegt = a.termine
+    .map((t) => Math.max(0, Math.min(t.bis, jetzt) - Math.max(t.von, a.wachVon)))
+    .reduce((s, ms) => s + ms, 0);
+  return {
+    freieMinuten: Math.round(frei / 60000),
+    belegtBisJetzt: Math.round(belegt / 60000),
+    restMinuten: Math.max(0, Math.round((bis - von) / 60000)),
+  };
+}
+
+/**
  * Der Tag in Worten, für den Prompt und für die Anzeige.
  *
  * Bewusst als Text und nicht als Tabelle: der Coach soll daraus reden können,

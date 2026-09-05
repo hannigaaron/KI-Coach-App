@@ -251,6 +251,65 @@ try {
     </div>
   </section>
 
+  <section class="view" data-view="tag" hidden>
+    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Dein Tag</h1><div class="bar-spacer"></div></header>
+    <div class="scroll">
+      <p class="sub">Morgens der Plan, mittags die Kontrolle, abends der Abschluss. Alles gerechnet aus deinen Zahlen.</p>
+
+      <div class="quick">
+        <button id="btnBriefingMorgen" class="chip">Morgenbriefing</button>
+        <button id="btnBriefingAbend" class="chip">Tagesabschluss</button>
+      </div>
+      <pre class="pre" id="briefingText" style="margin-top:14px">Tippe oben auf einen der beiden.</pre>
+
+      <h2 class="section-title">Mittags Check-in</h2>
+      <p class="sub" id="mittagSub">Nach dem Mittagessen. Drei Zahlen, danach sage ich dir, ob es am Essen lag.</p>
+      <div class="field-row">
+        <div class="field"><label for="mEnergie">Energie 1 bis 10</label>
+          <input id="mEnergie" type="number" inputmode="numeric" min="1" max="10" value="7"></div>
+        <div class="field"><label for="mKonz">Konzentration 1 bis 10</label>
+          <input id="mKonz" type="number" inputmode="numeric" min="1" max="10" value="7"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label for="mSatt">Sättigung 1 hungrig, 10 übervoll</label>
+          <input id="mSatt" type="number" inputmode="numeric" min="1" max="10" value="5"></div>
+        <div class="field"><label for="btnMittag">&nbsp;</label>
+          <button id="btnMittag" class="primary" style="width:100%">Auswerten</button></div>
+      </div>
+      <pre class="pre" id="mittagBefund" hidden></pre>
+      <button id="btnMittagAlternative" class="ghost" hidden>Bessere Mahlzeit vorschlagen</button>
+
+      <h2 class="section-title">Grösste Herausforderung heute</h2>
+      <div class="field"><label for="herausText">Was war bisher am schwersten</label>
+        <textarea id="herausText" rows="2" placeholder="Zum Beispiel: drei Absagen hintereinander"></textarea></div>
+      <button id="btnHeraus" class="ghost">Antwort holen</button>
+      <p class="fineprint" id="herausHinweis"></p>
+
+      <h2 class="section-title">Aufgaben</h2>
+      <div class="field-row">
+        <div class="field"><label for="aufgabeText">Was ist zu tun</label><input id="aufgabeText" type="text" placeholder="Angebot für Anna schreiben"></div>
+        <div class="field"><label for="aufgabeMin">Minuten</label>
+          <input id="aufgabeMin" type="number" inputmode="numeric" min="5" max="480" value="30"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label for="aufgabeWichtig">Wichtigkeit</label>
+          <select id="aufgabeWichtig">
+            <option value="1">1 nebensächlich</option>
+            <option value="2" selected>2 normal</option>
+            <option value="3">3 wichtig</option>
+          </select></div>
+        <div class="field"><label for="aufgabeFrist">Fällig bis</label><input id="aufgabeFrist" type="date"></div>
+      </div>
+      <button id="btnAufgabe" class="primary">Aufgabe anlegen</button>
+
+      <h2 class="section-title">Heute noch</h2>
+      <ul class="list" id="aufgabenHeute"></ul>
+      <h2 class="section-title">Kann bis morgen warten</h2>
+      <ul class="list" id="aufgabenMorgen"></ul>
+      <p class="fineprint" id="aufgabenGrund"></p>
+    </div>
+  </section>
+
   <section class="view" data-view="kalender" hidden>
     <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Kalender</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
@@ -429,6 +488,7 @@ try {
     <button class="menu-item" data-go="essen"><b>Essen</b><span>Erfassen, Vorrat, Vorschläge</span></button>
     <button class="menu-item" data-go="checkin"><b>Check-in</b><span>Energie, Schlaf, Stimmung</span></button>
     <button class="menu-item" data-go="einkauf"><b>Einkaufen</b><span>Liste aus deinen Zielen</span></button>
+    <button class="menu-item" data-go="tag"><b>Dein Tag</b><span>Briefing, Mittagscheck, Aufgaben</span></button>
     <button class="menu-item" data-go="kalender"><b>Kalender</b><span>Dein Tag, deine Lücken, deine Mahlzeiten</span></button>
     <button class="menu-item" data-go="standards"><b>Mindeststandards</b><span>Deine Untergrenze, jede Woche</span></button>
     <button class="menu-item" data-go="reflexion"><b>Gedächtnis</b><span>Was daevo über dich weiß</span></button>

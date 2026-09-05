@@ -134,7 +134,7 @@ test("Erinnerungen richten sich nach dem Trainingstag", async () => {
   assert.equal(res.status, 200);
   const kinds = res.body.reminders.map((r: { kind: string }) => r.kind);
   assert.ok(kinds.includes("morning_checkin"));
-  assert.ok(res.body.reminders.length <= 6);
+  assert.ok(res.body.reminders.length <= 8);
 });
 
 test("Kühlschrank lässt sich setzen und lesen", async () => {

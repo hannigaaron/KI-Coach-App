@@ -147,6 +147,21 @@ export const store = {
     write("shopping", liste);
   },
 
+  /**
+   * Aufgaben.
+   *
+   * Bewusst getrennt von den Tagesdaten: eine Aufgabe gehört keinem Tag, sie
+   * wandert mit, bis sie erledigt ist. Erledigtes bleibt 30 Tage liegen, damit
+   * der Abschluss am Abend sagen kann, was geschafft wurde.
+   */
+  getAufgaben() {
+    return read("aufgaben", []);
+  },
+  setAufgaben(aufgaben) {
+    const grenze = new Date(Date.now() - 30 * 86400000).toISOString();
+    write("aufgaben", aufgaben.filter((a) => !a.erledigt || (a.erledigtAm || a.erstellt) > grenze).slice(0, 300));
+  },
+
   getStandards() {
     return read("standards", []);
   },
@@ -240,6 +255,7 @@ export const store = {
     out.fridge = this.getFridge();
     out.shopping = this.getShoppingList();
     out.kalender = this.getKalender();
+    out.aufgaben = this.getAufgaben();
     out.standards = this.getStandards();
     out.memories = this.getMemories();
     out.chat = this.getChat();

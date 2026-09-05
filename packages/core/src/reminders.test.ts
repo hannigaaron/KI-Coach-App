@@ -23,9 +23,35 @@ const emptyState: DayState = {
   eveningReviewDone: false,
 };
 
-test("nie mehr als sechs Erinnerungen pro Tag", () => {
+test("nie mehr als acht Erinnerungen pro Tag", () => {
+  // Acht statt sechs, seit der Mittagsblock dazugekommen ist. Mehr wird nicht
+  // angezeigt: ab einer bestimmten Zahl wischt man alles weg.
   const r = buildDailyReminders({ profile, weekday: 1, state: emptyState });
-  assert.ok(r.length <= 6, `zu viele: ${r.length}`);
+  assert.ok(r.length <= 8, `zu viele: ${r.length}`);
+});
+
+test("der Mittagsblock steht um 14:00, 14:30 und 15:00", () => {
+  const r = buildDailyReminders({
+    profile, weekday: 1,
+    state: { ...emptyState, offeneAufgaben: 3 },
+  });
+  assert.equal(r.find((x) => x.kind === "midday_meal")?.at, "14:00");
+  assert.equal(r.find((x) => x.kind === "midday_challenge")?.at, "14:30");
+  assert.equal(r.find((x) => x.kind === "midday_priorities")?.at, "15:00");
+});
+
+test("ohne offene Aufgaben gibt es keine Prioritätenfrage", () => {
+  const r = buildDailyReminders({ profile, weekday: 1, state: { ...emptyState, offeneAufgaben: 0 } });
+  assert.equal(r.some((x) => x.kind === "midday_priorities"), false);
+});
+
+test("ein beantworteter Mittags Check-in erinnert nicht noch einmal", () => {
+  const r = buildDailyReminders({
+    profile, weekday: 1,
+    state: { ...emptyState, middayCheckinDone: true, middayChallengeDone: true },
+  });
+  assert.equal(r.some((x) => x.kind === "midday_meal"), false);
+  assert.equal(r.some((x) => x.kind === "midday_challenge"), false);
 });
 
 test("Erinnerungen sind zeitlich sortiert", () => {

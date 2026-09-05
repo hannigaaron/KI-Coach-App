@@ -66,6 +66,13 @@ export const AGENT_TOOLS: ToolDefinition[] = [
         schlaf: { type: "number", description: "1 bis 10, weglassen wenn unbekannt." },
         stimmung: { type: "number", description: "1 bis 10, weglassen wenn unbekannt." },
         notiz: { type: "string", description: "Was der Nutzer gesagt hat, kurz gefasst." },
+        herausforderung: {
+          type: "string",
+          description:
+            "Die grösste Herausforderung des Tages, wenn er sie nennt. Wird getrennt gespeichert, " +
+            "damit die Frage am Nachmittag nicht noch einmal kommt. " +
+            "Nennt er eine, gehst du danach darauf ein und schlägst genau eine Sache vor, die hilft.",
+        },
       },
       required: ["notiz"],
     },
@@ -166,6 +173,77 @@ export const AGENT_TOOLS: ToolDefinition[] = [
       properties: {
         tag: { type: "string", description: "Datum als JJJJ-MM-TT. Ohne Angabe heute." },
       },
+    },
+  },
+  {
+    name: "aufgabe_anlegen",
+    description:
+      "Legt eine Aufgabe an. Nehmen, sobald der Nutzer sagt, dass er etwas zu tun hat, etwas vergessen " +
+      "könnte oder sich etwas vornimmt. Auch nebenbei genannt, etwa ich muss noch das Angebot schreiben. " +
+      "Nicht nehmen für Dinge, die er gerade erledigt hat, und nicht für Termine mit Uhrzeit, " +
+      "die gehören in den Kalender.",
+    input_schema: {
+      type: "object",
+      properties: {
+        text: { type: "string", description: "Was zu tun ist, in seinen Worten, als Handlung formuliert." },
+        minuten: { type: "number", description: "Geschätzter Aufwand in Minuten, 5 bis 480. Ohne Angabe 30." },
+        faellig: { type: "string", description: "Frist als JJJJ-MM-TT. Weglassen, wenn es keine gibt." },
+        wichtigkeit: { type: "number", description: "1 nebensächlich, 2 normal, 3 wichtig. Ohne Angabe 2." },
+      },
+      required: ["text"],
+    },
+  },
+  {
+    name: "aufgabe_abhaken",
+    description: "Hakt eine Aufgabe ab. Nehmen, wenn der Nutzer sagt, dass er etwas erledigt hat.",
+    input_schema: {
+      type: "object",
+      properties: {
+        text: { type: "string", description: "Die Aufgabe, so wie er sie nennt. Wird über Wortähnlichkeit gefunden." },
+      },
+      required: ["text"],
+    },
+  },
+  {
+    name: "aufgaben_priorisieren",
+    description:
+      "Sortiert die offenen Aufgaben nach Frist und Wichtigkeit, legt sie in die Zeit, die laut Kalender " +
+      "heute noch frei ist, und sagt, was bis morgen warten kann. " +
+      "Nehmen, wenn der Nutzer fragt, was er zuerst machen soll, wenn er sich überfordert fühlt, " +
+      "wenn er nach seinem Rest des Tages fragt, und immer am Nachmittag. " +
+      "Die Aufteilung aus dieser Antwort übernimmst du, du sortierst nicht selbst um.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "mittagscheck_speichern",
+    description:
+      "Hält den Mittags Check-in fest: Energie, Konzentration und Sättigung nach dem Essen, je 1 bis 10. " +
+      "Liefert zurück, was die Zahlen im Zusammenhang mit der erfassten Mahlzeit bedeuten und was an der " +
+      "nächsten Mahlzeit anders sein sollte, in Gramm. " +
+      "Nehmen, sobald der Nutzer nach dem Mittag sagt, wie es ihm geht. " +
+      "Sind die Werte schlecht, schlägst du danach mit mahlzeit_vorschlagen eine konkrete Alternative vor.",
+    input_schema: {
+      type: "object",
+      properties: {
+        energie: { type: "number", description: "1 bis 10." },
+        konzentration: { type: "number", description: "1 bis 10." },
+        saettigung: { type: "number", description: "1 hungrig, 5 angenehm, 10 übervoll." },
+        notiz: { type: "string", description: "Was er sonst dazu gesagt hat." },
+      },
+      required: ["energie", "konzentration", "saettigung"],
+    },
+  },
+  {
+    name: "briefing_erstellen",
+    description:
+      "Baut das Morgenbriefing oder den Tagesabschluss aus Kalender, Zielen, Aufgaben und Mindeststandards. " +
+      "Nehmen, wenn der Nutzer morgens fragt, wie sein Tag aussieht, oder abends den Tag abschliessen will.",
+    input_schema: {
+      type: "object",
+      properties: {
+        art: { type: "string", enum: ["morgen", "abend"], description: "Welcher der beiden Texte." },
+      },
+      required: ["art"],
     },
   },
   {

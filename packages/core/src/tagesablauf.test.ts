@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { tagesablauf, tagesablaufText, wochenText } from "./tagesablauf.js";
+import { restDesTages, tagesablauf, tagesablaufText, wochenText } from "./tagesablauf.js";
 import type { Termin } from "./ical.js";
 import type { MacroTargets, UserProfile } from "./types.js";
 
@@ -140,4 +140,22 @@ test("ein leerer Tag steht als leer da, nicht als null Termine", () => {
   const text = wochenText([lauf([])]);
   assert.ok(text.includes("nichts im Kalender"));
   assert.equal(text.includes("0 Termine"), false);
+});
+
+test("der Rest des Tages rechnet ab jetzt, nicht ab dem Aufstehen", () => {
+  const a = lauf([t("09:00", "12:00", "Kunden"), t("16:00", "17:00", "Kunde")]);
+  const jetzt = new Date(`${TAG}T13:00:00`).getTime();
+  const rest = restDesTages(a, jetzt);
+  // 13:00 bis 23:00 sind 600 Minuten, davon eine Stunde belegt.
+  assert.equal(rest.restMinuten, 600);
+  assert.equal(rest.freieMinuten, 540);
+  // Bis 13 Uhr waren die drei Stunden Kunden belegt.
+  assert.equal(rest.belegtBisJetzt, 180);
+});
+
+test("nach der Schlafenszeit ist nichts mehr frei", () => {
+  const a = lauf([]);
+  const rest = restDesTages(a, new Date(`${TAG}T23:59:00`).getTime());
+  assert.equal(rest.freieMinuten, 0);
+  assert.equal(rest.restMinuten, 0);
 });

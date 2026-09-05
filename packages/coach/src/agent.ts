@@ -35,7 +35,9 @@ export interface AgentActions {
   wasserEintragen(ml: number): Promise<string>;
   tagesstandAbrufen(): Promise<string>;
   mahlzeitVorschlagen(wunsch?: string): Promise<string>;
-  checkinSpeichern(input: { energie?: number; schlaf?: number; stimmung?: number; notiz: string }): Promise<string>;
+  checkinSpeichern(input: {
+    energie?: number; schlaf?: number; stimmung?: number; notiz: string; herausforderung?: string;
+  }): Promise<string>;
   merken(input: { text: string; art: string; wichtigkeit: number; schlagworte?: string[] }): Promise<string>;
   gedaechtnisDurchsuchen(frage: string): Promise<string>;
   einkaufslisteErstellen(input: { tage?: number; meiden?: string[] }): Promise<string>;
@@ -46,6 +48,13 @@ export interface AgentActions {
   standardBestaetigen(input: { id: string; gehalten: boolean }): Promise<string>;
   verlaufAbrufen(input: { tage?: number }): Promise<string>;
   kalenderAbrufen(input: { tage?: number }): Promise<string>;
+  aufgabeAnlegen(input: { text: string; minuten?: number; faellig?: string; wichtigkeit?: number }): Promise<string>;
+  aufgabeAbhaken(input: { text: string }): Promise<string>;
+  aufgabenPriorisieren(): Promise<string>;
+  mittagscheckSpeichern(input: {
+    energie: number; konzentration: number; saettigung: number; notiz?: string;
+  }): Promise<string>;
+  briefingErstellen(input: { art: "morgen" | "abend" }): Promise<string>;
   tagesablaufPlanen(input: { tag?: string }): Promise<string>;
   gewichtEintragen(kg: number): Promise<string>;
   trainingEintragen(input: { art: string; minuten: number; notiz?: string }): Promise<string>;
@@ -359,6 +368,7 @@ async function execute(
           schlaf: optionalScore(input.schlaf),
           stimmung: optionalScore(input.stimmung),
           notiz: String(input.notiz ?? ""),
+          herausforderung: typeof input.herausforderung === "string" ? input.herausforderung : undefined,
         });
         return { text, notiz: "Check-in gespeichert" };
       }
@@ -384,6 +394,41 @@ async function execute(
       case "tagesablauf_planen": {
         const tag = typeof input.tag === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.tag) ? input.tag : undefined;
         return { text: await actions.tagesablaufPlanen({ tag }) };
+      }
+      case "aufgabe_anlegen": {
+        const text = String(input.text ?? "").trim();
+        if (!text) return { text: "Ohne Text keine Aufgabe.", fehler: true };
+        const antwort = await actions.aufgabeAnlegen({
+          text,
+          minuten: Number.isFinite(Number(input.minuten)) ? clamp(Number(input.minuten), 5, 480) : undefined,
+          faellig: typeof input.faellig === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.faellig) ? input.faellig : undefined,
+          wichtigkeit: Number.isFinite(Number(input.wichtigkeit)) ? clamp(Number(input.wichtigkeit), 1, 3) : undefined,
+        });
+        return { text: antwort, notiz: "Aufgabe angelegt" };
+      }
+      case "aufgabe_abhaken": {
+        const text = String(input.text ?? "").trim();
+        if (!text) return { text: "Welche Aufgabe?", fehler: true };
+        return { text: await actions.aufgabeAbhaken({ text }), notiz: "Aufgabe abgehakt" };
+      }
+      case "aufgaben_priorisieren":
+        return { text: await actions.aufgabenPriorisieren() };
+      case "mittagscheck_speichern": {
+        const wert = (roh: unknown) => clamp(Number(roh), 1, 10);
+        if (![input.energie, input.konzentration, input.saettigung].every((x) => Number.isFinite(Number(x)))) {
+          return { text: "Energie, Konzentration und Sättigung brauche ich als Zahl von 1 bis 10.", fehler: true };
+        }
+        const antwort = await actions.mittagscheckSpeichern({
+          energie: wert(input.energie),
+          konzentration: wert(input.konzentration),
+          saettigung: wert(input.saettigung),
+          notiz: typeof input.notiz === "string" ? input.notiz : undefined,
+        });
+        return { text: antwort, notiz: "Mittags Check-in gespeichert" };
+      }
+      case "briefing_erstellen": {
+        const art = input.art === "abend" ? "abend" : "morgen";
+        return { text: await actions.briefingErstellen({ art }) };
       }
       case "gewicht_eintragen": {
         const kg = Number(input.kg);
@@ -599,6 +644,32 @@ export async function runOffline(
 
   if (pattern("kalender", "termine", "diese woche", "nächste woche", "naechste woche", "wochenplan").test(text)) {
     return { text: await actions.kalenderAbrufen({}), ausgeführt, source: "offline" };
+  }
+
+  // Aufgaben und Prioritäten. Auch das läuft ohne Modell, weil die
+  // Reihenfolge aus Fristen und Zahlen kommt, nicht aus Sprachverständnis.
+  if (pattern("was zuerst", "womit anfangen", "priorit", "reihenfolge", "was mache ich (jetzt|zuerst)",
+    "rest des tages", "schaffe ich heute", "was kann warten", "to do", "todo", "aufgabenliste").test(text)) {
+    return { text: await actions.aufgabenPriorisieren(), ausgeführt, source: "offline" };
+  }
+
+  if (pattern("ich muss noch", "nicht vergessen zu", "steht noch an", "auf die liste", "erinnere mich daran",
+    "aufgabe").test(text)) {
+    const inhalt = nachricht
+      .replace(/^.*?(ich muss noch|nicht vergessen zu|steht noch an|auf die liste|erinnere mich daran|aufgabe)\s*,?\s*/i, "")
+      .trim();
+    if (inhalt.length >= 3) {
+      const antwort = await actions.aufgabeAnlegen({ text: inhalt });
+      return { text: antwort, ausgeführt: ["Aufgabe angelegt"], source: "offline" };
+    }
+  }
+
+  if (pattern("morgenbriefing", "wie sieht mein tag", "was steht heute an", "guten morgen").test(text)) {
+    return { text: await actions.briefingErstellen({ art: "morgen" }), ausgeführt, source: "offline" };
+  }
+
+  if (pattern("tagesabschluss", "tag abschliessen", "tag abschließen", "gute nacht", "feierabend").test(text)) {
+    return { text: await actions.briefingErstellen({ art: "abend" }), ausgeführt, source: "offline" };
   }
 
   if (pattern("einkaufsliste", "einkaufen", "einkauf", "supermarkt", "was muss ich kaufen", "besorgen").test(text)) {
