@@ -6,6 +6,8 @@ import {
   type ConverseResponse,
   anhangBlock,
   type JsonRequest,
+  type SystemBlockParam,
+  type Verbrauch,
 } from "./provider.js";
 
 const API_URL = "https://api.anthropic.com/v1/messages";
@@ -23,6 +25,12 @@ export interface AnthropicOptions {
    * vertretbar, für eine öffentliche App nicht.
    */
   browserAccess?: boolean;
+  /**
+   * Wird nach jedem Aufruf mit dem Verbrauch gerufen. Die App zählt damit
+   * mit, was ein Tag gekostet hat. Ohne diese Meldung wüsste niemand, ob das
+   * Zwischenspeichern überhaupt greift.
+   */
+  onVerbrauch?: (verbrauch: Verbrauch) => void;
 }
 
 /**
@@ -56,6 +64,42 @@ export class AnthropicProvider implements CoachProvider {
       "anthropic-version": API_VERSION,
       ...(this.options.browserAccess ? { "anthropic-dangerous-direct-browser-access": "true" } : {}),
     };
+  }
+
+  /**
+   * Baut den Systemprompt für die API.
+   *
+   * Eine Zeichenkette bleibt eine Zeichenkette. Blöcke werden zu Textblöcken,
+   * und der als `cache` markierte bekommt die Marke fürs Zwischenspeichern.
+   * Die API rendert in der Reihenfolge tools, system, messages. Eine Marke im
+   * System deckt deshalb auch alle Werkzeugbeschreibungen mit ab.
+   */
+  private systemFeld(system: string | SystemBlockParam[]): unknown {
+    if (typeof system === "string") return system;
+    return system.map((block) => ({
+      type: "text",
+      text: block.text,
+      // Fünf Minuten, nicht eine Stunde. Wer innerhalb eines Gesprächs
+      // antwortet, liegt fast immer unter fünf Minuten, und die Stunde kostet
+      // beim Schreiben das Doppelte statt das 1,25 fache.
+      ...(block.cache ? { cache_control: { type: "ephemeral" } } : {}),
+    }));
+  }
+
+  /** Liest den Verbrauch aus einer Antwort und meldet ihn. */
+  private meldeVerbrauch(payload: unknown): Verbrauch | undefined {
+    const usage = (payload as { usage?: Record<string, unknown> })?.usage;
+    if (!usage) return undefined;
+    const zahl = (wert: unknown) => (Number.isFinite(Number(wert)) ? Number(wert) : 0);
+    const verbrauch: Verbrauch = {
+      inputTokens: zahl(usage.input_tokens),
+      outputTokens: zahl(usage.output_tokens),
+      cacheReadTokens: zahl(usage.cache_read_input_tokens),
+      cacheWriteTokens: zahl(usage.cache_creation_input_tokens),
+      modell: this.options.model,
+    };
+    this.options.onVerbrauch?.(verbrauch);
+    return verbrauch;
   }
 
   private async post(body: unknown, timeoutMs: number): Promise<unknown> {
@@ -100,14 +144,18 @@ export class AnthropicProvider implements CoachProvider {
       {
         model: this.options.model,
         max_tokens: request.maxTokens ?? 2048,
-        system: request.system,
+        system: this.systemFeld(request.system),
         messages: request.messages,
         tools: request.tools,
         output_config: { effort: request.effort ?? "medium" },
       },
       this.options.timeoutMs ?? 90000,
     )) as { content?: ContentBlock[]; stop_reason?: string };
-    return { content: payload.content ?? [], stopReason: payload.stop_reason ?? "end_turn" };
+    return {
+      content: payload.content ?? [],
+      stopReason: payload.stop_reason ?? "end_turn",
+      verbrauch: this.meldeVerbrauch(payload),
+    };
   }
 
   async generateJson<T>(request: JsonRequest): Promise<T> {
@@ -129,7 +177,9 @@ export class AnthropicProvider implements CoachProvider {
         body: JSON.stringify({
           model: this.options.model,
           max_tokens: request.maxTokens ?? 2048,
-          system: request.system,
+          // Auch hier cachen. Der Prompt fuers Auswerten eines Tellers ist
+          // lang und bei jedem Foto derselbe.
+          system: [{ type: "text", text: request.system, cache_control: { type: "ephemeral" } }],
           // Anhänge stehen vor dem Text. Das Modell sieht sonst die Frage,
           // bevor es das Bild kennt, und beginnt zu raten.
           messages: [{
@@ -157,6 +207,7 @@ export class AnthropicProvider implements CoachProvider {
       const payload = (await response.json()) as {
         content?: Array<{ type: string; name?: string; input?: unknown }>;
       };
+      this.meldeVerbrauch(payload);
       const toolUse = payload.content?.find((block) => block.type === "tool_use");
       if (!toolUse?.input) throw new Error("Antwort enthält keinen Tool Call");
       return toolUse.input as T;

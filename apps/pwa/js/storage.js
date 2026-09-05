@@ -136,7 +136,10 @@ export const store = {
   },
 
   getDay(day) {
-    return read(`day.${day}`, { meals: [], waterMl: 0, checkins: [], steps: 0, standards: {}, weightKg: null, trainings: [] });
+    return read(`day.${day}`, {
+      meals: [], waterMl: 0, checkins: [], steps: 0, standards: {},
+      weightKg: null, trainings: [], verbrauch: null,
+    });
   },
   setDay(day, data) {
     write(`day.${day}`, data);
@@ -177,6 +180,18 @@ export const store = {
   setStandardConfirmed(day, id, gehalten) {
     const data = this.getDay(day);
     data.standards = { ...(data.standards || {}), [id]: Boolean(gehalten) };
+    this.setDay(day, data);
+  },
+
+  /**
+   * Zählt einen Modellaufruf zum Tagesverbrauch dazu.
+   *
+   * Liegt beim Tag, nicht global, damit sich Verlauf und Hochrechnung ohne
+   * eigene Buchführung ergeben. Wer alles löscht, löscht auch das mit.
+   */
+  addVerbrauch(day, summe) {
+    const data = this.getDay(day);
+    data.verbrauch = summe;
     this.setDay(day, data);
   },
 

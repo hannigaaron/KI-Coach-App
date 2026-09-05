@@ -14,7 +14,7 @@ die Datenschutzanforderungen und die Nährwertdatenbank.
 - API mit Konto, Profil, Mahlzeiten, Wasser, Check-ins, Kühlschrank, Health Import
 - Scheduler mit Sperre gegen Doppelversand
 - Testkonsole im Browser mit Spracheingabe
-- 161 automatisierte Tests
+- 184 automatisierte Tests
 
 ## Milestone 2: Installierbare Web App (fertig)
 
@@ -179,7 +179,61 @@ einzige Anfrage gestellt wurde, und fiel still auf den Regelpfad zurück. In
 Node fiel das nicht auf. Der Fehler ist behoben und durch einen Test gedeckt,
 der mit einem strengen `this` prüft.
 
-## Milestone 8: Native App
+## Milestone 8: Kosten (fertig)
+
+Gemessen, nicht geschätzt: eine Nachricht schickt 19.000 bis 21.000 Zeichen an
+das Modell. Davon sind rund 10.000 die Beschreibungen der neunzehn Werkzeuge
+und 6.700 der feste Teil der Persona. Diese knapp 17.000 Zeichen ändern sich
+zwischen zwei Nachrichten nie und wurden trotzdem jedes Mal voll bezahlt.
+
+### Zwischenspeichern
+
+Der Systemprompt kommt jetzt in zwei Blöcken. Der erste trägt Grundhaltung,
+Schreibstil, Werkzeugregeln und Grenzen und ist byteweise immer gleich. Er
+bekommt die Marke fürs Zwischenspeichern. Der zweite trägt den Modus, die
+Uhrzeit, die Zahlen des Tages und das Gedächtnis und wechselt bei jeder
+Nachricht.
+
+Der Modus liegt bewusst im zweiten Block, obwohl er Haltung beschreibt. Er
+wechselt je nach Nachricht, und ein Wechsel im ersten Block würde den ganzen
+Speicher verwerfen. Ein paar hundert Token neu zu bezahlen ist billiger, als
+fünftausend neu zu schreiben.
+
+Die API rendert in der Reihenfolge Werkzeuge, System, Nachrichten. Eine Marke
+im System deckt deshalb die Werkzeugbeschreibungen mit ab.
+
+Fünf Minuten Haltbarkeit, nicht eine Stunde. Wer innerhalb eines Gesprächs
+antwortet, liegt fast immer darunter, und die Stunde kostet beim Schreiben das
+Doppelte statt das 1,25 fache. Ab dem zweiten Aufruf mit demselben Anfang
+rechnet es sich: 1,25 plus 0,1 gegen 2,0.
+
+### Kostenanzeige
+
+Jeder Aufruf meldet seinen Verbrauch. Die App zählt ihn je Tag und zeigt im
+Profil: heute, letzte 30 Tage, Hochrechnung auf den Monat, Anteil aus dem
+Zwischenspeicher und was dadurch gespart wurde.
+
+Der Anteil aus dem Zwischenspeicher ist der wichtigste Wert. Ein
+Zwischenspeicher, der still ausfällt, erzeugt keine Fehlermeldung, nur eine
+höhere Rechnung. Steht die Quote über Tage bei null, hat sich etwas im vorderen
+Teil des Prompts geändert.
+
+Die Preistabelle steht in `packages/coach/src/kosten.ts` mit dem Stand als
+Datum. Ein unbekanntes Modell wird mit dem teuersten gerechnet, lieber zu viel
+schätzen als eine Ueberraschung auf der Rechnung.
+
+### Was noch offen ist
+
+Der Schlüssel liegt im Browser des Nutzers. Für eigene Tests geht das, für den
+App Store nicht: jeder kann ihn auslesen und auf fremde Rechnung Anfragen
+stellen. Vor der Veröffentlichung muss ein eigener Server dazwischen, der den
+Schlüssel hält, Limits je Nutzer durchsetzt und mitzählt.
+
+Ein zweiter Hebel liegt bereit, ist aber nicht gebaut: die Modus Erkennung
+könnte auch das Modell wählen. Erfassen auf Haiku, Fachfragen auf Sonnet,
+persönliche Gespräche und Fotos auf Opus.
+
+## Milestone 9: Native App
 
 Nötig für die zwei Dinge, die eine Web App auf dem iPhone nicht kann.
 
@@ -207,7 +261,7 @@ Erst mit HealthKit sinnvoll, deshalb hier und nicht früher:
   als Wirkversprechen. Das ist auch die Grenze, die der App Store zieht:
   Aussagen zu Diagnose oder Therapie machen die App zum Medizinprodukt.
 
-## Milestone 9: Datenqualität
+## Milestone 10: Datenqualität
 
 - Anbindung Open Food Facts inklusive Barcode Scanner
 - kuratierte Liste der 300 häufigsten Lebensmittel ohne Modellaufruf
@@ -215,7 +269,7 @@ Erst mit HealthKit sinnvoll, deshalb hier und nicht früher:
 - Gedächtnis auf Einbettungen umstellen, wenn die Wortsuche an Grenzen stösst
 - Nachjustierung des Kalorienbedarfs über den Vier Wochen Gewichtsverlauf
 
-## Milestone 10: Marktreife
+## Milestone 11: Marktreife
 
 - **Bildrechte für die Körperfiguren klären.** Die acht Figuren in
   `apps/pwa/img/koerperfett` stammen aus einer fremden Vergleichsreihe. Für den
@@ -230,7 +284,7 @@ Erst mit HealthKit sinnvoll, deshalb hier und nicht früher:
 - Datenschutzerklärung und Nutzungsbedingungen von einem Anwalt prüfen lassen
 - App Store Review, Puffer von vier Wochen einplanen
 
-## Milestone 11: Hebel
+## Milestone 12: Hebel
 
 - Trainerkonten: ein Coach betreut mehrere Kunden über die App
 - Whitelabel für Studios

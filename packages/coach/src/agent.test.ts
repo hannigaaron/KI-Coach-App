@@ -102,7 +102,9 @@ test("das Werkzeugergebnis wird dem Modell zurückgereicht", async () => {
 test("Kontext landet im Systemprompt", async () => {
   const provider = new ScriptedProvider([{ content: text("ok"), stopReason: "end_turn" }]);
   await new Agent(provider).respond({ nachricht: "Hi", verlauf: LEER, kontext: KONTEXT, aktionen: stubActions([]) });
-  const system = provider.seen[0]!.system;
+  // Der Prompt kommt jetzt in Bloecken. Fuer die Pruefung wieder zusammensetzen.
+  const roh = provider.seen[0]!.system;
+  const system = typeof roh === "string" ? roh : roh.map((b) => b.text).join("\n");
   assert.match(system, /Aaron, 23/);
   assert.match(system, /Donnerstag 12:00/);
   assert.match(system, /Zahlen über diesen Nutzer kommen aus den Werkzeugen/);
