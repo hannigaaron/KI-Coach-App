@@ -37,11 +37,19 @@ export const brain = {
    * Baut den Gedächtnisblock für den Systemprompt.
    * Die wichtigsten Notizen kommen immer mit, dazu das, was zur Frage passt.
    */
-  contextFor(query) {
+  /**
+   * Was der Coach über den Nutzer wissen muss, passend zur Frage.
+   *
+   * `anzahl` begrenzt, wie viele Notizen mitgehen. Beim reinen Erfassen einer
+   * Mahlzeit braucht niemand zehn Notizen über Familie und Ziele im Prompt.
+   * Die kosten dort nur Geld und lenken das Modell von der Menge ab.
+   */
+  contextFor(query, anzahl = 10) {
     const entries = store.getMemories();
     if (entries.length === 0) return "Noch keine Notizen über diesen Nutzer.";
-    const relevant = searchMemories(entries, query, { limit: 6 }).map((h) => h.entry);
-    const core = coreMemories(entries, 6);
+    const halbe = Math.max(2, Math.ceil(anzahl * 0.6));
+    const relevant = searchMemories(entries, query, { limit: halbe }).map((h) => h.entry);
+    const core = coreMemories(entries, halbe);
     const seen = new Set();
     const merged = [];
     for (const entry of [...relevant, ...core]) {
@@ -49,6 +57,6 @@ export const brain = {
       seen.add(entry.id);
       merged.push(entry);
     }
-    return memoriesToPrompt(merged.slice(0, 10));
+    return memoriesToPrompt(merged.slice(0, anzahl));
   },
 };

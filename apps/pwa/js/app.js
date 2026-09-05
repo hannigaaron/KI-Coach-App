@@ -237,8 +237,20 @@ async function send(text) {
   orb.setState("thinking");
   setStatus("denkt nach");
 
+  // Der Text läuft in die Blase, während er geschrieben wird. Ein Stück Text
+  // ist ein Anhängen, null heisst: alles bisherige war ein Zwischenschritt und
+  // wird verworfen.
+  let laufend = "";
+  const onStrom = (stueck) => {
+    if (stueck === null) { laufend = ""; pending.textContent = "denkt nach"; return; }
+    laufend += stueck;
+    pending.classList.remove("pending");
+    pending.textContent = laufend;
+    $("transcript").scrollTop = $("transcript").scrollHeight;
+  };
+
   try {
-    const reply = await ask(frage, { onChange: refreshAll, anhaenge: gesendet });
+    const reply = await ask(frage, { onChange: refreshAll, anhaenge: gesendet, onStrom });
     pending.remove();
     renderTranscript();
     refreshAll();
@@ -555,6 +567,8 @@ function renderProfile() {
   const settings = store.getSettings();
   $("apiKey").value = settings.apiKey || "";
   renderModellwahl(settings.modellWahl || "auto");
+  $("optGruendlich").checked = Boolean(settings.immerGruendlich);
+  renderGruendlich(Boolean(settings.immerGruendlich));
   $("themeSel").value = settings.theme || "system";
   $("anweisungen").value = settings.anweisungen || "";
   zeigeAnweisungsLaenge();
@@ -608,6 +622,29 @@ function renderModellwahl(aktuell) {
       "Automatisch ist in fast allen Fällen günstiger, ohne dass die Antworten schlechter werden, wo es zählt.";
   }
 }
+
+/**
+ * Der Schalter für die Denktiefe.
+ *
+ * Persönliche Themen und Planung laufen ohnehin immer auf der höchsten Stufe.
+ * Alles andere läuft auf mittel oder niedrig, weil Anthropic für Wissensarbeit
+ * angibt, dass mittlere Denktiefe die Genauigkeit der Voreinstellung bei 70
+ * bis 85 Prozent der Kosten erreicht, und dabei schneller antwortet. Das ist
+ * eine veröffentlichte Angabe und keine Messung an deinen Daten. Wer sie nicht
+ * gelten lassen will, schaltet hier um.
+ */
+function renderGruendlich(an) {
+  $("gruendlichNote").textContent = an
+    ? "Jede Nachricht läuft auf der höchsten Denkstufe. Antworten dauern länger und kosten mehr, auch beim reinen Eintragen."
+    : "Persönliche Themen und Planung denken immer auf der höchsten Stufe. Fachfragen laufen auf mittel, kurzes hin und her auf niedrig.";
+}
+
+$("optGruendlich").addEventListener("change", (event) => {
+  const an = event.target.checked;
+  store.setSettings({ ...store.getSettings(), immerGruendlich: an });
+  renderGruendlich(an);
+  toast(an ? "daevo denkt jetzt überall gründlich" : "daevo denkt so tief, wie die Frage es braucht");
+});
 
 $("modelSel").addEventListener("change", (event) => {
   const wahl = event.target.value;

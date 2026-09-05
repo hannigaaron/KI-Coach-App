@@ -55,6 +55,18 @@ export interface AgentActions {
   fotoAlsVorrat(input: { hinweis?: string }): Promise<string>;
 }
 
+/**
+ * Nimmt die Antwort entgegen, während sie geschrieben wird.
+ *
+ * `neu` verwirft, was bisher angezeigt wurde. Das passiert vor jeder Runde,
+ * denn zwischen zwei Runden kann ein Werkzeug laufen, und was davor stand,
+ * war nur ein Zwischenschritt.
+ */
+export interface Strom {
+  neu(): void;
+  text(stueck: string): void;
+}
+
 export interface AgentReply {
   text: string;
   /** Was tatsächlich passiert ist, für die Anzeige unter der Antwort. */
@@ -90,6 +102,10 @@ export class Agent {
     anhaenge?: Anhang[];
     /** "auto" folgt der Zuordnung je Modus, ein Modellname gewinnt. */
     modellWahl?: string;
+    /** Hebt jede Nachricht auf die höchste Denktiefe. */
+    immerGruendlich?: boolean;
+    /** Nimmt die Antwort entgegen, während sie entsteht. */
+    strom?: Strom;
   }): Promise<AgentReply> {
     if (this.provider.available) {
       try {
@@ -113,8 +129,13 @@ export class Agent {
     aktionen: AgentActions;
     anhaenge?: Anhang[];
     modellWahl?: string;
+    immerGruendlich?: boolean;
+    strom?: Strom;
   }): Promise<AgentReply> {
-    const tiefe = denktiefe(params.nachricht, Boolean(params.anhaenge?.length));
+    const tiefe = tiefeAnheben(
+      denktiefe(params.nachricht, Boolean(params.anhaenge?.length)),
+      Boolean(params.immerGruendlich),
+    );
     const modell = modellFuer(tiefe.modus, params.modellWahl ?? "auto");
     const system = systemBloecke({
       modus: tiefe.modus,
@@ -135,6 +156,11 @@ export class Agent {
     const ausgeführt: string[] = [];
 
     for (let step = 0; step < MAX_STEPS; step++) {
+      // Jede Runde beginnt einen neuen Abschnitt. Schreibt das Modell etwas,
+      // ruft dann ein Werkzeug und schreibt danach die eigentliche Antwort,
+      // soll der erste Teil nicht stehen bleiben. Er steht auch nicht in der
+      // gespeicherten Antwort.
+      params.strom?.neu();
       const response = await this.provider.converse({
         system,
         messages,
@@ -143,6 +169,7 @@ export class Agent {
         maxTokens: tiefe.maxTokens,
         modell: modell.id,
         ohneEffort: !modell.kannEffort,
+        ...(params.strom ? { onText: (stueck: string) => params.strom?.text(stueck) } : {}),
       });
       const toolUses = response.content.filter(
         (block): block is Extract<ContentBlock, { type: "tool_use" }> => block.type === "tool_use",
@@ -242,20 +269,50 @@ export function denktiefe(nachricht: string, mitAnhang = false): {
     "ich verstehe nicht", "stimmt das", "richtig so", "wie gehe ich",
   ).test(text) || text.includes("?");
 
-  if (psyche) return { effort: "high", maxTokens: 4096, modus: "psyche" };
+  // Die Stufen im Einzelnen:
+  //
+  // psyche und planung bleiben auf hoch. Dort entscheidet sich, ob die App
+  // etwas wert ist, und dort wird nicht gespart.
+  //
+  // Fachfragen laufen auf mittel. Anthropic gibt für Wissensarbeit an, dass
+  // mittlere Denktiefe die Genauigkeit der Voreinstellung bei 70 bis 85
+  // Prozent der Kosten erreicht. Das ist eine veröffentlichte Angabe, keine
+  // Messung an den Daten dieses Nutzers. Mittel antwortet zusätzlich
+  // schneller. Wer das anders will, stellt im Profil "immer gründlich" ein.
+  //
+  // maxTokens ist kein Sparhebel, sondern eine Notbremse. Bezahlt wird, was
+  // wirklich geschrieben wird. Ein zu niedriger Wert schneidet nur mitten im
+  // Satz ab. Deshalb stehen die Werte hoch genug, dass keine Antwort abbricht.
+  if (psyche) return { effort: "high", maxTokens: 8192, modus: "psyche" };
 
-  // Ein Bild auszuwerten heisst Mengen schätzen. Das ist der Teil, bei dem
-  // schnelles Raten am meisten kostet, deshalb nie auf der niedrigsten Stufe.
-  if (mitAnhang && !planung) return { effort: "high", maxTokens: 3072, modus: "coaching" };
-  if (planung && (fragt || woerter > 8)) return { effort: "high", maxTokens: 4096, modus: "planung" };
-  if (fachlich && (fragt || woerter > 8)) return { effort: "high", maxTokens: 4096, modus: "coaching" };
+  // Ein Bild auszuwerten heisst Mengen schätzen. Das passiert aber nicht hier,
+  // sondern im eigenen Aufruf der Bildauswertung. Im Gespräch entscheidet das
+  // Modell nur, welches Werkzeug es ruft, und fasst danach zusammen.
+  if (mitAnhang && !planung) return { effort: "medium", maxTokens: 4096, modus: "coaching" };
+  if (planung && (fragt || woerter > 8)) return { effort: "high", maxTokens: 8192, modus: "planung" };
+  if (fachlich && (fragt || woerter > 8)) return { effort: "medium", maxTokens: 4096, modus: "coaching" };
 
   // Reines Erfassen: kurz, und es geht um Essen, Trinken oder Gewicht.
   const erfassen = pattern("gegessen", "getrunken", "hatte", "wiege", "gewogen", "ml", "gramm").test(text);
-  if (erfassen && woerter <= 14 && !fragt) return { effort: "low", maxTokens: 1024, modus: "erfassen" };
+  if (erfassen && woerter <= 14 && !fragt) return { effort: "low", maxTokens: 2048, modus: "erfassen" };
 
-  if (fragt) return { effort: "medium", maxTokens: 2048, modus: "coaching" };
-  return { effort: "medium", maxTokens: 2048, modus: "standard" };
+  if (fragt) return { effort: "medium", maxTokens: 4096, modus: "coaching" };
+  return { effort: "low", maxTokens: 4096, modus: "standard" };
+}
+
+/**
+ * Hebt die Denktiefe an, wenn der Nutzer das so eingestellt hat.
+ *
+ * Der Schalter im Profil heisst "immer gründlich". Er setzt jede Nachricht auf
+ * die höchste Stufe. Das kostet mehr und antwortet langsamer, und genau das
+ * steht auch daneben.
+ */
+export function tiefeAnheben(
+  tiefe: { effort: "low" | "medium" | "high"; maxTokens: number; modus: Modus },
+  immerGruendlich: boolean,
+): { effort: "low" | "medium" | "high"; maxTokens: number; modus: Modus } {
+  if (!immerGruendlich) return tiefe;
+  return { ...tiefe, effort: "high", maxTokens: Math.max(tiefe.maxTokens, 4096) };
 }
 
 function textOf(content: ContentBlock[]): string {

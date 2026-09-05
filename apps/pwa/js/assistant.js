@@ -1,5 +1,5 @@
 import {
-  Agent, AnthropicProvider, Coach, addiere, buildShoppingList, cacheQuote, dollarText,
+  Agent, AnthropicProvider, Coach, addiere, buildShoppingList, cacheQuote, denktiefe, dollarText,
   ersparnis, hochrechnung, leereSumme, mahlzeitAusFoto, modellFuerBilder, summiere, vorratAusFoto,
 } from "@daevo/coach";
 import {
@@ -167,6 +167,22 @@ function profileText(profile) {
       : "Trainingsplan: keine Einheiten hinterlegt.",
   );
   return zeilen.join("\n");
+}
+
+/**
+ * Dasselbe Profil in drei Zeilen, für das reine Erfassen.
+ *
+ * Wer "zwei Eier gegessen" schreibt, braucht keinen Trainingsplan und keine
+ * Schlafenszeit im Prompt. Er braucht die Ziele, gegen die gerechnet wird.
+ * Der Rest ist bezahlter Text, den niemand liest.
+ */
+function profilKurz(profile) {
+  const ziele = macroTargets(profile);
+  const goal = { fat_loss: "Fett verlieren", maintain: "Gewicht halten", lean_bulk: "Muskeln aufbauen" }[profile.goal];
+  return [
+    `${profile.name || "Der Nutzer"}, ${profile.ageYears} Jahre, ${profile.weightKg} kg. Ziel: ${goal}.`,
+    `Tagesziel ${ziele.kcal} kcal, ${ziele.proteinG} g Protein, ${ziele.fatG} g Fett, ${ziele.carbsG} g Kohlenhydrate.`,
+  ].join("\n");
 }
 
 /**
@@ -737,25 +753,46 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
 
 /* ---------- Gespräch ---------- */
 
-export async function ask(nachricht, { onChange, anhaenge = [] } = {}) {
+export async function ask(nachricht, { onChange, anhaenge = [], onStrom } = {}) {
   const agent = new Agent(provider());
   const n = dayNumbers();
   const now = new Date();
 
+  // Der Kontext richtet sich nach der Frage.
+  //
+  // Bisher bekam jede Nachricht alles: volles Profil, Standards, Einkaufsliste,
+  // letzte sieben Tage, Gewichtsverlauf, zehn Notizen, vierundzwanzig
+  // Nachrichten Verlauf. Beim Eintragen einer Mahlzeit ist davon nichts nötig,
+  // und es wird bei jeder einzelnen Nachricht bezahlt.
+  //
+  // Der Modus kommt aus derselben Funktion, die der Agent für Modell und
+  // Denktiefe benutzt. Sie ist deterministisch, also stimmen beide Seiten
+  // überein. Alles ausser dem reinen Erfassen bekommt weiterhin den vollen
+  // Kontext: an der Antwortqualität wird nicht gespart.
+  const modus = denktiefe(nachricht, anhaenge.length > 0).modus;
+  const knapp = modus === "erfassen";
+
   const reply = await agent.respond({
     nachricht,
-    verlauf: store.getChat().slice(-24).map((m) => ({ role: m.role, content: m.text })),
+    verlauf: store.getChat().slice(knapp ? -6 : -24).map((m) => ({ role: m.role, content: m.text })),
     kontext: {
-      profil: profileText(n.profile),
-      tag: `${daySummaryText(n)}\n\n${lageText()}`,
-      gedächtnis: brain.contextFor(nachricht),
+      profil: knapp ? profilKurz(n.profile) : profileText(n.profile),
+      tag: knapp ? daySummaryText(n) : `${daySummaryText(n)}\n\n${lageText()}`,
+      gedächtnis: brain.contextFor(nachricht, knapp ? 3 : 10),
       zeit: `${WEEKDAYS[now.getDay()]}, ${now.getDate()}. ${now.toLocaleString("de-DE", { month: "long" })} ${now.getFullYear()}, ${nowTime()} Uhr.`,
       eigeneAnweisungen: store.getSettings().anweisungen || "",
     },
     aktionen: buildActions({ onChange, anhaenge }),
     modellWahl: store.getSettings().modellWahl || "auto",
+    immerGruendlich: Boolean(store.getSettings().immerGruendlich),
+    // Der Text erscheint, während er entsteht. Das ändert nichts an den
+    // Kosten und nichts an der Antwort, nur an der gefühlten Wartezeit.
+    strom: onStrom ? { neu: () => onStrom(null), text: (stueck) => onStrom(stueck) } : undefined,
+    // Ins Gespräch geht die kleine Fassung des Bildes. Das grosse Bild bekommt
+    // nur die Bildauswertung in fotoAlsMahlzeit, denn dort wird die Menge
+    // geschätzt. Ein PDF hat keine kleine Fassung und geht wie es ist.
     anhaenge: anhaenge.filter((a) => a.mediaType && a.data && !a.fehler)
-      .map((a) => ({ mediaType: a.mediaType, data: a.data, name: a.name })),
+      .map((a) => ({ mediaType: a.mediaType, data: a.chatData || a.data, name: a.name })),
   });
 
   const chat = store.getChat();
