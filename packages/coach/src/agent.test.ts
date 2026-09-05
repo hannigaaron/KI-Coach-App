@@ -19,6 +19,8 @@ function stubActions(log: string[]): AgentActions {
     async standardSetzen(i) { log.push(`standard:${i.text}`); return "Standard steht."; },
     async standardBestaetigen(i) { log.push(`standard:${i.id}=${i.gehalten}`); return "Eingetragen."; },
     async verlaufAbrufen(i) { log.push(`verlauf:${i.tage ?? ""}`); return "Minus 0,4 kg die Woche, Bedarf etwa 2900 kcal."; },
+    async kalenderAbrufen(i) { log.push(`kalender:${i.tage ?? ""}`); return "Montag: 3 Termine, 240 Minuten verplant."; },
+    async tagesablaufPlanen(i) { log.push(`tagesablauf:${i.tag ?? ""}`); return "Wach von 07:00 bis 23:00. Verplant: 240 Minuten."; },
     async gewichtEintragen(kg) { log.push(`gewicht:${kg}`); return `${kg} kg eingetragen.`; },
     async trainingEintragen(i) { log.push(`training:${i.art}/${i.minuten}`); return "Training eingetragen."; },
     async profilAendern(i) { log.push(`profil:${JSON.stringify(i)}`); return "Profil geändert."; },

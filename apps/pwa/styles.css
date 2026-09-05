@@ -287,6 +287,15 @@ button:disabled { opacity: 0.5; }
 .li-side b { display: block; color: var(--text); font-size: 15px; }
 .empty { color: var(--muted); font-size: 14px; padding: 4px 2px 8px; }
 
+/* Vorformatierter Text, etwa die Wochenuebersicht aus dem Kalender.
+   Umbruch erlaubt, damit auf einem schmalen Telefon nichts seitlich rausläuft. */
+.pre {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+  padding: 13px 14px; margin: 0 0 9px;
+  font-family: inherit; font-size: 14px; line-height: 1.6;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+
 /* Composer */
 .composer { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
 .composer textarea { background: var(--panel-2); }

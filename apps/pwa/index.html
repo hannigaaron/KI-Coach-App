@@ -251,6 +251,51 @@ try {
     </div>
   </section>
 
+  <section class="view" data-view="kalender" hidden>
+    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Kalender</h1><div class="bar-spacer"></div></header>
+    <div class="scroll">
+      <p class="sub">Dein Tag mit deinen Terminen. daevo legt die Mahlzeiten in deine Lücken statt in dein Meeting.</p>
+
+      <div class="field-row">
+        <div class="field"><label for="kalTag">Tag</label><input id="kalTag" type="date"></div>
+        <div class="field"><label for="kalTage">Vorschau in Tagen</label>
+          <input id="kalTage" type="number" inputmode="numeric" min="1" max="14" value="7"></div>
+      </div>
+
+      <div class="card" id="kalTagKarte">
+        <div class="kv"><span>Verplant</span><b id="kalBelegt">0 Minuten</b></div>
+        <div class="kv"><span>Auslastung des Wachtags</span><b id="kalQuote">0 %</b></div>
+        <div class="kv"><span>Längster freier Block</span><b id="kalFokus">keiner</b></div>
+      </div>
+
+      <h2 class="section-title">Termine</h2>
+      <ul class="list" id="kalListe"></ul>
+
+      <h2 class="section-title">Vorschlag für die Mahlzeiten</h2>
+      <ul class="list" id="kalEssen"></ul>
+
+      <h2 class="section-title">Was auffällt</h2>
+      <ul class="list" id="kalHinweise"></ul>
+
+      <h2 class="section-title">Die nächsten Tage</h2>
+      <pre class="pre" id="kalWoche"></pre>
+
+      <h2 class="section-title">Kalender verbinden</h2>
+      <p class="sub" id="kalQuellenSub">Beide Kalender geben eine .ics Datei aus. Die liest daevo direkt im Gerät, es geht nichts an einen Server.</p>
+      <input id="kalDatei" type="file" accept=".ics,text/calendar" hidden>
+      <button id="btnKalDatei" class="primary">ICS Datei auswählen</button>
+      <div class="field"><label for="kalText">Oder Inhalt einfügen</label>
+        <textarea id="kalText" rows="3" placeholder="BEGIN:VCALENDAR ..."></textarea></div>
+      <div class="field-row">
+        <div class="field"><label for="kalName">Name des Kalenders</label><input id="kalName" type="text" placeholder="Arbeit"></div>
+        <div class="field"><label for="btnKalText">&nbsp;</label>
+          <button id="btnKalText" class="ghost" style="width:100%">Text einlesen</button></div>
+      </div>
+      <ul class="list" id="kalQuellen"></ul>
+      <p class="fineprint" id="kalAnleitung"></p>
+    </div>
+  </section>
+
   <section class="view" data-view="standards" hidden>
     <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Mindeststandards</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
@@ -384,6 +429,7 @@ try {
     <button class="menu-item" data-go="essen"><b>Essen</b><span>Erfassen, Vorrat, Vorschläge</span></button>
     <button class="menu-item" data-go="checkin"><b>Check-in</b><span>Energie, Schlaf, Stimmung</span></button>
     <button class="menu-item" data-go="einkauf"><b>Einkaufen</b><span>Liste aus deinen Zielen</span></button>
+    <button class="menu-item" data-go="kalender"><b>Kalender</b><span>Dein Tag, deine Lücken, deine Mahlzeiten</span></button>
     <button class="menu-item" data-go="standards"><b>Mindeststandards</b><span>Deine Untergrenze, jede Woche</span></button>
     <button class="menu-item" data-go="reflexion"><b>Gedächtnis</b><span>Was daevo über dich weiß</span></button>
     <button class="menu-item" data-go="empfehlungen"><b>Empfehlungen</b><span>Aus deinen eigenen Zahlen</span></button>

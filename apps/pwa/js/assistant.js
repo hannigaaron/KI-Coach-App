@@ -4,6 +4,12 @@ import {
 } from "@daevo/coach";
 import {
   buildDailyReminders,
+  tagesablauf,
+  tagesablaufText,
+  termineAmTag,
+  termineAusIcs,
+  uhrzeit as uhrzeitVon,
+  wochenText,
   currentStreak,
   energyBreakdown,
   macroTargets,
@@ -218,6 +224,23 @@ function lageText() {
     }
     const einheiten = woche.reduce((sum, d) => sum + (d.data.trainings || []).length, 0);
     if (einheiten > 0) zeilen.push(`Absolvierte Trainingseinheiten in den letzten sieben Tagen: ${einheiten}.`);
+  }
+
+  // Der heutige Tagesablauf, falls ein Kalender verbunden ist. Ohne das müsste
+  // der Coach für jede Frage nach Zeit erst ein Werkzeug rufen, und für die
+  // meisten Antworten reicht schon die Uebersicht.
+  const heuteTermine = termineFuer(todayIso());
+  if (heuteTermine.length > 0) {
+    const a = ablaufFuer(todayIso());
+    zeilen.push(
+      `Heute im Kalender: ${a.termine.length} Termine mit Uhrzeit, ${a.belegtMinuten} Minuten verplant, ` +
+      `${Math.round(a.auslastung * 100)} Prozent des Wachtags. ` +
+      (a.fokusblock ? `Längster freier Block ${uhrzeitVon(a.fokusblock.von)} bis ${uhrzeitVon(a.fokusblock.bis)}. ` : "") +
+      "Für Details tagesablauf_planen benutzen.",
+    );
+    for (const t of a.termine.slice(0, 8)) {
+      zeilen.push(`- ${uhrzeitVon(t.von)} bis ${uhrzeitVon(t.bis)} ${t.titel}`);
+    }
   }
 
   const trend = weightTrend(verlaufPunkte(56));
@@ -454,6 +477,116 @@ export function einkaufslisteText(liste) {
   ].join("\n");
 }
 
+/* ---------- Kalender ---------- */
+
+/** Wie weit zurück und wie weit voraus Termine behalten werden. */
+const KALENDER_RUECK_TAGE = 14;
+const KALENDER_VOR_TAGE = 90;
+
+function kalenderFenster() {
+  const jetzt = Date.now();
+  return {
+    von: jetzt - KALENDER_RUECK_TAGE * 86400000,
+    bis: jetzt + KALENDER_VOR_TAGE * 86400000,
+  };
+}
+
+/**
+ * Nimmt eine ICS Datei auf.
+ *
+ * Termine derselben Quelle werden ersetzt, nicht ergänzt. Sonst stünde ein
+ * abgesagter Termin nach dem nächsten Import immer noch im Kalender, und die
+ * App würde einen Tag planen, den es nicht gibt.
+ */
+export function kalenderImportieren(icsText, quelle) {
+  const fenster = kalenderFenster();
+  const ergebnis = termineAusIcs(icsText, fenster, quelle);
+  const name = quelle || ergebnis.kalendername || "Kalender";
+  const bestand = store.getKalender();
+
+  const andere = (bestand.termine || []).filter((t) => t.quelle !== name);
+  const quellen = (bestand.quellen || []).filter((q) => q.name !== name);
+  quellen.push({ name, anzahl: ergebnis.termine.length, stand: new Date().toISOString() });
+
+  const termine = [...andere, ...ergebnis.termine.map((t) => ({ ...t, quelle: name }))]
+    .filter((t) => t.bis > fenster.von && t.von < fenster.bis)
+    .sort((a, b) => a.von - b.von);
+
+  store.setKalender({ quellen, termine, stand: new Date().toISOString() });
+  return { name, anzahl: ergebnis.termine.length, hinweise: ergebnis.hinweise };
+}
+
+/** Entfernt einen Kalender samt seiner Termine. */
+export function kalenderEntfernen(name) {
+  const bestand = store.getKalender();
+  store.setKalender({
+    quellen: (bestand.quellen || []).filter((q) => q.name !== name),
+    termine: (bestand.termine || []).filter((t) => t.quelle !== name),
+    stand: new Date().toISOString(),
+  });
+}
+
+export function kalenderStand() {
+  const bestand = store.getKalender();
+  const jetzt = Date.now();
+  return {
+    quellen: bestand.quellen || [],
+    anzahl: (bestand.termine || []).length,
+    kommend: (bestand.termine || []).filter((t) => t.bis > jetzt).length,
+    stand: bestand.stand,
+  };
+}
+
+/** Termine eines Tages, aus dem Speicher. */
+export function termineFuer(tagIso) {
+  return termineAmTag(store.getKalender().termine || [], tagIso);
+}
+
+/**
+ * Der ausgewertete Tagesablauf. Basis für Werkzeug, Anzeige und Prompt.
+ *
+ * Ohne Profil gibt es keine Aufstehzeit und keine Ziele. Dann wird mit einem
+ * neutralen Tag gerechnet, statt an einer fehlenden Zahl zu scheitern.
+ */
+const PROFIL_NOTFALL = {
+  sex: "male", ageYears: 30, heightCm: 178, weightKg: 80, goal: "maintain",
+  dailySteps: 8000, sessions: [], wakeTime: "07:00", sleepTime: "23:00",
+};
+
+export function ablaufFuer(tagIso) {
+  const profile = store.getProfile() || PROFIL_NOTFALL;
+  return tagesablauf({
+    tag: tagIso,
+    termine: termineFuer(tagIso),
+    profile,
+    ziele: macroTargets(profile),
+    mahlzeiten: 4,
+  });
+}
+
+/** Der Tagesablauf in Worten. Leer, solange kein Kalender verbunden ist. */
+export function tagesablaufUebersicht(tagIso = todayIso()) {
+  if ((store.getKalender().termine || []).length === 0) {
+    return "Kein Kalender verbunden. Ohne Termine kann ich den Tagesablauf nicht beurteilen.";
+  }
+  return tagesablaufText(ablaufFuer(tagIso));
+}
+
+/** Die nächsten Tage in je einer Zeile. */
+export function kalenderUebersicht(tage = 7) {
+  if ((store.getKalender().termine || []).length === 0) {
+    return "Kein Kalender verbunden. Im Menue unter Kalender lässt sich einer hinzufügen.";
+  }
+  const heute = todayIso();
+  const ablaeufe = [];
+  for (let i = 0; i < Math.max(1, Math.min(14, tage)); i++) {
+    const d = new Date(`${heute}T12:00:00`);
+    d.setDate(d.getDate() + i);
+    ablaeufe.push(ablaufFuer(d.toISOString().slice(0, 10)));
+  }
+  return wochenText(ablaeufe);
+}
+
 /* ---------- Was der Assistent tun darf ---------- */
 
 export function buildActions({ onChange, anhaenge = [] } = {}) {
@@ -546,6 +679,14 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
       const hits = brain.search(frage, 6);
       if (hits.length === 0) return "Dazu habe ich nichts notiert.";
       return hits.map((h) => `- ${h.entry.text} (${h.entry.at.slice(0, 10)})`).join("\n");
+    },
+
+    async kalenderAbrufen({ tage } = {}) {
+      return kalenderUebersicht(tage || 7);
+    },
+
+    async tagesablaufPlanen({ tag } = {}) {
+      return tagesablaufUebersicht(tag || todayIso());
     },
 
     async fotoAlsMahlzeit({ hinweis } = {}) {

@@ -6,3 +6,5 @@ export * from "./adherence.js";
 export * from "./memory.js";
 export * from "./standards.js";
 export * from "./trend.js";
+export * from "./ical.js";
+export * from "./tagesablauf.js";
