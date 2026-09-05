@@ -59,7 +59,7 @@ Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
 
-Der Assistent hat einundzwanzig Werkzeuge und verändert die App wirklich. Zahlen
+Der Assistent hat achtundzwanzig Werkzeuge und verändert die App wirklich. Zahlen
 über den Nutzer kommen immer aus Werkzeugen, nie aus dem Modell. Allgemeines
 Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
@@ -143,7 +143,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 240 Tests
+npm test           # 290 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -182,6 +182,54 @@ scheitert im Browser an CORS, dafür braucht es `apps/api` als Zwischenstelle.
 OAuth für Google und EventKit für Apple gehören in die native App, siehe
 `docs/ROADMAP.md`.
 
+## Der Rhythmus des Tages
+
+Drei feste Punkte am Nachmittag, in `packages/core/src/reminders.ts`:
+
+- 14:00 der Mittags Check-in. Energie, Konzentration, Sättigung, je 1 bis 10.
+- 14:30 die Frage nach der grössten Herausforderung.
+- 15:00 die Prioritäten für den Rest des Tages.
+
+Getrennte Zeitpunkte, weil zwei Fragen in einer Nachricht keine von beiden
+beantwortet bekommen. Obergrenze jetzt acht Erinnerungen am Tag statt sechs.
+
+`packages/core/src/tagesrhythmus.ts` wertet den Mittags Check-in gegen die
+zuletzt erfasste Mahlzeit aus. Die Reihenfolge der Prüfung ist Absicht: erst die
+Menge, dann die Zusammensetzung. Eine Mahlzeit über 40 Prozent des Tagesziels
+erklärt einen Einbruch besser als das Verhältnis der Makros. Die Antwort nennt
+die Aenderung in Gramm, die konkreten Lebensmittel kommen aus
+`mahlzeit_vorschlagen`, damit Nährwerte aus einer Quelle stammen.
+
+`packages/core/src/aufgaben.ts` sortiert die offenen Aufgaben. Wichtigkeit zählt
+bis 30 Punkte, die Frist bis 60. Damit gewinnt eine Frist heute gegen jede
+Wichtigkeit. Was in die freie Zeit passt, kommt auf heute, der Rest sichtbar auf
+morgen. Die freie Zeit kommt aus dem Kalender, über `restDesTages`.
+
+Zur Arbeitsgrenze von zehn Stunden: die App misst kein Cortisol und behauptet
+nicht, eine Grenze würde es senken. Sie ist eine Regel, damit ein Tag ein Ende
+hat. Was nicht belegt ist, wird auch nicht behauptet.
+
+## Muster und Widersprüche
+
+`packages/core/src/muster.ts` rechnet Korrelationen nach Pearson über die
+Tagesreihe. Zwei Regeln stehen fest: unter zehn gemeinsamen Tagen wird nichts
+behauptet, und jeder Befund sagt dazu, dass ein Zusammenhang keine Ursache ist.
+Geprüft wird nicht alles gegen alles, sondern eine feste Liste von Paaren mit
+plausibler Richtung, sonst findet sich immer irgendwo ein Zufallstreffer. Neben
+dem r steht immer der Vergleich der Drittel, weil den auch jemand lesen kann,
+der mit einem Korrelationskoeffizienten nichts anfängt.
+
+`packages/core/src/widerspruch.ts` hält Anspruch gegen Wirklichkeit: Ziele gegen
+Durchschnitt, Trainingsplan gegen eingetragene Einheiten, wichtige Aufgaben
+gegen ihr Alter, Kundenarbeit gegen Zeit für Aufbau. Genannt wird nur, was
+gemessen wurde. Jeder Punkt endet mit einer Frage, nicht mit einem Urteil, und
+eine der möglichen Antworten ist immer, das Ziel zu ändern.
+
+`trainingsplanAusKalender` liest aus wiederkehrenden Terminen den echten Plan.
+Erkannt wird über Wochentag und Startzeit auf eine Viertelstunde genau, ab drei
+Vorkommen. Deshalb reicht der Kalender 60 Tage zurück und nicht 14: ein
+wöchentlicher Termin kommt in zwei Wochen nur zweimal vor.
+
 ## Aktueller Stand
 
 Fotos, Videos und PDFs gehen in den Chat. Die Aufbereitung steht in
@@ -191,7 +239,9 @@ durch dieselbe Prüfung wie bei der Texteingabe.
 
 Fertig: Rechenkern, Gedächtnis, Assistent mit Werkzeugen, Sprache und Bildern,
 Anamnesebogen beim ersten Start, Einkaufsliste, Mindeststandards,
-Gewichtsverlauf mit Zielkorrektur, Kalender und Tagesablauf, Tag und Nacht
+Gewichtsverlauf mit Zielkorrektur, Kalender und Tagesablauf, Morgenbriefing,
+Mittags Check-in, Aufgaben mit Priorisierung, Tagesabschluss, Muster über
+Wochen, Widerspruchsprüfung, Tag und Nacht
 Modus, installierbare Web App, Marke, API.
 Offen: Push Benachrichtigungen bei geschlossener App, Apple Health und
 Wearables, Wortaktivierung, echte Nährwertdatenbank, Anmeldung über Apple.

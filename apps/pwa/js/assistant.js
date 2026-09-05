@@ -3,7 +3,18 @@ import {
   ersparnis, hochrechnung, leereSumme, mahlzeitAusFoto, modellFuerBilder, summiere, vorratAusFoto,
 } from "@daevo/coach";
 import {
+  abendAbschluss,
   buildDailyReminders,
+  muster,
+  musterText,
+  trainingsplanAusKalender,
+  widersprueche,
+  widerspruchText,
+  mittagsBefund,
+  morgenBriefing,
+  planText,
+  priorisiere,
+  restDesTages,
   tagesablauf,
   tagesablaufText,
   termineAmTag,
@@ -444,6 +455,9 @@ export function tagesErinnerungen(day = todayIso()) {
       waterTargetMl: n.targets.waterMl,
       morningCheckinDone: n.data.checkins.some((c) => c.kind === "morning"),
       eveningReviewDone: n.data.checkins.some((c) => c.kind === "evening"),
+      middayCheckinDone: n.data.checkins.some((c) => c.kind === "midday"),
+      middayChallengeDone: n.data.checkins.some((c) => c.kind === "herausforderung"),
+      offeneAufgaben: store.getAufgaben().filter((a) => !a.erledigt).length,
       offeneEinkaeufe: (liste?.items || []).filter((i) => i.stand === "offen").length,
       standardHinweis: offen ? { id: offen.standard.id, frage: standardFrage(offen) } : null,
     },
@@ -479,8 +493,15 @@ export function einkaufslisteText(liste) {
 
 /* ---------- Kalender ---------- */
 
-/** Wie weit zurück und wie weit voraus Termine behalten werden. */
-const KALENDER_RUECK_TAGE = 14;
+/**
+ * Wie weit zurück und wie weit voraus Termine behalten werden.
+ *
+ * Zurück reichen 60 Tage, nicht 14. Ein wöchentlicher Termin kommt in zwei
+ * Wochen nur zweimal vor, und aus zweimal lässt sich keine Serie erkennen.
+ * Für den Trainingsplan aus dem Kalender und für die Zeitverteilung über
+ * Wochen braucht es den längeren Rückblick.
+ */
+const KALENDER_RUECK_TAGE = 60;
 const KALENDER_VOR_TAGE = 90;
 
 function kalenderFenster() {
@@ -587,6 +608,355 @@ export function kalenderUebersicht(tage = 7) {
   return wochenText(ablaeufe);
 }
 
+/* ---------- Aufgaben und Tagesrhythmus ---------- */
+
+/**
+ * Was heute noch frei ist, nach Kalender.
+ *
+ * Ohne Kalender gibt es keine belastbare Zahl. Dann wird mit der Zeit bis zur
+ * Schlafenszeit gerechnet und das steht auch in der Begründung, damit niemand
+ * eine gemessene Zahl vermutet, wo geschätzt wurde.
+ */
+function zeitbudget() {
+  const a = ablaufFuer(todayIso());
+  const rest = restDesTages(a, Date.now());
+  const hatKalender = (store.getKalender().termine || []).length > 0;
+  return {
+    freieMinuten: hatKalender ? rest.freieMinuten : rest.restMinuten,
+    bereitsGearbeitet: hatKalender ? rest.belegtBisJetzt : 0,
+    hatKalender,
+  };
+}
+
+export function aufgabenPlan() {
+  const budget = zeitbudget();
+  const plan = priorisiere({
+    aufgaben: store.getAufgaben(),
+    tag: todayIso(),
+    freieMinuten: budget.freieMinuten,
+    bereitsGearbeitet: budget.bereitsGearbeitet,
+  });
+  if (!budget.hatKalender) {
+    plan.begruendung.push(
+      "Kein Kalender verbunden. Gerechnet ist mit der Zeit bis zu deiner Schlafenszeit, nicht mit echten Terminen.",
+    );
+  }
+  return plan;
+}
+
+export function aufgabenPlanText() {
+  return planText(aufgabenPlan());
+}
+
+export function aufgabeAnlegen({ text, minuten, faellig, wichtigkeit, quelle = "nutzer" }) {
+  const sauber = String(text || "").trim().slice(0, 200);
+  if (sauber.length < 3) return null;
+  const aufgaben = store.getAufgaben();
+  aufgaben.push({
+    id: newId(),
+    text: sauber,
+    minuten: Math.max(5, Math.min(480, Number(minuten) || 30)),
+    faellig: faellig || null,
+    wichtigkeit: Math.max(1, Math.min(3, Number(wichtigkeit) || 2)),
+    erledigt: false,
+    erstellt: new Date().toISOString(),
+    quelle,
+  });
+  store.setAufgaben(aufgaben);
+  return aufgaben[aufgaben.length - 1];
+}
+
+/** Findet eine Aufgabe über Wortüberlappung. Genau wie im Gedächtnis. */
+export function aufgabeFinden(text) {
+  const worte = foldUm(text).split(/\W+/).filter((w) => w.length > 2);
+  let bester = null;
+  let beste = 0;
+  for (const a of store.getAufgaben()) {
+    if (a.erledigt) continue;
+    const ziel = foldUm(a.text);
+    const treffer = worte.filter((w) => ziel.includes(w)).length;
+    if (treffer > beste) { beste = treffer; bester = a; }
+  }
+  return beste > 0 ? bester : null;
+}
+
+export function aufgabeAbhaken(id) {
+  const aufgaben = store.getAufgaben();
+  const a = aufgaben.find((x) => x.id === id);
+  if (!a) return false;
+  a.erledigt = true;
+  a.erledigtAm = new Date().toISOString();
+  store.setAufgaben(aufgaben);
+  return true;
+}
+
+export function aufgabeLoeschen(id) {
+  store.setAufgaben(store.getAufgaben().filter((a) => a.id !== id));
+}
+
+function foldUm(text) {
+  return String(text || "").toLowerCase()
+    .replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss");
+}
+
+/** Die zuletzt erfasste Mahlzeit von heute, mit ihren Nährwerten. */
+function letzteMahlzeit(day = todayIso()) {
+  const data = store.getDay(day);
+  const meal = data.meals[data.meals.length - 1];
+  if (!meal) return null;
+  const summe = { text: meal.text || "Mahlzeit", kcal: 0, proteinG: 0, fatG: 0, carbsG: 0 };
+  for (const e of meal.entries) {
+    summe.kcal += e.kcal;
+    summe.proteinG += e.proteinG;
+    summe.fatG += e.fatG;
+    summe.carbsG += e.carbsG;
+  }
+  return summe;
+}
+
+/**
+ * Der Mittags Check-in.
+ *
+ * Speichert die drei Werte und gibt zurück, was sie im Zusammenhang mit der
+ * zuletzt erfassten Mahlzeit bedeuten. Die Bewertung kommt aus dem Rechenkern,
+ * nicht aus dem Modell.
+ */
+export function mittagscheck({ energie, konzentration, saettigung, notiz = "" }) {
+  const day = todayIso();
+  const n = dayNumbers(day);
+  const morgens = n.data.checkins.find((c) => c.kind === "morning");
+
+  const befund = mittagsBefund({
+    energie, konzentration, saettigung,
+    mahlzeit: letzteMahlzeit(day),
+    ziele: n.targets,
+    bisherKcal: n.totals.kcal,
+    wasserMl: n.totals.waterMl,
+    schlafQualitaet: morgens?.sleepQuality ?? null,
+  });
+
+  store.addCheckin(day, {
+    kind: "midday",
+    at: nowTime(),
+    note: notiz,
+    energy: energie,
+    concentration: konzentration,
+    satiety: saettigung,
+    sleepQuality: null,
+    mood: null,
+  });
+
+  return befund;
+}
+
+export function mittagscheckText(befund) {
+  const zeilen = [...befund.befund];
+  if (befund.massnahmen.length) {
+    zeilen.push("");
+    for (const m of befund.massnahmen) zeilen.push(m);
+  }
+  if (befund.aenderung) {
+    const a = befund.aenderung;
+    const teile = [];
+    if (a.kcal) teile.push(`${a.kcal > 0 ? "plus" : "minus"} ${Math.abs(a.kcal)} kcal`);
+    if (a.proteinG) teile.push(`${a.proteinG > 0 ? "plus" : "minus"} ${Math.abs(a.proteinG)} g Protein`);
+    if (a.carbsG) teile.push(`${a.carbsG > 0 ? "plus" : "minus"} ${Math.abs(a.carbsG)} g Kohlenhydrate`);
+    if (teile.length) zeilen.push(`Für die nächste Mahlzeit: ${teile.join(", ")}.`);
+  }
+  return zeilen.join("\n");
+}
+
+/**
+ * Die grösste Herausforderung des Tages festhalten.
+ *
+ * Getrennt vom Check-in gespeichert, damit die Frage am Nachmittag nicht noch
+ * einmal kommt, und zusätzlich im Gedächtnis, weil sich über Wochen daran
+ * zeigt, woran es immer wieder hängt.
+ */
+export function herausforderungSpeichern(text) {
+  const sauber = String(text || "").trim();
+  if (sauber.length < 3) return false;
+  const day = todayIso();
+  store.addCheckin(day, {
+    kind: "herausforderung",
+    at: nowTime(),
+    note: sauber,
+    energy: null, sleepQuality: null, mood: null,
+  });
+  brain.add({
+    text: `Herausforderung am ${day}: ${sauber}`,
+    art: "ereignis", wichtigkeit: 3, schlagworte: ["herausforderung"], quelle: "nutzer",
+  });
+  return true;
+}
+
+/** Morgenbriefing und Tagesabschluss. Beides ohne Modellaufruf. */
+export function briefing(art = "morgen") {
+  const day = todayIso();
+  const n = dayNumbers(day);
+  const jetzt = new Date();
+  const datum = `${WEEKDAYS[jetzt.getDay()]}, ${jetzt.getDate()}. ${jetzt.toLocaleString("de-DE", { month: "long" })} ${jetzt.getFullYear()}`;
+  const status = standardsUebersicht();
+
+  if (art === "abend") {
+    const aufgaben = store.getAufgaben();
+    const heute = day;
+    const erledigt = aufgaben.filter((a) => a.erledigt && (a.erledigtAm || "").slice(0, 10) === heute).map((a) => a.text);
+    const offen = aufgabenPlan().heute.map((a) => a.text);
+    const morgenTag = new Date(`${day}T12:00:00`);
+    morgenTag.setDate(morgenTag.getDate() + 1);
+    const morgenIso = morgenTag.toISOString().slice(0, 10);
+    const m = ablaufFuer(morgenIso);
+    return abendAbschluss({
+      datum,
+      stand: `${Math.round(n.totals.kcal)} von ${n.targets.kcal} kcal, ${Math.round(n.totals.proteinG)} von ${n.targets.proteinG} g Protein, ` +
+        `${n.totals.waterMl} von ${n.targets.waterMl} ml Wasser.`,
+      offen,
+      erledigt,
+      standards: status.map((s) => s.satz),
+      morgen: (store.getKalender().termine || []).length
+        ? `${m.termine.length + m.ganztags.length} Termine, ${m.belegtMinuten} Minuten verplant.`
+        : "kein Kalender verbunden.",
+    });
+  }
+
+  const trend = weightTrend(verlaufPunkte(56));
+  return morgenBriefing({
+    datum,
+    tagesablauf: (store.getKalender().termine || []).length ? tagesablaufText(ablaufFuer(day)) : "",
+    ziele: n.targets,
+    aufgaben: aufgabenPlanText(),
+    standards: status.filter((s) => !s.erfuellt).map((s) => s.satz),
+    trend: trend.belastbar
+      ? `Gewicht: ${trend.aktuellKg} kg geglättet, ${trend.kgProWoche > 0 ? "plus" : "minus"} ${Math.abs(trend.kgProWoche).toFixed(2)} kg je Woche.`
+      : undefined,
+  });
+}
+
+/* ---------- Muster und Widersprüche ---------- */
+
+/** Die Tagesreihe für die Musteranalyse. Fehlende Werte bleiben leer. */
+export function musterTage(tage = 60) {
+  const heute = todayIso();
+  const out = [];
+  for (let i = tage - 1; i >= 0; i--) {
+    const d = new Date(`${heute}T12:00:00`);
+    d.setDate(d.getDate() - i);
+    const iso = d.toISOString().slice(0, 10);
+    const data = store.getDay(iso);
+    const hatEssen = data.meals.length > 0;
+
+    let kcal = 0;
+    let protein = 0;
+    for (const meal of data.meals) {
+      for (const e of meal.entries) { kcal += e.kcal; protein += e.proteinG; }
+    }
+
+    const morgens = data.checkins.find((c) => c.kind === "morning");
+    const mittags = data.checkins.find((c) => c.kind === "midday");
+    const energie = mittags?.energy ?? morgens?.energy ?? null;
+    const stimmung = data.checkins.map((c) => c.mood).find((m) => typeof m === "number") ?? null;
+
+    const termine = termineFuer(iso).filter((t) => !t.ganztags);
+    const terminMinuten = termine.length
+      ? Math.round(termine.reduce((s, t) => s + (t.bis - t.von), 0) / 60000)
+      : null;
+
+    out.push({
+      tag: iso,
+      kcal: hatEssen ? Math.round(kcal) : null,
+      proteinG: hatEssen ? Math.round(protein) : null,
+      wasserMl: data.waterMl > 0 ? data.waterMl : null,
+      schlaf: morgens?.sleepQuality ?? null,
+      energie,
+      konzentration: mittags?.concentration ?? null,
+      stimmung,
+      training: (data.trainings || []).length,
+      terminMinuten,
+    });
+  }
+  return out;
+}
+
+export function musterUebersicht(tage = 60) {
+  const reihe = musterTage(tage);
+  return musterText(muster(reihe), reihe.length);
+}
+
+export function widerspruchListe(tage = 28) {
+  const heute = todayIso();
+  const reihe = [];
+  const titel = [];
+  for (let i = tage - 1; i >= 0; i--) {
+    const d = new Date(`${heute}T12:00:00`);
+    d.setDate(d.getDate() - i);
+    const iso = d.toISOString().slice(0, 10);
+    const data = store.getDay(iso);
+    let kcal = 0;
+    let protein = 0;
+    for (const meal of data.meals) {
+      for (const e of meal.entries) { kcal += e.kcal; protein += e.proteinG; }
+    }
+    const termine = termineFuer(iso).filter((t) => !t.ganztags);
+    for (const t of termine) titel.push({ titel: t.titel, minuten: Math.round((t.bis - t.von) / 60000) });
+    reihe.push({
+      tag: iso,
+      kcal: data.meals.length ? Math.round(kcal) : null,
+      proteinG: data.meals.length ? Math.round(protein) : null,
+      mahlzeiten: data.meals.length,
+      trainings: (data.trainings || []).length,
+      terminMinuten: termine.length ? Math.round(termine.reduce((s, t) => s + (t.bis - t.von), 0) / 60000) : null,
+    });
+  }
+  const n = dayNumbers(heute);
+  return widersprueche({
+    profile: n.profile,
+    ziele: n.targets,
+    tage: reihe,
+    aufgaben: store.getAufgaben(),
+    heute,
+    terminTitel: titel,
+  });
+}
+
+export function widerspruchUebersicht() {
+  return widerspruchText(widerspruchListe());
+}
+
+/**
+ * Trainingsplan aus dem Kalender.
+ *
+ * Der Kalender ist die Wirklichkeit, das Profil ist gepflegt oder nicht.
+ * Uebernommen wird nur auf Ansage, nicht automatisch: ein Plan, den die App
+ * hinter dem Rücken ändert, ist kein Plan mehr.
+ */
+export function trainingsplanVorschlag() {
+  return trainingsplanAusKalender(store.getKalender().termine || []);
+}
+
+export function trainingsplanUebernehmen() {
+  const vorschlag = trainingsplanVorschlag();
+  if (vorschlag.length === 0) return 0;
+  const profile = store.getProfile();
+  if (!profile) return 0;
+  store.setProfile({
+    ...profile,
+    sessions: vorschlag.map((v) => ({
+      type: /volleyball|mannschaft|team/i.test(v.titel)
+        ? "team_sport"
+        : /lauf|jogg|cardio|rad|schwimm/i.test(v.titel)
+          ? "cardio"
+          : /mobility|dehn|yoga/i.test(v.titel)
+            ? "mobility"
+            : "strength",
+      minutes: v.minutes,
+      weekday: v.weekday,
+      startsAt: v.startsAt,
+    })),
+  });
+  return vorschlag.length;
+}
+
 /* ---------- Was der Assistent tun darf ---------- */
 
 export function buildActions({ onChange, anhaenge = [] } = {}) {
@@ -651,7 +1021,7 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
       ].filter(Boolean).join(" ");
     },
 
-    async checkinSpeichern({ energie, schlaf, stimmung, notiz }) {
+    async checkinSpeichern({ energie, schlaf, stimmung, notiz, herausforderung }) {
       const day = todayIso();
       const hour = new Date().getHours();
       store.addCheckin(day, {
@@ -662,8 +1032,27 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
         sleepQuality: schlaf ?? null,
         mood: stimmung ?? null,
       });
+
+      // Die Herausforderung wird getrennt abgelegt. Sonst fragt die App am
+      // Nachmittag noch einmal danach, obwohl sie die Antwort schon hat.
+      const heraus = String(herausforderung || "").trim();
+      if (heraus.length >= 3) {
+        store.addCheckin(day, {
+          kind: "herausforderung",
+          at: nowTime(),
+          note: heraus,
+          energy: null, sleepQuality: null, mood: null,
+        });
+        brain.add({
+          text: `Herausforderung am ${day}: ${heraus}`,
+          art: "ereignis", wichtigkeit: 3, schlagworte: ["herausforderung"], quelle: "coach",
+        });
+      }
+
       changed();
-      return "Check-in gespeichert.";
+      return heraus
+        ? "Check-in gespeichert. Die Herausforderung habe ich mir gemerkt. Geh jetzt darauf ein und nenn genau eine Sache, die hilft."
+        : "Check-in gespeichert.";
     },
 
     async merken({ text, art, wichtigkeit, schlagworte }) {
@@ -679,6 +1068,43 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
       const hits = brain.search(frage, 6);
       if (hits.length === 0) return "Dazu habe ich nichts notiert.";
       return hits.map((h) => `- ${h.entry.text} (${h.entry.at.slice(0, 10)})`).join("\n");
+    },
+
+    async aufgabeAnlegen({ text, minuten, faellig, wichtigkeit } = {}) {
+      const a = aufgabeAnlegen({ text, minuten, faellig, wichtigkeit, quelle: "coach" });
+      if (!a) return "Das war zu kurz für eine Aufgabe.";
+      changed();
+      return `Steht auf der Liste: ${a.text}, ${a.minuten} Minuten${a.faellig ? `, fällig ${a.faellig}` : ""}.`;
+    },
+
+    async aufgabeAbhaken({ text } = {}) {
+      const a = aufgabeFinden(text || "");
+      if (!a) return "Die Aufgabe finde ich nicht. Sag mir den Wortlaut.";
+      aufgabeAbhaken(a.id);
+      changed();
+      return `Abgehakt: ${a.text}.`;
+    },
+
+    async musterErkennen({ tage } = {}) {
+      return musterUebersicht(Math.max(14, Math.min(180, tage || 60)));
+    },
+
+    async widerspruechePruefen() {
+      return widerspruchUebersicht();
+    },
+
+    async aufgabenPriorisieren() {
+      return aufgabenPlanText();
+    },
+
+    async mittagscheckSpeichern({ energie, konzentration, saettigung, notiz } = {}) {
+      const befund = mittagscheck({ energie, konzentration, saettigung, notiz });
+      changed();
+      return mittagscheckText(befund);
+    },
+
+    async briefingErstellen({ art } = {}) {
+      return briefing(art === "abend" ? "abend" : "morgen");
     },
 
     async kalenderAbrufen({ tage } = {}) {

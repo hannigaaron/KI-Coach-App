@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { tagesablauf, tagesablaufText, wochenText } from "./tagesablauf.js";
+import { restDesTages, tagesablauf, tagesablaufText, trainingsplanAusKalender, wochenText } from "./tagesablauf.js";
 import type { Termin } from "./ical.js";
 import type { MacroTargets, UserProfile } from "./types.js";
 
@@ -140,4 +140,58 @@ test("ein leerer Tag steht als leer da, nicht als null Termine", () => {
   const text = wochenText([lauf([])]);
   assert.ok(text.includes("nichts im Kalender"));
   assert.equal(text.includes("0 Termine"), false);
+});
+
+test("der Rest des Tages rechnet ab jetzt, nicht ab dem Aufstehen", () => {
+  const a = lauf([t("09:00", "12:00", "Kunden"), t("16:00", "17:00", "Kunde")]);
+  const jetzt = new Date(`${TAG}T13:00:00`).getTime();
+  const rest = restDesTages(a, jetzt);
+  // 13:00 bis 23:00 sind 600 Minuten, davon eine Stunde belegt.
+  assert.equal(rest.restMinuten, 600);
+  assert.equal(rest.freieMinuten, 540);
+  // Bis 13 Uhr waren die drei Stunden Kunden belegt.
+  assert.equal(rest.belegtBisJetzt, 180);
+});
+
+test("nach der Schlafenszeit ist nichts mehr frei", () => {
+  const a = lauf([]);
+  const rest = restDesTages(a, new Date(`${TAG}T23:59:00`).getTime());
+  assert.equal(rest.freieMinuten, 0);
+  assert.equal(rest.restMinuten, 0);
+});
+
+test("aus wiederkehrenden Terminen wird ein Trainingsplan", () => {
+  // Sechs Dienstage Volleyball, dazu ein einzelnes Krafttraining.
+  const termine: Termin[] = [];
+  for (let woche = 0; woche < 6; woche++) {
+    const d = new Date(2026, 8, 1 + woche * 7, 19, 0);
+    termine.push({
+      uid: `v${woche}`, titel: "Volleyball", ort: "",
+      von: d.getTime(), bis: d.getTime() + 120 * 60000, ganztags: false,
+    });
+  }
+  const einzeln = new Date(2026, 8, 3, 17, 0);
+  termine.push({
+    uid: "k", titel: "Krafttraining", ort: "",
+    von: einzeln.getTime(), bis: einzeln.getTime() + 75 * 60000, ganztags: false,
+  });
+
+  const plan = trainingsplanAusKalender(termine);
+  assert.equal(plan.length, 1);
+  assert.equal(plan[0]!.weekday, 2);
+  assert.equal(plan[0]!.startsAt, "19:00");
+  assert.equal(plan[0]!.minutes, 120);
+  assert.equal(plan[0]!.vorkommen, 6);
+});
+
+test("Termine ohne Trainingsbezug landen nicht im Plan", () => {
+  const termine: Termin[] = [];
+  for (let woche = 0; woche < 6; woche++) {
+    const d = new Date(2026, 8, 1 + woche * 7, 9, 0);
+    termine.push({
+      uid: `t${woche}`, titel: "Teammeeting", ort: "",
+      von: d.getTime(), bis: d.getTime() + 60 * 60000, ganztags: false,
+    });
+  }
+  assert.deepEqual(trainingsplanAusKalender(termine), []);
 });

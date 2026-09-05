@@ -4,6 +4,9 @@ export type ReminderKind =
   | "morning_checkin"
   | "hydration"
   | "meal_log"
+  | "midday_meal"
+  | "midday_challenge"
+  | "midday_priorities"
   | "pre_training"
   | "post_training"
   | "evening_review"
@@ -34,6 +37,12 @@ export interface DayState {
   eveningReviewDone: boolean;
   /** Offene Posten auf der Einkaufsliste. Ohne Liste 0. */
   offeneEinkaeufe?: number;
+  /** Der Mittags Check-in ist schon beantwortet. */
+  middayCheckinDone?: boolean;
+  /** Die Frage nach der Herausforderung ist schon beantwortet. */
+  middayChallengeDone?: boolean;
+  /** Offene Aufgaben. Ohne offene Aufgaben gibt es nichts zu priorisieren. */
+  offeneAufgaben?: number;
   /**
    * Der Mindeststandard, bei dem Nachhaken gerade am meisten bringt.
    * Kommt aus standardZumNachhaken. Ohne Wert wird nicht nachgehakt.
@@ -41,7 +50,20 @@ export interface DayState {
   standardHinweis?: { id: string; frage: string } | null;
 }
 
-const MAX_REMINDERS_PER_DAY = 6;
+const MAX_REMINDERS_PER_DAY = 8;
+
+/**
+ * Die drei festen Punkte am Nachmittag.
+ *
+ * 14:00, weil ein Einbruch nach dem Mittagessen dann da ist und der Tag noch
+ * zu drehen ist. 14:30 für die Herausforderung, damit zwei Fragen nicht in
+ * einer Nachricht stehen. 15:00 für die Prioritäten, weil eine Entscheidung
+ * über den Rest des Tages vor dem letzten Drittel fallen muss und nicht um 18
+ * Uhr, wenn nichts mehr geht.
+ */
+const MITTAG_ESSEN = 14 * 60;
+const MITTAG_HERAUSFORDERUNG = 14 * 60 + 30;
+const MITTAG_PRIORITAETEN = 15 * 60;
 
 /**
  * Erzeugt den Erinnerungsplan für einen Tag.
@@ -117,6 +139,38 @@ export function buildDailyReminders(params: {
       title: "Nach dem Training",
       body: "Wie lief die Einheit und was hast du danach gegessen?",
       priority: 85,
+    });
+  }
+
+  // Der Mittagsblock. Diese drei sind der Kern des Tagescoachings und stehen
+  // deshalb oben in der Rangfolge: sie ändern noch etwas am laufenden Tag.
+  if (!state.middayCheckinDone && MITTAG_ESSEN > wake + 60 && MITTAG_ESSEN < sleep - 120) {
+    out.push({
+      kind: "midday_meal",
+      at: formatTime(MITTAG_ESSEN),
+      title: "Kurz nach dem Mittag",
+      body: "Was gab es zu essen, und wie sind Energie, Konzentration und Sättigung von 1 bis 10?",
+      priority: 95,
+    });
+  }
+
+  if (!state.middayChallengeDone && MITTAG_HERAUSFORDERUNG < sleep - 120) {
+    out.push({
+      kind: "midday_challenge",
+      at: formatTime(MITTAG_HERAUSFORDERUNG),
+      title: "Was war bisher das Schwierigste",
+      body: "Sag mir die grösste Herausforderung von heute. Ich sag dir, was ich dagegen machen würde.",
+      priority: 88,
+    });
+  }
+
+  if ((state.offeneAufgaben ?? 0) > 0 && MITTAG_PRIORITAETEN < sleep - 90) {
+    out.push({
+      kind: "midday_priorities",
+      at: formatTime(MITTAG_PRIORITAETEN),
+      title: "Der Rest des Tages",
+      body: `${state.offeneAufgaben} offene Aufgaben. Ich sortiere sie und sage dir, was bis morgen warten kann.`,
+      priority: 92,
     });
   }
 
