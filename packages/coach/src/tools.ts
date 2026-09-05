@@ -247,6 +247,33 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: "muster_erkennen",
+    description:
+      "Sucht Zusammenhänge über mehrere Wochen: was hängt bei diesem Nutzer wirklich mit seiner Energie, " +
+      "Konzentration und Stimmung zusammen. Rechnet Korrelationen über Schlaf, Kalorien, Protein, Wasser, " +
+      "Training und die im Kalender verplante Zeit. " +
+      "Nehmen, wenn er fragt, warum er ständig müde oder unkonzentriert ist, wenn er über ein Muster redet, " +
+      "oder wenn du eine Vermutung über Wochen prüfen willst. " +
+      "Die Antwort nennt Zusammenhänge, keine Ursachen. Genau so gibst du sie auch weiter.",
+    input_schema: {
+      type: "object",
+      properties: {
+        tage: { type: "number", description: "Zeitraum in Tagen, 14 bis 180. Ohne Angabe 60." },
+      },
+    },
+  },
+  {
+    name: "widersprueche_pruefen",
+    description:
+      "Vergleicht, was sich der Nutzer vornimmt, mit dem, was seine Daten zeigen: Ziele gegen Durchschnitt, " +
+      "Trainingsplan gegen eingetragene Einheiten, wichtige Aufgaben gegen ihr Alter, " +
+      "Kundenarbeit gegen Zeit für den Aufbau. " +
+      "Nehmen, wenn er über Fortschritt, Disziplin oder seine Ziele redet, wenn er sich fertigmacht, " +
+      "oder wenn er wissen will, woran es liegt. " +
+      "Jeder Punkt ist eine anstehende Entscheidung, kein Vorwurf. Manchmal ist die Antwort, das Ziel zu ändern.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
     name: "gewicht_eintragen",
     description:
       "Trägt eine Wiegung ein. Nehmen, sobald der Nutzer ein Gewicht nennt, auch nebenbei. " +

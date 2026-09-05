@@ -51,6 +51,8 @@ export interface AgentActions {
   aufgabeAnlegen(input: { text: string; minuten?: number; faellig?: string; wichtigkeit?: number }): Promise<string>;
   aufgabeAbhaken(input: { text: string }): Promise<string>;
   aufgabenPriorisieren(): Promise<string>;
+  musterErkennen(input: { tage?: number }): Promise<string>;
+  widerspruechePruefen(): Promise<string>;
   mittagscheckSpeichern(input: {
     energie: number; konzentration: number; saettigung: number; notiz?: string;
   }): Promise<string>;
@@ -413,6 +415,12 @@ async function execute(
       }
       case "aufgaben_priorisieren":
         return { text: await actions.aufgabenPriorisieren() };
+      case "muster_erkennen": {
+        const tage = Number.isFinite(Number(input.tage)) ? clamp(Number(input.tage), 14, 180) : undefined;
+        return { text: await actions.musterErkennen({ tage }) };
+      }
+      case "widersprueche_pruefen":
+        return { text: await actions.widerspruechePruefen() };
       case "mittagscheck_speichern": {
         const wert = (roh: unknown) => clamp(Number(roh), 1, 10);
         if (![input.energie, input.konzentration, input.saettigung].every((x) => Number.isFinite(Number(x)))) {
@@ -648,6 +656,16 @@ export async function runOffline(
 
   // Aufgaben und Prioritäten. Auch das läuft ohne Modell, weil die
   // Reihenfolge aus Fristen und Zahlen kommt, nicht aus Sprachverständnis.
+  if (pattern("woran liegt", "warum bin ich (immer|ständig|staendig)", "muster", "zusammenhang",
+    "hängt (das )?zusammen", "haengt (das )?zusammen", "seit wochen müde", "seit wochen mude").test(text)) {
+    return { text: await actions.musterErkennen({}), ausgeführt, source: "offline" };
+  }
+
+  if (pattern("widerspruch", "halte ich mich", "diszipliniert genug", "passt das zusammen",
+    "ehrlich gesagt", "sag mir die wahrheit", "was läuft schief", "was lauft schief").test(text)) {
+    return { text: await actions.widerspruechePruefen(), ausgeführt, source: "offline" };
+  }
+
   if (pattern("was zuerst", "womit anfangen", "priorit", "reihenfolge", "was mache ich (jetzt|zuerst)",
     "rest des tages", "schaffe ich heute", "was kann warten", "to do", "todo", "aufgabenliste").test(text)) {
     return { text: await actions.aufgabenPriorisieren(), ausgeführt, source: "offline" };

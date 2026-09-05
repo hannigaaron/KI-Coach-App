@@ -376,6 +376,49 @@ export function restDesTages(a: Tagesablauf, jetzt: number): {
 }
 
 /**
+ * Sucht im Kalender die Einheiten, die wirklich regelmässig stattfinden.
+ *
+ * Der Trainingsplan im Profil ist gepflegt oder nicht. Der Kalender ist die
+ * Wirklichkeit. Wenn dienstags um 19 Uhr seit sechs Wochen Volleyball steht,
+ * dann ist das der Plan, egal was im Profil eingetragen ist.
+ *
+ * Erkannt wird über Wochentag und Startzeit auf eine Viertelstunde genau. Zwei
+ * Vorkommen reichen nicht, sonst wird aus einem Nachholtermin ein fester
+ * Wochentermin. Ab drei gilt es als Serie.
+ */
+export function trainingsplanAusKalender(
+  termine: Termin[],
+  mindestVorkommen = 3,
+): { weekday: number; startsAt: string; minutes: number; titel: string; vorkommen: number }[] {
+  const gruppen = new Map<string, { von: number; dauer: number; titel: string }[]>();
+  for (const t of termine) {
+    if (t.ganztags || !istTraining(t.titel)) continue;
+    const d = new Date(t.von);
+    const viertel = Math.round((d.getHours() * 60 + d.getMinutes()) / 15) * 15;
+    const schluessel = `${d.getDay()}|${viertel}`;
+    const liste = gruppen.get(schluessel) ?? [];
+    liste.push({ von: t.von, dauer: t.bis - t.von, titel: t.titel });
+    gruppen.set(schluessel, liste);
+  }
+
+  const out: { weekday: number; startsAt: string; minutes: number; titel: string; vorkommen: number }[] = [];
+  for (const [schluessel, liste] of gruppen) {
+    if (liste.length < mindestVorkommen) continue;
+    const [tagRoh, minutenRoh] = schluessel.split("|");
+    const minuten = Number(minutenRoh);
+    const dauer = Math.round(liste.reduce((s, e) => s + e.dauer, 0) / liste.length / 60000);
+    out.push({
+      weekday: Number(tagRoh),
+      startsAt: `${String(Math.floor(minuten / 60)).padStart(2, "0")}:${String(minuten % 60).padStart(2, "0")}`,
+      minutes: Math.max(15, Math.round(dauer / 5) * 5),
+      titel: liste[0]!.titel,
+      vorkommen: liste.length,
+    });
+  }
+  return out.sort((a, b) => a.weekday - b.weekday || a.startsAt.localeCompare(b.startsAt));
+}
+
+/**
  * Der Tag in Worten, für den Prompt und für die Anzeige.
  *
  * Bewusst als Text und nicht als Tabelle: der Coach soll daraus reden können,

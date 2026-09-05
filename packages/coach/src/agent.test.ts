@@ -23,6 +23,8 @@ function stubActions(log: string[]): AgentActions {
     async aufgabeAnlegen(i) { log.push(`aufgabe:${i.text}`); return "Steht auf der Liste."; },
     async aufgabeAbhaken(i) { log.push(`abhaken:${i.text}`); return "Abgehakt."; },
     async aufgabenPriorisieren() { log.push("prio"); return "Heute noch: Angebot schreiben."; },
+    async musterErkennen(i) { log.push(`muster:${i.tage ?? ""}`); return "Schlaf und Energie hängen zusammen."; },
+    async widerspruechePruefen() { log.push("widerspruch"); return "Protein: Ziel 180 g, im Schnitt 120 g."; },
     async mittagscheckSpeichern(i) { log.push(`mittag:${i.energie}/${i.konzentration}/${i.saettigung}`); return "Notiert."; },
     async briefingErstellen(i) { log.push(`briefing:${i.art}`); return "Guten Morgen."; },
     async tagesablaufPlanen(i) { log.push(`tagesablauf:${i.tag ?? ""}`); return "Wach von 07:00 bis 23:00. Verplant: 240 Minuten."; },

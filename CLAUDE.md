@@ -59,7 +59,7 @@ Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
 
-Der Assistent hat sechsundzwanzig Werkzeuge und verändert die App wirklich. Zahlen
+Der Assistent hat achtundzwanzig Werkzeuge und verändert die App wirklich. Zahlen
 über den Nutzer kommen immer aus Werkzeugen, nie aus dem Modell. Allgemeines
 Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
@@ -143,7 +143,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 266 Tests
+npm test           # 290 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -209,6 +209,27 @@ Zur Arbeitsgrenze von zehn Stunden: die App misst kein Cortisol und behauptet
 nicht, eine Grenze würde es senken. Sie ist eine Regel, damit ein Tag ein Ende
 hat. Was nicht belegt ist, wird auch nicht behauptet.
 
+## Muster und Widersprüche
+
+`packages/core/src/muster.ts` rechnet Korrelationen nach Pearson über die
+Tagesreihe. Zwei Regeln stehen fest: unter zehn gemeinsamen Tagen wird nichts
+behauptet, und jeder Befund sagt dazu, dass ein Zusammenhang keine Ursache ist.
+Geprüft wird nicht alles gegen alles, sondern eine feste Liste von Paaren mit
+plausibler Richtung, sonst findet sich immer irgendwo ein Zufallstreffer. Neben
+dem r steht immer der Vergleich der Drittel, weil den auch jemand lesen kann,
+der mit einem Korrelationskoeffizienten nichts anfängt.
+
+`packages/core/src/widerspruch.ts` hält Anspruch gegen Wirklichkeit: Ziele gegen
+Durchschnitt, Trainingsplan gegen eingetragene Einheiten, wichtige Aufgaben
+gegen ihr Alter, Kundenarbeit gegen Zeit für Aufbau. Genannt wird nur, was
+gemessen wurde. Jeder Punkt endet mit einer Frage, nicht mit einem Urteil, und
+eine der möglichen Antworten ist immer, das Ziel zu ändern.
+
+`trainingsplanAusKalender` liest aus wiederkehrenden Terminen den echten Plan.
+Erkannt wird über Wochentag und Startzeit auf eine Viertelstunde genau, ab drei
+Vorkommen. Deshalb reicht der Kalender 60 Tage zurück und nicht 14: ein
+wöchentlicher Termin kommt in zwei Wochen nur zweimal vor.
+
 ## Aktueller Stand
 
 Fotos, Videos und PDFs gehen in den Chat. Die Aufbereitung steht in
@@ -219,7 +240,8 @@ durch dieselbe Prüfung wie bei der Texteingabe.
 Fertig: Rechenkern, Gedächtnis, Assistent mit Werkzeugen, Sprache und Bildern,
 Anamnesebogen beim ersten Start, Einkaufsliste, Mindeststandards,
 Gewichtsverlauf mit Zielkorrektur, Kalender und Tagesablauf, Morgenbriefing,
-Mittags Check-in, Aufgaben mit Priorisierung, Tagesabschluss, Tag und Nacht
+Mittags Check-in, Aufgaben mit Priorisierung, Tagesabschluss, Muster über
+Wochen, Widerspruchsprüfung, Tag und Nacht
 Modus, installierbare Web App, Marke, API.
 Offen: Push Benachrichtigungen bei geschlossener App, Apple Health und
 Wearables, Wortaktivierung, echte Nährwertdatenbank, Anmeldung über Apple.

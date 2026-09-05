@@ -233,6 +233,14 @@ try {
     <div class="scroll">
       <p class="sub">Abgeleitet aus deinen eigenen Zahlen. Jede Empfehlung nennt den Wert, auf dem sie beruht.</p>
       <div id="recoList"></div>
+
+      <h2 class="section-title">Woran es bei dir wirklich hängt</h2>
+      <p class="sub">Zusammenhänge über die letzten Wochen. Ein Zusammenhang ist keine Ursache, und unter zehn gemeinsamen Tagen sage ich nichts.</p>
+      <pre class="pre" id="musterText">Wird beim Öffnen gerechnet.</pre>
+
+      <h2 class="section-title">Anspruch gegen Wirklichkeit</h2>
+      <p class="sub">Wo das, was du dir vornimmst, und das, was deine Daten zeigen, auseinanderlaufen. Kein Vorwurf, eine anstehende Entscheidung.</p>
+      <div id="widerspruchListe"></div>
     </div>
   </section>
 
@@ -338,6 +346,11 @@ try {
 
       <h2 class="section-title">Die nächsten Tage</h2>
       <pre class="pre" id="kalWoche"></pre>
+
+      <h2 class="section-title">Trainingsplan aus dem Kalender</h2>
+      <p class="sub" id="planVorschlagSub">Was seit mindestens drei Wochen zur selben Zeit stattfindet, ist dein Plan. Egal, was im Profil steht.</p>
+      <ul class="list" id="planVorschlag"></ul>
+      <button id="btnPlanUebernehmen" class="ghost" hidden>In das Profil übernehmen</button>
 
       <h2 class="section-title">Kalender verbinden</h2>
       <p class="sub" id="kalQuellenSub">Beide Kalender geben eine .ics Datei aus. Die liest daevo direkt im Gerät, es geht nichts an einen Server.</p>

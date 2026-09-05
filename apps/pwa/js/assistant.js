@@ -5,6 +5,11 @@ import {
 import {
   abendAbschluss,
   buildDailyReminders,
+  muster,
+  musterText,
+  trainingsplanAusKalender,
+  widersprueche,
+  widerspruchText,
   mittagsBefund,
   morgenBriefing,
   planText,
@@ -488,8 +493,15 @@ export function einkaufslisteText(liste) {
 
 /* ---------- Kalender ---------- */
 
-/** Wie weit zurück und wie weit voraus Termine behalten werden. */
-const KALENDER_RUECK_TAGE = 14;
+/**
+ * Wie weit zurück und wie weit voraus Termine behalten werden.
+ *
+ * Zurück reichen 60 Tage, nicht 14. Ein wöchentlicher Termin kommt in zwei
+ * Wochen nur zweimal vor, und aus zweimal lässt sich keine Serie erkennen.
+ * Für den Trainingsplan aus dem Kalender und für die Zeitverteilung über
+ * Wochen braucht es den längeren Rückblick.
+ */
+const KALENDER_RUECK_TAGE = 60;
 const KALENDER_VOR_TAGE = 90;
 
 function kalenderFenster() {
@@ -821,6 +833,130 @@ export function briefing(art = "morgen") {
   });
 }
 
+/* ---------- Muster und Widersprüche ---------- */
+
+/** Die Tagesreihe für die Musteranalyse. Fehlende Werte bleiben leer. */
+export function musterTage(tage = 60) {
+  const heute = todayIso();
+  const out = [];
+  for (let i = tage - 1; i >= 0; i--) {
+    const d = new Date(`${heute}T12:00:00`);
+    d.setDate(d.getDate() - i);
+    const iso = d.toISOString().slice(0, 10);
+    const data = store.getDay(iso);
+    const hatEssen = data.meals.length > 0;
+
+    let kcal = 0;
+    let protein = 0;
+    for (const meal of data.meals) {
+      for (const e of meal.entries) { kcal += e.kcal; protein += e.proteinG; }
+    }
+
+    const morgens = data.checkins.find((c) => c.kind === "morning");
+    const mittags = data.checkins.find((c) => c.kind === "midday");
+    const energie = mittags?.energy ?? morgens?.energy ?? null;
+    const stimmung = data.checkins.map((c) => c.mood).find((m) => typeof m === "number") ?? null;
+
+    const termine = termineFuer(iso).filter((t) => !t.ganztags);
+    const terminMinuten = termine.length
+      ? Math.round(termine.reduce((s, t) => s + (t.bis - t.von), 0) / 60000)
+      : null;
+
+    out.push({
+      tag: iso,
+      kcal: hatEssen ? Math.round(kcal) : null,
+      proteinG: hatEssen ? Math.round(protein) : null,
+      wasserMl: data.waterMl > 0 ? data.waterMl : null,
+      schlaf: morgens?.sleepQuality ?? null,
+      energie,
+      konzentration: mittags?.concentration ?? null,
+      stimmung,
+      training: (data.trainings || []).length,
+      terminMinuten,
+    });
+  }
+  return out;
+}
+
+export function musterUebersicht(tage = 60) {
+  const reihe = musterTage(tage);
+  return musterText(muster(reihe), reihe.length);
+}
+
+export function widerspruchListe(tage = 28) {
+  const heute = todayIso();
+  const reihe = [];
+  const titel = [];
+  for (let i = tage - 1; i >= 0; i--) {
+    const d = new Date(`${heute}T12:00:00`);
+    d.setDate(d.getDate() - i);
+    const iso = d.toISOString().slice(0, 10);
+    const data = store.getDay(iso);
+    let kcal = 0;
+    let protein = 0;
+    for (const meal of data.meals) {
+      for (const e of meal.entries) { kcal += e.kcal; protein += e.proteinG; }
+    }
+    const termine = termineFuer(iso).filter((t) => !t.ganztags);
+    for (const t of termine) titel.push({ titel: t.titel, minuten: Math.round((t.bis - t.von) / 60000) });
+    reihe.push({
+      tag: iso,
+      kcal: data.meals.length ? Math.round(kcal) : null,
+      proteinG: data.meals.length ? Math.round(protein) : null,
+      mahlzeiten: data.meals.length,
+      trainings: (data.trainings || []).length,
+      terminMinuten: termine.length ? Math.round(termine.reduce((s, t) => s + (t.bis - t.von), 0) / 60000) : null,
+    });
+  }
+  const n = dayNumbers(heute);
+  return widersprueche({
+    profile: n.profile,
+    ziele: n.targets,
+    tage: reihe,
+    aufgaben: store.getAufgaben(),
+    heute,
+    terminTitel: titel,
+  });
+}
+
+export function widerspruchUebersicht() {
+  return widerspruchText(widerspruchListe());
+}
+
+/**
+ * Trainingsplan aus dem Kalender.
+ *
+ * Der Kalender ist die Wirklichkeit, das Profil ist gepflegt oder nicht.
+ * Uebernommen wird nur auf Ansage, nicht automatisch: ein Plan, den die App
+ * hinter dem Rücken ändert, ist kein Plan mehr.
+ */
+export function trainingsplanVorschlag() {
+  return trainingsplanAusKalender(store.getKalender().termine || []);
+}
+
+export function trainingsplanUebernehmen() {
+  const vorschlag = trainingsplanVorschlag();
+  if (vorschlag.length === 0) return 0;
+  const profile = store.getProfile();
+  if (!profile) return 0;
+  store.setProfile({
+    ...profile,
+    sessions: vorschlag.map((v) => ({
+      type: /volleyball|mannschaft|team/i.test(v.titel)
+        ? "team_sport"
+        : /lauf|jogg|cardio|rad|schwimm/i.test(v.titel)
+          ? "cardio"
+          : /mobility|dehn|yoga/i.test(v.titel)
+            ? "mobility"
+            : "strength",
+      minutes: v.minutes,
+      weekday: v.weekday,
+      startsAt: v.startsAt,
+    })),
+  });
+  return vorschlag.length;
+}
+
 /* ---------- Was der Assistent tun darf ---------- */
 
 export function buildActions({ onChange, anhaenge = [] } = {}) {
@@ -947,6 +1083,14 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
       aufgabeAbhaken(a.id);
       changed();
       return `Abgehakt: ${a.text}.`;
+    },
+
+    async musterErkennen({ tage } = {}) {
+      return musterUebersicht(Math.max(14, Math.min(180, tage || 60)));
+    },
+
+    async widerspruechePruefen() {
+      return widerspruchUebersicht();
     },
 
     async aufgabenPriorisieren() {

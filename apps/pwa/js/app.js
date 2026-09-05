@@ -4,7 +4,8 @@ import { Coach, AnthropicProvider } from "@daevo/coach";
 import {
   ablaufFuer, ask, aufgabeAbhaken, aufgabeAnlegen, aufgabeLoeschen, aufgabenPlan, briefing,
   buildActions, dayNumbers, einkaufslisteText, ensureStandards, greeting, herausforderungSpeichern,
-  mittagscheck, mittagscheckText,
+  mittagscheck, mittagscheckText, musterUebersicht,
+  trainingsplanUebernehmen, trainingsplanVorschlag, widerspruchListe,
   kalenderEntfernen, kalenderImportieren, kalenderStand, kalenderUebersicht,
   kostenUebersicht, recommendations, standardsUebersicht, tagesErinnerungen, verlaufPunkte,
 } from "./assistant.js";
@@ -555,6 +556,17 @@ function renderRecommendations() {
   $("recoList").innerHTML = recommendations()
     .map((r) => `<div class="reco"><h3>${escapeHtml(r.titel)}</h3><p>${escapeHtml(r.text)}</p><div class="grund">${escapeHtml(r.grund)}</div></div>`)
     .join("");
+
+  $("musterText").textContent = musterUebersicht(60);
+
+  const liste = widerspruchListe();
+  $("widerspruchListe").innerHTML = liste.length === 0
+    ? '<div class="empty">Zwischen Anspruch und Umsetzung sehe ich gerade keinen Widerspruch.</div>'
+    : liste
+      .map((w) => `<div class="reco"><h3>${escapeHtml(w.thema)}</h3>` +
+        `<p>${escapeHtml(w.anspruch)} ${escapeHtml(w.wirklichkeit)}</p>` +
+        `<div class="grund">${escapeHtml(w.frage)}</div></div>`)
+      .join("");
 }
 
 function renderProfile() {
@@ -1076,7 +1088,24 @@ function renderKalender() {
   fuelleListe("kalHinweise", a.hinweise.map((h) => ({ titel: h, sub: "", seite: "" })), "Nichts Auffälliges.");
 
   $("kalWoche").textContent = kalenderUebersicht(Number($("kalTage").value) || 7);
+
+  const vorschlag = trainingsplanVorschlag();
+  fuelleListe("planVorschlag", vorschlag.map((v) => ({
+    titel: `${WEEKDAYS[v.weekday]} ${v.startsAt} ${v.titel}`,
+    sub: `${v.minutes} Minuten, ${v.vorkommen} mal im Kalender`,
+    seite: "",
+  })), "Noch keine Einheit, die sich regelmässig wiederholt.");
+  $("btnPlanUebernehmen").hidden = vorschlag.length === 0;
 }
+
+$("btnPlanUebernehmen").addEventListener("click", () => {
+  const anzahl = trainingsplanUebernehmen();
+  if (anzahl === 0) { toast("Nichts zu übernehmen."); return; }
+  profile = store.getProfile();
+  renderKalender();
+  refreshAll();
+  toast(`${anzahl} ${anzahl === 1 ? "Einheit" : "Einheiten"} ins Profil übernommen`);
+});
 
 /** Baut eine Liste aus drei Feldern. Spart drei fast gleiche Schleifen. */
 function fuelleListe(id, eintraege, leerText) {
