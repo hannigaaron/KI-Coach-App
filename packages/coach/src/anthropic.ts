@@ -141,18 +141,24 @@ export class AnthropicProvider implements CoachProvider {
   async converse(request: ConverseRequest): Promise<ConverseResponse> {
     if (!this.available) throw new ProviderUnavailableError("ANTHROPIC_API_KEY fehlt");
     const modell = request.modell ?? this.options.model;
+    const koerper = {
+      model: modell,
+      max_tokens: request.maxTokens ?? 2048,
+      system: this.systemFeld(request.system),
+      messages: request.messages,
+      tools: request.tools,
+      // Nicht jedes Modell nimmt eine Angabe zur Denktiefe entgegen.
+      // Haiku 4.5 lehnt sie mit einem Fehler ab, deshalb bleibt das Feld
+      // dort ganz weg statt auf einen Standardwert zu fallen.
+      ...(request.ohneEffort ? {} : { output_config: { effort: request.effort ?? "medium" } }),
+    };
+
+    if (request.onText) {
+      return this.stream(koerper, request.onText, modell);
+    }
+
     const payload = (await this.post(
-      {
-        model: modell,
-        max_tokens: request.maxTokens ?? 2048,
-        system: this.systemFeld(request.system),
-        messages: request.messages,
-        tools: request.tools,
-        // Nicht jedes Modell nimmt eine Angabe zur Denktiefe entgegen.
-        // Haiku 4.5 lehnt sie mit einem Fehler ab, deshalb bleibt das Feld
-        // dort ganz weg statt auf einen Standardwert zu fallen.
-        ...(request.ohneEffort ? {} : { output_config: { effort: request.effort ?? "medium" } }),
-      },
+      koerper,
       this.options.timeoutMs ?? 90000,
     )) as { content?: ContentBlock[]; stop_reason?: string };
     return {
@@ -160,6 +166,103 @@ export class AnthropicProvider implements CoachProvider {
       stopReason: payload.stop_reason ?? "end_turn",
       verbrauch: this.meldeVerbrauch(payload, modell),
     };
+  }
+
+  /**
+   * Dasselbe Gespräch, aber als Datenstrom.
+   *
+   * Die API schickt Server Sent Events: erst message_start mit dem Verbrauch
+   * der Eingabe, dann je Block ein content_block_start, beliebig viele
+   * content_block_delta und ein content_block_stop, am Ende message_delta mit
+   * dem Grund fürs Aufhören und den Ausgabetoken.
+   *
+   * Die Blöcke werden hier wieder zusammengesetzt, weil der Agent danach
+   * dieselbe Antwortform braucht wie ohne Strom. Werkzeugaufrufe kommen als
+   * JSON in Stücken und werden erst am Blockende geparst. Bricht das Parsen,
+   * bleibt das Werkzeug mit leerer Eingabe stehen statt den ganzen Aufruf zu
+   * kippen: eine fehlende Zahl ist besser als eine verlorene Antwort.
+   */
+  private async stream(
+    koerper: Record<string, unknown>,
+    onText: (stueck: string) => void,
+    modell: string,
+  ): Promise<ConverseResponse> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.options.timeoutMs ?? 90000);
+    try {
+      const holen = this.fetchImpl;
+      const response = await holen(API_URL, {
+        method: "POST",
+        headers: this.headers(),
+        signal: controller.signal,
+        body: JSON.stringify({ ...koerper, stream: true }),
+      });
+      if (!response.ok || !response.body) {
+        const text = response.body ? await response.text() : "";
+        throw new Error(`Anthropic API ${response.status}: ${text.slice(0, 500)}`);
+      }
+
+      const blöcke: ContentBlock[] = [];
+      const roheEingaben: string[] = [];
+      let stopReason = "end_turn";
+      let verbrauch: Verbrauch | undefined;
+      let eingabe: Record<string, unknown> | undefined;
+
+      for await (const ereignis of leseEvents(response.body)) {
+        const typ = ereignis.type as string;
+        if (typ === "message_start") {
+          eingabe = (ereignis.message as { usage?: Record<string, unknown> })?.usage;
+        } else if (typ === "content_block_start") {
+          const index = Number(ereignis.index);
+          const block = ereignis.content_block as Record<string, unknown>;
+          roheEingaben[index] = "";
+          if (block?.type === "text") {
+            blöcke[index] = { type: "text", text: String(block.text ?? "") };
+          } else if (block?.type === "tool_use") {
+            blöcke[index] = {
+              type: "tool_use",
+              id: String(block.id ?? ""),
+              name: String(block.name ?? ""),
+              input: {},
+            };
+          } else {
+            // Denkblöcke und alles Künftige gehen unverändert durch.
+            blöcke[index] = block as unknown as ContentBlock;
+          }
+        } else if (typ === "content_block_delta") {
+          const index = Number(ereignis.index);
+          const delta = ereignis.delta as Record<string, unknown>;
+          if (delta?.type === "text_delta") {
+            const stueck = String(delta.text ?? "");
+            const vorhanden = blöcke[index];
+            if (vorhanden && vorhanden.type === "text") vorhanden.text += stueck;
+            onText(stueck);
+          } else if (delta?.type === "input_json_delta") {
+            roheEingaben[index] = (roheEingaben[index] ?? "") + String(delta.partial_json ?? "");
+          }
+        } else if (typ === "content_block_stop") {
+          const index = Number(ereignis.index);
+          const block = blöcke[index];
+          const roh = roheEingaben[index];
+          if (block && block.type === "tool_use" && roh) {
+            try {
+              block.input = JSON.parse(roh) as Record<string, unknown>;
+            } catch {
+              block.input = {};
+            }
+          }
+        } else if (typ === "message_delta") {
+          const delta = ereignis.delta as Record<string, unknown>;
+          if (delta?.stop_reason) stopReason = String(delta.stop_reason);
+          const aus = ereignis.usage as Record<string, unknown> | undefined;
+          verbrauch = this.meldeVerbrauch({ usage: { ...(eingabe ?? {}), ...(aus ?? {}) } }, modell);
+        }
+      }
+
+      return { content: blöcke.filter(Boolean), stopReason, verbrauch };
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   async generateJson<T>(request: JsonRequest): Promise<T> {
@@ -217,6 +320,42 @@ export class AnthropicProvider implements CoachProvider {
       return toolUse.input as T;
     } finally {
       clearTimeout(timeout);
+    }
+  }
+}
+
+/**
+ * Zerlegt einen Datenstrom in die JSON Objekte der Server Sent Events.
+ *
+ * Ein Ereignis endet an einer Leerzeile. Die Datenzeilen davor werden
+ * aneinandergehängt. Alles andere, etwa die event Zeile, braucht hier
+ * niemand: der Typ steht auch im JSON.
+ */
+async function* leseEvents(body: ReadableStream<Uint8Array>): AsyncGenerator<Record<string, unknown>> {
+  const leser = body.getReader();
+  const decoder = new TextDecoder();
+  let puffer = "";
+  while (true) {
+    const { done, value } = await leser.read();
+    if (done) break;
+    puffer += decoder.decode(value, { stream: true });
+    let grenze = puffer.indexOf("\n\n");
+    while (grenze !== -1) {
+      const roh = puffer.slice(0, grenze);
+      puffer = puffer.slice(grenze + 2);
+      const daten = roh
+        .split("\n")
+        .filter((zeile) => zeile.startsWith("data:"))
+        .map((zeile) => zeile.slice(5).trim())
+        .join("");
+      if (daten && daten !== "[DONE]") {
+        try {
+          yield JSON.parse(daten) as Record<string, unknown>;
+        } catch {
+          // Ein kaputtes Ereignis darf den Rest der Antwort nicht kippen.
+        }
+      }
+      grenze = puffer.indexOf("\n\n");
     }
   }
 }

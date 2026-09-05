@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { denktiefe } from "./agent.js";
+import { denktiefe, tiefeAnheben } from "./agent.js";
 import { PERSONA_TEILE, systemPrompt } from "./persona.js";
 
 const KONTEXT = {
@@ -36,7 +36,7 @@ test("persönliche Themen gehen in den Psyche Modus, egal wie kurz", () => {
     const t = denktiefe(satz);
     assert.equal(t.modus, "psyche", satz);
     assert.equal(t.effort, "high", satz);
-    assert.equal(t.maxTokens, 4096, satz);
+    assert.equal(t.maxTokens, 8192, satz);
   }
 });
 
@@ -66,7 +66,10 @@ test("Fachfragen gehen in den Coachingmodus", () => {
   ]) {
     const t = denktiefe(satz);
     assert.equal(t.modus, "coaching", satz);
-    assert.equal(t.effort, "high", satz);
+    // Mittel, nicht hoch. Anthropic gibt für Wissensarbeit an, dass mittlere
+    // Denktiefe die Genauigkeit der Voreinstellung bei 70 bis 85 Prozent der
+    // Kosten erreicht. Wer das anders will, schaltet "immer gründlich" ein.
+    assert.equal(t.effort, "medium", satz);
   }
 });
 
@@ -79,7 +82,31 @@ test("eine Frage ohne Thema bekommt trotzdem Platz zum Denken", () => {
 test("Smalltalk bleibt Smalltalk", () => {
   const t = denktiefe("Moin");
   assert.equal(t.modus, "standard");
-  assert.equal(t.effort, "medium");
+  assert.equal(t.effort, "low");
+});
+
+test("keine Antwort wird durch die Obergrenze abgeschnitten", () => {
+  // maxTokens ist eine Notbremse, kein Sparhebel: bezahlt wird nur, was
+  // wirklich geschrieben wird. Ein zu kleiner Wert schneidet mitten im Satz ab.
+  for (const satz of ["Moin", "Zwei Eier gegessen", "Bringt Kreatin etwas?", "Ich schäme mich"]) {
+    assert.ok(denktiefe(satz).maxTokens >= 2048, satz);
+  }
+});
+
+test("der Schalter hebt jede Nachricht auf die höchste Stufe", () => {
+  const klein = denktiefe("Moin");
+  assert.equal(tiefeAnheben(klein, false), klein);
+  const gross = tiefeAnheben(klein, true);
+  assert.equal(gross.effort, "high");
+  assert.equal(gross.modus, "standard");
+  assert.ok(gross.maxTokens >= 4096);
+});
+
+test("der Schalter senkt nie ab", () => {
+  const psyche = denktiefe("Ich schäme mich dafür bis heute");
+  const angehoben = tiefeAnheben(psyche, true);
+  assert.equal(angehoben.effort, "high");
+  assert.equal(angehoben.maxTokens, psyche.maxTokens);
 });
 
 test("Umlaute brechen die Erkennung nicht", () => {

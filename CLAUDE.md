@@ -90,6 +90,21 @@ Planung auf Opus, Bilder immer auf Opus. Haiku 4.5 lehnt `output_config.effort`
 mit einem Fehler ab, deshalb steht je Modell in der Tabelle, ob es die Angabe
 verträgt.
 
+Der Modus steuert ausserdem, wie viel Kontext mitgeht. Erfassen bekommt ein
+kurzes Profil, die Zahlen des Tages, drei Notizen und sechs Nachrichten
+Verlauf. Alles andere bekommt weiterhin alles. An der Antwortqualität wird
+nicht gespart, nur an dem, was beim Eintragen einer Mahlzeit niemand liest.
+
+Denktiefe: psyche und planung immer `high`. Fachfragen laufen auf `medium`,
+kurzes hin und her auf `low`. Der Schalter "immer gründlich denken" im Profil
+hebt alles auf `high`. `maxTokens` ist eine Notbremse gegen abgeschnittene
+Antworten, kein Sparhebel: bezahlt wird nur, was geschrieben wird.
+
+Die Antwort läuft als Datenstrom in die Blase, sobald das erste Wort da ist.
+Der Parser für die Server Sent Events steht in `packages/coach/src/anthropic.ts`,
+die Anzeige in `apps/pwa/js/app.js`. Kosten ändert das nicht, nur die gefühlte
+Wartezeit.
+
 Der Nutzer kann eigene Anweisungen hinterlegen. Sie stehen im Prompt ganz
 unten und gehen allem vor, ausser den Grenzen und der Regel, keine Zahlen zu
 erfinden. Gespeichert unter `settings.anweisungen`, Obergrenze 4000 Zeichen,
@@ -128,7 +143,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 196 Tests
+npm test           # 205 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages

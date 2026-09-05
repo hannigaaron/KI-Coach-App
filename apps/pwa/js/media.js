@@ -18,8 +18,18 @@
  * localStorage wären nach wenigen Fotos am Limit von rund fünf Megabyte.
  */
 
-/** Lange Kante für das Bild, das an das Modell geht. */
+/** Lange Kante für das Bild, das in die Bildauswertung geht. */
 const MAX_KANTE = 1568;
+/**
+ * Lange Kante für das Bild, das im Gespräch mitgeht.
+ *
+ * Die API rechnet Bilder in Token um, grob Breite mal Höhe geteilt durch 750.
+ * Ein Bild mit 1568 Pixeln kostet so rund 2500 Token, eines mit 768 Pixeln
+ * rund 590. Im Gespräch entscheidet das Modell nur, was auf dem Bild ist und
+ * welches Werkzeug es ruft. Dafür reicht die kleine Fassung. Die Mengen
+ * schätzt danach die Bildauswertung, und die bekommt weiter das grosse Bild.
+ */
+const CHAT_KANTE = 768;
 /** Lange Kante für das Vorschaubild im Verlauf. */
 const VORSCHAU_KANTE = 320;
 const JPEG_QUALITAET = 0.82;
@@ -75,10 +85,12 @@ async function ausBild(datei) {
   const bild = await ladeBild(URL.createObjectURL(datei));
   try {
     const gross = zeichne(bild, MAX_KANTE);
+    const mittel = zeichne(bild, CHAT_KANTE);
     const klein = zeichne(bild, VORSCHAU_KANTE);
     return {
       mediaType: "image/jpeg",
       data: teilNachKomma(gross.toDataURL("image/jpeg", JPEG_QUALITAET)),
+      chatData: teilNachKomma(mittel.toDataURL("image/jpeg", JPEG_QUALITAET)),
       vorschau: klein.toDataURL("image/jpeg", VORSCHAU_QUALITAET),
       breite: gross.width,
       hoehe: gross.height,
@@ -119,10 +131,12 @@ async function ausVideo(datei) {
     });
 
     const gross = zeichne(video, MAX_KANTE, video.videoWidth, video.videoHeight);
+    const mittel = zeichne(video, CHAT_KANTE, video.videoWidth, video.videoHeight);
     const klein = zeichne(video, VORSCHAU_KANTE, video.videoWidth, video.videoHeight);
     return {
       mediaType: "image/jpeg",
       data: teilNachKomma(gross.toDataURL("image/jpeg", JPEG_QUALITAET)),
+      chatData: teilNachKomma(mittel.toDataURL("image/jpeg", JPEG_QUALITAET)),
       vorschau: klein.toDataURL("image/jpeg", VORSCHAU_QUALITAET),
       breite: gross.width,
       hoehe: gross.height,

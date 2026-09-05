@@ -93,6 +93,15 @@ export interface ConverseRequest {
    * Haiku 4.5 lehnt die Angabe mit einem Fehler ab.
    */
   ohneEffort?: boolean;
+  /**
+   * Wird während der Antwort mit jedem Stück Text gerufen.
+   *
+   * Ist die Funktion gesetzt, läuft der Aufruf als Datenstrom. Das macht die
+   * Antwort nicht schneller, aber die Wartezeit sichtbar kürzer: das erste
+   * Wort steht nach etwa einer Sekunde da statt nach zehn. Kosten ändert es
+   * nicht, gezahlt wird dasselbe.
+   */
+  onText?: (stueck: string) => void;
 }
 
 /** Ein Stück Systemprompt, das eigen markiert werden kann. */
