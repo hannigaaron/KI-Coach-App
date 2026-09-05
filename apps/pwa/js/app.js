@@ -1,4 +1,5 @@
 import { energyBreakdown, weightTrend } from "@daevo/core";
+import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE } from "@daevo/coach";
 import { Coach, AnthropicProvider } from "@daevo/coach";
 import {
   ask, buildActions, dayNumbers, einkaufslisteText, ensureStandards, greeting,
@@ -553,7 +554,7 @@ function renderProfile() {
 
   const settings = store.getSettings();
   $("apiKey").value = settings.apiKey || "";
-  $("modelSel").value = settings.model || "claude-opus-5";
+  renderModellwahl(settings.modellWahl || "auto");
   $("themeSel").value = settings.theme || "system";
   $("anweisungen").value = settings.anweisungen || "";
   zeigeAnweisungsLaenge();
@@ -574,6 +575,47 @@ function renderProfile() {
  * Tage bei null, greift das Zwischenspeichern nicht, und das kostet echtes
  * Geld, ohne dass irgendwo eine Fehlermeldung erscheint.
  */
+/**
+ * Die Modellwahl.
+ *
+ * Automatisch heisst: der erkannte Modus entscheidet. Erfassen braucht kein
+ * teures Modell, ein Gespräch über Schuldgefühle schon. Wer das nicht will,
+ * setzt hier ein festes Modell.
+ */
+const MODUS_TEXT = {
+  erfassen: "Essen, Trinken, Gewicht eintragen",
+  standard: "Kurzes hin und her",
+  coaching: "Fachfragen zu Training und Ernährung",
+  psyche: "Persönliche Themen",
+  planung: "Geld, Zeit, Aufbau",
+};
+
+function renderModellwahl(aktuell) {
+  const sel = $("modelSel");
+  sel.innerHTML = MODELL_OPTIONEN
+    .map((o) => `<option value="${o.wert}"${o.wert === aktuell ? " selected" : ""}>${escapeHtml(o.text)}</option>`)
+    .join("");
+
+  if (aktuell === "auto") {
+    const zeilen = Object.entries(MODELL_JE_MODUS)
+      .map(([modus, id]) => `${MODUS_TEXT[modus] || modus}: ${MODELLE[id]?.name || id}`);
+    $("modelNote").textContent =
+      `${zeilen.join(". ")}. Bilder immer auf Opus 5, weil die Mengenschätzung direkt in deinen Tagesdaten landet. ` +
+      "Das spart gegenüber Opus für alles etwa die Hälfte.";
+  } else {
+    $("modelNote").textContent =
+      `Alle Nachrichten laufen auf ${MODELLE[aktuell]?.name || aktuell}, auch das reine Eintragen. ` +
+      "Automatisch ist in fast allen Fällen günstiger, ohne dass die Antworten schlechter werden, wo es zählt.";
+  }
+}
+
+$("modelSel").addEventListener("change", (event) => {
+  const wahl = event.target.value;
+  store.setSettings({ ...store.getSettings(), modellWahl: wahl });
+  renderModellwahl(wahl);
+  toast(wahl === "auto" ? "daevo wählt jetzt selbst" : `Alles läuft auf ${MODELLE[wahl]?.name || wahl}`);
+});
+
 function renderKosten() {
   const k = kostenUebersicht();
   $("kostenHeute").textContent = k.heuteText;
@@ -976,7 +1018,7 @@ $("btnAnweisungenVorlage").addEventListener("click", () => {
 $("btnSaveKey").addEventListener("click", () => {
   const key = $("apiKey").value.trim();
   const settings = store.getSettings();
-  store.setSettings({ ...settings, apiKey: key, model: $("modelSel").value });
+  store.setSettings({ ...settings, apiKey: key });
   toast(key ? "Schlüssel gespeichert. daevo denkt jetzt selbst." : "Schlüssel entfernt. Regelbetrieb aktiv.");
 });
 

@@ -87,7 +87,7 @@ export class AnthropicProvider implements CoachProvider {
   }
 
   /** Liest den Verbrauch aus einer Antwort und meldet ihn. */
-  private meldeVerbrauch(payload: unknown): Verbrauch | undefined {
+  private meldeVerbrauch(payload: unknown, modell = this.options.model): Verbrauch | undefined {
     const usage = (payload as { usage?: Record<string, unknown> })?.usage;
     if (!usage) return undefined;
     const zahl = (wert: unknown) => (Number.isFinite(Number(wert)) ? Number(wert) : 0);
@@ -96,7 +96,7 @@ export class AnthropicProvider implements CoachProvider {
       outputTokens: zahl(usage.output_tokens),
       cacheReadTokens: zahl(usage.cache_read_input_tokens),
       cacheWriteTokens: zahl(usage.cache_creation_input_tokens),
-      modell: this.options.model,
+      modell,
     };
     this.options.onVerbrauch?.(verbrauch);
     return verbrauch;
@@ -140,21 +140,25 @@ export class AnthropicProvider implements CoachProvider {
    */
   async converse(request: ConverseRequest): Promise<ConverseResponse> {
     if (!this.available) throw new ProviderUnavailableError("ANTHROPIC_API_KEY fehlt");
+    const modell = request.modell ?? this.options.model;
     const payload = (await this.post(
       {
-        model: this.options.model,
+        model: modell,
         max_tokens: request.maxTokens ?? 2048,
         system: this.systemFeld(request.system),
         messages: request.messages,
         tools: request.tools,
-        output_config: { effort: request.effort ?? "medium" },
+        // Nicht jedes Modell nimmt eine Angabe zur Denktiefe entgegen.
+        // Haiku 4.5 lehnt sie mit einem Fehler ab, deshalb bleibt das Feld
+        // dort ganz weg statt auf einen Standardwert zu fallen.
+        ...(request.ohneEffort ? {} : { output_config: { effort: request.effort ?? "medium" } }),
       },
       this.options.timeoutMs ?? 90000,
     )) as { content?: ContentBlock[]; stop_reason?: string };
     return {
       content: payload.content ?? [],
       stopReason: payload.stop_reason ?? "end_turn",
-      verbrauch: this.meldeVerbrauch(payload),
+      verbrauch: this.meldeVerbrauch(payload, modell),
     };
   }
 
@@ -175,7 +179,7 @@ export class AnthropicProvider implements CoachProvider {
         },
         signal: controller.signal,
         body: JSON.stringify({
-          model: this.options.model,
+          model: request.modell ?? this.options.model,
           max_tokens: request.maxTokens ?? 2048,
           // Auch hier cachen. Der Prompt fuers Auswerten eines Tellers ist
           // lang und bei jedem Foto derselbe.
@@ -207,7 +211,7 @@ export class AnthropicProvider implements CoachProvider {
       const payload = (await response.json()) as {
         content?: Array<{ type: string; name?: string; input?: unknown }>;
       };
-      this.meldeVerbrauch(payload);
+      this.meldeVerbrauch(payload, request.modell ?? this.options.model);
       const toolUse = payload.content?.find((block) => block.type === "tool_use");
       if (!toolUse?.input) throw new Error("Antwort enthält keinen Tool Call");
       return toolUse.input as T;

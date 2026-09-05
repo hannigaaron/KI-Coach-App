@@ -84,6 +84,12 @@ besser: ein Modell, das gleichzeitig "halte es kurz" und "geh in die Tiefe"
 liest, tut weder das eine noch das andere richtig. Deshalb kommt nur der Block
 des erkannten Modus in den Prompt.
 
+Der Modus wählt auch das Modell, siehe `packages/coach/src/modelle.ts`.
+Erfassen läuft auf Haiku, Fachfragen auf Sonnet, persönliche Gespräche und
+Planung auf Opus, Bilder immer auf Opus. Haiku 4.5 lehnt `output_config.effort`
+mit einem Fehler ab, deshalb steht je Modell in der Tabelle, ob es die Angabe
+verträgt.
+
 Der Nutzer kann eigene Anweisungen hinterlegen. Sie stehen im Prompt ganz
 unten und gehen allem vor, ausser den Grenzen und der Regel, keine Zahlen zu
 erfinden. Gespeichert unter `settings.anweisungen`, Obergrenze 4000 Zeichen,
@@ -122,7 +128,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 184 Tests
+npm test           # 196 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages

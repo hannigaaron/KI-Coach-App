@@ -1,4 +1,5 @@
 import { AGENT_TOOLS } from "./tools.js";
+import { modellFuer } from "./modelle.js";
 import { systemBloecke, type Modus } from "./persona.js";
 import { anhangBlock, type Anhang, type ChatMessage, type CoachProvider, type ContentBlock } from "./provider.js";
 
@@ -66,6 +67,7 @@ export interface AgentReply {
  * Code und Tests weiter etwas zum Anfassen haben.
  */
 export { systemPrompt, systemBloecke, PERSONA_TEILE, type Modus } from "./persona.js";
+export { modellFuer, modellFuerBilder, MODELLE, MODELL_JE_MODUS, MODELL_OPTIONEN } from "./modelle.js";
 
 /**
  * Wie viele Runden Werkzeug und Antwort erlaubt sind.
@@ -86,6 +88,8 @@ export class Agent {
     aktionen: AgentActions;
     /** Bilder oder PDFs, die der Nutzer zu dieser Nachricht mitschickt. */
     anhaenge?: Anhang[];
+    /** "auto" folgt der Zuordnung je Modus, ein Modellname gewinnt. */
+    modellWahl?: string;
   }): Promise<AgentReply> {
     if (this.provider.available) {
       try {
@@ -108,8 +112,10 @@ export class Agent {
     kontext: AgentContext;
     aktionen: AgentActions;
     anhaenge?: Anhang[];
+    modellWahl?: string;
   }): Promise<AgentReply> {
     const tiefe = denktiefe(params.nachricht, Boolean(params.anhaenge?.length));
+    const modell = modellFuer(tiefe.modus, params.modellWahl ?? "auto");
     const system = systemBloecke({
       modus: tiefe.modus,
       zeit: params.kontext.zeit,
@@ -135,6 +141,8 @@ export class Agent {
         tools: AGENT_TOOLS,
         effort: tiefe.effort,
         maxTokens: tiefe.maxTokens,
+        modell: modell.id,
+        ohneEffort: !modell.kannEffort,
       });
       const toolUses = response.content.filter(
         (block): block is Extract<ContentBlock, { type: "tool_use" }> => block.type === "tool_use",

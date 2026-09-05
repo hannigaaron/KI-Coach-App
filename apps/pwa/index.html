@@ -322,11 +322,8 @@ try {
       <p class="sub">Ohne Schlüssel versteht daevo nur einfache Sätze und rechnet mit einer internen Tabelle. Mit deinem eigenen Anthropic Schlüssel wird er zum echten Gesprächspartner mit Gedächtnis.</p>
       <div class="field"><label for="apiKey">Anthropic API Schlüssel</label><input id="apiKey" type="password" placeholder="sk-ant-..." autocomplete="off"></div>
       <div class="field"><label for="modelSel">Modell</label>
-        <select id="modelSel">
-          <option value="claude-opus-5">Opus 5, am schlausten</option>
-          <option value="claude-sonnet-5">Sonnet 5, günstiger</option>
-          <option value="claude-haiku-4-5">Haiku 4.5, am günstigsten</option>
-        </select></div>
+        <select id="modelSel"></select></div>
+      <p class="fineprint" id="modelNote" style="margin-bottom:12px"></p>
       <button id="btnSaveKey" class="ghost">Schlüssel speichern</button>
       <p class="fineprint">Der Schlüssel bleibt in diesem Browser und geht direkt an Anthropic. Er steht nicht in der Website. Setz dir in der Anthropic Console ein Ausgabenlimit, bevor du ihn einträgst.</p>
 
