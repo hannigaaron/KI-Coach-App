@@ -2,7 +2,7 @@ import { energyBreakdown, weightTrend } from "@daevo/core";
 import { Coach, AnthropicProvider } from "@daevo/coach";
 import {
   ask, buildActions, dayNumbers, einkaufslisteText, ensureStandards, greeting,
-  recommendations, standardsUebersicht, tagesErinnerungen, verlaufPunkte,
+  kostenUebersicht, recommendations, standardsUebersicht, tagesErinnerungen, verlaufPunkte,
 } from "./assistant.js";
 import { brain } from "./brain.js";
 import { Orb } from "./orb.js";
@@ -562,8 +562,44 @@ function renderProfile() {
   $("voiceNote").textContent = voiceSupport.erkennung
     ? "Spracherkennung läuft über den Browser. Auf dem iPhone nur in Safari."
     : "Dieser Browser kann keine Spracherkennung. Tippen geht trotzdem.";
-  $("versionLine").textContent = `daevo 0.4.0, Stand ${todayIso()}. Testversion, kein Medizinprodukt.`;
+  $("versionLine").textContent = `daevo 0.5.0, Stand ${todayIso()}. Testversion, kein Medizinprodukt.`;
+  renderKosten();
   renderSessions();
+}
+
+/**
+ * Was die App an Modellaufrufen verbraucht hat.
+ *
+ * Die Quote aus dem Zwischenspeicher ist der wichtigste Wert. Steht sie über
+ * Tage bei null, greift das Zwischenspeichern nicht, und das kostet echtes
+ * Geld, ohne dass irgendwo eine Fehlermeldung erscheint.
+ */
+function renderKosten() {
+  const k = kostenUebersicht();
+  $("kostenHeute").textContent = k.heuteText;
+  $("kostenGesamt").textContent = k.gesamtText;
+  $("kostenMonat").textContent = k.monat.tage > 0 ? k.monatText : "noch keine Daten";
+  $("kostenQuote").textContent = `${Math.round(k.quote * 100)} %`;
+  $("kostenGespart").textContent = k.gespartText;
+
+  const zeilen = [];
+  if (k.gesamt.anfragen === 0) {
+    zeilen.push("Noch keine Aufrufe. Ohne Schlüssel läuft alles regelbasiert und kostet nichts.");
+  } else {
+    zeilen.push(
+      `${k.gesamt.anfragen} Aufrufe in ${k.monat.tage} ${k.monat.tage === 1 ? "Tag" : "Tagen"}, ` +
+      `${Math.round((k.gesamt.inputTokens + k.gesamt.cacheReadTokens + k.gesamt.cacheWriteTokens) / 1000)}k Token rein, ` +
+      `${Math.round(k.gesamt.outputTokens / 1000)}k raus.`,
+    );
+    if (k.monat.tage < 3) {
+      zeilen.push("Die Hochrechnung beruht auf weniger als drei Tagen und ist entsprechend grob.");
+    }
+    if (k.quote < 0.2 && k.gesamt.anfragen > 4) {
+      zeilen.push("Die Quote aus dem Zwischenspeicher ist niedrig. Das passiert, wenn zwischen zwei Nachrichten mehr als fünf Minuten liegen.");
+    }
+  }
+  zeilen.push("Preise nach der Anthropic Preisliste, Stand 24. Juni 2026. Geschätzt, nicht abgerechnet. Die echte Abrechnung steht in deiner Anthropic Console.");
+  $("kostenHinweis").textContent = zeilen.join(" ");
 }
 
 function renderSessions() {

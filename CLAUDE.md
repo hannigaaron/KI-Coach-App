@@ -65,6 +65,13 @@ Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
 ohne Schlüssel benutzbar bleibt.
 
+Der Systemprompt kommt in zwei Blöcken aus `systemBloecke()`. Der erste ist
+byteweise immer gleich und trägt die Marke fürs Zwischenspeichern, der zweite
+wechselt bei jeder Nachricht. Zusammen mit den Werkzeugbeschreibungen, die
+davor gerendert werden, spart das rund 5000 Token je Nachricht. Wer etwas am
+vorderen Teil ändert, verwirft den Speicher, und das merkt niemand ausser an
+der Rechnung. Die Quote steht im Profil unter Kosten.
+
 Wer daevo ist, steht in `packages/coach/src/persona.ts`, nicht im Agenten.
 Das ist der wertvollste Teil der App: Rechenkern und Werkzeuge lassen sich
 nachbauen, die Haltung nicht. Aufbau: eine Grundhaltung und ein Schreibstil,
@@ -115,7 +122,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 161 Tests
+npm test           # 184 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages

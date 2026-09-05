@@ -1,4 +1,7 @@
-import { Agent, AnthropicProvider, Coach, buildShoppingList, mahlzeitAusFoto, vorratAusFoto } from "@daevo/coach";
+import {
+  Agent, AnthropicProvider, Coach, addiere, buildShoppingList, cacheQuote, dollarText,
+  ersparnis, hochrechnung, leereSumme, mahlzeitAusFoto, summiere, vorratAusFoto,
+} from "@daevo/coach";
 import {
   buildDailyReminders,
   currentStreak,
@@ -25,8 +28,56 @@ function provider() {
     apiKey: settings.apiKey || undefined,
     model: settings.model || "claude-opus-5",
     browserAccess: true,
-    timeoutMs: 60000,
+    timeoutMs: 90000,
+    onVerbrauch: zaehleVerbrauch,
   });
+}
+
+/* ---------- Was die App verbraucht ---------- */
+
+/**
+ * Zählt jeden Modellaufruf mit.
+ *
+ * Ohne diese Zählung weiss niemand, ob das Zwischenspeichern greift. Ein
+ * Zwischenspeicher, der still ausfällt, erzeugt keine Fehlermeldung, nur eine
+ * höhere Rechnung am Monatsende.
+ */
+function zaehleVerbrauch(verbrauch) {
+  const day = todayIso();
+  const bisher = store.getDay(day).verbrauch || leereSumme();
+  store.addVerbrauch(day, addiere(bisher, verbrauch));
+}
+
+/** Die Verbrauchssummen der letzten Tage, jüngster zuerst. */
+export function verbrauchTage(anzahl = 30) {
+  const heute = todayIso();
+  const out = [];
+  for (let i = 0; i < anzahl; i++) {
+    const d = new Date(`${heute}T12:00:00`);
+    d.setDate(d.getDate() - i);
+    const summe = store.getDay(d.toISOString().slice(0, 10)).verbrauch;
+    if (summe) out.push(summe);
+  }
+  return out;
+}
+
+/** Alles, was die Kostenanzeige braucht. */
+export function kostenUebersicht() {
+  const heute = store.getDay(todayIso()).verbrauch || leereSumme();
+  const tage = verbrauchTage(30);
+  const gesamt = summiere(tage);
+  const monat = hochrechnung(tage);
+  return {
+    heute,
+    gesamt,
+    monat,
+    quote: cacheQuote(gesamt),
+    gespart: ersparnis(gesamt),
+    heuteText: dollarText(heute.dollar),
+    gesamtText: dollarText(gesamt.dollar),
+    monatText: dollarText(monat.dollarProMonat),
+    gespartText: dollarText(gesamt.dollarOhneCache - gesamt.dollar),
+  };
 }
 
 /* ---------- Zahlen des Tages ---------- */

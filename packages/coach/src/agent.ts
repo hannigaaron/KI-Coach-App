@@ -1,5 +1,5 @@
 import { AGENT_TOOLS } from "./tools.js";
-import { systemPrompt, type Modus } from "./persona.js";
+import { systemBloecke, type Modus } from "./persona.js";
 import { anhangBlock, type Anhang, type ChatMessage, type CoachProvider, type ContentBlock } from "./provider.js";
 
 /**
@@ -65,7 +65,7 @@ export interface AgentReply {
  * Die Persona steht in persona.js. Hier bleibt nur der Verweis, damit alter
  * Code und Tests weiter etwas zum Anfassen haben.
  */
-export { systemPrompt, PERSONA_TEILE, type Modus } from "./persona.js";
+export { systemPrompt, systemBloecke, PERSONA_TEILE, type Modus } from "./persona.js";
 
 /**
  * Wie viele Runden Werkzeug und Antwort erlaubt sind.
@@ -110,7 +110,7 @@ export class Agent {
     anhaenge?: Anhang[];
   }): Promise<AgentReply> {
     const tiefe = denktiefe(params.nachricht, Boolean(params.anhaenge?.length));
-    const system = systemPrompt({
+    const system = systemBloecke({
       modus: tiefe.modus,
       zeit: params.kontext.zeit,
       profil: params.kontext.profil,

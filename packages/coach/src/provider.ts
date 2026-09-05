@@ -56,8 +56,25 @@ export interface ChatMessage {
   content: string | ContentBlock[];
 }
 
+/**
+ * Was ein Aufruf verbraucht hat.
+ *
+ * `inputTokens` ist nur der ungecachte Rest. Die volle Promptgrösse ist die
+ * Summe aus allen drei Eingabefeldern. Wer nur inputTokens liest, sieht nach
+ * gutem Zwischenspeichern eine winzige Zahl und hält das für einen Fehler.
+ */
+export interface Verbrauch {
+  inputTokens: number;
+  outputTokens: number;
+  /** Aus dem Zwischenspeicher gelesen, kostet ein Zehntel. */
+  cacheReadTokens: number;
+  /** In den Zwischenspeicher geschrieben, kostet das 1,25 fache. */
+  cacheWriteTokens: number;
+  modell: string;
+}
+
 export interface ConverseRequest {
-  system: string;
+  system: string | SystemBlockParam[];
   messages: ChatMessage[];
   tools: ToolDefinition[];
   maxTokens?: number;
@@ -69,9 +86,17 @@ export interface ConverseRequest {
   effort?: "low" | "medium" | "high";
 }
 
+/** Ein Stück Systemprompt, das eigen markiert werden kann. */
+export interface SystemBlockParam {
+  text: string;
+  /** Setzt die Marke fürs Zwischenspeichern hinter dieses Stück. */
+  cache?: boolean;
+}
+
 export interface ConverseResponse {
   content: ContentBlock[];
   stopReason: string;
+  verbrauch?: Verbrauch;
 }
 
 export interface CoachProvider {

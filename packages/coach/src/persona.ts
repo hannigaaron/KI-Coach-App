@@ -207,7 +207,18 @@ ich unsicher bin. Wenn nicht, schreib sie um.`;
  * "halte es kurz" und "geh in die Tiefe" liest, tut weder das eine noch das
  * andere richtig.
  */
-export function systemPrompt(params: {
+/**
+ * Ein Stück des Systemprompts.
+ *
+ * `cache` markiert das letzte Stück, das sich zwischen zwei Nachrichten nie
+ * ändert. Alles davor kann der Anbieter zwischenspeichern.
+ */
+export interface SystemBlock {
+  text: string;
+  cache?: boolean;
+}
+
+export interface PromptTeile {
   modus: Modus;
   zeit: string;
   profil: string;
@@ -215,17 +226,30 @@ export function systemPrompt(params: {
   gedächtnis: string;
   /** Eigene Anweisungen des Nutzers. Stehen zuletzt und wiegen am schwersten. */
   eigeneAnweisungen?: string;
-}): string {
-  const teile = [
-    GRUNDHALTUNG,
-    "",
-    SCHREIBSTIL,
-    "",
+}
+
+/**
+ * Baut den Systemprompt in zwei Blöcken.
+ *
+ * Der erste Block ändert sich nie: Grundhaltung, Schreibstil, Werkzeuge,
+ * Grenzen. Er trägt die Markierung fürs Zwischenspeichern. Zusammen mit den
+ * Werkzeugbeschreibungen, die davor gerendert werden, sind das rund 5000
+ * Token, die sonst bei jeder einzelnen Nachricht voll bezahlt würden.
+ *
+ * Der zweite Block ändert sich ständig: der Modus, die Uhrzeit, die Zahlen des
+ * Tages, das Gedächtnis. Er steht hinter der Markierung und wird jedes Mal neu
+ * berechnet.
+ *
+ * Der Modus gehört bewusst in den zweiten Block, obwohl er Haltung beschreibt.
+ * Er wechselt je nach Nachricht, und ein Wechsel im ersten Block würde den
+ * ganzen Zwischenspeicher verwerfen. Ein paar hundert Token neu zu bezahlen
+ * ist billiger, als fünftausend neu zu schreiben.
+ */
+export function systemBloecke(params: PromptTeile): SystemBlock[] {
+  const stabil = [GRUNDHALTUNG, "", SCHREIBSTIL, "", WERKZEUGE, "", GRENZEN].join("\n");
+
+  const wechselnd = [
     MODI[params.modus],
-    "",
-    WERKZEUGE,
-    "",
-    GRENZEN,
     "",
     "Aktueller Zeitpunkt:",
     params.zeit,
@@ -242,15 +266,24 @@ export function systemPrompt(params: {
 
   const eigene = (params.eigeneAnweisungen ?? "").trim();
   if (eigene) {
-    teile.push(
+    wechselnd.push(
       "",
       "Eigene Anweisungen des Nutzers. Sie hat er selbst geschrieben und sie gehen allem oben vor,",
       "ausser den Grenzen und der Regel, keine Zahlen zu erfinden:",
       eigene.slice(0, 4000),
     );
   }
-  return teile.join("\n");
+
+  return [
+    { text: stabil, cache: true },
+    { text: wechselnd.join("\n") },
+  ];
 }
 
-/** Nur für Tests und zum Nachlesen. Der Agent baut den Prompt über systemPrompt. */
+/** Derselbe Prompt als eine Zeichenkette. Für Anbieter ohne Blöcke und für Tests. */
+export function systemPrompt(params: PromptTeile): string {
+  return systemBloecke(params).map((b) => b.text).join("\n");
+}
+
+/** Nur für Tests und zum Nachlesen. Der Agent baut den Prompt über systemBloecke. */
 export const PERSONA_TEILE = { GRUNDHALTUNG, SCHREIBSTIL, MODI, WERKZEUGE, GRENZEN };
