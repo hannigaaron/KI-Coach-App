@@ -14,7 +14,7 @@ die Datenschutzanforderungen und die Nährwertdatenbank.
 - API mit Konto, Profil, Mahlzeiten, Wasser, Check-ins, Kühlschrank, Health Import
 - Scheduler mit Sperre gegen Doppelversand
 - Testkonsole im Browser mit Spracheingabe
-- 184 automatisierte Tests
+- 196 automatisierte Tests
 
 ## Milestone 2: Installierbare Web App (fertig)
 
@@ -222,6 +222,36 @@ Die Preistabelle steht in `packages/coach/src/kosten.ts` mit dem Stand als
 Datum. Ein unbekanntes Modell wird mit dem teuersten gerechnet, lieber zu viel
 schätzen als eine Ueberraschung auf der Rechnung.
 
+### Ein Modell je Modus
+
+Der erkannte Modus wählt jetzt auch das Modell, nicht nur die Denktiefe.
+
+| Modus | Modell | Warum |
+| --- | --- | --- |
+| erfassen | Haiku 4.5 | Eine Menge aus einem Satz lesen und ein Werkzeug rufen |
+| standard | Sonnet 5 | Smalltalk soll trotzdem nach dem Coach klingen |
+| coaching | Sonnet 5 | Fachfragen sitzen im Wissen, nicht in der Denktiefe |
+| psyche | Opus 5 | Hier entscheidet sich, ob die App etwas wert ist |
+| planung | Opus 5 | Geld und Zeit, Fehler kosten echtes Geld |
+| Bilder | Opus 5 | Die Mengenschätzung landet direkt in den Tagesdaten |
+
+Gerechnet auf einen Tag mit acht Erfassungen, fünf Fachfragen und zwei
+persönlichen Gesprächen: etwa 75 Cent auf Opus für alles, etwa 35 Cent nach
+dieser Tabelle.
+
+Zwei Dinge, die dabei zu beachten sind:
+
+Haiku 4.5 lehnt `output_config.effort` mit einem Fehler ab. Die Tabelle in
+`packages/coach/src/modelle.ts` führt deshalb je Modell, ob es die Angabe
+verträgt, und der Anbieter lässt das Feld sonst ganz weg. Ein Test prüft das,
+weil sonst jede einzelne Erfassung mit einem 400 scheitern würde.
+
+Der Zwischenspeicher gilt je Modell. Wer zwischen Modellen wechselt, hält
+mehrere Speicher warm statt einen. Das kostet etwas von der Ersparnis zurück,
+deutlich weniger als der Preisunterschied einbringt.
+
+Im Profil lässt sich die Automatik abschalten und ein festes Modell setzen.
+
 ### Was noch offen ist
 
 Der Schlüssel liegt im Browser des Nutzers. Für eigene Tests geht das, für den
@@ -229,9 +259,9 @@ App Store nicht: jeder kann ihn auslesen und auf fremde Rechnung Anfragen
 stellen. Vor der Veröffentlichung muss ein eigener Server dazwischen, der den
 Schlüssel hält, Limits je Nutzer durchsetzt und mitzählt.
 
-Ein zweiter Hebel liegt bereit, ist aber nicht gebaut: die Modus Erkennung
-könnte auch das Modell wählen. Erfassen auf Haiku, Fachfragen auf Sonnet,
-persönliche Gespräche und Fotos auf Opus.
+Der nächste Hebel wäre, die Werkzeugbeschreibungen zu kürzen. Sie sind mit
+10.000 Zeichen der grösste feste Posten. Gecacht kosten sie wenig, beim ersten
+Aufruf am Tag aber voll.
 
 ## Milestone 9: Native App
 

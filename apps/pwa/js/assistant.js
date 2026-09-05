@@ -1,6 +1,6 @@
 import {
   Agent, AnthropicProvider, Coach, addiere, buildShoppingList, cacheQuote, dollarText,
-  ersparnis, hochrechnung, leereSumme, mahlzeitAusFoto, summiere, vorratAusFoto,
+  ersparnis, hochrechnung, leereSumme, mahlzeitAusFoto, modellFuerBilder, summiere, vorratAusFoto,
 } from "@daevo/coach";
 import {
   buildDailyReminders,
@@ -26,6 +26,8 @@ function provider() {
   const settings = store.getSettings();
   return new AnthropicProvider({
     apiKey: settings.apiKey || undefined,
+    // Rückfallmodell. Welches Modell eine einzelne Nachricht wirklich
+    // bekommt, entscheidet der Agent je Modus und überschreibt das hier.
     model: settings.model || "claude-opus-5",
     browserAccess: true,
     timeoutMs: 90000,
@@ -532,7 +534,8 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
 
     async fotoAlsMahlzeit({ hinweis } = {}) {
       if (bilder.length === 0) return "Zu dieser Nachricht ist kein Bild dabei.";
-      const ergebnis = await mahlzeitAusFoto(anbieter, bilder.slice(0, 3), hinweis || "");
+      const modell = modellFuerBilder(store.getSettings().modellWahl || "auto");
+      const ergebnis = await mahlzeitAusFoto(anbieter, bilder.slice(0, 3), hinweis || "", modell.id);
       if (ergebnis.entries.length === 0) {
         return `Auf dem Bild sehe ich kein Essen. ${ergebnis.beschreibung}`;
       }
@@ -566,7 +569,8 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
 
     async fotoAlsVorrat({ hinweis } = {}) {
       if (bilder.length === 0) return "Zu dieser Nachricht ist kein Bild dabei.";
-      const ergebnis = await vorratAusFoto(anbieter, bilder.slice(0, 3), hinweis || "");
+      const modell = modellFuerBilder(store.getSettings().modellWahl || "auto");
+      const ergebnis = await vorratAusFoto(anbieter, bilder.slice(0, 3), hinweis || "", modell.id);
       if (ergebnis.zutaten.length === 0) {
         return `Ich erkenne keine Lebensmittel. ${ergebnis.beschreibung}`;
       }
@@ -749,6 +753,7 @@ export async function ask(nachricht, { onChange, anhaenge = [] } = {}) {
       eigeneAnweisungen: store.getSettings().anweisungen || "",
     },
     aktionen: buildActions({ onChange, anhaenge }),
+    modellWahl: store.getSettings().modellWahl || "auto",
     anhaenge: anhaenge.filter((a) => a.mediaType && a.data && !a.fehler)
       .map((a) => ({ mediaType: a.mediaType, data: a.data, name: a.name })),
   });

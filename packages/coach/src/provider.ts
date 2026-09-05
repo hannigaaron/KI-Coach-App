@@ -23,6 +23,8 @@ export interface JsonRequest {
   schema: Record<string, unknown>;
   schemaName: string;
   maxTokens?: number;
+  /** Ueberschreibt das Modell des Anbieters für diesen einen Aufruf. */
+  modell?: string;
 }
 
 /** Ein Werkzeug, das das Modell aufrufen darf. */
@@ -84,6 +86,13 @@ export interface ConverseRequest {
    * Welche Stufe wann genommen wird, entscheidet der Agent je Nachricht.
    */
   effort?: "low" | "medium" | "high";
+  /** Ueberschreibt das Modell des Anbieters für diesen einen Aufruf. */
+  modell?: string;
+  /**
+   * Setzt effort, auch wenn der Anbieter sonst eines schicken würde.
+   * Haiku 4.5 lehnt die Angabe mit einem Fehler ab.
+   */
+  ohneEffort?: boolean;
 }
 
 /** Ein Stück Systemprompt, das eigen markiert werden kann. */

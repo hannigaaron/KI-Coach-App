@@ -124,6 +124,7 @@ export async function mahlzeitAusFoto(
   provider: CoachProvider,
   anhaenge: Anhang[],
   hinweis = "",
+  modell?: string,
 ): Promise<FotoMahlzeit> {
   const roh = await provider.generateJson<{
     beschreibung?: string;
@@ -140,6 +141,7 @@ export async function mahlzeitAusFoto(
     schema: FOTO_MAHLZEIT_SCHEMA as unknown as Record<string, unknown>,
     schemaName: "mahlzeit_aus_foto",
     maxTokens: 2048,
+    modell,
   });
 
   const geprueft = validateEntries(roh.entries);
@@ -159,6 +161,7 @@ export async function vorratAusFoto(
   provider: CoachProvider,
   anhaenge: Anhang[],
   hinweis = "",
+  modell?: string,
 ): Promise<FotoVorrat> {
   const roh = await provider.generateJson<{
     beschreibung?: string;
@@ -171,6 +174,7 @@ export async function vorratAusFoto(
     schema: FOTO_VORRAT_SCHEMA as unknown as Record<string, unknown>,
     schemaName: "vorrat_aus_foto",
     maxTokens: 1024,
+    modell,
   });
 
   return {
