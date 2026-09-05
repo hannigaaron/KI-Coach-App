@@ -121,6 +121,25 @@ export const store = {
     write("fridge", items);
   },
 
+  /**
+   * Der Kalender.
+   *
+   * Gespeichert werden die fertig gelesenen Termine, nicht die ICS Datei.
+   * Eine Datei mit einem Jahr Terminen ist schnell ein Megabyte gross, und
+   * der localStorage ist bei rund fünf zu Ende. Die Termine selbst sind das,
+   * was die App braucht.
+   */
+  getKalender() {
+    return read("kalender", { quellen: [], termine: [], stand: null });
+  },
+  setKalender(kalender) {
+    write("kalender", {
+      quellen: (kalender.quellen || []).slice(0, 8),
+      termine: (kalender.termine || []).slice(0, 1500),
+      stand: kalender.stand || new Date().toISOString(),
+    });
+  },
+
   getShoppingList() {
     return read("shopping", null);
   },
@@ -220,6 +239,7 @@ export const store = {
     out.profile = this.getProfile();
     out.fridge = this.getFridge();
     out.shopping = this.getShoppingList();
+    out.kalender = this.getKalender();
     out.standards = this.getStandards();
     out.memories = this.getMemories();
     out.chat = this.getChat();

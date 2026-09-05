@@ -139,6 +139,36 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: "kalender_abrufen",
+    description:
+      "Liefert die Termine aus dem Kalender des Nutzers für die nächsten Tage, mit Uhrzeiten, " +
+      "verplanter Zeit je Tag, erkannten Trainings und den längsten freien Blöcken. " +
+      "Nehmen, sobald es um Zeit geht: wann er was macht, ob etwas in die Woche passt, " +
+      "wann er trainieren oder essen soll, warum er nichts geschafft hat, oder wenn er nach seinem Plan fragt. " +
+      "Für die genaue Auswertung eines einzelnen Tages gibt es tagesablauf_planen.",
+    input_schema: {
+      type: "object",
+      properties: {
+        tage: { type: "number", description: "Wie viele Tage ab heute, 1 bis 14. Ohne Angabe 7." },
+      },
+    },
+  },
+  {
+    name: "tagesablauf_planen",
+    description:
+      "Wertet einen einzelnen Tag aus: Termine, verplante Minuten, freie Blöcke, Vorschlag für die Zeitpunkte " +
+      "der Mahlzeiten mit Kalorien und Protein je Mahlzeit, und was am Tag auffällt, etwa ein Termin vor der " +
+      "Aufstehzeit oder kein Platz für eine Mittagsmahlzeit. " +
+      "Nehmen, wenn der Nutzer seinen Tag plant, fragt wann er essen soll, oder wenn du den Tag beurteilen willst. " +
+      "Die Zeiten aus dieser Antwort übernimmst du, du denkst dir keine eigenen aus.",
+    input_schema: {
+      type: "object",
+      properties: {
+        tag: { type: "string", description: "Datum als JJJJ-MM-TT. Ohne Angabe heute." },
+      },
+    },
+  },
+  {
     name: "gewicht_eintragen",
     description:
       "Trägt eine Wiegung ein. Nehmen, sobald der Nutzer ein Gewicht nennt, auch nebenbei. " +

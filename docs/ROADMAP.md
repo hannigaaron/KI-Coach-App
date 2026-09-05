@@ -263,7 +263,53 @@ Der nächste Hebel wäre, die Werkzeugbeschreibungen zu kürzen. Sie sind mit
 10.000 Zeichen der grösste feste Posten. Gecacht kosten sie wenig, beim ersten
 Aufruf am Tag aber voll.
 
-## Milestone 9: Native App
+## Milestone 9: Kalender (teilweise fertig)
+
+### Was steht
+
+Termine kommen als iCalendar in die App, nach RFC 5545. Ein Parser ohne
+Abhängigkeit liest beide Quellen: Google Calendar gibt je Kalender eine geheime
+Adresse im iCal Format aus, der Apple Kalender exportiert eine .ics Datei.
+
+Gelesen werden Einzeltermine, ganztägige Termine, Serien mit FREQ, INTERVAL,
+COUNT, UNTIL und BYDAY, abgesagte Einzeltermine über EXDATE, DURATION statt
+DTEND, umgebrochene Zeilen und Zeitzonen über TZID. Umgerechnet wird mit Intl,
+nicht mit einer eigenen Tabelle.
+
+Bewusst nicht gelesen: VTIMEZONE, BYSETPOS, BYMONTHDAY zusammen mit BYDAY und
+geänderte Einzeltermine einer Serie über RECURRENCE-ID. Was nicht gelesen werden
+kann, wird gezählt und angezeigt, statt still zu fehlen.
+
+Aus den Terminen entsteht der Tagesablauf: belegte Minuten, Auslastung des
+Wachtags, freie Blöcke, der längste Block für konzentrierte Arbeit, und die
+Zeitpunkte der Mahlzeiten in den Lücken. Vor einem erkannten Training rückt die
+Mahlzeit auf 90 Minuten davor. Dazu Hinweise mit Zahl: Termin vor der
+Aufstehzeit, Termin nach der Schlafenszeit, kein Platz für eine Mahlzeit
+zwischen 11 und 15 Uhr, Training nach 21 Uhr.
+
+Zwei Werkzeuge für den Coach: kalender_abrufen für die nächsten Tage,
+tagesablauf_planen für einen einzelnen Tag. Beide haben einen Regelpfad, der
+ohne Modell funktioniert.
+
+### Was offen ist
+
+Die geheime Adresse direkt abrufen, statt eine Datei zu wählen. Im Browser
+scheitert das an CORS: weder Google noch Apple setzen die Header, die eine
+fremde Seite bräuchte. Dafür muss `apps/api` die Adresse abrufen und
+weiterreichen. Aufwand gering, sobald der Server ohnehin läuft.
+
+Google OAuth statt Datei. Braucht ein Projekt in der Google Cloud Console, einen
+OAuth Client und, sobald mehr als die erlaubten Testnutzer zugreifen, eine
+Ueberprüfung durch Google, weil Kalenderzugriff als sensibler Bereich gilt. Der
+Aufwand liegt nicht im Code, sondern in der Ueberprüfung. Erst sinnvoll, wenn
+die App veröffentlicht wird.
+
+Apple Kalender in Echtzeit. Es gibt keine offene Schnittstelle für den Browser.
+Der Weg führt über EventKit in der nativen App, also über Milestone 10.
+
+Termine schreiben statt nur lesen. Erst sinnvoll mit OAuth oder EventKit.
+
+## Milestone 10: Native App
 
 Nötig für die zwei Dinge, die eine Web App auf dem iPhone nicht kann.
 
@@ -291,7 +337,7 @@ Erst mit HealthKit sinnvoll, deshalb hier und nicht früher:
   als Wirkversprechen. Das ist auch die Grenze, die der App Store zieht:
   Aussagen zu Diagnose oder Therapie machen die App zum Medizinprodukt.
 
-## Milestone 10: Datenqualität
+## Milestone 11: Datenqualität
 
 - Anbindung Open Food Facts inklusive Barcode Scanner
 - kuratierte Liste der 300 häufigsten Lebensmittel ohne Modellaufruf
@@ -299,7 +345,7 @@ Erst mit HealthKit sinnvoll, deshalb hier und nicht früher:
 - Gedächtnis auf Einbettungen umstellen, wenn die Wortsuche an Grenzen stösst
 - Nachjustierung des Kalorienbedarfs über den Vier Wochen Gewichtsverlauf
 
-## Milestone 11: Marktreife
+## Milestone 12: Marktreife
 
 - **Bildrechte für die Körperfiguren klären.** Die acht Figuren in
   `apps/pwa/img/koerperfett` stammen aus einer fremden Vergleichsreihe. Für den
@@ -314,7 +360,7 @@ Erst mit HealthKit sinnvoll, deshalb hier und nicht früher:
 - Datenschutzerklärung und Nutzungsbedingungen von einem Anwalt prüfen lassen
 - App Store Review, Puffer von vier Wochen einplanen
 
-## Milestone 12: Hebel
+## Milestone 13: Hebel
 
 - Trainerkonten: ein Coach betreut mehrere Kunden über die App
 - Whitelabel für Studios

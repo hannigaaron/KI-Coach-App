@@ -45,6 +45,8 @@ export interface AgentActions {
   standardSetzen(input: { text: string; kadenz: string; art: string; ziel: number; id?: string }): Promise<string>;
   standardBestaetigen(input: { id: string; gehalten: boolean }): Promise<string>;
   verlaufAbrufen(input: { tage?: number }): Promise<string>;
+  kalenderAbrufen(input: { tage?: number }): Promise<string>;
+  tagesablaufPlanen(input: { tag?: string }): Promise<string>;
   gewichtEintragen(kg: number): Promise<string>;
   trainingEintragen(input: { art: string; minuten: number; notiz?: string }): Promise<string>;
   profilAendern(input: {
@@ -375,6 +377,14 @@ async function execute(
         const tage = Number.isFinite(Number(input.tage)) ? clamp(Number(input.tage), 7, 120) : undefined;
         return { text: await actions.verlaufAbrufen({ tage }) };
       }
+      case "kalender_abrufen": {
+        const tage = Number.isFinite(Number(input.tage)) ? clamp(Number(input.tage), 1, 14) : undefined;
+        return { text: await actions.kalenderAbrufen({ tage }) };
+      }
+      case "tagesablauf_planen": {
+        const tag = typeof input.tag === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.tag) ? input.tag : undefined;
+        return { text: await actions.tagesablaufPlanen({ tag }) };
+      }
       case "gewicht_eintragen": {
         const kg = Number(input.kg);
         if (!Number.isFinite(kg) || kg < 30 || kg > 300) {
@@ -577,6 +587,18 @@ export async function runOffline(
 
   if (pattern("verlauf", "fortschritt", "abgenommen", "zugenommen", "tut sich nichts", "stagniere", "letzte wochen").test(text)) {
     return { text: await actions.verlaufAbrufen({}), ausgeführt, source: "offline" };
+  }
+
+  // Der Kalender liegt im Gerät. Dafür braucht es kein Modell, nur die Frage
+  // nach der Zeit zu erkennen.
+  if (pattern("wann habe ich", "wann muss ich", "was steht an", "mein tag", "heute noch vor",
+    "wie sieht (mein|der) tag", "zeit habe ich", "freie zeit", "wann trainiere",
+    "wann soll ich essen", "tagesablauf", "tagesplan").test(text)) {
+    return { text: await actions.tagesablaufPlanen({}), ausgeführt, source: "offline" };
+  }
+
+  if (pattern("kalender", "termine", "diese woche", "nächste woche", "naechste woche", "wochenplan").test(text)) {
+    return { text: await actions.kalenderAbrufen({}), ausgeführt, source: "offline" };
   }
 
   if (pattern("einkaufsliste", "einkaufen", "einkauf", "supermarkt", "was muss ich kaufen", "besorgen").test(text)) {

@@ -1,8 +1,9 @@
-import { energyBreakdown, weightTrend } from "@daevo/core";
+import { energyBreakdown, uhrzeit, weightTrend } from "@daevo/core";
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE } from "@daevo/coach";
 import { Coach, AnthropicProvider } from "@daevo/coach";
 import {
-  ask, buildActions, dayNumbers, einkaufslisteText, ensureStandards, greeting,
+  ablaufFuer, ask, buildActions, dayNumbers, einkaufslisteText, ensureStandards, greeting,
+  kalenderEntfernen, kalenderImportieren, kalenderStand, kalenderUebersicht,
   kostenUebersicht, recommendations, standardsUebersicht, tagesErinnerungen, verlaufPunkte,
 } from "./assistant.js";
 import { brain } from "./brain.js";
@@ -343,6 +344,7 @@ function showView(name) {
   if (name === "checkin") renderCheckins();
   if (name === "reflexion") renderMemories();
   if (name === "einkauf") renderEinkauf();
+  if (name === "kalender") renderKalender();
   if (name === "standards") renderStandards();
   if (name === "empfehlungen") renderRecommendations();
   if (name === "profil") renderProfile();
@@ -360,6 +362,7 @@ function refreshAll() {
   if (name === "checkin") renderCheckins();
   if (name === "reflexion") renderMemories();
   if (name === "einkauf") renderEinkauf();
+  if (name === "kalender") renderKalender();
   if (name === "standards") renderStandards();
 }
 
@@ -874,6 +877,144 @@ $("btnWeight").addEventListener("click", async () => {
   renderWeight();
   toast(antwort.split(".")[0]);
 });
+
+/* ---------- Kalender ---------- */
+
+/**
+ * Der Tag, der gerade im Kalender angezeigt wird.
+ *
+ * Getrennt vom Tag der Tagesansicht, weil man den Kalender vorausschauend
+ * benutzt und die Zahlen des Tages rückblickend.
+ */
+let kalenderTag = todayIso();
+
+const KALENDER_ANLEITUNG = [
+  "Google Calendar: In den Einstellungen den Kalender auswählen, ganz unten unter Kalender integrieren",
+  "die geheime Adresse im iCal Format kopieren, im Browser öffnen und die Datei hier auswählen.",
+  "Apple Kalender am Mac: Kalender auswählen, Ablage, Exportieren, dann die .ics Datei hier auswählen.",
+  "Auf dem iPhone: iCloud Kalender im Web öffnen, Kalender freigeben, öffentlicher Kalender,",
+  "die Adresse kopieren, webcal durch https ersetzen und die Datei hier auswählen.",
+  "Nichts davon geht an einen Server. Die Datei wird im Browser gelesen und nur die Termine bleiben liegen.",
+].join(" ");
+
+function renderKalender() {
+  $("kalTag").value = kalenderTag;
+  $("kalAnleitung").textContent = KALENDER_ANLEITUNG;
+
+  const stand = kalenderStand();
+  const quellen = $("kalQuellen");
+  quellen.innerHTML = "";
+  if (stand.quellen.length === 0) {
+    quellen.innerHTML = '<li class="empty">Noch kein Kalender verbunden.</li>';
+  } else {
+    for (const q of stand.quellen) {
+      const li = document.createElement("li");
+      const datum = q.stand ? new Date(q.stand).toLocaleDateString("de-DE") : "";
+      li.innerHTML =
+        `<div class="li-main"><div class="li-title">${escapeHtml(q.name)}</div>` +
+        `<div class="li-sub">${q.anzahl} Termine, eingelesen am ${escapeHtml(datum)}</div></div>`;
+      const weg = document.createElement("button");
+      weg.className = "ghost";
+      weg.textContent = "Entfernen";
+      weg.addEventListener("click", () => {
+        kalenderEntfernen(q.name);
+        renderKalender();
+        toast("Kalender entfernt");
+      });
+      li.appendChild(weg);
+      quellen.appendChild(li);
+    }
+  }
+
+  const a = ablaufFuer(kalenderTag);
+  $("kalBelegt").textContent = `${a.belegtMinuten} Minuten`;
+  $("kalQuote").textContent = `${Math.round(a.auslastung * 100)} %`;
+  $("kalFokus").textContent = a.fokusblock
+    ? `${uhrzeit(a.fokusblock.von)} bis ${uhrzeit(a.fokusblock.bis)}, ${a.fokusblock.minuten} Minuten`
+    : "keiner";
+
+  fuelleListe("kalListe", [...a.ganztags, ...a.termine].map((t) => ({
+    titel: t.titel,
+    sub: t.ganztags ? "ganztägig" : `${uhrzeit(t.von)} bis ${uhrzeit(t.bis)}${t.ort ? `, ${t.ort}` : ""}`,
+    seite: t.quelle || "",
+  })), "Keine Termine an diesem Tag.");
+
+  fuelleListe("kalEssen", a.essensfenster.map((e) => ({
+    titel: `${uhrzeit(e.um)} Mahlzeit ${e.nummer}`,
+    sub: e.grund,
+    seite: `${e.kcal} kcal\n${e.proteinG} g Protein`,
+  })), (kalenderStand().anzahl === 0 ? "Ohne Kalender kein Vorschlag." : "Keine freie Lücke gefunden."));
+
+  fuelleListe("kalHinweise", a.hinweise.map((h) => ({ titel: h, sub: "", seite: "" })), "Nichts Auffälliges.");
+
+  $("kalWoche").textContent = kalenderUebersicht(Number($("kalTage").value) || 7);
+}
+
+/** Baut eine Liste aus drei Feldern. Spart drei fast gleiche Schleifen. */
+function fuelleListe(id, eintraege, leerText) {
+  const el = $(id);
+  el.innerHTML = "";
+  if (eintraege.length === 0) {
+    el.innerHTML = `<li class="empty">${escapeHtml(leerText)}</li>`;
+    return;
+  }
+  for (const e of eintraege) {
+    const li = document.createElement("li");
+    const seite = e.seite
+      ? `<div class="li-side">${e.seite.split("\n").map((z, i) => (i === 0 ? `<b>${escapeHtml(z)}</b>` : escapeHtml(z))).join("")}</div>`
+      : "";
+    li.innerHTML =
+      `<div class="li-main"><div class="li-title">${escapeHtml(e.titel)}</div>` +
+      (e.sub ? `<div class="li-sub">${escapeHtml(e.sub)}</div>` : "") +
+      "</div>" + seite;
+    el.appendChild(li);
+  }
+}
+
+$("kalTag").addEventListener("change", (event) => {
+  kalenderTag = event.target.value || todayIso();
+  renderKalender();
+});
+
+$("kalTage").addEventListener("change", renderKalender);
+
+$("btnKalDatei").addEventListener("click", () => $("kalDatei").click());
+
+$("kalDatei").addEventListener("change", async (event) => {
+  const datei = event.target.files?.[0];
+  if (!datei) return;
+  try {
+    const text = await datei.text();
+    const name = $("kalName").value.trim() || datei.name.replace(/\.ics$/i, "");
+    uebernehmen(text, name);
+  } catch (error) {
+    toast(`Datei nicht lesbar: ${error.message}`);
+  } finally {
+    event.target.value = "";
+  }
+});
+
+$("btnKalText").addEventListener("click", () => {
+  const text = $("kalText").value.trim();
+  if (!text) { toast("Da steht nichts drin."); return; }
+  uebernehmen(text, $("kalName").value.trim() || "Eingefügt");
+  $("kalText").value = "";
+});
+
+function uebernehmen(text, name) {
+  if (!text.includes("BEGIN:VCALENDAR") && !text.includes("BEGIN:VEVENT")) {
+    toast("Das ist keine Kalenderdatei. Sie beginnt mit BEGIN:VCALENDAR.");
+    return;
+  }
+  const ergebnis = kalenderImportieren(text, name);
+  renderKalender();
+  refreshAll();
+  toast(
+    ergebnis.anzahl === 0
+      ? "Gelesen, aber im Zeitraum lag kein Termin."
+      : `${ergebnis.anzahl} Termine aus ${ergebnis.name} übernommen`,
+  );
+}
 
 $("btnEinkaufNeu").addEventListener("click", async () => {
   const button = $("btnEinkaufNeu");

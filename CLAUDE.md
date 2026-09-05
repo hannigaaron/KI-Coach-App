@@ -59,7 +59,7 @@ Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
 
-Der Assistent hat neunzehn Werkzeuge und verändert die App wirklich. Zahlen
+Der Assistent hat einundzwanzig Werkzeuge und verändert die App wirklich. Zahlen
 über den Nutzer kommen immer aus Werkzeugen, nie aus dem Modell. Allgemeines
 Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
@@ -143,7 +143,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 205 Tests
+npm test           # 240 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -155,6 +155,33 @@ Jeder Push auf `main` baut und veröffentlicht die Web App über GitHub Pages.
 Der Ablauf steht in `.github/workflows/pages.yml`. Ist ein Test rot, wird nichts
 veröffentlicht. Adresse: https://hannigaaron.github.io/KI-Coach-App/
 
+## Kalender
+
+Der Kalender kommt als iCalendar hinein, nach RFC 5545. Google Calendar gibt je
+Kalender eine geheime Adresse im iCal Format aus, der Apple Kalender exportiert
+eine .ics Datei oder veröffentlicht einen Feed. Ein Parser deckt beide ab,
+`packages/core/src/ical.ts`, ohne Abhängigkeit.
+
+Zeitzonen laufen über `Intl`. Steht in DTSTART ein TZID, wird die Wandzeit
+dieser Zone in einen Zeitpunkt umgerechnet, nicht als Ortszeit des Geräts
+angenommen. Serien werden nur innerhalb des Fensters aufgelöst, 14 Tage zurück
+und 90 voraus. Was der Parser nicht lesen kann, wird gezählt und gemeldet.
+
+Aus den Terminen macht `packages/core/src/tagesablauf.ts` das Coaching: belegte
+Minuten, freie Blöcke, der längste Block für konzentrierte Arbeit, und die
+Zeitpunkte der Mahlzeiten in den Lücken statt in den Terminen. Vor einem
+erkannten Training rückt die Mahlzeit auf 90 Minuten davor. Jede Empfehlung
+hängt an einer Zahl aus Kalender oder Profil, nichts davon kommt aus dem Modell.
+
+Der Import läuft im Browser. Es geht keine Datei an einen Server. Gespeichert
+werden die gelesenen Termine, nicht die Datei: ein Jahr Kalender als ICS ist
+schnell ein Megabyte, und der localStorage ist bei rund fünf zu Ende.
+
+Offen: die geheime Adresse direkt abrufen statt eine Datei zu wählen. Das
+scheitert im Browser an CORS, dafür braucht es `apps/api` als Zwischenstelle.
+OAuth für Google und EventKit für Apple gehören in die native App, siehe
+`docs/ROADMAP.md`.
+
 ## Aktueller Stand
 
 Fotos, Videos und PDFs gehen in den Chat. Die Aufbereitung steht in
@@ -164,8 +191,8 @@ durch dieselbe Prüfung wie bei der Texteingabe.
 
 Fertig: Rechenkern, Gedächtnis, Assistent mit Werkzeugen, Sprache und Bildern,
 Anamnesebogen beim ersten Start, Einkaufsliste, Mindeststandards,
-Gewichtsverlauf mit Zielkorrektur, Tag und Nacht Modus, installierbare Web App,
-Marke, API.
+Gewichtsverlauf mit Zielkorrektur, Kalender und Tagesablauf, Tag und Nacht
+Modus, installierbare Web App, Marke, API.
 Offen: Push Benachrichtigungen bei geschlossener App, Apple Health und
 Wearables, Wortaktivierung, echte Nährwertdatenbank, Anmeldung über Apple.
 Siehe `docs/ROADMAP.md`.
