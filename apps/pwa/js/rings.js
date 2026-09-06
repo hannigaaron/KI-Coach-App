@@ -130,3 +130,103 @@ export function kurzDauer(minuten) {
   if (h === 0) return `${m} min`;
   return m === 0 ? `${h} h` : `${h}:${String(m).padStart(2, "0")} h`;
 }
+
+
+/**
+ * Der grosse Wertungsring.
+ *
+ * Aufbau von aussen nach innen: ein Ring, in der Mitte ein Etikett in einer
+ * Pille, darunter die Zahl gross, darunter das Urteil in Worten. Die Zahl
+ * allein sagt niemandem etwas, das Wort allein ist zu ungenau. Zusammen
+ * versteht man es in einer halben Sekunde.
+ *
+ * Der Ring läuft zweifarbig, damit man den Fortschritt auch dann sieht, wenn
+ * er fast voll ist: der vordere Teil in der Markenfarbe, der Rest gedämpft.
+ */
+export function wertungsRing({ wert, etikett, urteil, groesse = 230, farbe = TAG_FARBE }) {
+  const svg = el("svg", {
+    viewBox: `0 0 ${groesse} ${groesse}`, width: groesse, height: groesse,
+    role: "img", "aria-label": `${etikett} ${wert} von 100, ${urteil}`,
+  });
+  const mitte = groesse / 2;
+  const breite = Math.max(5, Math.round(groesse / 40));
+
+  ring(svg, { radius: mitte - breite / 2 - 3, breite, anteil: Math.max(0, Math.min(1, wert / 100)), farbe, mitte });
+
+  const pille = el("rect", {
+    x: mitte - groesse * 0.2, y: mitte - groesse * 0.26,
+    width: groesse * 0.4, height: groesse * 0.115, rx: groesse * 0.058,
+    fill: "none", stroke: "currentColor", "stroke-opacity": 0.28, "stroke-width": 1,
+  });
+  svg.appendChild(pille);
+
+  const label = el("text", {
+    x: mitte, y: mitte - groesse * 0.202,
+    "text-anchor": "middle", "dominant-baseline": "middle",
+    "font-size": Math.round(groesse / 22), "font-weight": 600,
+    "letter-spacing": Math.round(groesse / 190) + 1,
+    fill: "currentColor", "fill-opacity": 0.66,
+  });
+  label.textContent = etikett;
+  svg.appendChild(label);
+
+  const zahl = el("text", {
+    x: mitte, y: mitte + groesse * 0.03,
+    "text-anchor": "middle", "dominant-baseline": "middle",
+    "font-size": Math.round(groesse / 2.6), "font-weight": 300, fill: "currentColor",
+  });
+  zahl.textContent = String(wert);
+  svg.appendChild(zahl);
+
+  const wort = el("text", {
+    x: mitte, y: mitte + groesse * 0.2,
+    "text-anchor": "middle", "dominant-baseline": "middle",
+    "font-size": Math.round(groesse / 14), fill: "currentColor", "fill-opacity": 0.62,
+  });
+  wort.textContent = urteil;
+  svg.appendChild(wort);
+
+  return svg;
+}
+
+/**
+ * Eine Kennzahl mit Ring, Wert und Richtung.
+ *
+ * Der Pfeil vergleicht mit gestern. Ohne Vergleich ist eine Zahl nur eine
+ * Zahl: 58 sagt nichts, 58 und fallend sagt etwas.
+ */
+export function metrikRing({ name, wert, richtung = "gleich", farbe = TAG_FARBE }) {
+  const wrap = document.createElement("div");
+  wrap.className = "metrik";
+
+  const kopf = document.createElement("div");
+  kopf.className = "metrik-name";
+  kopf.textContent = name;
+
+  const zeile = document.createElement("div");
+  zeile.className = "metrik-zeile";
+  zeile.appendChild(ringMitZahl({ anteil: wert / 100, zahl: "", groesse: 22, farbe }));
+
+  const zahl = document.createElement("span");
+  zahl.className = "metrik-wert";
+  zahl.textContent = String(wert);
+
+  const pfeil = document.createElement("span");
+  pfeil.className = `metrik-pfeil ${richtung}`;
+  pfeil.setAttribute("aria-hidden", "true");
+
+  zeile.appendChild(zahl);
+  zeile.appendChild(pfeil);
+  wrap.appendChild(kopf);
+  wrap.appendChild(zeile);
+  return wrap;
+}
+
+/** Richtung aus zwei Werten. Unter fünf Punkten Unterschied ist es dasselbe. */
+export function richtungVon(heute, gestern) {
+  if (!Number.isFinite(gestern)) return "gleich";
+  const d = heute - gestern;
+  if (d >= 5) return "hoch";
+  if (d <= -5) return "runter";
+  return "gleich";
+}

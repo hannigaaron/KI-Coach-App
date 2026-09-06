@@ -151,7 +151,7 @@ test("ein Teil ohne Datenlage zählt nicht mit, statt mit null zu bestrafen", ()
   // sonst Datenlage messen statt Verhalten.
   const ohne = tagesnutzung({ ...VOLL, aufgabenErledigt: 0, aufgabenGeplant: 0, standardsGesamt: 0, standardsGehalten: 0 });
   assert.equal(ohne.teile.find((x) => x.name === "Aufgaben")!.gewicht, 0);
-  assert.equal(ohne.teile.find((x) => x.name === "Mindeststandards")!.gewicht, 0);
+  assert.equal(ohne.teile.find((x) => x.name === "Standards")!.gewicht, 0);
   assert.equal(ohne.wert, 100);
 });
 

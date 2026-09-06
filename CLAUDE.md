@@ -266,7 +266,28 @@ die übrigen Gewichte werden hochgerechnet. Sonst misst die Zahl Datenlage
 statt Verhalten.
 
 Die Ringe liegen in `apps/pwa/js/rings.js` und sind SVG, nicht Canvas. Es sind
-ein paar Dutzend Kreise, kein Partikelfeld wie beim Orb.
+ein paar Dutzend Kreise, kein Partikelfeld wie beim Orb. `wertungsRing` ist der
+grosse Ring mit Etikett, Zahl und Urteil, `metrikRing` die kleine Kennzahl mit
+Richtungspfeil gegen gestern. Beides steht oben auf der Tagesansicht.
+
+## Der Chat
+
+Die Antwort steht ohne Sprechblase auf dem Grund, in 16,5 Pixeln mit 1,62
+Zeilenhöhe. Eine Blase um zehn Zeilen Coaching macht daraus eine Chatnachricht,
+und eine Chatnachricht liest man quer. Die eigene Nachricht behält eine Blase,
+damit beim Scrollen sichtbar bleibt, wo man selbst gesprochen hat.
+
+Der Assistent steht auf einem Verlauf: oben der dunkle Grundton, unten das
+Logoblau, stark abgedunkelt. Der Verlauf endet in der eigenen Farbe, nicht in
+einer fremden.
+
+Die Eingabe ist eine Pille statt einer Zeile mit Knöpfen daneben. Alles sitzt in
+einem Element, dadurch fällt die Trennlinie über die ganze Breite weg und der
+Verlauf läuft bis nach unten durch.
+
+`resize()` im Orb misst nur die Breite und leitet die Höhe daraus ab. Liest man
+beide Seiten aus dem Element, hält sich eine einmal zu gross gesetzte Höhe für
+immer, weil das Canvas sie selbst erzeugt.
 
 ## Muster und Widersprüche
 

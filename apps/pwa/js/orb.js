@@ -153,15 +153,27 @@ export class Orb {
     this.out = new Float32Array((RING_PARTICLES + STEM_PARTICLES) * 4);
   }
 
+  /**
+   * Grösse neu setzen.
+   *
+   * Nur die Breite wird gemessen, die Höhe kommt daraus. Der Kreis ist
+   * quadratisch, und die Höhe des Knopfes hängt am Canvas: liest man beide
+   * Seiten aus dem Element, hält sich eine einmal zu gross gesetzte Höhe für
+   * immer, weil das Canvas sie selbst erzeugt. Genau das ist passiert, als der
+   * Kreis beim ersten Gespräch schrumpfen sollte und stattdessen oben
+   * abgeschnitten stehen blieb.
+   */
   resize() {
     const rect = this.el.getBoundingClientRect();
     if (rect.width === 0) return;
     const dpr = Math.min(globalThis.devicePixelRatio || 1, 2);
-    this.canvas.width = Math.round(rect.width * dpr);
-    this.canvas.height = Math.round(rect.height * dpr);
+    const kante = Math.round(rect.width * dpr);
+    if (this.canvas.width === kante) return;
+    this.canvas.width = kante;
+    this.canvas.height = kante;
     this.canvas.style.width = `${rect.width}px`;
-    this.canvas.style.height = `${rect.height}px`;
-    this.scale = (rect.width * dpr) / DESIGN;
+    this.canvas.style.height = `${rect.width}px`;
+    this.scale = kante / DESIGN;
     this.refreshTheme();
   }
 

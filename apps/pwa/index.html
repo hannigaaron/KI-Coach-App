@@ -92,7 +92,7 @@ try {
       <button type="button" id="btnMic" class="icon-btn mic" aria-label="Diktieren"><span class="mic-dot"></span></button>
       <button type="button" id="btnAnhang" class="icon-btn clip" aria-label="Foto oder Datei anhängen"><span class="clip-icon"></span></button>
       <button type="button" id="btnDump" class="icon-btn dump" aria-label="Kopf leeren, alles rausreden">Kopf</button>
-      <input id="chatInput" type="text" placeholder="Schreib oder sprich mit daevo" autocomplete="off" enterkeyhint="send">
+      <input id="chatInput" type="text" placeholder="Schreib oder sprich" autocomplete="off" enterkeyhint="send">
       <button type="submit" id="btnSend" class="icon-btn send" aria-label="Senden"><span class="arrow"></span></button>
     </form>
 
@@ -112,6 +112,12 @@ try {
   <section class="view" data-view="heute" hidden>
     <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Heute</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
+      <div class="wertung">
+        <div class="metriken" id="tagMetriken"></div>
+        <div id="tagWertung"></div>
+        <p class="wertung-satz" id="tagWertungSatz"></p>
+      </div>
+
       <div class="ring-card">
         <div class="ring-wrap">
           <svg viewBox="0 0 120 120" class="ring" aria-hidden="true">
@@ -126,7 +132,7 @@ try {
         <div class="ring-side">
           <div class="mini"><span class="mini-k">Gegessen</span><span id="kcalEaten" class="mini-v">0</span></div>
           <div class="mini"><span class="mini-k">Ziel</span><span id="kcalTarget" class="mini-v">0</span></div>
-          <div class="mini"><span class="mini-k" id="scoreLabel">Tagesscore</span><span id="scoreVal" class="mini-v">0</span></div>
+          <div class="mini"><span class="mini-k" id="scoreLabel">Ernährung</span><span id="scoreVal" class="mini-v">0</span></div>
         </div>
       </div>
 
