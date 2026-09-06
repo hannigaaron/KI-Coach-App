@@ -143,7 +143,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 302 Tests
+npm test           # 305 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -223,6 +223,16 @@ soll. Genau eine Sache steht als erster Schritt da.
 
 Die Aufgaben werden sofort angelegt und durch `priorisiere` geschickt. Eine
 Ordnung, die nur auf dem Bildschirm steht, ist am nächsten Tag wieder weg.
+
+Im Chat gibt es dafür einen eigenen Knopf neben dem Mikrofon. Er hört mit
+sechs Sekunden Pausentoleranz statt gut zwei und bis zu fünf Minuten statt
+zwei. Beim Rausreden ist eine Denkpause kein Satzende, und wer dort abschickt,
+zerlegt einen Gedanken in fünf Nachrichten.
+
+Eine Nachricht über sechzig Wörter geht in `denktiefe` auf `planung`, also Opus
+und höchste Stufe. Psyche behält Vorrang: wer von Scham redet und eine
+Aufgabenliste bekommt, macht die App nie wieder auf. Sortieren kann der Coach
+auch von dort, das Werkzeug steht in jedem Modus zur Verfügung.
 
 Der Regelpfad in `regelKopf` versteht nichts, er sortiert nur nach
 Wortgruppen. Das steht auch in der Antwort. Die Trennung von Aufgabe und Sorge

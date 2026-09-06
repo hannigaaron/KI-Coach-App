@@ -274,6 +274,14 @@ button:disabled { opacity: 0.5; }
 }
 
 /* Listen */
+/* Der Knopf fürs Kopf leeren. Text statt Symbol, weil ein Symbol dafür
+   niemand versteht und die Funktion sonst unbenutzt bleibt. */
+.icon-btn.dump {
+  width: auto; padding: 0 11px; font-size: 12.5px; font-weight: 700;
+  letter-spacing: 0.02em; color: var(--muted);
+}
+.icon-btn.dump[aria-pressed="true"] { color: var(--accent); }
+
 .list { list-style: none; padding: 0; margin: 0; }
 .list li {
   background: var(--panel); border: 1px solid var(--border); border-radius: 12px;

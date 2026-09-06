@@ -42,7 +42,15 @@ export const voiceSupport = {
 };
 
 export class Listener {
-  constructor({ onPartial, onFinal, onState, onLevel }) {
+  /**
+   * `pauseMs` und `maxMs` lassen sich überschreiben.
+   *
+   * Der Grund ist der Schwall: wer alles rausredet, was ihm im Kopf herumgeht,
+   * denkt zwischendurch nach. Zwei Sekunden Stille sind dann kein Satzende,
+   * sondern eine Denkpause. Wird dort abgeschickt, zerfällt ein Gedanke in
+   * fünf Nachrichten, und genau das soll die Funktion ja verhindern.
+   */
+  constructor({ onPartial, onFinal, onState, onLevel, pauseMs, maxMs, stilleMs }) {
     this.onPartial = onPartial ?? (() => {});
     this.onFinal = onFinal ?? (() => {});
     this.onState = onState ?? (() => {});
@@ -60,6 +68,9 @@ export class Listener {
     this.maxTimer = 0;
     this.neustarts = 0;
     this.messerAus = false;
+    this.pauseMs = pauseMs ?? PAUSE_MS;
+    this.maxMs = maxMs ?? MAX_MS;
+    this.stilleMs = stilleMs ?? STILLE_MS;
   }
 
   get supported() {
@@ -79,8 +90,8 @@ export class Listener {
     this.onState("listening");
     await this.startMeter();
 
-    this.maxTimer = setTimeout(() => this.fertig("zeit"), MAX_MS);
-    this.planePause(STILLE_MS);
+    this.maxTimer = setTimeout(() => this.fertig("zeit"), this.maxMs);
+    this.planePause(this.stilleMs);
     this.starteErkennung();
     return true;
   }
@@ -114,12 +125,12 @@ export class Listener {
       this.onPartial(this.text(interim));
       // Jedes gehörte Wort schiebt das Ende nach hinten. Wer weiterredet,
       // wird nicht unterbrochen.
-      this.planePause(PAUSE_MS);
+      this.planePause(this.pauseMs);
     };
 
     recognition.onspeechstart = () => {
       hatEtwasGehoert = true;
-      this.planePause(PAUSE_MS);
+      this.planePause(this.pauseMs);
     };
 
     recognition.onerror = (event) => {
