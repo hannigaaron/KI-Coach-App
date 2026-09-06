@@ -59,7 +59,7 @@ Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
 
-Der Assistent hat neunundzwanzig Werkzeuge und verändert die App wirklich. Zahlen
+Der Assistent hat dreissig Werkzeuge und verändert die App wirklich. Zahlen
 über den Nutzer kommen immer aus Werkzeugen, nie aus dem Modell. Allgemeines
 Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
@@ -143,7 +143,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 305 Tests
+npm test           # 328 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -238,6 +238,36 @@ Der Regelpfad in `regelKopf` versteht nichts, er sortiert nur nach
 Wortgruppen. Das steht auch in der Antwort. Die Trennung von Aufgabe und Sorge
 ist der halbe Nutzen, und dafür braucht es kein Modell.
 
+## Das Life Balance Board
+
+`packages/core/src/balance.ts` misst fünf Bereiche: Karriere, Fitness,
+Wellbeing, Me Time, Familie und Beziehung. Die Minuten kommen aus den
+Kalendertiteln und aus eingetragenen Trainings, nichts wird geschätzt.
+
+Die Wortlisten je Bereich sind kurz und eindeutig. Ein Wort, das in zwei
+Bereichen vorkommen könnte, gehört in keinen: eine falsche Zuordnung ist
+schlimmer als eine fehlende, weil sie eine Zahl erzeugt, der man glaubt.
+Fitness wird vor Karriere geprüft, weil "Athletiktraining" Arbeit ist und
+"Krafttraining" nicht. Zeit, die nirgends passt, wird als nicht zugeordnet
+ausgewiesen und zählt nirgends mit.
+
+Ziele sind Wochenziele in Minuten und werden für kürzere Zeiträume anteilig
+heruntergerechnet. Der Anteil wird nicht gedeckelt, damit sichtbar bleibt, wer
+sein Arbeitsziel um 60 Prozent überzieht.
+
+`tagesnutzung` verdichtet vier Teile zu einer Zahl: Balance 40 Prozent,
+Aufgaben 25, Mindeststandards 20, Ernährung 15. Die Gewichtung ist eine
+Produktentscheidung und steht deshalb sichtbar im Code. Balance wiegt am
+meisten, weil ein Tag aus reiner Arbeit auch dann kein guter Tag ist, wenn
+jede Aufgabe erledigt wurde.
+
+Ein Teil ohne Datenlage wird nicht mit null bewertet, sondern fällt raus, und
+die übrigen Gewichte werden hochgerechnet. Sonst misst die Zahl Datenlage
+statt Verhalten.
+
+Die Ringe liegen in `apps/pwa/js/rings.js` und sind SVG, nicht Canvas. Es sind
+ein paar Dutzend Kreise, kein Partikelfeld wie beim Orb.
+
 ## Muster und Widersprüche
 
 `packages/core/src/muster.ts` rechnet Korrelationen nach Pearson über die
@@ -269,7 +299,8 @@ durch dieselbe Prüfung wie bei der Texteingabe.
 Fertig: Rechenkern, Gedächtnis, Assistent mit Werkzeugen, Sprache und Bildern,
 Anamnesebogen beim ersten Start, Einkaufsliste, Mindeststandards,
 Gewichtsverlauf mit Zielkorrektur, Kalender und Tagesablauf, Morgenbriefing,
-Mittags Check-in, Aufgaben mit Priorisierung, Kopf leeren, Tagesabschluss, Muster über
+Mittags Check-in, Aufgaben mit Priorisierung, Kopf leeren, Balance Board,
+Tagesabschluss, Muster über
 Wochen, Widerspruchsprüfung, Tag und Nacht
 Modus, installierbare Web App, Marke, API.
 Offen: Push Benachrichtigungen bei geschlossener App, Apple Health und

@@ -130,6 +130,9 @@ try {
         </div>
       </div>
 
+      <div class="ring-kacheln" id="heuteBalance"></div>
+      <p class="fineprint" id="heuteBalanceHinweis" style="margin-top:0"></p>
+
       <div class="bars">
         <div class="bar-row"><div class="bar-head"><span>Protein</span><span id="pTxt"></span></div><div class="bar"><i id="pBar"></i></div></div>
         <div class="bar-row"><div class="bar-head"><span>Fett</span><span id="fTxt"></span></div><div class="bar"><i id="fBar" class="warn"></i></div></div>
@@ -257,6 +260,34 @@ try {
       </div>
       <ul class="list" id="einkaufList"></ul>
       <p class="fineprint" id="einkaufHinweis"></p>
+    </div>
+  </section>
+
+  <section class="view" data-view="balance" hidden>
+    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Balance</h1><div class="bar-spacer"></div></header>
+    <div class="scroll">
+      <p class="sub">Fünf Bereiche, die zusammen ein Leben ergeben. Gemessen wird, was im Kalender steht und was du eingetragen hast. Nichts wird geschätzt.</p>
+
+      <div class="seg" id="balanceZeitraum">
+        <button class="seg-btn is-on" data-tage="1">Heute</button>
+        <button class="seg-btn" data-tage="7">Diese Woche</button>
+        <button class="seg-btn" data-tage="30">30 Tage</button>
+      </div>
+
+      <div class="ring-buehne">
+        <div id="balanceStapel" class="ring-stapel"></div>
+        <div id="balanceTagesring" class="ring-tag"></div>
+      </div>
+      <p class="fineprint" id="balanceNutzung"></p>
+
+      <div class="ring-kacheln" id="balanceKacheln"></div>
+
+      <p class="fineprint" id="balanceHinweis"></p>
+
+      <h2 class="section-title">Wochenziele</h2>
+      <p class="sub">In Stunden je Woche. Der Tageswert wird daraus heruntergerechnet.</p>
+      <div id="balanceZiele"></div>
+      <button id="btnBalanceZiele" class="ghost">Ziele speichern</button>
     </div>
   </section>
 
@@ -513,6 +544,7 @@ try {
     <button class="menu-item" data-go="essen"><b>Essen</b><span>Erfassen, Vorrat, Vorschläge</span></button>
     <button class="menu-item" data-go="checkin"><b>Check-in</b><span>Energie, Schlaf, Stimmung</span></button>
     <button class="menu-item" data-go="einkauf"><b>Einkaufen</b><span>Liste aus deinen Zielen</span></button>
+    <button class="menu-item" data-go="balance"><b>Balance</b><span>Karriere, Fitness, Wellbeing, Me Time, Familie</span></button>
     <button class="menu-item" data-go="tag"><b>Dein Tag</b><span>Briefing, Mittagscheck, Aufgaben</span></button>
     <button class="menu-item" data-go="kalender"><b>Kalender</b><span>Dein Tag, deine Lücken, deine Mahlzeiten</span></button>
     <button class="menu-item" data-go="standards"><b>Mindeststandards</b><span>Deine Untergrenze, jede Woche</span></button>

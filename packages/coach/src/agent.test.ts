@@ -25,6 +25,7 @@ function stubActions(log: string[]): AgentActions {
     async aufgabenPriorisieren() { log.push("prio"); return "Heute noch: Angebot schreiben."; },
     async kopfLeeren(i) { log.push(`kopf:${i.text.slice(0, 12)}`); return "Fang hiermit an: Angebot schreiben."; },
     async musterErkennen(i) { log.push(`muster:${i.tage ?? ""}`); return "Schlaf und Energie hängen zusammen."; },
+    async balanceAbrufen(i) { log.push(`balance:${i.tage ?? ""}`); return "Karriere 40 Stunden, Me Time 0 Minuten."; },
     async widerspruechePruefen() { log.push("widerspruch"); return "Protein: Ziel 180 g, im Schnitt 120 g."; },
     async mittagscheckSpeichern(i) { log.push(`mittag:${i.energie}/${i.konzentration}/${i.saettigung}`); return "Notiert."; },
     async briefingErstellen(i) { log.push(`briefing:${i.art}`); return "Guten Morgen."; },

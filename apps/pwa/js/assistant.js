@@ -5,6 +5,8 @@ import {
 } from "@daevo/coach";
 import {
   abendAbschluss,
+  balance,
+  balanceText,
   buildDailyReminders,
   muster,
   musterText,
@@ -30,6 +32,7 @@ import {
   estimateTdee,
   standardZumNachhaken,
   standardsStatus,
+  tagesnutzung,
   suggestStandards,
   targetCorrection,
   waterTargetMl,
@@ -876,6 +879,77 @@ export function briefing(art = "morgen") {
   });
 }
 
+/* ---------- Life Balance ---------- */
+
+/**
+ * Die Balance über einen Zeitraum.
+ *
+ * Termine kommen aus dem Kalender, dazu die eingetragenen Trainings als
+ * Zusatzminuten für Fitness. Ein Training, das der Nutzer erfasst hat, hat
+ * stattgefunden, auch wenn kein Termin dafür im Kalender steht.
+ */
+export function balanceFuer(tage = 1, bisIso = todayIso()) {
+  const termine = [];
+  let trainingMinuten = 0;
+
+  for (let i = tage - 1; i >= 0; i--) {
+    const d = new Date(`${bisIso}T12:00:00`);
+    d.setDate(d.getDate() - i);
+    const iso = d.toISOString().slice(0, 10);
+    for (const t of termineFuer(iso)) termine.push(t);
+    for (const training of store.getDay(iso).trainings || []) {
+      trainingMinuten += Number(training.minutes) || 0;
+    }
+  }
+
+  // Ein Termin kann in zwei Tagen vorkommen, wenn er über Mitternacht läuft.
+  // Ohne diese Entdopplung zählt seine Zeit zweimal.
+  const gesehen = new Set();
+  const eindeutig = termine.filter((t) => {
+    const schluessel = `${t.uid}|${t.von}`;
+    if (gesehen.has(schluessel)) return false;
+    gesehen.add(schluessel);
+    return true;
+  });
+
+  return balance({
+    termine: eindeutig,
+    zusatz: { fitness: trainingMinuten },
+    ziele: store.getSettings().balanceZiele || undefined,
+    tage,
+  });
+}
+
+export function balanceUebersicht(tage = 7) {
+  if ((store.getKalender().termine || []).length === 0) {
+    return "Kein Kalender verbunden. Ohne Termine kann ich die Balance nicht messen, nur raten, und raten tue ich nicht.";
+  }
+  return balanceText(balanceFuer(Math.max(1, Math.min(90, tage))));
+}
+
+/**
+ * Wie gut der Tag genutzt wurde.
+ *
+ * Vier Teile mit fester Gewichtung, alle aus Zahlen, die die App schon hat.
+ * Die Gewichtung steht im Rechenkern und ist dort erklärt.
+ */
+export function tagesnutzungFuer(tagIso = todayIso()) {
+  const n = dayNumbers(tagIso);
+  const plan = aufgabenPlan();
+  const erledigt = store.getAufgaben()
+    .filter((a) => a.erledigt && (a.erledigtAm || "").slice(0, 10) === tagIso).length;
+  const status = standardsUebersicht();
+
+  return tagesnutzung({
+    balance: balanceFuer(1, tagIso),
+    aufgabenErledigt: erledigt,
+    aufgabenGeplant: erledigt + plan.heute.length,
+    standardsGehalten: status.filter((s) => s.erfuellt).length,
+    standardsGesamt: status.length,
+    ernaehrung: scoreDay(n.totals, n.targets).total,
+  });
+}
+
 /* ---------- Muster und Widersprüche ---------- */
 
 /** Die Tagesreihe für die Musteranalyse. Fehlende Werte bleiben leer. */
@@ -1126,6 +1200,13 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
       aufgabeAbhaken(a.id);
       changed();
       return `Abgehakt: ${a.text}.`;
+    },
+
+    async balanceAbrufen({ tage } = {}) {
+      const zeitraum = Math.max(1, Math.min(90, tage || 7));
+      const nutzung = zeitraum === 1 ? tagesnutzungFuer() : null;
+      const text = balanceUebersicht(zeitraum);
+      return nutzung ? `${text}\n\nTagesnutzung: ${nutzung.satz}` : text;
     },
 
     async musterErkennen({ tage } = {}) {

@@ -273,6 +273,41 @@ button:disabled { opacity: 0.5; }
   font-size: 14.5px; font-weight: 600; padding: 11px 6px;
 }
 
+/* Ringe und das Balance Board */
+.seg {
+  display: flex; gap: 6px; background: var(--panel); border: 1px solid var(--border);
+  border-radius: 12px; padding: 4px; margin-bottom: 16px;
+}
+.seg-btn {
+  flex: 1; background: transparent; border: 0; color: var(--muted);
+  font-size: 14px; font-weight: 600; padding: 9px 4px; border-radius: 9px;
+}
+.seg-btn.is-on { background: var(--panel-2); color: var(--text); }
+
+.ring-buehne {
+  display: flex; align-items: center; justify-content: center; gap: 18px;
+  flex-wrap: wrap; margin-bottom: 6px;
+}
+.ring-stapel svg, .ring-tag svg { display: block; color: var(--text); }
+
+.ring-kacheln {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 10px; margin: 14px 0 6px;
+}
+.ring-kachel {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+  padding: 12px 6px 10px; text-align: center; color: var(--text);
+}
+.ring-kachel svg { margin: 0 auto; }
+.ring-kachel .k-name { font-size: 12.5px; font-weight: 600; margin-top: 7px; }
+.ring-kachel .k-wert { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+.ziel-zeile {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 9px;
+}
+.ziel-zeile span { flex: 1; font-size: 14.5px; }
+.ziel-zeile input { width: 92px; }
+
 /* Listen */
 /* Der Knopf fürs Kopf leeren. Text statt Symbol, weil ein Symbol dafür
    niemand versteht und die Funktion sonst unbenutzt bleibt. */
