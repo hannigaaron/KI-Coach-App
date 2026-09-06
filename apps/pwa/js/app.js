@@ -4,7 +4,7 @@ import { Coach, AnthropicProvider } from "@daevo/coach";
 import {
   ablaufFuer, ask, aufgabeAbhaken, aufgabeAnlegen, aufgabeLoeschen, aufgabenPlan, briefing,
   buildActions, dayNumbers, einkaufslisteText, ensureStandards, greeting, herausforderungSpeichern,
-  mittagscheck, mittagscheckText, musterUebersicht,
+  kopfSortieren, mittagscheck, mittagscheckText, musterUebersicht,
   trainingsplanUebernehmen, trainingsplanVorschlag, widerspruchListe,
   kalenderEntfernen, kalenderImportieren, kalenderStand, kalenderUebersicht,
   kostenUebersicht, recommendations, standardsUebersicht, tagesErinnerungen, verlaufPunkte,
@@ -971,6 +971,47 @@ $("btnAufgabe").addEventListener("click", () => {
   renderTag();
   refreshAll();
   toast("Angelegt");
+});
+
+/**
+ * Kopf leeren.
+ *
+ * Der Knopf läuft bewusst über die Aufgabenliste weiter: das Ergebnis steht
+ * nicht nur da, die Aufgaben stehen danach wirklich in der Liste, und die
+ * Priorisierung sagt sofort, was heute noch reingeht.
+ */
+$("btnKopf").addEventListener("click", async () => {
+  const text = $("kopfText").value.trim();
+  if (text.length < 20) { toast("Schreib mehr. Alles, was dir im Kopf herumgeht."); return; }
+  const button = $("btnKopf");
+  button.disabled = true;
+  button.textContent = "Sortiere";
+  $("kopfErgebnis").hidden = false;
+  $("kopfErgebnis").textContent = "Ich sortiere das.";
+  try {
+    const ergebnis = await kopfSortieren(text);
+    if (!ergebnis) { $("kopfErgebnis").textContent = "Dafür war zu wenig da."; return; }
+    $("kopfErgebnis").textContent =
+      `${ergebnis.text}\n\n${ergebnis.angelegt.length} Aufgaben stehen jetzt in deiner Liste.`;
+    $("kopfText").value = "";
+    renderTag();
+    refreshAll();
+  } catch (error) {
+    $("kopfErgebnis").textContent = `Das hat nicht geklappt: ${error.message}`;
+  } finally {
+    button.disabled = false;
+    button.textContent = "Sortieren";
+  }
+});
+
+$("btnKopfDiktat").addEventListener("click", () => {
+  if (!listener?.supported) { toast("Dieser Browser kann keine Spracherkennung."); return; }
+  const einmal = new Listener({
+    onPartial: (t) => { $("kopfText").value = t; },
+    onFinal: (t) => { $("kopfText").value = t; toast("Aufnahme übernommen"); },
+  });
+  einmal.start();
+  toast("Sprich in Ruhe. Alles, was dir im Kopf herumgeht.");
 });
 
 $("btnBriefingMorgen").addEventListener("click", () => { $("briefingText").textContent = briefing("morgen"); });

@@ -51,6 +51,7 @@ export interface AgentActions {
   aufgabeAnlegen(input: { text: string; minuten?: number; faellig?: string; wichtigkeit?: number }): Promise<string>;
   aufgabeAbhaken(input: { text: string }): Promise<string>;
   aufgabenPriorisieren(): Promise<string>;
+  kopfLeeren(input: { text: string }): Promise<string>;
   musterErkennen(input: { tage?: number }): Promise<string>;
   widerspruechePruefen(): Promise<string>;
   mittagscheckSpeichern(input: {
@@ -415,6 +416,13 @@ async function execute(
       }
       case "aufgaben_priorisieren":
         return { text: await actions.aufgabenPriorisieren() };
+      case "kopf_leeren": {
+        const text = String(input.text ?? "").trim();
+        if (text.length < 20) {
+          return { text: "Dafür ist zu wenig da. Erzähl einfach alles, was dir durch den Kopf geht.", fehler: true };
+        }
+        return { text: await actions.kopfLeeren({ text }), notiz: "Kopf geleert und Aufgaben angelegt" };
+      }
       case "muster_erkennen": {
         const tage = Number.isFinite(Number(input.tage)) ? clamp(Number(input.tage), 14, 180) : undefined;
         return { text: await actions.musterErkennen({ tage }) };
@@ -656,6 +664,15 @@ export async function runOffline(
 
   // Aufgaben und Prioritäten. Auch das läuft ohne Modell, weil die
   // Reihenfolge aus Fristen und Zahlen kommt, nicht aus Sprachverständnis.
+  // Der Schwall. Erkannt an den Worten und an der Länge: wer in einem Stück
+  // mehr als sechzig Wörter schreibt, erzählt selten nur eine Sache.
+  if (pattern("kopf schwirrt", "geht mir durch den kopf", "alles zu viel", "weiss nicht wo ich anfangen",
+    "weiß nicht wo ich anfangen", "kopf frei", "chaos im kopf", "so viel gleichzeitig",
+    "muss mal alles raus", "kopf leeren", "gedanken sortieren").test(text)
+    || nachricht.split(/\s+/).filter(Boolean).length > 60) {
+    return { text: await actions.kopfLeeren({ text: nachricht }), ausgeführt: ["Kopf geleert"], source: "offline" };
+  }
+
   if (pattern("woran liegt", "warum bin ich (immer|ständig|staendig)", "muster", "zusammenhang",
     "hängt (das )?zusammen", "haengt (das )?zusammen", "seit wochen müde", "seit wochen mude").test(text)) {
     return { text: await actions.musterErkennen({}), ausgeführt, source: "offline" };

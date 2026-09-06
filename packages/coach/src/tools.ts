@@ -176,6 +176,30 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: "kopf_leeren",
+    description:
+      "Nimmt einen langen, ungeordneten Schwall von allem, was dem Nutzer im Kopf herumgeht, und macht " +
+      "daraus Ordnung: was davon eine Aufgabe ist, was eine Entscheidung, was eine Sorge ohne Handlung, " +
+      "was nicht an ihm hängt, und womit er in den nächsten zehn Minuten anfängt. " +
+      "Die Aufgaben werden gleich angelegt. " +
+      "Nehmen, wenn er viel auf einmal erzählt, wenn er sagt dass ihm der Kopf schwirrt, dass er nicht weiss " +
+      "wo er anfangen soll, dass alles zu viel ist, oder wenn seine Nachricht mehrere Themen mischt. " +
+      "Nicht nehmen für eine einzelne Aufgabe, dafür gibt es aufgabe_anlegen, und nicht für ein Gespräch " +
+      "über ein einzelnes belastendes Thema.",
+    input_schema: {
+      type: "object",
+      properties: {
+        text: {
+          type: "string",
+          description:
+            "Alles, was er gesagt hat, so wörtlich wie möglich. Kürz nichts weg und ordne nichts vor. " +
+            "Das Ordnen passiert im Werkzeug.",
+        },
+      },
+      required: ["text"],
+    },
+  },
+  {
     name: "aufgabe_anlegen",
     description:
       "Legt eine Aufgabe an. Nehmen, sobald der Nutzer sagt, dass er etwas zu tun hat, etwas vergessen " +
