@@ -1,10 +1,11 @@
-import { energyBreakdown, uhrzeit, weightTrend } from "@daevo/core";
+import { BEREICHE, BEREICH_NAME, STANDARD_ZIELE, energyBreakdown, uhrzeit, weightTrend } from "@daevo/core";
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE } from "@daevo/coach";
 import { Coach, AnthropicProvider } from "@daevo/coach";
 import {
-  ablaufFuer, ask, aufgabeAbhaken, aufgabeAnlegen, aufgabeLoeschen, aufgabenPlan, briefing,
+  ablaufFuer, ask, aufgabeAbhaken, aufgabeAnlegen, aufgabeLoeschen, aufgabenPlan,
+  balanceFuer, briefing,
   buildActions, dayNumbers, einkaufslisteText, ensureStandards, greeting, herausforderungSpeichern,
-  aufgabenPlanText, kopfSortieren, mittagscheck, mittagscheckText, musterUebersicht,
+  aufgabenPlanText, kopfSortieren, mittagscheck, mittagscheckText, musterUebersicht, tagesnutzungFuer,
   trainingsplanUebernehmen, trainingsplanVorschlag, widerspruchListe,
   kalenderEntfernen, kalenderImportieren, kalenderStand, kalenderUebersicht,
   kostenUebersicht, recommendations, standardsUebersicht, tagesErinnerungen, verlaufPunkte,
@@ -12,6 +13,7 @@ import {
 import { brain } from "./brain.js";
 import { Orb } from "./orb.js";
 import { anhangAusDatei, grossInKb } from "./media.js";
+import { BEREICH_FARBE, kurzDauer, ringMitZahl, ringStapel } from "./rings.js";
 import { Listener, speak, stopSpeaking, voiceSupport } from "./voice.js";
 import { SetupFlow } from "./setup-ui.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
@@ -441,6 +443,7 @@ function showView(name) {
   if (name === "einkauf") renderEinkauf();
   if (name === "kalender") renderKalender();
   if (name === "tag") renderTag();
+  if (name === "balance") renderBalance();
   if (name === "standards") renderStandards();
   if (name === "empfehlungen") renderRecommendations();
   if (name === "profil") renderProfile();
@@ -460,7 +463,43 @@ function refreshAll() {
   if (name === "einkauf") renderEinkauf();
   if (name === "kalender") renderKalender();
   if (name === "tag") renderTag();
+  if (name === "balance") renderBalance();
   if (name === "standards") renderStandards();
+}
+
+/**
+ * Die fünf Bereiche als schmaler Streifen auf der Tagesansicht.
+ *
+ * Bewusst hier und nicht nur unter Balance: was man nur sieht, wenn man danach
+ * sucht, sieht man nicht. Der Streifen zeigt den heutigen Tag, das ganze Board
+ * mit Woche und Zielen liegt im Menue.
+ */
+function renderHeuteBalance() {
+  const el = $("heuteBalance");
+  if (!el) return;
+  const b = balanceFuer(1, day);
+  el.innerHTML = "";
+  for (const stand of b.bereiche) {
+    const kachel = document.createElement("div");
+    kachel.className = "ring-kachel";
+    kachel.appendChild(ringMitZahl({
+      anteil: stand.anteil,
+      zahl: `${Math.round(stand.anteil * 100)}%`,
+      farbe: BEREICH_FARBE[stand.bereich],
+      groesse: 72,
+    }));
+    const name = document.createElement("div");
+    name.className = "k-name";
+    name.textContent = stand.name;
+    kachel.appendChild(name);
+    el.appendChild(kachel);
+  }
+
+  const nutzung = tagesnutzungFuer(day);
+  const leer = b.bereiche.filter((x) => x.minuten === 0).map((x) => x.name);
+  $("heuteBalanceHinweis").textContent = (store.getKalender().termine || []).length === 0
+    ? "Ohne verbundenen Kalender bleiben die Ringe leer. Menue, Kalender."
+    : `Tagesnutzung ${nutzung.wert} von 100.${leer.length ? ` Noch nichts in: ${leer.join(", ")}.` : ""}`;
 }
 
 function renderToday() {
@@ -493,6 +532,7 @@ function renderToday() {
         `<div class="li-side"><b>${r.at}</b>${r.at < time ? "vorbei" : "geplant"}</div></li>`).join("")
     : `<li><div class="li-main"><div class="li-sub">Für heute ist alles erledigt.</div></div></li>`;
 
+  renderHeuteBalance();
   renderWeight();
   renderMeals("mealList");
 }
@@ -984,6 +1024,123 @@ $("btnWeight").addEventListener("click", async () => {
   const antwort = await buildActions({ onChange: refreshAll }).gewichtEintragen(Math.round(kg * 10) / 10);
   renderWeight();
   toast(antwort.split(".")[0]);
+});
+
+/* ---------- Balance ---------- */
+
+/** Zeitraum des Balance Boards in Tagen. */
+let balanceTage = 1;
+
+/**
+ * Das Board.
+ *
+ * Der Stapel links zeigt auf einen Blick, ob etwas fehlt. Die Kacheln darunter
+ * sagen, was. Der grosse Ring rechts ist die Tagesnutzung und steht nur beim
+ * Zeitraum Heute, weil eine Nutzung über 30 Tage keine Aussage mehr ist.
+ */
+function renderBalance() {
+  for (const knopf of document.querySelectorAll("#balanceZeitraum .seg-btn")) {
+    knopf.classList.toggle("is-on", Number(knopf.dataset.tage) === balanceTage);
+  }
+
+  const b = balanceFuer(balanceTage);
+
+  const stapel = $("balanceStapel");
+  stapel.innerHTML = "";
+  stapel.appendChild(ringStapel(b.bereiche, { groesse: 190 }));
+
+  const tagesring = $("balanceTagesring");
+  tagesring.innerHTML = "";
+  if (balanceTage === 1) {
+    const nutzung = tagesnutzungFuer();
+    tagesring.appendChild(ringMitZahl({
+      anteil: nutzung.wert / 100, zahl: nutzung.wert, unten: "von 100", groesse: 128,
+    }));
+    $("balanceNutzung").textContent = `${nutzung.satz} ${nutzung.teile.map((t) => `${t.name} ${t.wert}`).join(", ")}.`;
+  } else {
+    $("balanceNutzung").textContent =
+      `Zeitraum ${b.tage} Tage. Die Tagesnutzung gibt es nur für heute, über Wochen sagt ein einzelner Wert nichts.`;
+  }
+
+  const kacheln = $("balanceKacheln");
+  kacheln.innerHTML = "";
+  for (const stand of b.bereiche) {
+    const kachel = document.createElement("div");
+    kachel.className = "ring-kachel";
+    kachel.appendChild(ringMitZahl({
+      anteil: stand.anteil,
+      zahl: `${Math.round(stand.anteil * 100)}%`,
+      farbe: BEREICH_FARBE[stand.bereich],
+      groesse: 84,
+    }));
+    const name = document.createElement("div");
+    name.className = "k-name";
+    name.textContent = stand.name;
+    const wert = document.createElement("div");
+    wert.className = "k-wert";
+    wert.textContent = `${kurzDauer(stand.minuten)} von ${kurzDauer(stand.zielMinuten)}`;
+    kachel.appendChild(name);
+    kachel.appendChild(wert);
+    kacheln.appendChild(kachel);
+  }
+
+  const teile = [];
+  if ((store.getKalender().termine || []).length === 0) {
+    teile.push("Kein Kalender verbunden. Ohne Termine bleiben die Ringe leer, egal wie voll dein Tag war.");
+  }
+  if (b.nichtZugeordnet > 0) {
+    teile.push(
+      `${kurzDauer(b.nichtZugeordnet)} konnte ich keinem Bereich zuordnen. ` +
+      "Diese Termine haben keinen Titel, aus dem sich etwas lesen lässt, und zählen nirgends mit.",
+    );
+  }
+  const leer = b.bereiche.filter((x) => x.minuten === 0).map((x) => x.name);
+  if (leer.length) teile.push(`Ohne eine einzige Minute: ${leer.join(", ")}.`);
+  $("balanceHinweis").textContent = teile.join(" ");
+
+  renderBalanceZiele();
+}
+
+function renderBalanceZiele() {
+  const gespeichert = store.getSettings().balanceZiele || {};
+  const wrap = $("balanceZiele");
+  wrap.innerHTML = "";
+  for (const bereich of BEREICHE) {
+    const minuten = gespeichert[bereich] ?? STANDARD_ZIELE[bereich];
+    const zeile = document.createElement("div");
+    zeile.className = "ziel-zeile";
+    const name = document.createElement("span");
+    name.textContent = BEREICH_NAME[bereich];
+    const feld = document.createElement("input");
+    feld.type = "number";
+    feld.inputMode = "decimal";
+    feld.min = "0";
+    feld.max = "80";
+    feld.step = "0.5";
+    feld.value = String(Math.round((minuten / 60) * 2) / 2);
+    feld.dataset.bereich = bereich;
+    zeile.appendChild(name);
+    zeile.appendChild(feld);
+    wrap.appendChild(zeile);
+  }
+}
+
+$("balanceZeitraum").addEventListener("click", (event) => {
+  const knopf = event.target.closest("[data-tage]");
+  if (!knopf) return;
+  balanceTage = Number(knopf.dataset.tage) || 1;
+  renderBalance();
+});
+
+$("btnBalanceZiele").addEventListener("click", () => {
+  const ziele = {};
+  for (const feld of document.querySelectorAll("#balanceZiele input")) {
+    const stunden = Math.max(0, Math.min(80, Number(feld.value) || 0));
+    ziele[feld.dataset.bereich] = Math.round(stunden * 60);
+  }
+  store.setSettings({ ...store.getSettings(), balanceZiele: ziele });
+  renderBalance();
+  toast("Ziele gespeichert");
 });
 
 /* ---------- Dein Tag ---------- */

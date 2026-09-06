@@ -271,6 +271,24 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: "balance_abrufen",
+    description:
+      "Liefert das Life Balance Board: wie viele Minuten in Karriere, Fitness, Wellbeing, Me Time und " +
+      "Familie und Beziehung geflossen sind, gegen die Ziele des Nutzers, dazu die nicht zuordenbare Zeit. " +
+      "Für einen einzelnen Tag kommt die Tagesnutzung mit dazu, ein Wert von 0 bis 100 aus Balance, " +
+      "Aufgaben, Mindeststandards und Ernährung. " +
+      "Nehmen, wenn es um Ausgleich, Ueberlastung, zu wenig Zeit für sich oder für andere geht, " +
+      "wenn er fragt, wie seine Woche war, oder wenn du beurteilen willst, ob ein Tag rund lief. " +
+      "Ein leerer Bereich heisst, dass dort nichts im Kalender stand, nicht dass nichts passiert ist. " +
+      "Sag das dazu, statt ihm etwas vorzuwerfen.",
+    input_schema: {
+      type: "object",
+      properties: {
+        tage: { type: "number", description: "Zeitraum in Tagen, 1 bis 90. Ohne Angabe 7. Mit 1 kommt die Tagesnutzung dazu." },
+      },
+    },
+  },
+  {
     name: "muster_erkennen",
     description:
       "Sucht Zusammenhänge über mehrere Wochen: was hängt bei diesem Nutzer wirklich mit seiner Energie, " +

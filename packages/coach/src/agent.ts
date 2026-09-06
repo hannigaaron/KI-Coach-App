@@ -53,6 +53,7 @@ export interface AgentActions {
   aufgabenPriorisieren(): Promise<string>;
   kopfLeeren(input: { text: string }): Promise<string>;
   musterErkennen(input: { tage?: number }): Promise<string>;
+  balanceAbrufen(input: { tage?: number }): Promise<string>;
   widerspruechePruefen(): Promise<string>;
   mittagscheckSpeichern(input: {
     energie: number; konzentration: number; saettigung: number; notiz?: string;
@@ -433,6 +434,10 @@ async function execute(
         }
         return { text: await actions.kopfLeeren({ text }), notiz: "Kopf geleert und Aufgaben angelegt" };
       }
+      case "balance_abrufen": {
+        const tage = Number.isFinite(Number(input.tage)) ? clamp(Number(input.tage), 1, 90) : undefined;
+        return { text: await actions.balanceAbrufen({ tage }) };
+      }
       case "muster_erkennen": {
         const tage = Number.isFinite(Number(input.tage)) ? clamp(Number(input.tage), 14, 180) : undefined;
         return { text: await actions.musterErkennen({ tage }) };
@@ -681,6 +686,11 @@ export async function runOffline(
     "muss mal alles raus", "kopf leeren", "gedanken sortieren").test(text)
     || nachricht.split(/\s+/).filter(Boolean).length > 60) {
     return { text: await actions.kopfLeeren({ text: nachricht }), ausgeführt: ["Kopf geleert"], source: "offline" };
+  }
+
+  if (pattern("balance", "ausgleich", "zu wenig zeit", "keine zeit für", "keine zeit fuer",
+    "wie war meine woche", "wochenübersicht", "wochenubersicht", "me time", "erholung").test(text)) {
+    return { text: await actions.balanceAbrufen({}), ausgeführt, source: "offline" };
   }
 
   if (pattern("woran liegt", "warum bin ich (immer|ständig|staendig)", "muster", "zusammenhang",
