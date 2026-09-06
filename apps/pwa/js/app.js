@@ -4,7 +4,7 @@ import { Coach, AnthropicProvider } from "@daevo/coach";
 import {
   ablaufFuer, ask, aufgabeAbhaken, aufgabeAnlegen, aufgabeLoeschen, aufgabenPlan, briefing,
   buildActions, dayNumbers, einkaufslisteText, ensureStandards, greeting, herausforderungSpeichern,
-  kopfSortieren, mittagscheck, mittagscheckText, musterUebersicht,
+  aufgabenPlanText, kopfSortieren, mittagscheck, mittagscheckText, musterUebersicht,
   trainingsplanUebernehmen, trainingsplanVorschlag, widerspruchListe,
   kalenderEntfernen, kalenderImportieren, kalenderStand, kalenderUebersicht,
   kostenUebersicht, recommendations, standardsUebersicht, tagesErinnerungen, verlaufPunkte,
@@ -286,6 +286,98 @@ async function send(text) {
     busy = false;
   }
 }
+
+/**
+ * Kopf leeren als Sprachnachricht im Chat.
+ *
+ * Zwei Unterschiede zum normalen Mikrofon. Die Sprechpause darf sechs Sekunden
+ * lang sein statt gut zwei, weil man beim Rausreden zwischendurch nachdenkt und
+ * eine Denkpause kein Satzende ist. Und die Aufnahme läuft bis zu fünf Minuten
+ * statt zwei.
+ *
+ * Am Ende geht der Text nicht als normale Frage an den Coach, sondern durch die
+ * Sortierung. Der Nutzer sieht seinen eigenen Schwall als Nachricht und darunter
+ * die geordnete Liste, und die Aufgaben stehen danach wirklich in der Liste.
+ */
+let dumpListener = null;
+
+async function dumpFertig(text) {
+  const roh = String(text || "").trim();
+  $("btnDump").setAttribute("aria-pressed", "false");
+  $("chatInput").value = "";
+  if (roh.length < 20) {
+    orb.setState("idle");
+    setStatus("bereit");
+    toast("Da war zu wenig. Red einfach alles raus.");
+    return;
+  }
+
+  busy = true;
+  appendBubble("user", roh);
+  $("assistant").classList.add("has-chat");
+  const pending = appendPending("sortiert das");
+  orb.setState("thinking");
+  setStatus("sortiert");
+
+  try {
+    const ergebnis = await kopfSortieren(roh);
+    pending.remove();
+    const antwort = ergebnis
+      ? `${ergebnis.text}\n\n${ergebnis.angelegt.length} Aufgaben stehen jetzt in deiner Liste.\n\n${aufgabenPlanText()}`
+      : "Dafür war zu wenig da.";
+
+    const chat = store.getChat();
+    chat.push({ role: "user", text: roh, at: new Date().toISOString() });
+    chat.push({
+      role: "assistant", text: antwort, at: new Date().toISOString(),
+      ausgeführt: ergebnis ? [`${ergebnis.angelegt.length} Aufgaben angelegt`] : [],
+    });
+    store.setChat(chat);
+    renderTranscript();
+    refreshAll();
+  } catch (error) {
+    pending.remove();
+    const chat = store.getChat();
+    chat.push({ role: "assistant", text: `Das hat nicht geklappt: ${error.message}`, at: new Date().toISOString() });
+    store.setChat(chat);
+    renderTranscript();
+  } finally {
+    busy = false;
+    orb.setState("idle");
+    setStatus("bereit");
+  }
+}
+
+$("btnDump").addEventListener("click", () => {
+  if (dumpListener?.active) { dumpListener.fertig("nutzer"); return; }
+  if (busy) return;
+  if (!voiceSupport.erkennung) {
+    toast("Dieser Browser kann keine Spracherkennung. Schreib es ins Feld, dann sortiere ich es genauso.");
+    $("chatInput").focus();
+    return;
+  }
+  stopSpeaking();
+  listener?.stop?.();
+
+  dumpListener = new Listener({
+    pauseMs: 6000,
+    maxMs: 300000,
+    stilleMs: 12000,
+    onPartial: (t) => { $("chatInput").value = t; },
+    onFinal: (t) => { dumpFertig(t); },
+    onLevel: (level) => orb.setLevel(level),
+    onState: (state) => {
+      if (state === "listening") {
+        orb.setState("listening");
+        setStatus("hört zu, tipp auf Kopf, wenn du fertig bist");
+        $("orbHint").textContent = "Red alles raus. Pausen sind in Ordnung. Tipp auf Kopf, wenn du fertig bist.";
+      }
+    },
+  });
+  dumpListener.start();
+  $("btnDump").setAttribute("aria-pressed", "true");
+  toast("Red alles raus. Ich sortiere danach.");
+});
 
 function startListening() {
   if (!listener?.supported) {

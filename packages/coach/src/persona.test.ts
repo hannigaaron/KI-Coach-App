@@ -109,6 +109,33 @@ test("der Schalter senkt nie ab", () => {
   assert.equal(angehoben.maxTokens, psyche.maxTokens);
 });
 
+test("ein Schwall über mehrere Themen geht in die Planung", () => {
+  const schwall = "Also ich muss noch das Angebot schreiben und eigentlich die Reels schneiden " +
+    "und dann ist da noch die Sache mit dem Konzept die seit Wochen liegt und ich weiss nicht ob " +
+    "ich zuerst die Website mache oder das Konzept fertig und nebenbei muss ich noch die Rechnung " +
+    "rausschicken und den Vertrag durchlesen und der Steuerordner liegt auch noch seit Wochen da";
+  const t = denktiefe(schwall);
+  assert.equal(t.modus, "planung");
+  assert.equal(t.effort, "high");
+});
+
+test("ein langer Schwall über ein persönliches Thema bleibt in der Psyche", () => {
+  // Psyche hat Vorrang vor der Schwallerkennung, auch wenn dadurch mancher
+  // Schwall mit einem Familienwort darin dort landet. Der umgekehrte Fehler
+  // wiegt schwerer: wer von Scham redet und eine Aufgabenliste bekommt, macht
+  // die App nie wieder auf. Sortieren kann der Coach auch aus dem Psyche Modus,
+  // das Werkzeug steht ihm überall zur Verfügung.
+  const lang = "Ich schäme mich seit Jahren dafür und ich weiss nicht wohin damit, " +
+    "es kommt immer wieder hoch und dann komme ich tagelang zu nichts mehr und mache mich " +
+    "dafür fertig, dass ich nichts geschafft habe, und dann geht es wieder von vorne los " +
+    "und ich frage mich, ob das jemals aufhört oder ob das einfach so bleibt mein Leben lang";
+  assert.equal(denktiefe(lang).modus, "psyche");
+});
+
+test("eine kurze Nachricht ist kein Schwall", () => {
+  assert.notEqual(denktiefe("Was soll ich heute essen?").modus, "planung");
+});
+
 test("Umlaute brechen die Erkennung nicht", () => {
   // Die Muster laufen gefaltet. Beide Schreibweisen müssen treffen.
   assert.equal(denktiefe("Ich bin völlig überfordert").modus, "psyche");

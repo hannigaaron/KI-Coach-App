@@ -299,6 +299,16 @@ export function denktiefe(nachricht: string, mitAnhang = false): {
   // Satz ab. Deshalb stehen die Werte hoch genug, dass keine Antwort abbricht.
   if (psyche) return { effort: "high", maxTokens: 8192, modus: "psyche" };
 
+  // Der Schwall. Wer in einem Stück mehr als sechzig Wörter schreibt oder
+  // spricht, erzählt selten nur eine Sache. Das ist Ordnungsarbeit über
+  // mehrere Themen und gehört auf die höchste Stufe, nicht auf Smalltalk.
+  const schwall = pattern(
+    "kopf schwirrt", "geht mir durch den kopf", "alles zu viel", "chaos im kopf",
+    "weiss nicht wo ich anfangen", "weiß nicht wo ich anfangen", "so viel gleichzeitig",
+    "kopf leeren", "gedanken sortieren", "alles raus",
+  ).test(text) || woerter > 60;
+  if (schwall && !mitAnhang) return { effort: "high", maxTokens: 8192, modus: "planung" };
+
   // Ein Bild auszuwerten heisst Mengen schätzen. Das passiert aber nicht hier,
   // sondern im eigenen Aufruf der Bildauswertung. Im Gespräch entscheidet das
   // Modell nur, welches Werkzeug es ruft, und fasst danach zusammen.
