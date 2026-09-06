@@ -13,7 +13,7 @@ import {
 import { brain } from "./brain.js";
 import { Orb } from "./orb.js";
 import { anhangAusDatei, grossInKb } from "./media.js";
-import { BEREICH_FARBE, kurzDauer, ringMitZahl, ringStapel } from "./rings.js";
+import { BEREICH_FARBE, kurzDauer, metrikRing, richtungVon, ringMitZahl, ringStapel, wertungsRing } from "./rings.js";
 import { Listener, speak, stopSpeaking, voiceSupport } from "./voice.js";
 import { SetupFlow } from "./setup-ui.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
@@ -474,6 +474,50 @@ function refreshAll() {
  * sucht, sieht man nicht. Der Streifen zeigt den heutigen Tag, das ganze Board
  * mit Woche und Zielen liegt im Menue.
  */
+/**
+ * Die Tageswertung ganz oben.
+ *
+ * Aufbau wie ein Messwert, den man kennt: die Teilwerte klein darüber, mit
+ * Richtung gegen gestern, darunter die eine Zahl gross. Wer nur die Zahl
+ * sieht, weiss nicht, warum sie so ist. Wer nur die Teile sieht, muss rechnen.
+ */
+const URTEIL = [
+  { ab: 85, wort: "Stark" },
+  { ab: 70, wort: "Ziemlich gut" },
+  { ab: 50, wort: "Solide" },
+  { ab: 30, wort: "Dünn" },
+  { ab: 0, wort: "Schwach" },
+];
+
+function renderTagWertung() {
+  const heute = tagesnutzungFuer(day);
+  const gesternTag = new Date(`${day}T12:00:00`);
+  gesternTag.setDate(gesternTag.getDate() - 1);
+  const gestern = tagesnutzungFuer(gesternTag.toISOString().slice(0, 10));
+
+  const metriken = $("tagMetriken");
+  metriken.innerHTML = "";
+  for (const teil of heute.teile) {
+    const alt = gestern.teile.find((x) => x.name === teil.name);
+    metriken.appendChild(metrikRing({
+      name: teil.name,
+      wert: teil.wert,
+      richtung: richtungVon(teil.wert, alt?.wert),
+    }));
+  }
+
+  const wrap = $("tagWertung");
+  wrap.innerHTML = "";
+  wrap.appendChild(wertungsRing({
+    wert: heute.wert,
+    etikett: "TAGESNUTZUNG",
+    urteil: URTEIL.find((u) => heute.wert >= u.ab).wort,
+    groesse: 230,
+  }));
+
+  $("tagWertungSatz").textContent = heute.satz;
+}
+
 function renderHeuteBalance() {
   const el = $("heuteBalance");
   if (!el) return;
@@ -513,7 +557,7 @@ function renderToday() {
   $("kcalTarget").textContent = `${n.targets.kcal} kcal`;
 
   const scoreIsMeaningful = new Date().getHours() >= 18 || n.totals.kcal >= n.targets.kcal * 0.7;
-  $("scoreLabel").textContent = scoreIsMeaningful ? "Tagesscore" : "Protein offen";
+  $("scoreLabel").textContent = scoreIsMeaningful ? "Ernährung" : "Protein offen";
   $("scoreVal").textContent = scoreIsMeaningful ? `${n.score.total} / 100` : `${Math.max(0, n.rest.proteinG)} g`;
 
   setBar("p", n.totals.proteinG, n.targets.proteinG, "g");
@@ -532,6 +576,7 @@ function renderToday() {
         `<div class="li-side"><b>${r.at}</b>${r.at < time ? "vorbei" : "geplant"}</div></li>`).join("")
     : `<li><div class="li-main"><div class="li-sub">Für heute ist alles erledigt.</div></div></li>`;
 
+  renderTagWertung();
   renderHeuteBalance();
   renderWeight();
   renderMeals("mealList");
