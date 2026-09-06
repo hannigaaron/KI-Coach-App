@@ -1,6 +1,7 @@
 import {
   Agent, AnthropicProvider, Coach, addiere, buildShoppingList, cacheQuote, denktiefe, dollarText,
-  ersparnis, hochrechnung, leereSumme, mahlzeitAusFoto, modellFuerBilder, summiere, vorratAusFoto,
+  ersparnis, hochrechnung, kopfLeeren, kopfText, leereSumme, mahlzeitAusFoto, modellFuerBilder,
+  summiere, vorratAusFoto,
 } from "@daevo/coach";
 import {
   abendAbschluss,
@@ -767,6 +768,48 @@ export function mittagscheckText(befund) {
 }
 
 /**
+ * Kopf leeren.
+ *
+ * Der Nutzer redet alles raus, was ihm im Kopf herumgeht. Zurück kommt eine
+ * geordnete Liste, und die Aufgaben daraus stehen sofort in der Aufgabenliste.
+ * Das ist der Punkt: eine Ordnung, die nur auf dem Bildschirm steht und nicht
+ * in der Liste landet, ist am nächsten Tag wieder weg.
+ *
+ * Sorgen und Entscheidungen wandern ins Gedächtnis, nicht in die Aufgaben.
+ * Eine Sorge auf einer To Do Liste erzeugt schlechtes Gewissen und sonst nichts.
+ */
+export async function kopfSortieren(text) {
+  const roh = String(text || "").trim();
+  if (roh.length < 20) return null;
+
+  const jetzt = new Date();
+  const ergebnis = await kopfLeeren(provider(), roh, {
+    zeit: `${WEEKDAYS[jetzt.getDay()]}, ${nowTime()} Uhr`,
+    kalender: (store.getKalender().termine || []).length ? tagesablaufUebersicht() : "",
+    // Kopf leeren ist Planung. Wer hier spart, bekommt eine Liste, die
+    // aussieht wie Ordnung und keine ist.
+    modell: modellFuerBilder(store.getSettings().modellWahl || "auto").id,
+  });
+
+  const angelegt = [];
+  for (const a of ergebnis.aufgaben) {
+    const neu = aufgabeAnlegen({
+      text: a.text, minuten: a.minuten, wichtigkeit: a.wichtigkeit, quelle: "kopf",
+    });
+    if (neu) angelegt.push(neu);
+  }
+
+  for (const s of ergebnis.sorgen) {
+    brain.add({ text: `Belastet ihn gerade: ${s}`, art: "reflexion", wichtigkeit: 3, schlagworte: ["sorge"], quelle: "kopf" });
+  }
+  for (const d of ergebnis.entscheidungen) {
+    brain.add({ text: `Offene Entscheidung: ${d}`, art: "hinweis", wichtigkeit: 4, schlagworte: ["entscheidung"], quelle: "kopf" });
+  }
+
+  return { ergebnis, angelegt, text: kopfText(ergebnis) };
+}
+
+/**
  * Die grösste Herausforderung des Tages festhalten.
  *
  * Getrennt vom Check-in gespeichert, damit die Frage am Nachmittag nicht noch
@@ -1091,6 +1134,14 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
 
     async widerspruechePruefen() {
       return widerspruchUebersicht();
+    },
+
+    async kopfLeeren({ text } = {}) {
+      const ergebnis = await kopfSortieren(text);
+      if (!ergebnis) return "Dafür ist zu wenig da. Erzähl einfach alles, was dir durch den Kopf geht.";
+      changed();
+      const plan = aufgabenPlanText();
+      return `${ergebnis.text}\n\n${ergebnis.angelegt.length} Aufgaben stehen jetzt auf deiner Liste.\n\n${plan}`;
     },
 
     async aufgabenPriorisieren() {

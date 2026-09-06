@@ -59,7 +59,7 @@ Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
 
-Der Assistent hat achtundzwanzig Werkzeuge und verändert die App wirklich. Zahlen
+Der Assistent hat neunundzwanzig Werkzeuge und verändert die App wirklich. Zahlen
 über den Nutzer kommen immer aus Werkzeugen, nie aus dem Modell. Allgemeines
 Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
@@ -143,7 +143,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 290 Tests
+npm test           # 302 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -209,6 +209,25 @@ Zur Arbeitsgrenze von zehn Stunden: die App misst kein Cortisol und behauptet
 nicht, eine Grenze würde es senken. Sie ist eine Regel, damit ein Tag ein Ende
 hat. Was nicht belegt ist, wird auch nicht behauptet.
 
+## Kopf leeren
+
+`packages/coach/src/kopf.ts` nimmt einen ungeordneten Schwall und sortiert ihn
+in vier Schubladen: Aufgabe, Entscheidung, Sorge, nicht beeinflussbar. Die
+Trennung ist der eigentliche Wert. Was im Kopf gleich schwer wiegt, ist es auf
+Papier nicht. Eine Sorge auf einer Aufgabenliste erzeugt schlechtes Gewissen
+und sonst nichts, also kommt sie ins Gedächtnis und nicht in die Liste.
+
+Im Zweifel wird in Sorge einsortiert, nicht in Aufgabe. Höchstens zwölf
+Aufgaben, weil eine längere Liste den Zustand verschlimmert, den sie lösen
+soll. Genau eine Sache steht als erster Schritt da.
+
+Die Aufgaben werden sofort angelegt und durch `priorisiere` geschickt. Eine
+Ordnung, die nur auf dem Bildschirm steht, ist am nächsten Tag wieder weg.
+
+Der Regelpfad in `regelKopf` versteht nichts, er sortiert nur nach
+Wortgruppen. Das steht auch in der Antwort. Die Trennung von Aufgabe und Sorge
+ist der halbe Nutzen, und dafür braucht es kein Modell.
+
 ## Muster und Widersprüche
 
 `packages/core/src/muster.ts` rechnet Korrelationen nach Pearson über die
@@ -240,7 +259,7 @@ durch dieselbe Prüfung wie bei der Texteingabe.
 Fertig: Rechenkern, Gedächtnis, Assistent mit Werkzeugen, Sprache und Bildern,
 Anamnesebogen beim ersten Start, Einkaufsliste, Mindeststandards,
 Gewichtsverlauf mit Zielkorrektur, Kalender und Tagesablauf, Morgenbriefing,
-Mittags Check-in, Aufgaben mit Priorisierung, Tagesabschluss, Muster über
+Mittags Check-in, Aufgaben mit Priorisierung, Kopf leeren, Tagesabschluss, Muster über
 Wochen, Widerspruchsprüfung, Tag und Nacht
 Modus, installierbare Web App, Marke, API.
 Offen: Push Benachrichtigungen bei geschlossener App, Apple Health und
