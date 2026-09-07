@@ -371,6 +371,16 @@ button:disabled { opacity: 0.5; }
 .li-sub { font-size: 13px; color: var(--muted); margin-top: 3px; overflow-wrap: anywhere; }
 .li-side { text-align: right; font-size: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--muted); }
 .li-side b { display: block; color: var(--text); font-size: 15px; }
+/* Die Einstufung unter einer Aufgabe ist ein Knopf, kein Text: ein Tipp
+   schaltet sie weiter. Sie sieht trotzdem nicht wie ein Knopf aus, sonst
+   wirkt jede Zeile wie eine Aufforderung. */
+.stufe {
+  background: none; border: none; padding: 3px 0 0; margin: 0;
+  font-size: 13px; font-weight: 400; color: var(--muted); text-align: left;
+  border-bottom: 1px dashed color-mix(in srgb, var(--muted) 45%, transparent);
+}
+.stufe[data-stufe="3"] { color: var(--text); }
+
 .empty { color: var(--muted); font-size: 14px; padding: 4px 2px 8px; }
 
 /* Vorformatierter Text, etwa die Wochenuebersicht aus dem Kalender.
@@ -761,6 +771,9 @@ img.only-light { display: none; }
 
 /* Bereiche mit eigenem Scrollbereich */
 .scroll > .sub:first-child { margin: 4px 0 18px; }
+/* Ein Absatz direkt vor einem Feld braucht Luft, sonst klebt die Beschriftung
+   des Feldes am letzten Satz und liest sich wie seine Fortsetzung. */
+.sub + .field, .sub + .field-row { margin-top: 14px; }
 .scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 16px calc(28px + env(safe-area-inset-bottom)); -webkit-overflow-scrolling: touch; }
 
 /* Menue */

@@ -346,21 +346,11 @@ try {
       <p class="fineprint" id="herausHinweis"></p>
 
       <h2 class="section-title">Aufgaben</h2>
-      <div class="field-row">
-        <div class="field"><label for="aufgabeText">Was ist zu tun</label><input id="aufgabeText" type="text" placeholder="Angebot für Anna schreiben"></div>
-        <div class="field"><label for="aufgabeMin">Minuten</label>
-          <input id="aufgabeMin" type="number" inputmode="numeric" min="5" max="480" value="30"></div>
-      </div>
-      <div class="field-row">
-        <div class="field"><label for="aufgabeWichtig">Wichtigkeit</label>
-          <select id="aufgabeWichtig">
-            <option value="1">1 nebensächlich</option>
-            <option value="2" selected>2 normal</option>
-            <option value="3">3 wichtig</option>
-          </select></div>
-        <div class="field"><label for="aufgabeFrist">Fällig bis</label><input id="aufgabeFrist" type="date"></div>
-      </div>
+      <p class="sub">Schreib nur hin, was zu tun ist. Aufwand, Wichtigkeit und eine Frist im Text erkennt daevo selbst. Tipp auf die Einstufung, wenn sie danebenliegt.</p>
+      <div class="field"><label for="aufgabeText">Was ist zu tun</label>
+        <input id="aufgabeText" type="text" placeholder="Angebot für Anna schreiben, bis Freitag"></div>
       <button id="btnAufgabe" class="primary">Aufgabe anlegen</button>
+      <p class="fineprint" id="aufgabeEcho"></p>
 
       <h2 class="section-title">Heute noch</h2>
       <ul class="list" id="aufgabenHeute"></ul>
