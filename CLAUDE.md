@@ -143,7 +143,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 338 Tests
+npm test           # 353 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -199,6 +199,15 @@ Menge, dann die Zusammensetzung. Eine Mahlzeit über 40 Prozent des Tagesziels
 erklärt einen Einbruch besser als das Verhältnis der Makros. Die Antwort nennt
 die Aenderung in Gramm, die konkreten Lebensmittel kommen aus
 `mahlzeit_vorschlagen`, damit Nährwerte aus einer Quelle stammen.
+
+Eingestuft wird nicht vom Nutzer, sondern vom Coach.
+`packages/coach/src/einstufung.ts` schätzt Aufwand und Wichtigkeit und liest
+eine Frist aus dem Text. Wer beim Eintragen eine Wichtigkeit auswählen muss,
+wählt beim dritten Mal immer dieselbe, und eine Liste, in der alles wichtig
+ist, ist keine Liste. Der Prompt deckelt deshalb: höchstens jede vierte
+Aufgabe ist eine 3. Die Einstufung steht sichtbar an der Aufgabe, mit Grund,
+und ein Tipp darauf schaltet sie weiter. Eine Einschätzung, die man nicht
+korrigieren kann, ist eine Bevormundung.
 
 `packages/core/src/aufgaben.ts` sortiert die offenen Aufgaben. Wichtigkeit zählt
 bis 30 Punkte, die Frist bis 60. Damit gewinnt eine Frist heute gegen jede

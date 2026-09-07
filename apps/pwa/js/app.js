@@ -2,7 +2,7 @@ import { BEREICHE, BEREICH_NAME, STANDARD_ZIELE, energyBreakdown, uhrzeit, weigh
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE } from "@daevo/coach";
 import { Coach, AnthropicProvider } from "@daevo/coach";
 import {
-  ablaufFuer, ask, aufgabeAbhaken, aufgabeAnlegen, aufgabeLoeschen, aufgabenPlan,
+  ablaufFuer, ask, aufgabeAbhaken, aufgabeAnlegenEingestuft, aufgabeLoeschen, aufgabeUmstufen, aufgabenPlan,
   balanceFuer, balanceRat, briefing,
   buildActions, dayNumbers, einkaufslisteText, ensureStandards, greeting, herausforderungSpeichern,
   aufgabenPlanText, kopfSortieren, mittagscheck, mittagscheckText, musterUebersicht, tagesnutzungFuer,
@@ -1267,9 +1267,19 @@ function fuelleAufgaben(id, aufgaben, leerText) {
     const li = document.createElement("li");
     const frist = a.faellig ? `, fällig ${a.faellig}` : "";
     const wichtig = ["nebensächlich", "normal", "wichtig"][a.wichtigkeit - 1] || "normal";
+    const grund = a.warum ? ` (${a.warum})` : "";
     li.innerHTML =
       `<div class="li-main"><div class="li-title">${escapeHtml(a.text)}</div>` +
-      `<div class="li-sub">${a.minuten} Minuten, ${wichtig}${escapeHtml(frist)}</div></div>`;
+      `<button class="stufe" data-stufe="${a.wichtigkeit}" type="button">` +
+      `${a.minuten} Minuten, ${wichtig}${escapeHtml(frist)}${escapeHtml(grund)}</button></div>`;
+
+    // Ein Tipp auf die Einstufung schaltet sie weiter. Eine Einschätzung, die
+    // man nicht korrigieren kann, ist eine Bevormundung.
+    li.querySelector(".stufe").addEventListener("click", () => {
+      aufgabeUmstufen(a.id);
+      renderTag();
+      refreshAll();
+    });
     const knoepfe = document.createElement("div");
     const fertig = document.createElement("button");
     fertig.className = "ghost";
@@ -1293,19 +1303,28 @@ function fuelleAufgaben(id, aufgaben, leerText) {
   }
 }
 
-$("btnAufgabe").addEventListener("click", () => {
-  const a = aufgabeAnlegen({
-    text: $("aufgabeText").value,
-    minuten: Number($("aufgabeMin").value) || 30,
-    wichtigkeit: Number($("aufgabeWichtig").value) || 2,
-    faellig: $("aufgabeFrist").value || null,
-  });
-  if (!a) { toast("Schreib kurz, was zu tun ist."); return; }
-  $("aufgabeText").value = "";
-  $("aufgabeFrist").value = "";
-  renderTag();
-  refreshAll();
-  toast("Angelegt");
+$("btnAufgabe").addEventListener("click", async () => {
+  const text = $("aufgabeText").value.trim();
+  if (text.length < 3) { toast("Schreib kurz, was zu tun ist."); return; }
+  const knopf = $("btnAufgabe");
+  knopf.disabled = true;
+  knopf.textContent = "Stuft ein";
+  $("aufgabeEcho").textContent = "daevo schaut sich das an.";
+  try {
+    const ergebnis = await aufgabeAnlegenEingestuft(text);
+    if (!ergebnis) { $("aufgabeEcho").textContent = "Das war zu kurz."; return; }
+    $("aufgabeText").value = "";
+    $("aufgabeEcho").textContent = ergebnis.einstufung.regelbasiert
+      ? `${ergebnis.text} Ohne KI Schlüssel nach Wortgruppen sortiert, nicht verstanden.`
+      : ergebnis.text;
+    renderTag();
+    refreshAll();
+  } catch (error) {
+    $("aufgabeEcho").textContent = `Einstufung nicht möglich: ${error.message}`;
+  } finally {
+    knopf.disabled = false;
+    knopf.textContent = "Aufgabe anlegen";
+  }
 });
 
 /**

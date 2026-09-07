@@ -1,7 +1,7 @@
 import {
   Agent, AnthropicProvider, Coach, addiere, buildShoppingList, cacheQuote, denktiefe, dollarText,
-  ersparnis, hochrechnung, kopfLeeren, kopfText, leereSumme, mahlzeitAusFoto, modellFuerBilder,
-  summiere, vorratAusFoto,
+  einstufeAufgabe, einstufungText, ersparnis, hochrechnung, kopfLeeren, kopfText, leereSumme,
+  mahlzeitAusFoto, modellFuerBilder, summiere, vorratAusFoto,
 } from "@daevo/coach";
 import {
   abendAbschluss,
@@ -653,7 +653,56 @@ export function aufgabenPlanText() {
   return planText(aufgabenPlan());
 }
 
-export function aufgabeAnlegen({ text, minuten, faellig, wichtigkeit, quelle = "nutzer" }) {
+/**
+ * Eine Aufgabe anlegen und dabei vom Coach einstufen lassen.
+ *
+ * Der Nutzer schreibt hin, was zu tun ist, und sonst nichts. Wer beim
+ * Eintragen eine Wichtigkeit auswählen muss, wählt beim dritten Mal immer
+ * dieselbe, und eine Liste, in der alles wichtig ist, ist keine Liste.
+ *
+ * Der Coach sieht dabei mehr als ein Auswahlfeld: den Wortlaut, die Ziele aus
+ * dem Profil und was sonst offen ist. Ohne Schlüssel greift der Regelweg, und
+ * das steht dann auch an der Aufgabe.
+ */
+export async function aufgabeEinstufen(text) {
+  const profile = store.getProfile();
+  const ziel = { fat_loss: "Fett verlieren", maintain: "Gewicht halten", lean_bulk: "Muskeln aufbauen" };
+  const offen = store.getAufgaben().filter((a) => !a.erledigt).map((a) => a.text);
+
+  return einstufeAufgabe(provider(), text, {
+    heute: todayIso(),
+    ziele: profile
+      ? [
+        `Körperziel: ${ziel[profile.goal] || profile.goal}.`,
+        store.getSettings().anweisungen || "",
+        brain.contextFor("ziele arbeit geld aufbau", 4),
+      ].filter(Boolean).join("\n")
+      : undefined,
+    offen,
+    // Einstufen ist eine Wertung, keine Texterkennung. Sie hängt an den
+    // Zielen des Nutzers, nicht am Wortlaut, deshalb nicht das kleinste Modell.
+    modell: modellFuerBilder(store.getSettings().modellWahl || "auto").id,
+  });
+}
+
+/** Legt eine Aufgabe an und lässt den Coach einstufen. Gibt beides zurück. */
+export async function aufgabeAnlegenEingestuft(text, quelle = "nutzer") {
+  const sauber = String(text || "").trim();
+  if (sauber.length < 3) return null;
+  const e = await aufgabeEinstufen(sauber);
+  const a = aufgabeAnlegen({
+    text: sauber,
+    minuten: e.minuten,
+    wichtigkeit: e.wichtigkeit,
+    faellig: e.faellig,
+    warum: e.warum,
+    regelbasiert: e.regelbasiert,
+    quelle,
+  });
+  return a ? { aufgabe: a, einstufung: e, text: einstufungText(e) } : null;
+}
+
+export function aufgabeAnlegen({ text, minuten, faellig, wichtigkeit, warum, regelbasiert, quelle = "nutzer" }) {
   const sauber = String(text || "").trim().slice(0, 200);
   if (sauber.length < 3) return null;
   const aufgaben = store.getAufgaben();
@@ -665,6 +714,8 @@ export function aufgabeAnlegen({ text, minuten, faellig, wichtigkeit, quelle = "
     wichtigkeit: Math.max(1, Math.min(3, Number(wichtigkeit) || 2)),
     erledigt: false,
     erstellt: new Date().toISOString(),
+    warum: String(warum || "").slice(0, 160),
+    regelbasiert: Boolean(regelbasiert),
     quelle,
   });
   store.setAufgaben(aufgaben);
@@ -693,6 +744,23 @@ export function aufgabeAbhaken(id) {
   a.erledigtAm = new Date().toISOString();
   store.setAufgaben(aufgaben);
   return true;
+}
+
+/**
+ * Die Einstufung von Hand ändern.
+ *
+ * Eine Einschätzung, die man nicht korrigieren kann, ist eine Bevormundung.
+ * Ein Tipp auf die Einstufung schaltet weiter, mehr braucht es nicht.
+ */
+export function aufgabeUmstufen(id) {
+  const aufgaben = store.getAufgaben();
+  const a = aufgaben.find((x) => x.id === id);
+  if (!a) return null;
+  a.wichtigkeit = (a.wichtigkeit % 3) + 1;
+  a.warum = "von dir geändert";
+  a.regelbasiert = false;
+  store.setAufgaben(aufgaben);
+  return a;
 }
 
 export function aufgabeLoeschen(id) {
@@ -1242,10 +1310,16 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
     },
 
     async aufgabeAnlegen({ text, minuten, faellig, wichtigkeit } = {}) {
-      const a = aufgabeAnlegen({ text, minuten, faellig, wichtigkeit, quelle: "coach" });
+      // Kommen Werte vom Modell, gelten sie. Fehlen sie, wird eingestuft,
+      // statt still auf normal und dreissig Minuten zu fallen.
+      const a = Number.isFinite(Number(wichtigkeit)) && Number.isFinite(Number(minuten))
+        ? aufgabeAnlegen({ text, minuten, faellig, wichtigkeit, warum: "vom Coach gesetzt", quelle: "coach" })
+        : (await aufgabeAnlegenEingestuft(text, "coach"))?.aufgabe;
       if (!a) return "Das war zu kurz für eine Aufgabe.";
       changed();
-      return `Steht auf der Liste: ${a.text}, ${a.minuten} Minuten${a.faellig ? `, fällig ${a.faellig}` : ""}.`;
+      return `Steht auf der Liste: ${a.text}, ${a.minuten} Minuten, ` +
+        `${["nebensächlich", "normal", "wichtig"][a.wichtigkeit - 1]}` +
+        `${a.faellig ? `, fällig ${a.faellig}` : ""}${a.warum ? `. ${a.warum}` : ""}.`;
     },
 
     async aufgabeAbhaken({ text } = {}) {
