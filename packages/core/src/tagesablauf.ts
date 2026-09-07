@@ -1,3 +1,4 @@
+import { bereichVon } from "./balance.js";
 import type { Termin } from "./ical.js";
 import { uhrzeit } from "./ical.js";
 import type { MacroTargets, UserProfile } from "./types.js";
@@ -62,10 +63,18 @@ const MIN_ESSEN_MINUTEN = 20;
 /** Ab hier ist ein freier Block für konzentrierte Arbeit brauchbar. */
 const MIN_FOKUS_MINUTEN = 60;
 
-const TRAININGSWORTE = [
-  "training", "gym", "kraft", "volleyball", "sport", "workout", "cardio",
-  "laufen", "joggen", "schwimmen", "mobility", "pt ", "personal training", "athletik",
-];
+/**
+ * Was als eigenes Training zählt.
+ *
+ * Nicht jede Zeile mit "Training" im Titel. Dieser Nutzer ist Trainer: "Rolf
+ * pt Studio" und "Athletiktraining" sind seine Arbeit, nicht seine Einheit.
+ * Die Unterscheidung steht schon im Balance Board, deshalb wird sie hier
+ * benutzt statt ein zweites Mal gebaut. Alles, was nicht in den Bereich
+ * Fitness fällt, ist kein eigenes Training.
+ */
+function istTraining(titel: string): boolean {
+  return bereichVon(titel) === "fitness";
+}
 
 /**
  * Wertet einen Tag aus.
@@ -127,11 +136,6 @@ export function tagesablauf(params: {
     training,
     hinweise,
   };
-}
-
-function istTraining(titel: string): boolean {
-  const t = titel.toLowerCase();
-  return TRAININGSWORTE.some((wort) => t.includes(wort));
 }
 
 function zeitAmTag(tagIso: string, hhmm: string): number {

@@ -40,19 +40,26 @@ export const BEREICH_NAME: Record<Bereich, string> = {
  * Zuordnung ist schlimmer als eine fehlende, weil sie eine Zahl erzeugt, der
  * man glaubt.
  *
- * Geprüft wird in dieser Reihenfolge, der erste Treffer gewinnt. Fitness steht
- * vor Karriere, weil "Training mit Kunde" für den Nutzer Arbeit ist, aber
- * "Krafttraining" nicht.
+ * Geprüft wird in dieser Reihenfolge, der erste Treffer gewinnt. Karriere
+ * steht vorn, weil Arbeit die meisten Termine stellt und weil Kundentraining
+ * Arbeit ist. Die Listen überschneiden sich nicht, deshalb entscheidet die
+ * Reihenfolge nur, wie schnell geprüft wird, nicht was herauskommt.
+ *
+ * Gesucht wird auf Wortgrenzen, nicht als Teilzeichenkette. "Pt" am Ende eines
+ * Titels wie "Alina Pt" wurde sonst nie gefunden, weil das Muster "pt " ein
+ * Leerzeichen dahinter verlangte, und ein Drittel echter Kundentermine fiel
+ * damit durch.
  */
 const WORTE: { bereich: Bereich; worte: string[] }[] = [
   {
     bereich: "karriere",
     worte: [
-      "kunde", "kundin", "coaching", "pt ", "personal training", "athletiktraining",
-      "zirkeltraining", "probetraining", "beratung", "meeting", "besprechung", "call",
-      "termin mit", "arbeit", "schicht", "buero", "büro", "studio", "dafits", "yan",
-      "content", "reel", "dreh", "podcast", "akquise", "angebot", "konzept", "franchise",
-      "rechnung", "buchhaltung", "steuer", "seminar", "fortbildung", "lehrgang",
+      "kunde", "kundin", "coaching", "pt", "personal training", "athletiktraining",
+      "zirkeltraining", "probetraining", "erstgespraech", "beratung", "meeting",
+      "besprechung", "call", "termin mit", "arbeit", "arbeiten", "schicht", "buero",
+      "studio", "dafits", "yan", "content", "reel", "dreh", "podcast", "akquise",
+      "angebot", "konzept", "franchise", "rechnung", "buchhaltung", "steuer",
+      "finanztracking", "aktie", "aktien", "depot", "seminar", "fortbildung", "lehrgang",
     ],
   },
   {
@@ -60,14 +67,15 @@ const WORTE: { bereich: Bereich; worte: string[] }[] = [
     worte: [
       "krafttraining", "gym", "volleyball", "workout", "laufen", "joggen", "schwimmen",
       "radfahren", "mobility", "beweglichkeit", "sport", "wettkampf", "spiel", "turnier",
+      "calisthenics",
     ],
   },
   {
     bereich: "wellbeing",
     worte: [
       "sauna", "massage", "physio", "therapie", "therapeut", "meditation", "atmung",
-      "yoga", "spaziergang", "arzt", "regeneration", "eisbad", "schlaf", "nickerchen",
-      "pause", "auszeit",
+      "yoga", "spaziergang", "arzt", "dr", "zahnarzt", "regeneration", "eisbad", "schlaf",
+      "nickerchen", "pause", "auszeit", "journal", "journaling",
     ],
   },
   {
@@ -93,10 +101,16 @@ const WORTE: { bereich: Bereich; worte: string[] }[] = [
  * Gibt null zurück, wenn nichts passt. Das ist der wichtigste Rückgabewert der
  * Funktion: nicht zuordnen zu können ist ein gültiges Ergebnis.
  */
+/** Ein Wort auf Wortgrenzen suchen. Umlaute sind vorher gefaltet, also ASCII. */
+function enthaeltWort(text: string, wort: string): boolean {
+  const w = falte(wort).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^a-z0-9])${w}([^a-z0-9]|$)`).test(text);
+}
+
 export function bereichVon(titel: string): Bereich | null {
   const t = falte(titel);
   for (const gruppe of WORTE) {
-    if (gruppe.worte.some((wort) => t.includes(falte(wort)))) return gruppe.bereich;
+    if (gruppe.worte.some((wort) => enthaeltWort(t, wort))) return gruppe.bereich;
   }
   return null;
 }

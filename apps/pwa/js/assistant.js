@@ -948,6 +948,18 @@ export function briefing(art = "morgen") {
   });
 }
 
+/**
+ * Prüft den hinterlegten Schlüssel und meldet den echten Grund.
+ *
+ * Ohne diese Prüfung fällt jeder Fehler still auf den Regelweg zurück, und die
+ * App sieht aus, als hätte sie geantwortet. Der häufigste Fall ist ein
+ * gültiger Schlüssel ohne Guthaben, und der sieht sonst genauso aus wie ein
+ * falscher.
+ */
+export async function schluesselPruefen() {
+  return provider().pruefe();
+}
+
 /* ---------- Life Balance ---------- */
 
 /**

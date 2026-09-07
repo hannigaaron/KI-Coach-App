@@ -5,7 +5,8 @@ import {
   ablaufFuer, ask, aufgabeAbhaken, aufgabeAnlegenEingestuft, aufgabeLoeschen, aufgabeUmstufen, aufgabenPlan,
   balanceFuer, balanceRat, briefing,
   buildActions, dayNumbers, einkaufslisteText, ensureStandards, greeting, herausforderungSpeichern,
-  aufgabenPlanText, kopfSortieren, mittagscheck, mittagscheckText, musterUebersicht, tagesnutzungFuer,
+  aufgabenPlanText, kopfSortieren, mittagscheck, mittagscheckText, musterUebersicht,
+  schluesselPruefen, tagesnutzungFuer,
   trainingsplanUebernehmen, trainingsplanVorschlag, widerspruchListe,
   kalenderEntfernen, kalenderImportieren, kalenderStand, kalenderUebersicht,
   kostenUebersicht, recommendations, standardsUebersicht, tagesErinnerungen, verlaufPunkte,
@@ -1745,11 +1746,26 @@ $("btnAnweisungenVorlage").addEventListener("click", () => {
   toast("Vorlage eingesetzt. Ändere sie und speichere dann.");
 });
 
+$("btnPruefeKey").addEventListener("click", async () => {
+  const knopf = $("btnPruefeKey");
+  knopf.disabled = true;
+  $("keyStatus").textContent = "Prüfe.";
+  try {
+    const e = await schluesselPruefen();
+    $("keyStatus").textContent = e.ok ? `In Ordnung. ${e.meldung}` : e.meldung;
+  } catch (error) {
+    $("keyStatus").textContent = `Prüfung nicht möglich: ${error.message}`;
+  } finally {
+    knopf.disabled = false;
+  }
+});
+
 $("btnSaveKey").addEventListener("click", () => {
   const key = $("apiKey").value.trim();
   const settings = store.getSettings();
   store.setSettings({ ...settings, apiKey: key });
   toast(key ? "Schlüssel gespeichert. daevo denkt jetzt selbst." : "Schlüssel entfernt. Regelbetrieb aktiv.");
+  $("keyStatus").textContent = key ? "Gespeichert. Tipp auf Schlüssel prüfen, um zu sehen, ob er wirklich geht." : "";
 });
 
 /* ---------- Tag und Nacht ---------- */
