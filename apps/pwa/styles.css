@@ -238,10 +238,10 @@ button:disabled { opacity: 0.5; }
 }
 .ring-wrap { position: relative; width: 132px; height: 132px; flex: 0 0 132px; }
 .ring { width: 132px; height: 132px; transform: rotate(-90deg); }
-.ring circle { fill: none; stroke-width: 11; stroke-linecap: round; }
+.ring circle { fill: none; stroke-width: 5; stroke-linecap: round; }
 /* Die Spur nimmt dieselbe Farbe wie der Ring, nur gedimmt. So sieht der
    Kalorienring genauso aus wie der Ring im Logo. */
-.ring-bg { stroke: var(--brand); stroke-opacity: 0.28; }
+.ring-bg { stroke: var(--brand); stroke-opacity: 0.18; }
 .ring-fg { stroke: var(--accent); stroke-dasharray: 326.7; stroke-dashoffset: 326.7; transition: stroke-dashoffset 0.5s ease; }
 .ring-center {
   position: absolute; inset: 0; display: flex; flex-direction: column;
@@ -288,6 +288,8 @@ button:disabled { opacity: 0.5; }
   display: flex; align-items: center; justify-content: center; gap: 18px;
   flex-wrap: wrap; margin-bottom: 6px;
 }
+/* Ein leerer Platzhalter darf den Ring nicht aus der Mitte schieben. */
+.ring-buehne > div:empty { display: none; }
 .ring-stapel svg, .ring-tag svg { display: block; color: var(--text); }
 
 .ring-kacheln {
@@ -463,23 +465,33 @@ img.only-light { display: none; }
 .view {
   position: absolute; inset: 0;
   display: flex; flex-direction: column;
-  background: var(--bg);
   padding-top: env(safe-area-inset-top);
 }
 
 /*
- * Der Assistent steht auf einem Verlauf statt auf einer Fläche.
+ * Die App steht auf einem Verlauf statt auf einer Fläche.
  *
  * Oben der dunkle Grundton der Marke, unten das Logoblau, stark abgedunkelt.
  * Der Verlauf endet nicht in einer fremden Farbe, sondern in der eigenen:
- * derselbe Ton, aus dem auch der Kreis leuchtet. Ohne fixed hinter dem Scroll,
- * weil jede View ohnehin die volle Höhe einnimmt.
+ * derselbe Ton, aus dem auch der Kreis leuchtet.
+ *
+ * Auf allen Ansichten derselbe Verlauf, damit die App nicht in eine schöne
+ * Seite und mehrere graue zerfällt. Auf dem Assistenten liegt er kräftiger,
+ * weil dort nichts anderes um Aufmerksamkeit konkurriert.
  */
+.view {
+  background:
+    radial-gradient(115% 55% at 50% 112%, color-mix(in srgb, var(--brand) 12%, transparent) 0%, transparent 70%),
+    linear-gradient(180deg, var(--panel-2) 0%, var(--bg) 42%, color-mix(in srgb, var(--brand-deep) 11%, var(--bg)) 100%);
+}
 #assistant {
   background:
     radial-gradient(120% 62% at 50% 108%, color-mix(in srgb, var(--brand) 26%, transparent) 0%, transparent 72%),
     linear-gradient(180deg, var(--panel-2) 0%, var(--bg) 48%, color-mix(in srgb, var(--brand-deep) 22%, var(--bg)) 100%);
 }
+
+/* Der Verlauf gehört unter den ganzen Inhalt, nicht hinter jede Karte. */
+.view > .scroll { background: none; }
 
 .bar {
   flex: 0 0 auto; height: var(--bar);
