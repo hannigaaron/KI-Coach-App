@@ -167,6 +167,24 @@ $("chips").addEventListener("click", (event) => {
 
 /* ---------- Assistent ---------- */
 
+/**
+ * Die Marke neben der Antwort.
+ *
+ * Das d aus dem Logo, gebaut wie im Bauplan: die Bowl ist ein Aktivitätsring
+ * über 300 Grad mit runden Enden, der Stamm ein Rechteck mit halbrunden
+ * Enden. Kein Schriftzeichen, sondern dieselbe Geometrie wie das grosse Logo
+ * und wie der Kreis auf dem Assistenten.
+ *
+ * Sie steht auch über der Antwort, während sie noch entsteht. Ein Absender
+ * ohne Marke sieht aus wie ein Systemhinweis, und ein Systemhinweis hat keine
+ * Haltung.
+ */
+function markeSvg() {
+  return `<svg class="marke" viewBox="-6 -80 73 87" aria-hidden="true">` +
+    `<path d="M 31.80 -49.20 A 21.50 21.50 0 1 1 13.18 -38.45" fill="none" stroke="currentColor" stroke-width="14" stroke-linecap="round"/>` +
+    `<rect x="47" y="-74" width="14" height="74" rx="7" fill="currentColor"/></svg>`;
+}
+
 function renderTranscript() {
   const chat = store.getChat();
   const el = $("transcript");
@@ -180,7 +198,11 @@ function renderTranscript() {
       const dateien = m.dateien?.length
         ? `<div class="msg-dateien">${escapeHtml(m.dateien.join(", "))}</div>`
         : "";
-      return `<div class="msg ${m.role === "user" ? "user" : "assistant"}">${bilder}${dateien}${escapeHtml(m.text)}${done}</div>`;
+      if (m.role === "user") {
+        return `<div class="msg user">${bilder}${dateien}${escapeHtml(m.text)}${done}</div>`;
+      }
+      return `<div class="msg assistant">${markeSvg()}` +
+        `<div class="msg-text">${bilder}${dateien}${escapeHtml(m.text)}${done}</div></div>`;
     })
     .join("");
   // Erst wenn der Nutzer selbst etwas gesagt hat, schrumpft der Kreis. Die
@@ -210,14 +232,25 @@ function appendBubble(role, text, bilder = []) {
   return node;
 }
 
+/**
+ * Der Platzhalter, solange die Antwort entsteht.
+ *
+ * Er trägt dieselbe Marke wie die fertige Antwort und wird zur Antwort, sobald
+ * das erste Wort da ist. Deshalb hat er denselben Aufbau: Marke oben, Text
+ * darunter. Ohne das würde der Text beim ersten Wort springen.
+ */
 function appendPending(text) {
   const el = $("transcript");
   const node = document.createElement("div");
   node.className = "msg assistant pending";
-  node.textContent = text;
+  node.innerHTML = markeSvg();
+  const inhalt = document.createElement("div");
+  inhalt.className = "msg-text";
+  inhalt.textContent = text;
+  node.appendChild(inhalt);
   el.appendChild(node);
   el.scrollTop = el.scrollHeight;
-  return node;
+  return { node, text: inhalt };
 }
 
 async function send(text) {
@@ -248,16 +281,16 @@ async function send(text) {
   // wird verworfen.
   let laufend = "";
   const onStrom = (stueck) => {
-    if (stueck === null) { laufend = ""; pending.textContent = "denkt nach"; return; }
+    if (stueck === null) { laufend = ""; pending.text.textContent = "denkt nach"; return; }
     laufend += stueck;
-    pending.classList.remove("pending");
-    pending.textContent = laufend;
+    pending.node.classList.remove("pending");
+    pending.text.textContent = laufend;
     $("transcript").scrollTop = $("transcript").scrollHeight;
   };
 
   try {
     const reply = await ask(frage, { onChange: refreshAll, anhaenge: gesendet, onStrom });
-    pending.remove();
+    pending.node.remove();
     renderTranscript();
     refreshAll();
     if (options.speak) {
@@ -277,7 +310,7 @@ async function send(text) {
       if (options.handsFree) startListening();
     }
   } catch (error) {
-    pending.remove();
+    pending.node.remove();
     const chatNow = store.getChat();
     chatNow.push({ role: "assistant", text: `Das hat nicht geklappt: ${error.message}`, at: new Date().toISOString() });
     store.setChat(chatNow);
@@ -323,7 +356,7 @@ async function dumpFertig(text) {
 
   try {
     const ergebnis = await kopfSortieren(roh);
-    pending.remove();
+    pending.node.remove();
     const antwort = ergebnis
       ? `${ergebnis.text}\n\n${ergebnis.angelegt.length} Aufgaben stehen jetzt in deiner Liste.\n\n${aufgabenPlanText()}`
       : "Dafür war zu wenig da.";
@@ -338,7 +371,7 @@ async function dumpFertig(text) {
     renderTranscript();
     refreshAll();
   } catch (error) {
-    pending.remove();
+    pending.node.remove();
     const chat = store.getChat();
     chat.push({ role: "assistant", text: `Das hat nicht geklappt: ${error.message}`, at: new Date().toISOString() });
     store.setChat(chat);

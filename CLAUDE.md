@@ -295,6 +295,16 @@ Der Assistent steht auf einem Verlauf: oben der dunkle Grundton, unten das
 Logoblau, stark abgedunkelt. Der Verlauf endet in der eigenen Farbe, nicht in
 einer fremden.
 
+Neben jeder Antwort steht die Marke: das d aus dem Logo, dieselbe Geometrie
+wie beim grossen Logo und beim Kreis, in der Markenfarbe mit demselben
+Schimmer. Sie steht auch über der Antwort, während sie noch entsteht, und
+pulsiert dann. Ein Absender ohne Marke sieht aus wie ein Systemhinweis, und ein
+Systemhinweis hat keine Haltung.
+
+Für die Ecken gibt es eine Skala mit vier Stufen, `--r-sm` bis `--r-pill`.
+Vorher standen fünfzehn verschiedene Werte zwischen 9 und 20 Pixeln im
+Stylesheet, jeder für sich plausibel und zusammen unruhig.
+
 Die Eingabe ist eine Pille statt einer Zeile mit Knöpfen daneben. Alles sitzt in
 einem Element, dadurch fällt die Trennlinie über die ganze Breite weg und der
 Verlauf läuft bis nach unten durch.
