@@ -271,6 +271,31 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: "zeit_eintragen",
+    description:
+      "Bucht Zeit auf einen Lebensbereich, wenn sie nicht im Kalender steht. " +
+      "Nehmen, sobald der Nutzer erzählt, dass er etwas getan hat, das Zeit gekostet hat: " +
+      "zwei Stunden bei der Familie, eine Stunde gelesen, Sauna, Content gedreht, Kunden trainiert. " +
+      "Der Kalender enthält bei diesem Nutzer fast nur Kundentermine, deshalb bleibt das Balance Board " +
+      "ohne diese Buchungen leer und behauptet, er hätte nichts getan. " +
+      "Nicht nehmen für Vorhaben und nicht für Zeit, die er nur ungefähr schätzt, ohne sie erlebt zu haben.",
+    input_schema: {
+      type: "object",
+      properties: {
+        bereich: {
+          type: "string",
+          enum: ["karriere", "fitness", "wellbeing", "me_time", "beziehung"],
+          description: "karriere für Arbeit und Aufbau, fitness für eigenes Training, wellbeing für Erholung " +
+            "und Gesundheit, me_time für Zeit ohne Zweck, beziehung für Familie, Partnerschaft und Freunde.",
+        },
+        minuten: { type: "number", description: "Wie lange, 5 bis 720." },
+        was: { type: "string", description: "Was es war, in drei bis fünf Worten." },
+        tag: { type: "string", description: "Datum als JJJJ-MM-TT. Ohne Angabe heute." },
+      },
+      required: ["bereich", "minuten", "was"],
+    },
+  },
+  {
     name: "balance_abrufen",
     description:
       "Liefert das Life Balance Board: wie viele Minuten in Karriere, Fitness, Wellbeing, Me Time und " +

@@ -100,6 +100,7 @@ try {
          zeigt iOS beides zur Auswahl, mit capture geht die Kamera direkt auf. -->
     <input id="dateiWahl" type="file" accept="image/*,video/*,application/pdf" multiple hidden>
     <input id="kameraWahl" type="file" accept="image/*" capture="environment" hidden>
+  <input id="essenFoto" type="file" accept="image/*" capture="environment" hidden>
 
     <div id="anhangMenue" class="anhang-menue" hidden>
       <button type="button" data-anhang="kamera">Foto aufnehmen</button>
@@ -178,6 +179,7 @@ try {
         <textarea id="mealText" rows="3" placeholder="200 g Hähnchenbrust, 150 g Reis und ein Apfel"></textarea>
         <div class="composer-actions">
           <button id="btnVoice" class="ghost">Diktieren</button>
+          <button id="btnFotoEssen" class="ghost">Foto</button>
           <button id="btnParse" class="primary">Erfassen</button>
         </div>
       </div>
@@ -542,18 +544,39 @@ try {
       <img class="only-dark" src="./brand/daevo-wordmark.svg" alt="daevo" width="88">
       <button id="btnMenuClose" class="icon-btn" aria-label="Menü schließen"><span class="close"></span></button>
     </div>
-    <button class="menu-item" data-go="assistant"><b>Assistent</b><span>Reden, fragen, erfassen</span></button>
-    <button class="menu-item" data-go="heute"><b>Heute</b><span>Kalorien, Makros, Wasser, Erinnerungen</span></button>
-    <button class="menu-item" data-go="essen"><b>Essen</b><span>Erfassen, Vorrat, Vorschläge</span></button>
-    <button class="menu-item" data-go="checkin"><b>Check-in</b><span>Energie, Schlaf, Stimmung</span></button>
-    <button class="menu-item" data-go="einkauf"><b>Einkaufen</b><span>Liste aus deinen Zielen</span></button>
-    <button class="menu-item" data-go="balance"><b>Balance</b><span>Karriere, Fitness, Wellbeing, Me Time, Familie</span></button>
-    <button class="menu-item" data-go="tag"><b>Dein Tag</b><span>Briefing, Mittagscheck, Aufgaben</span></button>
-    <button class="menu-item" data-go="kalender"><b>Kalender</b><span>Dein Tag, deine Lücken, deine Mahlzeiten</span></button>
-    <button class="menu-item" data-go="standards"><b>Mindeststandards</b><span>Deine Untergrenze, jede Woche</span></button>
-    <button class="menu-item" data-go="reflexion"><b>Gedächtnis</b><span>Was daevo über dich weiß</span></button>
-    <button class="menu-item" data-go="empfehlungen"><b>Empfehlungen</b><span>Aus deinen eigenen Zahlen</span></button>
-    <button class="menu-item" data-go="profil"><b>Profil</b><span>Ziele, Training, Schlüssel</span></button>
+    <button class="menu-item gross" data-go="assistant"><b>Assistent</b><span>Reden, fragen, erfassen</span></button>
+
+    <!-- Drei Gruppen statt zwölf Zeilen. Wer zwölf gleichwertige Punkte sieht,
+         sucht jedes Mal neu. Aufgeklappt wird immer nur eine. -->
+    <div class="menu-gruppe" data-gruppe="ernaehrung">
+      <button class="menu-kopf" aria-expanded="false"><b>Ernährung</b><span class="chev-ab"></span></button>
+      <div class="menu-unter" hidden>
+        <button class="menu-item" data-go="heute"><b>Heute</b><span>Kalorien, Makros, Wasser</span></button>
+        <button class="menu-item" data-go="essen"><b>Essen erfassen</b><span>Tippen, sprechen, fotografieren</span></button>
+        <button class="menu-item" data-go="einkauf"><b>Einkaufen</b><span>Liste aus deinen Zielen</span></button>
+      </div>
+    </div>
+
+    <div class="menu-gruppe" data-gruppe="coaching">
+      <button class="menu-kopf" aria-expanded="false"><b>Coaching</b><span class="chev-ab"></span></button>
+      <div class="menu-unter" hidden>
+        <button class="menu-item" data-go="checkin"><b>Check-in</b><span>Energie, Schlaf, Stimmung</span></button>
+        <button class="menu-item" data-go="standards"><b>Mindeststandards</b><span>Deine Untergrenze, jede Woche</span></button>
+        <button class="menu-item" data-go="empfehlungen"><b>Empfehlungen</b><span>Muster und Widersprüche</span></button>
+        <button class="menu-item" data-go="reflexion"><b>Gedächtnis</b><span>Was daevo über dich weiß</span></button>
+      </div>
+    </div>
+
+    <div class="menu-gruppe" data-gruppe="planung">
+      <button class="menu-kopf" aria-expanded="false"><b>Planung und Struktur</b><span class="chev-ab"></span></button>
+      <div class="menu-unter" hidden>
+        <button class="menu-item" data-go="tag"><b>Dein Tag</b><span>Briefing, Mittagscheck, Aufgaben</span></button>
+        <button class="menu-item" data-go="balance"><b>Balance</b><span>Wo deine Zeit hingeht</span></button>
+        <button class="menu-item" data-go="kalender"><b>Kalender</b><span>Termine, Lücken, Mahlzeiten</span></button>
+      </div>
+    </div>
+
+    <button class="menu-item leise" data-go="profil"><b>Profil</b><span>Ziele, Training, Schlüssel, Kosten</span></button>
   </nav>
 </main>
 

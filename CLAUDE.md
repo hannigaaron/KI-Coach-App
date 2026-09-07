@@ -250,8 +250,15 @@ ist der halbe Nutzen, und dafür braucht es kein Modell.
 ## Das Life Balance Board
 
 `packages/core/src/balance.ts` misst fünf Bereiche: Karriere, Fitness,
-Wellbeing, Me Time, Familie und Beziehung. Die Minuten kommen aus den
-Kalendertiteln und aus eingetragenen Trainings, nichts wird geschätzt.
+Wellbeing, Me Time, Familie und Beziehung. Die Minuten kommen aus drei Quellen:
+Kalendertitel, eingetragene Trainings und Zeit, die der Coach über
+`zeit_eintragen` gebucht hat, weil der Nutzer sie erzählt hat. Dazu die Dauer
+erledigter Aufgaben. Nichts wird geschätzt.
+
+Der Kalender dieses Nutzers enthält fast nur Kundentermine. Ohne die dritte
+Quelle behauptet das Board, er hätte ausser arbeiten nichts getan. Deshalb
+hängt die Sperre am gemessenen Minutenstand und nicht mehr daran, ob ein
+Kalender verbunden ist.
 
 Die Wortlisten je Bereich sind kurz und eindeutig. Ein Wort, das in zwei
 Bereichen vorkommen könnte, gehört in keinen: eine falsche Zuordnung ist
@@ -298,6 +305,17 @@ Die Ringe liegen in `apps/pwa/js/rings.js` und sind SVG, nicht Canvas. Es sind
 ein paar Dutzend Kreise, kein Partikelfeld wie beim Orb. `wertungsRing` ist der
 grosse Ring mit Etikett, Zahl und Urteil, `metrikRing` die kleine Kennzahl mit
 Richtungspfeil gegen gestern. Beides steht oben auf der Tagesansicht.
+
+## Das Menue
+
+Fünf Einträge statt vierzehn: Assistent, Ernährung, Coaching, Planung und
+Struktur, Profil. Die drei mittleren klappen ihre Unterpunkte auf, immer nur
+eine Gruppe. Eine Liste aus vierzehn gleich aussehenden Zeilen zwingt dazu,
+jedes Mal alle zu lesen.
+
+Die Kennzahlen oben auf Heute sind antippbar und führen in die Ansicht dahinter.
+Ernährung führt auf den Essen Reiter, dort steht der Fotoknopf direkt neben der
+Texteingabe. Eine Zahl, auf die man tippen kann, spart den Umweg über das Menue.
 
 ## Der Chat
 

@@ -54,6 +54,7 @@ export interface AgentActions {
   kopfLeeren(input: { text: string }): Promise<string>;
   musterErkennen(input: { tage?: number }): Promise<string>;
   balanceAbrufen(input: { tage?: number }): Promise<string>;
+  zeitEintragen(input: { bereich: string; minuten: number; was: string; tag?: string }): Promise<string>;
   widerspruechePruefen(): Promise<string>;
   mittagscheckSpeichern(input: {
     energie: number; konzentration: number; saettigung: number; notiz?: string;
@@ -433,6 +434,22 @@ async function execute(
           return { text: "Dafür ist zu wenig da. Erzähl einfach alles, was dir durch den Kopf geht.", fehler: true };
         }
         return { text: await actions.kopfLeeren({ text }), notiz: "Kopf geleert und Aufgaben angelegt" };
+      }
+      case "zeit_eintragen": {
+        const bereich = String(input.bereich ?? "");
+        const erlaubt = ["karriere", "fitness", "wellbeing", "me_time", "beziehung"];
+        if (!erlaubt.includes(bereich)) {
+          return { text: `Bereich muss einer von ${erlaubt.join(", ")} sein.`, fehler: true };
+        }
+        const minuten = clamp(Number(input.minuten), 5, 720);
+        if (!Number.isFinite(minuten)) return { text: "Wie lange denn?", fehler: true };
+        const text = await actions.zeitEintragen({
+          bereich,
+          minuten,
+          was: String(input.was ?? "").slice(0, 80),
+          tag: typeof input.tag === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.tag) ? input.tag : undefined,
+        });
+        return { text, notiz: `${minuten} Minuten auf ${bereich} gebucht` };
       }
       case "balance_abrufen": {
         const tage = Number.isFinite(Number(input.tage)) ? clamp(Number(input.tage), 1, 90) : undefined;
