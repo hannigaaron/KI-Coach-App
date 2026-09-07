@@ -6,6 +6,7 @@ import {
 import {
   abendAbschluss,
   balance,
+  balanceEmpfehlung,
   balanceText,
   buildDailyReminders,
   muster,
@@ -912,12 +913,65 @@ export function balanceFuer(tage = 1, bisIso = todayIso()) {
     return true;
   });
 
+  // Die verfügbare Zeit kommt aus dem Profil, nicht aus einer Annahme:
+  // Wachzeit mal Anzahl Tage. Das ist der Nenner für alle Anteile.
+  const profile = store.getProfile();
+  const wach = profile ? wachMinuten(profile.wakeTime, profile.sleepTime) : 16 * 60;
+
   return balance({
     termine: eindeutig,
     zusatz: { fitness: trainingMinuten },
     ziele: store.getSettings().balanceZiele || undefined,
+    basisMinuten: wach * tage,
     tage,
   });
+}
+
+/** Wachminuten aus Aufsteh und Schlafenszeit. Ueber Mitternacht hinweg richtig. */
+function wachMinuten(wach, schlaf) {
+  const min = (hhmm) => {
+    const [h, m] = String(hhmm || "07:00").split(":");
+    return Number(h) * 60 + Number(m);
+  };
+  const von = min(wach);
+  const bis = min(schlaf);
+  return bis > von ? bis - von : 1440 - von + bis;
+}
+
+/**
+ * Die Empfehlung aus den letzten Tagen.
+ *
+ * Der Vorschlag für einen Termin kommt aus dem längsten freien Block der
+ * nächsten sieben Tage. Ohne Kalender bleibt die Empfehlung ohne Uhrzeit, und
+ * das steht dann auch drin.
+ */
+export function balanceRat(tage = 7) {
+  const b = balanceFuer(tage);
+  return balanceEmpfehlung({ balance: b, vorschlag: freierBlock() });
+}
+
+function freierBlock() {
+  if ((store.getKalender().termine || []).length === 0) return null;
+  const heute = todayIso();
+  let bester = null;
+  for (let i = 1; i <= 7; i++) {
+    const d = new Date(`${heute}T12:00:00`);
+    d.setDate(d.getDate() + i);
+    const iso = d.toISOString().slice(0, 10);
+    const a = ablaufFuer(iso);
+    // Blöcke am späten Abend taugen nicht für einen neuen Vorsatz.
+    const passend = a.luecken
+      .filter((l) => l.minuten >= 30 && new Date(l.von).getHours() >= 8 && new Date(l.von).getHours() <= 20)
+      .sort((x, y) => y.minuten - x.minuten)[0];
+    if (passend && (!bester || passend.minuten > bester.minuten)) {
+      bester = {
+        tag: new Date(`${iso}T12:00:00`).toLocaleDateString("de-DE", { weekday: "long" }),
+        von: uhrzeitVon(passend.von),
+        minuten: passend.minuten,
+      };
+    }
+  }
+  return bester;
 }
 
 export function balanceUebersicht(tage = 7) {
@@ -1205,8 +1259,11 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
     async balanceAbrufen({ tage } = {}) {
       const zeitraum = Math.max(1, Math.min(90, tage || 7));
       const nutzung = zeitraum === 1 ? tagesnutzungFuer() : null;
-      const text = balanceUebersicht(zeitraum);
-      return nutzung ? `${text}\n\nTagesnutzung: ${nutzung.satz}` : text;
+      const rat = balanceRat(zeitraum);
+      const teile = [balanceUebersicht(zeitraum)];
+      if (nutzung) teile.push(`Tagesnutzung: ${nutzung.satz}`);
+      teile.push(`Empfehlung: ${rat.befund} ${rat.schritt}`);
+      return teile.join("\n\n");
     },
 
     async musterErkennen({ tage } = {}) {

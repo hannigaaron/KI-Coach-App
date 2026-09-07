@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  BEREICHE, STANDARD_ZIELE, balance, balanceText, bereichVon, tagesnutzung,
+  BEREICHE, STANDARD_ZIELE, balance, balanceEmpfehlung, balanceText, bereichVon, tagesnutzung,
 } from "./balance.js";
 import type { Termin } from "./ical.js";
 
@@ -188,8 +188,99 @@ test("der Text nennt leere Bereiche beim Namen", () => {
 
 test("der Text nennt die nicht zugeordnete Zeit", () => {
   const text = balanceText(balance({ tage: 1, termine: [t("09:00", "11:00", "Anna")] }));
-  assert.ok(text.includes("Nicht zugeordnet: 2 Stunden"));
-  assert.ok(text.includes("zählen nirgends mit"));
+  assert.ok(text.includes("2 Stunden aus Terminen ohne erkennbaren Bereich"), text);
+});
+
+/* ---------- Anteile am Tag ---------- */
+
+test("die Anteile ergeben zusammen mit dem Rest genau eins", () => {
+  const b = balance({
+    tage: 1, basisMinuten: 960,
+    termine: [t("09:00", "12:00", "Kunde Anna"), t("19:00", "21:00", "Volleyball"), t("14:00", "15:00", "Anna")],
+  });
+  const summe = b.bereiche.reduce((s, x) => s + x.anteilAmTag, 0) + b.restAnteil;
+  assert.ok(Math.abs(summe - 1) < 0.001, `Summe ${summe}`);
+});
+
+test("der Anteil misst den Tag, nicht die Summe der Bereiche", () => {
+  // Drei Stunden Arbeit an einem Wachtag von 16 Stunden sind 19 Prozent,
+  // nicht 100, auch wenn sonst nichts eingetragen ist.
+  const b = balance({ tage: 1, basisMinuten: 960, termine: [t("09:00", "12:00", "Kunde Anna")] });
+  assert.equal(Math.round(b.bereiche[0]!.anteilAmTag * 100), 19);
+});
+
+test("ohne Basis werden 16 Wachstunden angenommen und das wird gesagt", () => {
+  const b = balance({ tage: 1, termine: [] });
+  assert.equal(b.basisMinuten, 960);
+  assert.equal(b.basisGeschaetzt, true);
+  assert.ok(balanceText(b).includes("geschätzt mit 16 Wachstunden"));
+});
+
+test("mehr belegte Zeit als Basis hebt die Basis an, statt über eins zu laufen", () => {
+  const b = balance({ tage: 1, basisMinuten: 60, termine: [t("08:00", "20:00", "Kunde Anna")] });
+  assert.equal(b.basisMinuten, 720);
+  assert.equal(b.bereiche[0]!.anteilAmTag, 1);
+  assert.equal(b.restAnteil, 0);
+});
+
+/* ---------- Die Empfehlung ---------- */
+
+test("ohne Daten wird nichts empfohlen, sondern der Kalender verlangt", () => {
+  const e = balanceEmpfehlung({ balance: balance({ tage: 7, termine: [] }) });
+  assert.equal(e.bereich, null);
+  assert.ok(e.schritt.includes("Verbinde deinen Kalender"));
+});
+
+test("empfohlen wird der Bereich, der gemessen am Ziel am weitesten zurückliegt", () => {
+  // Me Time 30 Minuten von 7 Stunden Wochenziel, Wellbeing 4 von 5 Stunden.
+  const b = balance({
+    tage: 7, basisMinuten: 6720,
+    termine: [t("09:00", "12:00", "Kunde Anna")],
+    zusatz: { me_time: 30, wellbeing: 240, fitness: 300, beziehung: 480 },
+  });
+  const e = balanceEmpfehlung({ balance: b });
+  assert.equal(e.bereich, "me_time");
+  assert.ok(e.befund.includes("Me Time"));
+  assert.ok(e.schritt.includes("Blockier dir"));
+});
+
+test("bei null Minuten steht nicht dreimal null im Satz", () => {
+  const b = balance({
+    tage: 7, basisMinuten: 6720, termine: [],
+    zusatz: { me_time: 0, wellbeing: 240, fitness: 300, beziehung: 480 },
+  });
+  const e = balanceEmpfehlung({ balance: b });
+  assert.ok(e.befund.includes("bei null Minuten"), e.befund);
+  assert.equal(e.befund.includes("0 Prozent"), false, e.befund);
+});
+
+test("überzogene Arbeitszeit wird als Grund genannt, nicht als Empfehlung", () => {
+  const b = balance({
+    tage: 7, basisMinuten: 6720,
+    termine: [],
+    zusatz: { karriere: 60 * 60, me_time: 30, wellbeing: 240, fitness: 300, beziehung: 480 },
+  });
+  const e = balanceEmpfehlung({ balance: b });
+  assert.notEqual(e.bereich, "karriere");
+  assert.ok(e.befund.includes("Dort liegt die Zeit, die anderswo fehlt"));
+});
+
+test("mit einem freien Block wird ein Termin vorgeschlagen, nicht ein Vorsatz", () => {
+  const b = balance({ tage: 7, basisMinuten: 6720, termine: [], zusatz: { me_time: 30, wellbeing: 240, fitness: 300, beziehung: 480 } });
+  const e = balanceEmpfehlung({ balance: b, vorschlag: { tag: "Donnerstag", von: "19:30", minuten: 90 } });
+  assert.ok(e.schritt.includes("Donnerstag"));
+  assert.ok(e.schritt.includes("19:30"));
+  assert.ok(e.schritt.includes("nicht als Vorsatz"));
+});
+
+test("wer alle Ziele trifft, bekommt keine erfundene Baustelle", () => {
+  const b = balance({
+    tage: 7, basisMinuten: 6720, termine: [],
+    zusatz: { karriere: 2400, fitness: 400, wellbeing: 400, me_time: 500, beziehung: 600 },
+  });
+  const e = balanceEmpfehlung({ balance: b });
+  assert.equal(e.bereich, null);
+  assert.ok(e.schritt.includes("Lass es so"));
 });
 
 test("alle fünf Bereiche stehen im Text", () => {

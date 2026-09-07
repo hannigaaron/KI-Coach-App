@@ -143,7 +143,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 328 Tests
+npm test           # 338 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -251,9 +251,18 @@ Fitness wird vor Karriere geprüft, weil "Athletiktraining" Arbeit ist und
 "Krafttraining" nicht. Zeit, die nirgends passt, wird als nicht zugeordnet
 ausgewiesen und zählt nirgends mit.
 
-Ziele sind Wochenziele in Minuten und werden für kürzere Zeiträume anteilig
-heruntergerechnet. Der Anteil wird nicht gedeckelt, damit sichtbar bleibt, wer
-sein Arbeitsziel um 60 Prozent überzieht.
+Es gibt zwei Prozentzahlen, und sie beantworten verschiedene Fragen. Der Anteil
+am Tag misst gegen die Wachzeit aus dem Profil: alle fünf Bereiche plus die
+nicht verplante Zeit ergeben zusammen genau eins. Das ist die Zahl auf dem Ring.
+Der Anteil am Ziel misst gegen das Wochenziel, wird nicht gedeckelt und steht
+als Text unter der Kachel. 349 Prozent eines Fitnessziels sagen nichts darüber,
+wie ein Tag aufgeteilt war, 16 Prozent des Tages schon.
+
+`balanceEmpfehlung` sucht den Bereich, der gemessen am eigenen Ziel am
+weitesten zurückliegt, und macht daraus einen Termin mit Uhrzeit aus dem
+nächsten freien Block. Karriere bleibt dabei aussen vor: Arbeit fällt selten
+aus, und überzogene Arbeitszeit wird stattdessen als Grund genannt, weil dort
+die fehlende Zeit hingegangen ist.
 
 `tagesnutzung` verdichtet vier Teile zu einer Zahl: Balance 40 Prozent,
 Aufgaben 25, Mindeststandards 20, Ernährung 15. Die Gewichtung ist eine
@@ -264,6 +273,11 @@ jede Aufgabe erledigt wurde.
 Ein Teil ohne Datenlage wird nicht mit null bewertet, sondern fällt raus, und
 die übrigen Gewichte werden hochgerechnet. Sonst misst die Zahl Datenlage
 statt Verhalten.
+
+Der Verlauf im Hintergrund liegt auf `.view`, also auf allen Ansichten, damit
+die App nicht in eine schöne Seite und mehrere graue zerfällt. Auf dem
+Assistenten liegt er kräftiger, weil dort nichts anderes um Aufmerksamkeit
+konkurriert.
 
 Die Ringe liegen in `apps/pwa/js/rings.js` und sind SVG, nicht Canvas. Es sind
 ein paar Dutzend Kreise, kein Partikelfeld wie beim Orb. `wertungsRing` ist der

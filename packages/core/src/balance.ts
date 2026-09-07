@@ -124,6 +124,16 @@ export interface BalanceEingabe {
   ziele?: Partial<Record<Bereich, number>>;
   /** Über wie viele Tage der Zeitraum geht. 1 für einen Tag, 7 für eine Woche. */
   tage: number;
+  /**
+   * Die Zeit, gegen die gerechnet wird, in Minuten. Normalerweise die
+   * Wachminuten im Zeitraum.
+   *
+   * Das ist der Nenner für die Anteile: die Frage ist nicht, wie viel Prozent
+   * eines Ziels erreicht wurden, sondern wie viel vom Tag wofür draufging.
+   * Ohne Angabe werden 16 Wachstunden je Tag angenommen, und das steht dann
+   * auch in der Anzeige.
+   */
+  basisMinuten?: number;
 }
 
 export interface BereichStand {
@@ -135,7 +145,13 @@ export interface BereichStand {
   zielMinuten: number;
   /** Anteil am Ziel, 0 bis über 1. Nicht gedeckelt, damit man sieht, wer überzieht. */
   anteil: number;
-  /** Anteil an der gesamten zugeordneten Zeit, 0 bis 1. */
+  /**
+   * Anteil an der verfügbaren Zeit, 0 bis 1.
+   *
+   * Alle fünf Anteile plus `restAnteil` ergeben zusammen genau eins. Das ist
+   * die ehrlichere Zahl: 349 Prozent eines Fitnessziels sagen nichts darüber,
+   * wie ein Tag aufgeteilt war, 12 Prozent des Tages schon.
+   */
   anteilAmTag: number;
 }
 
@@ -148,6 +164,14 @@ export interface Balance {
   nichtZugeordnet: number;
   /** Wie viele der fünf Bereiche überhaupt vorkamen. */
   abgedeckt: number;
+  /** Die Zeit, gegen die gerechnet wurde. */
+  basisMinuten: number;
+  /** Minuten, die in keinem Bereich und in keinem Termin stehen. */
+  restMinuten: number;
+  /** Anteil dieser Restzeit, damit die Summe eins ergibt. */
+  restAnteil: number;
+  /** War die Basis geschätzt statt übergeben. */
+  basisGeschaetzt: boolean;
 }
 
 export function balance(e: BalanceEingabe): Balance {
@@ -172,6 +196,14 @@ export function balance(e: BalanceEingabe): Balance {
 
   const gesamtMinuten = BEREICHE.reduce((s, b) => s + minuten[b], 0);
 
+  // Der Nenner ist der Tag, nicht die Summe der Bereiche. Sonst hiesse 82
+  // Prozent Karriere nur, dass man sonst nichts eingetragen hat.
+  const basisGeschaetzt = !Number.isFinite(e.basisMinuten as number);
+  const basisMinuten = Math.max(
+    gesamtMinuten + nichtZugeordnet,
+    basisGeschaetzt ? tage * 16 * 60 : Math.round(e.basisMinuten as number),
+  );
+
   const bereiche = BEREICHE.map<BereichStand>((bereich) => {
     const wochenziel = e.ziele?.[bereich] ?? STANDARD_ZIELE[bereich];
     const zielMinuten = Math.round((wochenziel / 7) * tage);
@@ -181,9 +213,11 @@ export function balance(e: BalanceEingabe): Balance {
       minuten: minuten[bereich],
       zielMinuten,
       anteil: zielMinuten > 0 ? minuten[bereich] / zielMinuten : 0,
-      anteilAmTag: gesamtMinuten > 0 ? minuten[bereich] / gesamtMinuten : 0,
+      anteilAmTag: basisMinuten > 0 ? minuten[bereich] / basisMinuten : 0,
     };
   });
+
+  const restMinuten = Math.max(0, basisMinuten - gesamtMinuten - nichtZugeordnet);
 
   return {
     tage,
@@ -191,6 +225,10 @@ export function balance(e: BalanceEingabe): Balance {
     gesamtMinuten,
     nichtZugeordnet,
     abgedeckt: bereiche.filter((b) => b.minuten > 0).length,
+    basisMinuten,
+    restMinuten,
+    restAnteil: basisMinuten > 0 ? (restMinuten + nichtZugeordnet) / basisMinuten : 0,
+    basisGeschaetzt,
   };
 }
 
@@ -308,6 +346,113 @@ export function tagesnutzung(e: TagesnutzungEingabe): Tagesnutzung {
   };
 }
 
+/* ---------- Die Empfehlung ---------- */
+
+export interface EmpfehlungEingabe {
+  /** Die Balance über die letzten Tage. */
+  balance: Balance;
+  /**
+   * Ein freier Block aus dem Kalender der nächsten Tage, für einen konkreten
+   * Vorschlag. Ohne Block bleibt die Empfehlung allgemeiner, und das steht
+   * dann auch drin.
+   */
+  vorschlag?: { tag: string; von: string; minuten: number } | null;
+}
+
+export interface Empfehlung {
+  /** Worauf der Fokus gehört. Null, wenn die Daten dafür nicht reichen. */
+  bereich: Bereich | null;
+  /** Was auffällt, mit den Zahlen. */
+  befund: string;
+  /** Genau eine Sache, die er tun kann. */
+  schritt: string;
+}
+
+/** Konkrete Handlungen je Bereich. Keine Ratschläge, sondern Termine. */
+const HANDLUNG: Record<Bereich, string> = {
+  karriere: "einen festen Block für Aufbau statt Kundenarbeit",
+  fitness: "eine Einheit, die du auch bei schlechter Laune durchziehst",
+  wellbeing: "Sauna, Spaziergang oder zwanzig Minuten ohne Handy",
+  me_time: "etwas, das keinen Zweck hat ausser dass es dir gefällt",
+  beziehung: "einen Anruf oder ein Treffen, mit Uhrzeit",
+};
+
+/**
+ * Woran der Fokus als Nächstes gehört.
+ *
+ * Gesucht wird der Bereich, der gemessen am eigenen Ziel am weitesten
+ * zurückliegt, nicht der mit den wenigsten Minuten. Me Time mit zwei von
+ * sieben Stunden ist ein grösseres Problem als Wellbeing mit einer von fünf,
+ * wenn das Ziel es so sagt.
+ *
+ * Karriere bleibt aussen vor: Arbeit fällt selten aus, und wenn doch, ist das
+ * kein Fall für eine Empfehlung. Ueberzogene Arbeitszeit wird stattdessen als
+ * Grund genannt, weil dort die fehlende Zeit hingegangen ist.
+ */
+export function balanceEmpfehlung(e: EmpfehlungEingabe): Empfehlung {
+  const b = e.balance;
+
+  if (b.gesamtMinuten === 0) {
+    return {
+      bereich: null,
+      befund: "In diesem Zeitraum ist keine Minute zugeordnet. Ohne Kalender kann ich nichts empfehlen, nur raten.",
+      schritt: "Verbinde deinen Kalender im Menue unter Kalender. Danach rechne ich mit echten Zahlen.",
+    };
+  }
+
+  const kandidaten = b.bereiche
+    .filter((s) => s.bereich !== "karriere" && s.zielMinuten > 0)
+    .map((s) => ({ stand: s, fehlt: s.zielMinuten - s.minuten, quote: s.minuten / s.zielMinuten }))
+    .filter((k) => k.fehlt > 0)
+    .sort((x, y) => x.quote - y.quote);
+
+  const karriere = b.bereiche.find((s) => s.bereich === "karriere")!;
+  const ueberzogen = karriere.zielMinuten > 0 && karriere.anteil > 1.3;
+
+  if (kandidaten.length === 0) {
+    return {
+      bereich: null,
+      befund: `Alle fünf Bereiche liegen über ihrem Ziel für ${b.tage} ${b.tage === 1 ? "Tag" : "Tage"}. Daran gibt es nichts zu korrigieren.`,
+      schritt: "Lass es so. Wenn du etwas ändern willst, dann die Ziele, nicht die Woche.",
+    };
+  }
+
+  const schwach = kandidaten[0]!;
+  // Bei null Minuten wird nicht dreimal null gesagt. Ein Satz mit drei Nullen
+  // liest sich wie ein Fehler in der Anzeige, nicht wie ein Befund.
+  const befundTeile = [
+    schwach.stand.minuten === 0
+      ? `${schwach.stand.name} steht in ${b.tage} ${b.tage === 1 ? "Tag" : "Tagen"} bei null Minuten. ` +
+        `Dein Ziel dafür wären ${stundenText(schwach.stand.zielMinuten)}.`
+      : `${schwach.stand.name} liegt bei ${stundenText(schwach.stand.minuten)} von ${stundenText(schwach.stand.zielMinuten)}, ` +
+        `also ${Math.round(schwach.quote * 100)} Prozent des Ziels und ${Math.round(schwach.stand.anteilAmTag * 100)} Prozent deiner Zeit.`,
+  ];
+  if (ueberzogen) {
+    befundTeile.push(
+      `Karriere steht bei ${stundenText(karriere.minuten)} gegen ein Ziel von ${stundenText(karriere.zielMinuten)}, ` +
+      `also ${Math.round(karriere.anteil * 100)} Prozent. Dort liegt die Zeit, die anderswo fehlt.`,
+    );
+  }
+
+  const fehltProTag = Math.max(20, Math.round(schwach.fehlt / Math.max(1, b.tage)));
+  const schritt = e.vorschlag
+    ? `Trag dir am ${e.vorschlag.tag} um ${e.vorschlag.von} ${Math.min(fehltProTag, e.vorschlag.minuten)} Minuten ein: ` +
+      `${HANDLUNG[schwach.stand.bereich]}. Als Termin, nicht als Vorsatz. Was keinen Platz im Kalender hat, findet nicht statt.`
+    : `Blockier dir ${fehltProTag} Minuten im Kalender für ${HANDLUNG[schwach.stand.bereich]}. ` +
+      "Als Termin, nicht als Vorsatz. Was keinen Platz im Kalender hat, findet nicht statt.";
+
+  return { bereich: schwach.stand.bereich, befund: befundTeile.join(" "), schritt };
+}
+
+function stundenText(minuten: number): string {
+  const h = stundenZahl(minuten);
+  return h >= 1 ? `${h} Stunden` : `${Math.round(minuten)} Minuten`;
+}
+
+function stundenZahl(minuten: number): number {
+  return Math.round((minuten / 60) * 10) / 10;
+}
+
 /* ---------- In Worten ---------- */
 
 export function balanceText(b: Balance): string {
@@ -324,10 +469,17 @@ export function balanceText(b: Balance): string {
     );
   }
 
+  zeilen.push(
+    `Gerechnet gegen ${stunden(b.basisMinuten)} verfügbare Zeit` +
+    (b.basisGeschaetzt ? ", geschätzt mit 16 Wachstunden am Tag." : ".") +
+    ` Nicht verplant oder nicht zuordenbar: ${stunden(b.restMinuten + b.nichtZugeordnet)}, ` +
+    `also ${Math.round(b.restAnteil * 100)} Prozent.`,
+  );
+
   if (b.nichtZugeordnet > 0) {
     zeilen.push(
-      `Nicht zugeordnet: ${stunden(b.nichtZugeordnet)}. Diese Termine haben keinen Titel, ` +
-      "aus dem sich ein Bereich lesen lässt. Sie zählen nirgends mit.",
+      `Davon ${stunden(b.nichtZugeordnet)} aus Terminen ohne erkennbaren Bereich. ` +
+      "Diese Titel sagen nichts, aus dem sich ein Bereich lesen lässt.",
     );
   }
 

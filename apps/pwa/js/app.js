@@ -3,7 +3,7 @@ import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE } from "@daevo/coach";
 import { Coach, AnthropicProvider } from "@daevo/coach";
 import {
   ablaufFuer, ask, aufgabeAbhaken, aufgabeAnlegen, aufgabeLoeschen, aufgabenPlan,
-  balanceFuer, briefing,
+  balanceFuer, balanceRat, briefing,
   buildActions, dayNumbers, einkaufslisteText, ensureStandards, greeting, herausforderungSpeichern,
   aufgabenPlanText, kopfSortieren, mittagscheck, mittagscheckText, musterUebersicht, tagesnutzungFuer,
   trainingsplanUebernehmen, trainingsplanVorschlag, widerspruchListe,
@@ -13,7 +13,7 @@ import {
 import { brain } from "./brain.js";
 import { Orb } from "./orb.js";
 import { anhangAusDatei, grossInKb } from "./media.js";
-import { BEREICH_FARBE, kurzDauer, metrikRing, richtungVon, ringMitZahl, ringStapel, wertungsRing } from "./rings.js";
+import { BEREICH_FARBE, anteilsRing, kurzDauer, metrikRing, richtungVon, ringMitZahl, wertungsRing } from "./rings.js";
 import { Listener, speak, stopSpeaking, voiceSupport } from "./voice.js";
 import { SetupFlow } from "./setup-ui.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
@@ -527,8 +527,8 @@ function renderHeuteBalance() {
     const kachel = document.createElement("div");
     kachel.className = "ring-kachel";
     kachel.appendChild(ringMitZahl({
-      anteil: stand.anteil,
-      zahl: `${Math.round(stand.anteil * 100)}%`,
+      anteil: stand.anteilAmTag,
+      zahl: `${Math.round(stand.anteilAmTag * 100)}%`,
       farbe: BEREICH_FARBE[stand.bereich],
       groesse: 72,
     }));
@@ -1092,7 +1092,7 @@ function renderBalance() {
 
   const stapel = $("balanceStapel");
   stapel.innerHTML = "";
-  stapel.appendChild(ringStapel(b.bereiche, { groesse: 190 }));
+  stapel.appendChild(anteilsRing(b.bereiche, { groesse: 200, restAnteil: b.restAnteil }));
 
   const tagesring = $("balanceTagesring");
   tagesring.innerHTML = "";
@@ -1112,9 +1112,11 @@ function renderBalance() {
   for (const stand of b.bereiche) {
     const kachel = document.createElement("div");
     kachel.className = "ring-kachel";
+    // Der Ring zeigt den Anteil an der Zeit, die Zahl darunter das Ziel.
+    // Zwei verschiedene Fragen, und beide gehören auf die Kachel.
     kachel.appendChild(ringMitZahl({
-      anteil: stand.anteil,
-      zahl: `${Math.round(stand.anteil * 100)}%`,
+      anteil: stand.anteilAmTag,
+      zahl: `${Math.round(stand.anteilAmTag * 100)}%`,
       farbe: BEREICH_FARBE[stand.bereich],
       groesse: 84,
     }));
@@ -1142,6 +1144,12 @@ function renderBalance() {
   const leer = b.bereiche.filter((x) => x.minuten === 0).map((x) => x.name);
   if (leer.length) teile.push(`Ohne eine einzige Minute: ${leer.join(", ")}.`);
   $("balanceHinweis").textContent = teile.join(" ");
+
+  const rat = balanceRat(balanceTage === 1 ? 7 : balanceTage);
+  $("balanceRat").innerHTML =
+    `<h3>${escapeHtml(rat.bereich ? BEREICH_NAME[rat.bereich] : "Nichts zu korrigieren")}</h3>` +
+    `<p>${escapeHtml(rat.befund)}</p>` +
+    `<div class="grund">${escapeHtml(rat.schritt)}</div>`;
 
   renderBalanceZiele();
 }

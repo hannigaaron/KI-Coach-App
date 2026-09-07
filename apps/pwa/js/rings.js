@@ -64,6 +64,70 @@ function ring(gruppe, { radius, breite, anteil, farbe, mitte }) {
 }
 
 /**
+ * Ein Ring, aufgeteilt auf die fünf Bereiche.
+ *
+ * Anders als der Stapel zeigt er nicht, wie voll jedes Ziel ist, sondern wie
+ * der Tag aufgeteilt war. Die Segmente laufen hintereinander und ergeben
+ * zusammen mit dem Rest genau einen vollen Kreis. Das ist die Frage, die man
+ * sich morgens stellt: wo ist der Tag hingegangen.
+ *
+ * Der Rest bleibt gedämpft und ohne Farbe. Nicht verplante Zeit ist kein
+ * Bereich, und sie als sechste Farbe zu zeichnen würde sie zu einem machen.
+ */
+export function anteilsRing(bereiche, { groesse = 200, restAnteil = 0 } = {}) {
+  const svg = el("svg", {
+    viewBox: `0 0 ${groesse} ${groesse}`, width: groesse, height: groesse,
+    role: "img", "aria-label": "Aufteilung der Zeit",
+  });
+  const mitte = groesse / 2;
+  const breite = Math.max(9, Math.round(groesse / 14));
+  const radius = mitte - breite / 2 - 2;
+  const umfang = 2 * Math.PI * radius;
+
+  svg.appendChild(el("circle", {
+    cx: mitte, cy: mitte, r: radius,
+    fill: "none", stroke: "currentColor", "stroke-opacity": 0.12, "stroke-width": breite,
+  }));
+
+  // Von hinten nach vorn zeichnen: jedes Segment beginnt am Anfang und wird
+  // vom nächsten überdeckt. Das spart die Rechnerei mit Versatz und Lücken.
+  const teile = bereiche
+    .map((stand) => ({ stand, anteil: Math.max(0, stand.anteilAmTag) }))
+    .filter((t) => t.anteil > 0.002);
+
+  let summe = teile.reduce((s, t) => s + t.anteil, 0);
+  for (let i = teile.length - 1; i >= 0; i--) {
+    const bis = summe;
+    summe -= teile[i].anteil;
+    svg.appendChild(el("circle", {
+      cx: mitte, cy: mitte, r: radius,
+      fill: "none", stroke: BEREICH_FARBE[teile[i].stand.bereich] || TAG_FARBE,
+      "stroke-width": breite, "stroke-linecap": "butt",
+      "stroke-dasharray": `${umfang * Math.min(1, bis)} ${umfang}`,
+      transform: `rotate(-90 ${mitte} ${mitte})`,
+    }));
+  }
+
+  const mitteText = el("text", {
+    x: mitte, y: mitte - 6,
+    "text-anchor": "middle", "dominant-baseline": "middle",
+    "font-size": Math.round(groesse / 5.5), "font-weight": 300, fill: "currentColor",
+  });
+  mitteText.textContent = `${Math.round((1 - restAnteil) * 100)}%`;
+  svg.appendChild(mitteText);
+
+  const unten = el("text", {
+    x: mitte, y: mitte + Math.round(groesse / 9),
+    "text-anchor": "middle", "dominant-baseline": "middle",
+    "font-size": Math.round(groesse / 16), fill: "currentColor", "fill-opacity": 0.6,
+  });
+  unten.textContent = "der Zeit verplant";
+  svg.appendChild(unten);
+
+  return svg;
+}
+
+/**
  * Fünf Ringe ineinander.
  *
  * Der äusserste ist Karriere, weil er im Alltag am meisten Platz einnimmt und
