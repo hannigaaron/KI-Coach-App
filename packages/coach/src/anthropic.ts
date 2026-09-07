@@ -278,6 +278,19 @@ export class AnthropicProvider implements CoachProvider {
    * ohne Guthaben ist der häufigste Fall und sieht sonst aus wie ein falscher
    * Schlüssel.
    */
+  /**
+   * Laenge und Anfang des Schluessels, ohne ihn preiszugeben.
+   *
+   * Ein unvollstaendig kopierter Schluessel sieht im Passwortfeld genauso aus
+   * wie ein vollstaendiger, nur die Zahl der Punkte unterscheidet sich, und die
+   * zaehlt niemand.
+   */
+  private schluesselBild(): string {
+    const k = this.options.apiKey ?? "";
+    if (!k) return "";
+    return `Eingetragen sind ${k.length} Zeichen, beginnend mit ${k.slice(0, 7)}.`;
+  }
+
   async pruefe(): Promise<{ ok: boolean; schluessel: boolean; guthaben: boolean; meldung: string }> {
     if (!this.available) {
       return { ok: false, schluessel: false, guthaben: false, meldung: "Kein Schlüssel eingetragen." };
@@ -293,8 +306,15 @@ export class AnthropicProvider implements CoachProvider {
         const text = await liste.text();
         return {
           ok: false, schluessel: false, guthaben: false,
+          // Bei 401 nennt die API im Text den Grund. Ohne den raet der Nutzer,
+          // ob der Schluessel falsch, geloescht oder aus einer anderen
+          // Organisation ist. Dazu Laenge und Anfang, damit ein abgeschnittener
+          // Schluessel sofort auffaellt, ohne ihn ganz anzuzeigen.
           meldung: liste.status === 401
-            ? "Der Schlüssel wird abgelehnt. Prüf, ob er vollständig kopiert wurde, und ob er nicht gelöscht ist."
+            ? `Der Schlüssel wird abgelehnt. ${this.schluesselBild()} `
+              + `Die API sagt: ${kurz(text)} `
+              + "Häufigste Ursache: beim Kopieren fehlt der Anfang oder das Ende, "
+              + "oder der Schlüssel wurde in der Console gelöscht."
             : `Der Schlüssel wurde abgelehnt, Status ${liste.status}. ${kurz(text)}`,
         };
       }

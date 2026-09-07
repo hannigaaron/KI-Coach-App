@@ -427,8 +427,12 @@ button:disabled { opacity: 0.5; }
 /* Composer */
 .composer { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
 .composer textarea { background: var(--panel-2); }
-.composer-actions { display: flex; gap: 10px; margin-top: 11px; }
-.composer-actions button { flex: 1; }
+/* Vier Knoepfe passen auf einem Telefon nicht in eine Zeile. Ohne Umbruch
+   schiebt der letzte die ganze Seite nach rechts, und dann scrollt die App
+   seitlich. Die Grundbreite von 0 laesst die Knoepfe schrumpfen, statt die
+   Zeile zu sprengen. */
+.composer-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 11px; }
+.composer-actions button { flex: 1 1 0; min-width: 84px; white-space: nowrap; }
 .feedback {
   margin-top: 14px; padding: 13px 14px; border-radius: var(--r-md);
   background: rgba(76, 141, 255, 0.1); border: 1px solid rgba(76, 141, 255, 0.35);
@@ -842,3 +846,18 @@ img.only-light { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .orb, .stage, .orb::after { transition: none; }
 }
+
+/* Barcode. Das Videobild bleibt flach, damit die Seite nicht springt, wenn die
+   Kamera erst nach einer halben Sekunde ein Bild liefert. */
+.scan {
+  margin: 10px 0 4px; padding: 12px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--r-lg);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.scan video {
+  width: 100%; height: 190px; object-fit: cover;
+  background: #000; border-radius: var(--r-md);
+}
+.scan-hinweis { font-size: 13.5px; color: var(--muted); }
+.scan-eingabe { display: flex; gap: 8px; }
+.scan-eingabe input { flex: 1; min-width: 0; }

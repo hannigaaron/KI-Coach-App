@@ -1110,6 +1110,94 @@ $("essenFoto").addEventListener("change", async (event) => {
   }
 });
 
+/* ---------- Barcode ---------- */
+
+/**
+ * Der Scanner nutzt BarcodeDetector, wo der Browser ihn hat, sonst bleibt das
+ * Eingabefeld. Ein Barcode hat dreizehn Ziffern, die tippt man in zehn Sekunden
+ * ab. Eine Kamerabibliothek dafuer waere die erste Laufzeitabhaengigkeit der App
+ * und rund 300 Kilobyte, die jeder Aufruf laedt.
+ */
+let scanStrom = null;
+let scanLaeuft = false;
+
+async function scanStarten() {
+  const box = $("scanBox");
+  box.hidden = false;
+  $("scanCode").focus();
+
+  const kannScannen = "BarcodeDetector" in window;
+  if (!kannScannen) {
+    $("scanHinweis").textContent = "Dieser Browser kann keine Barcodes lesen. Tipp die Ziffern unter dem Strichcode ein.";
+    $("scanVideo").hidden = true;
+    return;
+  }
+
+  try {
+    scanStrom = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+    const video = $("scanVideo");
+    video.hidden = false;
+    video.srcObject = scanStrom;
+    await video.play();
+    $("scanHinweis").textContent = "Halte den Barcode ins Bild.";
+
+    const detector = new window.BarcodeDetector({ formats: ["ean_13", "ean_8", "upc_a", "upc_e"] });
+    scanLaeuft = true;
+    const suchen = async () => {
+      if (!scanLaeuft) return;
+      try {
+        const codes = await detector.detect(video);
+        if (codes.length && codes[0].rawValue) {
+          $("scanCode").value = codes[0].rawValue;
+          scanBeenden();
+          await barcodeNachschlagen(codes[0].rawValue);
+          return;
+        }
+      } catch { /* Ein einzelnes Bild ohne Code ist kein Fehler. */ }
+      requestAnimationFrame(suchen);
+    };
+    requestAnimationFrame(suchen);
+  } catch {
+    $("scanHinweis").textContent = "Kein Zugriff auf die Kamera. Tipp die Ziffern unter dem Strichcode ein.";
+    $("scanVideo").hidden = true;
+  }
+}
+
+function scanBeenden() {
+  scanLaeuft = false;
+  if (scanStrom) {
+    for (const spur of scanStrom.getTracks()) spur.stop();
+    scanStrom = null;
+  }
+  $("scanVideo").srcObject = null;
+  $("scanBox").hidden = true;
+}
+
+async function barcodeNachschlagen(code) {
+  const ziffern = String(code).replace(/\D/g, "");
+  if (ziffern.length < 8) { zeigeFeedback("mealFeedback", "Ein Barcode hat mindestens acht Ziffern.", true); return; }
+  zeigeFeedback("mealFeedback", "Ich schlage das Produkt nach.");
+  try {
+    const text = await buildActions({ onChange: refreshAll }).produktNachschlagen({ suche: ziffern });
+    zeigeFeedback("mealFeedback", text);
+  } catch (error) {
+    zeigeFeedback("mealFeedback", `Das hat nicht geklappt: ${error.message}`, true);
+  }
+}
+
+$("btnScan").addEventListener("click", () => {
+  if ($("scanBox").hidden) scanStarten(); else scanBeenden();
+});
+$("btnScanZu").addEventListener("click", scanBeenden);
+$("btnScanSuchen").addEventListener("click", () => {
+  const code = $("scanCode").value.trim();
+  scanBeenden();
+  barcodeNachschlagen(code);
+});
+$("scanCode").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); $("btnScanSuchen").click(); }
+});
+
 $("btnVoice").addEventListener("click", () => {
   if (!listener?.supported) { toast("Dieser Browser kann keine Spracherkennung."); return; }
   const einmal = new Listener({
