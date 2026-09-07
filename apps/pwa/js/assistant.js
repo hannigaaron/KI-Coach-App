@@ -1,7 +1,7 @@
 import {
   Agent, AnthropicProvider, Coach, addiere, buildShoppingList, cacheQuote, denktiefe, dollarText,
   einstufeAufgabe, einstufungText, ersparnis, hochrechnung, kopfLeeren, kopfText, leereSumme,
-  mahlzeitAusFoto, modellFuerBilder, summiere, vorratAusFoto,
+  mahlzeitAusFoto, modellFuerBilder, produktPerBarcode, produkteSuchen, summiere, vorratAusFoto,
 } from "@daevo/coach";
 import {
   abendAbschluss,
@@ -33,6 +33,9 @@ import {
   scoreDay,
   estimateTdee,
   BEREICH_NAME,
+  naehrwerteFuer,
+  portionsVorschlag,
+  produktText,
   standardZumNachhaken,
   standardsStatus,
   tagesnutzung,
@@ -1267,6 +1270,74 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
       const n = dayNumbers();
       return `Eingetragen: ${posten}. Zusammen ${kcal} kcal und ${protein} g Protein. ` +
         `Offen sind noch ${n.rest.kcal} kcal und ${Math.max(0, n.rest.proteinG)} g Protein.${warnung}`;
+    },
+
+    /**
+     * Naehrwerte eines Markenprodukts aus Open Food Facts.
+     *
+     * Der Barcode trifft genau, der Name ist eine Suche. Deshalb wird bei einer
+     * reinen Ziffernfolge direkt der Barcode abgefragt und sonst gesucht, und
+     * bei mehreren Treffern kommt die Auswahl in die Antwort statt einer
+     * stillen Entscheidung fuer den ersten.
+     */
+    async produktNachschlagen({ suche, gramm, erfassen } = {}) {
+      const q = String(suche ?? "").trim();
+      if (q.length < 3) return "Wonach soll ich suchen?";
+
+      const nurZiffern = /^\d{8,14}$/.test(q.replace(/\s/g, ""));
+      let treffer = [];
+      if (nurZiffern) {
+        const t = await produktPerBarcode(q.replace(/\s/g, ""));
+        if (t) treffer = [t];
+      } else {
+        treffer = await produkteSuchen(q, { anzahl: 5 });
+      }
+
+      if (treffer.length === 0) {
+        return `${q} steht nicht in Open Food Facts, oder die Datenbank antwortet gerade nicht. `
+          + "Scann den Barcode oder fotografier das Nährwertetikett, dann lese ich die Werte ab statt sie zu raten.";
+      }
+
+      const beste = treffer[0];
+      const p = beste.produkt;
+      const menge = gramm ?? portionsVorschlag(p)?.gramm ?? 100;
+      const zeilen = [produktText(p, menge)];
+
+      if (beste.einwaende.length) {
+        zeilen.push(`Achtung: ${beste.einwaende.join(" ")} Prüf die Packung, bevor du das übernimmst.`);
+      }
+      if (!gramm) {
+        const v = portionsVorschlag(p);
+        zeilen.push(v ? `Gerechnet mit ${v.gramm} g, ${v.grund}.` : "Gerechnet mit 100 g, weil keine Portion angegeben ist.");
+      }
+      if (treffer.length > 1) {
+        const rest = treffer.slice(1, 4).map((t) => `${t.produkt.marke} ${t.produkt.name}`.trim()).join(", ");
+        zeilen.push(`Ebenfalls gefunden: ${rest}. Wenn das eher passt, sag es.`);
+      }
+
+      if (erfassen) {
+        const w = naehrwerteFuer(p, menge);
+        store.addMeal(todayIso(), {
+          id: newId(),
+          text: `${p.marke} ${p.name}, ${Math.round(menge)} g`.trim(),
+          at: nowTime(),
+          source: "datenbank",
+          entries: [{
+            name: `${p.marke} ${p.name}`.trim(),
+            quantity: `${Math.round(menge)} g`,
+            kcal: w.kcal,
+            proteinG: w.proteinG,
+            fatG: w.fatG,
+            carbsG: w.carbsG,
+          }],
+          feeling: null,
+        });
+        changed();
+        const n = dayNumbers();
+        zeilen.push(`Eingetragen. Offen sind noch ${n.rest.kcal} kcal und ${Math.max(0, n.rest.proteinG)} g Protein.`);
+      }
+
+      return zeilen.join("\n");
     },
 
     async wasserEintragen(ml) {

@@ -59,7 +59,7 @@ Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
 
-Der Assistent hat dreissig Werkzeuge und verändert die App wirklich. Zahlen
+Der Assistent hat einunddreissig Werkzeuge und verändert die App wirklich. Zahlen
 über den Nutzer kommen immer aus Werkzeugen, nie aus dem Modell. Allgemeines
 Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
@@ -143,7 +143,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 367 Tests
+npm test           # 389 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -306,6 +306,45 @@ ein paar Dutzend Kreise, kein Partikelfeld wie beim Orb. `wertungsRing` ist der
 grosse Ring mit Etikett, Zahl und Urteil, `metrikRing` die kleine Kennzahl mit
 Richtungspfeil gegen gestern. Beides steht oben auf der Tagesansicht.
 
+## Nährwerte von Markenprodukten
+
+`packages/core/src/produkt.ts` rechnet und prüft, `packages/coach/src/off.ts`
+ruft ab. Quelle ist Open Food Facts. Der Dienst setzt
+`access-control-allow-origin: *`, deshalb läuft der Abruf direkt im Browser,
+ohne Server und ohne Abhängigkeit.
+
+Zwei Wege mit sehr unterschiedlicher Güte. Der Barcode über `/api/v2/product`
+trifft genau und ist stabil. Die Textsuche über `/cgi/search.pl` antwortet unter
+Last mit 503 und einer HTML Seite, deshalb ein zweiter Versuch und eine Prüfung
+auf den Inhaltstyp. Ohne die zweite Prüfung wirft das Auslesen, und der Nutzer
+sieht einen Fehler statt eines leeren Ergebnisses.
+
+Gelesen wird ausschliesslich `_100g`. Open Food Facts liefert je Nährwert bis zu
+fünf Felder, und `proteins_serving` steht beim Grießpudding auf 34,2 gegen 57 je
+100 Gramm. Wer das falsche Feld liest, rechnet jede Menge falsch.
+
+Die Makrorechnung ist die Kontrolle, nicht die Wahrheit. Auf dem Etikett steht
+der Wert des Herstellers, und der zählt Ballaststoffe mit 2 kcal je Gramm statt
+mit 4. Beim Grießpudding sind das 346 deklariert gegen 336 nach der einfachen
+Formel, und die Lücke sind genau die 4,1 Gramm Ballaststoffe. Deshalb wird der
+deklarierte Wert nicht überschrieben, sondern nur ab einer Abweichung gemeldet,
+die kein Nährstoff mehr erklärt. Faktoren nach Verordnung (EU) Nr. 1169/2011,
+Anhang XIV.
+
+Der Regelpfad erkennt einen Barcode an acht oder dreizehn Ziffern und eine Marke
+über eine kurze Wortliste in `agent.ts`. Gesucht wird auf Wortgrenzen: "dm"
+steckt in "Kardamom", und eine falsche Erkennung liefert am Ende ein fremdes
+Produkt. Mit Schlüssel entscheidet das Modell über `produkt_nachschlagen` und
+kennt weit mehr Marken als die Liste.
+
+Der Barcode Scanner in `apps/pwa/js/app.js` nutzt `BarcodeDetector`, wo der
+Browser ihn hat, sonst bleibt das Eingabefeld. Eine Kamerabibliothek wäre die
+erste Laufzeitabhängigkeit der App und rund 300 Kilobyte je Aufruf. Dreizehn
+Ziffern tippt man in zehn Sekunden.
+
+Findet die Datenbank nichts, nennt der Coach zwei Wege: Barcode scannen oder das
+Nährwertetikett fotografieren. Vom Etikett liest das Modell ab, da rät es nicht.
+
 ## Das Menue
 
 Fünf Einträge statt vierzehn: Assistent, Ernährung, Coaching, Planung und
@@ -388,5 +427,5 @@ Schlüssel ohne Guthaben ist der häufigste Fall und sah vorher aus wie ein
 falscher.
 
 Offen: Push Benachrichtigungen bei geschlossener App, Apple Health und
-Wearables, Wortaktivierung, echte Nährwertdatenbank, Anmeldung über Apple.
+Wearables, Wortaktivierung, Anmeldung über Apple.
 Siehe `docs/ROADMAP.md`.

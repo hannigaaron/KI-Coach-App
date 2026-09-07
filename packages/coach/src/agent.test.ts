@@ -6,6 +6,7 @@ import type { ChatMessage, CoachProvider, ContentBlock, ConverseRequest, Convers
 function stubActions(log: string[]): AgentActions {
   return {
     async mahlzeitErfassen(b) { log.push(`mahlzeit:${b}`); return "Eingetragen: 500 kcal, 40 g Protein."; },
+    async produktNachschlagen(i) { log.push(`produkt:${i.suche}:${i.gramm ?? ""}:${i.erfassen ? "ja" : "nein"}`); return "More Nutrition Grießpudding, 346 kcal je 100 g."; },
     async wasserEintragen(ml) { log.push(`wasser:${ml}`); return `${ml} ml eingetragen.`; },
     async tagesstandAbrufen() { log.push("stand"); return "Heute 1200 von 3000 kcal, 60 von 139 g Protein."; },
     async mahlzeitVorschlagen(w) { log.push(`vorschlag:${w ?? ""}`); return "Reis mit Ei."; },
@@ -194,4 +195,51 @@ test("Regelpfad sagt ehrlich, wenn er nicht weiterweiss", async () => {
   const reply = await runOffline("Erklär mir die Weltwirtschaft", stubActions([]));
   assert.match(reply.text, /verstehe ich nur einfache Sätze/);
   assert.equal(reply.ausgeführt.length, 0);
+});
+
+test("ein Barcode geht ohne Schluessel direkt in die Datenbank", async () => {
+  const log: string[] = [];
+  await runOffline("Ich hatte den hier gegessen: 4255719307476", stubActions(log));
+  assert.equal(log[0], "produkt:4255719307476::ja");
+});
+
+test("eine Marke im Text schlaegt nach statt zu raten", async () => {
+  const log: string[] = [];
+  await runOffline("Ich hatte einen More Nutrition Grießpudding", stubActions(log));
+  assert.match(log[0]!, /^produkt:/);
+  assert.match(log[0]!, /More Nutrition/);
+});
+
+test("die Grammangabe wandert mit und faellt aus dem Suchbegriff", async () => {
+  const log: string[] = [];
+  await runOffline("60 g More Nutrition Grießpudding gegessen", stubActions(log));
+  assert.match(log[0]!, /^produkt:/);
+  assert.match(log[0]!, /:60:ja$/);
+  assert.ok(!log[0]!.includes("60 g"), "die Menge gehoert nicht in den Suchbegriff");
+});
+
+test("eine Frage nach einer Marke traegt nichts ein", async () => {
+  const log: string[] = [];
+  await runOffline("Wie viele Kalorien hat ein More Nutrition Grießpudding", stubActions(log));
+  assert.match(log[0]!, /:nein$/);
+});
+
+test("Grundnahrungsmittel gehen weiter an die Mahlzeit", async () => {
+  const log: string[] = [];
+  await runOffline("Ich hatte 200 g Hähnchenbrust und Reis gegessen", stubActions(log));
+  assert.match(log[0]!, /^mahlzeit:/);
+});
+
+test("eine Marke in einem laengeren Wort loest nichts aus", async () => {
+  // "dm" steckt in "Kardamom". Ohne Wortgrenze schickt jeder Gewuerztext eine
+  // Datenbankabfrage los und bekommt ein fremdes Produkt zurueck.
+  const log: string[] = [];
+  await runOffline("Ich hatte Reis mit Kardamom gegessen", stubActions(log));
+  assert.match(log[0]!, /^mahlzeit:/);
+});
+
+test("eine Jahreszahl ist kein Barcode", async () => {
+  const log: string[] = [];
+  await runOffline("Ich wiege seit 2024 immer 87 kg", stubActions(log));
+  assert.ok(!log.some((z) => z.startsWith("produkt:")), "vier Ziffern sind kein Barcode");
 });

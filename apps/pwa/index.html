@@ -180,10 +180,22 @@ try {
         <div class="composer-actions">
           <button id="btnVoice" class="ghost">Diktieren</button>
           <button id="btnFotoEssen" class="ghost">Foto</button>
+          <button id="btnScan" class="ghost">Barcode</button>
           <button id="btnParse" class="primary">Erfassen</button>
         </div>
       </div>
       <div id="mealFeedback" class="feedback" hidden></div>
+
+      <div id="scanBox" class="scan" hidden>
+        <video id="scanVideo" playsinline muted></video>
+        <div id="scanHinweis" class="scan-hinweis">Halte den Barcode ins Bild.</div>
+        <div class="scan-eingabe">
+          <input id="scanCode" type="text" inputmode="numeric" autocomplete="off"
+                 placeholder="Barcode eintippen, etwa 4255719307476">
+          <button id="btnScanSuchen" class="primary">Nachschlagen</button>
+        </div>
+        <button id="btnScanZu" class="ghost">Schliessen</button>
+      </div>
 
       <h2 class="section-title">Wie ging es dir danach</h2>
       <div id="feelingRow" class="feelings"></div>

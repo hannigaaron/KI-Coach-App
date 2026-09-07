@@ -32,6 +32,7 @@ export interface AgentContext {
 /** Was der Assistent in der App auslösen kann. Die App liefert die Umsetzung. */
 export interface AgentActions {
   mahlzeitErfassen(beschreibung: string): Promise<string>;
+  produktNachschlagen(input: { suche: string; gramm?: number; erfassen?: boolean }): Promise<string>;
   wasserEintragen(ml: number): Promise<string>;
   tagesstandAbrufen(): Promise<string>;
   mahlzeitVorschlagen(wunsch?: string): Promise<string>;
@@ -451,6 +452,14 @@ async function execute(
         });
         return { text, notiz: `${minuten} Minuten auf ${bereich} gebucht` };
       }
+      case "produkt_nachschlagen": {
+        const suche = String(input.suche ?? "").trim();
+        if (suche.length < 3) return { text: "Wonach soll ich suchen?", fehler: true };
+        const gramm = Number.isFinite(Number(input.gramm)) ? clamp(Number(input.gramm), 1, 3000) : undefined;
+        const erfassen = input.erfassen === true;
+        const text = await actions.produktNachschlagen({ suche, gramm, erfassen });
+        return { text, notiz: erfassen ? `${suche} erfasst` : undefined };
+      }
       case "balance_abrufen": {
         const tage = Number.isFinite(Number(input.tage)) ? clamp(Number(input.tage), 1, 90) : undefined;
         return { text: await actions.balanceAbrufen({ tage }) };
@@ -600,6 +609,38 @@ const NUMBER_WORDS: Record<string, number> = Object.fromEntries(
   }).map(([wort, zahl]) => [foldUmlauts(wort), zahl]),
 );
 
+/**
+ * Marken, bei denen die Naehrwerte auf der Packung stehen und nicht in einer
+ * Naehrwerttabelle. Kurz gehalten und nur eindeutige Namen: eine falsche
+ * Erkennung schickt eine Datenbankabfrage los, wo eine Tabelle gereicht haette,
+ * und liefert am Ende ein fremdes Produkt.
+ *
+ * Diese Liste ist nur der Regelpfad ohne Schluessel. Mit Schluessel entscheidet
+ * das Modell ueber das Werkzeug produkt_nachschlagen und kennt weit mehr Marken.
+ */
+const MARKEN = [
+  "more nutrition", "esn", "myprotein", "foodspring", "bodylab", "weider",
+  "alpro", "oatly", "landliebe", "mueller", "danone", "actimel", "skyr",
+  "corny", "kinder", "milka", "haribo", "barebells", "grenade", "quest",
+  "rewe", "edeka", "lidl", "aldi", "kaufland", "dm", "rossmann", "penny",
+  "dr oetker", "iglo", "knorr", "maggi", "barilla", "nestle", "kellogs",
+  "koelln", "seitenbacher", "veganz", "rittersport", "lindt",
+];
+
+/** Marken auf Wortgrenzen suchen. "dm" darf nicht in "Kardamom" treffen. */
+function enthaeltMarke(text: string, marke: string): boolean {
+  const m = foldUmlauts(marke).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^a-z0-9])${m}([^a-z0-9]|$)`).test(text);
+}
+
+/** Eine Grammangabe aus dem Text, etwa "60g" oder "250 ml". */
+function extractGramm(text: string): number | null {
+  const t = text.match(/(\d+(?:[.,]\d+)?)\s*(g|gramm|ml)\b/);
+  if (!t) return null;
+  const n = Number((t[1] ?? "").replace(",", "."));
+  return Number.isFinite(n) && n > 0 && n <= 3000 ? n : null;
+}
+
 function foldUmlauts(text: string): string {
   return text.replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss");
 }
@@ -664,6 +705,29 @@ export async function runOffline(
       const antwort = await actions.wasserEintragen(ml);
       return { text: antwort, ausgeführt: [`${ml} ml Wasser eingetragen`], source: "offline" };
     }
+  }
+
+  // Markenprodukte vor der allgemeinen Mahlzeit pruefen. Ohne Schluessel raet
+  // sonst die Wortliste in foods.ts, und die kennt nur Grundnahrungsmittel.
+  // Ein Barcode trifft genau, eine Marke im Text ist ein starkes Indiz.
+  const barcode = text.match(/(?:^|\D)(\d{13}|\d{8})(?:\D|$)/);
+  if (barcode) {
+    const gramm = extractGramm(text);
+    const antwort = await actions.produktNachschlagen({
+      suche: barcode[1] ?? "",
+      gramm: gramm ?? undefined,
+      erfassen: pattern("gegessen", "esse", "hatte", "getrunken", "eintragen").test(text),
+    });
+    return { text: antwort, ausgeführt, source: "offline" };
+  }
+  if (MARKEN.some((m) => enthaeltMarke(text, m))) {
+    const gramm = extractGramm(text);
+    const antwort = await actions.produktNachschlagen({
+      suche: nachricht.replace(/\b\d+\s*(g|gramm|ml)\b/gi, "").trim(),
+      gramm: gramm ?? undefined,
+      erfassen: pattern("gegessen", "esse", "hatte", "getrunken", "eintragen").test(text),
+    });
+    return { text: antwort, ausgeführt, source: "offline" };
   }
 
   if (pattern("gegessen", "esse", "hatte", "frühstück", "mittag", "abendessen", "snack").test(text)) {

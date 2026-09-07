@@ -296,6 +296,37 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: "produkt_nachschlagen",
+    description:
+      "Schlägt ein Markenprodukt in Open Food Facts nach und liefert die echten Nährwerte vom Etikett. "
+      + "IMMER nehmen, sobald ein Hersteller oder eine Marke fällt: More Nutrition, ESN, Alpro, Müller, "
+      + "Lidl, Rewe Bio, ein Riegel, ein Shake, ein Fertiggericht, ein Pudding. "
+      + "Bei einem Markenprodukt raten heisst danebenliegen: die Werte stehen auf der Packung und sind "
+      + "in der Datenbank hinterlegt, dein Gedächtnis kennt sie nicht. "
+      + "Ein Barcode als Suche trifft genau, ein Name ist eine Suche und kann danebengehen. "
+      + "Für Grundnahrungsmittel wie Reis, Hähnchen oder Haferflocken nicht nötig, dafür reicht essen_erfassen.",
+    input_schema: {
+      type: "object",
+      properties: {
+        suche: {
+          type: "string",
+          description: "Barcode als Ziffernfolge, sonst Marke und Produktname zusammen, etwa "
+            + "\"More Nutrition Grießpudding\". Nur der Produktname ohne Marke findet meist das Falsche.",
+        },
+        gramm: {
+          type: "number",
+          description: "Wie viel Gramm er gegessen hat. Ohne Angabe wird die Portion des Herstellers genommen.",
+        },
+        erfassen: {
+          type: "boolean",
+          description: "Wahr, wenn er das Produkt gegessen hat und es in den Tag soll. "
+            + "Falsch oder weglassen, wenn er nur nach den Nährwerten fragt.",
+        },
+      },
+      required: ["suche"],
+    },
+  },
+  {
     name: "balance_abrufen",
     description:
       "Liefert das Life Balance Board: wie viele Minuten in Karriere, Fitness, Wellbeing, Me Time und " +
