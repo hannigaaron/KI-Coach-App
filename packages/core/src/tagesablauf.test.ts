@@ -195,3 +195,24 @@ test("Termine ohne Trainingsbezug landen nicht im Plan", () => {
   }
   assert.deepEqual(trainingsplanAusKalender(termine), []);
 });
+
+test("Kundentermine landen nicht im eigenen Trainingsplan", () => {
+  // Sein Kalender hat zwanzig Mal "Rolf pt Studio" am selben Wochentag. Das
+  // ist seine Arbeit, nicht sein Training, und darf nicht ins Profil wandern.
+  const termine: Termin[] = [];
+  for (const woche of [0, 1, 2, 3, 4]) {
+    const d = new Date(2026, 8, 2 + woche * 7, 11, 15);
+    termine.push({
+      uid: `pt${woche}`, titel: "Rolf pt Studio 11.15", ort: "",
+      von: d.getTime(), bis: d.getTime() + 60 * 60000, ganztags: false,
+    });
+    const e = new Date(2026, 8, 2 + woche * 7, 19, 0);
+    termine.push({
+      uid: `v${woche}`, titel: "Volleyball", ort: "",
+      von: e.getTime(), bis: e.getTime() + 120 * 60000, ganztags: false,
+    });
+  }
+  const plan = trainingsplanAusKalender(termine);
+  assert.equal(plan.length, 1);
+  assert.equal(plan[0]!.titel, "Volleyball");
+});

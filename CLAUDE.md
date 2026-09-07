@@ -143,7 +143,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 353 Tests
+npm test           # 367 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -256,8 +256,14 @@ Kalendertiteln und aus eingetragenen Trainings, nichts wird geschätzt.
 Die Wortlisten je Bereich sind kurz und eindeutig. Ein Wort, das in zwei
 Bereichen vorkommen könnte, gehört in keinen: eine falsche Zuordnung ist
 schlimmer als eine fehlende, weil sie eine Zahl erzeugt, der man glaubt.
-Fitness wird vor Karriere geprüft, weil "Athletiktraining" Arbeit ist und
-"Krafttraining" nicht. Zeit, die nirgends passt, wird als nicht zugeordnet
+"Athletiktraining" ist Arbeit, "Krafttraining" nicht.
+
+Gesucht wird auf Wortgrenzen, nicht als Teilzeichenkette. Das Muster "pt " mit
+Leerzeichen fand "Alina Pt" am Zeilenende nie, und damit fiel ein Drittel der
+echten Kundentermine durch. `trainingsplanAusKalender` benutzt dieselbe
+Zuordnung: was nicht in den Bereich Fitness fällt, ist kein eigenes Training.
+Ohne das schlägt die App einem Personal Trainer seine Kundenstunden als
+eigenen Trainingsplan vor. Zeit, die nirgends passt, wird als nicht zugeordnet
 ausgewiesen und zählt nirgends mit.
 
 Es gibt zwei Prozentzahlen, und sie beantworten verschiedene Fragen. Der Anteil
@@ -357,6 +363,12 @@ Mittags Check-in, Aufgaben mit Priorisierung, Kopf leeren, Balance Board,
 Tagesabschluss, Muster über
 Wochen, Widerspruchsprüfung, Tag und Nacht
 Modus, installierbare Web App, Marke, API.
+Der Schlüssel lässt sich im Profil prüfen. Zwei Schritte, weil zwei Dinge
+schiefgehen können: die Modellliste kostet nichts und zeigt, ob der Schlüssel
+gilt, eine winzige Nachricht danach zeigt, ob Guthaben da ist. Ein gültiger
+Schlüssel ohne Guthaben ist der häufigste Fall und sah vorher aus wie ein
+falscher.
+
 Offen: Push Benachrichtigungen bei geschlossener App, Apple Health und
 Wearables, Wortaktivierung, echte Nährwertdatenbank, Anmeldung über Apple.
 Siehe `docs/ROADMAP.md`.

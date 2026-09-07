@@ -291,3 +291,51 @@ test("alle fünf Bereiche stehen im Text", () => {
   assert.ok(text.includes("Wellbeing"));
   assert.ok(text.includes("Me Time"));
 });
+
+/* ---------- Gegen echte Kalendertitel ---------- */
+
+test("Kundentermine dieses Nutzers sind Karriere, nicht Fitness", () => {
+  // Er ist Personal Trainer. Sein Kalender ist voll mit fremdem Training.
+  for (const titel of [
+    "Rolf pt Studio 11.15", "BIRGIT KKL PT 12:30 Uhr", "Alina Pt", "Jacob Pt",
+    "13:00 Uhr Simon Pt", "18:15 Uhr Sandra Pt", "12:30 Uhr Esther Check in call",
+    "Athletiktraining Seminar München", "20:15 Zirkeltraining tsfc",
+    "15:30 Uhr Tanja marinkovic Erstgespräch",
+  ]) {
+    assert.equal(bereichVon(titel), "karriere", titel);
+  }
+});
+
+test("Pt am Ende eines Titels wird gefunden", () => {
+  // Das alte Muster verlangte ein Leerzeichen hinter pt. Ein Drittel seiner
+  // echten Kundentermine fiel damit durch.
+  assert.equal(bereichVon("Alina Pt"), "karriere");
+  assert.equal(bereichVon("11:00 Rolf Pt"), "karriere");
+});
+
+test("ein Wort in einem anderen Wort zählt nicht", () => {
+  // Wortgrenzen statt Teilzeichenkette: "Optiker" enthält pt, ist aber keins.
+  assert.equal(bereichVon("Termin beim Optiker"), null);
+});
+
+test("sein eigenes Training bleibt Fitness", () => {
+  assert.equal(bereichVon("Krafttraining"), "fitness");
+  assert.equal(bereichVon("11:30 calisthenics Antony"), "fitness");
+  assert.equal(bereichVon("Volleyball Spiel"), "fitness");
+});
+
+test("Journal und Arztbesuch zählen als Wellbeing", () => {
+  assert.equal(bereichVon("Journal Time (Notizen)"), "wellbeing");
+  assert.equal(bereichVon("09:30 Uhr dr ditlevsen"), "wellbeing");
+});
+
+test("Geldthemen zählen als Karriere", () => {
+  assert.equal(bereichVon("Finanztracking Monatsmitte"), "karriere");
+  assert.equal(bereichVon("Celestica Aktie Trade Republic anschauen"), "karriere");
+});
+
+test("Familie bleibt Familie", () => {
+  for (const titel of ["18:30 Oma Eri essen", "Essen mit Mama Papa Lydi", "19:00 Papa Billard"]) {
+    assert.equal(bereichVon(titel), "beziehung", titel);
+  }
+});

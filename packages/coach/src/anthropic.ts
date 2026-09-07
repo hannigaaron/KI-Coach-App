@@ -265,6 +265,75 @@ export class AnthropicProvider implements CoachProvider {
     }
   }
 
+  /**
+   * Prüft den Schlüssel und meldet, was wirklich schiefgeht.
+   *
+   * Ohne diese Prüfung fällt jeder Fehler still auf den Regelweg zurück, und
+   * der Nutzer sieht eine Antwort, die aussieht wie eine Antwort. Genau das
+   * ist der schlimmste Fall: die App wirkt kaputt, ohne es zu sagen.
+   *
+   * Zwei Schritte, weil zwei verschiedene Dinge schiefgehen können. Die Liste
+   * der Modelle kostet nichts und zeigt, ob der Schlüssel überhaupt gilt. Eine
+   * winzige Nachricht danach zeigt, ob Guthaben da ist. Ein gültiger Schlüssel
+   * ohne Guthaben ist der häufigste Fall und sieht sonst aus wie ein falscher
+   * Schlüssel.
+   */
+  async pruefe(): Promise<{ ok: boolean; schluessel: boolean; guthaben: boolean; meldung: string }> {
+    if (!this.available) {
+      return { ok: false, schluessel: false, guthaben: false, meldung: "Kein Schlüssel eingetragen." };
+    }
+
+    const holen = this.fetchImpl;
+    try {
+      const liste = await holen("https://api.anthropic.com/v1/models?limit=1", {
+        method: "GET",
+        headers: this.headers(),
+      });
+      if (!liste.ok) {
+        const text = await liste.text();
+        return {
+          ok: false, schluessel: false, guthaben: false,
+          meldung: liste.status === 401
+            ? "Der Schlüssel wird abgelehnt. Prüf, ob er vollständig kopiert wurde, und ob er nicht gelöscht ist."
+            : `Der Schlüssel wurde abgelehnt, Status ${liste.status}. ${kurz(text)}`,
+        };
+      }
+    } catch (error) {
+      return {
+        ok: false, schluessel: false, guthaben: false,
+        meldung: `Keine Verbindung zur API: ${(error as Error).message}`,
+      };
+    }
+
+    try {
+      const antwort = await holen(API_URL, {
+        method: "POST",
+        headers: this.headers(),
+        body: JSON.stringify({
+          model: this.options.model,
+          max_tokens: 1,
+          messages: [{ role: "user", content: "ok" }],
+        }),
+      });
+      if (antwort.ok) {
+        return { ok: true, schluessel: true, guthaben: true, meldung: "Schlüssel gültig, Guthaben vorhanden." };
+      }
+      const text = await antwort.text();
+      const fehlend = antwort.status === 400 && /credit|balance|guthaben/i.test(text);
+      return {
+        ok: false, schluessel: true, guthaben: false,
+        meldung: fehlend
+          ? "Der Schlüssel gilt, aber das Konto hat kein Guthaben. Lade in der Anthropic Console unter Billing auf."
+          : `Der Schlüssel gilt, die Anfrage scheitert trotzdem, Status ${antwort.status}. ${kurz(text)}`,
+      };
+    } catch (error) {
+      return {
+        ok: false, schluessel: true, guthaben: false,
+        meldung: `Der Schlüssel gilt, die Anfrage kam nicht durch: ${(error as Error).message}`,
+      };
+    }
+  }
+
   async generateJson<T>(request: JsonRequest): Promise<T> {
     if (!this.available) throw new ProviderUnavailableError("ANTHROPIC_API_KEY fehlt");
 
@@ -358,4 +427,17 @@ async function* leseEvents(body: ReadableStream<Uint8Array>): AsyncGenerator<Rec
       grenze = puffer.indexOf("\n\n");
     }
   }
+}
+
+
+/** Fehlertexte der API sind lang und enthalten JSON. Für die Anzeige kürzen. */
+function kurz(text: string): string {
+  try {
+    const daten = JSON.parse(text) as { error?: { message?: string } };
+    const meldung = daten.error?.message;
+    if (meldung) return meldung.slice(0, 200);
+  } catch {
+    // Kein JSON. Dann eben der rohe Anfang.
+  }
+  return text.replace(/\s+/g, " ").slice(0, 200);
 }

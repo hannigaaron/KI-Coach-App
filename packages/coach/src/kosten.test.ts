@@ -245,3 +245,76 @@ test("kleine Beträge werden in Cent geschrieben", () => {
   assert.equal(dollarText(0.42), "42 Cent");
   assert.equal(dollarText(3.5), "3.50 Dollar");
 });
+
+/* ---------- Der Schlüssel wird geprüft, statt still zu scheitern ---------- */
+
+function antwort(status: number, koerper: unknown): Response {
+  return new Response(typeof koerper === "string" ? koerper : JSON.stringify(koerper), {
+    status, headers: { "content-type": "application/json" },
+  });
+}
+
+test("ohne Schlüssel sagt die Prüfung das direkt", async () => {
+  const provider = new AnthropicProvider({ apiKey: undefined, model: "claude-opus-5" });
+  const e = await provider.pruefe();
+  assert.equal(e.ok, false);
+  assert.equal(e.schluessel, false);
+  assert.ok(e.meldung.includes("Kein Schlüssel"));
+});
+
+test("ein abgelehnter Schlüssel wird als solcher benannt", async () => {
+  const provider = new AnthropicProvider({
+    apiKey: "sk-falsch", model: "claude-opus-5",
+    fetchImpl: async () => antwort(401, { error: { message: "invalid x-api-key" } }),
+  });
+  const e = await provider.pruefe();
+  assert.equal(e.schluessel, false);
+  assert.ok(e.meldung.includes("wird abgelehnt"));
+});
+
+test("ein gültiger Schlüssel ohne Guthaben wird unterschieden", async () => {
+  // Der häufigste Fall und der, der sonst wie ein falscher Schlüssel aussieht.
+  const provider = new AnthropicProvider({
+    apiKey: "sk-test", model: "claude-opus-5",
+    fetchImpl: async (url) => String(url).includes("/models")
+      ? antwort(200, { data: [] })
+      : antwort(400, { error: { message: "Your credit balance is too low" } }),
+  });
+  const e = await provider.pruefe();
+  assert.equal(e.schluessel, true);
+  assert.equal(e.guthaben, false);
+  assert.ok(e.meldung.includes("kein Guthaben"));
+});
+
+test("gültig und bezahlt meldet sich als in Ordnung", async () => {
+  const provider = new AnthropicProvider({
+    apiKey: "sk-test", model: "claude-opus-5",
+    fetchImpl: async (url) => String(url).includes("/models")
+      ? antwort(200, { data: [] })
+      : antwort(200, { content: [{ type: "text", text: "ok" }], stop_reason: "end_turn" }),
+  });
+  const e = await provider.pruefe();
+  assert.equal(e.ok, true);
+  assert.equal(e.guthaben, true);
+});
+
+test("ein Netzwerkfehler wird als Netzwerkfehler gemeldet, nicht als falscher Schlüssel", async () => {
+  const provider = new AnthropicProvider({
+    apiKey: "sk-test", model: "claude-opus-5",
+    fetchImpl: async () => { throw new Error("Failed to fetch"); },
+  });
+  const e = await provider.pruefe();
+  assert.ok(e.meldung.includes("Keine Verbindung"));
+});
+
+test("die Fehlermeldung der API wird lesbar gekürzt", async () => {
+  const provider = new AnthropicProvider({
+    apiKey: "sk-test", model: "claude-opus-5",
+    fetchImpl: async (url) => String(url).includes("/models")
+      ? antwort(200, { data: [] })
+      : antwort(429, { error: { message: "rate limit exceeded for this model" } }),
+  });
+  const e = await provider.pruefe();
+  assert.ok(e.meldung.includes("rate limit exceeded"));
+  assert.equal(e.meldung.includes("{"), false);
+});
