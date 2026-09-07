@@ -162,6 +162,24 @@ export const store = {
     write("aufgaben", aufgaben.filter((a) => !a.erledigt || (a.erledigtAm || a.erstellt) > grenze).slice(0, 300));
   },
 
+  /**
+   * Zeit, die der Coach auf einen Lebensbereich gebucht hat.
+   *
+   * Der Kalender enthält bei diesem Nutzer fast nur Kundentermine. Ohne diese
+   * Buchungen behauptet das Balance Board, er hätte 92 Prozent des Tages
+   * nichts getan, und misst damit seine Kalenderpflege statt sein Leben.
+   */
+  getZeiten() {
+    return read("zeiten", []);
+  },
+  addZeit(eintrag) {
+    const alle = this.getZeiten();
+    alle.push(eintrag);
+    // Ein halbes Jahr reicht. Alles davor braucht kein Balance Board mehr.
+    const grenze = new Date(Date.now() - 190 * 86400000).toISOString().slice(0, 10);
+    write("zeiten", alle.filter((z) => z.tag >= grenze).slice(-1500));
+  },
+
   getStandards() {
     return read("standards", []);
   },
@@ -256,6 +274,7 @@ export const store = {
     out.shopping = this.getShoppingList();
     out.kalender = this.getKalender();
     out.aufgaben = this.getAufgaben();
+    out.zeiten = this.getZeiten();
     out.standards = this.getStandards();
     out.memories = this.getMemories();
     out.chat = this.getChat();

@@ -409,8 +409,8 @@ export function balanceEmpfehlung(e: EmpfehlungEingabe): Empfehlung {
   if (b.gesamtMinuten === 0) {
     return {
       bereich: null,
-      befund: "In diesem Zeitraum ist keine Minute zugeordnet. Ohne Kalender kann ich nichts empfehlen, nur raten.",
-      schritt: "Verbinde deinen Kalender im Menue unter Kalender. Danach rechne ich mit echten Zahlen.",
+      befund: "In diesem Zeitraum ist keine Minute zugeordnet. Ohne Daten kann ich nichts empfehlen, nur raten.",
+      schritt: "Verbinde deinen Kalender, sag mir eine Zeit, die du verbracht hast, oder hak eine Aufgabe ab. Danach rechne ich mit echten Zahlen.",
     };
   }
 

@@ -8,6 +8,7 @@ import {
   balance,
   balanceEmpfehlung,
   balanceText,
+  bereichVon,
   buildDailyReminders,
   muster,
   musterText,
@@ -31,6 +32,7 @@ import {
   remainingBudget,
   scoreDay,
   estimateTdee,
+  BEREICH_NAME,
   standardZumNachhaken,
   standardsStatus,
   tagesnutzung,
@@ -998,9 +1000,31 @@ export function balanceFuer(tage = 1, bisIso = todayIso()) {
   const profile = store.getProfile();
   const wach = profile ? wachMinuten(profile.wakeTime, profile.sleepTime) : 16 * 60;
 
+  // Was der Coach gebucht hat und was an Aufgaben erledigt wurde, zählt
+  // genauso. Ein Kalender voller Kundentermine ist kein Leben, und eine
+  // erledigte Aufgabe hat genauso Zeit gekostet wie ein Termin.
+  const zusatz = { karriere: 0, fitness: trainingMinuten, wellbeing: 0, me_time: 0, beziehung: 0 };
+  const vonTag = new Date(`${bisIso}T12:00:00`);
+  vonTag.setDate(vonTag.getDate() - (tage - 1));
+  const abIso = vonTag.toISOString().slice(0, 10);
+
+  for (const z of store.getZeiten()) {
+    if (z.tag < abIso || z.tag > bisIso) continue;
+    if (zusatz[z.bereich] === undefined) continue;
+    zusatz[z.bereich] += Number(z.minuten) || 0;
+  }
+
+  for (const a of store.getAufgaben()) {
+    if (!a.erledigt || !a.erledigtAm) continue;
+    const tag = a.erledigtAm.slice(0, 10);
+    if (tag < abIso || tag > bisIso) continue;
+    const bereich = bereichVon(a.text) ?? "karriere";
+    zusatz[bereich] += Number(a.minuten) || 0;
+  }
+
   return balance({
     termine: eindeutig,
-    zusatz: { fitness: trainingMinuten },
+    zusatz,
     ziele: store.getSettings().balanceZiele || undefined,
     basisMinuten: wach * tage,
     tage,
@@ -1055,10 +1079,14 @@ function freierBlock() {
 }
 
 export function balanceUebersicht(tage = 7) {
-  if ((store.getKalender().termine || []).length === 0) {
-    return "Kein Kalender verbunden. Ohne Termine kann ich die Balance nicht messen, nur raten, und raten tue ich nicht.";
+  // Der Kalender ist eine von drei Quellen. Gebuchte Zeiten und erledigte
+  // Aufgaben zaehlen genauso, also haengt die Sperre an gemessenen Minuten
+  // und nicht mehr daran, ob ein Kalender verbunden ist.
+  const b = balanceFuer(Math.max(1, Math.min(90, tage)));
+  if (b.gesamtMinuten === 0) {
+    return "Noch keine Minute gemessen. Verbinde deinen Kalender, trag eine Zeit ein oder hak eine Aufgabe ab, dann rechne ich mit echten Zahlen.";
   }
-  return balanceText(balanceFuer(Math.max(1, Math.min(90, tage))));
+  return balanceText(b);
 }
 
 /**
@@ -1340,6 +1368,22 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
       aufgabeAbhaken(a.id);
       changed();
       return `Abgehakt: ${a.text}.`;
+    },
+
+    async zeitEintragen({ bereich, minuten, was, tag } = {}) {
+      const eintrag = {
+        tag: tag || todayIso(),
+        bereich,
+        minuten: Math.max(5, Math.min(720, Number(minuten) || 0)),
+        was: String(was || "").slice(0, 80),
+        at: new Date().toISOString(),
+      };
+      store.addZeit(eintrag);
+      changed();
+      const stunden = eintrag.minuten >= 60
+        ? `${Math.round((eintrag.minuten / 60) * 10) / 10} Stunden`
+        : `${eintrag.minuten} Minuten`;
+      return `${stunden} auf ${BEREICH_NAME[bereich] || bereich} gebucht: ${eintrag.was}.`;
     },
 
     async balanceAbrufen({ tage } = {}) {

@@ -529,15 +529,31 @@ function renderTagWertung() {
   gesternTag.setDate(gesternTag.getDate() - 1);
   const gestern = tagesnutzungFuer(gesternTag.toISOString().slice(0, 10));
 
+  // Jede Kennzahl führt dorthin, wo man sie ändern kann. Eine Zahl ohne Weg
+  // zur Handlung ist nur eine Zahl.
+  const ZIEL = { Balance: "balance", Aufgaben: "tag", Standards: "standards", Ernährung: "essen" };
+
   const metriken = $("tagMetriken");
   metriken.innerHTML = "";
   for (const teil of heute.teile) {
     const alt = gestern.teile.find((x) => x.name === teil.name);
-    metriken.appendChild(metrikRing({
+    const kachel = metrikRing({
       name: teil.name,
       wert: teil.wert,
       richtung: richtungVon(teil.wert, alt?.wert),
-    }));
+    });
+    const ziel = ZIEL[teil.name];
+    if (ziel) {
+      kachel.classList.add("klickbar");
+      kachel.setAttribute("role", "button");
+      kachel.setAttribute("tabindex", "0");
+      kachel.dataset.ziel = ziel;
+      kachel.addEventListener("click", () => showView(ziel));
+      kachel.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); showView(ziel); }
+      });
+    }
+    metriken.appendChild(kachel);
   }
 
   const wrap = $("tagWertung");
@@ -575,8 +591,8 @@ function renderHeuteBalance() {
 
   const nutzung = tagesnutzungFuer(day);
   const leer = b.bereiche.filter((x) => x.minuten === 0).map((x) => x.name);
-  $("heuteBalanceHinweis").textContent = (store.getKalender().termine || []).length === 0
-    ? "Ohne verbundenen Kalender bleiben die Ringe leer. Menue, Kalender."
+  $("heuteBalanceHinweis").textContent = b.gesamtMinuten === 0
+    ? "Heute ist noch keine Minute gemessen. Kalender, eingetragene Zeit oder erledigte Aufgabe füllen die Ringe."
     : `Tagesnutzung ${nutzung.wert} von 100.${leer.length ? ` Noch nichts in: ${leer.join(", ")}.` : ""}`;
 }
 
@@ -986,7 +1002,21 @@ $("btnMenu").addEventListener("click", () => { $("menu").hidden = false; });
 $("btnMenuClose").addEventListener("click", () => { $("menu").hidden = true; });
 $("menu").addEventListener("click", (event) => {
   const item = event.target.closest("[data-go]");
-  if (item) showView(item.dataset.go);
+  if (item) { showView(item.dataset.go); return; }
+
+  // Immer nur eine Gruppe offen. Zwei offene Gruppen sind wieder eine lange
+  // Liste, und genau die sollte weg.
+  const kopf = event.target.closest(".menu-kopf");
+  if (!kopf) return;
+  const offen = kopf.getAttribute("aria-expanded") === "true";
+  for (const anderer of document.querySelectorAll(".menu-kopf")) {
+    anderer.setAttribute("aria-expanded", "false");
+    anderer.parentElement.querySelector(".menu-unter").hidden = true;
+  }
+  if (!offen) {
+    kopf.setAttribute("aria-expanded", "true");
+    kopf.parentElement.querySelector(".menu-unter").hidden = false;
+  }
 });
 for (const button of document.querySelectorAll("[data-back]")) {
   button.addEventListener("click", () => showView("assistant"));
@@ -1005,6 +1035,14 @@ for (const chip of document.querySelectorAll("[data-water]")) {
     await buildActions({ onChange: refreshAll }).wasserEintragen(Number(chip.dataset.water));
     toast(`${chip.dataset.water} ml eingetragen`);
   });
+}
+
+/** Rückmeldung in einer der Feedbackflächen zeigen. */
+function zeigeFeedback(id, text, fehler = false) {
+  const feld = $(id);
+  feld.hidden = false;
+  feld.className = fehler ? "feedback err" : "feedback";
+  feld.textContent = text;
 }
 
 $("btnParse").addEventListener("click", async () => {
@@ -1036,6 +1074,39 @@ $("btnParse").addEventListener("click", async () => {
   } finally {
     button.disabled = false;
     button.textContent = "Erfassen";
+  }
+});
+
+/**
+ * Teller fotografieren, direkt aus der Essensansicht.
+ *
+ * Derselbe Weg wie im Chat, nur ohne Umweg über das Gespräch: Bild
+ * verkleinern, auswerten, eintragen. Die Nährwerte laufen durch dieselbe
+ * Prüfung wie bei der Texteingabe.
+ */
+$("btnFotoEssen").addEventListener("click", () => $("essenFoto").click());
+
+$("essenFoto").addEventListener("change", async (event) => {
+  const datei = event.target.files?.[0];
+  event.target.value = "";
+  if (!datei) return;
+
+  const knopf = $("btnFotoEssen");
+  knopf.disabled = true;
+  knopf.textContent = "Liest";
+  zeigeFeedback("mealFeedback", "Ich schaue mir das Bild an.");
+  try {
+    const anhang = await anhangAusDatei(datei);
+    if (anhang.fehler) { zeigeFeedback("mealFeedback", anhang.fehler, true); return; }
+    const text = await buildActions({ onChange: refreshAll, anhaenge: [anhang] }).fotoAlsMahlzeit({});
+    zeigeFeedback("mealFeedback", text);
+    renderMeals("mealList2");
+    refreshAll();
+  } catch (error) {
+    zeigeFeedback("mealFeedback", `Das hat nicht geklappt: ${error.message}`, true);
+  } finally {
+    knopf.disabled = false;
+    knopf.textContent = "Foto";
   }
 });
 
@@ -1166,8 +1237,11 @@ function renderBalance() {
   }
 
   const teile = [];
-  if ((store.getKalender().termine || []).length === 0) {
-    teile.push("Kein Kalender verbunden. Ohne Termine bleiben die Ringe leer, egal wie voll dein Tag war.");
+  if (b.gesamtMinuten === 0) {
+    teile.push(
+      "Noch keine Minute gemessen. Verbinde deinen Kalender, trag eine Zeit ein " +
+      "oder hak eine Aufgabe ab, dann füllen sich die Ringe.",
+    );
   }
   if (b.nichtZugeordnet > 0) {
     teile.push(
