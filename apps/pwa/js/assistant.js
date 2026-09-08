@@ -8,6 +8,8 @@ import {
   balance,
   balanceEmpfehlung,
   balanceText,
+  checkinText,
+  checkinVergleich,
   bereichVon,
   buildDailyReminders,
   muster,
@@ -470,6 +472,7 @@ export function tagesErinnerungen(day = todayIso()) {
       mealsLogged: n.data.meals.length,
       waterMl: n.totals.waterMl,
       waterTargetMl: n.targets.waterMl,
+      wochenCheckinDone: store.getCheckinBoegen().some((b) => b.tag === day),
       morningCheckinDone: n.data.checkins.some((c) => c.kind === "morning"),
       eveningReviewDone: n.data.checkins.some((c) => c.kind === "evening"),
       middayCheckinDone: n.data.checkins.some((c) => c.kind === "midday"),
@@ -1286,6 +1289,32 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
      * Standard bleibt stehen, sonst verschiebt eine einzelne Frühschicht den
      * Schnitt für alle folgenden Tage.
      */
+    /**
+     * Einen ausgefüllten Wochenbogen auswerten.
+     *
+     * Der Vergleich mit der Vorwoche geht mit, weil ein einzelner Bogen eine
+     * Momentaufnahme ist. Erst "Stress von 40 auf 75" ist eine Aussage.
+     */
+    async checkinAuswerten({ bogen } = {}) {
+      const alle = store.getCheckinBoegen().filter((b) => b.bogen === bogen);
+      const jetzt = alle[alle.length - 1];
+      if (!jetzt) return "Da ist noch kein Bogen.";
+      const vorher = alle[alle.length - 2];
+
+      const teile = [checkinText(jetzt)];
+      const diff = checkinVergleich(jetzt, vorher);
+      if (diff.length) teile.push(`Verglichen mit dem letzten Mal:\n${diff.map((d) => `- ${d}`).join("\n")}`);
+
+      const frage = bogen === "mitte"
+        ? "Das ist mein Check-in von der Wochenmitte. Sag mir ehrlich, wie die Woche läuft, "
+          + "was die Zahlen zusammen bedeuten, und die eine Sache, die ich für den Rest der Woche ändere."
+        : "Das ist mein Wochenrückblick. Sag mir, was du siehst, ohne es schönzureden, "
+          + "und was ich nächste Woche anders mache. Eine Sache, nicht fünf.";
+
+      const antwort = await ask(`${teile.join("\n\n")}\n\n${frage}`);
+      return antwort.text;
+    },
+
     async tageszeitenSetzen({ tag, aufstehen, schlafen } = {}) {
       const profile = store.getProfile();
       if (!profile) return "Erst das Profil anlegen.";

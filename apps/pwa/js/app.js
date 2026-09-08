@@ -1,4 +1,7 @@
-import { BEREICHE, BEREICH_NAME, STANDARD_ZIELE, WOCHENTAGE, energyBreakdown, uhrzeit, weightTrend } from "@daevo/core";
+import {
+  BEREICHE, BEREICH_NAME, CHECKIN_BOEGEN, CHECKIN_MITTE, STANDARD_ZIELE, WOCHENTAGE,
+  bogenAmTag, bogenFuer, energyBreakdown, uhrzeit, weightTrend,
+} from "@daevo/core";
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE } from "@daevo/coach";
 import { Coach, AnthropicProvider } from "@daevo/coach";
 import {
@@ -15,7 +18,7 @@ import { brain } from "./brain.js";
 import { Orb } from "./orb.js";
 import { anhangAusDatei, grossInKb } from "./media.js";
 import { BEREICH_FARBE, anteilsRing, kurzDauer, metrikRing, richtungVon, ringMitZahl, wertungsRing } from "./rings.js";
-import { Listener, speak, stopSpeaking, voiceSupport } from "./voice.js";
+import { Listener, deutscheStimmen, speak, stopSpeaking, voiceSupport } from "./voice.js";
 import { SetupFlow } from "./setup-ui.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
 
@@ -297,8 +300,11 @@ async function send(text) {
     if (options.speak) {
       orb.setState("speaking");
       setStatus("spricht");
+      const stimmEinst = store.getSettings();
       speak(reply.text, {
         enabled: options.speak,
+        stimme: stimmEinst.stimme,
+        tempo: stimmEinst.sprechtempo,
         onEnd: () => {
           orb.setState("idle");
           setStatus("bereit");
@@ -479,6 +485,7 @@ function showView(name) {
   if (name === "tag") renderTag();
   if (name === "balance") renderBalance();
   if (name === "standards") renderStandards();
+  if (name === "wochencheck") wcStart();
   if (name === "empfehlungen") renderRecommendations();
   if (name === "profil") renderProfile();
   if (name === "assistant") renderTranscript();
@@ -839,6 +846,148 @@ function wochenzeitenLesen() {
   return out;
 }
 
+/**
+ * Die Stimmauswahl.
+ *
+ * Welche Stimmen ein Gerät hat, weiss nur das Gerät. Auf einem iPhone sind die
+ * besseren Varianten ein eigener Download unter Bedienungshilfen, und ohne den
+ * bleibt nur die Basisqualität. Deshalb steht die Liste hier zur Auswahl statt
+ * einer festen Stimme im Code, und der Hinweis sagt, was zu tun ist.
+ */
+function renderStimmwahl() {
+  const feld = $("e-stimme");
+  if (!feld) return;
+  const liste = deutscheStimmen();
+  const gewaehlt = store.getSettings().stimme || "";
+
+  if (liste.length === 0) {
+    feld.innerHTML = '<option value="">Keine deutsche Stimme gefunden</option>';
+    $("e-stimmhilfe").textContent = "Dieses Gerät hat keine deutsche Stimme installiert.";
+    return;
+  }
+
+  feld.innerHTML = liste.map((v) => {
+    const gut = /premium|neural|enhanced|natural/i.test(v.name);
+    return `<option value="${escapeHtml(v.name)}"${v.name === gewaehlt ? " selected" : ""}>`
+      + `${escapeHtml(v.name)}${gut ? " (bessere Qualität)" : ""}</option>`;
+  }).join("");
+
+  const beste = liste[0];
+  const hatGute = /premium|neural|enhanced|natural/i.test(beste?.name || "");
+  $("e-stimmhilfe").textContent = hatGute
+    ? "Ohne eigene Wahl nehme ich die beste männliche Stimme, die dein Gerät hat."
+    : "Dein Gerät hat nur Stimmen in Basisqualität. Auf dem iPhone lädst du bessere unter "
+      + "Einstellungen, Bedienungshilfen, Gesprochene Inhalte, Stimmen, Deutsch. "
+      + "Wähl dort eine Stimme mit dem Zusatz Premium. Der Unterschied ist deutlich grösser "
+      + "als zwischen zwei verschiedenen Stimmen.";
+}
+
+/* ---------- Wochen Check-in ---------- */
+
+// Welcher Bogen gerade offen ist. Standard ist der, der heute ansteht.
+let wcBogen = null;
+let wcWerte = {};
+
+function wcStart(id) {
+  const bogen = bogenFuer(id) || bogenAmTag(new Date().getDay()) || CHECKIN_MITTE;
+  wcBogen = bogen;
+  // Ein heute schon abgeschickter Bogen wird zum Bearbeiten geladen, statt den
+  // Nutzer alles neu tippen zu lassen.
+  const vorhanden = store.getCheckinBoegen()
+    .find((b) => b.bogen === bogen.id && b.tag === todayIso());
+  wcWerte = vorhanden ? { ...vorhanden.werte } : {};
+  renderWochencheck();
+}
+
+function renderWochencheck() {
+  if (!wcBogen) return wcStart();
+  const bogen = wcBogen;
+  $("wcTitel").textContent = bogen.titel;
+  $("wcEinleitung").textContent = bogen.einleitung;
+
+  const heute = new Date().getDay();
+  $("wcWahl").innerHTML = CHECKIN_BOEGEN.map((b) => {
+    const dran = b.wochentag === heute;
+    return `<button class="${b.id === bogen.id ? "primary" : "ghost"}" data-bogen="${b.id}">`
+      + `${escapeHtml(b.titel)}${dran ? " heute" : ""}</button>`;
+  }).join("");
+
+  $("wcFragen").innerHTML = bogen.fragen.map((f) => wcFrageHtml(f)).join("");
+  $("wcAktionen").hidden = false;
+  $("wcAuswertung").hidden = true;
+  renderWcVerlauf();
+}
+
+function wcFrageHtml(f) {
+  const wert = wcWerte[f.id];
+  const kopf = `<div class="wc-text">${escapeHtml(f.text)}</div>`
+    + (f.hinweis ? `<div class="wc-hinweis">${escapeHtml(f.hinweis)}</div>` : "");
+  const huelle = (inhalt) =>
+    `<div class="wc-frage${f.pflicht ? " pflicht" : ""}" data-frage="${f.id}">${kopf}${inhalt}</div>`;
+
+  if (f.typ === "zahl") {
+    const min = f.min ?? 1;
+    const max = f.max ?? 10;
+    const gesetzt = Number.isFinite(wert);
+    // Der Regler steht in der Mitte, die Anzeige bleibt aber leer, bis er
+    // bewegt wurde. Eine Zahl, die dasteht ohne dass jemand sie gewaehlt hat,
+    // ist keine Antwort, und im Verlauf sieht sie spaeter aus wie eine.
+    const v = gesetzt ? wert : Math.round((min + max) / 2);
+    const anteil = Math.round(((v - min) / (max - min)) * 100);
+    return huelle(
+      `<div class="wc-skala${gesetzt ? "" : " offen"}">
+        <input type="range" min="${min}" max="${max}" step="1" value="${v}" data-wert="${f.id}" data-typ="zahl"
+               style="--fuellung:${anteil}%">
+        <span class="wc-wert" data-anzeige="${f.id}">${gesetzt ? v : "&ndash;"}</span>
+      </div>
+      <div class="wc-enden"><span>${escapeHtml(f.vonWort ?? String(min))}</span><span>${escapeHtml(f.bisWort ?? String(max))}</span></div>`,
+    );
+  }
+  if (f.typ === "auswahl") {
+    const karten = (f.optionen || []).map((o) =>
+      `<button type="button" class="pill${wert === o ? " on" : ""}" data-wert="${f.id}" data-typ="auswahl"
+        data-option="${escapeHtml(o)}">${escapeHtml(o)}</button>`).join("");
+    return huelle(`<div class="pills">${karten}</div>`);
+  }
+  if (f.typ === "mehrfach") {
+    const liste = Array.isArray(wert) ? wert : [];
+    const karten = (f.optionen || []).map((o) =>
+      `<button type="button" class="pill${liste.includes(o) ? " on" : ""}" data-wert="${f.id}" data-typ="mehrfach"
+        data-option="${escapeHtml(o)}">${escapeHtml(o)}</button>`).join("");
+    return huelle(`<div class="pills">${karten}</div>`);
+  }
+  if (f.typ === "jaNein") {
+    return huelle(`<div class="pills">
+      <button type="button" class="pill${wert === true ? " on" : ""}" data-wert="${f.id}" data-typ="jaNein" data-option="ja">Ja</button>
+      <button type="button" class="pill${wert === false ? " on" : ""}" data-wert="${f.id}" data-typ="jaNein" data-option="nein">Nein</button>
+    </div>`);
+  }
+  if (f.typ === "dauer") {
+    const min = Number.isFinite(wert) ? wert : 0;
+    return huelle(`<div class="wc-dauer">
+      <input type="number" min="0" max="16" inputmode="numeric" value="${Math.floor(min / 60) || ""}"
+             data-wert="${f.id}" data-typ="dauer-h" placeholder="7"><span>Stunden</span>
+      <input type="number" min="0" max="59" inputmode="numeric" value="${min % 60 || ""}"
+             data-wert="${f.id}" data-typ="dauer-m" placeholder="30"><span>Minuten</span>
+    </div>`);
+  }
+  return huelle(`<textarea rows="2" data-wert="${f.id}" data-typ="text"
+    placeholder="">${escapeHtml(typeof wert === "string" ? wert : "")}</textarea>`);
+}
+
+function renderWcVerlauf() {
+  const liste = store.getCheckinBoegen()
+    .filter((b) => b.bogen === wcBogen.id)
+    .slice(-6)
+    .reverse();
+  $("wcVerlaufTitel").hidden = liste.length === 0;
+  $("wcVerlauf").innerHTML = liste.map((b) => {
+    const wann = new Date(`${b.tag}T12:00:00`).toLocaleDateString("de-DE", { day: "numeric", month: "long" });
+    const anzahl = Object.values(b.werte).filter((v) => v !== "" && v !== undefined).length;
+    return `<li><div><b>${wann}</b><span class="meta">${anzahl} von ${wcBogen.fragen.length} beantwortet</span></div></li>`;
+  }).join("");
+}
+
 function renderProfile() {
   const energy = energyBreakdown(profile);
   const targets = dayNumbers(day).targets;
@@ -854,6 +1003,8 @@ function renderProfile() {
   $("e-sleep").value = profile.sleepTime;
   $("e-randmodus").value = profile.wechselndeZeiten ? "wechselnd" : (profile.randModus || "gleich");
   renderWochenzeiten();
+  renderStimmwahl();
+  $("e-tempo").value = store.getSettings().sprechtempo ?? 0.96;
 
   const settings = store.getSettings();
   $("apiKey").value = settings.apiKey || "";
@@ -1891,7 +2042,123 @@ $("btnSaveProfile").addEventListener("click", () => {
   toast("Gespeichert");
 });
 
+/* Eingaben im Wochenbogen. Ein Listener auf dem Behaelter statt einem je Feld,
+   weil die Fragen bei jedem Rendern neu gebaut werden. */
+$("wochencheck").addEventListener("click", (event) => {
+  const wahl = event.target.closest("[data-bogen]");
+  if (wahl) { wcStart(wahl.dataset.bogen); return; }
+
+  const pille = event.target.closest("[data-wert][data-option]");
+  if (!pille) return;
+  const id = pille.dataset.wert;
+  const typ = pille.dataset.typ;
+  const option = pille.dataset.option;
+
+  if (typ === "auswahl") {
+    wcWerte[id] = wcWerte[id] === option ? undefined : option;
+  } else if (typ === "jaNein") {
+    const neu = option === "ja";
+    wcWerte[id] = wcWerte[id] === neu ? undefined : neu;
+  } else if (typ === "mehrfach") {
+    const liste = Array.isArray(wcWerte[id]) ? wcWerte[id] : [];
+    wcWerte[id] = liste.includes(option) ? liste.filter((x) => x !== option) : [...liste, option];
+  }
+  // Nur die betroffene Frage neu zeichnen, sonst springt die Seite nach oben.
+  const box = pille.closest("[data-frage]");
+  const frage = wcBogen.fragen.find((f) => f.id === id);
+  if (box && frage) box.outerHTML = wcFrageHtml(frage);
+});
+
+$("wochencheck").addEventListener("input", (event) => {
+  const feld = event.target.closest("[data-wert]");
+  if (!feld || feld.dataset.option) return;
+  const id = feld.dataset.wert;
+  const typ = feld.dataset.typ;
+
+  if (typ === "zahl") {
+    wcWerte[id] = Number(feld.value);
+    const anzeige = $("wochencheck").querySelector(`[data-anzeige="${id}"]`);
+    if (anzeige) anzeige.textContent = feld.value;
+    // Der Fuellstand der Spur haengt am Wert und muss beim Ziehen mitlaufen.
+    const min = Number(feld.min);
+    const max = Number(feld.max);
+    feld.style.setProperty("--fuellung", `${Math.round(((Number(feld.value) - min) / (max - min)) * 100)}%`);
+    feld.closest(".wc-skala")?.classList.remove("offen");
+  } else if (typ === "text") {
+    wcWerte[id] = feld.value;
+  } else if (typ === "dauer-h" || typ === "dauer-m") {
+    const box = feld.closest("[data-frage]");
+    const h = Number(box.querySelector('[data-typ="dauer-h"]').value) || 0;
+    const m = Number(box.querySelector('[data-typ="dauer-m"]').value) || 0;
+    wcWerte[id] = h * 60 + m;
+  }
+});
+
+$("btnWcSpeichern").addEventListener("click", async () => {
+  const fehlend = wcBogen.fragen.filter((f) => {
+    if (!f.pflicht) return false;
+    const v = wcWerte[f.id];
+    return v === undefined || v === "" || (Array.isArray(v) && v.length === 0);
+  });
+  if (fehlend.length) {
+    toast(`Noch offen: ${fehlend[0].text}`);
+    const box = $("wochencheck").querySelector(`[data-frage="${fehlend[0].id}"]`);
+    box?.scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
+
+  const eintrag = { bogen: wcBogen.id, tag: todayIso(), werte: { ...wcWerte } };
+  store.addCheckinBogen(eintrag);
+  refreshAll();
+
+  const knopf = $("btnWcSpeichern");
+  knopf.disabled = true;
+  knopf.textContent = "daevo liest";
+  const feld = $("wcAuswertung");
+  feld.hidden = false;
+  feld.textContent = "Ich schaue mir das an.";
+  try {
+    const text = await buildActions({ onChange: refreshAll }).checkinAuswerten({ bogen: wcBogen.id });
+    feld.textContent = text;
+  } catch (error) {
+    feld.textContent = `Gespeichert. Die Auswertung hat nicht geklappt: ${error.message}`;
+  } finally {
+    knopf.disabled = false;
+    knopf.textContent = "Abschicken";
+    renderWcVerlauf();
+  }
+});
+
 $("e-randmodus").addEventListener("change", renderWochenzeiten);
+
+$("e-stimme").addEventListener("change", () => {
+  store.setSettings({ ...store.getSettings(), stimme: $("e-stimme").value });
+  stimmProbe();
+});
+$("e-tempo").addEventListener("change", () => {
+  store.setSettings({ ...store.getSettings(), sprechtempo: Number($("e-tempo").value) });
+  stimmProbe();
+});
+$("btnStimmProbe").addEventListener("click", stimmProbe);
+
+function stimmProbe() {
+  const e = store.getSettings();
+  // Ein Satz mit Zahl, Uhrzeit und Umgangston. An einer nackten Ansage wie
+  // "Test" hoert man nicht, ob eine Stimme taugt.
+  speak(
+    "Alles klar, ich hab dir 208 Kilokalorien eingetragen. Dein Training steht um 18:30, "
+    + "bis dahin hast du noch gut Zeit für was Ordentliches zu essen.",
+    { enabled: true, stimme: e.stimme, tempo: e.sprechtempo },
+  );
+}
+
+// Die Stimmliste ist beim ersten Aufruf oft leer und wird nachgereicht.
+if (typeof speechSynthesis !== "undefined") {
+  speechSynthesis.addEventListener?.("voiceschanged", () => {
+    const profilView = document.querySelector('[data-view="profil"]');
+    if (profilView && !profilView.hidden) renderStimmwahl();
+  });
+}
 
 $("btnAddSession").addEventListener("click", () => {
   const minutes = Number($("t-min").value);

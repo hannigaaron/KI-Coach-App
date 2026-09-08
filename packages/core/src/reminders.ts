@@ -1,7 +1,9 @@
 import type { UserProfile } from "./types.js";
 import { tagesrandFuer } from "./tagesrand.js";
+import { bogenAmTag } from "./checkin.js";
 
 export type ReminderKind =
+  | "wochen_checkin"
   | "morning_checkin"
   | "hydration"
   | "meal_log"
@@ -40,6 +42,8 @@ export interface DayState {
   offeneEinkaeufe?: number;
   /** Der Mittags Check-in ist schon beantwortet. */
   middayCheckinDone?: boolean;
+  /** Der Wochenbogen dieses Tages ist schon ausgefüllt. */
+  wochenCheckinDone?: boolean;
   /** Die Frage nach der Herausforderung ist schon beantwortet. */
   middayChallengeDone?: boolean;
   /** Offene Aufgaben. Ohne offene Aufgaben gibt es nichts zu priorisieren. */
@@ -92,6 +96,19 @@ export function buildDailyReminders(params: {
   const rand = tagesrandFuer(profile, params.tag);
   const wake = parseTime(rand.wakeTime);
   const sleep = parseTime(rand.sleepTime);
+
+  // Die beiden festen Check-ins der Woche stehen ganz oben. Sie sind der einzige
+  // Punkt, an dem der Nutzer selbst Bilanz zieht, und sie kosten zwei Minuten.
+  const bogen = bogenAmTag(weekday);
+  if (bogen && !state.wochenCheckinDone) {
+    out.push({
+      kind: "wochen_checkin",
+      at: bogen.uhrzeit,
+      title: bogen.titel,
+      body: bogen.einleitung,
+      priority: 95,
+    });
+  }
 
   if (!state.morningCheckinDone) {
     out.push({

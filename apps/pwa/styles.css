@@ -874,3 +874,72 @@ img.only-light { display: none; }
 .wochenzeile .wt-tag { font-size: 13.5px; font-weight: 600; color: var(--text); }
 .wochenzeile input { width: 100%; min-width: 0; }
 .feld-hilfe { font-size: 12.5px; color: var(--muted); line-height: 1.5; margin: 9px 0 0; }
+
+.tempo-marken {
+  display: flex; justify-content: space-between;
+  font-size: 12px; color: var(--muted); margin-top: 3px;
+}
+
+/* Wochen Check-in. Die Fragen stehen einzeln, mit Luft dazwischen: ein Bogen
+   aus achtzehn eng gesetzten Fragen wird durchgeklickt, nicht beantwortet. */
+.wc-wahl { display: flex; gap: 8px; margin-bottom: 14px; }
+.wc-wahl button { flex: 1; }
+.wc-frage {
+  padding: 15px 14px; margin-bottom: 11px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--r-lg);
+}
+.wc-frage > label, .wc-frage > .wc-text {
+  display: block; font-size: 15.5px; font-weight: 600; line-height: 1.4; margin-bottom: 3px;
+}
+.wc-frage .wc-hinweis { font-size: 12.5px; color: var(--muted); margin-bottom: 10px; line-height: 1.45; }
+.wc-frage.pflicht > .wc-text::after { content: " *"; color: var(--accent); }
+.wc-frage input[type="text"], .wc-frage textarea, .wc-frage select { width: 100%; margin-top: 8px; }
+.wc-skala { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.wc-skala input[type="range"] { flex: 1; min-width: 0; }
+.wc-skala .wc-wert {
+  min-width: 46px; text-align: center; font-size: 16px; font-weight: 700;
+  color: var(--accent); font-variant-numeric: tabular-nums;
+}
+.wc-enden { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-top: 2px; }
+.wc-dauer { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+.wc-dauer input { width: 74px; }
+.wc-dauer span { font-size: 13.5px; color: var(--muted); }
+.wc-aktionen { margin: 6px 0 18px; }
+.wc-aktionen button { width: 100%; }
+
+/* Schieberegler. Ohne eigene Formatierung zeichnen die Browser eine Spur in
+   Systemfarbe, die auf dem dunklen Panel praktisch verschwindet: sichtbar
+   bleibt nur der Punkt, und ein Punkt ohne Schiene sieht nicht aus, als
+   liesse er sich ziehen. */
+input[type="range"] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 30px; background: transparent; margin: 0;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px; border-radius: var(--r-pill);
+  background: linear-gradient(to right, var(--accent) 0%, var(--accent) var(--fuellung, 50%),
+    rgba(255, 255, 255, 0.14) var(--fuellung, 50%), rgba(255, 255, 255, 0.14) 100%);
+}
+input[type="range"]::-moz-range-track {
+  height: 6px; border-radius: var(--r-pill); background: rgba(255, 255, 255, 0.14);
+}
+input[type="range"]::-moz-range-progress {
+  height: 6px; border-radius: var(--r-pill); background: var(--accent);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 24px; height: 24px; margin-top: -9px;
+  border-radius: 50%; background: #fff; border: 2px solid var(--accent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: #fff; border: 2px solid var(--accent);
+}
+/* Solange nichts gewaehlt wurde, ist die Spur durchgehend grau und der Griff
+   ohne Farbe. Sonst sieht ein Regler in der Mitte aus wie eine Antwort. */
+.wc-skala.offen input[type="range"]::-webkit-slider-runnable-track {
+  background: rgba(255, 255, 255, 0.14);
+}
+.wc-skala.offen input[type="range"]::-webkit-slider-thumb { border-color: rgba(255, 255, 255, 0.3); }
+.wc-skala.offen .wc-wert { color: var(--muted); }

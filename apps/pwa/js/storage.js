@@ -169,6 +169,24 @@ export const store = {
    * Buchungen behauptet das Balance Board, er hätte 92 Prozent des Tages
    * nichts getan, und misst damit seine Kalenderpflege statt sein Leben.
    */
+  /** Die ausgefüllten Wochenbögen, neueste zuletzt. */
+  getCheckinBoegen() {
+    return read("checkinBoegen", []);
+  },
+
+  /**
+   * Einen Bogen speichern. Ein zweiter Bogen am selben Tag ersetzt den ersten,
+   * sonst stehen zwei Wahrheiten für denselben Tag in der Auswertung.
+   */
+  addCheckinBogen(eintrag) {
+    const liste = read("checkinBoegen", [])
+      .filter((b) => !(b.tag === eintrag.tag && b.bogen === eintrag.bogen));
+    liste.push(eintrag);
+    // Ein Jahr Verlauf reicht für jeden Vergleich, den die App zieht.
+    write("checkinBoegen", liste.slice(-120));
+    return eintrag;
+  },
+
   getZeiten() {
     return read("zeiten", []);
   },
@@ -275,6 +293,7 @@ export const store = {
     out.kalender = this.getKalender();
     out.aufgaben = this.getAufgaben();
     out.zeiten = this.getZeiten();
+    out.checkinBoegen = this.getCheckinBoegen();
     out.standards = this.getStandards();
     out.memories = this.getMemories();
     out.chat = this.getChat();
