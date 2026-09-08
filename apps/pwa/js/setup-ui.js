@@ -1,4 +1,4 @@
-import { energyBreakdown, macroTargets, waterTargetMl } from "@daevo/core";
+import { WOCHENTAGE, energyBreakdown, macroTargets, waterTargetMl } from "@daevo/core";
 import { BODY_FAT_LEVELS, SCHRITTE, auswerten, figurBild } from "./anamnese.js";
 
 /**
@@ -41,6 +41,23 @@ export class SetupFlow {
   }
 
   onInput(event) {
+    const wz = event.target.closest("[data-wochenzeit]");
+    if (wz) {
+      const id = wz.dataset.wochenzeit;
+      const tag = wz.dataset.tag;
+      const werte = { ...(this.antworten[id] || {}) };
+      const eintrag = { ...(werte[tag] || {}) };
+      if (wz.value) eintrag[wz.dataset.teil] = wz.value;
+      else delete eintrag[wz.dataset.teil];
+      // Eine Zeile ohne einen einzigen Wert wird geloescht statt als leeres
+      // Objekt gespeichert. Sonst steht im Profil ein Wochentag, der nichts sagt.
+      if (Object.keys(eintrag).length === 0) delete werte[tag];
+      else werte[tag] = eintrag;
+      this.antworten[id] = werte;
+      this.updateWeiter();
+      return;
+    }
+
     const feld = event.target.closest("[data-feld]");
     if (!feld) return;
     const id = feld.dataset.feld;
@@ -88,13 +105,26 @@ export class SetupFlow {
     this.hinweisTimer = setTimeout(() => { el.textContent = ""; }, 2600);
   }
 
+  /**
+   * Ob ein Feld gerade gezeigt wird.
+   *
+   * `wennFeld` nennt ein anderes Feld und die Werte, bei denen dieses hier
+   * erscheint. Ohne das müsste der Nutzer, der jeden Tag gleich aufsteht, sich
+   * durch sieben Wochentage tippen, um zu sagen, dass alle gleich sind.
+   */
+  sichtbar(feld) {
+    if (!feld.wennFeld) return true;
+    const wert = this.antworten[feld.wennFeld.id];
+    return feld.wennFeld.ist.includes(wert);
+  }
+
   vollstaendig() {
     const s = this.schritt;
     if (s.ueberspringbar) return true;
-    return s.felder.every((feld) => {
+    return s.felder.filter((f) => this.sichtbar(f)).every((feld) => {
       const wert = this.antworten[feld.id];
       if (feld.art === "mehrfach") return Array.isArray(wert) && wert.length > 0;
-      if (feld.art === "chips") return true;
+      if (feld.art === "chips" || feld.art === "hinweis") return true;
       if (feld.art === "zahl") return Number.isFinite(wert) && wert >= feld.min && wert <= feld.max;
       if (feld.art === "text") return String(wert || "").trim().length > 0;
       return wert !== undefined && wert !== "";
@@ -138,7 +168,7 @@ export class SetupFlow {
         ${this.index === 0 ? LOCKUP : ""}
         <h1>${escapeHtml(s.titel)}</h1>
         <p class="lead">${escapeHtml(s.text)}</p>
-        ${s.felder.map((feld) => this.feldHtml(feld)).join("")}
+        ${s.felder.filter((feld) => this.sichtbar(feld)).map((feld) => this.feldHtml(feld)).join("")}
         <div class="setup-hinweis"></div>
       </div>
       <div class="setup-fuss">
@@ -180,6 +210,30 @@ export class SetupFlow {
       }).join("");
       const zaehler = mehrfach ? `<div class="opt-zaehler">${liste.length} von ${feld.max} gewählt</div>` : "";
       return `<div class="field">${label}<div class="opts">${karten}</div>${zaehler}</div>`;
+    }
+    if (feld.art === "hinweis") {
+      return `<p class="feld-hilfe">${escapeHtml(feld.text)}</p>`;
+    }
+    if (feld.art === "wochenzeiten") {
+      // Leere Felder sind Absicht. Wer nur Dienstag und Donnerstag anders hat,
+      // traegt zwei Zeilen ein und laesst den Rest leer. Was leer bleibt,
+      // faellt auf den Standard zurueck.
+      const werte = wert || {};
+      const zeilen = WOCHENTAGE.map((t) => {
+        const e = werte[String(t.nr)] || {};
+        return `<div class="wochenzeile">
+          <span class="wt-tag">${t.kurz}</span>
+          <input type="time" data-wochenzeit="${feld.id}" data-tag="${t.nr}" data-teil="wakeTime"
+                 value="${escapeHtml(e.wakeTime ?? "")}" aria-label="${escapeHtml(t.name)} aufstehen">
+          <input type="time" data-wochenzeit="${feld.id}" data-tag="${t.nr}" data-teil="sleepTime"
+                 value="${escapeHtml(e.sleepTime ?? "")}" aria-label="${escapeHtml(t.name)} schlafen">
+        </div>`;
+      }).join("");
+      return `<div class="field">${label}
+        <div class="wochenkopf"><span class="wt-tag"></span><span>Aufstehen</span><span>Schlafen</span></div>
+        <div class="wochenzeiten">${zeilen}</div>
+        <p class="feld-hilfe">Leer lassen heisst: an dem Tag gilt dein Standard. Einzelne Tage kannst du
+        später jederzeit im Chat ändern, etwa wenn du morgen Frühdienst hast.</p></div>`;
     }
     if (feld.art === "chips") {
       const liste = wert || [];

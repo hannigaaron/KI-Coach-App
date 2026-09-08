@@ -6,6 +6,7 @@ import type { ChatMessage, CoachProvider, ContentBlock, ConverseRequest, Convers
 function stubActions(log: string[]): AgentActions {
   return {
     async mahlzeitErfassen(b) { log.push(`mahlzeit:${b}`); return "Eingetragen: 500 kcal, 40 g Protein."; },
+    async tageszeitenSetzen(i) { log.push(`zeiten:${i.tag ?? "heute"}:${i.aufstehen ?? ""}:${i.schlafen ?? ""}`); return "Eingetragen."; },
     async produktNachschlagen(i) { log.push(`produkt:${i.suche}:${i.gramm ?? ""}:${i.erfassen ? "ja" : "nein"}`); return "More Nutrition Grießpudding, 346 kcal je 100 g."; },
     async wasserEintragen(ml) { log.push(`wasser:${ml}`); return `${ml} ml eingetragen.`; },
     async tagesstandAbrufen() { log.push("stand"); return "Heute 1200 von 3000 kcal, 60 von 139 g Protein."; },
@@ -242,4 +243,36 @@ test("eine Jahreszahl ist kein Barcode", async () => {
   const log: string[] = [];
   await runOffline("Ich wiege seit 2024 immer 87 kg", stubActions(log));
   assert.ok(!log.some((z) => z.startsWith("produkt:")), "vier Ziffern sind kein Barcode");
+});
+
+test("eine Fruehschicht wird ohne Modell erkannt", async () => {
+  const log: string[] = [];
+  await runOffline("Ich muss morgen um 5 aufstehen", stubActions(log));
+  assert.match(log[0]!, /^zeiten:/);
+  assert.match(log[0]!, /:05:00:$/);
+});
+
+test("eine Spaetschicht setzt die Schlafenszeit", async () => {
+  const log: string[] = [];
+  await runOffline("Heute Spätschicht, ich komme erst um 23 ins Bett", stubActions(log));
+  assert.match(log[0]!, /^zeiten:/);
+  assert.match(log[0]!, /:23:00$/);
+});
+
+test("ohne Uhrzeit wird nichts geraten", async () => {
+  const log: string[] = [];
+  await runOffline("Ich muss morgen früh aufstehen", stubActions(log));
+  assert.ok(!log.some((z) => z.startsWith("zeiten:")), "morgen frueh ist keine Uhrzeit");
+});
+
+test("ohne Tagesbezug wird nichts eingetragen", async () => {
+  const log: string[] = [];
+  await runOffline("Ich stehe eigentlich immer um 7 auf", stubActions(log));
+  assert.ok(!log.some((z) => z.startsWith("zeiten:")), "das ist der Standard, kein einzelner Tag");
+});
+
+test("eine unmoegliche Uhrzeit wird verworfen", async () => {
+  const log: string[] = [];
+  await runOffline("Ich stehe morgen um 99 auf", stubActions(log));
+  assert.ok(!log.some((z) => z.startsWith("zeiten:")));
 });

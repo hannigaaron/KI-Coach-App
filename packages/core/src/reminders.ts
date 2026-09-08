@@ -1,4 +1,5 @@
 import type { UserProfile } from "./types.js";
+import { tagesrandFuer } from "./tagesrand.js";
 
 export type ReminderKind =
   | "morning_checkin"
@@ -78,11 +79,19 @@ export function buildDailyReminders(params: {
   profile: UserProfile;
   weekday: number;
   state: DayState;
+  /**
+   * Der Tag als JJJJ-MM-TT. Ohne ihn gelten die Standardzeiten aus dem Profil.
+   * Mit ihm gelten die Zeiten dieses Tages, also auch eine eingetragene
+   * Schicht. Ein Erinnerungsplan, der bei einem Frühdienst um 07:30 startet,
+   * obwohl der Nutzer seit 04:30 wach ist, erreicht ihn nie.
+   */
+  tag?: string;
 }): Reminder[] {
   const { profile, weekday, state } = params;
   const out: Reminder[] = [];
-  const wake = parseTime(profile.wakeTime);
-  const sleep = parseTime(profile.sleepTime);
+  const rand = tagesrandFuer(profile, params.tag);
+  const wake = parseTime(rand.wakeTime);
+  const sleep = parseTime(rand.sleepTime);
 
   if (!state.morningCheckinDone) {
     out.push({

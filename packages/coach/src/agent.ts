@@ -33,6 +33,7 @@ export interface AgentContext {
 export interface AgentActions {
   mahlzeitErfassen(beschreibung: string): Promise<string>;
   produktNachschlagen(input: { suche: string; gramm?: number; erfassen?: boolean }): Promise<string>;
+  tageszeitenSetzen(input: { tag?: string; aufstehen?: string; schlafen?: string }): Promise<string>;
   wasserEintragen(ml: number): Promise<string>;
   tagesstandAbrufen(): Promise<string>;
   mahlzeitVorschlagen(wunsch?: string): Promise<string>;
@@ -452,6 +453,17 @@ async function execute(
         });
         return { text, notiz: `${minuten} Minuten auf ${bereich} gebucht` };
       }
+      case "tageszeiten_setzen": {
+        const zeit = (v: unknown) => (typeof v === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(v) ? v : undefined);
+        const aufstehen = zeit(input.aufstehen);
+        const schlafen = zeit(input.schlafen);
+        if (!aufstehen && !schlafen) {
+          return { text: "Um wie viel Uhr denn?", fehler: true };
+        }
+        const tag = typeof input.tag === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.tag) ? input.tag : undefined;
+        const text = await actions.tageszeitenSetzen({ tag, aufstehen, schlafen });
+        return { text, notiz: "Tageszeiten eingetragen" };
+      }
       case "produkt_nachschlagen": {
         const suche = String(input.suche ?? "").trim();
         if (suche.length < 3) return { text: "Wonach soll ich suchen?", fehler: true };
@@ -633,6 +645,38 @@ function enthaeltMarke(text: string, marke: string): boolean {
   return new RegExp(`(^|[^a-z0-9])${m}([^a-z0-9]|$)`).test(text);
 }
 
+/**
+ * Aufsteh und Schlafenszeit fuer einen einzelnen Tag aus dem Satz lesen.
+ *
+ * Nur eindeutige Faelle. "Ich stehe morgen um 5 auf" ist eindeutig, "morgen
+ * frueh" ist es nicht. Eine geratene Uhrzeit verschiebt den ganzen Tagesplan,
+ * deshalb wird im Zweifel nichts erkannt und das Modell uebernimmt.
+ */
+function schichtAus(text: string): { tag?: string; aufstehen?: string; schlafen?: string } | null {
+  const wann = /\bmorgen\b/.test(text) ? 1 : /\bgestern\b/.test(text) ? -1 : /\bheute\b/.test(text) ? 0 : null;
+  if (wann === null) return null;
+
+  const aufstehen = uhrzeitNach(text, /(aufstehen|aufstehe|stehe?\s+\w*\s*auf|raus|wecker|frueh(dienst|schicht)|start)/);
+  const schlafen = uhrzeitNach(text, /(schlafen|ins bett|bett|feierabend|spaet(dienst|schicht)|ende|fertig)/);
+  if (!aufstehen && !schlafen) return null;
+
+  const d = new Date();
+  d.setDate(d.getDate() + wann);
+  return { tag: d.toISOString().slice(0, 10), aufstehen, schlafen };
+}
+
+/** Die erste Uhrzeit im Umfeld eines Stichworts. */
+function uhrzeitNach(text: string, stichwort: RegExp): string | undefined {
+  if (!stichwort.test(text)) return undefined;
+  // "um 5", "um 05:30", "um 5 uhr", "ab 6.15"
+  const t = /\b(?:um|ab|bis|gegen)\s+(\d{1,2})(?:[:.](\d{2}))?\s*(?:uhr)?/.exec(text);
+  if (!t) return undefined;
+  const stunde = Number(t[1]);
+  const minute = t[2] ? Number(t[2]) : 0;
+  if (!Number.isFinite(stunde) || stunde > 23 || minute > 59) return undefined;
+  return `${String(stunde).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
 /** Eine Grammangabe aus dem Text, etwa "60g" oder "250 ml". */
 function extractGramm(text: string): number | null {
   const t = text.match(/(\d+(?:[.,]\d+)?)\s*(g|gramm|ml)\b/);
@@ -705,6 +749,15 @@ export async function runOffline(
       const antwort = await actions.wasserEintragen(ml);
       return { text: antwort, ausgeführt: [`${ml} ml Wasser eingetragen`], source: "offline" };
     }
+  }
+
+  // Wechselnde Arbeitszeiten. Ohne diesen Pfad braucht es fuer "morgen um 5
+  // raus" ein Modell, und genau diese Info entscheidet, ob der Erinnerungsplan
+  // des naechsten Tages passt oder nicht.
+  const schicht = schichtAus(text);
+  if (schicht) {
+    const antwort = await actions.tageszeitenSetzen(schicht);
+    return { text: antwort, ausgeführt: ["Tageszeiten eingetragen"], source: "offline" };
   }
 
   // Markenprodukte vor der allgemeinen Mahlzeit pruefen. Ohne Schluessel raet

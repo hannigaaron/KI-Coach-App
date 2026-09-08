@@ -59,7 +59,7 @@ Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
 
-Der Assistent hat einunddreissig Werkzeuge und verändert die App wirklich. Zahlen
+Der Assistent hat zweiunddreissig Werkzeuge und verändert die App wirklich. Zahlen
 über den Nutzer kommen immer aus Werkzeugen, nie aus dem Modell. Allgemeines
 Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
@@ -143,7 +143,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 389 Tests
+npm test           # 409 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -181,6 +181,37 @@ Offen: die geheime Adresse direkt abrufen statt eine Datei zu wählen. Das
 scheitert im Browser an CORS, dafür braucht es `apps/api` als Zwischenstelle.
 OAuth für Google und EventKit für Apple gehören in die native App, siehe
 `docs/ROADMAP.md`.
+
+## Tagesränder
+
+Eine feste Aufstehzeit im Profil setzt einen geregelten Alltag voraus. Dieser
+Nutzer hat keinen. `packages/core/src/tagesrand.ts` kennt deshalb drei Ebenen,
+fein schlägt grob: Standard, je Wochentag, einzelner Tag.
+
+Die dritte Ebene ist der eigentliche Grund für das Modul. Bei echtem
+Schichtdienst rotiert die Schicht, dann sagt der Wochentag nichts. Wer seine
+Zeiten nur je Wochentag pflegen kann, pflegt sie nach zwei Wochen gar nicht mehr.
+
+Im Onboarding wählt der Nutzer zwischen "Ähnlich jeden Tag", "Je nach
+Wochentag" und "Wechselnd oder Schichtdienst". Die dritte Wahl legt keine
+Tabelle an, sie setzt `wechselndeZeiten` und sagt dem Coach, dass die Zeiten im
+Profil eine Schätzung sind und keine Zusage.
+
+`tagesrandFuer(profile, tagIso)` ist die einzige Quelle für diese Zeiten. Wer
+`profile.wakeTime` direkt liest, umgeht Wochentag und Ausnahmen und rechnet an
+jedem abweichenden Tag falsch. Betroffen sind der Erinnerungsplan, die freie
+Zeit im Tagesablauf und die Wachzeit als Nenner im Balance Board.
+
+Die Wachzeit wird im Balance Board je Tag summiert, nicht einmal genommen und
+mit der Anzahl Tage multipliziert. Bei wechselnden Zeiten unterscheiden sich die
+Tage um Stunden.
+
+Ausnahmen älter als 60 Tage werden beim Schreiben aufgeräumt. Ohne das wächst
+die Liste unbegrenzt, und das Profil geht bei jeder Nachricht an das Modell.
+
+Der Regelpfad erkennt "morgen um 5 aufstehen" ohne Modell. Erkannt wird nur, was
+eindeutig ist: ein Tagesbezug und eine echte Uhrzeit. "Morgen früh" ist keine
+Uhrzeit, und eine geratene Zeit verschiebt den ganzen Tagesplan.
 
 ## Der Rhythmus des Tages
 

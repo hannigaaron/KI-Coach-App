@@ -35,6 +35,10 @@ import {
   BEREICH_NAME,
   naehrwerteFuer,
   portionsVorschlag,
+  setzeAusnahme,
+  tagesrandFuer,
+  wachMinutenAm,
+  wachMinutenAus,
   produktText,
   standardZumNachhaken,
   standardsStatus,
@@ -459,6 +463,9 @@ export function tagesErinnerungen(day = todayIso()) {
   return buildDailyReminders({
     profile: n.profile,
     weekday: n.weekday,
+    // Der Tag geht mit, damit der Plan die Zeiten dieses Tages nimmt und nicht
+    // den Schnitt aus dem Profil.
+    tag: day,
     state: {
       mealsLogged: n.data.meals.length,
       waterMl: n.totals.waterMl,
@@ -977,6 +984,11 @@ export async function schluesselPruefen() {
 export function balanceFuer(tage = 1, bisIso = todayIso()) {
   const termine = [];
   let trainingMinuten = 0;
+  const profil = store.getProfile();
+  // Die Wachzeit wird je Tag summiert, nicht einmal genommen und multipliziert.
+  // Bei wechselnden Zeiten unterscheiden sich die Tage um Stunden, und die
+  // Wachzeit ist der Nenner für jeden Anteil auf dem Balance Board.
+  let wachSumme = 0;
 
   for (let i = tage - 1; i >= 0; i--) {
     const d = new Date(`${bisIso}T12:00:00`);
@@ -986,6 +998,7 @@ export function balanceFuer(tage = 1, bisIso = todayIso()) {
     for (const training of store.getDay(iso).trainings || []) {
       trainingMinuten += Number(training.minutes) || 0;
     }
+    wachSumme += profil ? wachMinutenAm(profil, iso) : 16 * 60;
   }
 
   // Ein Termin kann in zwei Tagen vorkommen, wenn er über Mitternacht läuft.
@@ -1000,9 +1013,6 @@ export function balanceFuer(tage = 1, bisIso = todayIso()) {
 
   // Die verfügbare Zeit kommt aus dem Profil, nicht aus einer Annahme:
   // Wachzeit mal Anzahl Tage. Das ist der Nenner für alle Anteile.
-  const profile = store.getProfile();
-  const wach = profile ? wachMinuten(profile.wakeTime, profile.sleepTime) : 16 * 60;
-
   // Was der Coach gebucht hat und was an Aufgaben erledigt wurde, zählt
   // genauso. Ein Kalender voller Kundentermine ist kein Leben, und eine
   // erledigte Aufgabe hat genauso Zeit gekostet wie ein Termin.
@@ -1029,20 +1039,9 @@ export function balanceFuer(tage = 1, bisIso = todayIso()) {
     termine: eindeutig,
     zusatz,
     ziele: store.getSettings().balanceZiele || undefined,
-    basisMinuten: wach * tage,
+    basisMinuten: wachSumme,
     tage,
   });
-}
-
-/** Wachminuten aus Aufsteh und Schlafenszeit. Ueber Mitternacht hinweg richtig. */
-function wachMinuten(wach, schlaf) {
-  const min = (hhmm) => {
-    const [h, m] = String(hhmm || "07:00").split(":");
-    return Number(h) * 60 + Number(m);
-  };
-  const von = min(wach);
-  const bis = min(schlaf);
-  return bis > von ? bis - von : 1440 - von + bis;
 }
 
 /**
@@ -1280,6 +1279,35 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
      * bei mehreren Treffern kommt die Auswahl in die Antwort statt einer
      * stillen Entscheidung fuer den ersten.
      */
+    /**
+     * Aufstehen und Schlafen für einen einzelnen Tag.
+     *
+     * Nicht das Profil, sondern eine Ausnahme für genau dieses Datum. Der
+     * Standard bleibt stehen, sonst verschiebt eine einzelne Frühschicht den
+     * Schnitt für alle folgenden Tage.
+     */
+    async tageszeitenSetzen({ tag, aufstehen, schlafen } = {}) {
+      const profile = store.getProfile();
+      if (!profile) return "Erst das Profil anlegen.";
+      const datum = tag || todayIso();
+
+      const ausnahmen = setzeAusnahme(
+        profile,
+        datum,
+        { wakeTime: aufstehen, sleepTime: schlafen },
+        todayIso(),
+      );
+      store.setProfile({ ...profile, tagesausnahmen: ausnahmen });
+      changed();
+
+      const wann = datum === todayIso() ? "Heute" : new Date(`${datum}T12:00:00`)
+        .toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" });
+      const r = tagesrandFuer(store.getProfile(), datum);
+      const stunden = Math.round(wachMinutenAus(r.wakeTime, r.sleepTime) / 60);
+      return `${wann}: ${r.wakeTime} bis ${r.sleepTime}, rund ${stunden} Stunden wach. `
+        + "Erinnerungen und freie Zeit rechne ich für diesen Tag damit.";
+    },
+
     async produktNachschlagen({ suche, gramm, erfassen } = {}) {
       const q = String(suche ?? "").trim();
       if (q.length < 3) return "Wonach soll ich suchen?";
