@@ -10,6 +10,10 @@ import {
   balanceText,
   checkinText,
   checkinVergleich,
+  ordnerFuerGespraech,
+  ordnerName,
+  sucheGespraeche,
+  titelVon,
   bereichVon,
   buildDailyReminders,
   muster,
@@ -975,6 +979,92 @@ export async function schluesselPruefen() {
   return provider().pruefe();
 }
 
+/* ---------- Gespräche ---------- */
+
+/**
+ * Das offene Gespräch, oder ein neues.
+ *
+ * Beim Start der App wird nicht automatisch ein neues Gespräch angelegt. Wer
+ * die App öffnet und sofort wieder schliesst, hinterlässt sonst jedes Mal einen
+ * leeren Eintrag in der Liste.
+ */
+export function aktivesGespraech() {
+  const id = store.getAktivesGespraech();
+  const treffer = store.getGespraeche().find((g) => g.id === id);
+  if (treffer) return treffer;
+
+  const alle = store.getGespraeche();
+  const letztes = alle.sort((a, b) => b.zuletzt.localeCompare(a.zuletzt))[0];
+  if (letztes) {
+    store.setAktivesGespraech(letztes.id);
+    return letztes;
+  }
+  return gespraechAnlegen();
+}
+
+export function gespraechAnlegen() {
+  const jetzt = new Date().toISOString();
+  const g = {
+    id: `g${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+    titel: "Neues Gespräch",
+    ordner: "sonstiges",
+    nachrichten: [],
+    erstellt: jetzt,
+    zuletzt: jetzt,
+  };
+  const alle = store.getGespraeche();
+  alle.push(g);
+  store.setGespraeche(alle);
+  store.setAktivesGespraech(g.id);
+  return g;
+}
+
+export function gespraechOeffnen(id) {
+  if (store.getGespraeche().some((g) => g.id === id)) store.setAktivesGespraech(id);
+}
+
+export function gespraechLoeschen(id) {
+  const rest = store.getGespraeche().filter((g) => g.id !== id);
+  store.setGespraeche(rest);
+  if (store.getAktivesGespraech() === id) {
+    store.setAktivesGespraech(rest.sort((a, b) => b.zuletzt.localeCompare(a.zuletzt))[0]?.id ?? null);
+  }
+}
+
+/** Ordner von Hand setzen. Danach sortiert die App dieses Gespräch nicht mehr um. */
+export function gespraechEinordnen(id, ordner) {
+  const alle = store.getGespraeche();
+  const g = alle.find((x) => x.id === id);
+  if (!g) return;
+  g.ordner = ordner;
+  g.ordnerFest = true;
+  store.setGespraeche(alle);
+}
+
+/**
+ * Titel und Ordner nach einer Antwort nachziehen.
+ *
+ * Erst ab der zweiten Nachricht des Nutzers. Eine einzelne Zeile wie "hi" sagt
+ * über das Thema nichts, und ein Gespräch, das schon beim ersten Wort in einen
+ * Ordner rutscht, liegt danach oft im falschen.
+ */
+export function gespraechNachziehen() {
+  const alle = store.getGespraeche();
+  const g = alle.find((x) => x.id === store.getAktivesGespraech());
+  if (!g) return;
+
+  if (g.titel === "Neues Gespräch" || !g.titel) g.titel = titelVon(g.nachrichten);
+
+  const vomNutzer = g.nachrichten.filter((m) => m.role === "user").length;
+  if (!g.ordnerFest && vomNutzer >= 2) g.ordner = ordnerFuerGespraech(g);
+
+  store.setGespraeche(alle);
+}
+
+export function gespraecheSuchen(frage) {
+  return sucheGespraeche(store.getGespraeche(), frage);
+}
+
 /* ---------- Life Balance ---------- */
 
 /**
@@ -1313,6 +1403,41 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
 
       const antwort = await ask(`${teile.join("\n\n")}\n\n${frage}`);
       return antwort.text;
+    },
+
+    /**
+     * In früheren Gesprächen suchen.
+     *
+     * Gibt Titel, Ordner, Datum und die passende Stelle zurück, nicht das
+     * ganze Gespräch. Fünf komplette Verläufe im Kontext kosten mehr Token als
+     * die eigentliche Frage und bringen weniger als fünf gute Ausschnitte.
+     */
+    async gespraecheDurchsuchen({ suche } = {}) {
+      const funde = gespraecheSuchen(String(suche ?? "")).slice(0, 5);
+      if (funde.length === 0) return `Zu "${suche}" steht in keinem früheren Gespräch etwas.`;
+
+      const aktiv = store.getAktivesGespraech();
+      const zeilen = funde
+        .filter((f) => f.gespraech.id !== aktiv)
+        .map((f) => {
+          const wann = new Date(f.gespraech.zuletzt).toLocaleDateString("de-DE", { day: "numeric", month: "long" });
+          return `- ${f.gespraech.titel} (${ordnerName(f.gespraech.ordner)}, ${wann}): ${f.stelle}`;
+        });
+      if (zeilen.length === 0) return `Zu "${suche}" finde ich nur das Gespräch, in dem wir gerade sind.`;
+      return `Gefunden in früheren Gesprächen:\n${zeilen.join("\n")}`;
+    },
+
+    async gespraechEinordnenAktiv({ ordner, titel } = {}) {
+      const id = store.getAktivesGespraech();
+      if (!id) return "Kein Gespräch offen.";
+      gespraechEinordnen(id, ordner);
+      if (titel) {
+        const alle = store.getGespraeche();
+        const g = alle.find((x) => x.id === id);
+        if (g) { g.titel = titel; store.setGespraeche(alle); }
+      }
+      changed();
+      return `Liegt jetzt unter ${ordnerName(ordner)}.`;
     },
 
     async tageszeitenSetzen({ tag, aufstehen, schlafen } = {}) {

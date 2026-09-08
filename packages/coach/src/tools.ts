@@ -296,6 +296,40 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: "gespraeche_durchsuchen",
+    description:
+      "Sucht in allen früheren Gesprächen. Nehmen, sobald er auf etwas Bezug nimmt, das nicht im "
+      + "aktuellen Gespräch steht: \"was hatten wir da nochmal gesagt\", \"letzte Woche meintest du\", "
+      + "\"wie hiess das Produkt\". Jedes Thema hat ein eigenes Gespräch, deshalb siehst du normalerweise "
+      + "nur das gerade offene. Du erfindest keine Erinnerung an etwas, das du nicht gelesen hast.",
+    input_schema: {
+      type: "object",
+      properties: {
+        suche: { type: "string", description: "Die Stichworte, nach denen gesucht wird." },
+      },
+      required: ["suche"],
+    },
+  },
+  {
+    name: "gespraech_einordnen",
+    description:
+      "Verschiebt das aktuelle Gespräch in einen Ordner. Nur nehmen, wenn die automatische Zuordnung "
+      + "erkennbar danebenliegt, etwa weil er über Trainingsangst redet und es unter Training landet. "
+      + "Nicht bei jedem Gespräch aufrufen, die Sortierung läuft von allein.",
+    input_schema: {
+      type: "object",
+      properties: {
+        ordner: {
+          type: "string",
+          enum: ["ernaehrung", "training", "regeneration", "planung", "aengste", "sonstiges"],
+          description: "Der passende Ordner.",
+        },
+        titel: { type: "string", description: "Ein besserer Titel, höchstens fünf Wörter. Optional." },
+      },
+      required: ["ordner"],
+    },
+  },
+  {
     name: "tageszeiten_setzen",
     description:
       "Trägt für einen einzelnen Tag ein, wann der Nutzer aufsteht und schlafen geht. "

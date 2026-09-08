@@ -6,6 +6,8 @@ import type { ChatMessage, CoachProvider, ContentBlock, ConverseRequest, Convers
 function stubActions(log: string[]): AgentActions {
   return {
     async mahlzeitErfassen(b) { log.push(`mahlzeit:${b}`); return "Eingetragen: 500 kcal, 40 g Protein."; },
+    async gespraecheDurchsuchen(i) { log.push(`suche:${i.suche}`); return "Zwei Gespräche gefunden."; },
+    async gespraechEinordnenAktiv(i) { log.push(`einordnen:${i.ordner}`); return "Verschoben."; },
     async tageszeitenSetzen(i) { log.push(`zeiten:${i.tag ?? "heute"}:${i.aufstehen ?? ""}:${i.schlafen ?? ""}`); return "Eingetragen."; },
     async produktNachschlagen(i) { log.push(`produkt:${i.suche}:${i.gramm ?? ""}:${i.erfassen ? "ja" : "nein"}`); return "More Nutrition Grießpudding, 346 kcal je 100 g."; },
     async wasserEintragen(ml) { log.push(`wasser:${ml}`); return `${ml} ml eingetragen.`; },

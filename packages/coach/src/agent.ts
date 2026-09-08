@@ -34,6 +34,8 @@ export interface AgentActions {
   mahlzeitErfassen(beschreibung: string): Promise<string>;
   produktNachschlagen(input: { suche: string; gramm?: number; erfassen?: boolean }): Promise<string>;
   tageszeitenSetzen(input: { tag?: string; aufstehen?: string; schlafen?: string }): Promise<string>;
+  gespraecheDurchsuchen(input: { suche: string }): Promise<string>;
+  gespraechEinordnenAktiv(input: { ordner: string; titel?: string }): Promise<string>;
   wasserEintragen(ml: number): Promise<string>;
   tagesstandAbrufen(): Promise<string>;
   mahlzeitVorschlagen(wunsch?: string): Promise<string>;
@@ -452,6 +454,20 @@ async function execute(
           tag: typeof input.tag === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.tag) ? input.tag : undefined,
         });
         return { text, notiz: `${minuten} Minuten auf ${bereich} gebucht` };
+      }
+      case "gespraeche_durchsuchen": {
+        const suche = String(input.suche ?? "").trim();
+        if (suche.length < 2) return { text: "Wonach soll ich suchen?", fehler: true };
+        return { text: await actions.gespraecheDurchsuchen({ suche }) };
+      }
+      case "gespraech_einordnen": {
+        const erlaubt = ["ernaehrung", "training", "regeneration", "planung", "aengste", "sonstiges"];
+        const ordner = String(input.ordner ?? "");
+        if (!erlaubt.includes(ordner)) {
+          return { text: `Ordner muss einer von ${erlaubt.join(", ")} sein.`, fehler: true };
+        }
+        const titel = typeof input.titel === "string" ? input.titel.slice(0, 60) : undefined;
+        return { text: await actions.gespraechEinordnenAktiv({ ordner, titel }), notiz: `Einsortiert unter ${ordner}` };
       }
       case "tageszeiten_setzen": {
         const zeit = (v: unknown) => (typeof v === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(v) ? v : undefined);

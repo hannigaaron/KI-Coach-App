@@ -64,6 +64,12 @@ try {
         <span class="bars"></span>
       </button>
       <div id="assistantStatus" class="bar-status">bereit</div>
+      <button id="btnGespraeche" class="icon-btn" aria-label="Gespräche">
+        <span class="stapel"></span>
+      </button>
+      <button id="btnNeuesGespraech" class="icon-btn" aria-label="Neues Gespräch">
+        <span class="plus"></span>
+      </button>
       <button id="btnSpeaker" class="icon-btn" aria-label="Sprachausgabe umschalten" aria-pressed="true">
         <span class="speaker"></span>
       </button>
@@ -441,6 +447,21 @@ try {
       </div>
       <button id="btnStdAdd" class="ghost">Standard hinzufügen</button>
       <p class="fineprint">Standards, die die App nicht selbst messen kann, hakst du hier oder im Gespräch selbst ab.</p>
+    </div>
+  </section>
+
+  <section id="gespraeche" class="view" data-view="gespraeche" hidden>
+    <header class="bar">
+      <button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button>
+      <h1>Gespräche</h1>
+      <button id="btnNeuAusListe" class="icon-btn" aria-label="Neues Gespräch"><span class="plus"></span></button>
+    </header>
+    <div class="scroll">
+      <div class="suchzeile">
+        <input id="gsSuche" type="search" placeholder="In allen Gesprächen suchen" autocomplete="off">
+      </div>
+      <div id="gsOrdnerFilter" class="pills"></div>
+      <div id="gsListe"></div>
     </div>
   </section>
 
