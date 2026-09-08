@@ -1,4 +1,4 @@
-import { BEREICHE, BEREICH_NAME, STANDARD_ZIELE, energyBreakdown, uhrzeit, weightTrend } from "@daevo/core";
+import { BEREICHE, BEREICH_NAME, STANDARD_ZIELE, WOCHENTAGE, energyBreakdown, uhrzeit, weightTrend } from "@daevo/core";
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE } from "@daevo/coach";
 import { Coach, AnthropicProvider } from "@daevo/coach";
 import {
@@ -796,6 +796,49 @@ function renderRecommendations() {
       .join("");
 }
 
+/**
+ * Die Zeiten je Wochentag im Profil.
+ *
+ * Ein leeres Feld heisst nicht null Uhr, sondern "für diesen Tag gilt der
+ * Schnitt". Deshalb wird ein leerer Wert gelöscht und nicht gespeichert.
+ */
+function renderWochenzeiten() {
+  const box = $("e-wochenbox");
+  const modus = $("e-randmodus").value;
+  box.hidden = modus !== "wochentag";
+
+  $("e-randhilfe").textContent = modus === "wechselnd"
+    ? "Deine Zeiten oben gelten als Schnitt. Sag im Chat, wann du an einem Tag wirklich aufstehst, "
+      + "etwa \"morgen um 5 raus\", dann rechne ich diesen Tag damit."
+    : modus === "wochentag"
+      ? "Für Tage ohne Eintrag gilt dein Schnitt. Einzelne Tage änderst du jederzeit im Chat."
+      : "";
+
+  if (box.hidden) return;
+  const werte = profile.wochenraender || {};
+  const el = $("e-wochenzeiten");
+  el.innerHTML = WOCHENTAGE.map((t) => {
+    const e = werte[String(t.nr)] || {};
+    return `<div class="wochenzeile">
+      <span class="wt-tag">${t.kurz}</span>
+      <input type="time" data-wt="${t.nr}" data-teil="wakeTime" value="${e.wakeTime ?? ""}"
+             aria-label="${t.name} aufstehen">
+      <input type="time" data-wt="${t.nr}" data-teil="sleepTime" value="${e.sleepTime ?? ""}"
+             aria-label="${t.name} schlafen">
+    </div>`;
+  }).join("");
+}
+
+function wochenzeitenLesen() {
+  const out = {};
+  for (const el of $("e-wochenzeiten").querySelectorAll("[data-wt]")) {
+    if (!el.value) continue;
+    const tag = el.dataset.wt;
+    out[tag] = { ...(out[tag] || {}), [el.dataset.teil]: el.value };
+  }
+  return out;
+}
+
 function renderProfile() {
   const energy = energyBreakdown(profile);
   const targets = dayNumbers(day).targets;
@@ -809,6 +852,8 @@ function renderProfile() {
   $("e-goal").value = profile.goal;
   $("e-wake").value = profile.wakeTime;
   $("e-sleep").value = profile.sleepTime;
+  $("e-randmodus").value = profile.wechselndeZeiten ? "wechselnd" : (profile.randModus || "gleich");
+  renderWochenzeiten();
 
   const settings = store.getSettings();
   $("apiKey").value = settings.apiKey || "";
@@ -1828,6 +1873,15 @@ $("btnSaveProfile").addEventListener("click", () => {
     goal: $("e-goal").value,
     wakeTime: $("e-wake").value,
     sleepTime: $("e-sleep").value,
+    randModus: $("e-randmodus").value === "wochentag" ? "wochentag" : "gleich",
+    wechselndeZeiten: $("e-randmodus").value === "wechselnd",
+    wochenraender: $("e-randmodus").value === "wochentag" ? wochenzeitenLesen() : undefined,
+    // Ausnahmen für einzelne Tage bleiben erhalten. Sie hängen nicht am Modus,
+    // und wer sie beim Speichern des Profils verlöre, müsste seine Schicht für
+    // morgen jedes Mal neu eintragen.
+    tagesausnahmen: profile.tagesausnahmen,
+    handyAus: profile.handyAus,
+    handyMorgens: profile.handyMorgens,
   };
   if (!validProfile(candidate)) { toast("Bitte prüfe deine Angaben."); return; }
   profile = candidate;
@@ -1836,6 +1890,8 @@ $("btnSaveProfile").addEventListener("click", () => {
   refreshAll();
   toast("Gespeichert");
 });
+
+$("e-randmodus").addEventListener("change", renderWochenzeiten);
 
 $("btnAddSession").addEventListener("click", () => {
   const minutes = Number($("t-min").value);

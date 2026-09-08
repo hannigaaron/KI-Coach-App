@@ -121,8 +121,33 @@ export const SCHRITTE = [
     titel: "Deine Tagesränder",
     text: "Morgens und abends entscheidet sich der Rest. Daraus baue ich deinen Erinnerungsplan.",
     felder: [
-      { art: "zeit", id: "wakeTime", label: "Aufstehen", standard: "07:00" },
-      { art: "zeit", id: "sleepTime", label: "Schlafen", standard: "23:00" },
+      {
+        art: "auswahl",
+        id: "randModus",
+        label: "Wie sehen deine Tage aus",
+        standard: "gleich",
+        optionen: [
+          { id: "gleich", titel: "Ähnlich jeden Tag", text: "Du stehst meistens zur gleichen Zeit auf." },
+          { id: "wochentag", titel: "Je nach Wochentag", text: "Montags anders als samstags, aber die Woche wiederholt sich." },
+          { id: "wechselnd", titel: "Wechselnd oder Schichtdienst", text: "Kein Tag wie der andere. Du trägst die Zeiten ein, wenn du sie kennst." },
+        ],
+      },
+      { art: "zeit", id: "wakeTime", label: "Aufstehen, im Schnitt", standard: "07:00" },
+      { art: "zeit", id: "sleepTime", label: "Schlafen, im Schnitt", standard: "23:00" },
+      {
+        art: "wochenzeiten",
+        id: "wochenraender",
+        label: "Deine Woche",
+        wennFeld: { id: "randModus", ist: ["wochentag"] },
+      },
+      {
+        art: "hinweis",
+        id: "randHinweis",
+        text: "Deine Zeiten oben gelten dann als Schnitt. Sag mir im Chat, wann du an einem Tag "
+          + "wirklich aufstehst, etwa morgen um 5 raus. Diesen Tag rechne ich dann damit, alles andere "
+          + "bleibt unberührt.",
+        wennFeld: { id: "randModus", ist: ["wechselnd"] },
+      },
       { art: "zeit", id: "handyAus", label: "Handy abends weg", standard: "22:00" },
       { art: "zeit", id: "handyMorgens", label: "Morgens das erste Mal am Handy", standard: "07:15" },
     ],
@@ -171,6 +196,15 @@ export function auswerten(antworten) {
     bodyFatPercent: gueltigerKoerperfettWert(antworten.koerperfettWert) ?? antworten.koerperfett?.percent ?? null,
     wakeTime: antworten.wakeTime || "07:00",
     sleepTime: antworten.sleepTime || "23:00",
+    handyAus: antworten.handyAus || undefined,
+    handyMorgens: antworten.handyMorgens || undefined,
+    // "wechselnd" wird als "gleich" gespeichert: es gibt keine Wochenzeiten,
+    // die Standardwerte gelten als Schätzung, und jeder einzelne Tag lässt sich
+    // überschreiben. Der Unterschied liegt nur darin, dass der Coach bei
+    // wechselnden Tagen aktiv nach der Schicht fragt, statt sie anzunehmen.
+    randModus: antworten.randModus === "wochentag" ? "wochentag" : "gleich",
+    wechselndeZeiten: antworten.randModus === "wechselnd",
+    wochenraender: antworten.randModus === "wochentag" ? (antworten.wochenraender || {}) : undefined,
     tdeeOverrideKcal: null,
     sessions,
   };

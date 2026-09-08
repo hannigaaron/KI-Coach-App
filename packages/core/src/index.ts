@@ -14,3 +14,4 @@ export * from "./balance.js";
 export * from "./muster.js";
 export * from "./widerspruch.js";
 export * from "./produkt.js";
+export * from "./tagesrand.js";

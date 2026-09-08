@@ -861,3 +861,16 @@ img.only-light { display: none; }
 .scan-hinweis { font-size: 13.5px; color: var(--muted); }
 .scan-eingabe { display: flex; gap: 8px; }
 .scan-eingabe input { flex: 1; min-width: 0; }
+
+/* Zeiten je Wochentag. Drei Spalten mit fester Tagesspalte, damit die
+   Zeitfelder untereinander stehen und die Zeile nicht springt, sobald ein
+   Wochentagskürzel zwei statt drei Zeichen hat. */
+.wochenkopf, .wochenzeile {
+  display: grid; grid-template-columns: 34px 1fr 1fr; gap: 8px; align-items: center;
+}
+.wochenkopf { margin-bottom: 6px; }
+.wochenkopf span { font-size: 12px; color: var(--muted); text-align: center; }
+.wochenzeiten { display: flex; flex-direction: column; gap: 7px; }
+.wochenzeile .wt-tag { font-size: 13.5px; font-weight: 600; color: var(--text); }
+.wochenzeile input { width: 100%; min-width: 0; }
+.feld-hilfe { font-size: 12.5px; color: var(--muted); line-height: 1.5; margin: 9px 0 0; }

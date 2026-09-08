@@ -296,6 +296,26 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: "tageszeiten_setzen",
+    description:
+      "Trägt für einen einzelnen Tag ein, wann der Nutzer aufsteht und schlafen geht. "
+      + "Nehmen, sobald er eine Schicht, einen frühen Termin oder eine lange Nacht nennt: "
+      + "\"morgen um 5 raus\", \"heute Spätschicht bis 22 Uhr\", \"gestern erst um 2 ins Bett\". "
+      + "Seine Zeiten wechseln, deshalb ist der Wert im Profil nur ein Schnitt. "
+      + "Der Erinnerungsplan, die freie Zeit und die Wachzeit im Balance Board hängen daran: "
+      + "ein Plan, der um 07:30 startet, während er seit 04:30 wach ist, erreicht ihn nie. "
+      + "Nicht nehmen, um den Standard zu ändern, dafür gibt es profil_aendern.",
+    input_schema: {
+      type: "object",
+      properties: {
+        tag: { type: "string", description: "Datum als JJJJ-MM-TT. Ohne Angabe heute." },
+        aufstehen: { type: "string", description: "Uhrzeit als HH:MM." },
+        schlafen: { type: "string", description: "Uhrzeit als HH:MM." },
+      },
+      required: [],
+    },
+  },
+  {
     name: "produkt_nachschlagen",
     description:
       "Schlägt ein Markenprodukt in Open Food Facts nach und liefert die echten Nährwerte vom Etikett. "

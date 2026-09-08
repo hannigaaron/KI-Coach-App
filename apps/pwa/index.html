@@ -465,8 +465,22 @@ try {
           <option value="lean_bulk">Muskeln aufbauen</option>
         </select></div>
       <div class="field-row">
-        <div class="field"><label for="e-wake">Aufstehen</label><input id="e-wake" type="time"></div>
-        <div class="field"><label for="e-sleep">Schlafen</label><input id="e-sleep" type="time"></div>
+        <div class="field"><label for="e-randmodus">Deine Tage</label>
+          <select id="e-randmodus">
+            <option value="gleich">Ähnlich jeden Tag</option>
+            <option value="wochentag">Je nach Wochentag</option>
+            <option value="wechselnd">Wechselnd oder Schichtdienst</option>
+          </select>
+        </div>
+        <div class="field"><label for="e-wake">Aufstehen, im Schnitt</label><input id="e-wake" type="time"></div>
+        <div class="field"><label for="e-sleep">Schlafen, im Schnitt</label><input id="e-sleep" type="time"></div>
+        <div id="e-wochenbox" class="field" hidden>
+          <label>Deine Woche</label>
+          <div class="wochenkopf"><span class="wt-tag"></span><span>Aufstehen</span><span>Schlafen</span></div>
+          <div id="e-wochenzeiten" class="wochenzeiten"></div>
+          <p class="feld-hilfe">Leer lassen heisst: an dem Tag gilt dein Schnitt.</p>
+        </div>
+        <p id="e-randhilfe" class="feld-hilfe"></p>
       </div>
       <button id="btnSaveProfile" class="primary">Speichern</button>
 

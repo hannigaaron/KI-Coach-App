@@ -2,6 +2,7 @@ import { bereichVon } from "./balance.js";
 import type { Termin } from "./ical.js";
 import { uhrzeit } from "./ical.js";
 import type { MacroTargets, UserProfile } from "./types.js";
+import { tagesrandFuer } from "./tagesrand.js";
 
 /**
  * Den Tag lesen, nicht nur anzeigen.
@@ -92,9 +93,13 @@ export function tagesablauf(params: {
   const { tag, profile, ziele } = params;
   const mahlzeiten = Math.max(2, Math.min(6, params.mahlzeiten ?? 4));
 
-  const wachVon = zeitAmTag(tag, profile.wakeTime);
+  // Die Zeiten dieses Tages, nicht die aus dem Profil. Wer im Schichtdienst
+  // arbeitet, hat an keinem Tag dieselben Ränder, und eine falsche Wachzeit
+  // verschiebt jede freie Lücke und jede Mahlzeit.
+  const rand = tagesrandFuer(profile, tag);
+  const wachVon = zeitAmTag(tag, rand.wakeTime);
   // Geht jemand nach Mitternacht ins Bett, endet der Wachtag am nächsten Tag.
-  const rohBis = zeitAmTag(tag, profile.sleepTime);
+  const rohBis = zeitAmTag(tag, rand.sleepTime);
   const wachBis = rohBis > wachVon ? rohBis : rohBis + 86400_000;
 
   const alle = params.termine.slice().sort((a, b) => a.von - b.von);
@@ -290,7 +295,7 @@ function pruefe(p: {
     const minuten = Math.round((p.wachVon - erster.von) / 60000);
     hinweise.push(
       `${erster.titel} beginnt um ${uhrzeit(erster.von)}, das sind ${minuten} Minuten vor deiner Aufstehzeit ` +
-      `${p.profile.wakeTime}. Entweder heute früher aufstehen oder den Termin schieben.`,
+      `${tagesrandFuer(p.profile, p.tag).wakeTime}. Entweder heute früher aufstehen oder den Termin schieben.`,
     );
   }
 
@@ -298,7 +303,7 @@ function pruefe(p: {
     const minuten = Math.round((letzter.bis - p.wachBis) / 60000);
     hinweise.push(
       `${letzter.titel} endet um ${uhrzeit(letzter.bis)}, also ${minuten} Minuten nach deiner Schlafenszeit ` +
-      `${p.profile.sleepTime}. Rechne mit ${minuten} Minuten weniger Schlaf oder verschieb den Morgen.`,
+      `${tagesrandFuer(p.profile, p.tag).sleepTime}. Rechne mit ${minuten} Minuten weniger Schlaf oder verschieb den Morgen.`,
     );
   }
 
@@ -338,7 +343,7 @@ function pruefe(p: {
     if (spaet >= 21) {
       hinweise.push(
         `${t.titel} endet um ${uhrzeit(t.bis)}. Nach spätem Training braucht der Puls Zeit. ` +
-        `Rechne damit, dass du nicht um ${p.profile.sleepTime} schläfst, und plan den nächsten Morgen entsprechend.`,
+        `Rechne damit, dass du nicht um ${tagesrandFuer(p.profile, p.tag).sleepTime} schläfst, und plan den nächsten Morgen entsprechend.`,
       );
     }
   }

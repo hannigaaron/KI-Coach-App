@@ -31,6 +31,32 @@ export interface UserProfile {
   wakeTime: string;
   /** Lokale Schlafenszeit HH:MM. */
   sleepTime: string;
+  /** Wann das Handy abends weggelegt wird. HH:MM. */
+  handyAus?: string;
+  /** Wann morgens das erste Mal aufs Handy geschaut wird. HH:MM. */
+  handyMorgens?: string;
+  /**
+   * Woher die Tagesränder kommen. Ohne Angabe gilt "gleich", damit bestehende
+   * Profile ohne dieses Feld unverändert weiterlaufen.
+   */
+  randModus?: "gleich" | "wochentag";
+  /**
+   * Der Nutzer hat gesagt, dass seine Tage wechseln, etwa im Schichtdienst.
+   * Die Standardzeiten sind dann eine Schätzung und keine Zusage. Der Coach
+   * fragt danach, statt sie als gegeben zu nehmen, und trägt die Antwort als
+   * Ausnahme für den Tag ein.
+   */
+  wechselndeZeiten?: boolean;
+  /**
+   * Zeiten je Wochentag. Schlüssel ist der Wochentag als Zahl wie bei
+   * `Date.getDay()`, Sonntag ist 0. Fehlt ein Tag, gilt der Standard.
+   */
+  wochenraender?: Record<string, { wakeTime?: string; sleepTime?: string; handyAus?: string; handyMorgens?: string }>;
+  /**
+   * Zeiten für einzelne Tage, Schlüssel JJJJ-MM-TT. Schlagen Wochentag und
+   * Standard. Für Schichten, die nicht am Wochentag hängen.
+   */
+  tagesausnahmen?: Record<string, { wakeTime: string; sleepTime: string; handyAus?: string; handyMorgens?: string }>;
   /** Optionaler manueller Überschreibwert für den Kalorienbedarf. */
   tdeeOverrideKcal?: number | null;
   /** Wie der Arbeitstag aussieht. Ohne Angabe wird sitzend angenommen. */
