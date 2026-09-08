@@ -444,6 +444,21 @@ try {
     </div>
   </section>
 
+  <section id="wochencheck" class="view" data-view="wochencheck" hidden>
+    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1 id="wcTitel">Check-in</h1><div class="bar-spacer"></div></header>
+    <div class="scroll">
+      <p class="sub" id="wcEinleitung"></p>
+      <div id="wcWahl" class="wc-wahl"></div>
+      <div id="wcFragen"></div>
+      <div id="wcAktionen" class="wc-aktionen" hidden>
+        <button id="btnWcSpeichern" class="primary">Abschicken</button>
+      </div>
+      <div id="wcAuswertung" class="feedback" hidden></div>
+      <h2 class="section-title" id="wcVerlaufTitel" hidden>Bisher</h2>
+      <ul class="list" id="wcVerlauf"></ul>
+    </div>
+  </section>
+
   <section class="view" data-view="profil" hidden>
     <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Profil</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
@@ -481,6 +496,17 @@ try {
           <p class="feld-hilfe">Leer lassen heisst: an dem Tag gilt dein Schnitt.</p>
         </div>
         <p id="e-randhilfe" class="feld-hilfe"></p>
+
+        <h2 class="section-title">Stimme</h2>
+        <div class="field"><label for="e-stimme">Stimme</label>
+          <select id="e-stimme"></select>
+        </div>
+        <div class="field"><label for="e-tempo">Sprechtempo</label>
+          <input id="e-tempo" type="range" min="0.75" max="1.2" step="0.02" value="0.96">
+          <div class="tempo-marken"><span>ruhig</span><span>schnell</span></div>
+        </div>
+        <button id="btnStimmProbe" class="ghost">Probe hören</button>
+        <p id="e-stimmhilfe" class="feld-hilfe"></p>
       </div>
       <button id="btnSaveProfile" class="primary">Speichern</button>
 
@@ -587,6 +613,7 @@ try {
       <button class="menu-kopf" aria-expanded="false"><b>Coaching</b><span class="chev-ab"></span></button>
       <div class="menu-unter" hidden>
         <button class="menu-item" data-go="checkin"><b>Check-in</b><span>Energie, Schlaf, Stimmung</span></button>
+        <button class="menu-item" data-go="wochencheck"><b>Wochen Check-in</b><span>Mittwoch Bilanz, Sonntag Rückblick</span></button>
         <button class="menu-item" data-go="standards"><b>Mindeststandards</b><span>Deine Untergrenze, jede Woche</span></button>
         <button class="menu-item" data-go="empfehlungen"><b>Empfehlungen</b><span>Muster und Widersprüche</span></button>
         <button class="menu-item" data-go="reflexion"><b>Gedächtnis</b><span>Was daevo über dich weiß</span></button>

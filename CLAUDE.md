@@ -143,7 +143,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 409 Tests
+npm test           # 423 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -181,6 +181,49 @@ Offen: die geheime Adresse direkt abrufen statt eine Datei zu wählen. Das
 scheitert im Browser an CORS, dafür braucht es `apps/api` als Zwischenstelle.
 OAuth für Google und EventKit für Apple gehören in die native App, siehe
 `docs/ROADMAP.md`.
+
+## Die zwei Check-ins der Woche
+
+`packages/core/src/checkin.ts`. Mittwoch 18:00 die Bilanz, Sonntag 19:30 der
+Rückblick. Die Fragen stammen aus den Fragebögen, die der Nutzer vorher
+ausserhalb der App geführt hat. Sie wurden übernommen und nicht verbessert: ein
+Bogen, den jemand über Monate benutzt hat, ist erprobter als einer, den sich
+eine App ausdenkt.
+
+Mittwoch ist die Mitte, deshalb stehen dort Zahlen, die sich noch drehen lassen,
+und alles ist Pflicht. Ein Check-in mit Lücken taugt nicht für einen Verlauf,
+und der Verlauf ist der ganze Zweck. Sonntag ist Rückblick, dort ist nichts
+Pflicht: ein Bogen, der zu einem Satz über Dankbarkeit zwingt, wird abgehakt und
+nicht beantwortet.
+
+Ein Schieberegler ohne Bewegung gilt als unbeantwortet. Der Griff steht in der
+Mitte, die Anzeige bleibt aber leer und die Spur grau. Eine Zahl, die dasteht,
+ohne dass jemand sie gewählt hat, sieht im Verlauf später aus wie eine Antwort.
+
+`checkinText` gibt nur beantwortete Fragen aus. `checkinVergleich` stellt die
+Zahlen gegen den letzten gleichen Bogen, mit einer Schwelle: ein Punkt auf einer
+Skala bis 10 ist Rauschen, zehn Prozentpunkte auch. Ein einzelner Bogen ist eine
+Momentaufnahme, erst "Stress von 40 auf 75" ist eine Aussage.
+
+## Sprachausgabe
+
+`apps/pwa/js/voice.js` nahm bisher die erste deutsche Stimme aus der Liste des
+Geräts. Auf einem iPhone ist das die weibliche Standardstimme in Basisqualität.
+Jetzt werden alle deutschen Stimmen bewertet: bessere Qualität zuerst, dann
+männlich, dann lokal vor Netz. Der Unterschied zwischen Basis und Premium ist
+grösser als der zwischen zwei verschiedenen Stimmen, deshalb wiegt die Qualität
+am schwersten. Die Auswahl steht im Profil, weil nur das Gerät weiss, was
+installiert ist.
+
+Der grössere Teil des Roboterklangs kommt nicht von der Stimme, sondern vom
+Text. `stripForSpeech` setzt Punkte an Zeilenenden, damit die Engine Luft holt,
+löst Abkürzungen auf und schreibt Uhrzeiten aus. Ohne das wird "14:30" zu
+"vierzehn Doppelpunkt dreissig". Tempo 0,96 und Tonhöhe 0,95 liegen knapp unter
+dem Standard: die Voreinstellung klingt gehetzt, und gehetzt klingt maschinell.
+
+Eine wirklich menschliche Stimme geht mit der Web Speech API nicht. Dafür
+braucht es eine externe Sprachsynthese, einen weiteren Schlüssel und laufende
+Kosten. Siehe `docs/ROADMAP.md`.
 
 ## Tagesränder
 

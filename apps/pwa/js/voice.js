@@ -293,8 +293,71 @@ export class Listener {
   }
 }
 
-/** Liest eine Antwort vor. Bricht eine laufende Ausgabe vorher ab. */
-export function speak(text, { onStart, onEnd, enabled = true } = {}) {
+/**
+ * Deutsche Stimmen, die das Gerät anbietet, sortiert nach Eignung.
+ *
+ * Vorher nahm die App die erste deutsche Stimme aus der Liste. Auf einem iPhone
+ * ist das die weibliche Standardstimme in Basisqualität, und die klingt genau
+ * so abgehackt, wie ein Sprachassistent klingen kann.
+ *
+ * Sortiert wird nach drei Kriterien, in dieser Reihenfolge:
+ *
+ * 1. Qualität. Apple und Google liefern zu vielen Stimmen eine bessere Variante
+ *    nach, erkennbar an "Enhanced", "Premium" oder "Neural" im Namen. Der
+ *    Unterschied zwischen Basis und Premium ist grösser als der zwischen zwei
+ *    verschiedenen Stimmen.
+ * 2. Geschlecht. Männliche Stimmen zuerst, weil der Nutzer das so will. Die
+ *    Namensliste deckt die gängigen deutschen Systemstimmen ab. Welche davon
+ *    installiert sind, unterscheidet sich je Gerät, deshalb ist die Liste eine
+ *    Reihenfolge und keine Bedingung.
+ * 3. Lokal vor Netz. Eine lokale Stimme fängt sofort an, eine Netzstimme
+ *    stockt beim ersten Satz.
+ */
+const MAENNLICHE_STIMMEN = [
+  "markus", "yannick", "martin", "viktor", "conrad", "daniel", "stefan",
+  "hans", "klaus", "reed", "rocko", "eddy", "grandpa",
+];
+
+export function deutscheStimmen() {
+  if (!voiceSupport.ausgabe) return [];
+  const alle = globalThis.speechSynthesis.getVoices() || [];
+  return alle
+    .filter((v) => v.lang && v.lang.toLowerCase().startsWith("de"))
+    .map((v) => ({ stimme: v, punkte: stimmPunkte(v) }))
+    .sort((a, b) => b.punkte - a.punkte)
+    .map((x) => x.stimme);
+}
+
+function stimmPunkte(v) {
+  const name = (v.name || "").toLowerCase();
+  let punkte = 0;
+  if (/premium|neural|enhanced|natural/.test(name)) punkte += 100;
+  if (MAENNLICHE_STIMMEN.some((m) => name.includes(m))) punkte += 40;
+  if (v.localService) punkte += 10;
+  // Eine "Eloquence" Stimme auf iOS ist die alte Roboterstimme aus den
+  // Neunzigern. Die will niemand hören.
+  if (/eloquence|compact/.test(name)) punkte -= 60;
+  return punkte;
+}
+
+/** Die Stimme, die gesprochen wird. Erst die gewählte, sonst die beste. */
+export function gewaehlteStimme(name) {
+  const liste = deutscheStimmen();
+  if (name) {
+    const treffer = liste.find((v) => v.name === name);
+    if (treffer) return treffer;
+  }
+  return liste[0] || null;
+}
+
+/**
+ * Liest eine Antwort vor. Bricht eine laufende Ausgabe vorher ab.
+ *
+ * Tempo und Tonhöhe leicht unter dem Standard. Die Voreinstellung klingt
+ * gehetzt, und gehetzt klingt maschinell. 0,96 ist knapp unter Normaltempo,
+ * hörbar ruhiger, ohne schleppend zu wirken.
+ */
+export function speak(text, { onStart, onEnd, enabled = true, stimme, tempo } = {}) {
   if (!enabled || !voiceSupport.ausgabe || !text) {
     onEnd?.();
     return;
@@ -303,10 +366,10 @@ export function speak(text, { onStart, onEnd, enabled = true } = {}) {
   synth.cancel();
   const utterance = new SpeechSynthesisUtterance(stripForSpeech(text));
   utterance.lang = "de-DE";
-  utterance.rate = 1.05;
-  utterance.pitch = 1;
-  const german = synth.getVoices().find((v) => v.lang && v.lang.toLowerCase().startsWith("de"));
-  if (german) utterance.voice = german;
+  utterance.rate = Number.isFinite(tempo) ? Math.max(0.7, Math.min(1.3, tempo)) : 0.96;
+  utterance.pitch = 0.95;
+  const gewaehlt = gewaehlteStimme(stimme);
+  if (gewaehlt) utterance.voice = gewaehlt;
   utterance.onstart = () => onStart?.();
   utterance.onend = () => onEnd?.();
   utterance.onerror = () => onEnd?.();
@@ -317,12 +380,45 @@ export function stopSpeaking() {
   if (voiceSupport.ausgabe) globalThis.speechSynthesis.cancel();
 }
 
-/** Zahlen und Einheiten so umschreiben, dass die Ausgabe natürlich klingt. */
+/**
+ * Text für die Sprachausgabe aufbereiten.
+ *
+ * Der grösste Teil des Roboterklangs kommt nicht von der Stimme, sondern vom
+ * Text. Eine Aufzählung mit Bindestrichen liest die Engine als eine einzige
+ * atemlose Kette, Abkürzungen buchstabiert sie, und Uhrzeiten mit Doppelpunkt
+ * werden zu "sieben Doppelpunkt drei null".
+ *
+ * Ein Punkt am Ende einer Aufzählungszeile erzeugt eine echte Sprechpause. Das
+ * ist der billigste und wirksamste Hebel, den es hier gibt.
+ */
 function stripForSpeech(text) {
   return text
-    .replace(/\bkcal\b/g, "Kilokalorien")
+    // Aufzählungszeichen am Zeilenanfang raus, dafür eine Pause dahinter.
+    .replace(/^\s*[-*•]\s*/gm, "")
+    // Zeilen ohne Satzzeichen am Ende bekommen einen Punkt, sonst hetzt die
+    // Engine ohne Luft in die nächste Zeile.
+    .replace(/([^.!?:,])\n/g, "$1.\n")
+    .replace(/\bkcal\b/gi, "Kilokalorien")
     .replace(/(\d)\s*g\b/g, "$1 Gramm")
     .replace(/(\d)\s*ml\b/g, "$1 Milliliter")
+    .replace(/(\d)\s*kg\b/g, "$1 Kilo")
+    .replace(/(\d)\s*km\b/g, "$1 Kilometer")
+    .replace(/(\d)\s*min\b/gi, "$1 Minuten")
+    .replace(/(\d)\s*h\b/g, "$1 Stunden")
+    // Uhrzeiten: "14:30" wird sonst als Doppelpunkt gelesen.
+    .replace(/\b(\d{1,2}):(00)\b/g, "$1 Uhr")
+    .replace(/\b(\d{1,2}):(\d{2})\b/g, "$1 Uhr $2")
+    .replace(/\bz\.\s?B\./gi, "zum Beispiel")
+    .replace(/\bca\./gi, "circa")
+    .replace(/\busw\./gi, "und so weiter")
+    .replace(/\bbzw\./gi, "beziehungsweise")
+    .replace(/\bEUR\b|€/g, "Euro")
+    .replace(/\bTDEE\b/g, "Tagesbedarf")
+    .replace(/\bPT\b/g, "Personal Training")
+    // Mehrfache Leerzeichen und Zeilen zusammenfassen, Absätze werden zu Pausen.
+    .replace(/\n{2,}/g, ". ")
+    .replace(/\n/g, " ")
     .replace(/\s+/g, " ")
+    .replace(/\.\s*\./g, ".")
     .trim();
 }
