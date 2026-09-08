@@ -1,6 +1,6 @@
 import {
   BEREICHE, BEREICH_NAME, CHECKIN_BOEGEN, CHECKIN_MITTE, STANDARD_ZIELE, WOCHENTAGE,
-  bogenAmTag, bogenFuer, energyBreakdown, uhrzeit, weightTrend,
+  bogenAmTag, bogenFuer, energyBreakdown, nachOrdnern, uhrzeit, weightTrend,
 } from "@daevo/core";
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE } from "@daevo/coach";
 import { Coach, AnthropicProvider } from "@daevo/coach";
@@ -8,6 +8,8 @@ import {
   ablaufFuer, ask, aufgabeAbhaken, aufgabeAnlegenEingestuft, aufgabeLoeschen, aufgabeUmstufen, aufgabenPlan,
   balanceFuer, balanceRat, briefing,
   buildActions, dayNumbers, einkaufslisteText, ensureStandards, greeting, herausforderungSpeichern,
+  aktivesGespraech, gespraechAnlegen, gespraechLoeschen, gespraechNachziehen, gespraechOeffnen,
+  gespraecheSuchen,
   aufgabenPlanText, kopfSortieren, mittagscheck, mittagscheckText, musterUebersicht,
   schluesselPruefen, tagesnutzungFuer,
   trainingsplanUebernehmen, trainingsplanVorschlag, widerspruchListe,
@@ -295,6 +297,7 @@ async function send(text) {
   try {
     const reply = await ask(frage, { onChange: refreshAll, anhaenge: gesendet, onStrom });
     pending.node.remove();
+    gespraechNachziehen();
     renderTranscript();
     refreshAll();
     if (options.speak) {
@@ -375,6 +378,7 @@ async function dumpFertig(text) {
       ausgeführt: ergebnis ? [`${ergebnis.angelegt.length} Aufgaben angelegt`] : [],
     });
     store.setChat(chat);
+    gespraechNachziehen();
     renderTranscript();
     refreshAll();
   } catch (error) {
@@ -463,6 +467,9 @@ function setupAssistant() {
     },
   });
 
+  // Sorgt dafür, dass ein Gespräch offen ist. Ohne das schreibt setChat ins
+  // Leere, und die erste Nachricht des Tages wäre weg.
+  aktivesGespraech();
   if (store.getChat().length === 0) {
     const text = greeting();
     store.setChat([{ role: "assistant", text, at: new Date().toISOString() }]);
@@ -485,6 +492,7 @@ function showView(name) {
   if (name === "tag") renderTag();
   if (name === "balance") renderBalance();
   if (name === "standards") renderStandards();
+  if (name === "gespraeche") renderGespraeche();
   if (name === "wochencheck") wcStart();
   if (name === "empfehlungen") renderRecommendations();
   if (name === "profil") renderProfile();
@@ -881,6 +889,94 @@ function renderStimmwahl() {
       + "Wähl dort eine Stimme mit dem Zusatz Premium. Der Unterschied ist deutlich grösser "
       + "als zwischen zwei verschiedenen Stimmen.";
 }
+
+/* ---------- Gespräche ---------- */
+
+let gsFilter = null;
+
+function renderGespraeche() {
+  const frage = $("gsSuche").value.trim();
+  const aktiv = store.getAktivesGespraech();
+
+  // Der Filter zeigt nur Ordner, in denen wirklich etwas liegt. Sechs leere
+  // Kacheln sagen nichts und kosten eine Bildschirmhöhe.
+  const belegt = nachOrdnern(store.getGespraeche());
+  $("gsOrdnerFilter").innerHTML = belegt.length > 1
+    ? `<button class="pill${gsFilter === null ? " on" : ""}" data-filter="">Alle</button>`
+      + belegt.map((x) =>
+        `<button class="pill${gsFilter === x.ordner.id ? " on" : ""}" data-filter="${x.ordner.id}">`
+        + `${escapeHtml(x.ordner.name)}</button>`).join("")
+    : "";
+
+  if (frage.length >= 2) {
+    const funde = gespraecheSuchen(frage);
+    $("gsListe").innerHTML = funde.length === 0
+      ? `<p class="gs-leer">Nichts gefunden zu "${escapeHtml(frage)}".</p>`
+      : funde.map((f) => eintragHtml(f.gespraech, aktiv, f.stelle)).join("");
+    return;
+  }
+
+  const gruppen = belegt.filter((x) => !gsFilter || x.ordner.id === gsFilter);
+  if (gruppen.length === 0) {
+    $("gsListe").innerHTML = '<p class="gs-leer">Noch keine Gespräche. Fang oben eins an, '
+      + 'daevo sortiert es selbst ein, sobald das Thema klar ist.</p>';
+    return;
+  }
+
+  $("gsListe").innerHTML = gruppen.map((x) => `
+    <div class="gs-ordner">
+      <span class="punkt" style="background:${x.ordner.farbe}"></span>
+      <b>${escapeHtml(x.ordner.name)}</b>
+      <span class="anzahl">${x.gespraeche.length}</span>
+    </div>
+    ${x.gespraeche.map((g) => eintragHtml(g, aktiv)).join("")}`).join("");
+}
+
+function eintragHtml(g, aktiv, stelle = "") {
+  const wann = new Date(g.zuletzt).toLocaleDateString("de-DE", { day: "numeric", month: "short" });
+  const anzahl = g.nachrichten.length;
+  return `<div class="gs-eintrag${g.id === aktiv ? " on" : ""}">
+    <div class="gs-text" data-oeffnen="${g.id}" role="button" tabindex="0">
+      <b>${escapeHtml(g.titel)}</b>
+      <span class="gs-meta">${wann} · ${anzahl} ${anzahl === 1 ? "Nachricht" : "Nachrichten"}`
+      + `${g.ordnerFest ? " · von dir einsortiert" : ""}</span>
+      ${stelle ? `<span class="gs-stelle">${escapeHtml(stelle)}</span>` : ""}
+    </div>
+    <button class="gs-weg" data-loeschen="${g.id}" aria-label="Gespräch löschen">&times;</button>
+  </div>`;
+}
+
+$("gsSuche").addEventListener("input", renderGespraeche);
+
+$("gespraeche").addEventListener("click", (event) => {
+  const filter = event.target.closest("[data-filter]");
+  if (filter) { gsFilter = filter.dataset.filter || null; renderGespraeche(); return; }
+
+  const weg = event.target.closest("[data-loeschen]");
+  if (weg) {
+    gespraechLoeschen(weg.dataset.loeschen);
+    renderGespraeche();
+    return;
+  }
+
+  const oeffnen = event.target.closest("[data-oeffnen]");
+  if (oeffnen) {
+    gespraechOeffnen(oeffnen.dataset.oeffnen);
+    showView("assistant");
+    renderTranscript();
+  }
+});
+
+$("btnGespraeche").addEventListener("click", () => showView("gespraeche"));
+
+function neuesGespraech() {
+  gespraechAnlegen();
+  showView("assistant");
+  renderTranscript();
+  $("chatInput")?.focus();
+}
+$("btnNeuesGespraech").addEventListener("click", neuesGespraech);
+$("btnNeuAusListe").addEventListener("click", neuesGespraech);
 
 /* ---------- Wochen Check-in ---------- */
 

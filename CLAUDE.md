@@ -59,7 +59,7 @@ Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
 
-Der Assistent hat zweiunddreissig Werkzeuge und verändert die App wirklich. Zahlen
+Der Assistent hat vierunddreissig Werkzeuge und verändert die App wirklich. Zahlen
 über den Nutzer kommen immer aus Werkzeugen, nie aus dem Modell. Allgemeines
 Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
@@ -143,7 +143,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 423 Tests
+npm test           # 436 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -181,6 +181,50 @@ Offen: die geheime Adresse direkt abrufen statt eine Datei zu wählen. Das
 scheitert im Browser an CORS, dafür braucht es `apps/api` als Zwischenstelle.
 OAuth für Google und EventKit für Apple gehören in die native App, siehe
 `docs/ROADMAP.md`.
+
+## Gespräche statt eines Verlaufs
+
+`packages/core/src/gespraeche.ts`. Ein einziger Chat hat zwei Probleme. Das eine
+ist praktisch: was vor drei Wochen besprochen wurde, findet niemand wieder, weil
+Scrollen keine Suche ist. Das andere kostet Geld und Qualität: geht der gesamte
+Verlauf bei jeder Nachricht mit, zahlt der Nutzer für Kontext, der nichts zur
+Frage beiträgt, und das Modell muss zwischen einem Gespräch über Kalorien und
+einem über Schuldgefühle selbst trennen.
+
+Sechs Ordner: Ernährung, Training, Regeneration, Planung, Ängste, Sonstiges.
+Einsortiert wird über Wortlisten, nicht über das Modell. Ein Ordner, für den
+erst eine Anfrage rausgeht, wird bei jedem zweiten Gespräch falsch gesetzt, weil
+die Anfrage scheitert oder Geld kostet. Das Modell darf über
+`gespraech_einordnen` korrigieren, der Nutzer auch. Eine Zuordnung von Hand
+setzt `ordnerFest` und wird danach nicht mehr überschrieben.
+
+Gezählt wird, wie viele verschiedene Wörter je Ordner treffen, nicht wie oft.
+Sonst gewinnt ein Gespräch, in dem zwanzig Mal "Essen" steht, gegen eines, das
+inhaltlich breiter zum Thema gehört. Ängste schlägt bei Gleichstand alles
+andere: wer über Scham redet und dabei sein Training erwähnt, führt kein
+Trainingsgespräch. Gewertet werden nur die Nachrichten des Nutzers, denn was der
+Coach antwortet, ist seine Antwort und nicht das Thema.
+
+Titel und Ordner werden erst ab der zweiten Nachricht des Nutzers gesetzt. Eine
+einzelne Zeile wie "hi" sagt über das Thema nichts. Der Titel ist der erste Satz
+des Nutzers, gekürzt an der Wortgrenze, ohne Modellaufruf: für die Beschriftung
+einer Listenzeile lohnt keine Anfrage.
+
+Die Suche nutzt dasselbe Verfahren wie das Gedächtnis, Wortüberlappung mit
+inverser Dokumenthäufigkeit. Ein seltenes Wort wiegt damit schwerer als "ich",
+ohne dass eine Stoppwortliste gepflegt werden muss. Ein Treffer im Titel wiegt
+1,6 fach, weil damit meist genau dieses Gespräch gemeint ist.
+
+`store.getGespraeche()` übernimmt beim ersten Aufruf einen bestehenden einzelnen
+Verlauf als "Bisheriger Verlauf". Ohne das verliert jeder, der die App schon
+benutzt hat, seinen kompletten Chat.
+
+Vierzig Gespräche mit je hundert Nachrichten sind die Obergrenze. Der
+localStorage ist bei rund fünf Megabyte zu Ende.
+
+Der Coach sieht nur das offene Gespräch. Über `gespraeche_durchsuchen` holt er
+Ausschnitte aus früheren, nicht die kompletten Verläufe: fünf ganze Gespräche im
+Kontext kosten mehr Token als die eigentliche Frage.
 
 ## Die zwei Check-ins der Woche
 

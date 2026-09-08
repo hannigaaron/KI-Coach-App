@@ -105,13 +105,71 @@ export const store = {
     write("memories", entries);
   },
 
-  getChat() {
-    return read("chat", []);
+  /* ---------- Gespräche ---------- */
+
+  /**
+   * Alle Gespräche.
+   *
+   * Beim ersten Aufruf wird ein bestehender einzelner Verlauf übernommen. Ohne
+   * das verliert jeder, der die App schon benutzt, seinen kompletten Chat, und
+   * das ist der einzige Ort, an dem manche Dinge stehen.
+   */
+  getGespraeche() {
+    const liste = read("gespraeche", null);
+    if (Array.isArray(liste)) return liste;
+
+    const alt = read("chat", []);
+    if (alt.length === 0) {
+      write("gespraeche", []);
+      return [];
+    }
+    const jetzt = new Date().toISOString();
+    const uebernommen = [{
+      id: `g${Date.now().toString(36)}`,
+      titel: "Bisheriger Verlauf",
+      ordner: "sonstiges",
+      nachrichten: alt,
+      erstellt: alt[0]?.at || jetzt,
+      zuletzt: alt[alt.length - 1]?.at || jetzt,
+    }];
+    write("gespraeche", uebernommen);
+    return uebernommen;
   },
+
+  setGespraeche(liste) {
+    // Vierzig Gespräche mit je hundert Nachrichten sind die Obergrenze. Der
+    // localStorage ist bei rund fünf Megabyte zu Ende, und ein Gespräch, das
+    // seit vierzig Gesprächen niemand geöffnet hat, ist über die Suche in den
+    // Notizen besser aufgehoben als im Verlauf.
+    const gekuerzt = liste
+      .map((g) => ({ ...g, nachrichten: g.nachrichten.slice(-100) }))
+      .sort((a, b) => b.zuletzt.localeCompare(a.zuletzt))
+      .slice(0, 40);
+    write("gespraeche", gekuerzt);
+  },
+
+  getAktivesGespraech() {
+    return read("aktivesGespraech", null);
+  },
+  setAktivesGespraech(id) {
+    write("aktivesGespraech", id);
+  },
+
+  /** Die Nachrichten des offenen Gesprächs. Ersetzt den alten einzelnen Chat. */
+  getChat() {
+    const id = this.getAktivesGespraech();
+    const g = this.getGespraeche().find((x) => x.id === id);
+    return g ? g.nachrichten : [];
+  },
+
   setChat(messages) {
-    // Nur die letzten Nachrichten behalten. Der Verlauf wächst sonst ohne
-    // Grenze und der localStorage ist bei rund fünf Megabyte zu Ende.
-    write("chat", messages.slice(-100));
+    const alle = this.getGespraeche();
+    const id = this.getAktivesGespraech();
+    const treffer = alle.find((x) => x.id === id);
+    if (!treffer) return;
+    treffer.nachrichten = messages;
+    treffer.zuletzt = new Date().toISOString();
+    this.setGespraeche(alle);
   },
 
   getFridge() {
@@ -296,7 +354,7 @@ export const store = {
     out.checkinBoegen = this.getCheckinBoegen();
     out.standards = this.getStandards();
     out.memories = this.getMemories();
-    out.chat = this.getChat();
+    out.gespraeche = this.getGespraeche();
     for (const day of this.allDays()) out.days[day] = this.getDay(day);
     return out;
   },
