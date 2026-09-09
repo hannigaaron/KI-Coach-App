@@ -296,6 +296,28 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: "tag_zu_ende_planen",
+    description:
+      "Teilt das offene Kalorien und Proteinbudget auf die Mahlzeiten auf, die heute noch kommen, "
+      + "und schlägt für jede etwas Konkretes vor. "
+      + "Nehmen bei \"was soll ich heute noch essen\", \"wie krieg ich mein Protein noch voll\", "
+      + "\"was passt noch rein\". "
+      + "Der Unterschied zu mahlzeit_vorschlagen: dort geht es um eine Mahlzeit, hier um den Rest des "
+      + "Tages. Ein Vorschlag über das gesamte Restbudget ist unbrauchbar, wenn danach noch zweimal "
+      + "gegessen wird.",
+    input_schema: {
+      type: "object",
+      properties: {
+        mahlzeiten: {
+          type: "array",
+          items: { type: "string", enum: ["fruehstueck", "mittagessen", "abendessen", "snack"] },
+          description: "Welche Mahlzeiten heute noch kommen. Ohne Angabe wird nach der Uhrzeit entschieden.",
+        },
+      },
+      required: [],
+    },
+  },
+  {
     name: "gespraeche_durchsuchen",
     description:
       "Sucht in allen früheren Gesprächen. Nehmen, sobald er auf etwas Bezug nimmt, das nicht im "

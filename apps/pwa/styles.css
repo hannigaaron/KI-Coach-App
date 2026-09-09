@@ -1264,3 +1264,18 @@ button:disabled { opacity: 0.45; transform: none; }
   font-size: var(--t-xs); font-weight: 550; color: var(--muted);
   letter-spacing: var(--track-weit);
 }
+
+/*
+ * Eine gewählte Pille wird getönt, nicht gefüllt.
+ *
+ * Vollflächig in der Akzentfarbe hat sie dasselbe Gewicht wie der Knopf, der
+ * die Aktion auslöst. Wenn vier Pillen und ein Knopf gleich laut sind, führt
+ * keiner. Die Tönung reicht völlig, um "ausgewählt" zu zeigen, und lässt die
+ * Hauptaktion die Hauptaktion sein.
+ */
+.pill.on {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: 620;
+}
