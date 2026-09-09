@@ -1,6 +1,7 @@
 import {
   BEREICHE, BEREICH_NAME, CHECKIN_BOEGEN, CHECKIN_MITTE, STANDARD_ZIELE, WOCHENTAGE,
-  bogenAmTag, bogenFuer, energyBreakdown, nachOrdnern, uhrzeit, weightTrend,
+  MAHLZEITEN, bogenAmTag, bogenFuer, energyBreakdown, nachOrdnern, offeneMahlzeiten,
+  uhrzeit, weightTrend,
 } from "@daevo/core";
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE } from "@daevo/coach";
 import { Coach, AnthropicProvider } from "@daevo/coach";
@@ -8,8 +9,8 @@ import {
   ablaufFuer, ask, aufgabeAbhaken, aufgabeAnlegenEingestuft, aufgabeLoeschen, aufgabeUmstufen, aufgabenPlan,
   balanceFuer, balanceRat, briefing,
   buildActions, dayNumbers, einkaufslisteText, ensureStandards, greeting, herausforderungSpeichern,
-  aktivesGespraech, gespraechAnlegen, gespraechLoeschen, gespraechNachziehen, gespraechOeffnen,
-  gespraecheSuchen,
+  aktivesGespraech, gegesseneArten, gespraechAnlegen, gespraechLoeschen, gespraechNachziehen,
+  gespraechOeffnen, gespraecheSuchen,
   aufgabenPlanText, kopfSortieren, mittagscheck, mittagscheckText, musterUebersicht,
   schluesselPruefen, tagesnutzungFuer,
   trainingsplanUebernehmen, trainingsplanVorschlag, widerspruchListe,
@@ -484,7 +485,7 @@ function showView(name) {
   for (const view of document.querySelectorAll(".view")) view.hidden = view.dataset.view !== name;
   $("menu").hidden = true;
   if (name === "heute") renderToday();
-  if (name === "essen") { $("fridgeInput").value = store.getFridge().join(", "); renderMeals("mealList2"); }
+  if (name === "essen") { $("fridgeInput").value = store.getFridge().join(", "); renderMeals("mealList2"); renderRestDesTages(); }
   if (name === "checkin") renderCheckins();
   if (name === "reflexion") renderMemories();
   if (name === "einkauf") renderEinkauf();
@@ -889,6 +890,62 @@ function renderStimmwahl() {
       + "Wähl dort eine Stimme mit dem Zusatz Premium. Der Unterschied ist deutlich grösser "
       + "als zwischen zwei verschiedenen Stimmen.";
 }
+
+/* ---------- Rest des Tages ---------- */
+
+// Welche Mahlzeiten der Nutzer angetippt hat. Null heisst: noch nichts
+// angetippt, dann entscheidet die Uhrzeit.
+let restWahl = null;
+
+function renderRestDesTages() {
+  const n = dayNumbers(day);
+  const satz = $("restSatz");
+  if (!satz) return;
+
+  satz.textContent = n.rest.kcal > 0
+    ? `Offen sind noch ${n.rest.kcal} kcal und ${Math.max(0, n.rest.proteinG)} g Protein.`
+    : `Dein Tagesziel ist erreicht, ${Math.abs(n.rest.kcal)} kcal darüber.`;
+
+  const gegessen = gegesseneArten(n.data.meals);
+  const vorgabe = offeneMahlzeiten(new Date().getHours(), gegessen);
+  const gewaehlt = restWahl ?? vorgabe;
+
+  $("restMahlzeiten").innerHTML = MAHLZEITEN.map((m) => {
+    const an = gewaehlt.includes(m.art);
+    const schon = gegessen.includes(m.art);
+    return `<button type="button" class="pill${an ? " on" : ""}" data-mahlzeit="${m.art}">`
+      + `${escapeHtml(m.name)}${schon ? " ✓" : ""}</button>`;
+  }).join("");
+}
+
+$("restMahlzeiten").addEventListener("click", (event) => {
+  const knopf = event.target.closest("[data-mahlzeit]");
+  if (!knopf) return;
+  const art = knopf.dataset.mahlzeit;
+  const n = dayNumbers(day);
+  const aktuell = restWahl ?? offeneMahlzeiten(new Date().getHours(), gegesseneArten(n.data.meals));
+  restWahl = aktuell.includes(art) ? aktuell.filter((x) => x !== art) : [...aktuell, art];
+  renderRestDesTages();
+});
+
+$("btnRestPlanen").addEventListener("click", async () => {
+  const knopf = $("btnRestPlanen");
+  const feld = $("restAusgabe");
+  knopf.disabled = true;
+  knopf.textContent = "daevo rechnet";
+  feld.hidden = false;
+  feld.textContent = "Ich teile das auf.";
+  try {
+    const text = await buildActions({ onChange: refreshAll })
+      .tagZuEndePlanen({ mahlzeiten: restWahl ?? undefined });
+    feld.textContent = text;
+  } catch (error) {
+    feld.textContent = `Das hat nicht geklappt: ${error.message}`;
+  } finally {
+    knopf.disabled = false;
+    knopf.textContent = "Rest aufteilen und Vorschläge holen";
+  }
+});
 
 /* ---------- Gespräche ---------- */
 

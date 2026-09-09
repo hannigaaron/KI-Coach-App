@@ -40,6 +40,7 @@ import {
   estimateTdee,
   BEREICH_NAME,
   naehrwerteFuer,
+  offeneMahlzeiten,
   portionsVorschlag,
   setzeAusnahme,
   tagesrandFuer,
@@ -48,6 +49,8 @@ import {
   produktText,
   standardZumNachhaken,
   standardsStatus,
+  verteileRest,
+  verteilungText,
   tagesnutzung,
   suggestStandards,
   targetCorrection,
@@ -979,6 +982,27 @@ export async function schluesselPruefen() {
   return provider().pruefe();
 }
 
+/**
+ * Welche Mahlzeiten heute schon gegessen wurden.
+ *
+ * Erkannt wird an der Uhrzeit des Eintrags, nicht an seinem Text. Wer um 13 Uhr
+ * etwas einträgt, hat Mittag gegessen, egal wie er es nennt. Ein zweiter
+ * Eintrag im selben Fenster gilt als dieselbe Mahlzeit: wer nachlegt, isst
+ * nicht zweimal zu Mittag.
+ */
+export function gegesseneArten(mahlzeiten = []) {
+  const arten = new Set();
+  for (const m of mahlzeiten) {
+    const stunde = Number(String(m.at || "").slice(0, 2));
+    if (!Number.isFinite(stunde)) continue;
+    if (stunde < 11) arten.add("fruehstueck");
+    else if (stunde < 15) arten.add("mittagessen");
+    else if (stunde < 17) arten.add("snack");
+    else arten.add("abendessen");
+  }
+  return [...arten];
+}
+
 /* ---------- Gespräche ---------- */
 
 /**
@@ -1551,6 +1575,59 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
         `Restbudget ${n.rest.kcal} kcal und ${n.rest.proteinG} g Protein.`,
         wunsch ? `Wunsch war: ${wunsch}.` : "",
       ].filter(Boolean).join(" ");
+    },
+
+    /**
+     * Den Rest des Tages planen.
+     *
+     * Erst rechnen, dann fragen. Die Aufteilung kommt aus dem Rechenkern und
+     * steht fest, bevor das Modell etwas sieht. Das Modell füllt sie mit
+     * Lebensmitteln, es entscheidet nicht über die Zahlen. Sonst kämen drei
+     * Vorschläge zurück, die einzeln plausibel sind und zusammen 600 Kalorien
+     * über dem Ziel liegen.
+     */
+    async tagZuEndePlanen({ mahlzeiten } = {}) {
+      const n = dayNumbers();
+      const stunde = new Date().getHours();
+
+      const arten = mahlzeiten && mahlzeiten.length
+        ? mahlzeiten
+        : offeneMahlzeiten(stunde, gegesseneArten(n.data.meals));
+
+      if (arten.length === 0) {
+        return "Für heute ist keine Mahlzeit mehr eingeplant. "
+          + `Offen wären noch ${n.rest.kcal} kcal und ${Math.max(0, n.rest.proteinG)} g Protein. `
+          + "Sag mir, was du noch essen willst, dann rechne ich es dir auf.";
+      }
+
+      const v = verteileRest(
+        { kcal: n.rest.kcal, proteinG: n.rest.proteinG, fatG: n.rest.fatG, carbsG: n.rest.carbsG },
+        arten,
+      );
+      if (v.anteile.length === 0) return v.hinweise.join(" ");
+
+      const vorrat = store.getFridge();
+      const teile = [verteilungText(v)];
+
+      // Je Mahlzeit ein eigener Vorschlag gegen das eigene Teilbudget. Ohne
+      // Schlüssel liefert suggestMeal den Regelweg, dann steht wenigstens die
+      // Aufteilung da, und die ist der eigentliche Nutzen.
+      for (const a of v.anteile) {
+        try {
+          const s = await coach.suggestMeal({
+            fridge: vorrat,
+            targets: { kcal: a.kcal, proteinG: a.proteinG, fatG: a.fatG, carbsG: a.carbsG, waterMl: 0 },
+            consumed: [],
+            waterMl: 0,
+          });
+          const zutaten = s.ingredients.map((i) => `${i.quantity} ${i.name}`).join(", ");
+          teile.push(`${a.name}: ${s.title}.${zutaten ? ` ${zutaten}.` : ""}`);
+        } catch {
+          teile.push(`${a.name}: kein Vorschlag, aber das Budget steht oben.`);
+        }
+      }
+
+      return teile.join("\n");
     },
 
     async checkinSpeichern({ energie, schlaf, stimmung, notiz, herausforderung }) {

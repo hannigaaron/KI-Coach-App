@@ -35,6 +35,7 @@ export interface AgentActions {
   produktNachschlagen(input: { suche: string; gramm?: number; erfassen?: boolean }): Promise<string>;
   tageszeitenSetzen(input: { tag?: string; aufstehen?: string; schlafen?: string }): Promise<string>;
   gespraecheDurchsuchen(input: { suche: string }): Promise<string>;
+  tagZuEndePlanen(input: { mahlzeiten?: string[] }): Promise<string>;
   gespraechEinordnenAktiv(input: { ordner: string; titel?: string }): Promise<string>;
   wasserEintragen(ml: number): Promise<string>;
   tagesstandAbrufen(): Promise<string>;
@@ -454,6 +455,12 @@ async function execute(
           tag: typeof input.tag === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.tag) ? input.tag : undefined,
         });
         return { text, notiz: `${minuten} Minuten auf ${bereich} gebucht` };
+      }
+      case "tag_zu_ende_planen": {
+        const erlaubt = ["fruehstueck", "mittagessen", "abendessen", "snack"];
+        const roh = Array.isArray(input.mahlzeiten) ? input.mahlzeiten : [];
+        const mahlzeiten = roh.map(String).filter((m) => erlaubt.includes(m));
+        return { text: await actions.tagZuEndePlanen({ mahlzeiten: mahlzeiten.length ? mahlzeiten : undefined }) };
       }
       case "gespraeche_durchsuchen": {
         const suche = String(input.suche ?? "").trim();
@@ -885,6 +892,14 @@ export async function runOffline(
 
   if (pattern("mindeststandard", "standard", "untergrenze", "dranbleiben", "durchgezogen", "vorgenommen").test(text)) {
     return { text: await actions.standardsAbrufen(), ausgeführt, source: "offline" };
+  }
+
+  // Die Frage nach dem Rest des Tages ist eine andere als die nach einer
+  // Mahlzeit. Ein Vorschlag ueber das gesamte Restbudget ist unbrauchbar, wenn
+  // danach noch zweimal gegessen wird.
+  if (pattern("heute noch essen", "rest des tages", "restlichen tag", "was passt noch",
+    "protein noch voll", "noch voll krieg", "tag zu ende").test(text)) {
+    return { text: await actions.tagZuEndePlanen({}), ausgeführt, source: "offline" };
   }
 
   if (pattern("was soll ich essen", "vorschlag", "kühlschrank", "kochen", "rezept").test(text)) {

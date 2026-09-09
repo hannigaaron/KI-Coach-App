@@ -59,7 +59,7 @@ Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
 
-Der Assistent hat vierunddreissig Werkzeuge und verändert die App wirklich. Zahlen
+Der Assistent hat fuenfunddreissig Werkzeuge und verändert die App wirklich. Zahlen
 über den Nutzer kommen immer aus Werkzeugen, nie aus dem Modell. Allgemeines
 Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
@@ -143,7 +143,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 436 Tests
+npm test           # 450 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -423,6 +423,35 @@ Die Ringe liegen in `apps/pwa/js/rings.js` und sind SVG, nicht Canvas. Es sind
 ein paar Dutzend Kreise, kein Partikelfeld wie beim Orb. `wertungsRing` ist der
 grosse Ring mit Etikett, Zahl und Urteil, `metrikRing` die kleine Kennzahl mit
 Richtungspfeil gegen gestern. Beides steht oben auf der Tagesansicht.
+
+## Den Rest des Tages aufteilen
+
+`packages/core/src/verteilung.ts`. Bisher schlug die App eine Mahlzeit für das
+gesamte Restbudget vor. Wer um 15 Uhr fragt und noch 1400 Kalorien offen hat,
+bekommt damit einen Vorschlag über 1400 Kalorien, obwohl er danach noch zweimal
+isst. Der eigentliche Wert liegt in der Aufteilung, nicht im Rezept.
+
+Erst rechnen, dann fragen. Die Aufteilung steht fest, bevor das Modell etwas
+sieht. Das Modell füllt sie mit Lebensmitteln, es entscheidet nicht über die
+Zahlen. Sonst kommen drei Vorschläge zurück, die einzeln plausibel sind und
+zusammen 600 Kalorien über dem Ziel liegen.
+
+Kalorien folgen der Gewichtung je Mahlzeit, Protein wird gleichmässiger
+verteilt: genau die Hälfte des Weges zwischen Kaloriengewichtung und
+Gleichverteilung. Der Grund ist praktisch, nicht medizinisch. Ein Snack mit 12
+Prozent der Kalorien und 12 Prozent des Proteins wäre ein Keks, und der bringt
+niemanden an sein Proteinziel. Ein Quark mit 30 Gramm Protein passt in dieselben
+Kalorien.
+
+Drei Hinweise, die die App von sich aus gibt: eine Mahlzeit unter 200 Kalorien
+bei mehreren geplanten, eine über 1200 Kalorien, und über 60 Gramm Protein in
+einer Portion. Alle drei heissen dasselbe: die Planung passt nicht zur Menge.
+Das gehört gesagt und nicht in einem Vorschlag versteckt.
+
+Welche Mahlzeit schon gegessen wurde, erkennt `gegesseneArten` an der Uhrzeit
+des Eintrags, nicht an seinem Text. Wer um 13 Uhr etwas einträgt, hat Mittag
+gegessen, egal wie er es nennt. Ein zweiter Eintrag im selben Fenster gilt als
+dieselbe Mahlzeit: wer nachlegt, isst nicht zweimal zu Mittag.
 
 ## Nährwerte von Markenprodukten
 

@@ -6,6 +6,7 @@ import type { ChatMessage, CoachProvider, ContentBlock, ConverseRequest, Convers
 function stubActions(log: string[]): AgentActions {
   return {
     async mahlzeitErfassen(b) { log.push(`mahlzeit:${b}`); return "Eingetragen: 500 kcal, 40 g Protein."; },
+    async tagZuEndePlanen(i) { log.push(`planen:${(i.mahlzeiten ?? []).join("+")}`); return "Abendessen 900 kcal."; },
     async gespraecheDurchsuchen(i) { log.push(`suche:${i.suche}`); return "Zwei Gespräche gefunden."; },
     async gespraechEinordnenAktiv(i) { log.push(`einordnen:${i.ordner}`); return "Verschoben."; },
     async tageszeitenSetzen(i) { log.push(`zeiten:${i.tag ?? "heute"}:${i.aufstehen ?? ""}:${i.schlafen ?? ""}`); return "Eingetragen."; },

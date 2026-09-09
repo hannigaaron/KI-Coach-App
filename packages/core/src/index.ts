@@ -17,3 +17,4 @@ export * from "./produkt.js";
 export * from "./tagesrand.js";
 export * from "./checkin.js";
 export * from "./gespraeche.js";
+export * from "./verteilung.js";
