@@ -1279,3 +1279,29 @@ button:disabled { opacity: 0.45; transform: none; }
   color: var(--accent-text);
   font-weight: 620;
 }
+
+/* Eine Beschriftung über einer Gruppe von Pillen. Sie gehört zur Gruppe wie
+   ein Label zu einem Eingabefeld, ist aber keins, deshalb eine eigene Klasse. */
+.feld-label {
+  display: block; font-size: var(--t-sm); font-weight: 550;
+  color: var(--muted); letter-spacing: var(--track-weit); margin-bottom: var(--s-2);
+}
+
+/*
+ * Antworten mit Zeilenumbrüchen behalten sie.
+ *
+ * Der Coach liefert Aufzählungen mit echten Zeilenumbrüchen. Ohne diese Regel
+ * fasst HTML alles zu einem Absatz zusammen, und aus einer Aufteilung auf drei
+ * Mahlzeiten wird eine Textwand, die niemand liest. Der Umbruch ist hier die
+ * Information.
+ */
+.feedback { white-space: pre-line; }
+
+/* Luft zwischen den Gruppen im Bereich "Rest des Tages". Eine Beschriftung,
+   die am Element darüber klebt, wirkt wie dessen Fussnote statt wie die
+   Überschrift dessen, was folgt. */
+#restSatz { margin-bottom: var(--s-5); }
+.feld-label { margin-top: var(--s-5); }
+.feld-label:first-of-type { margin-top: 0; }
+#restMahlzeiten { margin-bottom: var(--s-5); }
+#btnRestPlanen { margin-top: var(--s-2); }

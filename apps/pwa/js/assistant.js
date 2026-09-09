@@ -1608,6 +1608,12 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
 
       const vorrat = store.getFridge();
       const teile = [verteilungText(v)];
+      if (vorrat.length === 0) {
+        teile.push(
+          "Was du zu Hause hast, weiss ich nicht, deshalb sind die Vorschläge allgemein. "
+          + "Trag deinen Vorrat ein, dann schlage ich dir vor, was du wirklich kochen kannst.",
+        );
+      }
 
       // Je Mahlzeit ein eigener Vorschlag gegen das eigene Teilbudget. Ohne
       // Schlüssel liefert suggestMeal den Regelweg, dann steht wenigstens die
