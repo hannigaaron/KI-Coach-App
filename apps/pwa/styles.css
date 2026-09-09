@@ -11,35 +11,110 @@
   dunklen Ton. --on-accent ist jeweils die Schriftfarbe darauf.
 */
 :root {
+  /* ---------- Marke ---------- */
   --brand: #96d8f0;
   --brand-deep: #1e7fa8;
+  /* Für Text auf hellem Grund. --brand-deep erreicht auf #f6f8fa nur 4.24 zu 1
+     und ist dort für Fliesstext zu schwach. Dieser Ton liegt bei 4.98. */
+  --brand-text: #1b7399;
 
-  --bg: #0e1116;
-  --panel: #161b22;
-  --panel-2: #0d1117;
-  --border: #262d36;
-  --text: #e6edf3;
-  --muted: #929daa;
+  /* ---------- Flächen ----------
+   *
+   * Die Neutraltöne sind nicht neutral. Sie tragen einen leichten Blaustich in
+   * Richtung des Logoblaus, rund vier Prozent Sättigung. Ein reines Grau neben
+   * einer kühlen Markenfarbe wirkt schmutzig, und die Palette fällt in zwei
+   * Hälften auseinander: hier die Marke, da der Rest. Der Stich ist zu gering,
+   * um als Farbe gelesen zu werden, und genau darum geht es.
+   */
+  --bg: #0b0e14;
+  --panel: #131822;
+  --panel-2: #0f141c;
+  /* Für Elemente, die auf einem Panel liegen und sich davon abheben müssen. */
+  --erhoben: #1a2130;
+  --border: #232b3a;
+  /* Trennlinien innerhalb einer Fläche. Schwächer als ein Rahmen, weil sie
+     gliedern und nicht abgrenzen. */
+  --linie: rgba(255, 255, 255, 0.07);
+  --text: #e8edf5;
+  --muted: #8d97a8;
   --accent: var(--brand);
+  --accent-text: var(--brand);
   --on-accent: #0b0d10;
   --good: #3fb950;
   --warn: #d29922;
   --alt: #a371f7;
   --water: #2ec5d3;
   --bad: #f85149;
-  /*
-   * Eine Skala für alle Ecken.
+
+  /* ---------- Typografie ----------
    *
-   * Vorher standen fünfzehn verschiedene Werte zwischen 9 und 20 Pixeln im
-   * Stylesheet, jeder für sich plausibel und zusammen unruhig. Vier Stufen
-   * reichen: klein für Eingaben und Knöpfe, mittel für Karten und Listen,
-   * gross für alles, was wie eine Fläche wirkt, und die Pille für alles Runde.
+   * Eine modulare Skala mit dem Verhältnis 1.2. Vorher standen elf Grössen
+   * zwischen 12 und 20 Pixeln im Stylesheet, darunter 12.5, 13.5, 14.5, 15.5
+   * und 16.5. Jede für sich plausibel, zusammen ohne System, und genau das
+   * liest man einer Oberfläche an, ohne es benennen zu können.
    */
-  --r-sm: 12px;
-  --r-md: 16px;
-  --r-lg: 22px;
+  --t-2xs: 11px;
+  --t-xs: 12px;
+  --t-sm: 13px;
+  --t-md: 15px;
+  --t-lg: 17px;
+  --t-xl: 20px;
+  --t-2xl: 24px;
+  --t-3xl: 30px;
+  --t-4xl: 40px;
+
+  /* Grosse Schrift braucht engere Laufweite, kleine eine weitere. Ohne das
+     wirken Überschriften auseinandergezogen und Kleinstschrift gedrängt. */
+  --track-eng: -0.02em;
+  --track-normal: 0;
+  --track-weit: 0.02em;
+  --track-versal: 0.08em;
+
+  /* ---------- Abstände ----------
+   *
+   * Alles auf einem Vierer Raster. Ein Layout, in dem 13, 18 und 26 Pixel
+   * nebeneinander stehen, hat keinen Rhythmus, und Rhythmus ist der halbe
+   * Unterschied zwischen zusammengesetzt und entworfen.
+   */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-10: 40px;
+  --s-12: 48px;
+
+  /* ---------- Ecken ---------- */
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-xl: 28px;
   --r-pill: 999px;
   --radius: var(--r-md);
+
+  /* ---------- Tiefe ----------
+   *
+   * Drei Stufen statt zufälliger Schatten. Im dunklen Modus kommt zu jedem
+   * Schatten ein Lichtsaum an der Oberkante: dunkle Oberflächen erzeugen
+   * Tiefe über Licht, nicht über Schatten, weil ein Schatten auf Schwarz
+   * unsichtbar ist. Dieses Detail unterscheidet eine gebaute Oberfläche von
+   * einer zusammengesetzten.
+   */
+  --schatten-1: 0 1px 2px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --schatten-2: 0 4px 16px -4px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --schatten-3: 0 16px 40px -12px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+
+  /* ---------- Bewegung ----------
+   *
+   * Eine Kurve für alles. Sie startet schnell und läuft weich aus, wie eine
+   * Bewegung mit Masse. Lineare Übergänge wirken maschinell.
+   */
+  --kurve: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --schnell: 140ms;
+  --normal: 220ms;
+
   --bar: 52px;
   --composer: 64px;
 }
@@ -376,7 +451,18 @@ button:disabled { opacity: 0.5; }
 }
 .metrik-pfeil.hoch { transform: rotate(-45deg); border-color: var(--good); }
 .metrik-pfeil.runter { transform: rotate(135deg); border-color: var(--warn); }
-.metrik-pfeil.gleich { transform: rotate(45deg); }
+/*
+ * Unverändert ist ein Strich, kein Pfeil.
+ *
+ * Um 45 Grad gedreht ergab die Pfeilform einen Winkel nach rechts, und der
+ * liest sich als "hier tippen", nicht als "gleich geblieben". In einer Zeile
+ * neben echten Richtungspfeilen sah das aus, als wären die Symbole zufällig
+ * gewählt.
+ */
+.metrik-pfeil.gleich {
+  width: 10px; height: 0; border-right: 0;
+  border-top: 1.6px solid var(--muted); opacity: 0.55; transform: translateY(4px);
+}
 .wertung svg { color: var(--text); display: block; }
 .wertung-satz {
   font-size: 13.5px; color: var(--muted); text-align: center;
@@ -477,18 +563,29 @@ button:disabled { opacity: 0.5; }
   stempeln statt über prefers-color-scheme zu melden.
 */
 :root[data-theme="light"] {
-    --bg: #f6f8fa; --panel: #ffffff; --panel-2: #f6f8fa; --border: #d8dee4;
-    --text: #1f2328; --muted: #656d76;
+    --bg: #f5f7fb; --panel: #ffffff; --panel-2: #edf1f7; --erhoben: #ffffff;
+    --border: #dce3ed; --linie: rgba(20, 26, 36, 0.08);
+    --text: #141a24; --muted: #5b6675;
     --accent: var(--brand-deep);
+    --accent-text: var(--brand-text);
     --on-accent: #ffffff;
+    --schatten-1: 0 1px 2px rgba(20, 26, 36, 0.06);
+    --schatten-2: 0 4px 16px -6px rgba(20, 26, 36, 0.14);
+    --schatten-3: 0 16px 40px -14px rgba(20, 26, 36, 0.2);
 }
 
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
-    --bg: #f6f8fa; --panel: #ffffff; --panel-2: #f6f8fa; --border: #d8dee4;
-    --text: #1f2328; --muted: #656d76;
+    --bg: #f5f7fb; --panel: #ffffff; --panel-2: #edf1f7; --erhoben: #ffffff;
+    --border: #dce3ed; --linie: rgba(20, 26, 36, 0.08);
+    --text: #141a24; --muted: #5b6675;
     --accent: var(--brand-deep);
+    --accent-text: var(--brand-text);
     --on-accent: #ffffff;
+    /* Auf hellem Grund trägt der Schatten die Tiefe, nicht das Licht. */
+    --schatten-1: 0 1px 2px rgba(20, 26, 36, 0.06);
+    --schatten-2: 0 4px 16px -6px rgba(20, 26, 36, 0.14);
+    --schatten-3: 0 16px 40px -14px rgba(20, 26, 36, 0.2);
   }
 }
 
@@ -983,3 +1080,187 @@ input[type="range"]::-moz-range-thumb {
 }
 .icon-btn .plus::before { left: 9px; top: 2px; width: 2px; height: 16px; }
 .icon-btn .plus::after { top: 9px; left: 2px; height: 2px; width: 16px; }
+
+/* ---------- Struktur in langen Ansichten ---------- */
+
+/*
+ * Zwei Ebenen von Überschriften, die man auf einen Blick auseinanderhält.
+ *
+ * `.section-title` war beides zugleich: klein, grau, versal. In einer Ansicht
+ * mit acht davon sieht jede aus wie die nächste, und der Nutzer muss lesen,
+ * statt zu sehen. `.abschnitt` ist jetzt die obere Ebene: gross, in Textfarbe,
+ * mit einer Linie darüber. Die Linie trennt stärker als jeder Abstand.
+ */
+.abschnitt {
+  font-size: 20px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.25;
+  color: var(--text); margin: 34px 0 14px; padding-top: 22px;
+  border-top: 1px solid var(--border);
+}
+/* Die erste Überschrift einer Ansicht braucht keine Trennlinie nach oben. */
+.scroll > .abschnitt:first-child { margin-top: 6px; padding-top: 0; border-top: 0; }
+
+/* Ein Knopf, der einen Abschnitt abschliesst, steht auf voller Breite. Ein
+   halbbreiter Knopf mitten im Formular sieht aus, als gehörte er zum Feld
+   daneben. */
+.breit { width: 100%; margin-bottom: 4px; }
+
+/* Feldzeilen brechen um. Ohne das quetscht ein drittes Feld die beiden anderen
+   zusammen, statt in die nächste Zeile zu rutschen. */
+.field-row { flex-wrap: wrap; }
+.field-row > .field { flex: 1 1 140px; }
+
+/* Mehr Luft zwischen den Feldern. Ein Formular mit vierzehn Zeilen auf einem
+   Telefon liest sich nur mit Abstand. */
+.field { margin-bottom: 18px; }
+label { font-size: 13.5px; margin-bottom: 7px; }
+
+/* ============================================================
+   Feinschliff. Steht am Ende, damit es die gewachsenen Regeln
+   darüber überschreibt, ohne dass jede einzelne angefasst wird.
+   ============================================================ */
+
+/*
+ * Zahlen laufen tabellarisch.
+ *
+ * In der Standardeinstellung ist eine 1 schmaler als eine 8. Eine Liste mit
+ * 1900, 2884 und 138 zappelt dadurch, und ein Zähler, der von 9 auf 10
+ * springt, verschiebt alles daneben. Tabellarische Ziffern sind gleich breit.
+ * Das ist die unauffälligste Verbesserung mit der grössten Wirkung.
+ */
+body { font-variant-numeric: tabular-nums; }
+
+/*
+ * Überschriften.
+ *
+ * Grosse Schrift bekommt engere Laufweite und mehr Fettung, kleine bleibt
+ * offen. Ohne das wirkt eine 30 Pixel Zeile auseinandergezogen und eine 12
+ * Pixel Zeile gedrängt, egal wie gut die Schrift ist.
+ */
+h1 { font-size: var(--t-lg); font-weight: 650; letter-spacing: var(--track-eng); }
+.abschnitt {
+  font-size: var(--t-xl); font-weight: 680; letter-spacing: var(--track-eng);
+  line-height: 1.2; color: var(--text);
+  margin: var(--s-10) 0 var(--s-4); padding-top: var(--s-6);
+  border-top: 1px solid var(--linie);
+}
+.scroll > .abschnitt:first-child { margin-top: var(--s-2); padding-top: 0; border-top: 0; }
+.section-title {
+  font-size: var(--t-xs); font-weight: 620; text-transform: uppercase;
+  letter-spacing: var(--track-versal); color: var(--muted);
+  margin: var(--s-6) 0 var(--s-3);
+}
+.sub { font-size: var(--t-md); line-height: 1.6; color: var(--muted); }
+
+/*
+ * Eingaben.
+ *
+ * Sechzehn Pixel sind Pflicht, darunter zoomt iOS beim Antippen in das Feld
+ * hinein. Der Rahmen ist eine Linie und kein Kasten: eine Fläche mit eigenem
+ * Hintergrund neben einer Fläche mit eigenem Hintergrund erzeugt genau den
+ * Baukasteneindruck, den niemand will.
+ */
+input, select, textarea {
+  font-size: var(--t-lg);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 13px 14px;
+  transition: border-color var(--schnell) var(--kurve), box-shadow var(--schnell) var(--kurve);
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+label { font-size: var(--t-sm); font-weight: 550; color: var(--muted); letter-spacing: var(--track-weit); }
+
+/*
+ * Knöpfe.
+ *
+ * Ein Knopf, der beim Tippen nichts tut, fühlt sich tot an. Achtundneunzig
+ * Prozent Grösse für hundertvierzig Millisekunden ist zu wenig, um es bewusst
+ * zu sehen, und genug, um es zu spüren.
+ */
+button {
+  font-size: var(--t-md); font-weight: 620; letter-spacing: var(--track-weit);
+  border-radius: var(--r-sm);
+  transition: transform var(--schnell) var(--kurve), background var(--schnell) var(--kurve),
+              border-color var(--schnell) var(--kurve), opacity var(--schnell) var(--kurve);
+}
+button:active { transform: scale(0.98); }
+button:disabled { opacity: 0.45; transform: none; }
+.primary { box-shadow: var(--schatten-1); }
+
+/*
+ * Karten und Listen.
+ *
+ * Vorher hatte fast jedes Element seinen eigenen Kasten mit Rahmen. Zwanzig
+ * gerahmte Flächen untereinander lesen sich als Liste von Behältern, nicht als
+ * Inhalt. Die Karte bleibt, wird aber ruhiger: weicher Rahmen, eine Stufe
+ * Tiefe, mehr Innenabstand.
+ */
+.card, .list > li, .ring-card {
+  border-color: var(--linie);
+  box-shadow: var(--schatten-1);
+}
+.card { padding: var(--s-5); border-radius: var(--r-lg); }
+
+/* Die Kennzahl Zeilen in einer Karte werden durch Linien gegliedert, nicht
+   durch Abstand. Das ist dichter und ruhiger zugleich. */
+.kv { border-color: var(--linie); }
+
+/* Pillen und Kacheln bekommen dieselbe Reaktion wie Knöpfe. */
+.pill, .opt, .menu-item, .gs-eintrag, .wc-frage { transition: all var(--schnell) var(--kurve); }
+.pill:active, .opt:active, .menu-item:active { transform: scale(0.98); }
+
+/*
+ * Der Rahmen um ein aktives Element ist zwei Pixel breit und liegt innen.
+ * Ein einzelner Pixel verschwindet auf einem Telefon, und ein Rahmen, der die
+ * Grösse des Elements ändert, lässt das Layout springen.
+ */
+.pill.on, .opt.on, .gs-eintrag.on {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/* Bereichsüberschrift in der Kopfzeile: dieselbe Behandlung wie eine
+   Überschrift, nur kleiner. Vorher war sie fett und eng wie ein Titel. */
+.bar h1 { font-size: var(--t-lg); }
+
+/* Kleinstschrift bleibt lesbar. 11 Pixel ohne weitere Laufweite verschmiert
+   auf einem hochauflösenden Display zu einer grauen Linie. */
+.fineprint, .meta, .feld-hilfe, .gs-meta {
+  font-size: var(--t-xs); letter-spacing: var(--track-weit); line-height: 1.55;
+}
+
+/*
+ * Die Ringkacheln stehen ohne Kasten.
+ *
+ * Fünf gerahmte Flächen mit je einem Kreis darin lesen sich als Tabelle von
+ * Behältern. Der Ring ist die Form, er braucht keinen zweiten Rahmen um sich.
+ * Was die Kachel zusammenhält, ist der Abstand zu ihren Nachbarn, nicht eine
+ * Linie.
+ */
+.ring-kachel {
+  background: transparent; border: 0; box-shadow: none;
+  padding: var(--s-3) var(--s-1) var(--s-2);
+}
+.ring-kachel:has(.k-wert) { min-height: 150px; }
+/* Hierarchie in der Kachel: der Name führt, der Wert stützt. Vorher waren
+   beide fett, dadurch trug keiner. */
+.ring-kachel .k-name {
+  font-size: var(--t-sm); font-weight: 600; color: var(--text);
+  margin-top: var(--s-2); letter-spacing: var(--track-normal);
+}
+.ring-kachel .k-wert {
+  font-size: var(--t-xs); font-weight: 500; color: var(--muted); margin-top: 2px;
+}
+.ring-kacheln { gap: var(--s-2) var(--s-1); margin: var(--s-4) 0 var(--s-2); }
+
+/* Die Kennzahlzeile über dem grossen Ring bekommt Luft und eine ruhige
+   Beschriftung. Vorher standen vier fette Wörter dicht an dicht. */
+#tagMetriken { gap: var(--s-2); }
+#tagMetriken .m-name {
+  font-size: var(--t-xs); font-weight: 550; color: var(--muted);
+  letter-spacing: var(--track-weit);
+}

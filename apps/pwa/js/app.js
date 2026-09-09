@@ -2227,6 +2227,23 @@ $("btnWcSpeichern").addEventListener("click", async () => {
 
 $("e-randmodus").addEventListener("change", renderWochenzeiten);
 
+// Der Tagesablauf hat einen eigenen Knopf, weil er weit unter dem oberen steht.
+// Wer dort etwas ändert, scrollt sonst nach oben, um zu speichern, und vergisst
+// es beim dritten Mal.
+$("btnSaveTage").addEventListener("click", () => {
+  profile = {
+    ...profile,
+    wakeTime: $("e-wake").value,
+    sleepTime: $("e-sleep").value,
+    randModus: $("e-randmodus").value === "wochentag" ? "wochentag" : "gleich",
+    wechselndeZeiten: $("e-randmodus").value === "wechselnd",
+    wochenraender: $("e-randmodus").value === "wochentag" ? wochenzeitenLesen() : undefined,
+  };
+  store.setProfile(profile);
+  refreshAll();
+  toast("Tagesablauf gespeichert");
+});
+
 $("e-stimme").addEventListener("change", () => {
   store.setSettings({ ...store.getSettings(), stimme: $("e-stimme").value });
   stimmProbe();

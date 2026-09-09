@@ -159,7 +159,7 @@ try {
         <button class="chip" data-water="750">+750 ml</button>
       </div>
 
-      <h2 class="section-title">Gewicht</h2>
+      <h2 class="abschnitt">Gewicht</h2>
       <div class="card">
         <div class="field-row">
           <div class="field"><label for="weightInput">Heute gewogen, in kg</label>
@@ -170,10 +170,10 @@ try {
         <p class="fineprint" id="weightTrend" style="margin-bottom:0"></p>
       </div>
 
-      <h2 class="section-title">Nächste Erinnerungen</h2>
+      <h2 class="abschnitt">Nächste Erinnerungen</h2>
       <ul id="reminderList" class="list"></ul>
 
-      <h2 class="section-title">Heute gegessen</h2>
+      <h2 class="abschnitt">Heute gegessen</h2>
       <ul id="mealList" class="list"></ul>
     </div>
   </section>
@@ -203,10 +203,10 @@ try {
         <button id="btnScanZu" class="ghost">Schliessen</button>
       </div>
 
-      <h2 class="section-title">Wie ging es dir danach</h2>
+      <h2 class="abschnitt">Wie ging es dir danach</h2>
       <div id="feelingRow" class="feelings"></div>
 
-      <h2 class="section-title">Vorrat</h2>
+      <h2 class="abschnitt">Vorrat</h2>
       <div class="field"><label for="fridgeInput">Was hast du zu Hause</label>
         <textarea id="fridgeInput" rows="2" placeholder="Eier, Reis, Brokkoli, Magerquark"></textarea></div>
       <div class="row">
@@ -215,7 +215,7 @@ try {
       </div>
       <div id="suggestOut" class="card" hidden></div>
 
-      <h2 class="section-title">Verlauf heute</h2>
+      <h2 class="abschnitt">Verlauf heute</h2>
       <ul id="mealList2" class="list"></ul>
     </div>
   </section>
@@ -232,7 +232,7 @@ try {
       <div class="field"><label for="checkNote">Was war heute</label>
         <textarea id="checkNote" rows="3" placeholder="Schlecht geschlafen, Training lief trotzdem gut"></textarea></div>
       <button id="btnCheckin" class="primary big">Check-in speichern</button>
-      <h2 class="section-title">Bisher heute</h2>
+      <h2 class="abschnitt">Bisher heute</h2>
       <ul id="checkinList" class="list"></ul>
     </div>
   </section>
@@ -264,11 +264,11 @@ try {
       <p class="sub">Abgeleitet aus deinen eigenen Zahlen. Jede Empfehlung nennt den Wert, auf dem sie beruht.</p>
       <div id="recoList"></div>
 
-      <h2 class="section-title">Woran es bei dir wirklich hängt</h2>
+      <h2 class="abschnitt">Woran es bei dir wirklich hängt</h2>
       <p class="sub">Zusammenhänge über die letzten Wochen. Ein Zusammenhang ist keine Ursache, und unter zehn gemeinsamen Tagen sage ich nichts.</p>
       <pre class="pre" id="musterText">Wird beim Öffnen gerechnet.</pre>
 
-      <h2 class="section-title">Anspruch gegen Wirklichkeit</h2>
+      <h2 class="abschnitt">Anspruch gegen Wirklichkeit</h2>
       <p class="sub">Wo das, was du dir vornimmst, und das, was deine Daten zeigen, auseinanderlaufen. Kein Vorwurf, eine anstehende Entscheidung.</p>
       <div id="widerspruchListe"></div>
     </div>
@@ -310,10 +310,10 @@ try {
 
       <p class="fineprint" id="balanceHinweis"></p>
 
-      <h2 class="section-title">Worauf du den Fokus legen solltest</h2>
+      <h2 class="abschnitt">Worauf du den Fokus legen solltest</h2>
       <div class="reco" id="balanceRat"></div>
 
-      <h2 class="section-title">Wochenziele</h2>
+      <h2 class="abschnitt">Wochenziele</h2>
       <p class="sub">In Stunden je Woche. Der Tageswert wird daraus heruntergerechnet.</p>
       <div id="balanceZiele"></div>
       <button id="btnBalanceZiele" class="ghost">Ziele speichern</button>
@@ -325,7 +325,7 @@ try {
     <div class="scroll">
       <p class="sub">Morgens der Plan, mittags die Kontrolle, abends der Abschluss. Alles gerechnet aus deinen Zahlen.</p>
 
-      <h2 class="section-title">Kopf leeren</h2>
+      <h2 class="abschnitt">Kopf leeren</h2>
       <p class="sub">Sag oder schreib alles, was dir gerade im Kopf herumgeht. Ungeordnet, mitten im Satz, egal. daevo trennt daraus Aufgaben, Entscheidungen und Sorgen und sagt dir, womit du anfängst.</p>
       <div class="field"><label for="kopfText">Alles raus</label>
         <textarea id="kopfText" rows="5" placeholder="Ich muss noch das Angebot schreiben und eigentlich die Reels schneiden und ich weiss nicht ob ich zuerst..."></textarea></div>
@@ -335,14 +335,14 @@ try {
       </div>
       <pre class="pre" id="kopfErgebnis" hidden style="margin-top:14px"></pre>
 
-      <h2 class="section-title">Briefings</h2>
+      <h2 class="abschnitt">Briefings</h2>
       <div class="quick">
         <button id="btnBriefingMorgen" class="chip">Morgenbriefing</button>
         <button id="btnBriefingAbend" class="chip">Tagesabschluss</button>
       </div>
       <pre class="pre" id="briefingText" style="margin-top:14px">Tippe oben auf einen der beiden.</pre>
 
-      <h2 class="section-title">Mittags Check-in</h2>
+      <h2 class="abschnitt">Mittags Check-in</h2>
       <p class="sub" id="mittagSub">Nach dem Mittagessen. Drei Zahlen, danach sage ich dir, ob es am Essen lag.</p>
       <div class="field-row">
         <div class="field"><label for="mEnergie">Energie 1 bis 10</label>
@@ -359,13 +359,13 @@ try {
       <pre class="pre" id="mittagBefund" hidden></pre>
       <button id="btnMittagAlternative" class="ghost" hidden>Bessere Mahlzeit vorschlagen</button>
 
-      <h2 class="section-title">Grösste Herausforderung heute</h2>
+      <h2 class="abschnitt">Grösste Herausforderung heute</h2>
       <div class="field"><label for="herausText">Was war bisher am schwersten</label>
         <textarea id="herausText" rows="2" placeholder="Zum Beispiel: drei Absagen hintereinander"></textarea></div>
       <button id="btnHeraus" class="ghost">Antwort holen</button>
       <p class="fineprint" id="herausHinweis"></p>
 
-      <h2 class="section-title">Aufgaben</h2>
+      <h2 class="abschnitt">Aufgaben</h2>
       <p class="sub">Schreib nur hin, was zu tun ist. Aufwand, Wichtigkeit und eine Frist im Text erkennt daevo selbst. Tipp auf die Einstufung, wenn sie danebenliegt.</p>
       <div class="field"><label for="aufgabeText">Was ist zu tun</label>
         <input id="aufgabeText" type="text" placeholder="Angebot für Anna schreiben, bis Freitag"></div>
@@ -397,24 +397,24 @@ try {
         <div class="kv"><span>Längster freier Block</span><b id="kalFokus">keiner</b></div>
       </div>
 
-      <h2 class="section-title">Termine</h2>
+      <h2 class="abschnitt">Termine</h2>
       <ul class="list" id="kalListe"></ul>
 
-      <h2 class="section-title">Vorschlag für die Mahlzeiten</h2>
+      <h2 class="abschnitt">Vorschlag für die Mahlzeiten</h2>
       <ul class="list" id="kalEssen"></ul>
 
-      <h2 class="section-title">Was auffällt</h2>
+      <h2 class="abschnitt">Was auffällt</h2>
       <ul class="list" id="kalHinweise"></ul>
 
-      <h2 class="section-title">Die nächsten Tage</h2>
+      <h2 class="abschnitt">Die nächsten Tage</h2>
       <pre class="pre" id="kalWoche"></pre>
 
-      <h2 class="section-title">Trainingsplan aus dem Kalender</h2>
+      <h2 class="abschnitt">Trainingsplan aus dem Kalender</h2>
       <p class="sub" id="planVorschlagSub">Was seit mindestens drei Wochen zur selben Zeit stattfindet, ist dein Plan. Egal, was im Profil steht.</p>
       <ul class="list" id="planVorschlag"></ul>
       <button id="btnPlanUebernehmen" class="ghost" hidden>In das Profil übernehmen</button>
 
-      <h2 class="section-title">Kalender verbinden</h2>
+      <h2 class="abschnitt">Kalender verbinden</h2>
       <p class="sub" id="kalQuellenSub">Beide Kalender geben eine .ics Datei aus. Die liest daevo direkt im Gerät, es geht nichts an einen Server.</p>
       <input id="kalDatei" type="file" accept=".ics,text/calendar" hidden>
       <button id="btnKalDatei" class="primary">ICS Datei auswählen</button>
@@ -436,7 +436,7 @@ try {
       <p class="sub">Deine Untergrenze, nicht dein Ziel. Was auch in einer schlechten Woche steht.</p>
       <ul class="list" id="standardList"></ul>
 
-      <h2 class="section-title">Neuen Standard setzen</h2>
+      <h2 class="abschnitt">Neuen Standard setzen</h2>
       <div class="field"><label for="stdText">Der Satz</label>
         <input id="stdText" placeholder="Ich gehe an fünf Tagen die Woche vor 23 Uhr ins Bett"></div>
       <div class="field-row">
@@ -490,6 +490,7 @@ try {
         <div class="kv"><span>Zielkalorien</span><b id="pTarget"></b></div>
       </div>
 
+      <h2 class="abschnitt">Körper und Ziel</h2>
       <div class="field-row">
         <div class="field"><label for="e-weight">Gewicht in kg</label><input id="e-weight" type="number" inputmode="decimal" step="0.1"></div>
         <div class="field"><label for="e-steps">Schritte pro Tag</label><input id="e-steps" type="number" inputmode="numeric"></div>
@@ -500,38 +501,41 @@ try {
           <option value="fat_loss">Fett verlieren</option>
           <option value="lean_bulk">Muskeln aufbauen</option>
         </select></div>
-      <div class="field-row">
-        <div class="field"><label for="e-randmodus">Deine Tage</label>
-          <select id="e-randmodus">
-            <option value="gleich">Ähnlich jeden Tag</option>
-            <option value="wochentag">Je nach Wochentag</option>
-            <option value="wechselnd">Wechselnd oder Schichtdienst</option>
-          </select>
-        </div>
-        <div class="field"><label for="e-wake">Aufstehen, im Schnitt</label><input id="e-wake" type="time"></div>
-        <div class="field"><label for="e-sleep">Schlafen, im Schnitt</label><input id="e-sleep" type="time"></div>
-        <div id="e-wochenbox" class="field" hidden>
-          <label>Deine Woche</label>
-          <div class="wochenkopf"><span class="wt-tag"></span><span>Aufstehen</span><span>Schlafen</span></div>
-          <div id="e-wochenzeiten" class="wochenzeiten"></div>
-          <p class="feld-hilfe">Leer lassen heisst: an dem Tag gilt dein Schnitt.</p>
-        </div>
-        <p id="e-randhilfe" class="feld-hilfe"></p>
+      <button id="btnSaveProfile" class="primary breit">Speichern</button>
 
-        <h2 class="section-title">Stimme</h2>
-        <div class="field"><label for="e-stimme">Stimme</label>
-          <select id="e-stimme"></select>
-        </div>
-        <div class="field"><label for="e-tempo">Sprechtempo</label>
-          <input id="e-tempo" type="range" min="0.75" max="1.2" step="0.02" value="0.96">
-          <div class="tempo-marken"><span>ruhig</span><span>schnell</span></div>
-        </div>
-        <button id="btnStimmProbe" class="ghost">Probe hören</button>
-        <p id="e-stimmhilfe" class="feld-hilfe"></p>
+      <h2 class="abschnitt">Dein Tagesablauf</h2>
+      <div class="field"><label for="e-randmodus">Wie sehen deine Tage aus</label>
+        <select id="e-randmodus">
+          <option value="gleich">Ähnlich jeden Tag</option>
+          <option value="wochentag">Je nach Wochentag</option>
+          <option value="wechselnd">Wechselnd oder Schichtdienst</option>
+        </select>
       </div>
-      <button id="btnSaveProfile" class="primary">Speichern</button>
+      <div class="field-row">
+        <div class="field"><label for="e-wake">Aufstehen</label><input id="e-wake" type="time"></div>
+        <div class="field"><label for="e-sleep">Schlafen</label><input id="e-sleep" type="time"></div>
+      </div>
+      <div id="e-wochenbox" class="field" hidden>
+        <label>Deine Woche</label>
+        <div class="wochenkopf"><span class="wt-tag"></span><span>Aufstehen</span><span>Schlafen</span></div>
+        <div id="e-wochenzeiten" class="wochenzeiten"></div>
+        <p class="feld-hilfe">Leer lassen heisst: an dem Tag gilt dein Schnitt.</p>
+      </div>
+      <p id="e-randhilfe" class="feld-hilfe"></p>
+      <button id="btnSaveTage" class="primary breit">Tagesablauf speichern</button>
 
-      <h2 class="section-title">Training</h2>
+      <h2 class="abschnitt">Stimme</h2>
+      <div class="field"><label for="e-stimme">Welche Stimme</label>
+        <select id="e-stimme"></select>
+      </div>
+      <div class="field"><label for="e-tempo">Sprechtempo</label>
+        <input id="e-tempo" type="range" min="0.75" max="1.2" step="0.02" value="0.96">
+        <div class="tempo-marken"><span>ruhig</span><span>schnell</span></div>
+      </div>
+      <button id="btnStimmProbe" class="ghost breit">Probe hören</button>
+      <p id="e-stimmhilfe" class="feld-hilfe"></p>
+
+      <h2 class="abschnitt">Training</h2>
       <ul id="sessionList" class="list"></ul>
       <div class="field-row">
         <div class="field"><label for="t-day">Tag</label>
@@ -552,7 +556,7 @@ try {
       </div>
       <button id="btnAddSession" class="ghost">Einheit hinzufügen</button>
 
-      <h2 class="section-title">Den echten Coach freischalten</h2>
+      <h2 class="abschnitt">Den echten Coach freischalten</h2>
       <p class="sub">Ohne Schlüssel versteht daevo nur einfache Sätze und rechnet mit einer internen Tabelle. Mit deinem eigenen Anthropic Schlüssel wird er zum echten Gesprächspartner mit Gedächtnis.</p>
       <div class="field"><label for="apiKey">Anthropic API Schlüssel</label><input id="apiKey" type="password" placeholder="sk-ant-..." autocomplete="off"></div>
       <div class="field"><label for="modelSel">Modell</label>
@@ -567,7 +571,7 @@ try {
       <p class="fineprint" id="keyStatus" style="margin-bottom:12px"></p>
       <p class="fineprint">Der Schlüssel bleibt in diesem Browser und geht direkt an Anthropic. Er steht nicht in der Website. Setz dir in der Anthropic Console ein Ausgabenlimit, bevor du ihn einträgst.</p>
 
-      <h2 class="section-title">Was daevo kostet</h2>
+      <h2 class="abschnitt">Was daevo kostet</h2>
       <div class="card" id="kostenKarte">
         <div class="kv"><span>Heute</span><b id="kostenHeute">0</b></div>
         <div class="kv"><span>Letzte 30 Tage</span><b id="kostenGesamt">0</b></div>
@@ -577,7 +581,7 @@ try {
         <p class="fineprint" id="kostenHinweis" style="margin-bottom:0"></p>
       </div>
 
-      <h2 class="section-title">Wie daevo mit dir reden soll</h2>
+      <h2 class="abschnitt">Wie daevo mit dir reden soll</h2>
       <p class="sub">Was hier steht, liest daevo bei jeder Nachricht mit. Schreib rein, wie du behandelt
       werden willst, was dich nervt, worauf er achten soll. Er hält sich daran, ausser es geht gegen
       seine Grenzen oder er müsste dafür Zahlen erfinden.</p>
@@ -591,7 +595,7 @@ try {
       </div>
       <p class="fineprint" id="anweisungenNote"></p>
 
-      <h2 class="section-title">Aussehen</h2>
+      <h2 class="abschnitt">Aussehen</h2>
       <div class="field"><label for="themeSel">Tag oder Nacht</label>
         <select id="themeSel">
           <option value="system">wie das Gerät</option>
@@ -599,12 +603,12 @@ try {
           <option value="dark">dunkel</option>
         </select></div>
 
-      <h2 class="section-title">Sprache</h2>
+      <h2 class="abschnitt">Sprache</h2>
       <label class="switch"><input type="checkbox" id="optSpeak" checked><span>Antworten vorlesen</span></label>
       <label class="switch"><input type="checkbox" id="optHandsFree"><span>Freihand, hört nach jeder Antwort weiter zu</span></label>
       <p class="fineprint" id="voiceNote"></p>
 
-      <h2 class="section-title">Daten</h2>
+      <h2 class="abschnitt">Daten</h2>
       <button id="btnExport" class="ghost">Daten exportieren</button>
       <button id="btnReset" class="danger">Alles löschen</button>
       <p class="fineprint" id="versionLine"></p>
@@ -618,6 +622,7 @@ try {
       <button id="btnMenuClose" class="icon-btn" aria-label="Menü schließen"><span class="close"></span></button>
     </div>
     <button class="menu-item gross" data-go="assistant"><b>Assistent</b><span>Reden, fragen, erfassen</span></button>
+    <button class="menu-item gross" data-go="gespraeche"><b>Gespräche</b><span>Nach Themen sortiert, durchsuchbar</span></button>
 
     <!-- Drei Gruppen statt zwölf Zeilen. Wer zwölf gleichwertige Punkte sieht,
          sucht jedes Mal neu. Aufgeklappt wird immer nur eine. -->

@@ -168,7 +168,8 @@ export function ringMitZahl({ anteil, zahl, unten = "", farbe = TAG_FARBE, groes
   const text = el("text", {
     x: mitte, y: unten ? mitte - 1 : mitte + 1,
     "text-anchor": "middle", "dominant-baseline": "middle",
-    "font-size": Math.round(groesse / 4), "font-weight": 700, fill: "currentColor",
+    "font-size": Math.round(groesse / 3.7), "font-weight": 500,
+    "letter-spacing": -groesse / 130, fill: "currentColor",
   });
   text.textContent = String(zahl);
   svg.appendChild(text);
@@ -217,19 +218,16 @@ export function wertungsRing({ wert, etikett, urteil, groesse = 230, farbe = TAG
 
   ring(svg, { radius: mitte - breite / 2 - 3, breite, anteil: Math.max(0, Math.min(1, wert / 100)), farbe, mitte });
 
-  const pille = el("rect", {
-    x: mitte - groesse * 0.2, y: mitte - groesse * 0.26,
-    width: groesse * 0.4, height: groesse * 0.115, rx: groesse * 0.058,
-    fill: "none", stroke: "currentColor", "stroke-opacity": 0.28, "stroke-width": 1,
-  });
-  svg.appendChild(pille);
-
+  // Das Etikett steht ohne Rahmen. Eine Umrandung um zwei Wörter mitten in
+  // einem Ring ist ein Kasten in einem Kreis: sie trennt nichts und zieht
+  // Aufmerksamkeit von der Zahl weg, um die es geht. Versalien mit weiter
+  // Laufweite tragen sich allein.
   const label = el("text", {
-    x: mitte, y: mitte - groesse * 0.202,
+    x: mitte, y: mitte - groesse * 0.205,
     "text-anchor": "middle", "dominant-baseline": "middle",
-    "font-size": Math.round(groesse / 22), "font-weight": 600,
-    "letter-spacing": Math.round(groesse / 190) + 1,
-    fill: "currentColor", "fill-opacity": 0.66,
+    "font-size": Math.round(groesse / 23), "font-weight": 620,
+    "letter-spacing": groesse / 130,
+    fill: "currentColor", "fill-opacity": 0.5,
   });
   label.textContent = etikett;
   svg.appendChild(label);
@@ -237,7 +235,8 @@ export function wertungsRing({ wert, etikett, urteil, groesse = 230, farbe = TAG
   const zahl = el("text", {
     x: mitte, y: mitte + groesse * 0.03,
     "text-anchor": "middle", "dominant-baseline": "middle",
-    "font-size": Math.round(groesse / 2.6), "font-weight": 300, fill: "currentColor",
+    "font-size": Math.round(groesse / 2.5), "font-weight": 250,
+    "letter-spacing": -groesse / 90, fill: "currentColor",
   });
   zahl.textContent = String(wert);
   svg.appendChild(zahl);
@@ -245,7 +244,8 @@ export function wertungsRing({ wert, etikett, urteil, groesse = 230, farbe = TAG
   const wort = el("text", {
     x: mitte, y: mitte + groesse * 0.2,
     "text-anchor": "middle", "dominant-baseline": "middle",
-    "font-size": Math.round(groesse / 14), fill: "currentColor", "fill-opacity": 0.62,
+    "font-size": Math.round(groesse / 15), "font-weight": 520,
+    fill: "currentColor", "fill-opacity": 0.55,
   });
   wort.textContent = urteil;
   svg.appendChild(wort);
