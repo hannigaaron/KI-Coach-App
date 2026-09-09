@@ -245,6 +245,16 @@ export const store = {
     return eintrag;
   },
 
+  getAngebot() {
+    const roh = read("angebot", null);
+    return roh && typeof roh === "object"
+      ? { coachName: "", buchungUrl: "", buchungText: "", plaene: [], ...roh }
+      : { coachName: "", buchungUrl: "", buchungText: "", plaene: [] };
+  },
+  setAngebot(a) {
+    write("angebot", a);
+  },
+
   getZeiten() {
     return read("zeiten", []);
   },
@@ -352,6 +362,7 @@ export const store = {
     out.aufgaben = this.getAufgaben();
     out.zeiten = this.getZeiten();
     out.checkinBoegen = this.getCheckinBoegen();
+    out.angebot = this.getAngebot();
     out.standards = this.getStandards();
     out.memories = this.getMemories();
     out.gespraeche = this.getGespraeche();

@@ -143,7 +143,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 450 Tests
+npm test           # 461 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -513,6 +513,37 @@ jedes Mal alle zu lesen.
 Die Kennzahlen oben auf Heute sind antippbar und führen in die Ansicht dahinter.
 Ernährung führt auf den Essen Reiter, dort steht der Fotoknopf direkt neben der
 Texteingabe. Eine Zahl, auf die man tippen kann, spart den Umweg über das Menue.
+
+## Das Coaching Angebot
+
+`packages/core/src/angebot.ts`. Die App ist ein Coach, aber sie ersetzt keinen
+Menschen. An den Stellen, an denen ein Nutzer merkt, dass er allein nicht
+weiterkommt, gehört ein Weg zu einer echten Person. Das ist der einzige Punkt,
+an dem die App etwas verkauft, deshalb steht er als eigenes Modul und nicht
+verstreut in der Oberfläche.
+
+Alles konfigurierbar, nichts fest verdrahtet. Der Betreiber trägt seinen Link
+im Profil ein, nicht der Code.
+
+`saubereUrl` entfernt Trackingparameter. Ein aus der Werbung kopierter Link
+trägt `fbclid`, `gclid` und `utm_*` mit sich. Der schlimmere Fall ist `month`:
+Calendly öffnet den Kalender dann in genau diesem Monat, und ein Link mit einem
+Monat aus der Vergangenheit zeigt einen leeren Kalender. Das sieht aus, als wäre
+nichts frei. Nur https wird akzeptiert.
+
+`passenderPlan` vergleicht die Einheiten pro Woche. Wer dreimal trainiert,
+bekommt keinen Fünfertag Plan vorgeschlagen: er bricht ihn ab und hält danach
+seinen eigenen Plan für gescheitert. Bei gleichem Abstand gewinnt der kleinere
+Plan, weil zu wenig Volumen langsamer voranbringt und zu viel gar nicht, weil es
+nicht stattfindet.
+
+Der Block erscheint am Ende von Mindeststandards und Empfehlungen, nicht auf
+jeder Seite. Ein Buchungslink überall ist Werbung, einer an der richtigen Stelle
+ist ein Angebot. Er sieht bewusst anders aus als der Rest: ein Angebot, das wie
+ein Bedienelement aussieht, wird versehentlich angetippt.
+
+Der Schalter "Bei mir selbst ausblenden" ist für den Betreiber, der sein eigenes
+Angebot nicht braucht.
 
 ## Das Design System
 
