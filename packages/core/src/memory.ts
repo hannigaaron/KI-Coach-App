@@ -18,7 +18,16 @@ export type MemoryKind =
   | "ziel"        // was der Nutzer erreichen will
   | "ereignis"    // etwas Datiertes, etwa eine Verletzung
   | "reflexion"   // eigene Gedanken des Nutzers
-  | "hinweis";    // Beobachtung des Coaches
+  | "hinweis"     // Beobachtung des Coaches
+  /*
+   * Wiederkehrendes Verhalten, vom Nutzer selbst berichtet: "abends kippt es",
+   * "gescheitert ist es bisher an Stressphasen".
+   *
+   * Weder ein Fakt noch eine Beobachtung des Coaches. Ein Fakt gilt, ein
+   * Muster tritt ein, und die Unterscheidung zählt: über einem Fakt lässt sich
+   * planen, über einem Muster muss man reden.
+   */
+  | "muster";
 
 export interface MemoryEntry {
   id: string;

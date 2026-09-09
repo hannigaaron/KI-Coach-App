@@ -31,7 +31,7 @@ const TYPE_LABEL = { strength: "Kraft", team_sport: "Mannschaftssport", cardio: 
 const FEELINGS = ["voll da", "satt und gut", "müde", "aufgebläht", "noch hungrig"];
 const KIND_LABEL = {
   fakt: "Fakt", praeferenz: "Vorliebe", ziel: "Ziel",
-  ereignis: "Ereignis", reflexion: "Reflexion", hinweis: "Hinweis",
+  ereignis: "Ereignis", reflexion: "Reflexion", hinweis: "Hinweis", muster: "Muster",
 };
 
 let profile = store.getProfile();
