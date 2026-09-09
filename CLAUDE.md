@@ -226,6 +226,40 @@ Der Coach sieht nur das offene Gespräch. Über `gespraeche_durchsuchen` holt er
 Ausschnitte aus früheren, nicht die kompletten Verläufe: fünf ganze Gespräche im
 Kontext kosten mehr Token als die eigentliche Frage.
 
+## Der Anamnesebogen
+
+Dreizehn Schritte, die letzten vier sind der Unterschied zwischen einem Rechner
+und einem Coach: Essverhalten, Vorgeschichte, Umfeld, Antrieb.
+
+Alles davor sind Zahlen. Gewicht, Grösse, Schritte, Trainingstage. Damit lässt
+sich ein Kalorienziel ausrechnen und sonst nichts. Was darüber entscheidet, ob
+jemand sein Ziel erreicht, steht in den vier Schritten danach: wann er isst
+obwohl er keinen Hunger hat, was ihn bisher jedes Mal gestoppt hat, und wer in
+seinem Umfeld dagegen arbeitet.
+
+Alle vier sind überspringbar. Ein Bogen, der zu Antworten über Scham zwingt,
+bekommt erfundene Antworten, und eine erfundene Antwort ist schlechter als eine
+fehlende: die App rechnet damit weiter.
+
+Die Antworten kommen mit Wichtigkeit 5 ins Gedächtnis, also der höchsten Stufe.
+Wer einmal aufschreibt, dass er sonntagabends die Kontrolle verliert, erwartet,
+dass der Coach das in vier Monaten noch kennt. Eine Notiz mit Wichtigkeit 2
+fällt bei der Suche durch, und dann fragt der Coach dieselbe Frage nochmal.
+
+`MemoryKind` hat dafür die Kategorie `muster` bekommen: wiederkehrendes
+Verhalten, vom Nutzer selbst berichtet. Weder ein Fakt noch eine Beobachtung des
+Coaches. Ein Fakt gilt, ein Muster tritt ein, und die Unterscheidung zählt: über
+einem Fakt lässt sich planen, über einem Muster muss man reden.
+
+Der wichtigste Satz im ganzen Bogen ist der, woran es bisher gescheitert ist.
+Was jemanden zehnmal gestoppt hat, stoppt ihn beim elften Mal wieder. Die
+Persona verlangt deshalb, vor jedem Plan zu prüfen, ob er an genau dieser Stelle
+wieder bricht.
+
+Die Frage nach dem Tonfall ist eine Anweisung, keine Vorliebe. Wer sagt, dass er
+sich selbst genug Druck macht, bekommt keine Ansage, auch wenn eine Ansage
+wirksamer wäre.
+
 ## Die zwei Check-ins der Woche
 
 `packages/core/src/checkin.ts`. Mittwoch 18:00 die Bilanz, Sonntag 19:30 der
