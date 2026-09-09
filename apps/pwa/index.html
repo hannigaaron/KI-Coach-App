@@ -554,12 +554,15 @@ try {
                placeholder="https://calendly.com/...">
         <p class="feld-hilfe" id="a-buchungHinweis"></p>
       </div>
+      <div class="field"><label for="a-mail">Mailadresse, optional</label>
+        <input id="a-mail" type="email" inputmode="email" autocomplete="off" placeholder="coach@example.de"></div>
       <div class="field"><label for="a-text">Was beim Erstgespräch passiert</label>
         <textarea id="a-text" rows="2" placeholder="30 Minuten, kostenlos. Wir schauen, wo du stehst."></textarea></div>
 
       <label class="feld-label">Deine Trainingsplan Vorlagen</label>
       <div id="a-plaene"></div>
       <button id="btnPlanNeu" class="ghost breit">Vorlage hinzufügen</button>
+      <button id="btnPlanVorlagen" class="ghost breit">Die vier Alpha Progression Pläne eintragen</button>
 
       <label class="switch"><input type="checkbox" id="a-aus"><span>Bei mir selbst ausblenden</span></label>
       <button id="btnAngebotSpeichern" class="primary breit">Angebot speichern</button>

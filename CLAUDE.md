@@ -143,7 +143,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 461 Tests
+npm test           # 473 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -531,11 +531,29 @@ Calendly öffnet den Kalender dann in genau diesem Monat, und ein Link mit einem
 Monat aus der Vergangenheit zeigt einen leeren Kalender. Das sieht aus, als wäre
 nichts frei. Nur https wird akzeptiert.
 
-`passenderPlan` vergleicht die Einheiten pro Woche. Wer dreimal trainiert,
-bekommt keinen Fünfertag Plan vorgeschlagen: er bricht ihn ab und hält danach
-seinen eigenen Plan für gescheitert. Bei gleichem Abstand gewinnt der kleinere
-Plan, weil zu wenig Volumen langsamer voranbringt und zu viel gar nicht, weil es
-nicht stattfindet.
+`planFuer` wählt über Punkte statt über eine Kette von Bedingungen. Bei vier
+Plänen und drei Kriterien gäbe es zwölf Fälle, von denen die Hälfte nie geprüft
+wird. Geschlecht und Erfahrungsstand wiegen schwer: ein Plan für Anfängerinnen
+ist für einen fortgeschrittenen Mann der falsche, egal wie gut die Anzahl der
+Einheiten passt. Der Umfang zählt weiter, aber schwächer.
+
+`braucheZeitsparend` entscheidet, ob die Lage für einen zeitsparenden Plan
+spricht. Drei Signale, von denen zwei reichen: Stress ab 65 von 100, unter zwei
+Stunden freie Zeit am Tag, und Arbeit plus Familie über 60 Prozent der
+gemessenen Zeit. Ein einzelnes Signal reicht nicht, denn wer eine stressige
+Woche hat, braucht deswegen keinen neuen Trainingsplan. Wer über Wochen alle
+drei hat, schafft einen Fünfertag Plan nicht, und ein Plan, den man nicht
+schafft, ist schlimmer als keiner.
+
+Die Anteile werden gegen die gemessene Zeit gerechnet, nicht gegen die
+verfügbare. Die Frage lautet "wo geht deine Zeit hin", nicht "wie viel deines
+Tages ist erfasst". Über vierzehn Tage mit zwei erfassten Tagen wäre jeder
+Anteil am Tag einstellig und die Schwelle nie erreichbar.
+
+Planeigenschaften und Lagegründe bleiben getrennt. Die Passung steht als
+Stichwort in der Zeile mit dem Umfang, die Lage als eigener Satz darunter.
+Zusammen ergäben sie kein Deutsch. Die Lagegründe sind Nebensätze mit dem Verb
+am Ende, weil sie an einem "Weil" hängen.
 
 Der Block erscheint am Ende von Mindeststandards und Empfehlungen, nicht auf
 jeder Seite. Ein Buchungslink überall ist Werbung, einer an der richtigen Stelle

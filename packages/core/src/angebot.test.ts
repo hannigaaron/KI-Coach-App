@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { hatAngebot, LEERES_ANGEBOT, passenderPlan, saubereUrl } from "./angebot.js";
+import { braucheZeitsparend, hatAngebot, LEERES_ANGEBOT, passenderPlan, planFuer, saubereUrl, undListe } from "./angebot.js";
 import type { Trainingsplan } from "./angebot.js";
 
 test("entfernt Werbetracker aus einer Adresse", () => {
@@ -70,4 +70,98 @@ test("Plaene ohne gueltigen Link fallen raus", () => {
 
 test("ohne Angabe zum Umfang kommt der erste Plan", () => {
   assert.equal(passenderPlan(PLAENE, 0)?.id, "a");
+});
+
+/* ---------- Auswahl nach Lage ---------- */
+
+const VIER: Trainingsplan[] = [
+  { id: "mf", name: "Fortgeschritten Männer", fuerWen: "x", einheitenProWoche: 2, url: "https://alphaprogression.com/de/7GIk3i",
+    fuerGeschlecht: "male", niveau: "fortgeschritten", zeitsparend: true },
+  { id: "ma", name: "Anfänger Männer", fuerWen: "x", einheitenProWoche: 2, url: "https://alphaprogression.com/de/6iG0LT",
+    fuerGeschlecht: "male", niveau: "anfaenger", zeitsparend: true },
+  { id: "wf", name: "Fortgeschritten Frauen", fuerWen: "x", einheitenProWoche: 2, url: "https://alphaprogression.com/de/9js4Xk",
+    fuerGeschlecht: "female", niveau: "fortgeschritten", zeitsparend: true },
+  { id: "wa", name: "Anfänger Frauen", fuerWen: "x", einheitenProWoche: 2, url: "https://alphaprogression.com/de/1SfLlj",
+    fuerGeschlecht: "female", niveau: "anfaenger", zeitsparend: true },
+];
+
+test("waehlt nach Geschlecht und Erfahrungsstand", () => {
+  assert.equal(planFuer(VIER, { sex: "male", jahreTraining: 5 })?.plan.id, "mf");
+  assert.equal(planFuer(VIER, { sex: "male", jahreTraining: 0.5 })?.plan.id, "ma");
+  assert.equal(planFuer(VIER, { sex: "female", jahreTraining: 4 })?.plan.id, "wf");
+  assert.equal(planFuer(VIER, { sex: "female", jahreTraining: 1 })?.plan.id, "wa");
+});
+
+test("zwei Jahre sind die Grenze zwischen Anfaenger und fortgeschritten", () => {
+  assert.equal(planFuer(VIER, { sex: "male", jahreTraining: 1.9 })?.plan.id, "ma");
+  assert.equal(planFuer(VIER, { sex: "male", jahreTraining: 2 })?.plan.id, "mf");
+});
+
+test("das Geschlecht wiegt schwerer als der Umfang", () => {
+  // Ein Plan fuer Frauen ist fuer einen Mann der falsche, auch wenn die Anzahl
+  // der Einheiten besser passt.
+  const gemischt: Trainingsplan[] = [
+    { ...VIER[0]!, einheitenProWoche: 2 },
+    { ...VIER[2]!, einheitenProWoche: 4 },
+  ];
+  assert.equal(planFuer(gemischt, { sex: "male", jahreTraining: 5, einheitenProWoche: 4 })?.plan.id, "mf");
+});
+
+test("hoher Stress allein reicht nicht", () => {
+  // Eine stressige Woche ist kein Grund, den Trainingsplan zu wechseln.
+  const r = braucheZeitsparend({ stress: 80 });
+  assert.equal(r.ja, false);
+  assert.equal(r.gruende.length, 1);
+});
+
+test("Stress plus wenig freie Zeit reicht", () => {
+  const r = braucheZeitsparend({ stress: 75, freieMinuten: 60 });
+  assert.equal(r.ja, true);
+  assert.ok(r.gruende.some((g) => g.includes("75")));
+  assert.ok(r.gruende.some((g) => g.includes("60 freie Minuten")));
+  // Nebensatzstellung, weil die Gruende an einem "Weil" haengen.
+  for (const g of r.gruende) assert.ok(/(liegt|bleiben|ausmachen)$/.test(g), `kein Nebensatz: ${g}`);
+});
+
+test("Arbeit und Familie ueber 60 Prozent zaehlen als Signal", () => {
+  const r = braucheZeitsparend({ stress: 70, anteile: { karriere: 0.45, beziehung: 0.2 } });
+  assert.equal(r.ja, true);
+  assert.ok(r.gruende.some((g) => g.includes("65 Prozent")));
+});
+
+test("eine ruhige Lage loest keine Empfehlung aus", () => {
+  const r = braucheZeitsparend({ stress: 30, freieMinuten: 300, anteile: { karriere: 0.3, beziehung: 0.1 } });
+  assert.equal(r.ja, false);
+  assert.deepEqual(r.gruende, []);
+});
+
+test("der Treffer sagt, dass er wegen der Lage kommt", () => {
+  const t = planFuer(VIER, { sex: "male", jahreTraining: 5, stress: 80, freieMinuten: 70 });
+  assert.equal(t?.wegenLage, true);
+  assert.ok(t?.passung.some((g) => g.includes("wenig Zeit")));
+  assert.ok(t?.lageGruende.some((g) => g.includes("80")));
+});
+
+test("Planeigenschaften und Lagegruende bleiben getrennt", () => {
+  // "Weil für Fortgeschrittene, dein Stresslevel liegt bei 78" ist kein Deutsch.
+  const t = planFuer(VIER, { sex: "male", jahreTraining: 5, stress: 80, freieMinuten: 70 });
+  assert.ok(!t?.passung.some((g) => g.includes("Stresslevel")));
+  assert.ok(!t?.lageGruende.some((g) => g.includes("Fortgeschrittene")));
+});
+
+test("ohne Lage kommt kein Lagegrund", () => {
+  const t = planFuer(VIER, { sex: "male", jahreTraining: 5 });
+  assert.equal(t?.wegenLage, false);
+  assert.deepEqual(t?.lageGruende, []);
+});
+
+test("die Aufzaehlung setzt und vor das letzte Glied", () => {
+  assert.equal(undListe([]), "");
+  assert.equal(undListe(["a"]), "a");
+  assert.equal(undListe(["a", "b"]), "a und b");
+  assert.equal(undListe(["a", "b", "c"]), "a, b und c");
+});
+
+test("ohne Angaben kommt trotzdem ein Plan", () => {
+  assert.ok(planFuer(VIER, {})?.plan);
 });
