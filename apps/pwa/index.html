@@ -208,18 +208,19 @@ try {
 
       <h2 class="abschnitt">Rest des Tages</h2>
       <p class="sub" id="restSatz"></p>
-      <p class="feld-hilfe">Was du heute noch isst. Tipp die Mahlzeiten an, die noch kommen.</p>
-      <div id="restMahlzeiten" class="pills"></div>
-      <button id="btnRestPlanen" class="primary breit">Rest aufteilen und Vorschläge holen</button>
-      <div id="restAusgabe" class="feedback" hidden></div>
 
-      <h2 class="abschnitt">Vorrat</h2>
+      <label class="feld-label">Welche Mahlzeiten kommen heute noch</label>
+      <div id="restMahlzeiten" class="pills"></div>
+
       <div class="field"><label for="fridgeInput">Was hast du zu Hause</label>
-        <textarea id="fridgeInput" rows="2" placeholder="Eier, Reis, Brokkoli, Magerquark"></textarea></div>
-      <div class="row">
-        <button id="btnFridge" class="ghost">Speichern</button>
-        <button id="btnSuggest" class="primary">Mahlzeit vorschlagen</button>
+        <textarea id="fridgeInput" rows="2" placeholder="Eier, Reis, Brokkoli, Magerquark"></textarea>
+        <p class="feld-hilfe">Leer lassen heisst: ich schlage ohne Rücksicht auf deinen Vorrat vor.
+        Was du hier einträgst, merke ich mir.</p>
       </div>
+
+      <button id="btnRestPlanen" class="primary breit">Rest aufteilen und Vorschläge holen</button>
+      <button id="btnSuggest" class="ghost breit">Nur eine Mahlzeit vorschlagen</button>
+      <div id="restAusgabe" class="feedback" hidden></div>
       <div id="suggestOut" class="card" hidden></div>
 
       <h2 class="abschnitt">Verlauf heute</h2>

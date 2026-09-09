@@ -936,6 +936,7 @@ $("btnRestPlanen").addEventListener("click", async () => {
   feld.hidden = false;
   feld.textContent = "Ich teile das auf.";
   try {
+    vorratLesen();
     const text = await buildActions({ onChange: refreshAll })
       .tagZuEndePlanen({ mahlzeiten: restWahl ?? undefined });
     feld.textContent = text;
@@ -1568,11 +1569,19 @@ $("feelingRow").addEventListener("click", (event) => {
   toast("Notiert");
 });
 
-$("btnFridge").addEventListener("click", () => {
-  const items = $("fridgeInput").value.split(",").map((s) => s.trim()).filter(Boolean);
+/**
+ * Der Vorrat wird beim Verlassen des Feldes gespeichert, nicht auf Knopfdruck.
+ *
+ * Ein eigener Speichern-Knopf neben einem Textfeld ist eine Falle: wer tippt
+ * und dann auf "Vorschläge holen" drückt, hat nicht gespeichert, und die App
+ * rechnet mit dem Stand von gestern, ohne es zu sagen.
+ */
+function vorratLesen() {
+  const items = $("fridgeInput").value.split(",").map((x) => x.trim()).filter(Boolean);
   store.setFridge(items);
-  toast(`${items.length} Zutaten gespeichert`);
-});
+  return items;
+}
+$("fridgeInput").addEventListener("blur", vorratLesen);
 
 $("btnSuggest").addEventListener("click", async () => {
   const out = $("suggestOut");

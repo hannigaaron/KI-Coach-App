@@ -448,6 +448,17 @@ bei mehreren geplanten, eine über 1200 Kalorien, und über 60 Gramm Protein in
 einer Portion. Alle drei heissen dasselbe: die Planung passt nicht zur Menge.
 Das gehört gesagt und nicht in einem Vorschlag versteckt.
 
+Der Vorrat steht direkt in diesem Bereich und wird beim Verlassen des Feldes
+gespeichert, nicht auf Knopfdruck. Ein eigener Speichern-Knopf neben einem
+Textfeld ist eine Falle: wer tippt und dann auf "Vorschläge holen" drückt, hat
+nicht gespeichert, und die App rechnet mit dem Stand von gestern, ohne es zu
+sagen. Ist der Vorrat leer, sagt die App das und fragt danach, statt allgemeine
+Vorschläge als konkrete auszugeben.
+
+Antworten mit Zeilenumbrüchen behalten sie, `.feedback` steht auf
+`white-space: pre-line`. Ohne das wird aus einer Aufteilung auf drei Mahlzeiten
+eine Textwand, und der Umbruch ist hier die Information.
+
 Welche Mahlzeit schon gegessen wurde, erkennt `gegesseneArten` an der Uhrzeit
 des Eintrags, nicht an seinem Text. Wer um 13 Uhr etwas einträgt, hat Mittag
 gegessen, egal wie er es nennt. Ein zweiter Eintrag im selben Fenster gilt als
