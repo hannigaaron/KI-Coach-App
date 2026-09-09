@@ -1362,3 +1362,14 @@ button:disabled { opacity: 0.45; transform: none; }
 .plan-zeile-unten { display: flex; align-items: center; gap: var(--s-2); }
 .plan-zeile-unten input { width: 72px; }
 .plan-zeile-unten span { font-size: var(--t-sm); color: var(--muted); flex: 1; }
+
+.angebot-grund {
+  display: block; font-size: var(--t-sm); color: var(--accent-text);
+  line-height: 1.5; margin-bottom: var(--s-4);
+}
+.angebot-mail {
+  display: block; text-align: center; margin-top: var(--s-3);
+  font-size: var(--t-sm); color: var(--muted); text-decoration: none;
+}
+.plan-zeile .switch { margin: var(--s-1) 0 0; font-size: var(--t-sm); }
+.plan-zeile-unten select { flex: 1; min-width: 0; }

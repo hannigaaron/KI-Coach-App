@@ -1003,6 +1003,47 @@ export function gegesseneArten(mahlzeiten = []) {
   return [...arten];
 }
 
+/**
+ * Die Lage, aus der die Planempfehlung kommt.
+ *
+ * Alles gemessen, nichts geraten. Was fehlt, bleibt undefiniert, und die
+ * Empfehlung stützt sich dann auf weniger Signale statt auf erfundene.
+ */
+export function aktuelleLage() {
+  const profile = store.getProfile();
+  const b = balanceFuer(14);
+
+  // Gegen die gemessene Zeit rechnen, nicht gegen die verfügbare. Die Frage
+  // lautet "wo geht deine Zeit hin", nicht "wie viel deines Tages ist erfasst".
+  // Über vierzehn Tage mit zwei erfassten Tagen wäre jeder Anteil am Tag
+  // einstellig, und die Schwelle für ein Signal nie erreichbar.
+  const gemessen = b.bereiche.reduce((sum, x) => sum + (x.minuten || 0), 0);
+  const anteil = (id) => {
+    if (gemessen <= 0) return 0;
+    return (b.bereiche.find((x) => x.bereich === id)?.minuten ?? 0) / gemessen;
+  };
+
+  // Stress aus dem letzten Wochenbogen. Der Mittags Check-in fragt danach
+  // nicht, deshalb ist der Bogen die einzige Quelle.
+  const boegen = store.getCheckinBoegen().filter((x) => x.bogen === "mitte");
+  const letzter = boegen[boegen.length - 1];
+  const stress = typeof letzter?.werte?.stress === "number" ? letzter.werte.stress : undefined;
+
+  let freieMinuten;
+  if ((store.getKalender().termine || []).length > 0) {
+    const a = ablaufFuer(todayIso());
+    freieMinuten = (a.luecken || []).reduce((sum, l) => sum + (l.minuten || 0), 0);
+  }
+
+  return {
+    stress,
+    freieMinuten,
+    anteile: { karriere: anteil("karriere"), beziehung: anteil("beziehung"), fitness: anteil("fitness") },
+    sex: profile?.sex,
+    einheitenProWoche: (profile?.sessions || []).length || undefined,
+  };
+}
+
 /* ---------- Gespräche ---------- */
 
 /**

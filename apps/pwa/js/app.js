@@ -1,7 +1,7 @@
 import {
   BEREICHE, BEREICH_NAME, CHECKIN_BOEGEN, CHECKIN_MITTE, STANDARD_ZIELE, WOCHENTAGE,
   MAHLZEITEN, bogenAmTag, bogenFuer, energyBreakdown, hatAngebot, nachOrdnern, offeneMahlzeiten,
-  passenderPlan, saubereUrl, uhrzeit, weightTrend,
+  planFuer, saubereUrl, uhrzeit, undListe, weightTrend,
 } from "@daevo/core";
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE } from "@daevo/coach";
 import { Coach, AnthropicProvider } from "@daevo/coach";
@@ -9,7 +9,7 @@ import {
   ablaufFuer, ask, aufgabeAbhaken, aufgabeAnlegenEingestuft, aufgabeLoeschen, aufgabeUmstufen, aufgabenPlan,
   balanceFuer, balanceRat, briefing,
   buildActions, dayNumbers, einkaufslisteText, ensureStandards, greeting, herausforderungSpeichern,
-  aktivesGespraech, gegesseneArten, gespraechAnlegen, gespraechLoeschen, gespraechNachziehen,
+  aktuelleLage, aktivesGespraech, gegesseneArten, gespraechAnlegen, gespraechLoeschen, gespraechNachziehen,
   gespraechOeffnen, gespraecheSuchen,
   aufgabenPlanText, kopfSortieren, mittagscheck, mittagscheckText, musterUebersicht,
   schluesselPruefen, tagesnutzungFuer,
@@ -1149,6 +1149,7 @@ function renderAngebot() {
   $("a-name").value = a.coachName || "";
   $("a-buchung").value = a.buchungUrl || "";
   $("a-text").value = a.buchungText || "";
+  $("a-mail").value = a.email || "";
   $("a-aus").checked = Boolean(a.aus);
 
   // Sagt sofort, ob aus dem eingefügten Link etwas Brauchbares wird. Ein
@@ -1173,6 +1174,20 @@ function renderAngebot() {
         <span>mal pro Woche</span>
         <button class="gs-weg" data-planweg="${i}" aria-label="Vorlage entfernen">&times;</button>
       </div>
+      <div class="plan-zeile-unten">
+        <select data-feld="fuerGeschlecht" aria-label="Für wen">
+          <option value="alle"${(p.fuerGeschlecht ?? "alle") === "alle" ? " selected" : ""}>Für alle</option>
+          <option value="male"${p.fuerGeschlecht === "male" ? " selected" : ""}>Männer</option>
+          <option value="female"${p.fuerGeschlecht === "female" ? " selected" : ""}>Frauen</option>
+        </select>
+        <select data-feld="niveau" aria-label="Erfahrungsstand">
+          <option value="alle"${(p.niveau ?? "alle") === "alle" ? " selected" : ""}>Jedes Niveau</option>
+          <option value="anfaenger"${p.niveau === "anfaenger" ? " selected" : ""}>Einstieg</option>
+          <option value="fortgeschritten"${p.niveau === "fortgeschritten" ? " selected" : ""}>Fortgeschritten</option>
+        </select>
+      </div>
+      <label class="switch"><input type="checkbox" data-feld="zeitsparend"${p.zeitsparend ? " checked" : ""}>
+        <span>Bei Stress und wenig Zeit aktiv empfehlen</span></label>
       <input type="url" data-feld="url" value="${escapeHtml(p.url || "")}" placeholder="https://...">
     </div>`).join("")
     || '<p class="feld-hilfe">Noch keine Vorlage. Trag deine Pläne ein, dann schlägt daevo den passenden vor.</p>';
@@ -1187,11 +1202,15 @@ function angebotLesen() {
       fuerWen: holen("fuerWen").trim(),
       einheitenProWoche: Number(holen("einheitenProWoche")) || 3,
       url: holen("url").trim(),
+      fuerGeschlecht: holen("fuerGeschlecht") || "alle",
+      niveau: holen("niveau") || "alle",
+      zeitsparend: zeile.querySelector('[data-feld="zeitsparend"]')?.checked ?? false,
     };
   }).filter((p) => p.name || p.url);
 
   return {
     coachName: $("a-name").value.trim(),
+    email: $("a-mail").value.trim(),
     // Gespeichert wird die saubere Adresse, nicht die eingefügte. Sonst steht
     // der Tracker beim nächsten Öffnen wieder da.
     buchungUrl: saubereUrl($("a-buchung").value) || "",
@@ -1211,6 +1230,52 @@ $("a-buchung").addEventListener("input", () => {
       : sauber !== roh
         ? `Ich entferne Tracker und Datumsangaben. Gespeichert wird: ${sauber}`
         : "";
+});
+
+/**
+ * Die vier Pläne des Betreibers auf einen Schlag.
+ *
+ * Vier Vorlagen mit je fünf Feldern von Hand einzutragen dauert zehn Minuten
+ * und geht dreimal schief. Die Werte stehen hier, nicht im Kern: es sind die
+ * Pläne eines bestimmten Coaches und keine Eigenschaft der App.
+ */
+const ALPHA_PLAENE = [
+  {
+    name: "Zweimal 30, Männer fortgeschritten", fuerWen: "Wenig Zeit, Grundübungen sitzen",
+    einheitenProWoche: 2, url: "https://alphaprogression.com/de/7GIk3i",
+    fuerGeschlecht: "male", niveau: "fortgeschritten", zeitsparend: true,
+  },
+  {
+    name: "Zweimal 30, Männer Einstieg", fuerWen: "Wenig Zeit, noch keine Routine",
+    einheitenProWoche: 2, url: "https://alphaprogression.com/de/6iG0LT",
+    fuerGeschlecht: "male", niveau: "anfaenger", zeitsparend: true,
+  },
+  {
+    name: "Zweimal 30, Frauen fortgeschritten", fuerWen: "Wenig Zeit, Grundübungen sitzen",
+    einheitenProWoche: 2, url: "https://alphaprogression.com/de/9js4Xk",
+    fuerGeschlecht: "female", niveau: "fortgeschritten", zeitsparend: true,
+  },
+  {
+    name: "Zweimal 30, Frauen Einstieg", fuerWen: "Wenig Zeit, noch keine Routine",
+    einheitenProWoche: 2, url: "https://alphaprogression.com/de/1SfLlj",
+    fuerGeschlecht: "female", niveau: "anfaenger", zeitsparend: true,
+  },
+];
+
+$("btnPlanVorlagen").addEventListener("click", () => {
+  const a = angebotLesen();
+  // Was schon drin ist, bleibt drin. Ein Knopf, der die eigene Arbeit
+  // ueberschreibt, wird genau einmal gedrueckt.
+  const vorhanden = new Set(a.plaene.map((p) => saubereUrl(p.url)));
+  let neu = 0;
+  for (const p of ALPHA_PLAENE) {
+    if (vorhanden.has(saubereUrl(p.url))) continue;
+    a.plaene.push({ ...p, id: `p${a.plaene.length}` });
+    neu++;
+  }
+  store.setAngebot(a);
+  renderAngebot();
+  toast(neu ? `${neu} Vorlagen eingetragen` : "Die stehen schon drin");
 });
 
 $("btnPlanNeu").addEventListener("click", () => {
@@ -1250,11 +1315,23 @@ function angebotBlock() {
   const box = document.createElement("div");
   box.className = "angebot";
 
-  const plan = passenderPlan(a.plaene || [], (profile?.sessions || []).length);
-  if (plan) {
+  // Die Lage entscheidet, nicht nur die Zahl der Einheiten. Wer über Wochen
+  // hohen Stress und kaum freie Zeit hat, bekommt den zeitsparenden Plan
+  // vorgeschlagen, mit dem gemessenen Grund dabei.
+  const treffer = planFuer(a.plaene || [], { ...aktuelleLage(), jahreTraining: profile?.jahreTraining });
+  if (treffer) {
+    const { plan, passung, lageGruende, wegenLage } = treffer;
+    // Die Passung steht als Stichwort in der Zeile mit dem Umfang, die Lage als
+    // eigener Satz darunter. Zusammen ergäben sie keinen deutschen Satz.
+    const zeile = [plan.fuerWen, `${plan.einheitenProWoche} mal pro Woche`, ...passung]
+      .filter(Boolean).join(" · ");
+    const grund = wegenLage && lageGruende.length
+      ? `<span class="angebot-grund">Weil ${escapeHtml(undListe(lageGruende))}.</span>`
+      : "";
     box.innerHTML += `<div class="angebot-teil">
       <b>${escapeHtml(plan.name)}</b>
-      <span>${escapeHtml(plan.fuerWen)} · ${plan.einheitenProWoche} mal pro Woche</span>
+      <span>${escapeHtml(zeile)}</span>
+      ${grund}
       <a class="angebot-knopf" href="${escapeHtml(saubereUrl(plan.url))}" target="_blank" rel="noopener">Plan ansehen</a>
     </div>`;
   }
@@ -1266,6 +1343,7 @@ function angebotBlock() {
       <span>${escapeHtml(a.buchungText || "Sprich direkt mit einem Coach.")}</span>
       <a class="angebot-knopf primary" href="${escapeHtml(buchung)}" target="_blank" rel="noopener">
         ${escapeHtml(a.coachName ? `Termin bei ${a.coachName}` : "Termin vereinbaren")}</a>
+      ${a.email ? `<a class="angebot-mail" href="mailto:${escapeHtml(a.email)}">oder schreib eine Mail</a>` : ""}
     </div>`;
   }
   return box;
