@@ -279,6 +279,7 @@ try {
       <h2 class="abschnitt">Anspruch gegen Wirklichkeit</h2>
       <p class="sub">Wo das, was du dir vornimmst, und das, was deine Daten zeigen, auseinanderlaufen. Kein Vorwurf, eine anstehende Entscheidung.</p>
       <div id="widerspruchListe"></div>
+      <div id="empfehlungenAngebot"></div>
     </div>
   </section>
 
@@ -455,6 +456,7 @@ try {
       </div>
       <button id="btnStdAdd" class="ghost">Standard hinzufügen</button>
       <p class="fineprint">Standards, die die App nicht selbst messen kann, hakst du hier oder im Gespräch selbst ab.</p>
+      <div id="standardsAngebot"></div>
     </div>
   </section>
 
@@ -542,6 +544,25 @@ try {
       </div>
       <button id="btnStimmProbe" class="ghost breit">Probe hören</button>
       <p id="e-stimmhilfe" class="feld-hilfe"></p>
+
+      <h2 class="abschnitt">Dein Coaching Angebot</h2>
+      <p class="sub">Was Nutzer sehen, wenn sie persönliche Betreuung wollen. Leer lassen blendet es aus.</p>
+      <div class="field"><label for="a-name">Dein Name als Coach</label>
+        <input id="a-name" type="text" placeholder="Aaron"></div>
+      <div class="field"><label for="a-buchung">Buchungslink</label>
+        <input id="a-buchung" type="url" inputmode="url" autocomplete="off"
+               placeholder="https://calendly.com/...">
+        <p class="feld-hilfe" id="a-buchungHinweis"></p>
+      </div>
+      <div class="field"><label for="a-text">Was beim Erstgespräch passiert</label>
+        <textarea id="a-text" rows="2" placeholder="30 Minuten, kostenlos. Wir schauen, wo du stehst."></textarea></div>
+
+      <label class="feld-label">Deine Trainingsplan Vorlagen</label>
+      <div id="a-plaene"></div>
+      <button id="btnPlanNeu" class="ghost breit">Vorlage hinzufügen</button>
+
+      <label class="switch"><input type="checkbox" id="a-aus"><span>Bei mir selbst ausblenden</span></label>
+      <button id="btnAngebotSpeichern" class="primary breit">Angebot speichern</button>
 
       <h2 class="abschnitt">Training</h2>
       <ul id="sessionList" class="list"></ul>

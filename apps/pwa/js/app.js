@@ -1,7 +1,7 @@
 import {
   BEREICHE, BEREICH_NAME, CHECKIN_BOEGEN, CHECKIN_MITTE, STANDARD_ZIELE, WOCHENTAGE,
-  MAHLZEITEN, bogenAmTag, bogenFuer, energyBreakdown, nachOrdnern, offeneMahlzeiten,
-  uhrzeit, weightTrend,
+  MAHLZEITEN, bogenAmTag, bogenFuer, energyBreakdown, hatAngebot, nachOrdnern, offeneMahlzeiten,
+  passenderPlan, saubereUrl, uhrzeit, weightTrend,
 } from "@daevo/core";
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE } from "@daevo/coach";
 import { Coach, AnthropicProvider } from "@daevo/coach";
@@ -492,10 +492,10 @@ function showView(name) {
   if (name === "kalender") renderKalender();
   if (name === "tag") renderTag();
   if (name === "balance") renderBalance();
-  if (name === "standards") renderStandards();
+  if (name === "standards") { renderStandards(); zeigeAngebot("standardsAngebot"); }
   if (name === "gespraeche") renderGespraeche();
   if (name === "wochencheck") wcStart();
-  if (name === "empfehlungen") renderRecommendations();
+  if (name === "empfehlungen") { renderRecommendations(); zeigeAngebot("empfehlungenAngebot"); }
   if (name === "profil") renderProfile();
   if (name === "assistant") renderTranscript();
 }
@@ -514,7 +514,7 @@ function refreshAll() {
   if (name === "kalender") renderKalender();
   if (name === "tag") renderTag();
   if (name === "balance") renderBalance();
-  if (name === "standards") renderStandards();
+  if (name === "standards") { renderStandards(); zeigeAngebot("standardsAngebot"); }
 }
 
 /**
@@ -1142,6 +1142,144 @@ function renderWcVerlauf() {
   }).join("");
 }
 
+/* ---------- Coaching Angebot ---------- */
+
+function renderAngebot() {
+  const a = store.getAngebot();
+  $("a-name").value = a.coachName || "";
+  $("a-buchung").value = a.buchungUrl || "";
+  $("a-text").value = a.buchungText || "";
+  $("a-aus").checked = Boolean(a.aus);
+
+  // Sagt sofort, ob aus dem eingefügten Link etwas Brauchbares wird. Ein
+  // Buchungslink, der erst beim Nutzer auffällt, fällt gar nicht auf.
+  const roh = $("a-buchung").value.trim();
+  const sauber = saubereUrl(roh);
+  $("a-buchungHinweis").textContent = !roh
+    ? "Ohne Link zeigt die App kein Angebot an."
+    : !sauber
+      ? "Das ist keine gültige https Adresse."
+      : sauber !== roh
+        ? `Ich habe Tracker und Datumsangaben entfernt. Gespeichert wird: ${sauber}`
+        : "";
+
+  $("a-plaene").innerHTML = (a.plaene || []).map((p, i) => `
+    <div class="plan-zeile" data-plan="${i}">
+      <input type="text" data-feld="name" value="${escapeHtml(p.name || "")}" placeholder="Zweimal 30">
+      <input type="text" data-feld="fuerWen" value="${escapeHtml(p.fuerWen || "")}" placeholder="Für wen ist der Plan">
+      <div class="plan-zeile-unten">
+        <input type="number" data-feld="einheitenProWoche" min="1" max="7" inputmode="numeric"
+               value="${Number(p.einheitenProWoche) || 3}" aria-label="Einheiten pro Woche">
+        <span>mal pro Woche</span>
+        <button class="gs-weg" data-planweg="${i}" aria-label="Vorlage entfernen">&times;</button>
+      </div>
+      <input type="url" data-feld="url" value="${escapeHtml(p.url || "")}" placeholder="https://...">
+    </div>`).join("")
+    || '<p class="feld-hilfe">Noch keine Vorlage. Trag deine Pläne ein, dann schlägt daevo den passenden vor.</p>';
+}
+
+function angebotLesen() {
+  const plaene = [...$("a-plaene").querySelectorAll("[data-plan]")].map((zeile, i) => {
+    const holen = (f) => zeile.querySelector(`[data-feld="${f}"]`)?.value ?? "";
+    return {
+      id: `p${i}`,
+      name: holen("name").trim(),
+      fuerWen: holen("fuerWen").trim(),
+      einheitenProWoche: Number(holen("einheitenProWoche")) || 3,
+      url: holen("url").trim(),
+    };
+  }).filter((p) => p.name || p.url);
+
+  return {
+    coachName: $("a-name").value.trim(),
+    // Gespeichert wird die saubere Adresse, nicht die eingefügte. Sonst steht
+    // der Tracker beim nächsten Öffnen wieder da.
+    buchungUrl: saubereUrl($("a-buchung").value) || "",
+    buchungText: $("a-text").value.trim(),
+    plaene: plaene.map((p) => ({ ...p, url: saubereUrl(p.url) || p.url })),
+    aus: $("a-aus").checked,
+  };
+}
+
+$("a-buchung").addEventListener("input", () => {
+  const roh = $("a-buchung").value.trim();
+  const sauber = saubereUrl(roh);
+  $("a-buchungHinweis").textContent = !roh
+    ? "Ohne Link zeigt die App kein Angebot an."
+    : !sauber
+      ? "Das ist keine gültige https Adresse."
+      : sauber !== roh
+        ? `Ich entferne Tracker und Datumsangaben. Gespeichert wird: ${sauber}`
+        : "";
+});
+
+$("btnPlanNeu").addEventListener("click", () => {
+  const a = angebotLesen();
+  a.plaene.push({ id: `p${a.plaene.length}`, name: "", fuerWen: "", einheitenProWoche: 3, url: "" });
+  store.setAngebot(a);
+  renderAngebot();
+});
+
+$("a-plaene").addEventListener("click", (event) => {
+  const weg = event.target.closest("[data-planweg]");
+  if (!weg) return;
+  const a = angebotLesen();
+  a.plaene.splice(Number(weg.dataset.planweg), 1);
+  store.setAngebot(a);
+  renderAngebot();
+});
+
+$("btnAngebotSpeichern").addEventListener("click", () => {
+  store.setAngebot(angebotLesen());
+  renderAngebot();
+  refreshAll();
+  toast("Angebot gespeichert");
+});
+
+/**
+ * Der Block, der Nutzern den Weg zu einem echten Coach zeigt.
+ *
+ * Er steht nur da, wo jemand gerade merkt, dass er allein nicht weiterkommt.
+ * Ein Buchungslink auf jeder Seite ist Werbung, einer an der richtigen Stelle
+ * ist ein Angebot.
+ */
+function angebotBlock() {
+  const a = store.getAngebot();
+  if (!hatAngebot(a)) return null;
+
+  const box = document.createElement("div");
+  box.className = "angebot";
+
+  const plan = passenderPlan(a.plaene || [], (profile?.sessions || []).length);
+  if (plan) {
+    box.innerHTML += `<div class="angebot-teil">
+      <b>${escapeHtml(plan.name)}</b>
+      <span>${escapeHtml(plan.fuerWen)} · ${plan.einheitenProWoche} mal pro Woche</span>
+      <a class="angebot-knopf" href="${escapeHtml(saubereUrl(plan.url))}" target="_blank" rel="noopener">Plan ansehen</a>
+    </div>`;
+  }
+
+  const buchung = saubereUrl(a.buchungUrl);
+  if (buchung) {
+    box.innerHTML += `<div class="angebot-teil">
+      <b>Du willst persönliche Betreuung</b>
+      <span>${escapeHtml(a.buchungText || "Sprich direkt mit einem Coach.")}</span>
+      <a class="angebot-knopf primary" href="${escapeHtml(buchung)}" target="_blank" rel="noopener">
+        ${escapeHtml(a.coachName ? `Termin bei ${a.coachName}` : "Termin vereinbaren")}</a>
+    </div>`;
+  }
+  return box;
+}
+
+/** Den Angebotsblock in einen Behälter setzen, falls es eines gibt. */
+function zeigeAngebot(id) {
+  const ziel = $(id);
+  if (!ziel) return;
+  ziel.innerHTML = "";
+  const block = angebotBlock();
+  if (block) ziel.appendChild(block);
+}
+
 function renderProfile() {
   const energy = energyBreakdown(profile);
   const targets = dayNumbers(day).targets;
@@ -1158,6 +1296,7 @@ function renderProfile() {
   $("e-randmodus").value = profile.wechselndeZeiten ? "wechselnd" : (profile.randModus || "gleich");
   renderWochenzeiten();
   renderStimmwahl();
+  renderAngebot();
   $("e-tempo").value = store.getSettings().sprechtempo ?? 0.96;
 
   const settings = store.getSettings();
