@@ -474,6 +474,58 @@ Die Kennzahlen oben auf Heute sind antippbar und führen in die Ansicht dahinter
 Ernährung führt auf den Essen Reiter, dort steht der Fotoknopf direkt neben der
 Texteingabe. Eine Zahl, auf die man tippen kann, spart den Umweg über das Menue.
 
+## Das Design System
+
+Die Grundlage steht als Tokens ganz oben in `apps/pwa/styles.css`. Wer eine
+Grösse, einen Abstand oder eine Farbe direkt in eine Regel schreibt, statt einen
+Token zu nehmen, bricht das System, und man sieht es der App an, ohne es
+benennen zu können.
+
+**Farbe.** Die Neutraltöne sind nicht neutral. Sie tragen einen leichten
+Blaustich in Richtung des Logoblaus, rund vier Prozent Sättigung. Vorher stand
+dort die GitHub Palette in reinem Grau, und eine kühle Markenfarbe neben reinem
+Grau lässt die Palette in zwei Hälften zerfallen. Der Stich ist zu gering, um
+als Farbe gelesen zu werden, und genau darum geht es. `--brand-text` ist ein
+dritter Blauton für Text auf hellem Grund: `--brand-deep` erreicht auf `#f5f7fb`
+nur 4.24 zu 1 und ist dort für Fliesstext zu schwach, der neue Ton liegt bei
+4.98. Alle Werte nachgerechnet, nicht geschätzt.
+
+**Typografie.** Eine modulare Skala mit dem Verhältnis 1.2, von `--t-2xs` bis
+`--t-4xl`. Vorher standen elf Grössen zwischen 12 und 20 Pixeln im Stylesheet,
+darunter 12.5, 13.5, 14.5, 15.5 und 16.5. Dazu vier Laufweiten: grosse Schrift
+enger, kleine weiter. Ohne das wirkt eine 30 Pixel Zeile auseinandergezogen und
+eine 12 Pixel Zeile gedrängt.
+
+Zahlen laufen tabellarisch, über `font-variant-numeric` auf dem Body. Eine 1 ist
+sonst schmaler als eine 8, und eine Liste mit 1900, 2884 und 138 zappelt.
+
+**Abstände.** Alles auf einem Vierer Raster, `--s-1` bis `--s-12`. Ein Layout,
+in dem 13, 18 und 26 Pixel nebeneinander stehen, hat keinen Rhythmus.
+
+**Tiefe.** Drei Stufen. Im dunklen Modus kommt zu jedem Schatten ein Lichtsaum
+an der Oberkante, weil ein Schatten auf einer dunklen Fläche unsichtbar ist:
+dort entsteht Tiefe über Licht. Im hellen Modus tragen die Schatten allein.
+
+**Weniger Kästen.** Vorher hatte fast jedes Element einen eigenen Rahmen mit
+eigenem Hintergrund. Zwanzig gerahmte Flächen untereinander lesen sich als Liste
+von Behältern, nicht als Inhalt. Die Ringkacheln stehen jetzt ohne Kasten: der
+Ring ist die Form, er braucht keinen zweiten Rahmen um sich. Was eine Kachel
+zusammenhält, ist der Abstand zu ihren Nachbarn.
+
+**Zwei Ebenen von Überschriften.** `.abschnitt` ist die obere: gross, in
+Textfarbe, mit Trennlinie darüber. `.section-title` bleibt die untere: klein,
+versal, grau. Vorher war beides dieselbe Klasse, und in einer Ansicht mit sieben
+davon sah jede aus wie die nächste.
+
+**Bewegung.** Eine Kurve für alles, `--kurve`, plus zwei Dauern. Knöpfe gehen
+beim Tippen auf 98 Prozent: zu wenig, um es bewusst zu sehen, genug, um es zu
+spüren. Lineare Übergänge wirken maschinell.
+
+**Prüfung.** Layout wird gerendert geprüft, nicht gelesen. Das Skript im
+Scratchpad öffnet jede Ansicht in beiden Farbmodi und meldet zwei Dinge:
+überlappende Textelemente und seitliches Scrollen. Genau diese Fehler sieht kein
+Test, der Werte prüft, und genau die fallen dem Nutzer als Erstes auf.
+
 ## Der Chat
 
 Die Antwort steht ohne Sprechblase auf dem Grund, in 16,5 Pixeln mit 1,62
