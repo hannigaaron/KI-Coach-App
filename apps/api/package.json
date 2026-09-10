@@ -6,6 +6,7 @@
   "main": "./dist/server.js",
   "dependencies": {
     "@daevo/core": "*",
-    "@daevo/coach": "*"
+    "@daevo/coach": "*",
+    "@daevo/push": "*"
   }
 }

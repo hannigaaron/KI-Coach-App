@@ -40,6 +40,7 @@ baut aus dem Kühlschrankinhalt eine passende Mahlzeit.
 ```
 packages/core     Rechenkern und Gedächtnis, ohne Abhängigkeiten
 packages/coach    Assistent mit Werkzeugen, Sprachmodell, Regelpfad
+packages/push     Web Push, RFC 8188, 8291, 8292, ohne Abhängigkeiten
 apps/pwa          Installierbare Web App, läuft ohne Server
 apps/api          HTTP API, SQLite, Scheduler
 scripts           Build der Web App, lokaler Vorschauserver
@@ -143,7 +144,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 473 Tests
+npm test           # 500 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -537,6 +538,52 @@ Ziffern tippt man in zehn Sekunden.
 Findet die Datenbank nichts, nennt der Coach zwei Wege: Barcode scannen oder das
 Nährwertetikett fotografieren. Vom Etikett liest das Modell ab, da rät es nicht.
 
+## Benachrichtigungen
+
+Sechs Impulse am Tag, in `packages/core/src/tagesimpulse.ts`: Eiweiss um 9,
+Trinken um 11, Energie um 14, Shake um 16, Stress um 18, Pause um 21. Sie
+hängen an keiner Zahl des Nutzers, und das ist der Grund, warum sie ohne
+Server laufen können.
+
+Verschickt werden sie stündlich aus GitHub Actions,
+`.github/workflows/push.yml` und `scripts/push-senden.mjs`. Alle Impulse
+liegen auf der vollen Stunde, weil GitHub einen Cron mit fünf bis dreissig
+Minuten Verzug startet, gelegentlich mit mehr. Das Skript entscheidet über die
+Stunde in Berliner Zeit und nicht über die Uhrzeit des Laufs. Damit geht jeder
+Impuls genau einmal raus, und Sommer und Winterzeit sind mit erledigt.
+
+Je Zeitpunkt gibt es mehrere Formulierungen, gewählt über das Datum. Die
+gleiche Nachricht jeden Tag wird nach einer Woche weggewischt, ohne gelesen zu
+werden. Über das Datum und nicht zufällig, damit derselbe Tag dieselbe
+Nachricht ergibt und der Versand nachrechenbar bleibt.
+
+Die Verschlüsselung steht in `packages/push`, ohne Abhängigkeit: RFC 8291 für
+den Schlüsselaustausch, RFC 8188 für das Format, RFC 8292 für die Signatur.
+Geprüft wird gegen den Testvektor aus RFC 8291, Abschnitt 5. Ein Rundlauf mit
+selbst geschriebener Gegenseite würde nur zeigen, dass beide Seiten denselben
+Fehler machen.
+
+Die Abos stehen im Secret `PUSH_ABOS`, eine JSON Liste. Der Nutzer meldet sein
+Gerät im Profil an, kopiert den Text und trägt ihn dort ein. Das trägt einen
+Nutzer, nicht hundert. Für mehr braucht es den Server, siehe
+`docs/ARCHITEKTUR.md`.
+
+Die Erinnerungen aus `reminders.ts` bleiben davon unberührt. Sie hängen an den
+Zahlen des Tages und laufen weiter über `apps/api/src/scheduler.ts`.
+`WebPushNotifier` verschickt sie über denselben Weg, sobald der Server steht.
+
+Antwortet der Nutzer auf die Energiefrage mit einer blossen Zahl von 1 bis 10,
+wird sie in `energieCheck` gerechnet und geht nicht an das Modell. Unter 5 von
+10 kommen Vorschläge, und jeder hängt an einer Zahl aus der App: Abstand zur
+letzten Mahlzeit, Grösse der Mahlzeit, Verhältnis der Makros, Wasser, Schlaf.
+Findet sich keine Ursache in den Zahlen, steht das da, statt eine zu erfinden.
+Konzentration und Sättigung werden nicht mitgeraten: die App würde danach mit
+Werten rechnen, die niemand angegeben hat.
+
+Auf dem iPhone gibt es Web Push ab iOS 16.4 und nur aus der installierten App.
+In Safari selbst nicht. Deshalb nennt `pushLage()` die drei Bedingungen
+einzeln, statt am Ende nur zu melden, dass es nicht geht.
+
 ## Das Menue
 
 Fünf Einträge statt vierzehn: Assistent, Ernährung, Coaching, Planung und
@@ -712,13 +759,13 @@ Gewichtsverlauf mit Zielkorrektur, Kalender und Tagesablauf, Morgenbriefing,
 Mittags Check-in, Aufgaben mit Priorisierung, Kopf leeren, Balance Board,
 Tagesabschluss, Muster über
 Wochen, Widerspruchsprüfung, Tag und Nacht
-Modus, installierbare Web App, Marke, API.
+Modus, installierbare Web App, Marke, API, Push Benachrichtigungen bei
+geschlossener App.
 Der Schlüssel lässt sich im Profil prüfen. Zwei Schritte, weil zwei Dinge
 schiefgehen können: die Modellliste kostet nichts und zeigt, ob der Schlüssel
 gilt, eine winzige Nachricht danach zeigt, ob Guthaben da ist. Ein gültiger
 Schlüssel ohne Guthaben ist der häufigste Fall und sah vorher aus wie ein
 falscher.
 
-Offen: Push Benachrichtigungen bei geschlossener App, Apple Health und
-Wearables, Wortaktivierung, Anmeldung über Apple.
+Offen: Apple Health und Wearables, Wortaktivierung, Anmeldung über Apple.
 Siehe `docs/ROADMAP.md`.

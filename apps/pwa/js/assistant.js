@@ -21,6 +21,8 @@ import {
   trainingsplanAusKalender,
   widersprueche,
   widerspruchText,
+  energieBefund,
+  energieBefundText,
   mittagsBefund,
   morgenBriefing,
   planText,
@@ -842,6 +844,59 @@ export function mittagscheck({ energie, konzentration, saettigung, notiz = "" })
   });
 
   return befund;
+}
+
+/**
+ * Die Antwort auf die Energiefrage aus der Push Nachricht.
+ *
+ * Eigener Pfad neben dem Mittags Check-in, weil hier nur eine Zahl kommt.
+ * Konzentration und Sättigung mitzuraten wäre einfach und falsch: die App
+ * würde danach mit Werten rechnen, die niemand angegeben hat.
+ *
+ * Läuft ohne Modell und ohne Schlüssel. Unter 5 von 10 kommen Vorschläge,
+ * darüber nicht.
+ */
+export function energieCheck(energie) {
+  const day = todayIso();
+  const n = dayNumbers(day);
+  const morgens = n.data.checkins.find((c) => c.kind === "morning");
+  const letzte = letzteMahlzeit(day);
+  const meals = n.data.meals;
+  const letzterEintrag = meals[meals.length - 1];
+
+  const befund = energieBefund({
+    energie,
+    mahlzeit: letzte,
+    stundenSeitMahlzeit: stundenSeit(letzterEintrag?.at),
+    zielKcal: n.targets.kcal,
+    zielWasserMl: n.targets.waterMl,
+    wasserMl: n.totals.waterMl,
+    schlafQualitaet: morgens?.sleepQuality ?? null,
+  });
+
+  store.addCheckin(day, {
+    kind: "energie",
+    at: nowTime(),
+    note: "",
+    energy: energie,
+    concentration: null,
+    satiety: null,
+    sleepQuality: null,
+    mood: null,
+  });
+
+  return { befund, text: energieBefundText(befund) };
+}
+
+/** Stunden zwischen einer Uhrzeit HH:MM von heute und jetzt. Null ohne Zeit. */
+function stundenSeit(uhrzeit) {
+  if (!uhrzeit || !/^\d{1,2}:\d{2}$/.test(uhrzeit)) return null;
+  const [h, m] = uhrzeit.split(":").map(Number);
+  const [jetztH, jetztM] = nowTime().split(":").map(Number);
+  const diff = (jetztH * 60 + jetztM - (h * 60 + m)) / 60;
+  // Ein negativer Abstand heisst, der Eintrag liegt in der Zukunft. Dann sagt
+  // die Zahl nichts, und geraten wird nicht.
+  return diff >= 0 ? diff : null;
 }
 
 export function mittagscheckText(befund) {

@@ -1,3 +1,5 @@
+import { sendeWebPush, vapidPruefen, type PushAbo, type VapidSchluessel } from "@daevo/push";
+
 export interface PushMessage {
   userId: string;
   title: string;
@@ -27,5 +29,54 @@ export class ConsoleNotifier implements Notifier {
     console.log(
       `[push] user=${message.userId} kind=${message.kind} geräte=${deviceTokens.length} titel="${message.title}"`,
     );
+  }
+}
+
+/**
+ * Der echte Versand über Web Push.
+ *
+ * Ein Gerätetoken ist hier das Abo aus dem Browser als JSON, so wie es
+ * `PushSubscription.toJSON()` ausgibt. Ein Token, das sich nicht lesen lässt,
+ * wird übersprungen und gemeldet: eine Ausnahme würde den ganzen Durchlauf
+ * abbrechen und damit alle anderen Nutzer mit.
+ *
+ * Verschlüsselung und Signatur stehen in `packages/push`, geprüft gegen den
+ * Testvektor aus RFC 8291.
+ */
+export class WebPushNotifier implements Notifier {
+  constructor(
+    private readonly schluessel: VapidSchluessel,
+    private readonly kontakt: string,
+  ) {
+    vapidPruefen(schluessel);
+  }
+
+  async send(message: PushMessage, deviceTokens: string[]): Promise<void> {
+    for (const token of deviceTokens) {
+      let abo: PushAbo;
+      try {
+        abo = JSON.parse(token);
+      } catch {
+        console.error(`[push] user=${message.userId}: Gerätetoken ist kein gültiges JSON.`);
+        continue;
+      }
+      if (!abo?.endpoint || !abo.keys?.p256dh || !abo.keys?.auth) {
+        console.error(`[push] user=${message.userId}: Gerätetoken hat nicht die Form eines Abos.`);
+        continue;
+      }
+
+      const ergebnis = await sendeWebPush({
+        abo,
+        inhalt: { titel: message.title, text: message.body, marke: `erinnerung-${message.kind}`, ziel: "./" },
+        schluessel: this.schluessel,
+        kontakt: this.kontakt,
+      });
+      if (!ergebnis.ok) {
+        console.error(
+          `[push] user=${message.userId} kind=${message.kind} status=${ergebnis.status}` +
+            `${ergebnis.abgelaufen ? " Abo abgelaufen, gehört gelöscht." : ` ${ergebnis.fehler ?? ""}`}`,
+        );
+      }
+    }
   }
 }

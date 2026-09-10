@@ -44,15 +44,43 @@ Einsatz zu prüfen, die Lizenzbedingungen ändern sich.
 
 ## Push und Apple Watch
 
-Der Scheduler in `apps/api/src/scheduler.ts` bestimmt, welche Erinnerung fällig
-ist, und sperrt jede Nachricht über einen UNIQUE Index gegen Doppelversand.
-Der Versand selbst läuft über ein Interface (`Notifier`). Aktuell schreibt die
-Standardimplementierung nur ins Log.
+Es gibt zwei Wege, und sie beantworten verschiedene Fragen.
 
-Für den echten Versand braucht es:
+**Web Push über GitHub Actions.** Das ist der Weg, der läuft. Ein Cron in
+`.github/workflows/push.yml` startet stündlich `scripts/push-senden.mjs`. Das
+Skript rechnet die Berliner Zeit selbst aus, holt aus
+`packages/core/src/tagesimpulse.ts` den Impuls dieser Stunde und schickt ihn
+an jedes Abo aus dem Secret `PUSH_ABOS`. Kein Server, keine Datenbank, keine
+Kosten.
+
+Die Verschlüsselung steht in `packages/push`, ohne Abhängigkeit: RFC 8291 für
+den Schlüsselaustausch, RFC 8188 für das Format, RFC 8292 für die Signatur.
+Geprüft wird gegen den Testvektor aus RFC 8291, Abschnitt 5. Das ist die
+einzige Prüfung, die etwas beweist: ein Rundlauf mit selbst geschriebener
+Gegenseite zeigt nur, dass beide Seiten denselben Fehler machen.
+
+Grenzen dieses Weges. Die Abos stehen in einem Secret und werden von Hand
+gepflegt, das trägt einen Nutzer und nicht hundert. Der Cron kennt die Zahlen
+des Nutzers nicht, deshalb hängen die Impulse an keiner. Und GitHub startet
+einen Cron mit fünf bis dreissig Minuten Verzug, gelegentlich mehr. Deshalb
+liegen alle Impulse auf der vollen Stunde und das Skript entscheidet über die
+Stunde, nicht über die Minute.
+
+**Der Scheduler im Server.** `apps/api/src/scheduler.ts` bestimmt, welche
+Erinnerung aus `reminders.ts` fällig ist, und sperrt jede Nachricht über einen
+UNIQUE Index gegen Doppelversand. Diese Erinnerungen hängen an den Zahlen des
+Tages, deshalb brauchen sie den Zustand und laufen nicht im Cron. Der Versand
+läuft über das Interface `Notifier`. Die Standardimplementierung schreibt ins
+Log. Mit `WebPushNotifier` geht derselbe Weg wie oben, sobald der Server steht.
+
+Für den Versand über APNs in einer nativen App braucht es zusätzlich:
 - ein Apple Developer Programm Konto
 - einen APNs Auth Key und einen je Anfrage signierten JWT
 - Registrierung der Gerätetokens über `POST /api/me/devices`
+
+Auf dem iPhone gibt es Web Push ab iOS 16.4 und nur aus der installierten App,
+also nach Teilen, Zum Home Bildschirm. In Safari selbst gibt es kein Push.
+Quelle: WebKit, Web Push for Web Apps on iOS and iPadOS, 16. Februar 2023.
 
 Auf der Apple Watch erscheinen Benachrichtigungen der gekoppelten iPhone App
 automatisch, solange das iPhone gesperrt ist oder die Uhr am Handgelenk sitzt.

@@ -314,7 +314,9 @@ Termine schreiben statt nur lesen. Erst sinnvoll mit OAuth oder EventKit.
 Nötig für die zwei Dinge, die eine Web App auf dem iPhone nicht kann.
 
 - Expo Projekt mit React Native, Ziel iOS zuerst
-- Push Benachrichtigungen über APNs, auch wenn die App geschlossen ist
+- Push Benachrichtigungen über APNs. Web Push läuft seit dem Cron in GitHub
+  Actions, siehe docs/ARCHITEKTUR.md. APNs braucht es erst, wenn die Abos
+  nicht mehr von Hand gepflegt werden sollen.
 - HealthKit Anbindung für Schritte, Schlaf, Gewicht, Herzfreqünz
 - Apple Fitness und Apple Watch, später Whoop und Oura über deren APIs
 - Wortaktivierung, also Hey daevo ohne Tippen. Im Browser nicht zuverlässig
