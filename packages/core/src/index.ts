@@ -20,3 +20,4 @@ export * from "./gespraeche.js";
 export * from "./verteilung.js";
 export * from "./angebot.js";
 export * from "./tagesimpulse.js";
+export * from "./zeitzone.js";

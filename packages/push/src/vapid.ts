@@ -1,4 +1,5 @@
-import { createECDH, createPrivateKey, generateKeyPairSync, sign } from "node:crypto";
+import { ausB64Url, textZuB64Url, zuB64Url, type Bytes } from "./b64.js";
+import { jwkAus } from "./verschluesselung.js";
 
 /**
  * VAPID nach RFC 8292.
@@ -19,10 +20,14 @@ export interface VapidSchluessel {
   privat: string;
 }
 
-export function vapidSchluesselErzeugen(): VapidSchluessel {
-  const { privateKey } = generateKeyPairSync("ec", { namedCurve: "prime256v1" });
-  const jwk = privateKey.export({ format: "jwk" }) as { x: string; y: string; d: string };
-  return { oeffentlich: punktAusJwk(jwk.x, jwk.y), privat: jwk.d };
+const ECDSA = { name: "ECDSA", namedCurve: "P-256" } as const;
+const SIGNATUR = { name: "ECDSA", hash: "SHA-256" } as const;
+
+export async function vapidSchluesselErzeugen(): Promise<VapidSchluessel> {
+  const paar = (await crypto.subtle.generateKey(ECDSA, true, ["sign", "verify"])) as CryptoKeyPair;
+  const punkt = new Uint8Array(await crypto.subtle.exportKey("raw", paar.publicKey)) as Bytes;
+  const jwk = (await crypto.subtle.exportKey("jwk", paar.privateKey)) as JsonWebKey;
+  return { oeffentlich: zuB64Url(punkt), privat: jwk.d as string };
 }
 
 /**
@@ -33,67 +38,70 @@ export function vapidSchluesselErzeugen(): VapidSchluessel {
  * Die Laufzeit liegt bei zwölf Stunden. RFC 8292 erlaubt höchstens 24, und
  * mehrere Dienste weisen alles darüber zurück.
  */
-export function vapidHeader(params: { endpunkt: string; schluessel: VapidSchluessel; kontakt: string; jetzt?: number }): string {
+export async function vapidHeader(params: {
+  endpunkt: string;
+  schluessel: VapidSchluessel;
+  kontakt: string;
+  jetzt?: number;
+}): Promise<string> {
   const jetzt = params.jetzt ?? Math.floor(Date.now() / 1000);
   const aud = new URL(params.endpunkt).origin;
   const header = { typ: "JWT", alg: "ES256" };
   const payload = { aud, exp: jetzt + 12 * 60 * 60, sub: params.kontakt };
-  const daten = `${b64url(JSON.stringify(header))}.${b64url(JSON.stringify(payload))}`;
+  const daten = `${textZuB64Url(JSON.stringify(header))}.${textZuB64Url(JSON.stringify(payload))}`;
 
-  // ieee-p1363 liefert r und s als je 32 Byte. Die DER Kodierung, die Node
-  // sonst ausgibt, weisen die Push Dienste zurück.
-  const signatur = sign("sha256", Buffer.from(daten), {
-    key: privatenSchluesselLesen(params.schluessel),
-    dsaEncoding: "ieee-p1363",
-  });
-  const jwt = `${daten}.${signatur.toString("base64url")}`;
-  return `vapid t=${jwt}, k=${params.schluessel.oeffentlich}`;
+  // WebCrypto gibt bei ECDSA r und s als je 32 Byte aus, also genau das
+  // Format, das RFC 7515 für ES256 verlangt. Die DER Kodierung, die manche
+  // Bibliotheken liefern, weisen die Push Dienste zurück.
+  const key = await privatenSchluesselLesen(params.schluessel);
+  const signatur = new Uint8Array(await crypto.subtle.sign(SIGNATUR, key, new TextEncoder().encode(daten))) as Bytes;
+  return `vapid t=${daten}.${zuB64Url(signatur)}, k=${params.schluessel.oeffentlich}`;
 }
 
-/** Prüft ein Schlüsselpaar auf die richtige Länge und auf Zusammengehörigkeit. */
-export function vapidPruefen(schluessel: VapidSchluessel): void {
-  const pub = Buffer.from(schluessel.oeffentlich, "base64url");
-  const priv = Buffer.from(schluessel.privat, "base64url");
+/**
+ * Prüft ein Schlüsselpaar auf Form und Zusammengehörigkeit.
+ *
+ * Zwei Wege, weil die Laufzeiten sich unterscheiden. Node weist ein JWK, in
+ * dem d nicht zum Punkt aus x und y passt, schon beim Import zurück. Ob jede
+ * andere Laufzeit das auch tut, ist nicht zugesichert, deshalb wird danach
+ * signiert und gegen den öffentlichen Schlüssel nachgeprüft. Passt d nicht,
+ * scheitert spätestens diese Prüfung.
+ *
+ * Beide Fälle ergeben dieselbe Meldung, weil sich am Fehler beim Import nicht
+ * ablesen lässt, welcher der beiden vorliegt. Eine Meldung, die sich auf einen
+ * festlegt, wäre in der Hälfte der Fälle falsch.
+ */
+export async function vapidPruefen(schluessel: VapidSchluessel): Promise<void> {
+  const pub = ausB64Url(schluessel.oeffentlich);
+  const priv = ausB64Url(schluessel.privat);
   if (pub.length !== 65 || pub[0] !== 0x04) {
     throw new Error("Der öffentliche VAPID Schlüssel muss 65 Byte lang sein und mit 0x04 beginnen.");
   }
   if (priv.length !== 32) throw new Error("Der private VAPID Schlüssel muss 32 Byte lang sein.");
-  // Der Punkt wird aus dem privaten Skalar neu gerechnet. Ein JWK mit x, y
-  // und d nimmt Node hin, ohne die drei gegeneinander zu prüfen: dort käme
-  // immer der mitgegebene Punkt zurück und der Vergleich ginge nie schief.
-  const ecdh = createECDH("prime256v1");
+
+  const probe = new TextEncoder().encode("daevo push") as Bytes;
+  let passt = false;
   try {
-    ecdh.setPrivateKey(priv);
+    const signatur = await crypto.subtle.sign(SIGNATUR, await privatenSchluesselLesen(schluessel), probe);
+    const oeffentlich = await crypto.subtle.importKey("raw", pub, ECDSA, false, ["verify"]);
+    passt = await crypto.subtle.verify(SIGNATUR, oeffentlich, signatur, probe);
   } catch {
-    throw new Error("Der private VAPID Schlüssel ist kein gültiger Wert auf der Kurve P-256.");
+    passt = false;
   }
-  if (!ecdh.getPublicKey().equals(pub)) {
-    throw new Error("Öffentlicher und privater VAPID Schlüssel gehören nicht zusammen.");
+  if (!passt) {
+    throw new Error(
+      "Öffentlicher und privater VAPID Schlüssel gehören nicht zusammen, " +
+        "oder der private ist kein gültiger Wert auf der Kurve P-256.",
+    );
   }
 }
 
-function privatenSchluesselLesen(schluessel: VapidSchluessel) {
-  const pub = Buffer.from(schluessel.oeffentlich, "base64url");
-  return createPrivateKey({
-    key: {
-      kty: "EC",
-      crv: "P-256",
-      x: pub.subarray(1, 33).toString("base64url"),
-      y: pub.subarray(33, 65).toString("base64url"),
-      d: schluessel.privat,
-    },
-    format: "jwk",
-  });
-}
-
-function punktAusJwk(x: string, y: string): string {
-  return Buffer.concat([
-    Buffer.from([0x04]),
-    Buffer.from(x, "base64url"),
-    Buffer.from(y, "base64url"),
-  ]).toString("base64url");
-}
-
-function b64url(text: string): string {
-  return Buffer.from(text, "utf8").toString("base64url");
+function privatenSchluesselLesen(schluessel: VapidSchluessel): Promise<CryptoKey> {
+  return crypto.subtle.importKey(
+    "jwk",
+    { ...jwkAus(ausB64Url(schluessel.oeffentlich), ausB64Url(schluessel.privat)), key_ops: ["sign"] },
+    ECDSA,
+    false,
+    ["sign"],
+  );
 }

@@ -6,7 +6,7 @@
  * Das ist der einzige Weg, den Nutzer zu erreichen, waehrend die App
  * geschlossen ist. Siehe scripts/push-senden.mjs.
  */
-const CACHE = "daevo-v35";
+const CACHE = "daevo-v36";
 const ASSETS = [
   "./",
   "./index.html",

@@ -23,7 +23,7 @@ import { anhangAusDatei, grossInKb } from "./media.js";
 import { BEREICH_FARBE, anteilsRing, kurzDauer, metrikRing, richtungVon, ringMitZahl, wertungsRing } from "./rings.js";
 import { Listener, deutscheStimmen, speak, stopSpeaking, voiceSupport } from "./voice.js";
 import { SetupFlow } from "./setup-ui.js";
-import { pushAbmelden, pushAbo, pushAnmelden, pushLage } from "./push.js";
+import { pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
 
 const $ = (id) => document.getElementById(id);
@@ -2579,12 +2579,10 @@ $("btnStimmProbe").addEventListener("click", stimmProbe);
  */
 async function renderPush() {
   const settings = store.getSettings();
-  $("e-vapid").value = settings.vapidPublic || "";
+  $("e-pushWorker").value = settings.pushWorker || "";
+  $("e-pushWort").value = settings.pushWort || "";
   const lage = pushLage();
   const abo = await pushAbo().catch(() => null);
-
-  $("e-pushAboFeld").hidden = !abo;
-  if (abo) $("e-pushAbo").value = JSON.stringify(abo);
 
   const zeilen = [];
   if (!lage.unterstuetzt) {
@@ -2593,29 +2591,41 @@ async function renderPush() {
     zeilen.push("Auf dem iPhone geht Push nur aus der installierten App. Teilen, Zum Home Bildschirm, dann von dort starten.");
   } else if (abo) {
     zeilen.push("Dieses Gerät ist angemeldet.");
-    zeilen.push("Damit die Nachrichten ankommen, muss der Text oben im Secret PUSH_ABOS im Repository stehen.");
   } else if (lage.erlaubnis === "denied") {
     zeilen.push("Benachrichtigungen sind abgelehnt. Das lässt sich nur in den Einstellungen des Geräts zurücknehmen.");
+  } else if (!settings.pushWorker) {
+    zeilen.push("Trag die Adresse deines Push Workers ein, dann kannst du einschalten.");
   } else {
     zeilen.push("Noch nicht angemeldet.");
   }
   $("e-pushhilfe").textContent = zeilen.join(" ");
   $("btnPushAus").hidden = !abo;
+  $("btnPushProbe").hidden = !abo || !settings.pushWort;
 }
 
-$("e-vapid").addEventListener("change", () => {
-  store.setSettings({ ...store.getSettings(), vapidPublic: $("e-vapid").value.trim() });
-});
+function pushEinstellungen() {
+  const settings = store.getSettings();
+  return { worker: settings.pushWorker || "", wort: settings.pushWort || "" };
+}
+
+function pushFelderSichern() {
+  store.setSettings({
+    ...store.getSettings(),
+    pushWorker: $("e-pushWorker").value.trim(),
+    pushWort: $("e-pushWort").value.trim(),
+  });
+}
+
+for (const id of ["e-pushWorker", "e-pushWort"]) {
+  $(id).addEventListener("change", () => { pushFelderSichern(); renderPush(); });
+}
 
 $("btnPushAn").addEventListener("click", async () => {
-  const schluessel = $("e-vapid").value.trim();
-  store.setSettings({ ...store.getSettings(), vapidPublic: schluessel });
+  pushFelderSichern();
   try {
-    const abo = await pushAnmelden(schluessel);
-    $("e-pushAboFeld").hidden = false;
-    $("e-pushAbo").value = JSON.stringify(abo);
+    const { neu } = await pushAnmelden(pushEinstellungen());
     await renderPush();
-    toast("Angemeldet. Jetzt den Text kopieren.");
+    toast(neu ? "Angemeldet" : "War schon angemeldet");
   } catch (fehler) {
     $("e-pushhilfe").textContent = fehler.message;
     toast("Hat nicht geklappt");
@@ -2623,20 +2633,18 @@ $("btnPushAn").addEventListener("click", async () => {
 });
 
 $("btnPushAus").addEventListener("click", async () => {
-  await pushAbmelden().catch(() => false);
+  await pushAbmelden(pushEinstellungen()).catch(() => false);
   await renderPush();
-  toast("Abgemeldet. Nimm das Gerät auch aus PUSH_ABOS raus.");
+  toast("Abgemeldet");
 });
 
-$("btnPushKopieren").addEventListener("click", async () => {
-  const text = $("e-pushAbo").value;
+$("btnPushProbe").addEventListener("click", async () => {
   try {
-    await navigator.clipboard.writeText(text);
-    toast("Kopiert");
-  } catch {
-    // Ohne Erlaubnis für die Zwischenablage bleibt das Markieren von Hand.
-    $("e-pushAbo").select();
-    toast("Markiert. Jetzt selbst kopieren.");
+    const ergebnis = await pushProbe({ ...pushEinstellungen(), art: "trinken" });
+    toast(`An ${ergebnis.zugestellt} von ${ergebnis.geraete} Geräten`);
+  } catch (fehler) {
+    $("e-pushhilfe").textContent = fehler.message;
+    toast("Probe fehlgeschlagen");
   }
 });
 

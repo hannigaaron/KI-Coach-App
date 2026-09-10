@@ -6,7 +6,7 @@ export interface PushInhalt {
   text: string;
   /**
    * Ersetzt eine ältere Nachricht mit derselben Marke, statt sich darunter zu
-   * stapeln. Ein doppelt gestarteter Cron erzeugt so keine zweite Nachricht.
+   * stapeln. Ein doppelt gestarteter Lauf erzeugt so keine zweite Nachricht.
    */
   marke?: string;
   /** Wohin der Tipp auf die Nachricht führt, relativ zur App. */
@@ -42,18 +42,20 @@ export async function sendeWebPush(params: {
   ttlSekunden?: number;
   fetchImpl?: typeof fetch;
 }): Promise<Versandergebnis> {
-  const koerper = nutzlastVerschluesseln(params.abo, JSON.stringify(params.inhalt));
   const doFetch = params.fetchImpl ?? fetch;
 
   try {
+    const koerper = await nutzlastVerschluesseln(params.abo, JSON.stringify(params.inhalt));
+    const autorisierung = await vapidHeader({
+      endpunkt: params.abo.endpoint,
+      schluessel: params.schluessel,
+      kontakt: params.kontakt,
+    });
+
     const antwort = await doFetch(params.abo.endpoint, {
       method: "POST",
       headers: {
-        Authorization: vapidHeader({
-          endpunkt: params.abo.endpoint,
-          schluessel: params.schluessel,
-          kontakt: params.kontakt,
-        }),
+        Authorization: autorisierung,
         "Content-Encoding": "aes128gcm",
         "Content-Type": "application/octet-stream",
         TTL: String(params.ttlSekunden ?? 4 * 60 * 60),

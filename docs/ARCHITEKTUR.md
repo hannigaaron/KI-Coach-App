@@ -46,18 +46,24 @@ Einsatz zu prüfen, die Lizenzbedingungen ändern sich.
 
 Es gibt zwei Wege, und sie beantworten verschiedene Fragen.
 
-**Web Push über GitHub Actions.** Das ist der Weg, der läuft. Ein Cron in
-`.github/workflows/push.yml` startet stündlich `scripts/push-senden.mjs`. Das
-Skript rechnet die Berliner Zeit selbst aus, holt aus
-`packages/core/src/tagesimpulse.ts` den Impuls dieser Stunde und schickt ihn
-an jedes Abo aus dem Secret `PUSH_ABOS`. Kein Server, keine Datenbank, keine
-Kosten.
+**Web Push über einen Cloudflare Worker.** Das ist der Weg, der läuft.
+`workers/push` hat zwei Seiten. Der Cron läuft alle fünfzehn Minuten, rechnet
+die Berliner Zeit selbst aus und schickt den Impuls, dessen Minute gerade
+erreicht ist. Die HTTP Seite nimmt Anmeldungen der App entgegen, gibt den
+öffentlichen Schlüssel heraus und kann eine Probe auslösen. Kein Server, den
+jemand betreiben müsste, und keine Kosten.
+
+GitHub Actions war die Alternative und ist es nicht geworden. Ein Cron startet
+dort mit fünf bis dreissig Minuten Verzug, gelegentlich mit mehr, und die Abos
+müssten von Hand in ein Secret geschrieben werden.
 
 Die Verschlüsselung steht in `packages/push`, ohne Abhängigkeit: RFC 8291 für
 den Schlüsselaustausch, RFC 8188 für das Format, RFC 8292 für die Signatur.
-Geprüft wird gegen den Testvektor aus RFC 8291, Abschnitt 5. Das ist die
-einzige Prüfung, die etwas beweist: ein Rundlauf mit selbst geschriebener
-Gegenseite zeigt nur, dass beide Seiten denselben Fehler machen.
+Gebaut auf WebCrypto und nicht auf `node:crypto`, damit dieselbe
+Implementierung in Node, im Worker und im Browser läuft. Geprüft wird gegen
+den Testvektor aus RFC 8291, Abschnitt 5. Das ist die einzige Prüfung, die
+etwas beweist: ein Rundlauf mit selbst geschriebener Gegenseite zeigt nur,
+dass beide Seiten denselben Fehler machen.
 
 Grenzen dieses Weges. Die Abos stehen in einem Secret und werden von Hand
 gepflegt, das trägt einen Nutzer und nicht hundert. Der Cron kennt die Zahlen

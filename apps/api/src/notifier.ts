@@ -44,11 +44,21 @@ export class ConsoleNotifier implements Notifier {
  * Testvektor aus RFC 8291.
  */
 export class WebPushNotifier implements Notifier {
-  constructor(
+  private constructor(
     private readonly schluessel: VapidSchluessel,
     private readonly kontakt: string,
-  ) {
-    vapidPruefen(schluessel);
+  ) {}
+
+  /**
+   * Legt den Versender an und prüft dabei die Schlüssel.
+   *
+   * Eigene Funktion statt eines Konstruktors, weil die Prüfung über WebCrypto
+   * läuft und damit asynchron ist. Ein Schlüsselpaar, das nicht zusammenpasst,
+   * soll beim Start auffallen und nicht bei der ersten Erinnerung.
+   */
+  static async erstellen(schluessel: VapidSchluessel, kontakt: string): Promise<WebPushNotifier> {
+    await vapidPruefen(schluessel);
+    return new WebPushNotifier(schluessel, kontakt);
   }
 
   async send(message: PushMessage, deviceTokens: string[]): Promise<void> {

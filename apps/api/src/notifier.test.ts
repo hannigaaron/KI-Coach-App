@@ -3,18 +3,18 @@ import { test } from "node:test";
 import { vapidSchluesselErzeugen } from "@daevo/push";
 import { WebPushNotifier } from "./notifier.js";
 
-const schluessel = vapidSchluesselErzeugen();
+const schluessel = await vapidSchluesselErzeugen();
 
-test("Ein Schlüsselpaar, das nicht zusammenpasst, fällt beim Anlegen auf", () => {
-  const anderer = vapidSchluesselErzeugen();
-  assert.throws(
-    () => new WebPushNotifier({ oeffentlich: schluessel.oeffentlich, privat: anderer.privat }, "mailto:a@b.de"),
+test("Ein Schlüsselpaar, das nicht zusammenpasst, fällt beim Anlegen auf", async () => {
+  const anderer = await vapidSchluesselErzeugen();
+  await assert.rejects(
+    () => WebPushNotifier.erstellen({ oeffentlich: schluessel.oeffentlich, privat: anderer.privat }, "mailto:a@b.de"),
     /gehören nicht zusammen/,
   );
 });
 
 test("Ein unlesbares Gerätetoken bricht den Durchlauf nicht ab", async () => {
-  const notifier = new WebPushNotifier(schluessel, "mailto:a@b.de");
+  const notifier = await WebPushNotifier.erstellen(schluessel, "mailto:a@b.de");
   const fehler: string[] = [];
   const echt = console.error;
   console.error = (...args: unknown[]) => fehler.push(args.join(" "));

@@ -1,9 +1,36 @@
 # Benachrichtigungen einrichten
 
-Vier Schritte. Danach meldet sich daevo sechsmal am Tag, auch wenn die App
-geschlossen ist. Kosten: keine.
+Fünf Schritte. Danach meldet sich daevo sechsmal am Tag, auch wenn die App
+geschlossen ist, und zwar auf die Minute genau. Kosten: keine.
 
-## 1. Schlüsselpaar erzeugen
+Der Versand läuft über einen Cloudflare Worker, `workers/push`. Warum nicht
+über GitHub Actions: dort startet ein Cron mit fünf bis dreissig Minuten
+Verzug, und die Geräte müssten von Hand in ein Secret eingetragen werden.
+
+## 1. Cloudflare Konto
+
+Konto anlegen auf dash.cloudflare.com. Der Gratis Tarif reicht. Keine
+Kreditkarte nötig.
+
+Dann im Projektordner anmelden:
+
+```bash
+npx wrangler login
+```
+
+wrangler wird bei Bedarf geladen und nicht ins Projekt installiert. Das
+Projekt hat weiterhin keine Laufzeitabhängigkeiten.
+
+## 2. Speicher anlegen
+
+```bash
+npx wrangler kv namespace create ABOS
+```
+
+Die Ausgabe enthält eine Kennung. Sie kommt in `workers/push/wrangler.toml` an
+die Stelle von `HIER_DIE_KENNUNG_EINTRAGEN`.
+
+## 3. Schlüssel erzeugen und hinterlegen
 
 ```bash
 npm install
@@ -11,24 +38,33 @@ npm run build
 node scripts/push-schluessel.mjs
 ```
 
-Heraus kommen zwei Zeichenketten. Die private gehört nirgendwo anders hin als
-in ein Secret. Wird das Paar später getauscht, verlieren alle angemeldeten
-Geräte ihre Gültigkeit und müssen neu angemeldet werden.
+Heraus kommen zwei Zeichenketten. Beide als Geheimnis in den Worker:
 
-## 2. Secrets im Repository anlegen
+```bash
+cd workers/push
+npx wrangler secret put VAPID_PUBLIC
+npx wrangler secret put VAPID_PRIVATE
+npx wrangler secret put ANMELDE_WORT
+```
 
-GitHub, Settings, Secrets and variables, Actions, New repository secret.
+Das Anmeldewort denkst du dir selbst aus. Es schützt zwei Dinge: das Anmelden
+neuer Geräte und das Auslösen einer Probe. Ohne es könnte jeder, der die
+Adresse deines Workers kennt, dir den ganzen Tag Nachrichten schicken.
 
-| Name | Inhalt |
-| --- | --- |
-| `VAPID_PUBLIC` | der öffentliche Schlüssel aus Schritt 1 |
-| `VAPID_PRIVATE` | der private Schlüssel aus Schritt 1 |
-| `PUSH_KONTAKT` | `mailto:` und deine Adresse |
-| `PUSH_ABOS` | kommt in Schritt 3 |
+Wird das Schlüsselpaar später getauscht, verlieren alle angemeldeten Geräte
+ihre Gültigkeit und müssen neu angemeldet werden.
 
-`PUSH_ABOS` lässt sich noch nicht füllen. Leg es trotzdem an, mit `[]`.
+## 4. Worker ausrollen
 
-## 3. Gerät anmelden
+```bash
+cd workers/push
+npx wrangler deploy
+```
+
+Am Ende steht die Adresse, etwa `https://daevo-push.deinname.workers.dev`.
+Die brauchst du im nächsten Schritt.
+
+## 5. Gerät anmelden
 
 Auf dem iPhone geht Web Push nur aus der installierten App. In Safari selbst
 nicht. Also zuerst:
@@ -39,32 +75,41 @@ nicht. Also zuerst:
 
 Dann in der App: Menü, Profil, Benachrichtigungen.
 
-1. Den öffentlichen Schlüssel aus Schritt 1 in das Feld eintragen.
-2. Benachrichtigungen einschalten. Das iPhone fragt nach der Erlaubnis.
-3. Der Text darunter erscheint. Kopieren.
+1. Adresse des Workers eintragen.
+2. Anmeldewort eintragen.
+3. Benachrichtigungen einschalten. Das iPhone fragt nach der Erlaubnis.
+4. Probe schicken. Die Nachricht kommt sofort.
 
-Diesen Text in das Secret `PUSH_ABOS` eintragen, in eckigen Klammern:
+Den öffentlichen Schlüssel musst du nirgends abtippen. Die App holt ihn beim
+Anmelden vom Worker.
 
-```json
-[{"endpoint":"https://web.push.apple.com/...","keys":{"p256dh":"...","auth":"..."}}]
+## Prüfen und Fehler suchen
+
+Der Worker sagt selbst, was er weiss:
+
+```bash
+curl https://daevo-push.deinname.workers.dev/stand
 ```
 
-Mehrere Geräte kommen als Liste hinein, durch Komma getrennt.
+Antwort: Anzahl angemeldeter Geräte, seine Berliner Zeit, der Plan des Tages.
 
-## 4. Prüfen
+Live mitlesen, während eine Nachricht rausgeht:
 
-GitHub, Actions, Push Impulse, Run workflow. Bei `art` eine Nachricht wählen,
-zum Beispiel `trinken`. Der Lauf dauert etwa eine Minute, danach steht im Log,
-wie viele Abos erreicht wurden.
+```bash
+cd workers/push && npx wrangler tail
+```
 
-Kommt nichts an, sagt das Log warum:
-
-| Zeile im Log | Bedeutung |
+| Meldung | Bedeutung |
 | --- | --- |
-| `weg 410` | Das Abo gilt nicht mehr. Gerät neu anmelden, Secret ersetzen. |
-| `fehl 403` | Die Schlüssel passen nicht zum Abo. Beide Secrets prüfen. |
-| `fehl 400` | Das Abo ist unvollständig kopiert worden. |
-| `0 von 0` | `PUSH_ABOS` ist leer. |
+| `geraete: 0` | Kein Gerät angemeldet. Schritt 5 wiederholen. |
+| `status=401` | Die Schlüssel passen nicht zum Abo. Beide Geheimnisse prüfen. |
+| `status=403` | Der Schlüssel im Abo ist ein anderer als der im Worker. Gerät neu anmelden. |
+| `status=410` | Das Abo gilt nicht mehr. Der Worker löscht es selbst. |
+| `Das Anmeldewort stimmt nicht` | Im Profil steht ein anderes Wort als im Worker. |
+
+Läuft die App nicht auf GitHub Pages, sondern woanders, gehört die Adresse in
+`wrangler.toml` unter `HERKUNFT`. Ohne Eintrag lehnt der Browser die Anfragen
+ab, und in der App steht "Der Push Worker ist nicht erreichbar".
 
 ## Was wann kommt
 
@@ -80,9 +125,9 @@ Kommt nichts an, sagt das Log warum:
 Die Zeiten stehen in `packages/core/src/tagesimpulse.ts`. Je Zeitpunkt gibt es
 mehrere Formulierungen, die über das Datum wechseln.
 
-GitHub startet einen Cron mit fünf bis dreissig Minuten Verzug, gelegentlich
-mit mehr. Eine Nachricht um 14:00 kann also um 14:20 ankommen. Genauer geht es
-nur mit einem eigenen Server.
+Der Cron läuft alle fünfzehn Minuten und schickt nur, wenn die Minute genau
+auf einem Impuls liegt. Cloudflare kennt nur UTC, deshalb rechnet der Worker
+die Berliner Zeit selbst aus. Sommer und Winterzeit sind damit erledigt.
 
 ## Die Antwort auf die Energiefrage
 
@@ -95,3 +140,16 @@ Abstand zur letzten Mahlzeit, Grösse der Mahlzeit, Verhältnis von
 Kohlenhydraten zu Protein, getrunkene Menge, Schlafqualität vom Morgen. Jeder
 Vorschlag hängt an einer dieser Zahlen. Findet sich keine Ursache, sagt daevo
 das und fragt nach, statt eine zu erfinden.
+
+## Grenzen des Gratis Tarifs
+
+| Grenze | Wert | Was das hier bedeutet |
+| --- | --- | --- |
+| Rechenzeit je Lauf | 10 ms | Warten auf das Netz zählt nicht mit. Verschlüsseln und Signieren laufen nativ und liegen weit darunter. |
+| Anfragen am Tag | 100.000 | Der Cron braucht 96. |
+| Cron Auslöser je Konto | 5 | Einer ist belegt. |
+| Schreibvorgänge im Speicher | 1.000 am Tag | Sechs für die Sperre, dazu eines je Anmeldung. |
+| Geräte | 50 | Grenze im Code, `MAX_ABOS`. |
+
+Quelle: developers.cloudflare.com, Workers Limits und KV Limits, abgerufen am
+10. September 2026.

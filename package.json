@@ -6,7 +6,8 @@
   "type": "module",
   "workspaces": [
     "packages/*",
-    "apps/api"
+    "apps/api",
+    "workers/*"
   ],
   "engines": {
     "node": ">=22.5.0"
@@ -14,7 +15,7 @@
   "scripts": {
     "build": "tsc --build",
     "clean": "tsc --build --clean",
-    "test": "npm run build && node --test --experimental-sqlite --no-warnings \"packages/*/dist/**/*.test.js\" \"apps/api/dist/**/*.test.js\" \"apps/pwa/js/*.test.js\"",
+    "test": "npm run build && node --test --experimental-sqlite --no-warnings \"packages/*/dist/**/*.test.js\" \"apps/api/dist/**/*.test.js\" \"apps/pwa/js/*.test.js\" \"workers/*/dist/**/*.test.js\"",
     "dev": "npm run build && node --experimental-sqlite --no-warnings apps/api/dist/server.js",
     "start": "node --experimental-sqlite --no-warnings apps/api/dist/server.js",
     "build:pwa": "npm run build && node scripts/build-pwa.mjs",
