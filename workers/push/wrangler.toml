@@ -1,0 +1,27 @@
+name = "daevo-push"
+main = "src/index.ts"
+compatibility_date = "2025-09-01"
+
+# Alle fünfzehn Minuten. Der Worker rechnet die Berliner Zeit selbst aus und
+# schickt nur, wenn die Minute genau auf einem Impuls liegt. Cloudflare kennt
+# nur UTC, eine feste UTC Zeit ginge im Winter eine Stunde falsch.
+# Der Gratis Tarif erlaubt fünf Cron Auslöser je Konto, hier ist einer belegt.
+[triggers]
+crons = ["*/15 * * * *"]
+
+# Der Speicher für die Abos. Die Kennung trägt der Nutzer nach
+# npx wrangler kv namespace create ABOS
+# hier ein.
+[[kv_namespaces]]
+binding = "ABOS"
+id = "HIER_DIE_KENNUNG_EINTRAGEN"
+
+[vars]
+# Woher die App kommen darf. Ohne Begrenzung kann jede fremde Seite Abos
+# anlegen und löschen.
+HERKUNFT = "https://hannigaaron.github.io,http://localhost:8080"
+PUSH_KONTAKT = "mailto:hannigaaron@gmail.com"
+
+# VAPID_PUBLIC, VAPID_PRIVATE und ANMELDE_WORT sind Geheimnisse und stehen
+# nicht in dieser Datei. Sie werden gesetzt mit
+# npx wrangler secret put VAPID_PUBLIC

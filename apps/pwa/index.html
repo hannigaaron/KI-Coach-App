@@ -545,6 +545,21 @@ try {
       <button id="btnStimmProbe" class="ghost breit">Probe hören</button>
       <p id="e-stimmhilfe" class="feld-hilfe"></p>
 
+      <h2 class="abschnitt">Benachrichtigungen</h2>
+      <p class="sub">Sechs Impulse am Tag, auch wenn die App zu ist. Eiweiss, Trinken, Energie, Shake, Stress, Pause.</p>
+      <div class="field"><label for="e-pushWorker">Adresse des Push Workers</label>
+        <input id="e-pushWorker" type="url" inputmode="url" autocomplete="off" spellcheck="false"
+               placeholder="https://daevo-push.DEINNAME.workers.dev">
+        <p class="feld-hilfe">Steht am Ende von npx wrangler deploy. Einrichtung in docs/PUSH-EINRICHTEN.md.</p>
+      </div>
+      <div class="field"><label for="e-pushWort">Anmeldewort, optional</label>
+        <input id="e-pushWort" type="password" autocomplete="off" spellcheck="false" placeholder="leer lassen, wenn keins gesetzt ist">
+      </div>
+      <button id="btnPushAn" class="primary breit">Benachrichtigungen einschalten</button>
+      <button id="btnPushProbe" class="ghost breit" hidden>Probe schicken</button>
+      <button id="btnPushAus" class="ghost breit" hidden>Ausschalten</button>
+      <p id="e-pushhilfe" class="feld-hilfe"></p>
+
       <h2 class="abschnitt">Dein Coaching Angebot</h2>
       <p class="sub">Was Nutzer sehen, wenn sie persönliche Betreuung wollen. Leer lassen blendet es aus.</p>
       <div class="field"><label for="a-name">Dein Name als Coach</label>

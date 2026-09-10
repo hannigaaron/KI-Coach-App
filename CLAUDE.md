@@ -40,8 +40,10 @@ baut aus dem Kühlschrankinhalt eine passende Mahlzeit.
 ```
 packages/core     Rechenkern und Gedächtnis, ohne Abhängigkeiten
 packages/coach    Assistent mit Werkzeugen, Sprachmodell, Regelpfad
+packages/push     Web Push, RFC 8188, 8291, 8292, ohne Abhängigkeiten
 apps/pwa          Installierbare Web App, läuft ohne Server
 apps/api          HTTP API, SQLite, Scheduler
+workers/push      Cloudflare Worker, verschickt die Tagesimpulse
 scripts           Build der Web App, lokaler Vorschauserver
 tools/brand       Generator für die Logodateien
 docs              Architektur, Marke, Roadmap, Geschäftsmodell
@@ -143,7 +145,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 473 Tests
+npm test           # 536 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -537,6 +539,70 @@ Ziffern tippt man in zehn Sekunden.
 Findet die Datenbank nichts, nennt der Coach zwei Wege: Barcode scannen oder das
 Nährwertetikett fotografieren. Vom Etikett liest das Modell ab, da rät es nicht.
 
+## Benachrichtigungen
+
+Sechs Impulse am Tag, in `packages/core/src/tagesimpulse.ts`: Eiweiss um 9,
+Trinken um 11, Energie um 14, Shake um 16, Stress um 18, Pause um 21. Sie
+hängen an keiner Zahl des Nutzers, und das ist der Grund, warum sie ohne
+Server laufen können.
+
+Verschickt werden sie von einem Cloudflare Worker, `workers/push`. GitHub
+Actions war die andere Möglichkeit und ist es nicht geworden: dort startet ein
+Cron mit fünf bis dreissig Minuten Verzug, und die Abos müssten von Hand in
+ein Secret geschrieben werden. Beim Worker stimmt die Uhrzeit, und die App
+meldet sich selbst an.
+
+Der Cron läuft alle fünfzehn Minuten und schickt nur, wenn die Minute genau
+auf einem Impuls liegt. Öfter zu laufen als nötig ist Absicht: fällt ein Lauf
+aus, verschiebt das nicht den ganzen Tag.
+
+Cloudflare kennt nur UTC. Eine feste UTC Zeit ginge ein halbes Jahr lang eine
+Stunde falsch, deshalb rechnet `packages/core/src/zeitzone.ts` die Berliner
+Zeit selbst aus der Regel nach Richtlinie 2000/84/EG. Nicht über `Intl`, weil
+benannte Zeitzonen für die Laufzeit eines Workers nicht zugesichert sind. Der
+Test vergleicht jede Ausgabe über vier Jahre gegen `Intl`, also gegen die
+echte Zeitzonendatenbank, und minutengenau über beide Umstellungen. Fällt die
+Regel irgendwann, schlägt genau dieser Test an.
+
+Je Zeitpunkt gibt es mehrere Formulierungen, gewählt über das Datum. Die
+gleiche Nachricht jeden Tag wird nach einer Woche weggewischt, ohne gelesen zu
+werden. Über das Datum und nicht zufällig, damit derselbe Tag dieselbe
+Nachricht ergibt und der Versand nachrechenbar bleibt.
+
+Die Verschlüsselung steht in `packages/push`, ohne Abhängigkeit: RFC 8291 für
+den Schlüsselaustausch, RFC 8188 für das Format, RFC 8292 für die Signatur.
+Gebaut auf WebCrypto und nicht auf `node:crypto`, damit dieselbe
+Implementierung in Node, im Worker und im Browser läuft. Geprüft wird gegen
+den Testvektor aus RFC 8291, Abschnitt 5. Ein Rundlauf mit selbst
+geschriebener Gegenseite würde nur zeigen, dass beide Seiten denselben Fehler
+machen.
+
+Der Worker hält die Abos in einem Schlüsselspeicher, je Abo einen Eintrag.
+Eine gemeinsame Liste müsste bei jeder Anmeldung gelesen, geändert und
+zurückgeschrieben werden, und zwei gleichzeitige Anmeldungen überschrieben
+sich gegenseitig. Angenommen werden nur Endpunkte bekannter Push Dienste:
+sonst ist der Worker eine offene Weiterleitung, die auf Zuruf Anfragen an
+fremde Adressen schickt. Ein Abo, auf das der Dienst mit 404 oder 410
+antwortet, löscht der Worker selbst.
+
+Die Erinnerungen aus `reminders.ts` bleiben davon unberührt. Sie hängen an den
+Zahlen des Tages und laufen weiter über `apps/api/src/scheduler.ts`.
+`WebPushNotifier` verschickt sie über denselben Weg, sobald der Server steht.
+
+Antwortet der Nutzer auf die Energiefrage mit einer blossen Zahl von 1 bis 10,
+wird sie in `energieCheck` gerechnet und geht nicht an das Modell. Unter 5 von
+10 kommen Vorschläge, und jeder hängt an einer Zahl aus der App: Abstand zur
+letzten Mahlzeit, Grösse der Mahlzeit, Verhältnis der Makros, Wasser, Schlaf.
+Findet sich keine Ursache in den Zahlen, steht das da, statt eine zu erfinden.
+Konzentration und Sättigung werden nicht mitgeraten: die App würde danach mit
+Werten rechnen, die niemand angegeben hat.
+
+Auf dem iPhone gibt es Web Push ab iOS 16.4 und nur aus der installierten App.
+In Safari selbst nicht. Deshalb nennt `pushLage()` die drei Bedingungen
+einzeln, statt am Ende nur zu melden, dass es nicht geht.
+
+Einrichtung in `docs/PUSH-EINRICHTEN.md`.
+
 ## Das Menue
 
 Fünf Einträge statt vierzehn: Assistent, Ernährung, Coaching, Planung und
@@ -712,13 +778,13 @@ Gewichtsverlauf mit Zielkorrektur, Kalender und Tagesablauf, Morgenbriefing,
 Mittags Check-in, Aufgaben mit Priorisierung, Kopf leeren, Balance Board,
 Tagesabschluss, Muster über
 Wochen, Widerspruchsprüfung, Tag und Nacht
-Modus, installierbare Web App, Marke, API.
+Modus, installierbare Web App, Marke, API, Push Benachrichtigungen bei
+geschlossener App.
 Der Schlüssel lässt sich im Profil prüfen. Zwei Schritte, weil zwei Dinge
 schiefgehen können: die Modellliste kostet nichts und zeigt, ob der Schlüssel
 gilt, eine winzige Nachricht danach zeigt, ob Guthaben da ist. Ein gültiger
 Schlüssel ohne Guthaben ist der häufigste Fall und sah vorher aus wie ein
 falscher.
 
-Offen: Push Benachrichtigungen bei geschlossener App, Apple Health und
-Wearables, Wortaktivierung, Anmeldung über Apple.
+Offen: Apple Health und Wearables, Wortaktivierung, Anmeldung über Apple.
 Siehe `docs/ROADMAP.md`.

@@ -1,12 +1,11 @@
 {
-  "name": "@daevo/api",
+  "name": "@daevo/worker-push",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "./dist/server.js",
+  "main": "./dist/index.js",
   "dependencies": {
     "@daevo/core": "*",
-    "@daevo/coach": "*",
     "@daevo/push": "*"
   }
 }

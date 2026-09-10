@@ -1,7 +1,7 @@
 import {
   BEREICHE, BEREICH_NAME, CHECKIN_BOEGEN, CHECKIN_MITTE, STANDARD_ZIELE, WOCHENTAGE,
   MAHLZEITEN, bogenAmTag, bogenFuer, energyBreakdown, hatAngebot, nachOrdnern, offeneMahlzeiten,
-  planFuer, saubereUrl, uhrzeit, undListe, weightTrend,
+  impulseFuerTag, planFuer, saubereUrl, uhrzeit, undListe, weightTrend,
 } from "@daevo/core";
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE } from "@daevo/coach";
 import { Coach, AnthropicProvider } from "@daevo/coach";
@@ -11,7 +11,7 @@ import {
   buildActions, dayNumbers, einkaufslisteText, ensureStandards, greeting, herausforderungSpeichern,
   aktuelleLage, aktivesGespraech, gegesseneArten, gespraechAnlegen, gespraechLoeschen, gespraechNachziehen,
   gespraechOeffnen, gespraecheSuchen,
-  aufgabenPlanText, kopfSortieren, mittagscheck, mittagscheckText, musterUebersicht,
+  aufgabenPlanText, energieCheck, kopfSortieren, mittagscheck, mittagscheckText, musterUebersicht,
   schluesselPruefen, tagesnutzungFuer,
   trainingsplanUebernehmen, trainingsplanVorschlag, widerspruchListe,
   kalenderEntfernen, kalenderImportieren, kalenderStand, kalenderUebersicht,
@@ -23,6 +23,7 @@ import { anhangAusDatei, grossInKb } from "./media.js";
 import { BEREICH_FARBE, anteilsRing, kurzDauer, metrikRing, richtungVon, ringMitZahl, wertungsRing } from "./rings.js";
 import { Listener, deutscheStimmen, speak, stopSpeaking, voiceSupport } from "./voice.js";
 import { SetupFlow } from "./setup-ui.js";
+import { pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
 
 const $ = (id) => document.getElementById(id);
@@ -262,6 +263,27 @@ function appendPending(text) {
 
 async function send(text) {
   const nachricht = text.trim();
+
+  // Die Antwort auf die Energiefrage aus der Benachrichtigung. Eine blosse
+  // Zahl von 1 bis 10 wird hier gerechnet und geht nicht an das Modell: die
+  // Bewertung steht im Rechenkern, kostet nichts und läuft ohne Schlüssel.
+  const zahl = offeneFrage === "energie" ? nurZahl(nachricht) : null;
+  if (zahl !== null && !busy) {
+    offeneFrage = null;
+    $("chatInput").value = "";
+    appendBubble("user", nachricht);
+    const chat = store.getChat();
+    chat.push({ role: "user", text: nachricht, at: new Date().toISOString() });
+    const { text: antwort } = energieCheck(zahl);
+    chat.push({ role: "assistant", text: antwort, at: new Date().toISOString() });
+    store.setChat(chat);
+    gespraechNachziehen();
+    renderTranscript();
+    refreshAll();
+    return;
+  }
+  offeneFrage = null;
+
   const mit = anhaenge.filter((a) => !a.fehler && !a.laedt);
   if ((!nachricht && mit.length === 0) || busy) return;
   if (anhaenge.some((a) => a.laedt)) { toast("Ein Anhang wird noch verarbeitet."); return; }
@@ -1375,6 +1397,7 @@ function renderProfile() {
   renderWochenzeiten();
   renderStimmwahl();
   renderAngebot();
+  renderPush();
   $("e-tempo").value = store.getSettings().sprechtempo ?? 0.96;
 
   const settings = store.getSettings();
@@ -1550,6 +1573,14 @@ function startApp() {
   setupAssistant();
   showView("assistant");
   refreshAll();
+
+  // Über eine Benachrichtigung gestartet. Der Parameter wird danach aus der
+  // Adresse entfernt, sonst steht die Frage bei jedem Neuladen wieder da.
+  const art = new URLSearchParams(location.search).get("impuls");
+  if (art) {
+    impulsOeffnen({ art });
+    history.replaceState(null, "", location.pathname);
+  }
 }
 
 /* ---------- Ereignisse ---------- */
@@ -2536,6 +2567,130 @@ $("e-tempo").addEventListener("change", () => {
   stimmProbe();
 });
 $("btnStimmProbe").addEventListener("click", stimmProbe);
+
+/* ---------- Benachrichtigungen ---------- */
+
+/**
+ * Zeigt, woran es hängt, statt am Ende nur zu melden, dass es nicht geht.
+ *
+ * Drei Dinge müssen stimmen: der Browser kann Push, die App läuft vom Home
+ * Bildschirm, und die Erlaubnis steht. Auf dem iPhone scheitert es fast immer
+ * am zweiten Punkt, und das sieht man dem Fehler sonst nicht an.
+ */
+async function renderPush() {
+  const settings = store.getSettings();
+  $("e-pushWorker").value = settings.pushWorker || "";
+  $("e-pushWort").value = settings.pushWort || "";
+  const lage = pushLage();
+  const abo = await pushAbo().catch(() => null);
+
+  const zeilen = [];
+  if (!lage.unterstuetzt) {
+    zeilen.push("Dieser Browser kann kein Web Push.");
+  } else if (lage.apple && !lage.installiert) {
+    zeilen.push("Auf dem iPhone geht Push nur aus der installierten App. Teilen, Zum Home Bildschirm, dann von dort starten.");
+  } else if (abo) {
+    zeilen.push("Dieses Gerät ist angemeldet.");
+  } else if (lage.erlaubnis === "denied") {
+    zeilen.push("Benachrichtigungen sind abgelehnt. Das lässt sich nur in den Einstellungen des Geräts zurücknehmen.");
+  } else if (!settings.pushWorker) {
+    zeilen.push("Trag die Adresse deines Push Workers ein, dann kannst du einschalten.");
+  } else {
+    zeilen.push("Noch nicht angemeldet.");
+  }
+  $("e-pushhilfe").textContent = zeilen.join(" ");
+  $("btnPushAus").hidden = !abo;
+  $("btnPushProbe").hidden = !abo || !settings.pushWort;
+}
+
+function pushEinstellungen() {
+  const settings = store.getSettings();
+  return { worker: settings.pushWorker || "", wort: settings.pushWort || "" };
+}
+
+function pushFelderSichern() {
+  store.setSettings({
+    ...store.getSettings(),
+    pushWorker: $("e-pushWorker").value.trim(),
+    pushWort: $("e-pushWort").value.trim(),
+  });
+}
+
+for (const id of ["e-pushWorker", "e-pushWort"]) {
+  $(id).addEventListener("change", () => { pushFelderSichern(); renderPush(); });
+}
+
+$("btnPushAn").addEventListener("click", async () => {
+  pushFelderSichern();
+  try {
+    const { neu } = await pushAnmelden(pushEinstellungen());
+    await renderPush();
+    toast(neu ? "Angemeldet" : "War schon angemeldet");
+  } catch (fehler) {
+    $("e-pushhilfe").textContent = fehler.message;
+    toast("Hat nicht geklappt");
+  }
+});
+
+$("btnPushAus").addEventListener("click", async () => {
+  await pushAbmelden(pushEinstellungen()).catch(() => false);
+  await renderPush();
+  toast("Abgemeldet");
+});
+
+$("btnPushProbe").addEventListener("click", async () => {
+  try {
+    const ergebnis = await pushProbe({ ...pushEinstellungen(), art: "trinken" });
+    toast(`An ${ergebnis.zugestellt} von ${ergebnis.geraete} Geräten`);
+  } catch (fehler) {
+    $("e-pushhilfe").textContent = fehler.message;
+    toast("Probe fehlgeschlagen");
+  }
+});
+
+/* ---------- Ein Impuls kommt herein ---------- */
+
+/**
+ * Welche Frage gerade offen ist.
+ *
+ * Antwortet der Nutzer darauf mit einer blossen Zahl, wird sie hier
+ * ausgewertet und nicht an das Modell geschickt. Eine Zahl von 1 bis 10 ist
+ * eindeutig, und die Bewertung kommt aus dem Rechenkern.
+ */
+let offeneFrage = null;
+
+function impulsOeffnen(daten) {
+  const art = daten?.art;
+  if (!art) return;
+  showView("assistant");
+  const impuls = impulseFuerTag(todayIso()).find((i) => i.art === art);
+  if (!impuls) return;
+
+  const chat = store.getChat();
+  const letzte = chat[chat.length - 1];
+  // Zweimal auf dieselbe Nachricht getippt heisst nicht, dass die Frage
+  // zweimal im Verlauf stehen soll.
+  if (!(letzte?.role === "assistant" && letzte.text === impuls.text)) {
+    chat.push({ role: "assistant", text: impuls.text, at: new Date().toISOString() });
+    store.setChat(chat);
+    renderTranscript();
+  }
+  offeneFrage = impuls.frage ? art : null;
+  $("chatInput").focus();
+}
+
+/** Eine blosse Zahl von 1 bis 10, sonst null. */
+function nurZahl(text) {
+  const treffer = text.trim().match(/^([1-9]|10)([.,]0)?$/);
+  return treffer ? Number(treffer[1]) : null;
+}
+
+// Der Service Worker meldet den Tipp auf eine Benachrichtigung, wenn die App
+// schon offen ist. Ein zweites Fenster wäre die Alternative, und das empfinden
+// Nutzer als kaputt.
+navigator.serviceWorker?.addEventListener("message", (event) => {
+  if (event.data?.typ === "impuls") impulsOeffnen(event.data.daten);
+});
 
 function stimmProbe() {
   const e = store.getSettings();

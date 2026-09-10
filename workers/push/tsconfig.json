@@ -2,7 +2,14 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": "src",
-    "outDir": "dist"
+    "outDir": "dist",
+    "lib": [
+      "ES2023",
+      "DOM"
+    ],
+    "types": [
+      "node"
+    ]
   },
   "include": [
     "src/**/*.ts"
@@ -10,9 +17,6 @@
   "references": [
     {
       "path": "../../packages/core"
-    },
-    {
-      "path": "../../packages/coach"
     },
     {
       "path": "../../packages/push"
