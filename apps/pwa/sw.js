@@ -2,9 +2,9 @@
  * Service Worker.
  *
  * Zweck: die App startet auch ohne Netz und laedt schneller. Ausserdem nimmt
- * er die Push Nachrichten entgegen, die der Cron in GitHub Actions schickt.
- * Das ist der einzige Weg, den Nutzer zu erreichen, waehrend die App
- * geschlossen ist. Siehe scripts/push-senden.mjs.
+ * er die Push Nachrichten entgegen, die der Cloudflare Worker schickt. Das
+ * ist der einzige Weg, den Nutzer zu erreichen, waehrend die App geschlossen
+ * ist. Siehe workers/push.
  */
 const CACHE = "daevo-v36";
 const ASSETS = [
