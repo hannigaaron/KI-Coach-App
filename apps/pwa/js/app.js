@@ -905,12 +905,34 @@ function renderStimmwahl() {
 
   const beste = liste[0];
   const hatGute = /premium|neural|enhanced|natural/i.test(beste?.name || "");
-  $("e-stimmhilfe").textContent = hatGute
-    ? "Ohne eigene Wahl nehme ich die beste männliche Stimme, die dein Gerät hat."
-    : "Dein Gerät hat nur Stimmen in Basisqualität. Auf dem iPhone lädst du bessere unter "
-      + "Einstellungen, Bedienungshilfen, Gesprochene Inhalte, Stimmen, Deutsch. "
-      + "Wähl dort eine Stimme mit dem Zusatz Premium. Der Unterschied ist deutlich grösser "
-      + "als zwischen zwei verschiedenen Stimmen.";
+  const zeilen = [];
+
+  if (hatGute) {
+    zeilen.push("Ohne eigene Wahl nehme ich die beste männliche Stimme, die dein Gerät hat.");
+  } else if (liste.length === 1) {
+    // Genau eine Stimme heisst auf dem iPhone fast immer: es ist nur die
+    // Standardstimme installiert. Der Weg dorthin gehoert hierhin, nicht in
+    // eine Dokumentation, die im Profil niemand aufschlaegt.
+    zeilen.push(`Dein Gerät kennt nur eine deutsche Stimme, ${beste.name}, in Basisqualität.`);
+    zeilen.push(
+      "So lädst du bessere: iPhone Einstellungen, Bedienungshilfen, Gesprochene Inhalte, "
+      + "Stimmen, Deutsch. Dort auf das Pluszeichen. Männlich und ruhig sind Markus und Yannick. "
+      + "Nimm die Fassung mit dem Zusatz Premium, nicht Kompakt.",
+    );
+    zeilen.push("Danach die App einmal schliessen und neu öffnen, dann steht die Stimme hier.");
+  } else {
+    zeilen.push("Dein Gerät hat nur Stimmen in Basisqualität. Bessere lädst du unter "
+      + "Einstellungen, Bedienungshilfen, Gesprochene Inhalte, Stimmen, Deutsch, dort auf das Pluszeichen. "
+      + "Männlich und ruhig sind Markus und Yannick, jeweils in der Fassung Premium.");
+  }
+
+  // Was die Web Speech API kann, hat eine Obergrenze, und die liegt unter dem,
+  // was der Nutzer von Claude oder ChatGPT kennt. Das gehoert gesagt, sonst
+  // sucht er den Fehler bei sich.
+  zeilen.push("Auch eine Premium Stimme klingt nicht wie Claude oder ChatGPT. Die laufen auf "
+    + "einer Sprachsynthese im Netz, die daevo nicht eingebaut hat. Siehe docs/ROADMAP.md.");
+
+  $("e-stimmhilfe").textContent = zeilen.join(" ");
 }
 
 /* ---------- Rest des Tages ---------- */

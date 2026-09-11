@@ -549,11 +549,13 @@ try {
       <p class="sub">Sechs Impulse am Tag, auch wenn die App zu ist. Eiweiss, Trinken, Energie, Shake, Stress, Pause.</p>
       <div class="field"><label for="e-pushWorker">Adresse des Push Workers</label>
         <input id="e-pushWorker" type="url" inputmode="url" autocomplete="off" spellcheck="false"
+               autocapitalize="none" autocorrect="off"
                placeholder="https://daevo-push.DEINNAME.workers.dev">
         <p class="feld-hilfe">Steht am Ende von npx wrangler deploy. Einrichtung in docs/PUSH-EINRICHTEN.md.</p>
       </div>
       <div class="field"><label for="e-pushWort">Anmeldewort, optional</label>
-        <input id="e-pushWort" type="password" autocomplete="off" spellcheck="false" placeholder="leer lassen, wenn keins gesetzt ist">
+        <input id="e-pushWort" type="password" autocomplete="off" spellcheck="false"
+               autocapitalize="none" autocorrect="off" placeholder="leer lassen, wenn keins gesetzt ist">
       </div>
       <button id="btnPushAn" class="primary breit">Benachrichtigungen einschalten</button>
       <button id="btnPushProbe" class="ghost breit" hidden>Probe schicken</button>
