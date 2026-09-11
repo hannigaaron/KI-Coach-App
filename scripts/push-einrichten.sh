@@ -23,6 +23,13 @@ WRANGLER=${WRANGLER_CMD:-"npx --yes wrangler"}
 schritt() { printf "\n\033[1m==> %s\033[0m\n" "$1"; }
 fehler()  { printf "\n\033[31mAbbruch: %s\033[0m\n" "$1" >&2; exit 1; }
 
+LOG_ERSTER=$(mktemp)
+LOG_ZWEITER=$(mktemp)
+
+# Rollt aus, zeigt die Ausgabe und schreibt sie zusätzlich in eine Datei. Der
+# Rückgabewert ist der von wrangler, nicht der von tee: dafür sorgt pipefail.
+ausrollen() { $WRANGLER deploy 2>&1 | tee "$1"; }
+
 [ -f package.json ] || fehler "Bitte aus dem Projektordner starten, also aus KI-Coach-App."
 [ -f "$TOML" ] || fehler "workers/push fehlt. Erst 'git pull' ausführen."
 
@@ -87,22 +94,27 @@ schritt "5 von 6: Worker anlegen"
 # Erst ausrollen, dann die Geheimnisse. Andersherum fragt wrangler mitten im
 # Ablauf, ob es einen Worker anlegen soll, der noch keinen Code trägt.
 cd workers/push
-# Nicht nach /dev/tty umleiten: in einer Pipe oder ohne Terminal gibt es das
-# nicht, und das Skript bräche mitten im Ausrollen ab.
-ERSTER=$($WRANGLER deploy 2>&1)
-printf '%s\n' "$ERSTER"
+# Die Ausgabe läuft mit und wird nebenbei mitgeschrieben.
+#
+# Vorher stand sie in einer Variablen. Das hat den Fehler verschluckt: bricht
+# deploy ab, beendet set -e das Skript, bevor die Variable gedruckt wird, und
+# der Nutzer sieht eine abgeschnittene Ausgabe ohne jeden Hinweis. Genau das
+# ist passiert. Eine Rückfrage von wrangler wäre ebenso unsichtbar gewesen.
+ausrollen "$LOG_ERSTER" || fehler "Das Ausrollen ist fehlgeschlagen. Die Meldung steht darüber."
 
 schritt "6 von 6: Geheimnisse hinterlegen"
-printf '%s' "$OEFFENTLICH" | $WRANGLER secret put VAPID_PUBLIC
-printf '%s' "$PRIVAT"      | $WRANGLER secret put VAPID_PRIVATE
-printf '%s' "$WORT"        | $WRANGLER secret put ANMELDE_WORT
+# Ohne die Meldung bricht set -e hier still ab, und der letzte sichtbare
+# Punkt wäre die Überschrift darüber.
+printf '%s' "$OEFFENTLICH" | $WRANGLER secret put VAPID_PUBLIC  || fehler "VAPID_PUBLIC liess sich nicht hinterlegen."
+printf '%s' "$PRIVAT"      | $WRANGLER secret put VAPID_PRIVATE || fehler "VAPID_PRIVATE liess sich nicht hinterlegen."
+printf '%s' "$WORT"        | $WRANGLER secret put ANMELDE_WORT  || fehler "ANMELDE_WORT liess sich nicht hinterlegen."
 # Noch einmal ausrollen, damit der Worker die Geheimnisse sieht.
-ZWEITER=$($WRANGLER deploy 2>&1)
-printf '%s\n' "$ZWEITER"
+ausrollen "$LOG_ZWEITER" || fehler "Das zweite Ausrollen ist fehlgeschlagen. Die Meldung steht darüber."
 cd ../..
 
-ADRESSE=$(printf '%s\n%s\n' "$ERSTER" "$ZWEITER" \
+ADRESSE=$(cat "$LOG_ERSTER" "$LOG_ZWEITER" \
   | grep -oE 'https://[A-Za-z0-9.-]+\.workers\.dev' | head -n 1 || true)
+rm -f "$LOG_ERSTER" "$LOG_ZWEITER"
 
 printf "\n\033[1m================ FERTIG ================\033[0m\n\n"
 if [ -n "$ADRESSE" ]; then

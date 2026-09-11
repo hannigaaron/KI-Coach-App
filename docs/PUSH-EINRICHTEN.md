@@ -20,8 +20,12 @@ die Adresse des Workers und das Anmeldewort. Beides trägst du in der App ein.
 Ein zweiter Aufruf ist unschädlich: die Schlüssel entstehen nur einmal und
 liegen danach in `.push-geheim.json`, das nicht ins Repository geht.
 
-Bleibt das Skript stehen oder willst du wissen, was es tut, steht darunter
-jeder Schritt einzeln.
+Bleibt das Skript stehen, nennt es den Grund und bricht ab. Zwei Fälle kommen
+bei einem frischen Konto vor: die Mailadresse ist noch nicht bestätigt, dann
+lehnt Cloudflare das Ausrollen ab, und der Name `daevo-push` ist im Konto
+schon vergeben, dann gehört in `wrangler.toml` hinter `name` ein anderer.
+
+Willst du wissen, was das Skript tut, steht darunter jeder Schritt einzeln.
 
 ## Der lange Weg
 
