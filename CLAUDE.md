@@ -601,7 +601,12 @@ Auf dem iPhone gibt es Web Push ab iOS 16.4 und nur aus der installierten App.
 In Safari selbst nicht. Deshalb nennt `pushLage()` die drei Bedingungen
 einzeln, statt am Ende nur zu melden, dass es nicht geht.
 
-Einrichtung in `docs/PUSH-EINRICHTEN.md`.
+Einrichtung über `scripts/push-einrichten.sh` in einem Durchgang, die
+Schritte einzeln in `docs/PUSH-EINRICHTEN.md`. Das Skript gibt es, weil die
+Reihenfolge nicht offensichtlich ist: der Worker muss stehen, bevor er
+Geheimnisse annimmt. Wer die Geheimnisse zuerst setzt, wird mitten im Ablauf
+gefragt, ob ein Worker angelegt werden soll, und wer dort abbricht, hat
+weder das eine noch das andere.
 
 ## Das Menue
 

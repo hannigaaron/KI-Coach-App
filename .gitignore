@@ -9,3 +9,7 @@ data/
 *.sqlite-journal
 .DS_Store
 dist-pages/
+
+# Die VAPID Schlüssel und das Anmeldewort für Push. Der private Schlüssel
+# darf das Gerät nie verlassen.
+.push-geheim.json
