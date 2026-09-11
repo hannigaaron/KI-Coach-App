@@ -1,13 +1,34 @@
 # Benachrichtigungen einrichten
 
-Sechs Schritte. Danach meldet sich daevo sechsmal am Tag, auch wenn die App
-geschlossen ist, und zwar auf die Minute genau. Kosten: keine.
+Danach meldet sich daevo sechsmal am Tag, auch wenn die App geschlossen ist,
+und zwar auf die Minute genau. Kosten: keine.
 
 Der Versand läuft über einen Cloudflare Worker, `workers/push`. Warum nicht
 über GitHub Actions: dort startet ein Cron mit fünf bis dreissig Minuten
 Verzug, und die Geräte müssten von Hand in ein Secret eingetragen werden.
 
-## 1. Cloudflare Konto
+## Der kurze Weg
+
+Konto auf dash.cloudflare.com anlegen, dann im Projektordner:
+
+```bash
+bash scripts/push-einrichten.sh
+```
+
+Das Skript macht die sechs Schritte unten in einem Durchgang und nennt am Ende
+die Adresse des Workers und das Anmeldewort. Beides trägst du in der App ein.
+Ein zweiter Aufruf ist unschädlich: die Schlüssel entstehen nur einmal und
+liegen danach in `.push-geheim.json`, das nicht ins Repository geht.
+
+Bleibt das Skript stehen oder willst du wissen, was es tut, steht darunter
+jeder Schritt einzeln.
+
+## Der lange Weg
+
+Dieselben Schritte von Hand. Wer das Skript benutzt hat, kann hier aufhören
+und bei "Prüfen und Fehler suchen" weiterlesen.
+
+### 1. Cloudflare Konto
 
 Konto anlegen auf dash.cloudflare.com. Der Gratis Tarif reicht. Keine
 Kreditkarte nötig.
@@ -21,7 +42,7 @@ npx wrangler login
 wrangler wird bei Bedarf geladen und nicht ins Projekt installiert. Das
 Projekt hat weiterhin keine Laufzeitabhängigkeiten.
 
-## 2. Speicher anlegen
+### 2. Speicher anlegen
 
 ```bash
 npx wrangler kv namespace create ABOS
@@ -30,7 +51,7 @@ npx wrangler kv namespace create ABOS
 Die Ausgabe enthält eine Kennung. Sie kommt in `workers/push/wrangler.toml` an
 die Stelle von `HIER_DIE_KENNUNG_EINTRAGEN`.
 
-## 3. Schlüssel erzeugen
+### 3. Schlüssel erzeugen
 
 ```bash
 npm install
@@ -44,7 +65,7 @@ Schritt 5.
 Wird das Schlüsselpaar später getauscht, verlieren alle angemeldeten Geräte
 ihre Gültigkeit und müssen neu angemeldet werden.
 
-## 4. Worker anlegen
+### 4. Worker anlegen
 
 ```bash
 cd workers/push
@@ -59,7 +80,7 @@ Worker dieses Namens anlegen soll, und legt einen an, der noch keinen Code
 trägt. Das funktioniert zwar auch, verwirrt aber, und der erste Lauf schlägt
 dann fehl.
 
-## 5. Schlüssel hinterlegen
+### 5. Schlüssel hinterlegen
 
 Im selben Ordner, einer nach dem anderen:
 
@@ -82,7 +103,7 @@ Danach noch einmal ausrollen, damit der Worker die Geheimnisse sieht:
 npx wrangler deploy
 ```
 
-## 6. Gerät anmelden
+### 6. Gerät anmelden
 
 Auf dem iPhone geht Web Push nur aus der installierten App. In Safari selbst
 nicht. Also zuerst:
