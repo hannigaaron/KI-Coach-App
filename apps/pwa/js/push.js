@@ -138,13 +138,22 @@ async function registrierung() {
 
 /** Die Adresse des Workers, ohne Schraegstrich am Ende. */
 function adresse(roh) {
-  const text = (roh || "").trim();
+  // Alle Leerzeichen raus, auch die in der Mitte.
+  //
+  // iOS setzt beim Einfuegen einer Adresse gern ein Leerzeichen hinter den
+  // Doppelpunkt, und aus "https://..." wird "https: //...". Das sieht im Feld
+  // fast richtig aus, ist aber keine gueltige Adresse mehr. Dazu die
+  // unsichtbaren Zeichen, die beim Kopieren aus einer Nachricht mitkommen.
+  const text = (roh || "")
+    .replace(/[\s\u00a0\u200b-\u200d\ufeff]/g, "")
+    // Typografische Anfuehrungszeichen aus der Autokorrektur.
+    .replace(/^["'\u201c\u201d\u2018\u2019]+|["'\u201c\u201d\u2018\u2019]+$/g, "");
   if (!text) throw new Error("Es fehlt die Adresse des Push Workers.");
   let url;
   try {
     url = new URL(text);
   } catch {
-    throw new Error("Die Adresse des Push Workers ist keine gültige URL.");
+    throw new Error(`So kann ich die Adresse nicht lesen: ${text}. Sie muss mit https:// beginnen.`);
   }
   // http nur auf dem eigenen Rechner. Dort laeuft wrangler dev, und dafuer
   // gibt es kein Zertifikat. Alles andere ueber http waere eine Adresse, die

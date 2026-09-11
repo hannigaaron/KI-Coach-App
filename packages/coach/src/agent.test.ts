@@ -234,6 +234,51 @@ test("Grundnahrungsmittel gehen weiter an die Mahlzeit", async () => {
   assert.match(log[0]!, /^mahlzeit:/);
 });
 
+test("ein Supermarkt ist keine Marke und loest keine Produktsuche aus", async () => {
+  // Der echte Fall aus dem Betrieb: der Satz ging komplett als Suchbegriff an
+  // Open Food Facts, fand nichts, und die Mahlzeit wurde nie erfasst.
+  const log: string[] = [];
+  await runOffline(
+    "Also ich hab gerade 400 g Puten Hackfleisch von Lidl gegessen mit einer mittleren Süßkartoffel und eine Handvoll Kartoffeln",
+    stubActions(log),
+  );
+  assert.match(log[0]!, /^mahlzeit:/, "eine Mahlzeit mit drei Zutaten ist keine Produktsuche");
+});
+
+test("auch einzeln loest ein Haendlername keine Suche aus", async () => {
+  for (const satz of [
+    "Ich hatte Hackfleisch von Lidl gegessen",
+    "Joghurt von Aldi gegessen",
+    "Ich war bei Rewe einkaufen",
+  ]) {
+    const log: string[] = [];
+    await runOffline(satz, stubActions(log));
+    assert.ok(!log.some((z) => z.startsWith("produkt:")), satz);
+  }
+});
+
+test("eine Aufzaehlung mit echter Marke bleibt eine Mahlzeit", async () => {
+  // Der Griesspudding allein ist ein Produkt. Mit Banane und Haferflocken ist
+  // es eine Mahlzeit, und die beiden anderen Zutaten duerfen nicht wegfallen.
+  const log: string[] = [];
+  await runOffline("More Nutrition Grießpudding mit Banane und Haferflocken gegessen", stubActions(log));
+  assert.match(log[0]!, /^mahlzeit:/);
+});
+
+test("eine echte Marke allein schlaegt weiterhin nach", async () => {
+  const log: string[] = [];
+  await runOffline("60 g More Nutrition Grießpudding gegessen", stubActions(log));
+  assert.match(log[0]!, /^produkt:/);
+});
+
+test("der Haendlername faellt aus dem Suchbegriff", async () => {
+  const log: string[] = [];
+  await runOffline("Ein Barebells Riegel von Rewe gegessen", stubActions(log));
+  assert.match(log[0]!, /^produkt:/);
+  assert.ok(!/rewe/i.test(log[0]!), "der Laden gehoert nicht in die Suche");
+  assert.match(log[0]!, /Barebells/);
+});
+
 test("eine Marke in einem laengeren Wort loest nichts aus", async () => {
   // "dm" steckt in "Kardamom". Ohne Wortgrenze schickt jeder Gewuerztext eine
   // Datenbankabfrage los und bekommt ein fremdes Produkt zurueck.

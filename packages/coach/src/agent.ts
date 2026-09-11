@@ -655,12 +655,45 @@ const NUMBER_WORDS: Record<string, number> = Object.fromEntries(
  */
 const MARKEN = [
   "more nutrition", "esn", "myprotein", "foodspring", "bodylab", "weider",
-  "alpro", "oatly", "landliebe", "mueller", "danone", "actimel", "skyr",
+  "alpro", "oatly", "landliebe", "mueller", "danone", "actimel",
   "corny", "kinder", "milka", "haribo", "barebells", "grenade", "quest",
-  "rewe", "edeka", "lidl", "aldi", "kaufland", "dm", "rossmann", "penny",
   "dr oetker", "iglo", "knorr", "maggi", "barilla", "nestle", "kellogs",
   "koelln", "seitenbacher", "veganz", "rittersport", "lindt",
 ];
+
+/**
+ * Haendler sind keine Marken.
+ *
+ * "Hackfleisch von Lidl" nennt den Laden, nicht das Produkt. Standen die
+ * Supermaerkte in der Liste oben, ging jeder Satz mit ihrem Namen als
+ * Produktsuche raus, und aus "400 g Puten Hackfleisch von Lidl mit
+ * Suesskartoffel" wurde eine Abfrage, die nichts findet. Eine Mahlzeit, die
+ * die App nicht erfasst, ist schlimmer als eine ohne Markenangabe: die
+ * Naehrwerte fehlen dann komplett.
+ *
+ * Sie stehen hier, damit sie aus dem Suchbegriff fallen, wenn doch eine echte
+ * Marke im Satz steht.
+ */
+const HAENDLER = ["rewe", "edeka", "lidl", "aldi", "kaufland", "dm", "rossmann", "penny", "netto", "norma"];
+
+/**
+ * Zaehlt der Satz mehrere Lebensmittel auf, ist es eine Mahlzeit.
+ *
+ * "More Nutrition Griesspudding" ist ein Produkt. "Griesspudding mit Banane
+ * und Haferflocken" ist eine Mahlzeit, auch wenn eine Marke darin vorkommt.
+ * Eine Produktsuche ueber den ganzen Satz findet dafuer nichts, und die
+ * Naehrwerte der beiden anderen Zutaten fielen unter den Tisch.
+ *
+ * Erkannt an Verbindungswoertern zwischen Bestandteilen. "und" allein reicht
+ * nicht: "Milch und Honig" waere sonst dasselbe wie "Skyr von Lidl und dazu".
+ * Deshalb zusaetzlich mindestens zwei Mengen oder Lebensmittelwoerter.
+ */
+function istAufzaehlung(text: string): boolean {
+  const verbindung = /\b(mit|dazu|und dazu|sowie|plus)\b/.test(text);
+  if (!verbindung) return false;
+  const teile = text.split(/\b(?:mit|dazu|sowie|plus|und)\b/).filter((t) => t.trim().length > 2);
+  return teile.length >= 3;
+}
 
 /** Marken auf Wortgrenzen suchen. "dm" darf nicht in "Kardamom" treffen. */
 function enthaeltMarke(text: string, marke: string): boolean {
@@ -796,10 +829,16 @@ export async function runOffline(
     });
     return { text: antwort, ausgeführt, source: "offline" };
   }
-  if (MARKEN.some((m) => enthaeltMarke(text, m))) {
+  // Nur echte Produktmarken loesen eine Suche aus, und nur wenn der Satz ein
+  // einzelnes Produkt nennt. Eine Aufzaehlung ist eine Mahlzeit.
+  if (MARKEN.some((m) => enthaeltMarke(text, m)) && !istAufzaehlung(text)) {
     const gramm = extractGramm(text);
+    // Der Haendlername gehoert nicht in den Suchbegriff: "Skyr von Lidl"
+    // findet weniger als "Skyr".
+    let suche = nachricht.replace(/\b\d+\s*(g|gramm|ml)\b/gi, "");
+    for (const h of HAENDLER) suche = suche.replace(new RegExp(`\\bvon\\s+${h}\\b|\\b${h}\\b`, "gi"), "");
     const antwort = await actions.produktNachschlagen({
-      suche: nachricht.replace(/\b\d+\s*(g|gramm|ml)\b/gi, "").trim(),
+      suche: suche.replace(/\s+/g, " ").trim(),
       gramm: gramm ?? undefined,
       erfassen: pattern("gegessen", "esse", "hatte", "getrunken", "eintragen").test(text),
     });
