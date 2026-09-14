@@ -145,7 +145,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 554 Tests
+npm test           # 563 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -318,6 +318,39 @@ dem Standard: die Voreinstellung klingt gehetzt, und gehetzt klingt maschinell.
 Eine wirklich menschliche Stimme geht mit der Web Speech API nicht. Dafür
 braucht es eine externe Sprachsynthese, einen weiteren Schlüssel und laufende
 Kosten. Siehe `docs/ROADMAP.md`.
+
+## Das Weckwort
+
+`packages/core/src/weckwort.ts`. Der Knopf mit "Hey" neben dem Mikrofon schaltet
+das Dauerhören ein. Danach reicht "Hey daevo, ich hab 200 Gramm Magerquark
+gegessen", ohne dass jemand das Mikrofon antippt.
+
+Erkannt wird ein Anredewort und danach der Name. Beides zusammen, nie der Name
+allein. Der Chef dieses Nutzers heisst David, und "ich hab mit David gesprochen"
+darf die App nicht aufwecken. Ein Anredewort davor kostet nichts und schliesst
+genau diesen Fall aus.
+
+Die Spracherkennung schreibt den Namen fast nie richtig. Deshalb steht eine
+Liste echter Verschreiber im Code, dazu Levenshtein Abstand bis 2 für alles,
+was noch kommt. Die Liste stammt aus dem, was das Gerät tatsächlich ausgegeben
+hat, nicht aus Vermutungen.
+
+Steht hinter dem Weckwort schon ein Satz, geht er sofort raus. Steht nichts
+dahinter, antwortet die App "ja, ich höre" und nimmt die nächste Äusserung als
+Frage. Zwei Wege, weil beides vorkommt.
+
+Nach zehn Minuten ohne Weckruf schaltet das Dauerhören ab. Ein dauernd offenes
+Mikrofon zieht Akku, und niemand merkt es, bis das Gerät leer ist. Jeder
+erkannte Ruf setzt die Frist neu.
+
+`weckwortWeiterhoeren()` startet das Mikrofon nach jedem verworfenen Satz neu.
+Der Listener in `voice.js` startet von selbst nur neu, wenn gar kein Text kam.
+Ohne den Neustart war das Mikrofon nach dem ersten Fremdsatz tot, und das sieht
+aus wie ein kaputter Knopf.
+
+Im Hintergrund oder bei gesperrtem Bildschirm läuft das nicht. Das Web gibt
+einer Seite kein Mikrofon, wenn sie nicht sichtbar ist. Dafür braucht es eine
+native App mit eigener Weckworterkennung, siehe `docs/ROADMAP.md`.
 
 ## Tagesränder
 
@@ -861,12 +894,13 @@ Mittags Check-in, Aufgaben mit Priorisierung, Kopf leeren, Balance Board,
 Tagesabschluss, Muster über
 Wochen, Widerspruchsprüfung, Tag und Nacht
 Modus, installierbare Web App, Marke, API, Push Benachrichtigungen bei
-geschlossener App.
+geschlossener App, Weckwort bei geöffneter App.
 Der Schlüssel lässt sich im Profil prüfen. Zwei Schritte, weil zwei Dinge
 schiefgehen können: die Modellliste kostet nichts und zeigt, ob der Schlüssel
 gilt, eine winzige Nachricht danach zeigt, ob Guthaben da ist. Ein gültiger
 Schlüssel ohne Guthaben ist der häufigste Fall und sah vorher aus wie ein
 falscher.
 
-Offen: Apple Health und Wearables, Wortaktivierung, Anmeldung über Apple.
+Offen: Apple Health und Wearables, Weckwort im Hintergrund, Anmeldung über
+Apple.
 Siehe `docs/ROADMAP.md`.

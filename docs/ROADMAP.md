@@ -319,8 +319,9 @@ Nötig für die zwei Dinge, die eine Web App auf dem iPhone nicht kann.
   nicht mehr von Hand gepflegt werden sollen.
 - HealthKit Anbindung für Schritte, Schlaf, Gewicht, Herzfreqünz
 - Apple Fitness und Apple Watch, später Whoop und Oura über deren APIs
-- Wortaktivierung, also Hey daevo ohne Tippen. Im Browser nicht zuverlässig
-  möglich, nativ schon.
+- Wortaktivierung im Hintergrund. Bei geöffneter App läuft Hey daevo seit
+  `packages/core/src/weckwort.ts`. Bei gesperrtem Bildschirm gibt das Web einer
+  Seite kein Mikrofon, dafür braucht es die native App.
 - Synchronisation mit dem Server statt Speicher im Browser
 - Aufwand: sechs bis acht Wochen nebenbei
 

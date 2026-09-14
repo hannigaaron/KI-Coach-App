@@ -1,7 +1,7 @@
 import {
   BEREICHE, BEREICH_NAME, CHECKIN_BOEGEN, CHECKIN_MITTE, STANDARD_ZIELE, WOCHENTAGE,
   MAHLZEITEN, bogenAmTag, bogenFuer, energyBreakdown, hatAngebot, nachOrdnern, offeneMahlzeiten,
-  impulseFuerTag, planFuer, saubereUrl, uhrzeit, undListe, weightTrend,
+  impulseFuerTag, planFuer, saubereUrl, uhrzeit, undListe, weckwortGehoert, weightTrend,
 } from "@daevo/core";
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE } from "@daevo/coach";
 import { Coach, AnthropicProvider } from "@daevo/coach";
@@ -334,13 +334,15 @@ async function send(text) {
         onEnd: () => {
           orb.setState("idle");
           setStatus("bereit");
-          if (options.handsFree) startListening();
+          if (weckwortLaeuft) weckwortWeiterhoeren();
+          else if (options.handsFree) startListening();
         },
       });
     } else {
       orb.setState("idle");
       setStatus("bereit");
-      if (options.handsFree) startListening();
+      if (weckwortLaeuft) weckwortWeiterhoeren();
+      else if (options.handsFree) startListening();
     }
   } catch (error) {
     pending.node.remove();
@@ -448,7 +450,133 @@ $("btnDump").addEventListener("click", () => {
   toast("Red alles raus. Ich sortiere danach.");
 });
 
+/* ---------- Weckwort ---------- */
+
+/**
+ * "Hey daevo" im Dauerbetrieb.
+ *
+ * Das Mikrofon läuft, und erst das Weckwort macht aus einem Satz im Raum eine
+ * Frage an die App. Gedacht für die Momente, in denen das Handy daneben liegt
+ * und die Hände beschäftigt sind: Kochen, Auto, zwischen zwei Sätzen im
+ * Training.
+ *
+ * Auf dem iPhone geht das nur, solange die App offen und der Bildschirm an
+ * ist. iOS lässt keine fremde App im Hintergrund das Mikrofon abhören, und
+ * daran ändert auch eine gekaufte Weckworterkennung nichts.
+ */
+let weckwortLaeuft = false;
+let weckwortTimer = 0;
+/** Wurde das Weckwort gehört und die Frage fehlt noch. */
+let warteAufFrage = false;
+
+/**
+ * Nach dieser Zeit ohne Ansprache geht das Mikrofon aus.
+ *
+ * Dauerhaft zuzuhören zieht Akku. Ein Modus, der den Akku leert, wird einmal
+ * ausprobiert und danach nie wieder eingeschaltet.
+ */
+const WECKWORT_AUS_NACH_MS = 10 * 60 * 1000;
+
+function weckwortStarten() {
+  if (!listener?.supported) {
+    toast("Dieser Browser kann keine Spracherkennung. Auf dem iPhone nur aus der installierten App.");
+    return;
+  }
+  weckwortLaeuft = true;
+  warteAufFrage = false;
+  listener.handsFree = true;
+  stopSpeaking();
+  listener.start();
+  weckwortFristSetzen();
+  $("btnWeckwort")?.setAttribute("aria-pressed", "true");
+  setStatus("wartet auf Hey daevo");
+  toast("Sag Hey daevo, dann deine Frage.");
+}
+
+function weckwortStoppen(grund = "") {
+  weckwortLaeuft = false;
+  warteAufFrage = false;
+  clearTimeout(weckwortTimer);
+  listener.handsFree = false;
+  listener.stop();
+  $("btnWeckwort")?.setAttribute("aria-pressed", "false");
+  setStatus("bereit");
+  if (grund) toast(grund);
+}
+
+/**
+ * Nach einem verworfenen Satz wieder zuhören.
+ *
+ * Der Listener startet von selbst nur neu, wenn nichts verstanden wurde. Ein
+ * Satz, der nicht an die App gerichtet war, ist für ihn aber ein Ergebnis,
+ * und danach stünde das Mikrofon still. Genau so ist der Weckwortmodus beim
+ * ersten Versuch nach einem Nebensatz verstummt.
+ *
+ * Die kleine Verzögerung ist nötig, weil die Erkennung im selben Moment noch
+ * abgeräumt wird und einen sofortigen Start ablehnt.
+ */
+function weckwortWeiterhoeren() {
+  if (!weckwortLaeuft) return;
+  setTimeout(() => {
+    if (weckwortLaeuft && !listener.active) listener.start();
+  }, 400);
+}
+
+function weckwortFristSetzen() {
+  clearTimeout(weckwortTimer);
+  weckwortTimer = setTimeout(
+    () => weckwortStoppen("Zehn Minuten nichts gehört, Mikrofon aus. Spart Akku."),
+    WECKWORT_AUS_NACH_MS,
+  );
+}
+
+/**
+ * Ein Stück erkannter Text im Weckwortmodus.
+ *
+ * Drei Fälle: das Weckwort mit Frage geht sofort raus, das Weckwort ohne
+ * Frage lässt die App auf den nächsten Satz warten, und alles andere wird
+ * verworfen. Ohne den mittleren Fall bricht jeder ab, der nach der Anrede
+ * kurz überlegt.
+ */
+function weckwortPruefen(text) {
+  weckwortFristSetzen();
+
+  if (warteAufFrage) {
+    warteAufFrage = false;
+    const frage = text.trim();
+    if (frage) { $("chatInput").value = ""; send(frage); return; }
+    setStatus("wartet auf Hey daevo");
+    weckwortWeiterhoeren();
+    return;
+  }
+
+  const ruf = weckwortGehoert(text);
+  if (!ruf.erkannt) {
+    // Nicht an die App gerichtet. Das Feld leeren, sonst steht das
+    // Mitgehörte im Eingabefeld und wandert in die nächste Nachricht.
+    $("chatInput").value = "";
+    weckwortWeiterhoeren();
+    return;
+  }
+
+  if (ruf.frage) {
+    $("chatInput").value = "";
+    send(ruf.frage);
+    return;
+  }
+
+  // Nur der Name. Der nächste Satz ist die Frage.
+  warteAufFrage = true;
+  $("chatInput").value = "";
+  setStatus("ja, ich höre");
+  orb.setState("listening");
+  weckwortWeiterhoeren();
+}
+
 function startListening() {
+  // Wer aufs Mikrofon tippt, will direkt reden und nicht erst eine Anrede
+  // sagen. Beides gleichzeitig wäre ein Mikrofon mit zwei Bedeutungen.
+  if (weckwortLaeuft) weckwortStoppen();
   if (!listener?.supported) {
     toast("Dieser Browser kann keine Spracherkennung. Nutze Safari oder Chrome.");
     return;
@@ -466,15 +594,30 @@ function setupAssistant() {
   orb = new Orb($("orb"));
   listener = new Listener({
     onPartial: (text) => { $("chatInput").value = text; },
-    onFinal: (text) => { send(text); },
+    onFinal: (text) => {
+      // Im Weckwortmodus ist nicht alles Gesagte an daevo gerichtet. Erst das
+      // Weckwort macht aus einem Satz im Raum eine Frage an die App.
+      if (weckwortLaeuft) { weckwortPruefen(text); return; }
+      send(text);
+    },
     onLevel: (level) => orb.setLevel(level),
     onState: (state, detail) => {
       $("btnMic").setAttribute("aria-pressed", state === "listening" ? "true" : "false");
       if (state === "listening") {
         orb.setState("listening");
-        setStatus("hört zu, tipp auf Fertig");
+        // Im Weckwortmodus heisst zuhören etwas anderes als beim Diktieren:
+        // dort wartet die App auf die Anrede, hier auf den Satz. Ohne den
+        // Unterschied stünde "tipp auf Fertig" da, während niemand tippen soll.
+        if (weckwortLaeuft) {
+          setStatus(warteAufFrage ? "ja, ich höre" : "wartet auf Hey daevo");
+          $("orbHint").textContent = warteAufFrage
+            ? "Sag jetzt, was du willst."
+            : "Sag Hey daevo, dann deine Frage.";
+        } else {
+          setStatus("hört zu, tipp auf Fertig");
+          $("orbHint").textContent = "Sprich in Ruhe. Tipp auf den Kreis, wenn du fertig bist.";
+        }
         $("btnMic").classList.add("hoert");
-        $("orbHint").textContent = "Sprich in Ruhe. Tipp auf den Kreis, wenn du fertig bist.";
       }
       else if (state === "error") {
         toast(`Mikrofon: ${detail}`);
@@ -484,6 +627,7 @@ function setupAssistant() {
       }
       else {
         $("btnMic").classList.remove("hoert");
+        if (weckwortLaeuft) return;
         $("orbHint").textContent = "Tipp auf den Kreis und sprich";
         if (!busy) { orb.setState("idle"); setStatus("bereit"); }
       }
@@ -1623,6 +1767,10 @@ $("composer").addEventListener("submit", (event) => {
   send($("chatInput").value);
 });
 $("btnMic").addEventListener("click", startListening);
+$("btnWeckwort").addEventListener("click", () => {
+  if (weckwortLaeuft) weckwortStoppen("Weckwort aus");
+  else weckwortStarten();
+});
 $("orb").addEventListener("click", startListening);
 $("chips").addEventListener("click", (event) => {
   const button = event.target.closest("[data-say]");

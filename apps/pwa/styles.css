@@ -1390,3 +1390,20 @@ button:disabled { opacity: 0.45; transform: none; }
   width: 100%;
   margin-bottom: var(--s-3);
 }
+
+/* Der Weckwortknopf neben dem Mikrofon. Beschriftet statt bebildert: ein
+   Symbol für "hört auf ein Wort" gibt es nicht, und ein erfundenes muss man
+   erklären. Im eingeschalteten Zustand trägt er die Markenfarbe, damit auf
+   einen Blick klar ist, dass das Mikrofon läuft. */
+.icon-btn.weckwort {
+  width: auto;
+  padding: 0 var(--s-3);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+.icon-btn.weckwort[aria-pressed="true"] {
+  color: var(--bg);
+  background: var(--accent);
+}
