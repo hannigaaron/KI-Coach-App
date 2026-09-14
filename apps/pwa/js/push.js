@@ -107,6 +107,23 @@ export async function pushStand({ worker, wort = "" }) {
   return hole(`${adresse(worker)}/stand`, { wort });
 }
 
+/**
+ * Holt die Sätze, die ein Siri Kurzbefehl abgelegt hat.
+ *
+ * Der Umweg über den Worker gibt es, weil iOS eine Adresse immer in Safari
+ * öffnet, nie in der App vom Homebildschirm, und die Aktion "App öffnen"
+ * führt Webapps nicht auf. Über das Postfach kommt der Satz trotzdem an:
+ * der Kurzbefehl legt ihn ab, die Push Nachricht holt den Nutzer in die App,
+ * und hier wird er abgeholt.
+ *
+ * Der Worker löscht beim Ausliefern. Ein Satz kommt also genau einmal.
+ */
+export async function postfachHolen({ worker, wort }) {
+  if (!worker || !wort) return [];
+  const antwort = await hole(`${adresse(worker)}/postfach`, { wort });
+  return Array.isArray(antwort?.posten) ? antwort.posten : [];
+}
+
 /** Das bestehende Abo als einfaches Objekt, oder null. */
 export async function pushAbo() {
   const objekt = await bestehendesAboObjekt();

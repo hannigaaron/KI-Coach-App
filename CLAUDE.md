@@ -145,7 +145,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 570 Tests
+npm test           # 579 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -379,23 +379,50 @@ Ein echtes Weckwort im Hintergrund braucht eine native App, siehe
 
 ## Der Weg aus einem Siri Kurzbefehl
 
-Zuerst nahm die App eine Frage über `?sag=` entgegen. Im Betrieb war das
-wertlos: auf dem iPhone öffnet eine Adresse immer Safari, nie die App vom
-Homebildschirm. Beide haben getrennte Speicher, und die Daten des Nutzers
-liegen in der App. Der Kurzbefehl landete also in einer leeren daevo.
+Zwei Versuche, beide gescheitert, bevor der dritte stand. Das gehört
+aufgeschrieben, sonst baut sie jemand nochmal.
 
-Deshalb der zweite Weg, und der ist jetzt der empfohlene: der Kurzbefehl legt
-den Satz in die Zwischenablage und öffnet die App über "Öffne App". Beim
-Sichtbarwerden bietet die App einen Knopf an, ein Tipp schickt den Satz. Der
-Tipp ist nötig und nicht faul: iOS gibt die Zwischenablage nur nach einer
-Geste frei, und stilles Mitlesen wäre ohnehin das Falsche.
+Der erste war `?sag=` in der Adresse. Im Betrieb wertlos: auf dem iPhone
+öffnet eine Adresse immer Safari, nie die App vom Homebildschirm. Beide haben
+getrennte Speicher, und die Daten des Nutzers liegen in der App. Der
+Kurzbefehl landete also in einer leeren daevo.
 
-Der Knopf erscheint nur, wenn das Eingabefeld leer ist, und verschwindet nach
-zwei Minuten. Ein Angebot, das immer dasteht, ist ein Bedienelement, und
-dieses hier ist keins.
+Der zweite war die Zwischenablage plus die Aktion "App öffnen". Die führt
+Webapps nicht auf, jedenfalls nicht auf dem Gerät dieses Nutzers. Damit fällt
+der einzige Weg weg, eine installierte Webapp direkt zu starten.
 
-`?sag=` bleibt bestehen. In Safari und auf dem Rechner funktioniert es, und es
-kostet nichts.
+Der dritte steht: das Postfach auf dem Push Worker, `workers/push/src/postfach.ts`.
+Der Kurzbefehl schickt den Satz an `/postfach`, der Worker legt ihn ab und
+schickt sofort eine Push Nachricht. Ein Tipp darauf öffnet die installierte
+App, sie holt den Satz über `/postfach` und der Worker löscht ihn beim
+Ausliefern. Push erreicht die installierte App, eine Adresse nicht: das ist
+der ganze Trick.
+
+Bewusst kein Datenabgleich. Auf dem Server liegt nur der eine Satz, höchstens
+eine Stunde. Gewicht, Gespräche und Notizen über Therapie und Familie bleiben
+auf dem Gerät. Ein Postfach hat ausserdem kein Konfliktproblem, es gibt nur
+eine Richtung. Voller Abgleich bleibt danach möglich und wird durch das
+Postfach nicht verbaut.
+
+Das Anmeldewort ist Pflicht, auch wenn es beim Anmelden eines Abos optional
+ist. Das Postfach ist der einzige Weg in diesem Worker, über den fremder Text
+in die App gelangt, und die App verarbeitet ihn als Wort des Nutzers. Ohne
+gesetztes Wort bleibt das Postfach ganz zu, statt offen zu stehen. Der
+Kurzbefehl kommt nicht aus einem Browser und schickt keine Herkunft mit, CORS
+greift dort also nicht.
+
+Höchstens zehn offene Sätze. Ist es voll, wird abgewiesen statt der älteste
+verworfen: ein stilles Verwerfen sieht aus wie ein verlorener Satz, und der
+Nutzer sucht den Fehler bei sich. Ein zu langer Satz wird dagegen gekürzt,
+denn da ist die Absicht klar.
+
+Die Mitteilung trägt den Satz selbst und nicht nur "du hast etwas gesagt".
+Damit sieht der Nutzer auf dem Sperrbildschirm, ob die Erkennung ihn
+verstanden hat, bevor er die App öffnet.
+
+Der Knopf "Aus Zwischenablage senden" bleibt aus dem zweiten Versuch. Er
+kostet nichts und ist der Weg für den Fall, dass kein Worker eingerichtet ist.
+`?sag=` bleibt ebenfalls, in Safari und auf dem Rechner funktioniert es.
 
 ## Das Mikrofon, das nur einmal ging
 

@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { vapidSchluesselErzeugen } from "@daevo/push";
 import worker, { versendeFaellige } from "./index.js";
 import { MAX_ABOS, aboId, aboSpeichern, alleAbos, endpunktErlaubt, sperren } from "./abos.js";
+import { MAX_OFFEN, MAX_ZEICHEN, postMitteilung } from "./postfach.js";
 import type { Env, KVNamespace } from "./umgebung.js";
 
 /** Ein Schlüsselspeicher im Arbeitsspeicher, mit demselben Verhalten. */
@@ -334,4 +335,104 @@ test("Ein Fehler beim Push Dienst löscht das Abo nicht", async () => {
     console.error = echt;
   }
   assert.equal((await alleAbos(kv)).length, 1);
+});
+
+/* ---------- Das Postfach ---------- */
+
+/**
+ * Der Weg aus einem Siri Kurzbefehl. Er gibt es, weil iOS eine Adresse immer
+ * in Safari öffnet und die Aktion "App öffnen" Webapps nicht auflistet.
+ */
+
+function einwurf(text: string, wort?: string): Request {
+  return new Request("https://w.dev/postfach", {
+    method: "POST",
+    headers: { "content-type": "text/plain", ...(wort ? { "x-daevo-wort": wort } : {}) },
+    body: text,
+  });
+}
+
+test("ohne Anmeldewort kommt nichts ins Postfach", async () => {
+  const { env } = await umgebung({ ANMELDE_WORT: "geheim" });
+  const a = await worker.fetch(einwurf("ich hab gegessen"), env);
+  assert.equal(a.status, 401);
+
+  const b = await worker.fetch(einwurf("ich hab gegessen", "falsch"), env);
+  assert.equal(b.status, 401);
+});
+
+test("ohne gesetztes Anmeldewort bleibt das Postfach ganz zu", async () => {
+  // Ein offenes Postfach wäre ein Weg, dem Nutzer fremde Sätze unterzuschieben,
+  // die seine App dann als seine eigenen verarbeitet.
+  const { env } = await umgebung();
+  const a = await worker.fetch(einwurf("fremder Satz", "egal"), env);
+  assert.equal(a.status, 401);
+});
+
+test("ein Satz geht rein und kommt genau einmal wieder raus", async () => {
+  const { env } = await umgebung({ ANMELDE_WORT: "geheim" });
+  const rein = await worker.fetch(einwurf("ich hab 200 Gramm Magerquark gegessen", "geheim"), env);
+  assert.equal(rein.status, 200);
+
+  const abholen = () =>
+    worker.fetch(new Request("https://w.dev/postfach", { headers: { "x-daevo-wort": "geheim" } }), env);
+
+  const erste = (await (await abholen()).json()) as { posten: Array<{ text: string }> };
+  assert.equal(erste.posten.length, 1);
+  assert.equal(erste.posten[0]?.text, "ich hab 200 Gramm Magerquark gegessen");
+
+  // Beim zweiten Mal ist es weg. Ein Satz, den die App verarbeitet hat, darf
+  // beim nächsten Öffnen nicht nochmal als Mahlzeit gebucht werden.
+  const zweite = (await (await abholen()).json()) as { posten: unknown[] };
+  assert.equal(zweite.posten.length, 0);
+});
+
+test("mehrere Sätze kommen in der Reihenfolge des Sprechens zurück", async () => {
+  const { env } = await umgebung({ ANMELDE_WORT: "geheim" });
+  for (const t of ["erstens", "zweitens", "drittens"]) {
+    await worker.fetch(einwurf(t, "geheim"), env);
+  }
+  const a = await worker.fetch(new Request("https://w.dev/postfach", { headers: { "x-daevo-wort": "geheim" } }), env);
+  const { posten } = (await a.json()) as { posten: Array<{ text: string }> };
+  assert.deepEqual(posten.map((p) => p.text), ["erstens", "zweitens", "drittens"]);
+});
+
+test("ein leerer Satz wird abgewiesen, statt still zu verschwinden", async () => {
+  const { env } = await umgebung({ ANMELDE_WORT: "geheim" });
+  const a = await worker.fetch(einwurf("   ", "geheim"), env);
+  assert.equal(a.status, 400);
+});
+
+test("ein volles Postfach weist ab, statt den ältesten Satz wegzuwerfen", async () => {
+  const { env } = await umgebung({ ANMELDE_WORT: "geheim" });
+  for (let i = 0; i < MAX_OFFEN; i++) {
+    assert.equal((await worker.fetch(einwurf(`satz ${i}`, "geheim"), env)).status, 200);
+  }
+  const zuviel = await worker.fetch(einwurf("einer zu viel", "geheim"), env);
+  assert.equal(zuviel.status, 400);
+  // Ein stilles Verwerfen sähe für den Nutzer aus wie ein verlorener Satz.
+  const grund = (await zuviel.json()) as { fehler: string };
+  assert.match(grund.fehler, /Postfach/);
+});
+
+test("ein zu langer Satz wird gekürzt und nicht abgewiesen", async () => {
+  const { env } = await umgebung({ ANMELDE_WORT: "geheim" });
+  await worker.fetch(einwurf("a".repeat(MAX_ZEICHEN + 500), "geheim"), env);
+  const a = await worker.fetch(new Request("https://w.dev/postfach", { headers: { "x-daevo-wort": "geheim" } }), env);
+  const { posten } = (await a.json()) as { posten: Array<{ text: string }> };
+  assert.equal(posten[0]?.text.length, MAX_ZEICHEN);
+});
+
+test("die Mitteilung trägt den Satz, damit er auf dem Sperrbildschirm lesbar ist", () => {
+  const m = postMitteilung("ich hab 200 Gramm Magerquark gegessen");
+  assert.match(m.text, /Magerquark/);
+  assert.equal(m.ziel, "./?postfach=1");
+  // Feste Marke: wer dreimal spricht, bekommt eine Mitteilung, nicht drei.
+  assert.equal(m.marke, "postfach");
+});
+
+test("eine sehr lange Mitteilung wird gekürzt", () => {
+  const m = postMitteilung("x".repeat(300));
+  assert.ok(m.text.length <= 110, String(m.text.length));
+  assert.match(m.text, /\.\.\.$/);
 });

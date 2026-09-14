@@ -9,6 +9,7 @@ import {
   sperren,
   type Abo,
 } from "./abos.js";
+import { postAblegen, postAbholen, postMitteilung } from "./postfach.js";
 import type { Env, ScheduledEvent } from "./umgebung.js";
 
 /**
@@ -60,6 +61,16 @@ export default {
 
       if (url.pathname === "/probe" && anfrage.method === "POST") {
         return await probe(anfrage, env, kopf);
+      }
+
+      if (url.pathname === "/postfach" && anfrage.method === "POST") {
+        return await postEinwerfen(anfrage, env, kopf);
+      }
+
+      if (url.pathname === "/postfach" && anfrage.method === "GET") {
+        if (!wortStimmt(anfrage, env)) return antwort({ fehler: "Dafür braucht es das Anmeldewort." }, 401, kopf);
+        const posten = await postAbholen(env.ABOS);
+        return antwort({ ok: true, posten }, 200, kopf);
       }
 
       if (url.pathname === "/stand" && anfrage.method === "GET") {
@@ -165,6 +176,64 @@ async function probe(anfrage: Request, env: Env, kopf: Record<string, string>): 
 
   const ergebnis = await verschicke(env, impuls);
   return antwort({ ok: true, art: impuls.art, ...ergebnis }, 200, kopf);
+}
+
+/**
+ * Ein Satz aus dem Siri Kurzbefehl.
+ *
+ * Braucht das Anmeldewort. Ohne es könnte jeder, der die Adresse kennt, dem
+ * Nutzer Sätze unterschieben, und die App würde sie als seine eigenen
+ * verarbeiten. Das ist der einzige Weg in diesem Worker, über den fremder
+ * Text in die App des Nutzers gelangt, also hängt hier das Wort und nicht
+ * nur die Herkunftsprüfung.
+ *
+ * Der Kurzbefehl kommt nicht aus einem Browser, deshalb schickt er keine
+ * Herkunft mit, und CORS greift hier nicht. Das Wort ist die Absicherung.
+ */
+async function postEinwerfen(anfrage: Request, env: Env, kopf: Record<string, string>): Promise<Response> {
+  if (!wortStimmt(anfrage, env)) {
+    return antwort({ fehler: "Dafür braucht es das Anmeldewort." }, 401, kopf);
+  }
+
+  // Der Kurzbefehl schickt am einfachsten reinen Text. JSON geht auch, damit
+  // die App denselben Weg benutzen kann.
+  const typ = anfrage.headers.get("content-type") || "";
+  let text = "";
+  if (typ.includes("application/json")) {
+    const daten = (await anfrage.json().catch(() => ({}))) as { text?: string };
+    text = String(daten.text ?? "");
+  } else {
+    text = await anfrage.text();
+  }
+
+  let posten;
+  try {
+    posten = await postAblegen(env.ABOS, text);
+  } catch (fehler) {
+    return antwort({ fehler: fehler instanceof Error ? fehler.message : String(fehler) }, 400, kopf);
+  }
+
+  // Die Mitteilung ist der eigentliche Weg zurück. Ohne sie müsste der Nutzer
+  // von sich aus die App öffnen, und dann hätte er auch gleich tippen können.
+  const schluessel = { oeffentlich: env.VAPID_PUBLIC, privat: env.VAPID_PRIVATE };
+  const inhalt = { ...postMitteilung(posten.text), daten: { postfach: true } };
+  const abos = await alleAbos(env.ABOS);
+  let zugestellt = 0;
+  for (const { id, abo } of abos) {
+    const ergebnis = await sendeWebPush({ abo, inhalt, schluessel, kontakt: env.PUSH_KONTAKT });
+    if (ergebnis.ok) zugestellt++;
+    else if (ergebnis.abgelaufen) await aboLoeschenNachId(env.ABOS, id);
+  }
+
+  // Der Satz liegt auch dann im Postfach, wenn keine Mitteilung ankommt. Die
+  // App holt ihn beim nächsten Öffnen. Deshalb ist das kein Fehler, sondern
+  // eine Zahl in der Antwort.
+  return antwort({ ok: true, zugestellt, geraete: abos.length }, 200, kopf);
+}
+
+function wortStimmt(anfrage: Request, env: Env): boolean {
+  if (!env.ANMELDE_WORT) return false;
+  return anfrage.headers.get("x-daevo-wort") === env.ANMELDE_WORT;
 }
 
 /* ---------- Kleinkram ---------- */
