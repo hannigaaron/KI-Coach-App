@@ -577,6 +577,51 @@ export function kalenderEntfernen(name) {
   });
 }
 
+/**
+ * Antwort auf "ist mein Kalender überhaupt verbunden".
+ *
+ * Vorher landete genau diese Frage auf der Wochenübersicht, und der Nutzer
+ * bekam sieben Zeilen Termine auf eine Ja-Nein-Frage. Eine Antwort, die an
+ * der Frage vorbeigeht, ist schlimmer als keine: sie sieht aus wie eine.
+ *
+ * Genannt wird, was gemessen ist: Name der Quelle, Anzahl der Termine, wann
+ * zuletzt eingelesen wurde. Dazu die eine Sache, die fast immer die Ursache
+ * ist, nämlich dass ein Import eine Momentaufnahme ist und nicht mitwächst.
+ */
+export function kalenderStandText() {
+  const st = kalenderStand();
+  if (st.anzahl === 0) {
+    return "Es ist kein Kalender verbunden. Im Menue unter Kalender lädst du eine ICS Datei hoch "
+      + "oder trägst die Adresse deines Google Kalenders ein. Ohne Kalender schätze ich deine "
+      + "freie Zeit aus deinen Schlafenszeiten, statt sie zu messen.";
+  }
+
+  const namen = st.quellen.map((q) => q.name).filter(Boolean);
+  const tageHer = st.stand
+    ? Math.floor((Date.now() - new Date(st.stand).getTime()) / 86400000)
+    : null;
+
+  const teile = [
+    `Dein Kalender ist verbunden. ${st.anzahl} Termine liegen hier, davon ${st.kommend} in der Zukunft.`,
+  ];
+  if (namen.length) teile.push(`Quelle: ${namen.join(", ")}.`);
+  if (tageHer === null) teile.push("Wann zuletzt eingelesen wurde, weiss ich nicht.");
+  else if (tageHer === 0) teile.push("Zuletzt eingelesen: heute.");
+  else if (tageHer === 1) teile.push("Zuletzt eingelesen: gestern.");
+  else teile.push(`Zuletzt eingelesen: vor ${tageHer} Tagen.`);
+
+  // Der eigentliche Grund, warum sich der Kalender falsch anfühlt. Der Import
+  // ist eine Kopie, kein Abo. Was du seitdem eingetragen hast, fehlt hier.
+  if (tageHer !== null && tageHer >= 2) {
+    teile.push(`Das heisst: alles, was du in den letzten ${tageHer} Tagen im Kalender geändert hast, `
+      + "kenne ich nicht. Der Import ist eine Kopie und kein Abo. Lad ihn im Menue unter Kalender neu.");
+  } else {
+    teile.push("Der Import ist eine Kopie und kein Abo. Nach jeder Änderung in deinem Kalender "
+      + "musst du ihn hier einmal neu laden, sonst rechne ich mit dem alten Stand.");
+  }
+  return teile.join(" ");
+}
+
 export function kalenderStand() {
   const bestand = store.getKalender();
   const jetzt = Date.now();
@@ -1859,8 +1904,8 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
       return briefing(art === "abend" ? "abend" : "morgen");
     },
 
-    async kalenderAbrufen({ tage } = {}) {
-      return kalenderUebersicht(tage || 7);
+    async kalenderAbrufen({ tage, stand } = {}) {
+      return stand ? kalenderStandText() : kalenderUebersicht(tage || 7);
     },
 
     async tagesablaufPlanen({ tag } = {}) {

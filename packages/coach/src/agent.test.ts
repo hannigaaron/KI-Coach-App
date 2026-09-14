@@ -24,7 +24,10 @@ function stubActions(log: string[]): AgentActions {
     async standardSetzen(i) { log.push(`standard:${i.text}`); return "Standard steht."; },
     async standardBestaetigen(i) { log.push(`standard:${i.id}=${i.gehalten}`); return "Eingetragen."; },
     async verlaufAbrufen(i) { log.push(`verlauf:${i.tage ?? ""}`); return "Minus 0,4 kg die Woche, Bedarf etwa 2900 kcal."; },
-    async kalenderAbrufen(i) { log.push(`kalender:${i.tage ?? ""}`); return "Montag: 3 Termine, 240 Minuten verplant."; },
+    async kalenderAbrufen(i) {
+      log.push(`kalender:${i.stand ? "stand" : (i.tage ?? "")}`);
+      return i.stand ? "Dein Kalender ist verbunden. 42 Termine liegen hier." : "Montag: 3 Termine, 240 Minuten verplant.";
+    },
     async aufgabeAnlegen(i) { log.push(`aufgabe:${i.text}`); return "Steht auf der Liste."; },
     async aufgabeAbhaken(i) { log.push(`abhaken:${i.text}`); return "Abgehakt."; },
     async aufgabenPriorisieren() { log.push("prio"); return "Heute noch: Angebot schreiben."; },
@@ -347,4 +350,26 @@ test("eine unmoegliche Uhrzeit wird verworfen", async () => {
   const log: string[] = [];
   await runOffline("Ich stehe morgen um 99 auf", stubActions(log));
   assert.ok(!log.some((z) => z.startsWith("zeiten:")));
+});
+
+test("die Frage nach der Verbindung bekommt den Stand, nicht die Woche", async () => {
+  // Genau das lief im Betrieb schief: "wieso ist mein Terminkalender nicht mit
+  // dir verbunden" landete auf der Wochenübersicht, und der Nutzer bekam
+  // sieben Zeilen Termine auf eine Ja-Nein-Frage.
+  for (const frage of [
+    "Hey kurze Frage wieso ist letztendlich mein Terminkalender nicht mit dir verbunden",
+    "ist mein Kalender eigentlich aktuell",
+    "warum stimmt das nicht mit meinen Terminen",
+    "synchronisiert sich mein Google Kalender",
+  ]) {
+    const log: string[] = [];
+    await runOffline(frage, stubActions(log));
+    assert.ok(log.includes("kalender:stand"), `${frage} ergab ${log.join(",")}`);
+  }
+});
+
+test("die Frage nach den Terminen bekommt weiter die Woche", async () => {
+  const log: string[] = [];
+  await runOffline("was steht diese Woche an", stubActions(log));
+  assert.ok(log.includes("kalender:"), log.join(","));
 });

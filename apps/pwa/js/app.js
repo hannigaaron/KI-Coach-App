@@ -1807,6 +1807,51 @@ $("composer").addEventListener("submit", (event) => {
   event.preventDefault();
   send($("chatInput").value);
 });
+/**
+ * Der Weg aus einem Siri Kurzbefehl in die installierte App.
+ *
+ * Auf dem iPhone öffnet eine Adresse immer Safari, nie die App vom
+ * Homebildschirm. Beide haben getrennte Speicher, und die Daten des Nutzers
+ * liegen in der App. Ein Kurzbefehl, der eine Adresse öffnet, landet also in
+ * einer leeren daevo. Das ist eine Grenze von iOS, keine Einstellung.
+ *
+ * Deshalb legt der Kurzbefehl den Satz in die Zwischenablage und öffnet die
+ * App. Gelesen wird erst auf Tippen: iOS gibt die Zwischenablage nur nach
+ * einer Geste frei, und ein stilles Mitlesen wäre auch das Falsche.
+ */
+function zwischenablageAnbieten() {
+  const knopf = $("btnZwischenablage");
+  if (!knopf || !navigator.clipboard?.readText) return;
+  // Nur anbieten, wenn das Eingabefeld leer ist. Wer schon tippt, wird nicht
+  // mit einem zweiten Weg unterbrochen.
+  if ($("chatInput").value.trim()) return;
+  knopf.hidden = false;
+  clearTimeout(zwischenablageTimer);
+  // Nach zwei Minuten verschwindet der Knopf wieder. Ein Angebot, das immer
+  // dasteht, ist ein Bedienelement, und dieses hier ist keins.
+  zwischenablageTimer = setTimeout(() => { knopf.hidden = true; }, 120000);
+}
+let zwischenablageTimer = 0;
+
+$("btnZwischenablage").addEventListener("click", async () => {
+  $("btnZwischenablage").hidden = true;
+  try {
+    const text = (await navigator.clipboard.readText()).trim();
+    if (!text) { toast("Die Zwischenablage ist leer."); return; }
+    // Wer über einen Kurzbefehl kommt, schaut nicht auf den Schirm.
+    options.speak = true;
+    send(text.slice(0, 2000));
+  } catch {
+    toast("iOS hat das Lesen der Zwischenablage abgelehnt. Tipp lange ins Eingabefeld und wähl Einsetzen.");
+  }
+});
+
+// Beim Zurückkommen aus dem Kurzbefehl wird die App wieder sichtbar. Genau
+// dann liegt der Satz in der Zwischenablage.
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") zwischenablageAnbieten();
+});
+
 $("btnMic").addEventListener("click", startListening);
 $("btnWeckwort").addEventListener("click", () => {
   if (weckwortLaeuft) weckwortStoppen("Weckwort aus");

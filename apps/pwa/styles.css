@@ -993,6 +993,18 @@ img.only-light { display: none; }
 /* Die Schritte für den Siri Kurzbefehl. Eine nummerierte Liste, weil die
    Reihenfolge hier wirklich zählt: wer die Variable vor der Adresse einsetzt,
    bekommt einen Kurzbefehl, der nichts tut. */
+/* Das Angebot aus der Zwischenablage. Es sitzt über der Eingabe und sieht
+   bewusst nach Angebot aus, nicht nach Bedienelement: es ist nur nach einem
+   Kurzbefehl sinnvoll und verschwindet nach zwei Minuten von selbst. */
+.zwischenablage {
+  display: block; width: calc(100% - var(--s-8)); margin: 0 var(--s-4) var(--s-2);
+  padding: var(--s-3) var(--s-4); border-radius: var(--r-pill);
+  border: 1px solid var(--brand); background: color-mix(in srgb, var(--brand) 14%, transparent);
+  color: var(--text); font-size: var(--t-sm); font-weight: 600; text-align: center;
+  transition: transform var(--schnell) var(--kurve);
+}
+.zwischenablage:active { transform: scale(0.98); }
+
 .siri-schritte {
   margin: var(--s-3) 0 0; padding-left: var(--s-5);
   color: var(--muted); font-size: var(--t-sm); line-height: 1.6;

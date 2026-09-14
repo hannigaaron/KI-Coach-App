@@ -53,7 +53,12 @@ export interface AgentActions {
   standardSetzen(input: { text: string; kadenz: string; art: string; ziel: number; id?: string }): Promise<string>;
   standardBestaetigen(input: { id: string; gehalten: boolean }): Promise<string>;
   verlaufAbrufen(input: { tage?: number }): Promise<string>;
-  kalenderAbrufen(input: { tage?: number }): Promise<string>;
+  /**
+   * `stand` beantwortet die Frage nach der Verbindung statt die Woche
+   * auszugeben. Beides über eine Aktion, weil beides aus demselben Bestand
+   * kommt.
+   */
+  kalenderAbrufen(input: { tage?: number; stand?: boolean }): Promise<string>;
   aufgabeAnlegen(input: { text: string; minuten?: number; faellig?: string; wichtigkeit?: number }): Promise<string>;
   aufgabeAbhaken(input: { text: string }): Promise<string>;
   aufgabenPriorisieren(): Promise<string>;
@@ -421,6 +426,7 @@ async function execute(
         return { text: await actions.verlaufAbrufen({ tage }) };
       }
       case "kalender_abrufen": {
+        if (input.stand === true) return { text: await actions.kalenderAbrufen({ stand: true }) };
         const tage = Number.isFinite(Number(input.tage)) ? clamp(Number(input.tage), 1, 14) : undefined;
         return { text: await actions.kalenderAbrufen({ tage }) };
       }
@@ -880,6 +886,20 @@ export async function runOffline(
     "wie sieht (mein|der) tag", "zeit habe ich", "freie zeit", "wann trainiere",
     "wann soll ich essen", "tagesablauf", "tagesplan").test(text)) {
     return { text: await actions.tagesablaufPlanen({}), ausgeführt, source: "offline" };
+  }
+
+  // Die Frage nach der Verbindung steht vor der Frage nach den Terminen.
+  // "Wieso ist mein Kalender nicht mit dir verbunden" landete sonst auf der
+  // Wochenübersicht, und der Nutzer bekam sieben Zeilen Termine auf eine
+  // Ja-Nein-Frage. Eine Antwort, die an der Frage vorbeigeht, ist schlimmer
+  // als keine: sie sieht aus wie eine.
+  // Zwei Listen, beide müssen treffen. Das Wort "aktuell" allein wäre zu
+  // breit, zusammen mit "Kalender" ist es eindeutig.
+  if (pattern("verbunden", "verknüpft", "verknupft", "verbinden", "synchron", "sync",
+    "aktualisiert", "aktuell", "veraltet", "falsch", "fehlen",
+    "fehlt", "richtig drin", "eingelesen", "stimmt").test(text)
+    && pattern("kalender", "termine", "google", "apple", "ical").test(text)) {
+    return { text: await actions.kalenderAbrufen({ stand: true }), ausgeführt, source: "offline" };
   }
 
   if (pattern("kalender", "termine", "diese woche", "nächste woche", "naechste woche", "wochenplan").test(text)) {

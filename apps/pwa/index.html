@@ -110,6 +110,15 @@ try {
     <!-- Was gleich mitgeschickt wird. Leer und ausgeblendet, solange nichts anhängt. -->
     <div id="anhangLeiste" class="anhang-leiste" hidden></div>
 
+    <!-- Der Weg aus einem Siri Kurzbefehl. Auf dem iPhone öffnet eine Adresse
+         immer Safari, nie die installierte App, und in Safari liegen die Daten
+         des Nutzers nicht. Deshalb legt der Kurzbefehl den Satz in die
+         Zwischenablage und öffnet die App. Gelesen wird erst auf Tippen: iOS
+         gibt die Zwischenablage nur nach einer Geste frei. -->
+    <button type="button" id="btnZwischenablage" class="zwischenablage" hidden>
+      Aus Zwischenablage senden
+    </button>
+
     <form id="composer" class="composer-bar">
       <button type="button" id="btnMic" class="icon-btn mic" aria-label="Diktieren"><span class="mic-dot"></span></button>
       <button type="button" id="btnAnhang" class="icon-btn clip" aria-label="Foto oder Datei anhängen"><span class="clip-icon"></span></button>
@@ -566,25 +575,24 @@ try {
       <h2 class="abschnitt">Freihändig ansprechen</h2>
       <p class="sub">Über Siri, auch bei gesperrtem Bildschirm. Ein Weckwort im Hintergrund
         kann eine Web App nicht, ein Kurzbefehl schon.</p>
-      <div class="field"><label for="e-siriUrl">Adresse für den Kurzbefehl</label>
-        <input id="e-siriUrl" type="text" readonly spellcheck="false">
-      </div>
-      <button id="btnSiriKopieren" class="ghost breit">Adresse kopieren</button>
       <ol class="siri-schritte">
         <li>Kurzbefehle öffnen, oben rechts auf das Pluszeichen.</li>
         <li>Aktion <b>Nach Eingabe fragen</b> hinzufügen. Der Typ muss <b>Text</b> sein,
           nicht URL. Als Frage etwas wie "Was willst du daevo sagen".</li>
-        <li>Aktion <b>URL codieren</b> hinzufügen. Darin steht die Ausgabe der Frage.
-          Ohne diesen Schritt zerlegt das erste Leerzeichen deinen Satz.</li>
-        <li>Aktion <b>URL</b> hinzufügen, nicht URLs öffnen. Die kopierte Adresse einsetzen
-          und direkt hinter das Gleichzeichen die Variable <b>URL codierter Text</b>.
-          Dazwischen darf kein Leerzeichen stehen.</li>
-        <li>Aktion <b>URLs öffnen</b> hinzufügen.</li>
+        <li>Aktion <b>In die Zwischenablage kopieren</b> hinzufügen.</li>
+        <li>Aktion <b>Öffne App</b> hinzufügen und dort <b>daevo</b> wählen.</li>
         <li>Den Kurzbefehl <b>daevo</b> nennen. Danach reicht "Hey Siri, daevo".</li>
       </ol>
-      <p class="feld-hilfe">Siri fragt, du sprichst, daevo öffnet sich mit deinem Satz und
-        liest die Antwort vor. Der Knopf mit Hey im Chat bleibt für den Fall, dass die App
-        schon offen ist.</p>
+      <p class="feld-hilfe">Siri fragt, du sprichst, daevo geht auf. Über der Eingabe steht
+        dann der Knopf "Aus Zwischenablage senden". Ein Tipp, und der Satz ist raus.
+        Warum nicht direkt über eine Adresse: auf dem iPhone öffnet eine Adresse immer
+        Safari, nie die installierte App, und in Safari liegen deine Daten nicht.</p>
+      <div class="field"><label for="e-siriUrl">Adresse, falls du daevo in Safari nutzt</label>
+        <input id="e-siriUrl" type="text" readonly spellcheck="false">
+      </div>
+      <button id="btnSiriKopieren" class="ghost breit">Adresse kopieren</button>
+      <p class="feld-hilfe">Nur für Safari oder den Rechner. Dann statt Schritt 3 und 4 die
+        Aktionen URL codieren, URL mit dieser Adresse plus der Variable, und URLs öffnen.</p>
 
       <h2 class="abschnitt">Benachrichtigungen</h2>
       <p class="sub">Sechs Impulse am Tag, auch wenn die App zu ist. Eiweiss, Trinken, Energie, Shake, Stress, Pause.</p>

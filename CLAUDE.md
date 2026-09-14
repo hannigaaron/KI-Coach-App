@@ -145,7 +145,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 568 Tests
+npm test           # 570 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -376,6 +376,42 @@ einem toten Mikrofon ist eine Lüge.
 
 Ein echtes Weckwort im Hintergrund braucht eine native App, siehe
 `docs/ROADMAP.md`.
+
+## Der Weg aus einem Siri Kurzbefehl
+
+Zuerst nahm die App eine Frage über `?sag=` entgegen. Im Betrieb war das
+wertlos: auf dem iPhone öffnet eine Adresse immer Safari, nie die App vom
+Homebildschirm. Beide haben getrennte Speicher, und die Daten des Nutzers
+liegen in der App. Der Kurzbefehl landete also in einer leeren daevo.
+
+Deshalb der zweite Weg, und der ist jetzt der empfohlene: der Kurzbefehl legt
+den Satz in die Zwischenablage und öffnet die App über "Öffne App". Beim
+Sichtbarwerden bietet die App einen Knopf an, ein Tipp schickt den Satz. Der
+Tipp ist nötig und nicht faul: iOS gibt die Zwischenablage nur nach einer
+Geste frei, und stilles Mitlesen wäre ohnehin das Falsche.
+
+Der Knopf erscheint nur, wenn das Eingabefeld leer ist, und verschwindet nach
+zwei Minuten. Ein Angebot, das immer dasteht, ist ein Bedienelement, und
+dieses hier ist keins.
+
+`?sag=` bleibt bestehen. In Safari und auf dem Rechner funktioniert es, und es
+kostet nichts.
+
+## Das Mikrofon, das nur einmal ging
+
+Auf iOS teilen sich Spracherkennung und `getUserMedia` dasselbe Mikrofon, und
+die Erkennung verliert. Symptom: beim ersten Mal geht es, danach startet sie
+stumm nicht mehr. Der Pegelmesser über die Web Audio API ist nur für die
+Animation des Kreises da. Ein pulsierender Kreis ist keinen kaputten Knopf
+wert, deshalb läuft auf iOS von vornherein die erzeugte Welle.
+
+Dazu ein Wachhund. `recognition.start()` wirft nicht immer, wenn es nicht
+klappt: der Aufruf geht durch und danach passiert schlicht nichts, kein
+onstart, kein onerror, kein onend. Kommt nach 1800 Millisekunden kein onstart,
+wird die Instanz weggeworfen und eine neue aufgesetzt. Nach dem vierten
+stummen Versuch bekommt der Nutzer eine Meldung statt eines toten Knopfes. Ein
+geglückter Start löscht die Bilanz, sonst summieren sich über eine lange
+Freihandsitzung vier einzelne Ausrutscher zu einem Abbruch.
 
 ## Tagesränder
 
@@ -717,6 +753,17 @@ und drängt die Tage weg, die eine tragen. Leere Tage stehen als Zahl am Ende.
 
 Minuten werden als Dauer gesagt. "180 Minuten verplant" rechnet der Leser
 jedes Mal selbst um.
+
+Die Frage nach der Verbindung steht im Regelpfad vor der Frage nach den
+Terminen. "Wieso ist mein Kalender nicht mit dir verbunden" landete sonst auf
+der Wochenübersicht, und der Nutzer bekam sieben Zeilen Termine auf eine
+Ja-Nein-Frage. Erkannt wird über zwei Wortlisten, die beide treffen müssen:
+"aktuell" allein wäre zu breit, zusammen mit "Kalender" ist es eindeutig.
+
+`kalenderStandText` nennt, was gemessen ist: Quelle, Anzahl, wann zuletzt
+eingelesen. Dazu die Ursache, die fast immer dahintersteckt: der Import ist
+eine Kopie und kein Abo. Was seit dem Einlesen im Kalender passiert ist, kennt
+die App nicht.
 
 ## Wenn der Modellaufruf scheitert
 
