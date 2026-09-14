@@ -295,11 +295,19 @@ grösser als der zwischen zwei verschiedenen Stimmen, deshalb wiegt die Qualitä
 am schwersten. Die Auswahl steht im Profil, weil nur das Gerät weiss, was
 installiert ist.
 
-Angeboten werden alle Stimmen des Geräts, deutsche zuerst. Vorher fiel alles
-raus, dessen Sprachkürzel nicht mit "de" beginnt, und dann stand im Profil
-"keine deutsche Stimme gefunden", obwohl eine installiert war. Welches Kürzel
-eine nachgeladene Stimme trägt, entscheidet das Betriebssystem. Wer sich eine
-Stimme herunterlädt, will sie benutzen können.
+Zur Wahl stehen die deutschen Stimmen, `waehlbareStimmen()`. Dazwischen lag
+kurz eine Fassung, die jede Stimme des Geräts anbot, deutsche zuerst. Das war
+die Überkorrektur auf den umgekehrten Fehler und im Betrieb schlimmer: dreissig
+Einträge in fremden Sprachen, dazwischen die drei, die jemand wirklich will.
+Eine Auswahl, die man durchsuchen muss, ist keine Auswahl.
+
+Raus fliegen ausserdem die Spass- und Eloquence-Stimmen. Apple liefert unter
+jeder Sprache Eddy, Flo, Grandpa, Rocko, Zarvox und ein Dutzend weitere mit,
+alle mit deutschem Sprachkürzel. Ein Coach, der wie Zarvox klingt, wird nicht
+ernst genommen. Geprüft wird auf Wortgrenzen, denn "flo" steckt in "Florian".
+
+Meldet das Gerät keine einzige deutsche Stimme, kommt die ganze Liste. Gar
+keine Wahl ist schlechter als eine unsortierte.
 
 `stimmenBereit()` wartet, bis das Gerät seine Stimmen meldet. `getVoices()`
 gibt beim ersten Aufruf oft eine leere Liste zurück und füllt sie erst danach.
@@ -349,8 +357,25 @@ Ohne den Neustart war das Mikrofon nach dem ersten Fremdsatz tot, und das sieht
 aus wie ein kaputter Knopf.
 
 Im Hintergrund oder bei gesperrtem Bildschirm läuft das nicht. Das Web gibt
-einer Seite kein Mikrofon, wenn sie nicht sichtbar ist. Dafür braucht es eine
-native App mit eigener Weckworterkennung, siehe `docs/ROADMAP.md`.
+einer Seite kein Mikrofon, wenn sie nicht sichtbar ist. Das ist keine
+Einstellung, sondern die Plattformgrenze, und keine Bibliothek hebt sie auf.
+
+Dafür gibt es den Siri Kurzbefehl. Die App nimmt eine fertige Frage über
+`?sag=` entgegen, schickt sie ab und liest die Antwort vor. Ein Kurzbefehl mit
+einer Diktatabfrage und dieser Adresse macht daraus "Hey Siri, daevo", und das
+läuft bei gesperrtem Bildschirm. Die Adresse baut `siriAdresse()` aus der
+laufenden Adresse, nicht aus einer festen Zeile: wer daevo auf einer eigenen
+Domain betreibt, bekommt seine eigene.
+
+Tut der Knopf nichts, sagt `weckwortHindernis()` warum. Geprüft wird einzeln:
+keine Spracherkennung in diesem Browser, keine in der installierten App auf dem
+iPhone, kein https, kein Mikrofonzugriff. Ein Knopf, der stumm nichts tut, wird
+fünfmal gedrückt und die App danach für kaputt gehalten. Ein Fehler des
+Mikrofons im Weckwortmodus schaltet den Knopf zurück: ein gedrückter Knopf über
+einem toten Mikrofon ist eine Lüge.
+
+Ein echtes Weckwort im Hintergrund braucht eine native App, siehe
+`docs/ROADMAP.md`.
 
 ## Tagesränder
 

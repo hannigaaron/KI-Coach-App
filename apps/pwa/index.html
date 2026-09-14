@@ -563,6 +563,25 @@ try {
       <button id="btnStimmProbe" class="ghost breit">Probe hören</button>
       <p id="e-stimmhilfe" class="feld-hilfe"></p>
 
+      <h2 class="abschnitt">Freihändig ansprechen</h2>
+      <p class="sub">Über Siri, auch bei gesperrtem Bildschirm. Ein Weckwort im Hintergrund
+        kann eine Web App nicht, ein Kurzbefehl schon.</p>
+      <div class="field"><label for="e-siriUrl">Adresse für den Kurzbefehl</label>
+        <input id="e-siriUrl" type="text" readonly spellcheck="false">
+      </div>
+      <button id="btnSiriKopieren" class="ghost breit">Adresse kopieren</button>
+      <ol class="siri-schritte">
+        <li>Kurzbefehle öffnen, oben auf das Pluszeichen.</li>
+        <li>Aktion <b>Nach Text fragen</b> hinzufügen, Eingabetyp Diktat.</li>
+        <li>Aktion <b>URL</b> hinzufügen, die kopierte Adresse einsetzen.</li>
+        <li>Ans Ende der Adresse die Variable <b>Bereitgestellte Eingabe</b> ziehen.</li>
+        <li>Aktion <b>URLs öffnen</b> hinzufügen.</li>
+        <li>Den Kurzbefehl <b>daevo</b> nennen. Danach reicht "Hey Siri, daevo".</li>
+      </ol>
+      <p class="feld-hilfe">Siri fragt, du sprichst, daevo öffnet sich mit deinem Satz und
+        liest die Antwort vor. Der Knopf mit Hey im Chat bleibt für den Fall, dass die App
+        schon offen ist.</p>
+
       <h2 class="abschnitt">Benachrichtigungen</h2>
       <p class="sub">Sechs Impulse am Tag, auch wenn die App zu ist. Eiweiss, Trinken, Energie, Shake, Stress, Pause.</p>
       <div class="field"><label for="e-pushWorker">Adresse des Push Workers</label>
