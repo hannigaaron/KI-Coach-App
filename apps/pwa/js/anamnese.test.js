@@ -174,3 +174,17 @@ test("es gibt vier Stufen je Geschlecht, aufsteigend im Prozentwert", () => {
     }
   }
 });
+
+test("die Zahl im Begrüssungstext stimmt mit der Anzahl der Schritte überein", () => {
+  // Der Text nannte neun Schritte, während dreizehn kamen. So etwas fällt
+  // keinem Test auf, der Werte prüft, und dem Nutzer sofort.
+  const zahlwoerter = {
+    neun: 9, zehn: 10, elf: 11, zwölf: 12, dreizehn: 13, vierzehn: 14, fünfzehn: 15,
+  };
+  const text = SCHRITTE[0].text || "";
+  // Auf Wortgrenzen suchen: "zehn" steckt in "dreizehn", und ohne Grenze
+  // gewinnt das kürzere Wort.
+  const treffer = Object.keys(zahlwoerter).find((w) => new RegExp(`\\b${w}\\b`, "i").test(text));
+  assert.ok(treffer, `im Begrüssungstext steht kein Zahlwort: ${text}`);
+  assert.equal(zahlwoerter[treffer], SCHRITTE.length);
+});

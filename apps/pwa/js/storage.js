@@ -98,8 +98,22 @@ export const store = {
     write("settings", settings);
   },
 
+  /**
+   * Die Notizen, jede mit den Feldern, die die Leser voraussetzen.
+   *
+   * Hier wird geradegezogen statt an jeder Lesestelle geprüft. Eine Notiz
+   * ohne `tags` hat die App beim Start zum Absturz gebracht, und zwar in
+   * `ensureStandards`, also bevor überhaupt etwas zu sehen war. Genau das
+   * passiert beim Einspielen einer Sicherung aus einer älteren Fassung, in
+   * der das Feld noch nicht existierte.
+   */
   getMemories() {
-    return read("memories", []);
+    return read("memories", []).map((e) => ({
+      ...e,
+      tags: Array.isArray(e?.tags) ? e.tags : [],
+      weight: Number.isFinite(e?.weight) ? e.weight : 3,
+      at: e?.at || new Date().toISOString(),
+    }));
   },
   setMemories(entries) {
     write("memories", entries);
@@ -285,8 +299,26 @@ export const store = {
     index.add(day);
     write("days", [...index].sort());
   },
+  /**
+   * Alle Tage, für die etwas gespeichert ist.
+   *
+   * Aus dem Verzeichnis und zusätzlich aus den tatsächlich vorhandenen
+   * Schlüsseln. Läuft beides auseinander, etwa weil ein Schreibvorgang
+   * abgebrochen ist, fehlten sonst Tage in der Sicherung, ohne dass es jemand
+   * merkt. Eine Sicherung, die Tage übergeht, ist schlimmer als keine.
+   */
   allDays() {
-    return read("days", []);
+    const ausVerzeichnis = read("days", []);
+    const ausSpeicher = [];
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const schluessel = localStorage.key(i) || "";
+        if (schluessel.startsWith(`${PREFIX}day.`)) ausSpeicher.push(schluessel.slice(`${PREFIX}day.`.length));
+      }
+    } catch {
+      // Ohne Zugriff auf den Speicher bleibt das Verzeichnis.
+    }
+    return [...new Set([...ausVerzeichnis, ...ausSpeicher])].filter((t) => /^\d{4}-\d{2}-\d{2}$/.test(t)).sort();
   },
 
   addMeal(day, meal) {
@@ -356,6 +388,11 @@ export const store = {
   exportAll() {
     const out = { exportedAt: new Date().toISOString(), version: 1, days: {} };
     out.profile = this.getProfile();
+    // Die Einstellungen fehlten hier. Genau sie sind das, was nach einer
+    // Neuinstallation am meisten Arbeit macht: Schluessel, Adresse des Push
+    // Workers, Anmeldewort, Stimme, eigene Anweisungen. Eine Sicherung ohne
+    // sie ist keine Sicherung.
+    out.settings = this.getSettings();
     out.fridge = this.getFridge();
     out.shopping = this.getShoppingList();
     out.kalender = this.getKalender();
@@ -366,8 +403,52 @@ export const store = {
     out.standards = this.getStandards();
     out.memories = this.getMemories();
     out.gespraeche = this.getGespraeche();
+    out.aktivesGespraech = this.getAktivesGespraech();
     for (const day of this.allDays()) out.days[day] = this.getDay(day);
     return out;
+  },
+
+  /**
+   * Spielt eine Sicherung zurueck.
+   *
+   * Geschrieben wird nur, was in der Datei steht. Ein fehlendes Feld laesst
+   * den bestehenden Wert in Ruhe, statt ihn zu leeren: eine aeltere Sicherung
+   * darf nicht loeschen, was sie noch nicht kannte.
+   *
+   * Gibt zurueck, was angekommen ist, damit die Oberflaeche es benennen kann.
+   * "Wiederhergestellt" ohne Zahl glaubt niemand, der gerade seine Daten
+   * verloren hat.
+   */
+  importAll(daten) {
+    if (!daten || typeof daten !== "object") throw new Error("Das ist keine Sicherung von daevo.");
+    if (!daten.profile && !daten.days && !daten.settings) {
+      throw new Error("In der Datei steht kein Profil und kein Tag. Ist das die richtige Datei?");
+    }
+
+    const bericht = { tage: 0, gespraeche: 0, notizen: 0, aufgaben: 0, einstellungen: false, profil: false };
+
+    if (daten.profile) { this.setProfile(daten.profile); bericht.profil = true; }
+    if (daten.settings) { this.setSettings(daten.settings); bericht.einstellungen = true; }
+    if (Array.isArray(daten.memories)) { this.setMemories(daten.memories); bericht.notizen = daten.memories.length; }
+    if (Array.isArray(daten.gespraeche)) { this.setGespraeche(daten.gespraeche); bericht.gespraeche = daten.gespraeche.length; }
+    if (daten.aktivesGespraech) this.setAktivesGespraech(daten.aktivesGespraech);
+    if (Array.isArray(daten.fridge)) this.setFridge(daten.fridge);
+    if (Array.isArray(daten.shopping)) this.setShoppingList(daten.shopping);
+    if (daten.kalender) this.setKalender(daten.kalender);
+    if (Array.isArray(daten.aufgaben)) { this.setAufgaben(daten.aufgaben); bericht.aufgaben = daten.aufgaben.length; }
+    if (Array.isArray(daten.standards)) this.setStandards(daten.standards);
+    if (daten.angebot) this.setAngebot(daten.angebot);
+    if (Array.isArray(daten.zeiten)) write("zeiten", daten.zeiten);
+    if (Array.isArray(daten.checkinBoegen)) write("checkinBoegen", daten.checkinBoegen);
+
+    if (daten.days && typeof daten.days === "object") {
+      for (const [tag, inhalt] of Object.entries(daten.days)) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(tag) || !inhalt) continue;
+        this.setDay(tag, inhalt);
+        bericht.tage++;
+      }
+    }
+    return bericht;
   },
 
   clearAll() {

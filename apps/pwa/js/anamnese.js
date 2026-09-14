@@ -31,7 +31,7 @@ export const SCHRITTE = [
   {
     id: "start",
     titel: "Hallo",
-    text: "Ich bin daevo. Damit ich dir wirklich helfen kann, brauche ich ein Bild von dir. Neun kurze Schritte, danach reden wir nur noch.",
+    text: "Ich bin daevo. Damit ich dir wirklich helfen kann, brauche ich ein Bild von dir. Dreizehn kurze Schritte, die letzten vier kannst du überspringen. Schon mal dabei gewesen? Ganz unten spielst du deine Sicherung ein.",
     felder: [{ art: "text", id: "name", label: "Wie heißt du", platzhalter: "Aaron" }],
   },
   {

@@ -145,7 +145,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 536 Tests
+npm test           # 542 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -294,6 +294,20 @@ männlich, dann lokal vor Netz. Der Unterschied zwischen Basis und Premium ist
 grösser als der zwischen zwei verschiedenen Stimmen, deshalb wiegt die Qualität
 am schwersten. Die Auswahl steht im Profil, weil nur das Gerät weiss, was
 installiert ist.
+
+Angeboten werden alle Stimmen des Geräts, deutsche zuerst. Vorher fiel alles
+raus, dessen Sprachkürzel nicht mit "de" beginnt, und dann stand im Profil
+"keine deutsche Stimme gefunden", obwohl eine installiert war. Welches Kürzel
+eine nachgeladene Stimme trägt, entscheidet das Betriebssystem. Wer sich eine
+Stimme herunterlädt, will sie benutzen können.
+
+`stimmenBereit()` wartet, bis das Gerät seine Stimmen meldet. `getVoices()`
+gibt beim ersten Aufruf oft eine leere Liste zurück und füllt sie erst danach.
+Ohne das Warten war die Auswahl leer, obwohl Stimmen da waren.
+
+Das Sprachkürzel der Ausgabe folgt der gewählten Stimme, nicht umgekehrt.
+Steht dort fest `de-DE`, während die Stimme ein anderes trägt, sucht sich
+manche Engine eine andere Stimme und ignoriert die Wahl.
 
 Der grössere Teil des Roboterklangs kommt nicht von der Stimme, sondern vom
 Text. `stripForSpeech` setzt Punkte an Zeilenenden, damit die Engine Luft holt,
@@ -607,6 +621,40 @@ Reihenfolge nicht offensichtlich ist: der Worker muss stehen, bevor er
 Geheimnisse annimmt. Wer die Geheimnisse zuerst setzt, wird mitten im Ablauf
 gefragt, ob ein Worker angelegt werden soll, und wer dort abbricht, hat
 weder das eine noch das andere.
+
+## Sicherung
+
+`store.exportAll()` und `store.importAll()`, Oberfläche im Profil unter
+Sicherung und zusätzlich im Anamnesebogen.
+
+Der zweite Ort ist der wichtigere. Auf dem iPhone liegt der Speicher einer
+installierten App getrennt von Safari: wer das Symbol vom Home Bildschirm
+nimmt, verliert alles. Danach steht er im Fragebogen, und ohne einen Einstieg
+genau dort müsste er ihn erst durchklicken, um im Profil an die Sicherung zu
+kommen. Genau das soll eine Sicherung ersparen.
+
+Die Einstellungen fehlten im Export, bis es jemand gebraucht hat. Sie sind der
+Teil, der die meiste Arbeit macht: Schlüssel, Adresse des Push Workers,
+Anmeldewort, Stimme, eigene Anweisungen. Eine Sicherung ohne sie ist keine.
+
+Ausgegeben wird Text und nicht nur eine Datei. Ein Download aus einer
+installierten App landet auf dem iPhone je nach Fassung nirgends Sichtbarem,
+ein Text, den man sich selbst schickt, kommt immer an. Der Text trägt den
+Schlüssel im Klartext, deshalb steht der Hinweis daneben.
+
+`importAll` schreibt nur, was in der Datei steht. Ein fehlendes Feld lässt den
+bestehenden Wert in Ruhe: eine ältere Sicherung darf nicht löschen, was sie
+noch nicht kannte. Zurück kommt, was angekommen ist, denn "wiederhergestellt"
+ohne Zahl glaubt niemand, der gerade seine Daten verloren hat.
+
+`getMemories()` zieht jede Notiz gerade, statt an jeder Lesestelle zu prüfen.
+Eine Notiz ohne `tags` hat die App in `ensureStandards` zum Absturz gebracht,
+also beim Start und bevor etwas zu sehen war. Genau der Fall tritt ein, wenn
+eine Sicherung aus einer älteren Fassung eingespielt wird.
+
+`allDays()` liest das Verzeichnis und zusätzlich die vorhandenen Schlüssel im
+Speicher. Laufen beide auseinander, fehlten sonst Tage in der Sicherung, ohne
+dass es jemand merkt.
 
 ## Das Menue
 

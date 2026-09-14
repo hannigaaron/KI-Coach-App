@@ -21,7 +21,7 @@ import { brain } from "./brain.js";
 import { Orb } from "./orb.js";
 import { anhangAusDatei, grossInKb } from "./media.js";
 import { BEREICH_FARBE, anteilsRing, kurzDauer, metrikRing, richtungVon, ringMitZahl, wertungsRing } from "./rings.js";
-import { Listener, deutscheStimmen, speak, stopSpeaking, voiceSupport } from "./voice.js";
+import { Listener, alleStimmen, istDeutsch, speak, stimmenBereit, stopSpeaking, voiceSupport } from "./voice.js";
 import { SetupFlow } from "./setup-ui.js";
 import { pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
@@ -885,52 +885,63 @@ function wochenzeitenLesen() {
  * bleibt nur die Basisqualität. Deshalb steht die Liste hier zur Auswahl statt
  * einer festen Stimme im Code, und der Hinweis sagt, was zu tun ist.
  */
-function renderStimmwahl() {
+async function renderStimmwahl() {
   const feld = $("e-stimme");
   if (!feld) return;
-  const liste = deutscheStimmen();
+  // Warten, statt sofort zu lesen. getVoices ist beim ersten Aufruf oft leer,
+  // und dann stand hier "keine deutsche Stimme gefunden", obwohl welche da
+  // waren.
+  const liste = await stimmenBereit();
   const gewaehlt = store.getSettings().stimme || "";
 
   if (liste.length === 0) {
-    feld.innerHTML = '<option value="">Keine deutsche Stimme gefunden</option>';
-    $("e-stimmhilfe").textContent = "Dieses Gerät hat keine deutsche Stimme installiert.";
+    feld.innerHTML = '<option value="">Keine Stimme gefunden</option>';
+    $("e-stimmhilfe").textContent =
+      "Dieses Gerät meldet keine Stimme. Auf dem iPhone lädst du welche unter Einstellungen, "
+      + "Bedienungshilfen, Gesprochene Inhalte, Stimmen. Danach die App einmal schliessen und neu öffnen.";
     return;
   }
 
-  feld.innerHTML = liste.map((v) => {
+  const eintrag = (v) => {
     const gut = /premium|neural|enhanced|natural/i.test(v.name);
+    const sprache = istDeutsch(v) ? "" : ` [${v.lang}]`;
     return `<option value="${escapeHtml(v.name)}"${v.name === gewaehlt ? " selected" : ""}>`
-      + `${escapeHtml(v.name)}${gut ? " (bessere Qualität)" : ""}</option>`;
-  }).join("");
+      + `${escapeHtml(v.name)}${sprache}${gut ? " (bessere Qualität)" : ""}</option>`;
+  };
 
-  const beste = liste[0];
+  // Deutsche oben, der Rest darunter, aber nichts wird weggelassen. Welches
+  // Sprachkuerzel eine nachgeladene Stimme traegt, entscheidet das
+  // Betriebssystem. Wer sie installiert hat, will sie auch waehlen koennen.
+  const deutsch = liste.filter(istDeutsch);
+  const andere = liste.filter((v) => !istDeutsch(v));
+  const teile = [];
+  if (deutsch.length) teile.push(`<optgroup label="Deutsch">${deutsch.map(eintrag).join("")}</optgroup>`);
+  if (andere.length) {
+    teile.push(`<optgroup label="Andere Sprache, geht trotzdem">${andere.map(eintrag).join("")}</optgroup>`);
+  }
+  feld.innerHTML = teile.join("");
+
+  const beste = deutsch[0] || liste[0];
   const hatGute = /premium|neural|enhanced|natural/i.test(beste?.name || "");
   const zeilen = [];
 
-  if (hatGute) {
+  if (deutsch.length === 0) {
+    zeilen.push(`Dieses Gerät meldet keine Stimme als Deutsch. Die ${liste.length} gefundenen stehen trotzdem `
+      + "zur Wahl, sie sprechen deutschen Text meist sauber.");
+  } else if (hatGute) {
     zeilen.push("Ohne eigene Wahl nehme ich die beste männliche Stimme, die dein Gerät hat.");
-  } else if (liste.length === 1) {
-    // Genau eine Stimme heisst auf dem iPhone fast immer: es ist nur die
-    // Standardstimme installiert. Der Weg dorthin gehoert hierhin, nicht in
-    // eine Dokumentation, die im Profil niemand aufschlaegt.
-    zeilen.push(`Dein Gerät kennt nur eine deutsche Stimme, ${beste.name}, in Basisqualität.`);
-    zeilen.push(
-      "So lädst du bessere: iPhone Einstellungen, Bedienungshilfen, Gesprochene Inhalte, "
-      + "Stimmen, Deutsch. Dort auf das Pluszeichen. Männlich und ruhig sind Markus und Yannick. "
-      + "Nimm die Fassung mit dem Zusatz Premium, nicht Kompakt.",
-    );
-    zeilen.push("Danach die App einmal schliessen und neu öffnen, dann steht die Stimme hier.");
   } else {
-    zeilen.push("Dein Gerät hat nur Stimmen in Basisqualität. Bessere lädst du unter "
-      + "Einstellungen, Bedienungshilfen, Gesprochene Inhalte, Stimmen, Deutsch, dort auf das Pluszeichen. "
-      + "Männlich und ruhig sind Markus und Yannick, jeweils in der Fassung Premium.");
+    zeilen.push(`Deine deutschen Stimmen sind in Basisqualität. Bessere lädst du unter Einstellungen, `
+      + "Bedienungshilfen, Gesprochene Inhalte, Stimmen, Deutsch, dort auf das Pluszeichen. "
+      + "Männlich und ruhig sind Markus und Yannick, jeweils in der Fassung Premium, nicht Kompakt. "
+      + "Danach die App einmal schliessen und neu öffnen.");
   }
 
   // Was die Web Speech API kann, hat eine Obergrenze, und die liegt unter dem,
   // was der Nutzer von Claude oder ChatGPT kennt. Das gehoert gesagt, sonst
   // sucht er den Fehler bei sich.
   zeilen.push("Auch eine Premium Stimme klingt nicht wie Claude oder ChatGPT. Die laufen auf "
-    + "einer Sprachsynthese im Netz, die daevo nicht eingebaut hat. Siehe docs/ROADMAP.md.");
+    + "einer Sprachsynthese im Netz, die daevo nicht eingebaut hat.");
 
   $("e-stimmhilfe").textContent = zeilen.join(" ");
 }
@@ -2863,14 +2874,83 @@ $("optHandsFree").addEventListener("change", (e) => {
   if (!options.handsFree && listener) listener.handsFree = false;
 });
 
+/* ---------- Sicherung ---------- */
+
+/**
+ * Alles in einen Text, und aus einem Text wieder zurück.
+ *
+ * Auf dem iPhone liegt der Speicher einer installierten App getrennt von
+ * Safari. Wer das Symbol vom Home Bildschirm löscht, verliert damit alles,
+ * was er eingestellt hat. Ein Download hilft dort nur bedingt: aus einer
+ * installierten App heraus landet die Datei je nach Version nirgends
+ * Sichtbarem. Ein Text, den man sich selbst schickt, kommt immer an.
+ */
+$("btnSicherung").addEventListener("click", () => {
+  const text = JSON.stringify(store.exportAll());
+  $("sicherungText").value = text;
+  $("sicherungFeld").hidden = false;
+  const daten = store.exportAll();
+  const tage = Object.keys(daten.days || {}).length;
+  $("sicherungHinweis").textContent =
+    `Gesichert: Profil, Einstellungen, ${tage} Tage, ${(daten.gespraeche || []).length} Gespräche, `
+    + `${(daten.memories || []).length} Notizen. Rund ${Math.round(text.length / 1024)} Kilobyte.`;
+});
+
+$("btnSicherungKopieren").addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText($("sicherungText").value);
+    toast("Kopiert. Schick ihn dir selbst zu.");
+  } catch {
+    // Ohne Erlaubnis für die Zwischenablage bleibt das Markieren von Hand.
+    $("sicherungText").select();
+    toast("Markiert. Jetzt selbst kopieren.");
+  }
+});
+
 $("btnExport").addEventListener("click", () => {
   const blob = new Blob([JSON.stringify(store.exportAll(), null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `daevo-export-${todayIso()}.json`;
+  link.download = `daevo-sicherung-${todayIso()}.json`;
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+
+$("btnWiederherstellen").addEventListener("click", () => {
+  $("wiederherstellenFeld").hidden = !$("wiederherstellenFeld").hidden;
+  if (!$("wiederherstellenFeld").hidden) $("wiederherstellenText").focus();
+});
+
+$("btnWiederherstellenStart").addEventListener("click", () => {
+  const roh = $("wiederherstellenText").value.trim();
+  if (!roh) { $("sicherungHinweis").textContent = "Da steht nichts drin."; return; }
+
+  let daten;
+  try {
+    daten = JSON.parse(roh);
+  } catch {
+    $("sicherungHinweis").textContent =
+      "Das ist kein vollständiger Sicherungstext. Er beginnt mit einer geschweiften Klammer und endet mit einer. "
+      + "Beim Kopieren aus einer Nachricht fehlt oft das Ende.";
+    return;
+  }
+
+  try {
+    const b = store.importAll(daten);
+    const teile = [];
+    if (b.profil) teile.push("Profil");
+    if (b.einstellungen) teile.push("Einstellungen");
+    if (b.tage) teile.push(`${b.tage} Tage`);
+    if (b.gespraeche) teile.push(`${b.gespraeche} Gespräche`);
+    if (b.notizen) teile.push(`${b.notizen} Notizen`);
+    $("sicherungHinweis").textContent = `Eingespielt: ${teile.join(", ")}. Die App lädt gleich neu.`;
+    // Neu laden, weil Profil und Einstellungen überall hängen. Alles einzeln
+    // nachzuziehen wäre eine Fehlerquelle bei jeder künftigen Ansicht.
+    setTimeout(() => location.reload(), 900);
+  } catch (fehler) {
+    $("sicherungHinweis").textContent = fehler.message;
+  }
 });
 
 $("btnReset").addEventListener("click", () => {
@@ -2887,6 +2967,46 @@ document.addEventListener("visibilitychange", () => {
 });
 
 applyTheme(store.getSettings().theme || "system");
+
+/**
+ * Eine Sicherung einspielen, bevor der Fragebogen durch ist.
+ *
+ * Der Weg im Profil hilft nur, wer schon drin ist. Nach einer Neuinstallation
+ * steht man im Fragebogen, und ohne diesen Knopf müsste man ihn erst
+ * durchklicken, um danach im Profil die Sicherung zu suchen. Genau das soll
+ * eine Sicherung ja ersparen.
+ */
+$("btnSetupSicherung").addEventListener("click", () => {
+  const feld = $("setupSicherungFeld");
+  feld.hidden = !feld.hidden;
+  if (!feld.hidden) $("setupSicherungText").focus();
+});
+
+$("btnSetupSicherungStart").addEventListener("click", () => {
+  const roh = $("setupSicherungText").value.trim();
+  const hinweis = $("setupSicherungHinweis");
+  if (!roh) { hinweis.textContent = "Da steht nichts drin."; return; }
+
+  let daten;
+  try {
+    daten = JSON.parse(roh);
+  } catch {
+    hinweis.textContent =
+      "Das ist kein vollständiger Sicherungstext. Er beginnt mit einer geschweiften Klammer und endet mit einer. "
+      + "Beim Kopieren aus einer Nachricht fehlt oft das Ende.";
+    return;
+  }
+
+  try {
+    const b = store.importAll(daten);
+    hinweis.textContent = b.profil
+      ? `Eingespielt, ${b.tage} Tage. Geht gleich los.`
+      : "Eingespielt, aber ohne Profil. Der Fragebogen läuft weiter.";
+    setTimeout(() => location.reload(), 900);
+  } catch (fehler) {
+    hinweis.textContent = fehler.message;
+  }
+});
 
 if (profile) startApp();
 else new SetupFlow($("setupFlow"), { onFertig: anamneseFertig });
