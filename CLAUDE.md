@@ -323,6 +323,19 @@ löst Abkürzungen auf und schreibt Uhrzeiten aus. Ohne das wird "14:30" zu
 "vierzehn Doppelpunkt dreissig". Tempo 0,96 und Tonhöhe 0,95 liegen knapp unter
 dem Standard: die Voreinstellung klingt gehetzt, und gehetzt klingt maschinell.
 
+Auf dem iPhone steht nur eine deutsche Stimme zur Wahl, und das ist Anna. Die
+Stimmen, die man unter Bedienungshilfen, Gesprochene Inhalte, Stimmen
+herunterlädt, liegen zwar auf dem Gerät, gehören aber zu VoiceOver und
+Gesprochene Inhalte. Die Web Speech API sieht einen anderen Topf. Markus und
+Yannick sind für eine Web App damit nicht erreichbar, egal was installiert
+ist.
+
+Das stand hier vorher anders, und die App hat dem Nutzer entsprechend
+Hoffnung gemacht. Deshalb der Knopf "Alle Stimmen zeigen, die dein Gerät
+meldet" im Profil: er gibt jede gemeldete Stimme aus, mit Sprachkürzel und
+Vermerk lokal oder Netz. Eine Liste beendet eine Vermutung, ein Satz in einer
+Dokumentation nicht.
+
 Eine wirklich menschliche Stimme geht mit der Web Speech API nicht. Dafür
 braucht es eine externe Sprachsynthese, einen weiteren Schlüssel und laufende
 Kosten. Siehe `docs/ROADMAP.md`.
