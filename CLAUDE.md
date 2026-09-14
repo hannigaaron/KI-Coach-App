@@ -145,7 +145,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 579 Tests
+npm test           # 587 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -647,6 +647,42 @@ Welche Mahlzeit schon gegessen wurde, erkennt `gegesseneArten` an der Uhrzeit
 des Eintrags, nicht an seinem Text. Wer um 13 Uhr etwas einträgt, hat Mittag
 gegessen, egal wie er es nennt. Ein zweiter Eintrag im selben Fenster gilt als
 dieselbe Mahlzeit: wer nachlegt, isst nicht zweimal zu Mittag.
+
+## Doppelt eingetragenes Essen
+
+`packages/core/src/doppelt.ts`. Der Anlass ist ein echter Tag. Um 15:58 waren
+Mousse und Whey eingetragen, um 15:59 eine Mahlzeit aus fünf Posten, und
+direkt danach eine Mahlzeit, die alles davon nochmal enthielt. Am Ende standen
+5172 statt rund 1700 Kalorien da. Der Nutzer hat das nicht zweimal gesagt.
+
+Die Ursache liegt beim Modell. Es sieht die Zahlen des Tages im Kontext und
+schickt beim nächsten Eintrag die ganze bisherige Liste erneut mit, weil es
+"was ich heute gegessen habe" als eine Mahlzeit versteht.
+
+Die Werkzeugbeschreibung sagt das jetzt ausdrücklich, aber darauf allein darf
+sich nichts verlassen. Ein Prompt hilft, bis er einmal nicht greift, und dann
+rechnet die App einen ganzen Tag falsch. Deshalb der Riegel im Code: was
+innerhalb von zwei Stunden schon dasteht, kommt nicht nochmal rein.
+
+Zwei Stunden, weil derselbe Artikel in derselben Menge innerhalb dieser Zeit
+fast immer ein Wiederholungsfehler ist. Darüber wird es normal: Magerquark
+morgens und abends ist bei diesem Nutzer der Regelfall, und ein Filter, der
+das verschluckt, wäre schlimmer als das Problem.
+
+Verglichen wird über Name und Menge, nicht über die Kalorien. Dieselbe Speise
+kommt je nach Quelle mit 148 oder 150 kcal zurück, und ein Vergleich auf die
+Zahl würde genau dann durchfallen, wenn er gebraucht wird. In der Menge fallen
+Leerzeichen ganz weg, denn "100 g" und "100g" wechseln zwischen zwei Antworten.
+
+Verworfenes steht in der Antwort und ganz vorn. Ein stiller Filter, der Essen
+verschluckt, ist derselbe Fehler nochmal, nur in die andere Richtung, und eine
+Korrektur am Ende einer Antwort wird überlesen. Wer wirklich zweimal dasselbe
+gegessen hat, sagt es und bekommt es nachgetragen.
+
+"Gekochter Reis" und "Reis, gekocht" erkennt der Vergleich nicht als gleich.
+Die Lücke bleibt bewusst offen: eine Ähnlichkeitssuche würde irgendwann zwei
+wirklich verschiedene Speisen zusammenwerfen, und eine erfundene Gleichheit
+ist schlimmer als eine übersehene.
 
 ## Nährwerte von Markenprodukten
 

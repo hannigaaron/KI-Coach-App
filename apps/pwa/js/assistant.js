@@ -10,6 +10,7 @@ import {
   balanceText,
   checkinText,
   checkinVergleich,
+  doppeltText,
   ordnerFuerGespraech,
   ordnerName,
   sucheGespraeche,
@@ -44,6 +45,7 @@ import {
   BEREICH_NAME,
   naehrwerteFuer,
   offeneMahlzeiten,
+  ohneDoppelte,
   portionsVorschlag,
   setzeAusnahme,
   tagesrandFuer,
@@ -1512,22 +1514,44 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
       if (parsed.entries.length === 0) {
         return `Konnte nichts zuordnen. ${parsed.followUpQuestion || "Nenn mir bitte die Mengen."}`;
       }
+      // Der Riegel gegen doppeltes Zählen. Das Modell sieht die Zahlen des
+      // Tages im Kontext und schickt beim nächsten Eintrag die ganze bisherige
+      // Liste erneut mit. An einem echten Tag standen dadurch 5172 statt rund
+      // 1700 Kalorien da. Siehe packages/core/src/doppelt.ts.
+      const jetzt = nowTime();
+      const bestehend = (store.getDay(day).meals || []).flatMap((m) =>
+        (m.entries || []).map((eintrag) => ({ eintrag, at: m.at || jetzt })),
+      );
+      const { behalten, verworfen } = ohneDoppelte(bestehend, parsed.entries, jetzt);
+      const schonDa = doppeltText(verworfen);
+
+      if (behalten.length === 0) {
+        // Alles war schon da. Nichts eintragen, aber auch nicht so tun, als
+        // sei etwas passiert.
+        const n0 = dayNumbers();
+        return [schonDa, `Stand unverändert: ${restText(n0.rest)}`].filter(Boolean).join(" ");
+      }
+
       store.addMeal(day, {
         id: newId(),
         text: beschreibung,
-        at: nowTime(),
+        at: jetzt,
         source: parsed.source,
-        entries: parsed.entries,
+        entries: behalten,
         feeling: null,
       });
       changed();
-      const kcal = Math.round(parsed.entries.reduce((s, e) => s + e.kcal, 0));
-      const protein = Math.round(parsed.entries.reduce((s, e) => s + e.proteinG, 0));
-      const posten = parsed.entries.map((e) => `${e.quantity} ${e.name}`).join(", ");
+      const kcal = Math.round(behalten.reduce((s, e) => s + e.kcal, 0));
+      const protein = Math.round(behalten.reduce((s, e) => s + e.proteinG, 0));
+      const posten = behalten.map((e) => `${e.quantity} ${e.name}`).join(", ");
       const warnung = parsed.warnings.length ? ` ${parsed.warnings.join(" ")}` : "";
       const n = dayNumbers();
-      return `Eingetragen: ${posten}. Zusammen ${kcal} kcal und ${protein} g Protein. ` +
-        `${restText(n.rest)}${warnung}`;
+      // Der Hinweis steht vorn. Eine Korrektur am Ende einer Antwort wird
+      // überlesen, und genau sie ist der Grund, warum die Zahlen stimmen.
+      return [
+        schonDa,
+        `Eingetragen: ${posten}. Zusammen ${kcal} kcal und ${protein} g Protein. ${restText(n.rest)}${warnung}`,
+      ].filter(Boolean).join(" ").trimEnd();
     },
 
     /**
