@@ -571,10 +571,14 @@ try {
       </div>
       <button id="btnSiriKopieren" class="ghost breit">Adresse kopieren</button>
       <ol class="siri-schritte">
-        <li>Kurzbefehle öffnen, oben auf das Pluszeichen.</li>
-        <li>Aktion <b>Nach Text fragen</b> hinzufügen, Eingabetyp Diktat.</li>
-        <li>Aktion <b>URL</b> hinzufügen, die kopierte Adresse einsetzen.</li>
-        <li>Ans Ende der Adresse die Variable <b>Bereitgestellte Eingabe</b> ziehen.</li>
+        <li>Kurzbefehle öffnen, oben rechts auf das Pluszeichen.</li>
+        <li>Aktion <b>Nach Eingabe fragen</b> hinzufügen. Der Typ muss <b>Text</b> sein,
+          nicht URL. Als Frage etwas wie "Was willst du daevo sagen".</li>
+        <li>Aktion <b>URL codieren</b> hinzufügen. Darin steht die Ausgabe der Frage.
+          Ohne diesen Schritt zerlegt das erste Leerzeichen deinen Satz.</li>
+        <li>Aktion <b>URL</b> hinzufügen, nicht URLs öffnen. Die kopierte Adresse einsetzen
+          und direkt hinter das Gleichzeichen die Variable <b>URL codierter Text</b>.
+          Dazwischen darf kein Leerzeichen stehen.</li>
         <li>Aktion <b>URLs öffnen</b> hinzufügen.</li>
         <li>Den Kurzbefehl <b>daevo</b> nennen. Danach reicht "Hey Siri, daevo".</li>
       </ol>

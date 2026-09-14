@@ -2,7 +2,7 @@ import { fehlerErklaerung } from "./fehler.js";
 import { AGENT_TOOLS } from "./tools.js";
 import { modellFuer } from "./modelle.js";
 import { systemBloecke, type Modus } from "./persona.js";
-import { anhangBlock, type Anhang, type ChatMessage, type CoachProvider, type ContentBlock } from "./provider.js";
+import { anhangBlock, ohneKaputteDenkbloecke, type Anhang, type ChatMessage, type CoachProvider, type ContentBlock } from "./provider.js";
 
 /**
  * Der Assistent.
@@ -179,7 +179,14 @@ export class Agent {
     const inhalt: string | ContentBlock[] = anhaenge.length
       ? [...anhaenge.map(anhangBlock), { type: "text" as const, text: params.nachricht || "Schau dir das an." }]
       : params.nachricht;
-    const messages: ChatMessage[] = [...params.verlauf, { role: "user", content: inhalt }];
+    // Ein Verlauf aus einer älteren Fassung kann leere Denkblöcke tragen. Die
+    // lehnt die API ab, und zwar bei jeder weiteren Nachricht in diesem
+    // Gespräch, nicht nur bei der einen. Deshalb wird hier gefiltert und nicht
+    // nur beim Empfangen.
+    const verlauf: ChatMessage[] = params.verlauf.map((m) =>
+      Array.isArray(m.content) ? { ...m, content: ohneKaputteDenkbloecke(m.content) } : m,
+    );
+    const messages: ChatMessage[] = [...verlauf, { role: "user", content: inhalt }];
     const ausgeführt: string[] = [];
 
     for (let step = 0; step < MAX_STEPS; step++) {

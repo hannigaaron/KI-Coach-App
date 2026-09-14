@@ -145,7 +145,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 564 Tests
+npm test           # 568 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -679,6 +679,44 @@ Reihenfolge nicht offensichtlich ist: der Worker muss stehen, bevor er
 Geheimnisse annimmt. Wer die Geheimnisse zuerst setzt, wird mitten im Ablauf
 gefragt, ob ein Worker angelegt werden soll, und wer dort abbricht, hat
 weder das eine noch das andere.
+
+## Denkblöcke im Verlauf
+
+Mit Denktiefe schickt die API Blöcke vom Typ `thinking` mit. Sie werden nicht
+angezeigt, müssen aber unverändert zurück, wenn das Modell nach einem
+Werkzeugaufruf weiterredet. Die Signatur belegt, dass der Text unverändert ist.
+
+Beim Strömen kommt der Denktext in Stücken, genau wie der Antworttext, als
+`thinking_delta` und am Ende `signature_delta`. Diese beiden Zweige fehlten.
+Der Block lag danach leer im Verlauf, und die API antwortete beim nächsten
+Werkzeugaufruf mit Status 400: "each thinking block must contain thinking".
+
+Der Schaden war grösser als eine gescheiterte Nachricht. Ein leerer Denkblock
+bleibt im Gespräch stehen, also scheiterte danach jede weitere Nachricht in
+diesem Gespräch. Für den Nutzer sah es aus, als sei die App kaputt, und
+technisch war sie das auch.
+
+`ohneKaputteDenkbloecke` in `packages/coach/src/provider.ts` ist der Riegel an
+drei Stellen: hinter dem Strömen, hinter dem Weg ohne Strom, und vor dem
+Absenden über `params.verlauf`. Die dritte ist die wichtigste, denn ein
+Gespräch aus einer älteren Fassung trägt die kaputten Blöcke weiterhin. Bleibt
+nach dem Entfernen nichts übrig, steht ein leerer Textblock da: eine leere
+Nachricht lehnt die API ebenfalls ab.
+
+## Der Kalender antwortet, statt Zahlen auszugeben
+
+`wochenText` in `packages/core/src/tagesablauf.ts` gab sieben Zeilen aus, je
+Tag eine, mit Datum und Minutenzahl. Das ist keine Antwort, das ist eine
+Tabelle in Prosa. Der Leser muss sich das Fazit selbst zusammenrechnen, und
+genau dafür hat er gefragt.
+
+Jetzt steht das Fazit zuerst: wie viele Termine in wie vielen Tagen, welcher
+Tag der vollste ist, wo der längste freie Block liegt. Danach die Tage, aber
+nur die mit Terminen. Eine Zeile "nichts im Kalender" trägt keine Information
+und drängt die Tage weg, die eine tragen. Leere Tage stehen als Zahl am Ende.
+
+Minuten werden als Dauer gesagt. "180 Minuten verplant" rechnet der Leser
+jedes Mal selbst um.
 
 ## Wenn der Modellaufruf scheitert
 

@@ -125,10 +125,27 @@ test("der Text nennt jede Zahl, auf der er beruht", () => {
   assert.ok(text.includes("Wach von 07:00 bis 23:00"));
 });
 
-test("die Wochenübersicht bleibt eine Zeile je Tag", () => {
+test("die Wochenübersicht beginnt mit dem Fazit, nicht mit einer Liste", () => {
   const text = wochenText([lauf([t("09:00", "12:00", "Kunden")])]);
-  assert.equal(text.split("\n").length, 1);
-  assert.ok(text.includes("Montag"));
+  const erste = text.split("\n")[0] ?? "";
+  // Die erste Zeile beantwortet die Frage: wie voll ist die Woche. Vorher
+  // stand dort sofort der erste Tag mit Datum und Minutenzahl, und der Leser
+  // musste sich das Fazit selbst zusammenrechnen.
+  assert.ok(erste.includes("1 Termin"), erste);
+  assert.ok(erste.includes("3 Stunden"), erste);
+  assert.ok(text.includes("Montag"), text);
+});
+
+test("Minuten werden als Stunden gesagt, nicht als Minutenzahl", () => {
+  const text = wochenText([lauf([t("09:00", "12:00", "Kunden")])]);
+  assert.equal(text.includes("180 Minuten"), false, text);
+});
+
+test("Tage ohne Termin drängen die Tage mit Terminen nicht weg", () => {
+  const text = wochenText([lauf([]), lauf([t("09:00", "10:00", "Kunde")]), lauf([])]);
+  // Zwei leere Tage stehen als eine Zahl am Ende, nicht als zwei Zeilen.
+  assert.equal(text.includes("nichts im Kalender"), false, text);
+  assert.ok(text.includes("Ohne Termin: 2 Tage"), text);
 });
 
 test("ein Termin heisst Termin, nicht Termine", () => {

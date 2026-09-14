@@ -39,7 +39,47 @@ export type ContentBlock =
   | { type: "image"; source: { type: "base64"; media_type: string; data: string } }
   | { type: "document"; source: { type: "base64"; media_type: string; data: string } }
   | { type: "tool_use"; id: string; name: string; input: Record<string, unknown> }
-  | { type: "tool_result"; tool_use_id: string; content: string; is_error?: boolean };
+  | { type: "tool_result"; tool_use_id: string; content: string; is_error?: boolean }
+  /**
+   * Ein Denkblock aus einer Antwort mit Denktiefe.
+   *
+   * Er wird nicht angezeigt, muss aber unverändert zurückgeschickt werden,
+   * wenn das Modell nach einem Werkzeugaufruf weiterredet. Die Signatur ist
+   * der Beleg dafür, dass der Text unverändert ist. Ohne sie lehnt die API
+   * den Block ab.
+   */
+  | { type: "thinking"; thinking: string; signature: string }
+  | { type: "redacted_thinking"; data: string };
+
+/**
+ * Ein Denkblock, der so nicht zurückgeschickt werden darf.
+ *
+ * Genau das hat die App im Betrieb mit Status 400 abgeschossen: "each
+ * thinking block must contain thinking". Beim Strömen kam der Block leer an
+ * und wurde nie gefüllt, weil die Teilstücke vom Typ thinking_delta nicht
+ * ausgewertet wurden. Danach lag ein leerer Denkblock im Verlauf, und jede
+ * weitere Nachricht in diesem Gespräch scheiterte, nicht nur die eine.
+ *
+ * Deshalb wird hier geprüft und nicht nur beim Strömen: ein Verlauf aus einer
+ * älteren Fassung trägt die kaputten Blöcke weiterhin.
+ */
+export function denkblockUnbrauchbar(block: ContentBlock): boolean {
+  if (block.type === "thinking") return !block.thinking?.trim() || !block.signature?.trim();
+  if (block.type === "redacted_thinking") return !block.data?.trim();
+  return false;
+}
+
+/**
+ * Räumt eine Antwort auf, bevor sie zurück in den Verlauf geht.
+ *
+ * Bleibt nach dem Entfernen nichts als Denkblöcke übrig, wäre die Nachricht
+ * leer, und eine leere Nachricht lehnt die API ebenfalls ab. Dann bleibt ein
+ * leerer Textblock stehen: er kostet nichts und hält die Nachricht gültig.
+ */
+export function ohneKaputteDenkbloecke(content: ContentBlock[]): ContentBlock[] {
+  const sauber = content.filter((b) => !denkblockUnbrauchbar(b));
+  return sauber.length ? sauber : [{ type: "text", text: "" }];
+}
 
 /**
  * Baut aus einem Anhang den passenden Inhaltsblock.
