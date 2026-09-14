@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { MAHLZEITEN, offeneMahlzeiten, verteileRest, verteilungText } from "./verteilung.js";
+import { MAHLZEITEN, offeneMahlzeiten, verteileRest, verteilungText, restText } from "./verteilung.js";
 
 const REST = { kcal: 1447, proteinG: 119, fatG: 16, carbsG: 200 };
 
@@ -91,4 +91,26 @@ test("eine zu grosse Mahlzeit wird gemeldet", () => {
 test("auf zwei Mahlzeiten verteilt faellt der Hinweis weg", () => {
   const v = verteileRest({ kcal: 1459, proteinG: 45, fatG: 43, carbsG: 227 }, ["abendessen", "snack"]);
   assert.ok(!v.hinweise.some((h) => h.includes("1200 kcal")), v.hinweise.join(" "));
+});
+
+test("Über dem Ziel steht drüber und nicht eine Zahl mit Minus", () => {
+  // Der echte Fall aus dem Betrieb: "Offen sind noch -244 kcal und 0 g Protein."
+  const text = restText({ kcal: -244, proteinG: 0 });
+  assert.ok(!text.includes("-"), `im Text steht ein Minus: ${text}`);
+  assert.match(text, /244 kcal über deinem Tagesziel/);
+});
+
+test("Über den Kalorien und trotzdem Protein offen wird getrennt genannt", () => {
+  const text = restText({ kcal: -300, proteinG: 40 });
+  assert.match(text, /300 kcal über/);
+  assert.match(text, /40 g/);
+});
+
+test("Alles erreicht wird als erreicht gemeldet", () => {
+  assert.match(restText({ kcal: 0, proteinG: 0 }), /erreicht/);
+  assert.match(restText({ kcal: 500, proteinG: 0 }), /500 kcal.*Protein ist erreicht/);
+});
+
+test("Der Normalfall bleibt unverändert", () => {
+  assert.equal(restText({ kcal: 800, proteinG: 60 }), "Offen sind noch 800 kcal und 60 g Protein.");
 });

@@ -154,7 +154,31 @@ test("fällt bei Netzwerkfehler auf den Regelpfad zurück", async () => {
   });
   assert.equal(reply.source, "offline");
   assert.deepEqual(log, ["wasser:500"]);
-  assert.match(reply.text, /nicht erreichbar/);
+  // Die Aufgabe wird trotzdem erledigt, und der Nutzer erfährt warum das
+  // Modell nicht dran war. Vorher stand hier nur "nicht erreichbar", was ihn
+  // ohne jeden Anhaltspunkt zurückliess.
+  assert.match(reply.text, /500 ml eingetragen/);
+  assert.ok(!/nicht erreichbar/.test(reply.text), "keine Ausrede ohne Ursache");
+  assert.match(reply.text, /gescheitert|Schlüssel|Guthaben|Netz|überlastet/);
+});
+
+test("bei einem abgelehnten Schlüssel steht im Chat, was zu tun ist", async () => {
+  class KeyProvider implements CoachProvider {
+    readonly name = "key";
+    readonly available = true;
+    async generateJson<T>(): Promise<T> { throw new Error("weg"); }
+    async converse(): Promise<ConverseResponse> {
+      throw new Error('Anthropic API 401: {"error":{"message":"invalid x-api-key"}}');
+    }
+  }
+  const log: string[] = [];
+  const reply = await new Agent(new KeyProvider()).respond({
+    nachricht: "Ich habe zwei Gläser Wasser getrunken", verlauf: LEER, kontext: KONTEXT, aktionen: stubActions(log),
+  });
+  assert.match(reply.text, /Schlüssel wird abgelehnt/);
+  assert.match(reply.text, /Profil/);
+  // Ein falscher Schlüssel wird beim zweiten Versuch nicht richtig.
+  assert.ok(!/nochmal/.test(reply.text), "kein sinnloser Hinweis auf einen erneuten Versuch");
 });
 
 test("ohne Schlüssel läuft alles über den Regelpfad", async () => {

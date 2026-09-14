@@ -145,7 +145,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 542 Tests
+npm test           # 553 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -621,6 +621,35 @@ Reihenfolge nicht offensichtlich ist: der Worker muss stehen, bevor er
 Geheimnisse annimmt. Wer die Geheimnisse zuerst setzt, wird mitten im Ablauf
 gefragt, ob ein Worker angelegt werden soll, und wer dort abbricht, hat
 weder das eine noch das andere.
+
+## Wenn der Modellaufruf scheitert
+
+`packages/coach/src/fehler.ts`. Vorher stand in der Antwort immer derselbe
+Satz: "Der Coach ist gerade nicht erreichbar, ich habe es regelbasiert
+erledigt." Das ist keine Diagnose, sondern eine Entschuldigung. Die Meldung
+von Anthropic, die den Grund trägt, wurde dabei weggeworfen.
+
+`fehlerErklaerung` macht daraus einen Satz, mit dem sich etwas anfangen lässt:
+abgelehnter Schlüssel, fehlendes Guthaben, zu viele Anfragen, überlastete
+Schnittstelle, kein Netz, unbekanntes Modell, zu lange Anfrage. Jede Deutung
+sagt ausserdem, ob ein erneuter Versuch hilft. Bei einem falschen Schlüssel
+hilft er nicht, und der Hinweis darauf bleibt dann weg.
+
+Passt kein Muster, kommt die Meldung im Original mit, gekürzt. Eine erfundene
+Ursache wäre schlimmer als eine technische Zeile: mit der lässt sich suchen.
+
+`pruefe()` im Profil fragt jedes der drei Modelle einmal an, nicht nur das
+Standardmodell. Der Chat benutzt Haiku fürs Erfassen, Sonnet für Fachfragen
+und Opus für alles Persönliche. Eine Prüfung, die nur eines davon anfragt,
+meldet "alles gut", während jede eingetragene Mahlzeit an einem anderen
+scheitert. Mitgeschickt wird dabei `output_config.effort` genau dort, wo der
+Chat es auch schickt: sonst prüft der Test nicht das, was später läuft.
+
+`restText` in `packages/core/src/verteilung.ts` formuliert den Rest des Tages.
+Über dem Ziel ist die Restmenge negativ, und "Offen sind noch -244 kcal" ist
+kein Deutsch und keine Information. Protein steht getrennt, weil beides
+auseinanderlaufen kann: wer über den Kalorien liegt, kann beim Protein
+trotzdem fehlen, und das ist die wichtigere der beiden Zahlen.
 
 ## Sicherung
 

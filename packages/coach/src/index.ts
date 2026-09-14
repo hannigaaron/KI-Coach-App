@@ -15,3 +15,4 @@ export * from "./modelle.js";
 export * from "./persona.js";
 export * from "./tools.js";
 export * from "./agent.js";
+export * from "./fehler.js";
