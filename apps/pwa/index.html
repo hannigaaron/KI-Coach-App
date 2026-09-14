@@ -53,7 +53,23 @@ try {
   weil die Schritte aus js/anamnese.js kommen und dort auch getestet werden.
   Zwei Quellen für dieselben Fragen wären eine Fehlerquelle.
 -->
-<div id="setup" class="screen setup"><div id="setupFlow" class="setup-flow"></div></div>
+<div id="setup" class="screen setup">
+  <div id="setupFlow" class="setup-flow"></div>
+  <!--
+    Der Weg zurück nach einer Neuinstallation.
+    Ohne ihn müsste man den ganzen Fragebogen durchklicken, bevor man im Profil
+    an die Sicherung kommt, und wäre danach trotzdem alles neu am Eintippen.
+  -->
+  <div class="setup-sicherung">
+    <button id="btnSetupSicherung" class="ghost breit" type="button">Ich habe eine Sicherung</button>
+    <div id="setupSicherungFeld" hidden>
+      <textarea id="setupSicherungText" rows="4" spellcheck="false" autocapitalize="none" autocorrect="off"
+                placeholder="Den gesicherten Text hier einfügen"></textarea>
+      <button id="btnSetupSicherungStart" class="primary breit" type="button">Einspielen und loslegen</button>
+      <p id="setupSicherungHinweis" class="feld-hilfe"></p>
+    </div>
+  </div>
+</div>
 
 <main id="app" hidden>
 
@@ -98,6 +114,8 @@ try {
       <button type="button" id="btnMic" class="icon-btn mic" aria-label="Diktieren"><span class="mic-dot"></span></button>
       <button type="button" id="btnAnhang" class="icon-btn clip" aria-label="Foto oder Datei anhängen"><span class="clip-icon"></span></button>
       <button type="button" id="btnDump" class="icon-btn dump" aria-label="Kopf leeren, alles rausreden">Kopf</button>
+      <button type="button" id="btnWeckwort" class="icon-btn weckwort" aria-pressed="false"
+              aria-label="Auf Hey daevo hören">Hey</button>
       <input id="chatInput" type="text" placeholder="Schreib oder sprich" autocomplete="off" enterkeyhint="send">
       <button type="submit" id="btnSend" class="icon-btn send" aria-label="Senden"><span class="arrow"></span></button>
     </form>
@@ -657,8 +675,26 @@ try {
       <label class="switch"><input type="checkbox" id="optHandsFree"><span>Freihand, hört nach jeder Antwort weiter zu</span></label>
       <p class="fineprint" id="voiceNote"></p>
 
+      <h2 class="abschnitt">Sicherung</h2>
+      <p class="sub">Alles, was du eingestellt hast, in einem Text. Damit richtest du ein neues Gerät in zehn Sekunden ein, statt alles noch einmal einzutippen.</p>
+      <button id="btnSicherung" class="primary breit">Sicherung erstellen</button>
+      <div class="field" id="sicherungFeld" hidden>
+        <label for="sicherungText">Deine Sicherung</label>
+        <textarea id="sicherungText" rows="4" spellcheck="false" autocapitalize="none" autocorrect="off"></textarea>
+        <button id="btnSicherungKopieren" class="ghost breit">Kopieren</button>
+        <button id="btnExport" class="ghost breit">Als Datei speichern</button>
+        <p class="feld-hilfe">Schick dir den Text selbst zu, dann hast du ihn auf jedem Gerät. Er enthält deinen Schlüssel und dein Anmeldewort, also nicht öffentlich posten.</p>
+      </div>
+      <button id="btnWiederherstellen" class="ghost breit">Sicherung einspielen</button>
+      <div class="field" id="wiederherstellenFeld" hidden>
+        <label for="wiederherstellenText">Sicherung einfügen</label>
+        <textarea id="wiederherstellenText" rows="4" spellcheck="false" autocapitalize="none" autocorrect="off"
+                  placeholder="Den gesicherten Text hier einfügen"></textarea>
+        <button id="btnWiederherstellenStart" class="primary breit">Jetzt einspielen</button>
+      </div>
+      <p id="sicherungHinweis" class="feld-hilfe"></p>
+
       <h2 class="abschnitt">Daten</h2>
-      <button id="btnExport" class="ghost">Daten exportieren</button>
       <button id="btnReset" class="danger">Alles löschen</button>
       <p class="fineprint" id="versionLine"></p>
     </div>

@@ -22,6 +22,7 @@ import {
   widersprueche,
   widerspruchText,
   energieBefund,
+  restText,
   energieBefundText,
   mittagsBefund,
   morgenBriefing,
@@ -1481,7 +1482,7 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
       const warnung = parsed.warnings.length ? ` ${parsed.warnings.join(" ")}` : "";
       const n = dayNumbers();
       return `Eingetragen: ${posten}. Zusammen ${kcal} kcal und ${protein} g Protein. ` +
-        `Offen sind noch ${n.rest.kcal} kcal und ${Math.max(0, n.rest.proteinG)} g Protein.${warnung}`;
+        `${restText(n.rest)}${warnung}`;
     },
 
     /**
@@ -1636,7 +1637,7 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
         });
         changed();
         const n = dayNumbers();
-        zeilen.push(`Eingetragen. Offen sind noch ${n.rest.kcal} kcal und ${Math.max(0, n.rest.proteinG)} g Protein.`);
+        zeilen.push(`Eingetragen. ${restText(n.rest)}`);
       }
 
       return zeilen.join("\n");
@@ -1894,7 +1895,7 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
         `Zusammen ${kcal} kcal und ${protein} g Protein.`,
         `Sicherheit der Mengenschätzung: ${ergebnis.sicherheit}.`,
         ergebnis.annahme ? `Angenommen: ${ergebnis.annahme}` : "",
-        `Offen sind noch ${n.rest.kcal} kcal und ${Math.max(0, n.rest.proteinG)} g Protein.`,
+        `${restText(n.rest)}`,
         ergebnis.warnings.length ? ergebnis.warnings.join(" ") : "",
         ergebnis.rueckfrage,
       ];

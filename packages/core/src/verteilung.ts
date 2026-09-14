@@ -160,13 +160,37 @@ export function offeneMahlzeiten(stunde: number, bereitsGegessen: MahlzeitArt[] 
     .map((m) => m.art);
 }
 
+/**
+ * Wie viel noch offen ist, in einem Satz.
+ *
+ * Über dem Ziel ist die Restmenge negativ, und "Offen sind noch -244 kcal"
+ * ist kein Deutsch und keine Information. Wer drüber ist, muss das als
+ * solches lesen, sonst rechnet er selbst nach, was das Minus bedeutet.
+ */
+export function restText(rest: { kcal: number; proteinG: number }): string {
+  const kcal = Math.round(rest.kcal);
+  const protein = Math.round(rest.proteinG);
+
+  if (kcal < 0) {
+    const drueber = Math.abs(kcal);
+    // Protein bleibt getrennt: wer über den Kalorien liegt, kann beim Protein
+    // trotzdem fehlen, und das ist die wichtigere der beiden Zahlen.
+    return protein > 0
+      ? `Du bist ${drueber} kcal über deinem Tagesziel, beim Protein fehlen noch ${protein} g.`
+      : `Du bist ${drueber} kcal über deinem Tagesziel. Protein ist erreicht.`;
+  }
+  if (kcal === 0 && protein <= 0) return "Kalorien und Protein sind für heute erreicht.";
+  if (protein <= 0) return `Offen sind noch ${kcal} kcal. Protein ist erreicht.`;
+  return `Offen sind noch ${kcal} kcal und ${protein} g Protein.`;
+}
+
 /** Ein Satz je Mahlzeit, den der Coach als Auftrag bekommt. */
 export function verteilungText(v: Verteilung): string {
   if (v.anteile.length === 0) return v.hinweise.join(" ");
   const zeilen = v.anteile.map(
     (a) => `- ${a.name}: rund ${a.kcal} kcal, ${a.proteinG} g Protein, ${a.fatG} g Fett, ${a.carbsG} g Kohlenhydrate.`,
   );
-  const kopf = `Offen sind noch ${Math.round(v.rest.kcal)} kcal und ${Math.round(v.rest.proteinG)} g Protein. `
+  const kopf = `${restText(v.rest)} `
     + `Aufgeteilt auf ${v.anteile.length} ${v.anteile.length === 1 ? "Mahlzeit" : "Mahlzeiten"}:`;
   return [kopf, ...zeilen, ...v.hinweise].join("\n");
 }

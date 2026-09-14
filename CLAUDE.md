@@ -145,7 +145,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 536 Tests
+npm test           # 564 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -295,6 +295,20 @@ grösser als der zwischen zwei verschiedenen Stimmen, deshalb wiegt die Qualitä
 am schwersten. Die Auswahl steht im Profil, weil nur das Gerät weiss, was
 installiert ist.
 
+Angeboten werden alle Stimmen des Geräts, deutsche zuerst. Vorher fiel alles
+raus, dessen Sprachkürzel nicht mit "de" beginnt, und dann stand im Profil
+"keine deutsche Stimme gefunden", obwohl eine installiert war. Welches Kürzel
+eine nachgeladene Stimme trägt, entscheidet das Betriebssystem. Wer sich eine
+Stimme herunterlädt, will sie benutzen können.
+
+`stimmenBereit()` wartet, bis das Gerät seine Stimmen meldet. `getVoices()`
+gibt beim ersten Aufruf oft eine leere Liste zurück und füllt sie erst danach.
+Ohne das Warten war die Auswahl leer, obwohl Stimmen da waren.
+
+Das Sprachkürzel der Ausgabe folgt der gewählten Stimme, nicht umgekehrt.
+Steht dort fest `de-DE`, während die Stimme ein anderes trägt, sucht sich
+manche Engine eine andere Stimme und ignoriert die Wahl.
+
 Der grössere Teil des Roboterklangs kommt nicht von der Stimme, sondern vom
 Text. `stripForSpeech` setzt Punkte an Zeilenenden, damit die Engine Luft holt,
 löst Abkürzungen auf und schreibt Uhrzeiten aus. Ohne das wird "14:30" zu
@@ -304,6 +318,39 @@ dem Standard: die Voreinstellung klingt gehetzt, und gehetzt klingt maschinell.
 Eine wirklich menschliche Stimme geht mit der Web Speech API nicht. Dafür
 braucht es eine externe Sprachsynthese, einen weiteren Schlüssel und laufende
 Kosten. Siehe `docs/ROADMAP.md`.
+
+## Das Weckwort
+
+`packages/core/src/weckwort.ts`. Der Knopf mit "Hey" neben dem Mikrofon schaltet
+das Dauerhören ein. Danach reicht "Hey daevo, ich hab 200 Gramm Magerquark
+gegessen", ohne dass jemand das Mikrofon antippt.
+
+Erkannt wird ein Anredewort und danach der Name. Beides zusammen, nie der Name
+allein. Der Chef dieses Nutzers heisst David, und "ich hab mit David gesprochen"
+darf die App nicht aufwecken. Ein Anredewort davor kostet nichts und schliesst
+genau diesen Fall aus.
+
+Die Spracherkennung schreibt den Namen fast nie richtig. Deshalb steht eine
+Liste echter Verschreiber im Code, dazu Levenshtein Abstand bis 2 für alles,
+was noch kommt. Die Liste stammt aus dem, was das Gerät tatsächlich ausgegeben
+hat, nicht aus Vermutungen.
+
+Steht hinter dem Weckwort schon ein Satz, geht er sofort raus. Steht nichts
+dahinter, antwortet die App "ja, ich höre" und nimmt die nächste Äusserung als
+Frage. Zwei Wege, weil beides vorkommt.
+
+Nach zehn Minuten ohne Weckruf schaltet das Dauerhören ab. Ein dauernd offenes
+Mikrofon zieht Akku, und niemand merkt es, bis das Gerät leer ist. Jeder
+erkannte Ruf setzt die Frist neu.
+
+`weckwortWeiterhoeren()` startet das Mikrofon nach jedem verworfenen Satz neu.
+Der Listener in `voice.js` startet von selbst nur neu, wenn gar kein Text kam.
+Ohne den Neustart war das Mikrofon nach dem ersten Fremdsatz tot, und das sieht
+aus wie ein kaputter Knopf.
+
+Im Hintergrund oder bei gesperrtem Bildschirm läuft das nicht. Das Web gibt
+einer Seite kein Mikrofon, wenn sie nicht sichtbar ist. Dafür braucht es eine
+native App mit eigener Weckworterkennung, siehe `docs/ROADMAP.md`.
 
 ## Tagesränder
 
@@ -608,6 +655,69 @@ Geheimnisse annimmt. Wer die Geheimnisse zuerst setzt, wird mitten im Ablauf
 gefragt, ob ein Worker angelegt werden soll, und wer dort abbricht, hat
 weder das eine noch das andere.
 
+## Wenn der Modellaufruf scheitert
+
+`packages/coach/src/fehler.ts`. Vorher stand in der Antwort immer derselbe
+Satz: "Der Coach ist gerade nicht erreichbar, ich habe es regelbasiert
+erledigt." Das ist keine Diagnose, sondern eine Entschuldigung. Die Meldung
+von Anthropic, die den Grund trägt, wurde dabei weggeworfen.
+
+`fehlerErklaerung` macht daraus einen Satz, mit dem sich etwas anfangen lässt:
+abgelehnter Schlüssel, fehlendes Guthaben, zu viele Anfragen, überlastete
+Schnittstelle, kein Netz, unbekanntes Modell, zu lange Anfrage. Jede Deutung
+sagt ausserdem, ob ein erneuter Versuch hilft. Bei einem falschen Schlüssel
+hilft er nicht, und der Hinweis darauf bleibt dann weg.
+
+Passt kein Muster, kommt die Meldung im Original mit, gekürzt. Eine erfundene
+Ursache wäre schlimmer als eine technische Zeile: mit der lässt sich suchen.
+
+`pruefe()` im Profil fragt jedes der drei Modelle einmal an, nicht nur das
+Standardmodell. Der Chat benutzt Haiku fürs Erfassen, Sonnet für Fachfragen
+und Opus für alles Persönliche. Eine Prüfung, die nur eines davon anfragt,
+meldet "alles gut", während jede eingetragene Mahlzeit an einem anderen
+scheitert. Mitgeschickt wird dabei `output_config.effort` genau dort, wo der
+Chat es auch schickt: sonst prüft der Test nicht das, was später läuft.
+
+`restText` in `packages/core/src/verteilung.ts` formuliert den Rest des Tages.
+Über dem Ziel ist die Restmenge negativ, und "Offen sind noch -244 kcal" ist
+kein Deutsch und keine Information. Protein steht getrennt, weil beides
+auseinanderlaufen kann: wer über den Kalorien liegt, kann beim Protein
+trotzdem fehlen, und das ist die wichtigere der beiden Zahlen.
+
+## Sicherung
+
+`store.exportAll()` und `store.importAll()`, Oberfläche im Profil unter
+Sicherung und zusätzlich im Anamnesebogen.
+
+Der zweite Ort ist der wichtigere. Auf dem iPhone liegt der Speicher einer
+installierten App getrennt von Safari: wer das Symbol vom Home Bildschirm
+nimmt, verliert alles. Danach steht er im Fragebogen, und ohne einen Einstieg
+genau dort müsste er ihn erst durchklicken, um im Profil an die Sicherung zu
+kommen. Genau das soll eine Sicherung ersparen.
+
+Die Einstellungen fehlten im Export, bis es jemand gebraucht hat. Sie sind der
+Teil, der die meiste Arbeit macht: Schlüssel, Adresse des Push Workers,
+Anmeldewort, Stimme, eigene Anweisungen. Eine Sicherung ohne sie ist keine.
+
+Ausgegeben wird Text und nicht nur eine Datei. Ein Download aus einer
+installierten App landet auf dem iPhone je nach Fassung nirgends Sichtbarem,
+ein Text, den man sich selbst schickt, kommt immer an. Der Text trägt den
+Schlüssel im Klartext, deshalb steht der Hinweis daneben.
+
+`importAll` schreibt nur, was in der Datei steht. Ein fehlendes Feld lässt den
+bestehenden Wert in Ruhe: eine ältere Sicherung darf nicht löschen, was sie
+noch nicht kannte. Zurück kommt, was angekommen ist, denn "wiederhergestellt"
+ohne Zahl glaubt niemand, der gerade seine Daten verloren hat.
+
+`getMemories()` zieht jede Notiz gerade, statt an jeder Lesestelle zu prüfen.
+Eine Notiz ohne `tags` hat die App in `ensureStandards` zum Absturz gebracht,
+also beim Start und bevor etwas zu sehen war. Genau der Fall tritt ein, wenn
+eine Sicherung aus einer älteren Fassung eingespielt wird.
+
+`allDays()` liest das Verzeichnis und zusätzlich die vorhandenen Schlüssel im
+Speicher. Laufen beide auseinander, fehlten sonst Tage in der Sicherung, ohne
+dass es jemand merkt.
+
 ## Das Menue
 
 Fünf Einträge statt vierzehn: Assistent, Ernährung, Coaching, Planung und
@@ -784,12 +894,13 @@ Mittags Check-in, Aufgaben mit Priorisierung, Kopf leeren, Balance Board,
 Tagesabschluss, Muster über
 Wochen, Widerspruchsprüfung, Tag und Nacht
 Modus, installierbare Web App, Marke, API, Push Benachrichtigungen bei
-geschlossener App.
+geschlossener App, Weckwort bei geöffneter App.
 Der Schlüssel lässt sich im Profil prüfen. Zwei Schritte, weil zwei Dinge
 schiefgehen können: die Modellliste kostet nichts und zeigt, ob der Schlüssel
 gilt, eine winzige Nachricht danach zeigt, ob Guthaben da ist. Ein gültiger
 Schlüssel ohne Guthaben ist der häufigste Fall und sah vorher aus wie ein
 falscher.
 
-Offen: Apple Health und Wearables, Wortaktivierung, Anmeldung über Apple.
+Offen: Apple Health und Wearables, Weckwort im Hintergrund, Anmeldung über
+Apple.
 Siehe `docs/ROADMAP.md`.

@@ -1,3 +1,4 @@
+import { MODELLE } from "./modelle.js";
 import {
   ProviderUnavailableError,
   type CoachProvider,
@@ -336,7 +337,21 @@ export class AnthropicProvider implements CoachProvider {
         }),
       });
       if (antwort.ok) {
-        return { ok: true, schluessel: true, guthaben: true, meldung: "Schlüssel gültig, Guthaben vorhanden." };
+        // Der Chat benutzt drei Modelle, nicht eines. Eine Prüfung, die nur
+        // das Standardmodell anfragt, meldet "alles gut", während das Modell
+        // fürs Erfassen mit einem Fehler abgewiesen wird, und der Nutzer
+        // sucht den Grund dann überall ausser hier.
+        const kaputt = await this.modelleDurchgehen();
+        if (kaputt.length > 0) {
+          return {
+            ok: false, schluessel: true, guthaben: true,
+            meldung:
+              `Schlüssel und Guthaben sind in Ordnung, aber ${kaputt.length} von drei Modellen antworten nicht: `
+              + `${kaputt.join(" ")} `
+              + "Stell im Profil unter Modell ein Modell fest ein, das durchkommt.",
+          };
+        }
+        return { ok: true, schluessel: true, guthaben: true, meldung: "Schlüssel gültig, Guthaben vorhanden. Alle drei Modelle antworten." };
       }
       const text = await antwort.text();
       const fehlend = antwort.status === 400 && /credit|balance|guthaben/i.test(text);
@@ -352,6 +367,40 @@ export class AnthropicProvider implements CoachProvider {
         meldung: `Der Schlüssel gilt, die Anfrage kam nicht durch: ${(error as Error).message}`,
       };
     }
+  }
+
+  /**
+   * Fragt jedes Modell einmal an, das die App wirklich benutzt.
+   *
+   * Eine Antwort je Modell mit max_tokens 1 kostet den Bruchteil eines Cents
+   * und beantwortet die Frage, die sonst offen bleibt: nicht "gilt der
+   * Schlüssel", sondern "kommt jede Nachricht durch".
+   *
+   * Zurück kommen nur die Modelle, die nicht antworten, je mit Grund.
+   */
+  private async modelleDurchgehen(): Promise<string[]> {
+    const kaputt: string[] = [];
+    for (const wahl of Object.values(MODELLE)) {
+      try {
+        const antwort = await this.fetchImpl(API_URL, {
+          method: "POST",
+          headers: this.headers(),
+          body: JSON.stringify({
+            model: wahl.id,
+            max_tokens: 1,
+            messages: [{ role: "user", content: "ok" }],
+            // Genau die Angabe, die den Unterschied macht: Haiku 4.5 lehnt
+            // sie ab. Wird sie hier weggelassen, prüft der Test nicht das,
+            // was der Chat später schickt.
+            ...(wahl.kannEffort ? { output_config: { effort: "low" } } : {}),
+          }),
+        });
+        if (!antwort.ok) kaputt.push(`${wahl.name} ${antwort.status}: ${kurz(await antwort.text())}`);
+      } catch (error) {
+        kaputt.push(`${wahl.name}: ${(error as Error).message}`);
+      }
+    }
+    return kaputt;
   }
 
   async generateJson<T>(request: JsonRequest): Promise<T> {

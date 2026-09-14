@@ -318,14 +318,72 @@ const MAENNLICHE_STIMMEN = [
   "hans", "klaus", "reed", "rocko", "eddy", "grandpa",
 ];
 
-export function deutscheStimmen() {
+/**
+ * Alle Stimmen des Geraets, die brauchbaren zuerst.
+ *
+ * Frueher stand hier ein Filter auf lang beginnt mit "de", und alles andere
+ * fiel raus. Das war falsch. Welches Sprachkuerzel eine nachgeladene Stimme
+ * traegt, entscheidet das Betriebssystem, nicht der Nutzer, und wer sich auf
+ * dem iPhone eine Stimme herunterlaedt, will sie auch benutzen koennen. Eine
+ * Auswahl, die eine installierte Stimme verschweigt, ist ein Fehler und keine
+ * Hilfe.
+ *
+ * Deutsche Stimmen stehen oben, der Rest darunter. Ausgeblendet wird nichts.
+ */
+export function alleStimmen() {
   if (!voiceSupport.ausgabe) return [];
   const alle = globalThis.speechSynthesis.getVoices() || [];
-  return alle
-    .filter((v) => v.lang && v.lang.toLowerCase().startsWith("de"))
+  return [...alle]
     .map((v) => ({ stimme: v, punkte: stimmPunkte(v) }))
     .sort((a, b) => b.punkte - a.punkte)
     .map((x) => x.stimme);
+}
+
+/** Traegt die Stimme ein deutsches Sprachkuerzel. */
+export function istDeutsch(v) {
+  return Boolean(v?.lang) && v.lang.toLowerCase().replace("_", "-").startsWith("de");
+}
+
+/** Nur die deutschen. Fuer die Vorauswahl, wenn der Nutzer nichts gewaehlt hat. */
+export function deutscheStimmen() {
+  return alleStimmen().filter(istDeutsch);
+}
+
+/**
+ * Wartet, bis das Geraet seine Stimmen gemeldet hat.
+ *
+ * getVoices gibt beim ersten Aufruf oft eine leere Liste zurueck und fuellt
+ * sie erst danach. Safari meldet das ueber voiceschanged, aber nicht immer und
+ * nicht immer nur einmal. Ohne dieses Warten stand im Profil "keine deutsche
+ * Stimme gefunden", obwohl welche installiert waren: die Liste war zum
+ * Zeitpunkt des Zeichnens schlicht noch leer.
+ *
+ * Deshalb beides: auf das Ereignis hoeren und zusaetzlich nachsehen. Nach
+ * `maxMs` wird zurueckgegeben, was da ist, auch wenn es nichts ist.
+ */
+export function stimmenBereit(maxMs = 3000) {
+  return new Promise((fertig) => {
+    if (!voiceSupport.ausgabe) return fertig([]);
+    if (alleStimmen().length) return fertig(alleStimmen());
+
+    const synth = globalThis.speechSynthesis;
+    let erledigt = false;
+    const schliessen = () => {
+      if (erledigt) return;
+      erledigt = true;
+      clearInterval(tick);
+      clearTimeout(schluss);
+      synth.removeEventListener?.("voiceschanged", pruefen);
+      fertig(alleStimmen());
+    };
+    const pruefen = () => {
+      if (alleStimmen().length) schliessen();
+    };
+
+    synth.addEventListener?.("voiceschanged", pruefen);
+    const tick = setInterval(pruefen, 150);
+    const schluss = setTimeout(schliessen, maxMs);
+  });
 }
 
 function stimmPunkte(v) {
@@ -340,14 +398,20 @@ function stimmPunkte(v) {
   return punkte;
 }
 
-/** Die Stimme, die gesprochen wird. Erst die gewählte, sonst die beste. */
+/**
+ * Die Stimme, die gesprochen wird.
+ *
+ * Erst die gewaehlte, egal welche Sprache sie traegt: wer sie ausgewaehlt hat,
+ * will sie hoeren. Ohne Wahl die beste deutsche, und wenn es keine gibt, die
+ * beste ueberhaupt. Gar nicht zu sprechen waere die schlechteste Antwort.
+ */
 export function gewaehlteStimme(name) {
-  const liste = deutscheStimmen();
+  const alle = alleStimmen();
   if (name) {
-    const treffer = liste.find((v) => v.name === name);
+    const treffer = alle.find((v) => v.name === name);
     if (treffer) return treffer;
   }
-  return liste[0] || null;
+  return alle.find(istDeutsch) || alle[0] || null;
 }
 
 /**
@@ -365,10 +429,13 @@ export function speak(text, { onStart, onEnd, enabled = true, stimme, tempo } = 
   const synth = globalThis.speechSynthesis;
   synth.cancel();
   const utterance = new SpeechSynthesisUtterance(stripForSpeech(text));
-  utterance.lang = "de-DE";
+  const gewaehlt = gewaehlteStimme(stimme);
+  // Das Sprachkuerzel folgt der Stimme, nicht umgekehrt. Steht hier fest
+  // de-DE, waehrend die gewaehlte Stimme ein anderes Kuerzel traegt, sucht
+  // sich manche Engine eine passende andere Stimme und ignoriert die Wahl.
+  utterance.lang = gewaehlt?.lang || "de-DE";
   utterance.rate = Number.isFinite(tempo) ? Math.max(0.7, Math.min(1.3, tempo)) : 0.96;
   utterance.pitch = 0.95;
-  const gewaehlt = gewaehlteStimme(stimme);
   if (gewaehlt) utterance.voice = gewaehlt;
   utterance.onstart = () => onStart?.();
   utterance.onend = () => onEnd?.();

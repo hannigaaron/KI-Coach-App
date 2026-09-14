@@ -1,3 +1,4 @@
+import { fehlerErklaerung } from "./fehler.js";
 import { AGENT_TOOLS } from "./tools.js";
 import { modellFuer } from "./modelle.js";
 import { systemBloecke, type Modus } from "./persona.js";
@@ -134,9 +135,14 @@ export class Agent {
       } catch (error) {
         if (isDebug()) console.error("Agent Modellfehler", error);
         const offline = await runOffline(params.nachricht, params.aktionen, Boolean(params.anhaenge?.length));
+        // Die Meldung von Anthropic trägt den Grund. Sie wegzuwerfen und durch
+        // "nicht erreichbar" zu ersetzen, kostet den Nutzer jede Chance, den
+        // Fehler selbst zu beheben.
+        const deutung = fehlerErklaerung(error);
+        const nachsatz = deutung.nochmal ? " Versuch es gleich nochmal." : "";
         return {
           ...offline,
-          text: `${offline.text}\n\n(Der Coach ist gerade nicht erreichbar, ich habe es regelbasiert erledigt.)`,
+          text: `${offline.text}\n\n${deutung.text}${nachsatz}`,
         };
       }
     }
