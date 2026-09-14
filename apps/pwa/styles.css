@@ -1059,6 +1059,18 @@ img.only-light { display: none; }
 }
 .zwischenablage:active { transform: scale(0.98); }
 
+/* Die Rohliste der Stimmen. Monospace, weil Name, Kürzel und Herkunft
+   untereinander stehen sollen, und scrollbar, weil manche Geräte über
+   sechzig Stimmen melden. */
+.stimmen-roh {
+  margin: var(--s-3) 0 0; padding: var(--s-3);
+  border-radius: var(--r-md); border: 1px solid var(--border);
+  background: var(--panel-2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--t-xs); line-height: 1.6; color: var(--muted);
+  white-space: pre; overflow-x: auto; max-height: 40vh; overflow-y: auto;
+}
+
 .siri-schritte {
   margin: var(--s-3) 0 0; padding-left: var(--s-5);
   color: var(--muted); font-size: var(--t-sm); line-height: 1.6;

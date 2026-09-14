@@ -21,7 +21,7 @@ import { brain } from "./brain.js";
 import { Orb } from "./orb.js";
 import { anhangAusDatei, grossInKb } from "./media.js";
 import { BEREICH_FARBE, anteilsRing, kurzDauer, metrikRing, richtungVon, ringMitZahl, wertungsRing } from "./rings.js";
-import { Listener, istDeutsch, speak, stimmenBereit, stopSpeaking, voiceSupport, waehlbareStimmen } from "./voice.js";
+import { Listener, alleStimmen, istDeutsch, speak, stimmenBereit, stopSpeaking, voiceSupport, waehlbareStimmen } from "./voice.js";
 import { SetupFlow } from "./setup-ui.js";
 import { postfachHolen, pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
@@ -2893,6 +2893,34 @@ $("e-tempo").addEventListener("change", () => {
   stimmProbe();
 });
 $("btnStimmProbe").addEventListener("click", stimmProbe);
+
+/**
+ * Was das Gerät der App wirklich meldet, ungefiltert.
+ *
+ * Es gibt dafür einen konkreten Anlass. Auf dem iPhone lädt man unter
+ * Bedienungshilfen, Gesprochene Inhalte, Stimmen weitere Stimmen herunter,
+ * und die erscheinen trotzdem nicht zur Wahl. Der Grund ist, dass die Web
+ * Speech API einen anderen Topf sieht als VoiceOver.
+ *
+ * Ohne diese Liste ist jede Aussage darüber eine Vermutung, meine
+ * eingeschlossen. Hier steht, was tatsächlich da ist, mit Sprachkürzel und
+ * Vermerk, ob die Stimme lokal liegt oder über das Netz kommt.
+ */
+$("btnStimmenAlle").addEventListener("click", async () => {
+  const feld = $("e-stimmenRoh");
+  if (!feld.hidden) { feld.hidden = true; return; }
+  feld.hidden = false;
+  feld.textContent = "einen Moment";
+  await stimmenBereit();
+  const alle = alleStimmen();
+  if (alle.length === 0) {
+    feld.textContent = "Dieses Gerät meldet der App keine einzige Stimme.";
+    return;
+  }
+  const deutsch = alle.filter(istDeutsch).length;
+  const zeilen = alle.map((v) => `${v.name}  [${v.lang}]  ${v.localService ? "lokal" : "Netz"}`);
+  feld.textContent = `${alle.length} Stimmen gemeldet, davon ${deutsch} deutsch.\n\n${zeilen.join("\n")}`;
+});
 
 /**
  * Die Adresse für den Siri Kurzbefehl.
