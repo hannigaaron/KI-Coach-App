@@ -990,6 +990,18 @@ img.only-light { display: none; }
   font-size: 12px; color: var(--muted); margin-top: 3px;
 }
 
+/* Die Schritte für den Siri Kurzbefehl. Eine nummerierte Liste, weil die
+   Reihenfolge hier wirklich zählt: wer die Variable vor der Adresse einsetzt,
+   bekommt einen Kurzbefehl, der nichts tut. */
+.siri-schritte {
+  margin: var(--s-3) 0 0; padding-left: var(--s-5);
+  color: var(--muted); font-size: var(--t-sm); line-height: 1.6;
+}
+.siri-schritte li { margin-bottom: var(--s-1); }
+.siri-schritte b { color: var(--text); font-weight: 600; }
+/* Die Adresse ist lang. Ohne den kleineren Schnitt steht sie halb im Feld. */
+#e-siriUrl { font-size: var(--t-xs); }
+
 /* Wochen Check-in. Die Fragen stehen einzeln, mit Luft dazwischen: ein Bogen
    aus achtzehn eng gesetzten Fragen wird durchgeklickt, nicht beantwortet. */
 .wc-wahl { display: flex; gap: 8px; margin-bottom: 14px; }

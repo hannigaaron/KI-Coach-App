@@ -21,7 +21,7 @@ import { brain } from "./brain.js";
 import { Orb } from "./orb.js";
 import { anhangAusDatei, grossInKb } from "./media.js";
 import { BEREICH_FARBE, anteilsRing, kurzDauer, metrikRing, richtungVon, ringMitZahl, wertungsRing } from "./rings.js";
-import { Listener, alleStimmen, istDeutsch, speak, stimmenBereit, stopSpeaking, voiceSupport } from "./voice.js";
+import { Listener, istDeutsch, speak, stimmenBereit, stopSpeaking, voiceSupport, waehlbareStimmen } from "./voice.js";
 import { SetupFlow } from "./setup-ui.js";
 import { pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
@@ -477,9 +477,36 @@ let warteAufFrage = false;
  */
 const WECKWORT_AUS_NACH_MS = 10 * 60 * 1000;
 
-function weckwortStarten() {
+/**
+ * Warum das Zuhören hier gerade nicht geht, in einem Satz.
+ *
+ * Vorher stand da ein Satz für jeden Fall. Wenn der Knopf nichts tut, ist
+ * das die falsche Antwort: der Nutzer probiert es fünfmal und hält die App
+ * für kaputt. Geprüft wird deshalb einzeln, und genannt wird, was fehlt.
+ */
+function weckwortHindernis() {
   if (!listener?.supported) {
-    toast("Dieser Browser kann keine Spracherkennung. Auf dem iPhone nur aus der installierten App.");
+    const standalone = globalThis.matchMedia?.("(display-mode: standalone)")?.matches
+      || globalThis.navigator?.standalone;
+    if (standalone) {
+      return "Dieses iPhone gibt der installierten App keine Spracherkennung. "
+        + "Nutz den Siri Kurzbefehl im Profil, oder öffne daevo in Safari.";
+    }
+    return "Dieser Browser kann keine Spracherkennung. In Safari und Chrome geht sie, in Firefox nicht.";
+  }
+  if (!globalThis.isSecureContext) {
+    return "Ohne https gibt der Browser kein Mikrofon frei.";
+  }
+  if (!navigator.mediaDevices?.getUserMedia) {
+    return "Dieser Browser gibt kein Mikrofon frei.";
+  }
+  return "";
+}
+
+function weckwortStarten() {
+  const hindernis = weckwortHindernis();
+  if (hindernis) {
+    toast(hindernis, 6000);
     return;
   }
   weckwortLaeuft = true;
@@ -620,7 +647,11 @@ function setupAssistant() {
         $("btnMic").classList.add("hoert");
       }
       else if (state === "error") {
-        toast(`Mikrofon: ${detail}`);
+        toast(`Mikrofon: ${detail}`, 5000);
+        // Im Weckwortmodus muss der Knopf zurückspringen. Ein gedrückter
+        // Knopf über einem toten Mikrofon ist eine Lüge, und der Nutzer
+        // redet weiter gegen eine App, die nicht zuhört.
+        if (weckwortLaeuft) weckwortStoppen("");
         orb.setState("idle"); setStatus("bereit");
         $("btnMic").classList.remove("hoert");
         $("orbHint").textContent = "Tipp auf den Kreis und sprich";
@@ -1035,7 +1066,8 @@ async function renderStimmwahl() {
   // Warten, statt sofort zu lesen. getVoices ist beim ersten Aufruf oft leer,
   // und dann stand hier "keine deutsche Stimme gefunden", obwohl welche da
   // waren.
-  const liste = await stimmenBereit();
+  await stimmenBereit();
+  const liste = waehlbareStimmen();
   const gewaehlt = store.getSettings().stimme || "";
 
   if (liste.length === 0) {
@@ -1048,38 +1080,33 @@ async function renderStimmwahl() {
 
   const eintrag = (v) => {
     const gut = /premium|neural|enhanced|natural/i.test(v.name);
+    // Den Qualitätszusatz aus dem Namen nehmen und als Klammer dahinter
+    // setzen. "Markus (Premium)" liest sich, "Markus (Enhanced) [de-DE]"
+    // nicht.
+    const kurz = v.name.replace(/\s*\((premium|enhanced|neural|natural)\)/i, "").trim();
     const sprache = istDeutsch(v) ? "" : ` [${v.lang}]`;
     return `<option value="${escapeHtml(v.name)}"${v.name === gewaehlt ? " selected" : ""}>`
-      + `${escapeHtml(v.name)}${sprache}${gut ? " (bessere Qualität)" : ""}</option>`;
+      + `${escapeHtml(kurz)}${sprache}${gut ? " (bessere Qualität)" : ""}</option>`;
   };
 
-  // Deutsche oben, der Rest darunter, aber nichts wird weggelassen. Welches
-  // Sprachkuerzel eine nachgeladene Stimme traegt, entscheidet das
-  // Betriebssystem. Wer sie installiert hat, will sie auch waehlen koennen.
-  const deutsch = liste.filter(istDeutsch);
-  const andere = liste.filter((v) => !istDeutsch(v));
-  const teile = [];
-  if (deutsch.length) teile.push(`<optgroup label="Deutsch">${deutsch.map(eintrag).join("")}</optgroup>`);
-  if (andere.length) {
-    teile.push(`<optgroup label="Andere Sprache, geht trotzdem">${andere.map(eintrag).join("")}</optgroup>`);
-  }
-  feld.innerHTML = teile.join("");
+  feld.innerHTML = liste.map(eintrag).join("");
 
-  const beste = deutsch[0] || liste[0];
-  const hatGute = /premium|neural|enhanced|natural/i.test(beste?.name || "");
+  const deutsch = liste.filter(istDeutsch);
+  const hatGute = liste.some((v) => /premium|neural|enhanced|natural/i.test(v.name));
   const zeilen = [];
 
   if (deutsch.length === 0) {
-    zeilen.push(`Dieses Gerät meldet keine Stimme als Deutsch. Die ${liste.length} gefundenen stehen trotzdem `
-      + "zur Wahl, sie sprechen deutschen Text meist sauber.");
-  } else if (hatGute) {
-    zeilen.push("Ohne eigene Wahl nehme ich die beste männliche Stimme, die dein Gerät hat.");
-  } else {
-    zeilen.push(`Deine deutschen Stimmen sind in Basisqualität. Bessere lädst du unter Einstellungen, `
+    zeilen.push("Dieses Gerät meldet keine Stimme als Deutsch. Die gefundenen stehen trotzdem zur Wahl, "
+      + "sie sprechen deutschen Text meist sauber.");
+  } else if (!hatGute) {
+    zeilen.push("Deine deutschen Stimmen sind in Basisqualität. Bessere lädst du unter Einstellungen, "
       + "Bedienungshilfen, Gesprochene Inhalte, Stimmen, Deutsch, dort auf das Pluszeichen. "
       + "Männlich und ruhig sind Markus und Yannick, jeweils in der Fassung Premium, nicht Kompakt. "
       + "Danach die App einmal schliessen und neu öffnen.");
   }
+
+  zeilen.push("Das Tempo stellst du darunter ein. Spass- und Eloquence-Stimmen wie Zarvox oder Grandpa "
+    + "stehen bewusst nicht in der Liste.");
 
   // Was die Web Speech API kann, hat eine Obergrenze, und die liegt unter dem,
   // was der Nutzer von Claude oder ChatGPT kennt. Das gehoert gesagt, sonst
@@ -1753,10 +1780,24 @@ function startApp() {
 
   // Über eine Benachrichtigung gestartet. Der Parameter wird danach aus der
   // Adresse entfernt, sonst steht die Frage bei jedem Neuladen wieder da.
-  const art = new URLSearchParams(location.search).get("impuls");
+  const params = new URLSearchParams(location.search);
+  const art = params.get("impuls");
   if (art) {
     impulsOeffnen({ art });
     history.replaceState(null, "", location.pathname);
+  }
+
+  // Von aussen mit einer fertigen Frage geöffnet, etwa aus einem Siri
+  // Kurzbefehl. Das ist auf dem iPhone der einzige Weg, bei gesperrtem
+  // Bildschirm zu diktieren: Siri nimmt auf, der Kurzbefehl öffnet daevo mit
+  // dem Text in der Adresse. Ein Weckwort im Hintergrund gibt das Web nicht
+  // her, ein Kurzbefehl schon.
+  const gesagt = (params.get("sag") || "").trim();
+  if (gesagt) {
+    history.replaceState(null, "", location.pathname);
+    // Vorlesen einschalten, denn wer diktiert, schaut nicht auf den Schirm.
+    options.speak = true;
+    send(gesagt.slice(0, 2000));
   }
 }
 
@@ -2748,6 +2789,33 @@ $("e-tempo").addEventListener("change", () => {
   stimmProbe();
 });
 $("btnStimmProbe").addEventListener("click", stimmProbe);
+
+/**
+ * Die Adresse für den Siri Kurzbefehl.
+ *
+ * Sie wird aus der laufenden Adresse gebaut und nicht fest eingetragen. Wer
+ * daevo auf einer eigenen Domain betreibt, bekommt seine eigene, und wer die
+ * Adresse abtippt statt zu kopieren, vertippt sich.
+ *
+ * Der Parameter steht am Ende und ohne Wert, damit die Variable aus den
+ * Kurzbefehlen direkt dahinter passt.
+ */
+function siriAdresse() {
+  return `${location.origin}${location.pathname}?sag=`;
+}
+
+$("e-siriUrl").value = siriAdresse();
+$("btnSiriKopieren").addEventListener("click", async () => {
+  const text = siriAdresse();
+  try {
+    await navigator.clipboard.writeText(text);
+    toast("Adresse kopiert");
+  } catch {
+    // Ohne Erlaubnis für die Zwischenablage bleibt das Markieren von Hand.
+    $("e-siriUrl").select?.();
+    toast("Kopieren ging nicht. Feld ist markiert, kopier von Hand.");
+  }
+});
 
 /* ---------- Benachrichtigungen ---------- */
 

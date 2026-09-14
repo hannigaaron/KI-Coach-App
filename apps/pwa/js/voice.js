@@ -314,9 +314,34 @@ export class Listener {
  *    stockt beim ersten Satz.
  */
 const MAENNLICHE_STIMMEN = [
-  "markus", "yannick", "martin", "viktor", "conrad", "daniel", "stefan",
-  "hans", "klaus", "reed", "rocko", "eddy", "grandpa",
+  "markus", "yannick", "jannik", "martin", "viktor", "conrad", "daniel",
+  "stefan", "hans", "klaus",
 ];
+
+/**
+ * Spassstimmen von iOS, die unter Deutsch mitlaufen.
+ *
+ * Apple liefert unter jeder Sprache einen Satz Novelty- und
+ * Eloquence-Stimmen mit: Eddy, Flo, Reed, Rocko, Sandy, Shelley, Grandma,
+ * Grandpa, Zarvox und so weiter. Sie tragen ein deutsches Sprachkuerzel und
+ * blaehen die Liste auf zwanzig Eintraege auf, von denen keiner brauchbar
+ * ist. Ein Coach, der wie Zarvox klingt, wird nicht ernst genommen.
+ *
+ * Geprueft wird auf Wortgrenzen: "flo" steckt in "Florian".
+ */
+const SPASSSTIMMEN = [
+  "eddy", "flo", "reed", "rocko", "sandy", "shelley", "grandma", "grandpa",
+  "bahh", "bells", "boing", "bubbles", "cellos", "jester", "organ",
+  "superstar", "trinoids", "whisper", "wobble", "zarvox", "albert", "fred",
+  "junior", "kathy", "ralph", "bruce", "hysterical", "deranged",
+];
+
+/** Eine Spass- oder Eloquence-Stimme, die niemand als Coach hoeren will. */
+export function istSpassstimme(v) {
+  const name = (v?.name || "").toLowerCase();
+  if (/eloquence/.test(name)) return true;
+  return SPASSSTIMMEN.some((s) => new RegExp(`\\b${s}\\b`).test(name));
+}
 
 /**
  * Alle Stimmen des Geraets, die brauchbaren zuerst.
@@ -347,6 +372,25 @@ export function istDeutsch(v) {
 /** Nur die deutschen. Fuer die Vorauswahl, wenn der Nutzer nichts gewaehlt hat. */
 export function deutscheStimmen() {
   return alleStimmen().filter(istDeutsch);
+}
+
+/**
+ * Die Stimmen, die zur Wahl stehen: deutsch und ernst gemeint.
+ *
+ * Kurz stand hier jede Stimme des Geraets, deutsche zuerst. Das war die
+ * Ueberkorrektur auf einen vorherigen Fehler und im Betrieb schlimmer als
+ * das Problem: dreissig Eintraege in fremden Sprachen, dazwischen die drei,
+ * die jemand wirklich will. Eine Auswahl, die man durchsuchen muss, ist
+ * keine Auswahl.
+ *
+ * Meldet das Geraet keine einzige deutsche Stimme, gibt es die ganze Liste
+ * zurueck. Gar keine Wahl waere schlechter als eine unsortierte.
+ */
+export function waehlbareStimmen() {
+  const deutsch = alleStimmen().filter(istDeutsch).filter((v) => !istSpassstimme(v));
+  if (deutsch.length) return deutsch;
+  const ohneSpass = alleStimmen().filter((v) => !istSpassstimme(v));
+  return ohneSpass.length ? ohneSpass : alleStimmen();
 }
 
 /**
@@ -411,7 +455,7 @@ export function gewaehlteStimme(name) {
     const treffer = alle.find((v) => v.name === name);
     if (treffer) return treffer;
   }
-  return alle.find(istDeutsch) || alle[0] || null;
+  return waehlbareStimmen()[0] || alle.find(istDeutsch) || alle[0] || null;
 }
 
 /**
