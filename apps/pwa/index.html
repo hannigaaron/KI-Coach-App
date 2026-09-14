@@ -42,6 +42,10 @@ try {
   ersten Bild steht und nicht erst nachlädt.
 -->
 <div id="splash" class="splash">
+  <!-- Der Lichtschein hinter der Marke. Er öffnet sich aus der Mitte, während
+       die Marke aus dem Dunkel heraus scharf wird. Eigenes Element, weil er
+       sich anders bewegen muss als die Marke selbst. -->
+  <div class="splash-schein" aria-hidden="true"></div>
   <div class="splash-inner">
     <img class="only-light" src="./brand/daevo-lockup-deep.svg" alt="daevo, Evolve your daily life" width="260">
     <img class="only-dark" src="./brand/daevo-lockup-dark.svg" alt="daevo, Evolve your daily life" width="260">

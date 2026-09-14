@@ -48,15 +48,17 @@ let anhaenge = [];
 /* ---------- Startbildschirm ---------- */
 
 /** Wie lange die Marke steht und wie lange sie ausblendet. Passt zu styles.css. */
-const SPLASH_MS = 1300;
+const SPLASH_MS = 2000;
 const SPLASH_FADE_MS = 400;
 
 /**
  * Blendet den Startbildschirm aus.
  *
- * Insgesamt 1,7 Sekunden. Lang genug, dass die Marke ankommt, kurz genug,
- * dass niemand wartet. Ein Tipp bricht sofort ab. Der Knoten wird danach aus
- * dem Baum genommen, sonst fängt er weiter Berührungen ab.
+ * Zwei Sekunden, dann noch die Blende. Die Marke entsteht in dieser Zeit,
+ * statt fertig dazustehen, und Entstehen braucht Zeit: bei 1,3 Sekunden wirkt
+ * dieselbe Bewegung gehetzt und damit billig. Wer es eilig hat, tippt einmal
+ * und ist sofort drin. Der Knoten wird danach aus dem Baum genommen, sonst
+ * fängt er weiter Berührungen ab.
  */
 function splashWeg(sofort = false) {
   const el = $("splash");

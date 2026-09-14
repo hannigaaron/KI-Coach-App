@@ -940,6 +940,31 @@ Scratchpad öffnet jede Ansicht in beiden Farbmodi und meldet zwei Dinge:
 überlappende Textelemente und seitliches Scrollen. Genau diese Fehler sieht kein
 Test, der Werte prüft, und genau die fallen dem Nutzer als Erstes auf.
 
+## Der Startbildschirm
+
+Die Marke kommt nicht fertig ins Bild, sie entsteht. Erst öffnet sich ein
+Lichtschein aus der Mitte, dann wird die Wortmarke aus der Unschärfe heraus
+scharf und bekommt zuletzt ihre Farbe: `filter: blur(5px) brightness(0.4)` auf
+`blur(0) brightness(1)`.
+
+Zwei Sekunden statt der vorherigen 1,3. Ruhig wirkt nur, wer Zeit lässt:
+dieselbe Bewegung in 1,3 Sekunden wirkt gehetzt und damit billig. Ein Tipp
+bricht jederzeit ab, wer es eilig hat, wartet nicht.
+
+Zwei Ebenen, weil sie sich verschieden bewegen müssen. Der Schein wächst aus
+einem Punkt auf volle Grösse, die Marke bleibt an ihrem Platz und schärft sich
+nur. In einer Animation ginge das nicht.
+
+Eine eigene Kurve, `--kurve-start`. Die Standardkurve ist für Knöpfe gemacht
+und läuft am Anfang zu schnell los.
+
+Auf hellem Grund kommt derselbe Schein aus dem dunklen Blau und bleibt
+deutlich schwächer. Das Logoblau verschwindet auf Weiss, und ein zu starker
+Schein wird dort zu einem grauen Fleck.
+
+Eine dritte Variante mit einem Streiflicht über der Wortmarke wurde verworfen.
+Sie sieht beim ersten Mal am besten aus und beim fünfzigsten am schlechtesten.
+
 ## Der Chat
 
 Die Antwort steht ohne Sprechblase auf dem Grund, in 16,5 Pixeln mit 1,62

@@ -112,6 +112,9 @@
    * Bewegung mit Masse. Lineare Übergänge wirken maschinell.
    */
   --kurve: cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* Für den Startbildschirm. Zieht sanfter an als --kurve, die für Knöpfe
+     gemacht ist und am Anfang zu schnell losläuft. */
+  --kurve-start: cubic-bezier(0.22, 0.61, 0.25, 1);
   --schnell: 140ms;
   --normal: 220ms;
 
@@ -152,20 +155,71 @@ body { padding-top: env(safe-area-inset-top); }
   position: fixed; inset: 0; z-index: 100;
   display: flex; align-items: center; justify-content: center;
   background: var(--bg);
-  animation: splash-auf 420ms ease-out both;
+  overflow: hidden;
+  animation: splash-auf 300ms ease-out both;
 }
 .splash.geht { opacity: 0; transition: opacity 400ms ease; }
+.splash-inner { position: relative; z-index: 1; }
 .splash-inner img { height: auto; max-width: 66vw; }
-.splash-inner { animation: splash-hoch 620ms cubic-bezier(0.2, 0.7, 0.3, 1) both; }
+
+/*
+  Der Start der App.
+
+  Die Marke kommt nicht fertig ins Bild, sie entsteht: erst Licht aus der
+  Mitte, dann wird die Wortmarke aus der Unschärfe heraus scharf und bekommt
+  zuletzt ihre Farbe. Zwei Sekunden, weil ruhig nur wirkt, wenn man Zeit
+  lässt. Wer es eilig hat, tippt einmal und ist sofort drin.
+
+  Zwei Ebenen, weil sie sich verschieden bewegen müssen: der Schein wächst
+  aus einem Punkt, die Marke bleibt an ihrem Platz und schärft sich nur.
+  Beides in einer Animation ginge nicht.
+*/
+.splash-schein {
+  position: absolute; left: 50%; top: 50%;
+  width: 150vw; aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(circle at 50% 50%,
+    rgba(150, 216, 240, 0.30) 0%,
+    rgba(30, 127, 168, 0.12) 40%,
+    transparent 70%);
+  animation: splash-schein 2000ms var(--kurve-start) both;
+}
+.splash-inner { animation: splash-marke 2000ms var(--kurve-start) both; }
+
+/* Auf hellem Grund trägt das Logoblau nicht, es verschwindet im Weiss.
+   Dort kommt der Schein aus dem dunklen Blau und bleibt deutlich schwächer:
+   ein Lichtschein auf Weiss wird sonst zu einem grauen Fleck. */
+:root[data-theme="light"] .splash-schein {
+  background: radial-gradient(circle at 50% 50%,
+    rgba(30, 127, 168, 0.16) 0%,
+    rgba(30, 127, 168, 0.07) 40%,
+    transparent 70%);
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .splash-schein {
+    background: radial-gradient(circle at 50% 50%,
+      rgba(30, 127, 168, 0.16) 0%,
+      rgba(30, 127, 168, 0.07) 40%,
+      transparent 70%);
+  }
+}
 
 @keyframes splash-auf { from { opacity: 0; } to { opacity: 1; } }
-@keyframes splash-hoch {
-  from { opacity: 0; transform: translateY(10px) scale(0.97); }
-  to { opacity: 1; transform: none; }
+@keyframes splash-schein {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.35); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes splash-marke {
+  0%   { opacity: 0; transform: scale(0.97); filter: blur(5px) brightness(0.4); }
+  100% { opacity: 1; transform: none; filter: blur(0) brightness(1); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .splash, .splash-inner { animation: none; }
+  .splash, .splash-inner, .splash-schein { animation: none; }
+  .splash-schein { opacity: 1; }
 }
 
 /* Einkaufsliste */
