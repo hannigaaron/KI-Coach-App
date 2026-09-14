@@ -32,6 +32,7 @@ const ANREDEN = ["hey", "hallo", "hi", "he", "ey", "ok", "okay", "oke"];
 const VARIANTEN = [
   "daevo", "davo", "devo", "dave", "david", "dabo", "debo", "deavo", "taevo",
   "tavo", "tevo", "dievo", "diavo", "davor", "daewoo", "dayvo", "deivo",
+  "daivo",
 ];
 
 /** Höchstabstand für eine unbekannte Schreibweise. Zwei Zeichen. */

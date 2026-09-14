@@ -72,3 +72,14 @@ test("die gehörte Schreibweise kommt für die Fehlersuche mit", () => {
   const w = weckwortGehoert("hey david trag 300 g Quark ein");
   assert.equal(w.gehoert, "hey david");
 });
+
+test("die vom Nutzer genannten Schreibweisen wecken alle", () => {
+  // Diese vier hat der Nutzer selbst genannt. Sie stehen namentlich in der
+  // Liste und hängen nicht am Abstandsmass: wer MAX_ABSTAND später senkt,
+  // darf genau diese vier nicht verlieren.
+  for (const name of ["devo", "dayvo", "deivo", "daivo", "daevo"]) {
+    const w = weckwortGehoert(`Hey ${name}, wie viel Protein fehlt mir noch`);
+    assert.equal(w.erkannt, true, name);
+    assert.equal(w.frage, "wie viel Protein fehlt mir noch", name);
+  }
+});
