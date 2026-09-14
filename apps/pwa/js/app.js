@@ -23,7 +23,7 @@ import { anhangAusDatei, grossInKb } from "./media.js";
 import { BEREICH_FARBE, anteilsRing, kurzDauer, metrikRing, richtungVon, ringMitZahl, wertungsRing } from "./rings.js";
 import { Listener, istDeutsch, speak, stimmenBereit, stopSpeaking, voiceSupport, waehlbareStimmen } from "./voice.js";
 import { SetupFlow } from "./setup-ui.js";
-import { pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
+import { postfachHolen, pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
 
 const $ = (id) => document.getElementById(id);
@@ -48,15 +48,17 @@ let anhaenge = [];
 /* ---------- Startbildschirm ---------- */
 
 /** Wie lange die Marke steht und wie lange sie ausblendet. Passt zu styles.css. */
-const SPLASH_MS = 1300;
+const SPLASH_MS = 2000;
 const SPLASH_FADE_MS = 400;
 
 /**
  * Blendet den Startbildschirm aus.
  *
- * Insgesamt 1,7 Sekunden. Lang genug, dass die Marke ankommt, kurz genug,
- * dass niemand wartet. Ein Tipp bricht sofort ab. Der Knoten wird danach aus
- * dem Baum genommen, sonst fängt er weiter Berührungen ab.
+ * Zwei Sekunden, dann noch die Blende. Die Marke entsteht in dieser Zeit,
+ * statt fertig dazustehen, und Entstehen braucht Zeit: bei 1,3 Sekunden wirkt
+ * dieselbe Bewegung gehetzt und damit billig. Wer es eilig hat, tippt einmal
+ * und ist sofort drin. Der Knoten wird danach aus dem Baum genommen, sonst
+ * fängt er weiter Berührungen ab.
  */
 function splashWeg(sofort = false) {
   const el = $("splash");
@@ -1600,6 +1602,7 @@ function renderProfile() {
   $("e-randmodus").value = profile.wechselndeZeiten ? "wechselnd" : (profile.randModus || "gleich");
   renderWochenzeiten();
   renderStimmwahl();
+  siriAdresseZeigen();
   renderAngebot();
   renderPush();
   $("e-tempo").value = store.getSettings().sprechtempo ?? 0.96;
@@ -1792,6 +1795,16 @@ function startApp() {
   // Bildschirm zu diktieren: Siri nimmt auf, der Kurzbefehl öffnet daevo mit
   // dem Text in der Adresse. Ein Weckwort im Hintergrund gibt das Web nicht
   // her, ein Kurzbefehl schon.
+  // Über die Mitteilung aus dem Postfach geöffnet.
+  if (params.get("postfach")) {
+    history.replaceState(null, "", location.pathname);
+    postfachPruefen({ laut: true });
+  } else {
+    // Auch ohne Mitteilung nachsehen. Wer die Mitteilung weggewischt hat und
+    // die App später selbst öffnet, soll seinen Satz trotzdem bekommen.
+    postfachPruefen();
+  }
+
   const gesagt = (params.get("sag") || "").trim();
   if (gesagt) {
     history.replaceState(null, "", location.pathname);
@@ -1807,6 +1820,97 @@ $("composer").addEventListener("submit", (event) => {
   event.preventDefault();
   send($("chatInput").value);
 });
+/**
+ * Holt ab, was ein Siri Kurzbefehl abgelegt hat.
+ *
+ * Auf dem iPhone öffnet eine Adresse immer Safari, nie die App vom
+ * Homebildschirm, und die Aktion "App öffnen" führt Webapps nicht auf. Der
+ * Kurzbefehl kommt also nicht direkt in die App. Über den Worker schon: er
+ * nimmt den Satz an, schickt eine Mitteilung, und ein Tipp darauf öffnet
+ * diese App hier.
+ *
+ * Läuft still. Ist nichts da, ist nichts zu melden, und ein Fehler beim
+ * Abholen ist kein Grund, eine Meldung über etwas anzuzeigen, das der Nutzer
+ * gerade gar nicht erwartet.
+ */
+let postfachLaeuft = false;
+
+async function postfachPruefen({ laut = false } = {}) {
+  if (postfachLaeuft || busy) return;
+  const s = store.getSettings();
+  if (!s.pushWorker || !s.pushWort) {
+    if (laut) toast("Für das Postfach brauchst du Adresse und Anmeldewort des Push Workers im Profil.");
+    return;
+  }
+  postfachLaeuft = true;
+  try {
+    const posten = await postfachHolen({ worker: s.pushWorker, wort: s.pushWort });
+    if (posten.length === 0) {
+      if (laut) toast("Im Postfach liegt nichts.");
+      return;
+    }
+    // Wer diktiert, schaut nicht auf den Schirm.
+    options.speak = true;
+    // Nacheinander, nicht alle auf einmal. Zwei Mahlzeiten in einer Nachricht
+    // werden zu einer verrechnet, und die Reihenfolge des Sprechens ist die
+    // Reihenfolge, in der sie gemeint waren.
+    for (const p of posten) {
+      await send(p.text);
+    }
+  } catch (fehler) {
+    if (laut) toast(`Postfach: ${fehler.message}`);
+  } finally {
+    postfachLaeuft = false;
+  }
+}
+
+/**
+ * Der Weg aus einem Siri Kurzbefehl in die installierte App.
+ *
+ * Auf dem iPhone öffnet eine Adresse immer Safari, nie die App vom
+ * Homebildschirm. Beide haben getrennte Speicher, und die Daten des Nutzers
+ * liegen in der App. Ein Kurzbefehl, der eine Adresse öffnet, landet also in
+ * einer leeren daevo. Das ist eine Grenze von iOS, keine Einstellung.
+ *
+ * Deshalb legt der Kurzbefehl den Satz in die Zwischenablage und öffnet die
+ * App. Gelesen wird erst auf Tippen: iOS gibt die Zwischenablage nur nach
+ * einer Geste frei, und ein stilles Mitlesen wäre auch das Falsche.
+ */
+function zwischenablageAnbieten() {
+  const knopf = $("btnZwischenablage");
+  if (!knopf || !navigator.clipboard?.readText) return;
+  // Nur anbieten, wenn das Eingabefeld leer ist. Wer schon tippt, wird nicht
+  // mit einem zweiten Weg unterbrochen.
+  if ($("chatInput").value.trim()) return;
+  knopf.hidden = false;
+  clearTimeout(zwischenablageTimer);
+  // Nach zwei Minuten verschwindet der Knopf wieder. Ein Angebot, das immer
+  // dasteht, ist ein Bedienelement, und dieses hier ist keins.
+  zwischenablageTimer = setTimeout(() => { knopf.hidden = true; }, 120000);
+}
+let zwischenablageTimer = 0;
+
+$("btnZwischenablage").addEventListener("click", async () => {
+  $("btnZwischenablage").hidden = true;
+  try {
+    const text = (await navigator.clipboard.readText()).trim();
+    if (!text) { toast("Die Zwischenablage ist leer."); return; }
+    // Wer über einen Kurzbefehl kommt, schaut nicht auf den Schirm.
+    options.speak = true;
+    send(text.slice(0, 2000));
+  } catch {
+    toast("iOS hat das Lesen der Zwischenablage abgelehnt. Tipp lange ins Eingabefeld und wähl Einsetzen.");
+  }
+});
+
+// Beim Zurückkommen aus dem Kurzbefehl wird die App wieder sichtbar. Genau
+// dann liegt der Satz in der Zwischenablage.
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible") return;
+  zwischenablageAnbieten();
+  postfachPruefen();
+});
+
 $("btnMic").addEventListener("click", startListening);
 $("btnWeckwort").addEventListener("click", () => {
   if (weckwortLaeuft) weckwortStoppen("Weckwort aus");
@@ -2793,20 +2897,29 @@ $("btnStimmProbe").addEventListener("click", stimmProbe);
 /**
  * Die Adresse für den Siri Kurzbefehl.
  *
- * Sie wird aus der laufenden Adresse gebaut und nicht fest eingetragen. Wer
- * daevo auf einer eigenen Domain betreibt, bekommt seine eigene, und wer die
- * Adresse abtippt statt zu kopieren, vertippt sich.
+ * Sie zeigt auf das Postfach des eigenen Push Workers und wird aus den
+ * Einstellungen gebaut, nicht fest eingetragen: jeder Nutzer hat seinen
+ * eigenen Worker unter seinem eigenen Namen.
  *
- * Der Parameter steht am Ende und ohne Wert, damit die Variable aus den
- * Kurzbefehlen direkt dahinter passt.
+ * Ohne eingetragenen Worker steht dort der Grund, nicht eine halbe Adresse.
+ * Eine Adresse, die nach Adresse aussieht und keine ist, wird kopiert und
+ * erzeugt einen Kurzbefehl, der stumm nichts tut.
  */
 function siriAdresse() {
-  return `${location.origin}${location.pathname}?sag=`;
+  const roh = (store.getSettings().pushWorker || "").trim().replace(/\/+$/, "");
+  if (!roh) return "Trag unten erst die Adresse deines Push Workers ein.";
+  return `${roh}/postfach`;
 }
 
-$("e-siriUrl").value = siriAdresse();
+function siriAdresseZeigen() {
+  const feld = $("e-siriUrl");
+  if (feld) feld.value = siriAdresse();
+}
+
+siriAdresseZeigen();
 $("btnSiriKopieren").addEventListener("click", async () => {
   const text = siriAdresse();
+  if (!text.startsWith("http")) { toast(text); return; }
   try {
     await navigator.clipboard.writeText(text);
     toast("Adresse kopiert");
@@ -2815,6 +2928,12 @@ $("btnSiriKopieren").addEventListener("click", async () => {
     $("e-siriUrl").select?.();
     toast("Kopieren ging nicht. Feld ist markiert, kopier von Hand.");
   }
+});
+
+// Der Weg von Hand, wenn die Mitteilung nicht ankommt oder weggewischt wurde.
+$("btnPostfach").addEventListener("click", () => {
+  showView("assistant");
+  postfachPruefen({ laut: true });
 });
 
 /* ---------- Benachrichtigungen ---------- */

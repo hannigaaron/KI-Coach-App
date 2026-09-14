@@ -6,6 +6,7 @@ import {
   type ConverseRequest,
   type ConverseResponse,
   anhangBlock,
+  ohneKaputteDenkbloecke,
   type JsonRequest,
   type SystemBlockParam,
   type Verbrauch,
@@ -163,7 +164,7 @@ export class AnthropicProvider implements CoachProvider {
       this.options.timeoutMs ?? 90000,
     )) as { content?: ContentBlock[]; stop_reason?: string };
     return {
-      content: payload.content ?? [],
+      content: ohneKaputteDenkbloecke(payload.content ?? []),
       stopReason: payload.stop_reason ?? "end_turn",
       verbrauch: this.meldeVerbrauch(payload, modell),
     };
@@ -240,6 +241,21 @@ export class AnthropicProvider implements CoachProvider {
             onText(stueck);
           } else if (delta?.type === "input_json_delta") {
             roheEingaben[index] = (roheEingaben[index] ?? "") + String(delta.partial_json ?? "");
+          } else if (delta?.type === "thinking_delta") {
+            // Der Denktext kommt in Stücken, genau wie der Antworttext. Ohne
+            // diesen Zweig blieb der Block leer, und die API lehnte ihn beim
+            // nächsten Aufruf ab: "each thinking block must contain thinking".
+            const vorhanden = blöcke[index];
+            if (vorhanden && vorhanden.type === "thinking") {
+              vorhanden.thinking += String(delta.thinking ?? "");
+            }
+          } else if (delta?.type === "signature_delta") {
+            // Die Signatur kommt am Ende und in einem Stück. Sie belegt, dass
+            // der Denktext unverändert ist. Ohne sie ist der Block wertlos.
+            const vorhanden = blöcke[index];
+            if (vorhanden && vorhanden.type === "thinking") {
+              vorhanden.signature = String(delta.signature ?? "");
+            }
           }
         } else if (typ === "content_block_stop") {
           const index = Number(ereignis.index);
@@ -260,7 +276,10 @@ export class AnthropicProvider implements CoachProvider {
         }
       }
 
-      return { content: blöcke.filter(Boolean), stopReason, verbrauch };
+      // Zweiter Riegel hinter dem Strömen. Reisst die Verbindung mitten im
+      // Denkblock ab, bleibt er unvollständig, und ein unvollständiger Block
+      // vergiftet den ganzen weiteren Verlauf.
+      return { content: ohneKaputteDenkbloecke(blöcke.filter(Boolean)), stopReason, verbrauch };
     } finally {
       clearTimeout(timeout);
     }

@@ -152,11 +152,19 @@ export const AGENT_TOOLS: ToolDefinition[] = [
       "verplanter Zeit je Tag, erkannten Trainings und den längsten freien Blöcken. " +
       "Nehmen, sobald es um Zeit geht: wann er was macht, ob etwas in die Woche passt, " +
       "wann er trainieren oder essen soll, warum er nichts geschafft hat, oder wenn er nach seinem Plan fragt. " +
-      "Für die genaue Auswertung eines einzelnen Tages gibt es tagesablauf_planen.",
+      "Für die genaue Auswertung eines einzelnen Tages gibt es tagesablauf_planen. " +
+      "Fragt er dagegen, ob sein Kalender überhaupt verbunden oder aktuell ist, oder warum " +
+      "Termine fehlen, dann stand auf true setzen und keine Termine ausgeben.",
     input_schema: {
       type: "object",
       properties: {
         tage: { type: "number", description: "Wie viele Tage ab heute, 1 bis 14. Ohne Angabe 7." },
+        stand: {
+          type: "boolean",
+          description:
+            "Statt der Termine den Zustand der Verbindung melden: welche Quelle, wie viele Termine, " +
+            "wann zuletzt eingelesen. Für Fragen nach Verbindung, Aktualität oder fehlenden Terminen.",
+        },
       },
     },
   },

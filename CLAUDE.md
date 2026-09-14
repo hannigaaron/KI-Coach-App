@@ -145,7 +145,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 564 Tests
+npm test           # 579 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -376,6 +376,69 @@ einem toten Mikrofon ist eine Lüge.
 
 Ein echtes Weckwort im Hintergrund braucht eine native App, siehe
 `docs/ROADMAP.md`.
+
+## Der Weg aus einem Siri Kurzbefehl
+
+Zwei Versuche, beide gescheitert, bevor der dritte stand. Das gehört
+aufgeschrieben, sonst baut sie jemand nochmal.
+
+Der erste war `?sag=` in der Adresse. Im Betrieb wertlos: auf dem iPhone
+öffnet eine Adresse immer Safari, nie die App vom Homebildschirm. Beide haben
+getrennte Speicher, und die Daten des Nutzers liegen in der App. Der
+Kurzbefehl landete also in einer leeren daevo.
+
+Der zweite war die Zwischenablage plus die Aktion "App öffnen". Die führt
+Webapps nicht auf, jedenfalls nicht auf dem Gerät dieses Nutzers. Damit fällt
+der einzige Weg weg, eine installierte Webapp direkt zu starten.
+
+Der dritte steht: das Postfach auf dem Push Worker, `workers/push/src/postfach.ts`.
+Der Kurzbefehl schickt den Satz an `/postfach`, der Worker legt ihn ab und
+schickt sofort eine Push Nachricht. Ein Tipp darauf öffnet die installierte
+App, sie holt den Satz über `/postfach` und der Worker löscht ihn beim
+Ausliefern. Push erreicht die installierte App, eine Adresse nicht: das ist
+der ganze Trick.
+
+Bewusst kein Datenabgleich. Auf dem Server liegt nur der eine Satz, höchstens
+eine Stunde. Gewicht, Gespräche und Notizen über Therapie und Familie bleiben
+auf dem Gerät. Ein Postfach hat ausserdem kein Konfliktproblem, es gibt nur
+eine Richtung. Voller Abgleich bleibt danach möglich und wird durch das
+Postfach nicht verbaut.
+
+Das Anmeldewort ist Pflicht, auch wenn es beim Anmelden eines Abos optional
+ist. Das Postfach ist der einzige Weg in diesem Worker, über den fremder Text
+in die App gelangt, und die App verarbeitet ihn als Wort des Nutzers. Ohne
+gesetztes Wort bleibt das Postfach ganz zu, statt offen zu stehen. Der
+Kurzbefehl kommt nicht aus einem Browser und schickt keine Herkunft mit, CORS
+greift dort also nicht.
+
+Höchstens zehn offene Sätze. Ist es voll, wird abgewiesen statt der älteste
+verworfen: ein stilles Verwerfen sieht aus wie ein verlorener Satz, und der
+Nutzer sucht den Fehler bei sich. Ein zu langer Satz wird dagegen gekürzt,
+denn da ist die Absicht klar.
+
+Die Mitteilung trägt den Satz selbst und nicht nur "du hast etwas gesagt".
+Damit sieht der Nutzer auf dem Sperrbildschirm, ob die Erkennung ihn
+verstanden hat, bevor er die App öffnet.
+
+Der Knopf "Aus Zwischenablage senden" bleibt aus dem zweiten Versuch. Er
+kostet nichts und ist der Weg für den Fall, dass kein Worker eingerichtet ist.
+`?sag=` bleibt ebenfalls, in Safari und auf dem Rechner funktioniert es.
+
+## Das Mikrofon, das nur einmal ging
+
+Auf iOS teilen sich Spracherkennung und `getUserMedia` dasselbe Mikrofon, und
+die Erkennung verliert. Symptom: beim ersten Mal geht es, danach startet sie
+stumm nicht mehr. Der Pegelmesser über die Web Audio API ist nur für die
+Animation des Kreises da. Ein pulsierender Kreis ist keinen kaputten Knopf
+wert, deshalb läuft auf iOS von vornherein die erzeugte Welle.
+
+Dazu ein Wachhund. `recognition.start()` wirft nicht immer, wenn es nicht
+klappt: der Aufruf geht durch und danach passiert schlicht nichts, kein
+onstart, kein onerror, kein onend. Kommt nach 1800 Millisekunden kein onstart,
+wird die Instanz weggeworfen und eine neue aufgesetzt. Nach dem vierten
+stummen Versuch bekommt der Nutzer eine Meldung statt eines toten Knopfes. Ein
+geglückter Start löscht die Bilanz, sonst summieren sich über eine lange
+Freihandsitzung vier einzelne Ausrutscher zu einem Abbruch.
 
 ## Tagesränder
 
@@ -680,6 +743,55 @@ Geheimnisse annimmt. Wer die Geheimnisse zuerst setzt, wird mitten im Ablauf
 gefragt, ob ein Worker angelegt werden soll, und wer dort abbricht, hat
 weder das eine noch das andere.
 
+## Denkblöcke im Verlauf
+
+Mit Denktiefe schickt die API Blöcke vom Typ `thinking` mit. Sie werden nicht
+angezeigt, müssen aber unverändert zurück, wenn das Modell nach einem
+Werkzeugaufruf weiterredet. Die Signatur belegt, dass der Text unverändert ist.
+
+Beim Strömen kommt der Denktext in Stücken, genau wie der Antworttext, als
+`thinking_delta` und am Ende `signature_delta`. Diese beiden Zweige fehlten.
+Der Block lag danach leer im Verlauf, und die API antwortete beim nächsten
+Werkzeugaufruf mit Status 400: "each thinking block must contain thinking".
+
+Der Schaden war grösser als eine gescheiterte Nachricht. Ein leerer Denkblock
+bleibt im Gespräch stehen, also scheiterte danach jede weitere Nachricht in
+diesem Gespräch. Für den Nutzer sah es aus, als sei die App kaputt, und
+technisch war sie das auch.
+
+`ohneKaputteDenkbloecke` in `packages/coach/src/provider.ts` ist der Riegel an
+drei Stellen: hinter dem Strömen, hinter dem Weg ohne Strom, und vor dem
+Absenden über `params.verlauf`. Die dritte ist die wichtigste, denn ein
+Gespräch aus einer älteren Fassung trägt die kaputten Blöcke weiterhin. Bleibt
+nach dem Entfernen nichts übrig, steht ein leerer Textblock da: eine leere
+Nachricht lehnt die API ebenfalls ab.
+
+## Der Kalender antwortet, statt Zahlen auszugeben
+
+`wochenText` in `packages/core/src/tagesablauf.ts` gab sieben Zeilen aus, je
+Tag eine, mit Datum und Minutenzahl. Das ist keine Antwort, das ist eine
+Tabelle in Prosa. Der Leser muss sich das Fazit selbst zusammenrechnen, und
+genau dafür hat er gefragt.
+
+Jetzt steht das Fazit zuerst: wie viele Termine in wie vielen Tagen, welcher
+Tag der vollste ist, wo der längste freie Block liegt. Danach die Tage, aber
+nur die mit Terminen. Eine Zeile "nichts im Kalender" trägt keine Information
+und drängt die Tage weg, die eine tragen. Leere Tage stehen als Zahl am Ende.
+
+Minuten werden als Dauer gesagt. "180 Minuten verplant" rechnet der Leser
+jedes Mal selbst um.
+
+Die Frage nach der Verbindung steht im Regelpfad vor der Frage nach den
+Terminen. "Wieso ist mein Kalender nicht mit dir verbunden" landete sonst auf
+der Wochenübersicht, und der Nutzer bekam sieben Zeilen Termine auf eine
+Ja-Nein-Frage. Erkannt wird über zwei Wortlisten, die beide treffen müssen:
+"aktuell" allein wäre zu breit, zusammen mit "Kalender" ist es eindeutig.
+
+`kalenderStandText` nennt, was gemessen ist: Quelle, Anzahl, wann zuletzt
+eingelesen. Dazu die Ursache, die fast immer dahintersteckt: der Import ist
+eine Kopie und kein Abo. Was seit dem Einlesen im Kalender passiert ist, kennt
+die App nicht.
+
 ## Wenn der Modellaufruf scheitert
 
 `packages/coach/src/fehler.ts`. Vorher stand in der Antwort immer derselbe
@@ -854,6 +966,31 @@ spüren. Lineare Übergänge wirken maschinell.
 Scratchpad öffnet jede Ansicht in beiden Farbmodi und meldet zwei Dinge:
 überlappende Textelemente und seitliches Scrollen. Genau diese Fehler sieht kein
 Test, der Werte prüft, und genau die fallen dem Nutzer als Erstes auf.
+
+## Der Startbildschirm
+
+Die Marke kommt nicht fertig ins Bild, sie entsteht. Erst öffnet sich ein
+Lichtschein aus der Mitte, dann wird die Wortmarke aus der Unschärfe heraus
+scharf und bekommt zuletzt ihre Farbe: `filter: blur(5px) brightness(0.4)` auf
+`blur(0) brightness(1)`.
+
+Zwei Sekunden statt der vorherigen 1,3. Ruhig wirkt nur, wer Zeit lässt:
+dieselbe Bewegung in 1,3 Sekunden wirkt gehetzt und damit billig. Ein Tipp
+bricht jederzeit ab, wer es eilig hat, wartet nicht.
+
+Zwei Ebenen, weil sie sich verschieden bewegen müssen. Der Schein wächst aus
+einem Punkt auf volle Grösse, die Marke bleibt an ihrem Platz und schärft sich
+nur. In einer Animation ginge das nicht.
+
+Eine eigene Kurve, `--kurve-start`. Die Standardkurve ist für Knöpfe gemacht
+und läuft am Anfang zu schnell los.
+
+Auf hellem Grund kommt derselbe Schein aus dem dunklen Blau und bleibt
+deutlich schwächer. Das Logoblau verschwindet auf Weiss, und ein zu starker
+Schein wird dort zu einem grauen Fleck.
+
+Eine dritte Variante mit einem Streiflicht über der Wortmarke wurde verworfen.
+Sie sieht beim ersten Mal am besten aus und beim fünfzigsten am schlechtesten.
 
 ## Der Chat
 

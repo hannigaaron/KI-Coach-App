@@ -35,6 +35,18 @@ const STILLE_MS = 9000;
 const MAX_MS = 120000;
 /** Pause vor einem Neustart. Ohne die lehnt Safari den Start ab. */
 const NEUSTART_MS = 220;
+/** So lange darf der Start brauchen, bis onstart kommt. Danach gilt er als tot. */
+const START_WACHHUND_MS = 1800;
+
+/**
+ * Läuft das hier auf einem iPhone oder iPad.
+ *
+ * Geprüft wird über die Zeigereingabe und die Plattform, nicht über den
+ * Browsernamen: auf iOS ist jeder Browser Safari unter der Haube, und der
+ * Browsername sagt deshalb nichts über die Einschränkung aus.
+ */
+const IST_IOS = /iPad|iPhone|iPod/.test(globalThis.navigator?.userAgent || "")
+  || (globalThis.navigator?.platform === "MacIntel" && (globalThis.navigator?.maxTouchPoints || 0) > 1);
 
 export const voiceSupport = {
   erkennung: Boolean(Recognition),
@@ -64,9 +76,13 @@ export class Listener {
     this.handsFree = false;
     /** Text aus abgeschlossenen Teilstücken, überlebt jeden Neustart. */
     this.gesammelt = "";
+    /** Das laufende, noch nicht abgeschlossene Teilstück. */
+    this.letzterInterim = "";
     this.pauseTimer = 0;
     this.maxTimer = 0;
     this.neustarts = 0;
+    /** Wie oft der Start stumm gescheitert ist, ohne Fehler zu melden. */
+    this.fehlstarts = 0;
     this.messerAus = false;
     this.pauseMs = pauseMs ?? PAUSE_MS;
     this.maxMs = maxMs ?? MAX_MS;
@@ -86,7 +102,9 @@ export class Listener {
     if (!this.supported || this.active) return false;
     this.active = true;
     this.gesammelt = "";
+    this.letzterInterim = "";
     this.neustarts = 0;
+    this.fehlstarts = 0;
     this.onState("listening");
     await this.startMeter();
 
@@ -169,9 +187,40 @@ export class Listener {
       setTimeout(() => this.starteErkennung(), NEUSTART_MS);
     };
 
+    /**
+     * Wachhund gegen den stummen Fehlstart.
+     *
+     * `start()` wirft nicht immer, wenn es nicht klappt. Auf iOS kommt es vor,
+     * dass der Aufruf durchgeht und danach schlicht nichts passiert: kein
+     * onstart, kein onerror, kein onend. Für den Nutzer ist das ein Knopf, der
+     * nichts tut, und das ist genau das Bild, das die App kaputt aussehen
+     * lässt. Kommt kein onstart, wird die Instanz weggeworfen und eine neue
+     * aufgesetzt.
+     */
+    let gestartetGemeldet = false;
+    recognition.onstart = () => {
+      gestartetGemeldet = true;
+      // Ein geglückter Start löscht die Bilanz. Sonst summieren sich über
+      // eine lange Freihandsitzung vier einzelne Ausrutscher zu einem Abbruch.
+      this.fehlstarts = 0;
+    };
+
     this.recognition = recognition;
     try {
       recognition.start();
+      setTimeout(() => {
+        if (gestartetGemeldet || !this.active || this.recognition !== recognition) return;
+        this.fehlstarts++;
+        if (this.fehlstarts > 3) {
+          // Dreimal stumm hintereinander ist kein Zufall mehr. Dann bekommt
+          // der Nutzer eine Meldung statt eines toten Knopfes.
+          this.onState("error", "Das Mikrofon antwortet nicht. Schliess die App einmal ganz und öffne sie neu.");
+          this.abbrechen();
+          return;
+        }
+        this.loeseErkennung();
+        this.starteErkennung();
+      }, START_WACHHUND_MS);
     } catch {
       // Kommt vor, wenn die alte Instanz noch nicht ganz zu ist. Später nochmal.
       setTimeout(() => this.starteErkennung(), NEUSTART_MS * 2);
@@ -230,12 +279,18 @@ export class Listener {
     recognition.onend = null;
     recognition.onresult = null;
     recognition.onerror = null;
+    recognition.onstart = null;
     try { recognition.stop(); } catch { /* schon beendet */ }
     try { recognition.abort(); } catch { /* kennt nicht jeder Browser */ }
   }
 
   async startMeter() {
-    if (this.audio || this.messerAus) return this.startErsatzMeter();
+    // Auf iOS teilen sich Spracherkennung und getUserMedia dasselbe Mikrofon,
+    // und die Erkennung verliert. Symptom: beim ersten Mal geht es, danach
+    // startet die Erkennung stumm nicht mehr. Der Pegelmesser ist nur für die
+    // Animation des Kreises da. Ein pulsierender Kreis ist keinen kaputten
+    // Knopf wert, deshalb läuft dort von vornherein die erzeugte Welle.
+    if (IST_IOS || this.audio || this.messerAus) return this.startErsatzMeter();
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const context = new (globalThis.AudioContext || globalThis.webkitAudioContext)();

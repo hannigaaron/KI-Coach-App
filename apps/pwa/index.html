@@ -42,6 +42,10 @@ try {
   ersten Bild steht und nicht erst nachlädt.
 -->
 <div id="splash" class="splash">
+  <!-- Der Lichtschein hinter der Marke. Er öffnet sich aus der Mitte, während
+       die Marke aus dem Dunkel heraus scharf wird. Eigenes Element, weil er
+       sich anders bewegen muss als die Marke selbst. -->
+  <div class="splash-schein" aria-hidden="true"></div>
   <div class="splash-inner">
     <img class="only-light" src="./brand/daevo-lockup-deep.svg" alt="daevo, Evolve your daily life" width="260">
     <img class="only-dark" src="./brand/daevo-lockup-dark.svg" alt="daevo, Evolve your daily life" width="260">
@@ -109,6 +113,15 @@ try {
 
     <!-- Was gleich mitgeschickt wird. Leer und ausgeblendet, solange nichts anhängt. -->
     <div id="anhangLeiste" class="anhang-leiste" hidden></div>
+
+    <!-- Der Weg aus einem Siri Kurzbefehl. Auf dem iPhone öffnet eine Adresse
+         immer Safari, nie die installierte App, und in Safari liegen die Daten
+         des Nutzers nicht. Deshalb legt der Kurzbefehl den Satz in die
+         Zwischenablage und öffnet die App. Gelesen wird erst auf Tippen: iOS
+         gibt die Zwischenablage nur nach einer Geste frei. -->
+    <button type="button" id="btnZwischenablage" class="zwischenablage" hidden>
+      Aus Zwischenablage senden
+    </button>
 
     <form id="composer" class="composer-bar">
       <button type="button" id="btnMic" class="icon-btn mic" aria-label="Diktieren"><span class="mic-dot"></span></button>
@@ -564,23 +577,31 @@ try {
       <p id="e-stimmhilfe" class="feld-hilfe"></p>
 
       <h2 class="abschnitt">Freihändig ansprechen</h2>
-      <p class="sub">Über Siri, auch bei gesperrtem Bildschirm. Ein Weckwort im Hintergrund
-        kann eine Web App nicht, ein Kurzbefehl schon.</p>
+      <p class="sub">Über Siri, auch bei gesperrtem Bildschirm. Der Satz geht an deinen
+        Push Worker, du bekommst eine Mitteilung, und ein Tipp darauf öffnet daevo mit
+        dem Satz.</p>
       <div class="field"><label for="e-siriUrl">Adresse für den Kurzbefehl</label>
         <input id="e-siriUrl" type="text" readonly spellcheck="false">
       </div>
       <button id="btnSiriKopieren" class="ghost breit">Adresse kopieren</button>
       <ol class="siri-schritte">
-        <li>Kurzbefehle öffnen, oben auf das Pluszeichen.</li>
-        <li>Aktion <b>Nach Text fragen</b> hinzufügen, Eingabetyp Diktat.</li>
-        <li>Aktion <b>URL</b> hinzufügen, die kopierte Adresse einsetzen.</li>
-        <li>Ans Ende der Adresse die Variable <b>Bereitgestellte Eingabe</b> ziehen.</li>
-        <li>Aktion <b>URLs öffnen</b> hinzufügen.</li>
+        <li>Kurzbefehle öffnen, oben rechts auf das Pluszeichen.</li>
+        <li>Aktion <b>Nach Eingabe fragen</b> hinzufügen. Typ <b>Text</b>, nicht URL.
+          Als Frage etwas wie "Was willst du daevo sagen".</li>
+        <li>Aktion <b>Inhalte von URL abrufen</b> hinzufügen, die kopierte Adresse einsetzen.</li>
+        <li>Darin auf <b>Mehr anzeigen</b> tippen.</li>
+        <li>Methode umstellen auf <b>POST</b>.</li>
+        <li>Anfragetext umstellen auf <b>Datei</b>, dann die Bereitgestellte Eingabe wählen.</li>
+        <li>Bei <b>Header</b> ein Feld hinzufügen: Schlüssel <b>x-daevo-wort</b>,
+          Wert ist dein Anmeldewort von unten.</li>
         <li>Den Kurzbefehl <b>daevo</b> nennen. Danach reicht "Hey Siri, daevo".</li>
       </ol>
-      <p class="feld-hilfe">Siri fragt, du sprichst, daevo öffnet sich mit deinem Satz und
-        liest die Antwort vor. Der Knopf mit Hey im Chat bleibt für den Fall, dass die App
-        schon offen ist.</p>
+      <p class="feld-hilfe">Warum der Umweg über den Worker: auf dem iPhone öffnet eine
+        Adresse immer Safari, nie die App vom Homebildschirm, und in Safari liegen deine
+        Daten nicht. Die Aktion "App öffnen" führt Webapps nicht auf. Über die Mitteilung
+        kommst du in die echte App. Der Satz liegt höchstens eine Stunde auf dem Server
+        und wird beim Abholen gelöscht.</p>
+      <button id="btnPostfach" class="ghost breit">Postfach jetzt abholen</button>
 
       <h2 class="abschnitt">Benachrichtigungen</h2>
       <p class="sub">Sechs Impulse am Tag, auch wenn die App zu ist. Eiweiss, Trinken, Energie, Shake, Stress, Pause.</p>

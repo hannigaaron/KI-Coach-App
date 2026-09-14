@@ -475,22 +475,72 @@ export function tagesablaufText(a: Tagesablauf): string {
 
 /** Kurzfassung über mehrere Tage, für den Blick auf die Woche. */
 export function wochenText(ablaeufe: Tagesablauf[]): string {
-  const zeilen: string[] = [];
-  for (const a of ablaeufe) {
-    const wochentag = new Date(`${a.tag}T12:00:00`).toLocaleDateString("de-DE", { weekday: "long" });
-    const anzahl = a.termine.length + a.ganztags.length;
-    if (anzahl === 0) {
-      zeilen.push(`${wochentag} ${a.tag}: nichts im Kalender.`);
-      continue;
-    }
-    const teile = [
-      `${wochentag} ${a.tag}: ${anzahl} ${anzahl === 1 ? "Termin" : "Termine"}, ${a.belegtMinuten} Minuten verplant`,
-    ];
-    if (a.training.length) teile.push(`Training: ${a.training.map((t) => `${t.titel} ${uhrzeit(t.von)}`).join(", ")}`);
-    if (a.fokusblock && a.fokusblock.minuten >= 90) {
-      teile.push(`freier Block ${uhrzeit(a.fokusblock.von)} bis ${uhrzeit(a.fokusblock.bis)}`);
-    }
-    zeilen.push(teile.join(". ") + ".");
+  const mitTerminen = ablaeufe.filter((a) => a.termine.length + a.ganztags.length > 0);
+  if (mitTerminen.length === 0) {
+    return "In den nächsten Tagen steht nichts im Kalender. Entweder ist die Woche wirklich frei, "
+      + "oder der Kalender ist nicht mehr aktuell. Im Menue unter Kalender lädst du ihn neu.";
   }
-  return zeilen.join("\n");
+
+  // Der Satz vorneweg ist der eigentliche Wert. Sieben Zeilen mit Datum und
+  // Minutenzahl beantworten keine Frage, sie schieben die Arbeit auf den
+  // Leser. Was zählt: wie voll ist die Woche, welcher Tag ist der harte, und
+  // wo liegt der längste zusammenhängende Block.
+  const belegt = ablaeufe.reduce((sum, a) => sum + a.belegtMinuten, 0);
+  const anzahl = ablaeufe.reduce((sum, a) => sum + a.termine.length + a.ganztags.length, 0);
+  const vollster = [...ablaeufe].sort((a, b) => b.belegtMinuten - a.belegtMinuten)[0];
+  const laengster = [...ablaeufe]
+    .filter((a) => a.fokusblock)
+    .sort((a, b) => (b.fokusblock?.minuten ?? 0) - (a.fokusblock?.minuten ?? 0))[0];
+
+  const kopf: string[] = [
+    `${anzahl} ${anzahl === 1 ? "Termin" : "Termine"} in ${ablaeufe.length} Tagen, zusammen ${dauer(belegt)}.`,
+  ];
+  if (vollster && vollster.belegtMinuten > 0) {
+    kopf.push(`Am vollsten ist ${tagName(vollster.tag)} mit ${dauer(vollster.belegtMinuten)}.`);
+  }
+  if (laengster && laengster.fokusblock) {
+    kopf.push(
+      `Der längste freie Block liegt ${tagName(laengster.tag)} von `
+      + `${uhrzeit(laengster.fokusblock.von)} bis ${uhrzeit(laengster.fokusblock.bis)}.`,
+    );
+  }
+
+  // Danach die Tage, aber nur die mit Terminen. Eine Zeile "nichts im
+  // Kalender" trägt keine Information und drängt die Tage weg, die eine
+  // tragen.
+  const zeilen: string[] = [];
+  for (const a of mitTerminen) {
+    const n = a.termine.length + a.ganztags.length;
+    const teile = [`${tagName(a.tag)}: ${n} ${n === 1 ? "Termin" : "Termine"}`];
+    if (a.belegtMinuten > 0) teile.push(dauer(a.belegtMinuten));
+    if (a.training.length) teile.push(`Training ${a.training.map((t) => uhrzeit(t.von)).join(", ")}`);
+    if (a.fokusblock && a.fokusblock.minuten >= 90) {
+      teile.push(`frei ${uhrzeit(a.fokusblock.von)} bis ${uhrzeit(a.fokusblock.bis)}`);
+    }
+    zeilen.push(teile.join(", ") + ".");
+  }
+
+  const leer = ablaeufe.length - mitTerminen.length;
+  const fuss = leer > 0 ? `\n\nOhne Termin: ${leer} ${leer === 1 ? "Tag" : "Tage"}.` : "";
+  return `${kopf.join(" ")}\n\n${zeilen.join("\n")}${fuss}`;
+}
+
+/** Wochentag und Datum, so wie man es sagt. */
+function tagName(tag: string): string {
+  const d = new Date(`${tag}T12:00:00`);
+  return `${d.toLocaleDateString("de-DE", { weekday: "long" })}, ${d.getDate()}.${d.getMonth() + 1}.`;
+}
+
+/**
+ * Minuten als Dauer, wie ein Mensch sie nennt.
+ *
+ * "180 Minuten verplant" rechnet der Leser jedes Mal selbst um. Unter einer
+ * Stunde bleiben Minuten stehen, dort ist die Umrechnung unnötig.
+ */
+function dauer(minuten: number): string {
+  if (minuten < 60) return `${minuten} Minuten`;
+  const h = Math.floor(minuten / 60);
+  const m = minuten % 60;
+  if (m === 0) return `${h} ${h === 1 ? "Stunde" : "Stunden"}`;
+  return `${h}:${String(m).padStart(2, "0")} Stunden`;
 }

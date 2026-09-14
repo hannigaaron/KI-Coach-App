@@ -137,3 +137,61 @@ test("mit onText wird stream gesetzt", async () => {
   await provider.converse({ system: "s", messages: [{ role: "user", content: "hi" }], tools: [], onText: () => {} });
   assert.equal(gesendet.stream, true);
 });
+
+/**
+ * Der Denkblock.
+ *
+ * Genau hier ist die App im Betrieb gestorben. Der Block kam leer an, die
+ * Teilstücke wurden ignoriert, und beim nächsten Werkzeugaufruf lehnte die API
+ * ab: "each thinking block must contain thinking". Danach war das ganze
+ * Gespräch unbrauchbar, nicht nur die eine Nachricht.
+ */
+const DENK_STROM = [
+  ereignis({ type: "message_start", message: { usage: { input_tokens: 10 } } }),
+  ereignis({ type: "content_block_start", index: 0, content_block: { type: "thinking", thinking: "" } }),
+  ereignis({ type: "content_block_delta", index: 0, delta: { type: "thinking_delta", thinking: "Erst den" } }),
+  ereignis({ type: "content_block_delta", index: 0, delta: { type: "thinking_delta", thinking: " Kalender lesen." } }),
+  ereignis({ type: "content_block_delta", index: 0, delta: { type: "signature_delta", signature: "sig-abc" } }),
+  ereignis({ type: "content_block_stop", index: 0 }),
+  ereignis({ type: "content_block_start", index: 1, content_block: { type: "text", text: "" } }),
+  ereignis({ type: "content_block_delta", index: 1, delta: { type: "text_delta", text: "Diese Woche." } }),
+  ereignis({ type: "content_block_stop", index: 1 }),
+  ereignis({ type: "message_delta", delta: { stop_reason: "end_turn" }, usage: { output_tokens: 7 } }),
+];
+
+test("der Denkblock wird vollständig zusammengesetzt, mit Signatur", async () => {
+  const stuecke: string[] = [];
+  const antwort = await anbieter(DENK_STROM).converse({
+    system: "s",
+    messages: [{ role: "user", content: "hi" }],
+    tools: [],
+    onText: (s) => stuecke.push(s),
+  });
+  assert.deepEqual(antwort.content, [
+    { type: "thinking", thinking: "Erst den Kalender lesen.", signature: "sig-abc" },
+    { type: "text", text: "Diese Woche." },
+  ]);
+  // Der Denktext gehört nicht in die Blase. Angezeigt wird nur die Antwort.
+  assert.deepEqual(stuecke, ["Diese Woche."]);
+});
+
+test("ein abgerissener Denkblock fliegt raus statt den Verlauf zu vergiften", async () => {
+  const abriss = [
+    ereignis({ type: "content_block_start", index: 0, content_block: { type: "thinking", thinking: "" } }),
+    ereignis({ type: "content_block_delta", index: 0, delta: { type: "thinking_delta", thinking: "halb" } }),
+    ereignis({ type: "content_block_stop", index: 0 }),
+    ereignis({ type: "content_block_start", index: 1, content_block: { type: "text", text: "" } }),
+    ereignis({ type: "content_block_delta", index: 1, delta: { type: "text_delta", text: "Trotzdem da." } }),
+    ereignis({ type: "content_block_stop", index: 1 }),
+    ereignis({ type: "message_delta", delta: { stop_reason: "end_turn" }, usage: { output_tokens: 3 } }),
+  ];
+  const antwort = await anbieter(abriss).converse({
+    system: "s",
+    messages: [{ role: "user", content: "hi" }],
+    tools: [],
+    // Ohne onText läuft der Aufruf über den Weg ohne Datenstrom.
+    onText: () => {},
+  });
+  // Ohne Signatur ist der Block wertlos, die Antwort selbst bleibt.
+  assert.deepEqual(antwort.content, [{ type: "text", text: "Trotzdem da." }]);
+});
