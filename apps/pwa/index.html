@@ -175,6 +175,19 @@ try {
         </div>
       </div>
 
+      <!--
+        Derselbe Weg ins Erfassen wie auf der Essen Seite, direkt unter der
+        Zahl, auf die er sich bezieht. Wer sieht, wie viel noch offen ist, will
+        als Nächstes etwas eintragen, und nicht erst ins Menue.
+      -->
+      <button type="button" id="btnErfassenHeute" class="erfassen-knopf" aria-haspopup="dialog" aria-expanded="false">
+        <span class="erfassen-plus" aria-hidden="true"></span>
+        <span class="erfassen-text">
+          <span class="erfassen-titel">Essen erfassen</span>
+          <span class="erfassen-sub">Foto, Barcode, Suche oder sprechen</span>
+        </span>
+      </button>
+
       <div class="ring-kacheln" id="heuteBalance"></div>
       <p class="fineprint" id="heuteBalanceHinweis" style="margin-top:0"></p>
 

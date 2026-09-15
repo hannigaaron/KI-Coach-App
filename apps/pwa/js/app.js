@@ -2037,6 +2037,17 @@ function zeigeFeedback(id, text, fehler = false) {
   feld.hidden = false;
   feld.className = fehler ? "feedback err" : "feedback";
   feld.textContent = text;
+  // Liegt das Feld in einer versteckten Ansicht, sieht niemand die Antwort.
+  // Das passiert, seit das Erfassen auch von Heute aus geht. Ein Ergebnis, das
+  // auf einer Seite steht, die man gerade nicht ansieht, ist kein Ergebnis.
+  if (feld.closest(".view")?.hidden) toast(ersterSatz(text), 5200);
+}
+
+/** Der erste Satz, für die kurze Meldung. Ganze Absätze passen in keinen Toast. */
+function ersterSatz(text) {
+  const t = String(text ?? "").trim();
+  const ende = t.search(/[.!?](\s|$)/);
+  return ende > 0 ? t.slice(0, ende + 1) : t.slice(0, 120);
 }
 
 $("btnParse").addEventListener("click", async () => {
@@ -2086,7 +2097,7 @@ $("essenFoto").addEventListener("change", async (event) => {
   // Der Knopf, der das Bild angestossen hat, ist inzwischen der eine oben auf
   // der Seite. Er zeigt den Fortschritt, damit zwischen Auslösen und Ergebnis
   // nicht zehn Sekunden lang nichts passiert.
-  const knopf = $("btnErfassen");
+  const knopf = erfassenAuslöser ?? $("btnErfassen");
   const titel = knopf.querySelector(".erfassen-titel");
   const sub = knopf.querySelector(".erfassen-sub");
   knopf.disabled = true;
@@ -2130,27 +2141,47 @@ async function barcodeNachschlagen(code) {
  * bevor der gewählte Weg startet: eine Kamera, die hinter einer halb offenen
  * Ebene aufgeht, sieht aus, als hinge die App.
  */
-function erfassenOeffnen() {
+/*
+ * Der Knopf steht auf zwei Seiten, das Blatt gibt es einmal. Welcher Knopf
+ * es geöffnet hat, zählt trotzdem: er trägt danach den Fortschritt, wenn ein
+ * Bild ausgewertet wird, und er bekommt sein aria-expanded zurück.
+ */
+let erfassenAuslöser = null;
+const ERFASSEN_KNOEPFE = ["btnErfassen", "btnErfassenHeute"];
+
+function erfassenOeffnen(event) {
+  erfassenAuslöser = event?.currentTarget ?? $("btnErfassen");
   $("erfassenBlatt").hidden = false;
   document.body.classList.add("blatt-offen");
-  $("btnErfassen").setAttribute("aria-expanded", "true");
+  erfassenAuslöser.setAttribute("aria-expanded", "true");
 }
 function erfassenSchliessen() {
   $("erfassenBlatt").hidden = true;
   document.body.classList.remove("blatt-offen");
-  $("btnErfassen").setAttribute("aria-expanded", "false");
+  for (const id of ERFASSEN_KNOEPFE) $(id).setAttribute("aria-expanded", "false");
 }
 
-$("btnErfassen").addEventListener("click", erfassenOeffnen);
+for (const id of ERFASSEN_KNOEPFE) $(id).addEventListener("click", erfassenOeffnen);
 $("ebSchliessen").addEventListener("click", erfassenSchliessen);
 // Ein Tipp auf den dunklen Grund schliesst. Ohne das ist der einzige Ausweg
 // das kleine Kreuz oben rechts, und das trifft man mit dem Daumen schlecht.
 $("erfassenBlatt").addEventListener("click", (event) => {
   if (event.target === $("erfassenBlatt")) erfassenSchliessen();
 });
+/*
+ * Tippen und Sprechen brauchen das Textfeld, und das steht auf der Essen
+ * Seite. Wer von Heute aus kommt, wird deshalb erst dorthin gebracht: ein
+ * Feld, das in einer versteckten Ansicht den Fokus bekommt, tut sichtbar
+ * nichts, und der Nutzer hält den Knopf für kaputt.
+ */
+function zurEssenEingabe() {
+  showView("essen");
+  $("mealComposer").hidden = false;
+}
+
 $("ebTippen").addEventListener("click", () => {
   erfassenSchliessen();
-  $("mealComposer").hidden = false;
+  zurEssenEingabe();
   $("mealText").focus();
 });
 
@@ -2163,7 +2194,7 @@ $("erfassenBlatt").addEventListener("click", (event) => {
   if (weg === "barcode") mahlzeitNeu("barcode");
   if (weg === "suche") mahlzeitNeu("suche");
   if (weg === "sprache") {
-    $("mealComposer").hidden = false;
+    zurEssenEingabe();
     $("btnVoice").click();
   }
 });

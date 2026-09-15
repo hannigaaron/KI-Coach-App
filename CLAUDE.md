@@ -690,9 +690,23 @@ tragen eine fremde Farbigkeit in die Palette. Nur der Kreis um das Plus trägt
 die Markenfarbe, die Kachel selbst nicht, sonst zieht der Knopf mehr
 Aufmerksamkeit als die Zahlen darüber.
 
-Das Blatt liegt ausserhalb der Ansichten, wie der Mahlzeit Editor. Damit lässt
-es sich später auch aus dem Assistenten öffnen, ohne dasselbe Menü ein zweites
-Mal zu bauen.
+Das Blatt liegt ausserhalb der Ansichten, wie der Mahlzeit Editor. Deshalb
+steht derselbe Knopf auch auf Heute, direkt unter dem Kalorienring: wer sieht,
+wie viel noch offen ist, will als Nächstes etwas eintragen und nicht erst ins
+Menue. Ein Blatt, zwei Knöpfe, kein zweites Menü.
+
+Welcher Knopf geöffnet hat, zählt trotzdem. Er trägt danach den Fortschritt,
+während ein Bild ausgewertet wird, sonst blinkt die Anzeige auf einer Seite,
+die man gerade nicht ansieht.
+
+Tippen und Sprechen brauchen das Textfeld, und das steht auf der Essen Seite.
+Wer von Heute aus kommt, wird erst dorthin gebracht. Ein Feld, das in einer
+versteckten Ansicht den Fokus bekommt, tut sichtbar nichts, und der Nutzer
+hält den Knopf für kaputt.
+
+`zeigeFeedback` prüft ausserdem, ob sein Feld in einer versteckten Ansicht
+liegt, und schickt den ersten Satz dann als kurze Meldung. Ein Ergebnis auf
+einer Seite, die man nicht ansieht, ist kein Ergebnis.
 
 Der zweite Barcode Scanner auf der Essen Seite ist ersatzlos weg. Der Editor
 konnte dasselbe und landet dort, wo sich die Menge danach noch ändern lässt.
