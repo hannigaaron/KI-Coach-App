@@ -15,6 +15,30 @@ function debugLog(message: string, error: unknown): void {
   if (env?.COACH_DEBUG) console.error(message, error);
 }
 
+/**
+ * Was der Coach zurückfragt, wenn nicht alles aufging.
+ *
+ * Zwei verschiedene Lagen, und sie brauchen verschiedene Sätze.
+ *
+ * Teilweise erkannt: nach den fehlenden Mengen fragen ist richtig, der Nutzer
+ * wollte etwas eintragen und es fehlt nur eine Zahl.
+ *
+ * Gar nichts erkannt: dann war der Satz fast immer keine Mahlzeit. Im Betrieb
+ * ist ein ganzer Tagesplan als Mahlzeit gelesen worden, weil "esse" in
+ * "essen" steckt, und die Rückfrage "Wie viel war das ungefähr" auf einen
+ * Tagesplan sieht aus, als hätte die App nicht zugehört.
+ */
+export function naechsteFrage(erkannt: number, offen: string[]): string {
+  if (erkannt > 0 && offen.length) {
+    return `Das konnte ich nicht zuordnen: ${offen.join(", ")}. Wie viel war das ungefähr?`;
+  }
+  if (erkannt === 0) {
+    return "Daraus konnte ich keine Mahlzeit lesen. Wenn du etwas eintragen willst, "
+      + "sag es mir mit Menge, etwa 200 Gramm Magerquark.";
+  }
+  return "";
+}
+
 export interface MealParseResult {
   entries: FoodEntry[];
   assumption: string;
@@ -70,9 +94,11 @@ export class Coach {
     return {
       entries: offline.entries,
       assumption: "Werte stammen aus der internen Referenztabelle, nicht aus einer Nährwertdatenbank.",
-      followUpQuestion: offline.unresolved.length
-        ? `Das konnte ich nicht zuordnen: ${offline.unresolved.join(", ")}. Wie viel war das ungefähr?`
-        : "",
+      // Die Rückfrage lohnt nur, wenn überhaupt etwas erkannt wurde. Kam nichts
+      // durch, ist der Satz keine Mahlzeit gewesen, und "Wie viel war das
+      // ungefähr" auf einen Tagesplan zurückzuwerfen sieht aus, als hätte die
+      // App nicht zugehört. Diesen Fall beantwortet der Aufrufer.
+      followUpQuestion: naechsteFrage(offline.entries.length, offline.unresolved),
       warnings: [],
       source: "offline",
     };

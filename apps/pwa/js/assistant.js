@@ -1512,7 +1512,12 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
       const day = todayIso();
       const parsed = await coach.parseMeal(beschreibung);
       if (parsed.entries.length === 0) {
-        return `Konnte nichts zuordnen. ${parsed.followUpQuestion || "Nenn mir bitte die Mengen."}`;
+        // Kein erkanntes Lebensmittel heisst fast immer: das war keine
+        // Mahlzeit. Eine Rückfrage nach Mengen wirkt dann, als hätte die App
+        // nicht zugehört, und genau das ist im Betrieb passiert, als ein
+        // Tagesplan mit "zwei gute Mahlzeiten essen" als Eintrag gelesen wurde.
+        return "Daraus konnte ich keine Mahlzeit lesen. Wenn du etwas eintragen willst, "
+          + "sag es mir mit Menge, etwa 200 Gramm Magerquark.";
       }
       // Der Riegel gegen doppeltes Zählen. Das Modell sieht die Zahlen des
       // Tages im Kontext und schickt beim nächsten Eintrag die ganze bisherige

@@ -145,9 +145,16 @@ export class Agent {
         // Fehler selbst zu beheben.
         const deutung = fehlerErklaerung(error);
         const nachsatz = deutung.nochmal ? " Versuch es gleich nochmal." : "";
+
+        // Der Regelweg kommt nur mit, wenn er wirklich etwas getan hat, also
+        // eine Mahlzeit eingetragen, Zahlen geholt oder eine Aufgabe angelegt.
+        // Hat er nur allgemeinen Text erzeugt, ist das eine Antwort, die wie
+        // eine Antwort aussieht und keine ist. Zusammen mit der Fehlermeldung
+        // darunter wirkt sie, als hätte die App nicht zugehört.
+        const hatGehandelt = offline.ausgeführt.length > 0;
         return {
           ...offline,
-          text: `${offline.text}\n\n${deutung.text}${nachsatz}`,
+          text: hatGehandelt ? `${offline.text}\n\n${deutung.text}${nachsatz}` : `${deutung.text}${nachsatz}`,
         };
       }
     }
@@ -826,6 +833,34 @@ function foldUmlauts(text: string): string {
  * tragen, sie werden gefaltet wie der zu pruefende Text. Sonst braecht jede
  * spaetere Textkorrektur die Erkennung.
  */
+/**
+ * Ein Vorhaben ist kein Eintrag.
+ *
+ * "Ich möchte heute zwei gute Mahlzeiten essen" hat den Regelpfad dazu
+ * gebracht, den ganzen Tagesplan als Mahlzeit zu erfassen. Das Wort "esse"
+ * steckt in "essen", und damit greift die Erfassung auf einem Satz, in dem
+ * niemand etwas gegessen hat.
+ *
+ * Geprüft wird auf Absichtswörter und gleichzeitig auf das Fehlen einer
+ * Vergangenheitsform. Wer schreibt "ich möchte wissen, was ich gegessen habe",
+ * meint die Vergangenheit, obwohl "möchte" darin steht. Deshalb reicht ein
+ * Absichtswort allein nicht.
+ */
+export function istAbsicht(roh: string): boolean {
+  // Gefaltet, wie überall sonst im Regelpfad. `pattern` faltet seine Wörter,
+  // also muss auch die andere Seite gefaltet sein, sonst trifft "möchte" nie.
+  const text = foldUmlauts(String(roh ?? "").toLowerCase());
+  const absicht = pattern(
+    "moechte", "will ich", "ich will", "wollte", "werde", "vorhaben",
+    "plane", "geplant", "soll ich", "sollte ich", "was mache ich", "muss ich noch",
+  ).test(text);
+  if (!absicht) return false;
+  const vergangenheit = pattern(
+    "gegessen", "getrunken", "gefruehstueckt", "war essen", "hatte ich", "hab ich",
+  ).test(text);
+  return !vergangenheit;
+}
+
 function pattern(...woerter: string[]): RegExp {
   return new RegExp(woerter.map(foldUmlauts).join("|"));
 }
@@ -921,7 +956,8 @@ export async function runOffline(
     return { text: antwort, ausgeführt, source: "offline" };
   }
 
-  if (pattern("gegessen", "esse", "hatte", "frühstück", "mittag", "abendessen", "snack").test(text)) {
+  if (!istAbsicht(text)
+    && pattern("gegessen", "esse", "hatte", "frühstück", "mittag", "abendessen", "snack").test(text)) {
     const antwort = await actions.mahlzeitErfassen(nachricht);
     ausgeführt.push("Mahlzeit eingetragen");
     return { text: antwort, ausgeführt, source: "offline" };

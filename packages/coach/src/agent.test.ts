@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Agent, runOffline, type AgentActions } from "./agent.js";
+import { Agent, istAbsicht, runOffline, type AgentActions } from "./agent.js";
 import type { ChatMessage, CoachProvider, ContentBlock, ConverseRequest, ConverseResponse, JsonRequest } from "./provider.js";
 
 function stubActions(log: string[]): AgentActions {
@@ -372,4 +372,39 @@ test("die Frage nach den Terminen bekommt weiter die Woche", async () => {
   const log: string[] = [];
   await runOffline("was steht diese Woche an", stubActions(log));
   assert.ok(log.includes("kalender:"), log.join(","));
+});
+
+/* ---------- Vorhaben sind keine Mahlzeit ---------- */
+
+test("ein Tagesplan mit essen wird nicht als Mahlzeit erfasst", async () => {
+  // Genau dieser Satz hat im Betrieb den ganzen Tagesplan als Mahlzeit
+  // eingetragen. "esse" steckt in "essen".
+  const log: string[] = [];
+  await runOffline(
+    "Ich hab genau 5 Stunden Zeit bis ich meinen ersten Kundentermin habe ich möchte heute "
+    + "folgendes machen ich möchte meine Sachen für den Urlaub packen ich möchte trainieren "
+    + "gehen ich möchte zwei gute Mahlzeiten essen",
+    stubActions(log),
+  );
+  assert.equal(log.some((e) => e.startsWith("mahlzeit:")), false, log.join(","));
+});
+
+test("was wirklich gegessen wurde, wird weiter erfasst", async () => {
+  for (const satz of [
+    "ich hab 200 g Magerquark gegessen",
+    "heute Mittag hatte ich Reis mit Hähnchen",
+    "zum Frühstück Haferflocken",
+  ]) {
+    const log: string[] = [];
+    await runOffline(satz, stubActions(log));
+    assert.ok(log.some((e) => e.startsWith("mahlzeit:")), `${satz} ergab ${log.join(",")}`);
+  }
+});
+
+test("eine Absicht mit Vergangenheitsform zählt weiter als Eintrag", () => {
+  // "Ich möchte wissen, was ich gegessen habe" meint die Vergangenheit,
+  // obwohl möchte darin steht.
+  assert.equal(istAbsicht("ich möchte wissen was ich heute gegessen habe"), false);
+  assert.equal(istAbsicht("ich möchte heute zwei gute Mahlzeiten essen"), true);
+  assert.equal(istAbsicht("ich hab 200 g Magerquark gegessen"), false);
 });

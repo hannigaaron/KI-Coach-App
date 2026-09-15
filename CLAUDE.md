@@ -151,7 +151,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 602 Tests
+npm test           # 605 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -700,6 +700,40 @@ nochmal in Frage stellen.
 
 Eine Mahlzeit ohne Posten wird beim Speichern gelöscht. Eine Zeile mit null
 Kalorien im Verlauf zu führen wäre die schlechtere Antwort.
+
+## Ein Vorhaben ist kein Eintrag
+
+`istAbsicht` in `packages/coach/src/agent.ts`. Der Satz "ich möchte heute zwei
+gute Mahlzeiten essen" hat im Regelpfad einen ganzen Tagesplan als Mahlzeit
+erfasst. Das Wort "esse" steckt in "essen", und damit greift die Erfassung auf
+einem Satz, in dem niemand etwas gegessen hat.
+
+Geprüft wird auf Absichtswörter und gleichzeitig auf das Fehlen einer
+Vergangenheitsform. Wer schreibt "ich möchte wissen, was ich gegessen habe",
+meint die Vergangenheit, obwohl "möchte" darin steht. Ein Absichtswort allein
+reicht deshalb nicht.
+
+Der Text läuft durch `foldUmlauts`, wie überall sonst im Regelpfad. `pattern`
+faltet seine Wörter, also muss die andere Seite mitgefaltet sein, sonst trifft
+"möchte" nie.
+
+## Was der Coach zurückfragt, wenn nichts aufging
+
+`naechsteFrage` in `packages/coach/src/skills.ts` trennt zwei Lagen, die
+vorher denselben Satz bekommen haben.
+
+Teilweise erkannt heisst: nach den fehlenden Mengen fragen. Der Nutzer wollte
+etwas eintragen, es fehlt nur eine Zahl.
+
+Gar nichts erkannt heisst fast immer: das war keine Mahlzeit. Die Rückfrage
+"Wie viel war das ungefähr" auf einen Tagesplan zurückzuwerfen sieht aus, als
+hätte die App nicht zugehört, und genau das ist im Betrieb passiert.
+
+Dasselbe gilt beim gescheiterten Modellaufruf. Der Regelweg kommt nur dann mit
+in die Antwort, wenn er wirklich etwas getan hat, also `ausgeführt` nicht leer
+ist. Hat er nur allgemeinen Text erzeugt, steht allein die Fehlermeldung da.
+Eine Antwort, die wie eine Antwort aussieht und keine ist, über einer Meldung
+"ich komme nicht ins Netz", ist schlimmer als die Meldung allein.
 
 ## Doppelt eingetragenes Essen
 
