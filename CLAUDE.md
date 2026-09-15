@@ -156,7 +156,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 642 Tests
+npm test           # 654 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -837,6 +837,45 @@ Fett und Wasserziel rechnen aber alle gegen `profile.weightKg`, siehe
 bekam weiterhin die Ziele aus dem Anamnesebogen. Jetzt geht die Wiegung in
 beides. Ein Wert unter 30 oder über 300 Kilo lässt das Profil in Ruhe: ein
 Tippfehler darf die Ziele nicht kippen.
+
+## Der Regelweg ist die kostenlose Stufe
+
+30 der 37 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
+Das ist keine Notlösung für den Ausfall, sondern das Produkt: ein Weg, der
+kein Modell anfragt, kostet nichts je Nutzer und skaliert ohne Rechnung.
+
+Die Lücken waren schlecht verteilt. Eine Aufgabe liess sich ohne Schlüssel
+anlegen, aber nicht abhaken. Das Gewicht ging rein, das Training nicht,
+obwohl dieser Nutzer fünf bis sechs Mal die Woche trainiert. Der Mittags
+Check-in kam täglich um 14:00 als Erinnerung und brauchte für die Antwort ein
+Modell.
+
+Die Reihenfolge der Zweige trägt die Bedeutung. Training steht vor der
+Mahlzeit, weil "nach dem Training hatte ich einen Shake" beides enthält und
+sonst nur der Shake ankommt. Abhaken steht vor Anlegen, weil "Angebot
+geschrieben, erledigt" sonst dieselbe Aufgabe ein zweites Mal erzeugt.
+Rücknahme steht vor allem, was einträgt.
+
+Ohne erkannte Dauer wird kein Training eingetragen. Die Dauer geht in das
+Balance Board und in den Wasserbedarf, und eine geratene Stunde verschiebt
+beides. Lieber kein Eintrag als ein erfundener.
+
+"Athletiktraining" ist Arbeit und kein eigenes Training, dieselbe Trennung wie
+in `packages/core/src/balance.ts`. Wer seine Kundenstunden als eigene
+Einheiten gezählt bekommt, hat eine Statistik, die ihn anlügt.
+
+Beim Mittags Check-in gilt: genau drei Zahlen, sonst nichts. Bei zwei oder
+vier ist die Zuordnung geraten, und ein geratener Wert steht im Verlauf später
+wie eine echte Antwort. Beschriftete Zahlen schlagen die Reihenfolge, denn wer
+"Energie 7, Sättigung 4" schreibt, meint nicht Konzentration 4. Steht viel
+Text um die Zahlen herum, greift der Zweig nicht: "ich hab 7 von 10 Stunden
+geschlafen und 2 Kaffee getrunken" ist kein Bogen.
+
+Offen bleiben sieben. Die beiden Fotowerkzeuge brauchen ein Modell, daran
+ändert kein Regelpfad etwas. `standard_setzen`, `standard_bestaetigen` und
+`gespraech_einordnen` brauchen eine Kennung aus dem Zusammenhang, die ein
+Wortmuster nicht kennt. `profil_aendern` und `einkaufsliste_abhaken` sind
+machbar und stehen aus.
 
 ## Nährwerte von Markenprodukten
 

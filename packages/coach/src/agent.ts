@@ -1008,6 +1008,54 @@ export async function runOffline(
     return { text: antwort, ausgeführt, source: "offline" };
   }
 
+  // Training vor der Mahlzeit. "Nach dem Training hatte ich einen Shake"
+  // enthaelt "hatte" und landete sonst nur auf dem Erfassen, das Training fiel
+  // weg. Ohne erkannte Dauer greift der Zweig nicht und der Satz laeuft
+  // weiter, statt eine geratene Stunde einzutragen.
+  const training = trainingAus(text);
+  if (training) {
+    const antwort = await actions.trainingEintragen(training);
+    return { text: antwort, ausgeführt: ["Training eingetragen"], source: "offline" };
+  }
+
+  const mittag = mittagscheckAus(text);
+  if (mittag) {
+    const antwort = await actions.mittagscheckSpeichern(mittag);
+    return { text: antwort, ausgeführt: ["Mittags Check-in gespeichert"], source: "offline" };
+  }
+
+  const zeit = zeitAus(text);
+  if (zeit) {
+    const antwort = await actions.zeitEintragen(zeit);
+    return { text: antwort, ausgeführt: ["Zeit gebucht"], source: "offline" };
+  }
+
+  // Abhaken vor dem Anlegen. "Angebot geschrieben, erledigt" enthaelt beides,
+  // und wer abhaken will, bekam sonst dieselbe Aufgabe ein zweites Mal.
+  if (pattern("erledigt", "abhaken", "hake ab", "fertig mit", "hab ich gemacht", "ist durch").test(text)) {
+    const antwort = await actions.aufgabeAbhaken({ text: nachricht });
+    return { text: antwort, ausgeführt: ["Aufgabe abgehakt"], source: "offline" };
+  }
+
+  if (pattern("einkaufsliste", "einkaufszettel", "was muss ich kaufen", "steht auf der liste").test(text)
+    && !pattern("erstell", "mach mir", "brauche eine", "plane").test(text)) {
+    return { text: await actions.einkaufslisteAbrufen(), ausgeführt, source: "offline" };
+  }
+
+  if (pattern("was weisst du", "was weiss du", "was hast du dir gemerkt", "erinnerst du dich",
+    "was kennst du", "was steht in deinem gedaechtnis").test(text)) {
+    return { text: await actions.gedaechtnisDurchsuchen(nachricht), ausgeführt, source: "offline" };
+  }
+
+  // Die Suche in frueheren Gespraechen braucht einen Suchbegriff. Ohne
+  // Gegenstand waere jede Frage nach der Vergangenheit eine Volltextsuche
+  // ueber alles, und die liefert alles und damit nichts.
+  const frueher = /\b(worueber|ueber was|was haben wir)\b.*\b(gesprochen|geredet|besprochen)\b/.exec(text)
+    ?? /\b(gesprochen|geredet|besprochen)\b/.exec(pattern("letztes mal", "damals", "neulich", "letzte woche").test(text) ? text : "");
+  if (frueher) {
+    return { text: await actions.gespraecheDurchsuchen({ suche: nachricht }), ausgeführt, source: "offline" };
+  }
+
   if (!istAbsicht(text)
     && pattern("gegessen", "esse", "hatte", "frühstück", "mittag", "abendessen", "snack").test(text)) {
     const antwort = await actions.mahlzeitErfassen(nachricht);
@@ -1183,6 +1231,129 @@ function extractGewicht(text: string): number | null {
   if (!match) return null;
   const wert = Number(match[1]!.replace(",", "."));
   return Number.isFinite(wert) && wert >= 30 && wert <= 300 ? Math.round(wert * 10) / 10 : null;
+}
+
+/**
+ * Liest eine absolvierte Trainingseinheit aus dem Satz.
+ *
+ * Die Art entscheidet die Wortliste, nicht das Modell. Dieser Nutzer spielt
+ * Volleyball und macht Krafttraining, beides steht damit im Regelweg. Ohne
+ * erkannte Dauer wird nichts geraten: die Dauer geht in das Balance Board und
+ * in den Wasserbedarf, und eine erfundene Stunde verschiebt beides.
+ *
+ * "Athletiktraining" ist bei diesem Nutzer Arbeit und kein eigenes Training,
+ * dieselbe Trennung wie in `packages/core/src/balance.ts`. Wer seine
+ * Kundenstunden als eigene Einheiten gezaehlt bekommt, hat eine Statistik, die
+ * ihn anluegt.
+ */
+function trainingAus(text: string): { art: string; minuten: number } | null {
+  if (istAbsicht(text)) return null;
+  if (pattern("athletiktraining", "kunde", "kundin", "klient", "coaching gegeben").test(text)) return null;
+
+  // "Ich war 2 Stunden Volleyball spielen" steht im Infinitiv, nicht im
+  // Partizip. Beide Formen kommen vor, und ein Vorhaben faengt istAbsicht
+  // oben schon ab, deshalb ist der Infinitiv hier ungefaehrlich.
+  const gemacht = pattern("trainiert", "training gemacht", "war im gym", "war trainieren",
+    "gespielt", "spielen", "workout", "einheit gemacht", "gedehnt",
+    "dehnen", "joggen", "laufen", "gelaufen", "schwimmen", "geschwommen").test(text);
+  if (!gemacht) return null;
+
+  const art = pattern("volleyball", "fussball", "basketball", "handball", "mannschaft").test(text) ? "team_sport"
+    : pattern("laufen", "joggen", "gelaufen", "cardio", "rad", "schwimmen", "joggen").test(text) ? "cardio"
+      : pattern("mobility", "gedehnt", "dehnen", "beweglichkeit", "yoga").test(text) ? "mobility"
+        : "strength";
+
+  const minuten = dauerAus(text);
+  return minuten === null ? null : { art, minuten: Math.min(480, minuten) };
+}
+
+/**
+ * Liest die drei Zahlen des Mittags Check-ins aus dem Satz.
+ *
+ * Die Erinnerung um 14:00 fragt nach Energie, Konzentration und Saettigung,
+ * je 1 bis 10. Wer darauf "7 6 8" antwortet, hat den Bogen beantwortet, und
+ * ohne diesen Pfad braucht genau diese taegliche Antwort ein Modell.
+ *
+ * Genau drei Zahlen. Bei zwei oder vier ist die Zuordnung geraten, und ein
+ * geratener Wert steht spaeter im Verlauf wie eine echte Antwort. Beschriftete
+ * Zahlen schlagen die Reihenfolge: wer "Energie 7, Saettigung 4" schreibt,
+ * meint nicht Konzentration 4.
+ */
+function mittagscheckAus(text: string): { energie: number; konzentration: number; saettigung: number } | null {
+  const feld = (...woerter: string[]): number | null => {
+    const m = new RegExp(`(?:${woerter.map(foldUmlauts).join("|")})\\D{0,4}(\\d{1,2})`).exec(text);
+    const wert = m ? Number(m[1]) : NaN;
+    return Number.isFinite(wert) && wert >= 1 && wert <= 10 ? wert : null;
+  };
+  const energie = feld("energie", "kraft");
+  const konzentration = feld("konzentration", "fokus");
+  const saettigung = feld("saettigung", "satt", "hunger");
+  if (energie !== null && konzentration !== null && saettigung !== null) {
+    return { energie, konzentration, saettigung };
+  }
+
+  // Ohne Beschriftung gilt die Reihenfolge der Frage. Nur wenn wirklich drei
+  // Zahlen dastehen und sonst kaum Text: "ich hab 7 von 10 Stunden geschlafen"
+  // ist keine Antwort auf den Bogen.
+  if (!pattern("check", "energie", "konzentration", "saettigung", "fokus").test(text)
+    && text.replace(/[^a-z]/g, "").length > 12) return null;
+  const zahlen = (text.match(/\b(10|[1-9])\b/g) ?? []).map(Number);
+  if (zahlen.length !== 3) return null;
+  return { energie: zahlen[0]!, konzentration: zahlen[1]!, saettigung: zahlen[2]! };
+}
+
+/**
+ * Liest gebuchte Zeit fuer das Balance Board aus dem Satz.
+ *
+ * Das Board misst aus drei Quellen, und dieser Weg ist die dritte: erzaehlte
+ * Zeit. Der Kalender dieses Nutzers enthaelt fast nur Kundentermine, ohne
+ * diese Quelle behauptet das Board, er haette ausser arbeiten nichts getan.
+ *
+ * Die Wortlisten sind kurz und eindeutig, dieselbe Regel wie in
+ * `packages/core/src/balance.ts`: ein Wort, das in zwei Bereiche passen
+ * koennte, gehoert in keinen. Eine falsche Zuordnung erzeugt eine Zahl, der
+ * man glaubt.
+ */
+function zeitAus(text: string): { bereich: string; minuten: number; was: string } | null {
+  if (istAbsicht(text)) return null;
+  const gebucht = pattern("verbracht", "gearbeitet", "zeit mit", "war mit", "gebraucht fuer",
+    "beschaeftigt", "gelernt", "telefoniert", "entspannt", "spazieren", "meditiert",
+    "gelesen", "gezockt").test(text);
+  if (!gebucht) return null;
+
+  const bereich = pattern("familie", "schwester", "eltern", "mutter", "vater", "freundin", "partnerin", "date").test(text) ? "beziehung"
+    : pattern("gelernt", "kunde", "kundin", "gearbeitet", "buero", "angebot", "content", "akquise").test(text) ? "karriere"
+      : pattern("meditiert", "therapie", "spaziergang", "spazieren", "entspannt", "geschlafen").test(text) ? "wellbeing"
+        : pattern("gelesen", "gezockt", "serie", "film", "hobby", "fuer mich").test(text) ? "me_time"
+          : null;
+  if (!bereich) return null;
+
+  const dauer = dauerAus(text);
+  if (dauer === null) return null;
+  return { bereich, minuten: dauer, was: "" };
+}
+
+/**
+ * Eine Dauer aus dem Satz, in Minuten.
+ *
+ * Erst Stunden, dann Minuten. "2 Stunden Volleyball" ist die haeufigste Form
+ * bei diesem Nutzer, und eine reine Minutensuche liest daraus die 2.
+ * Ohne erkannte Dauer kommt null zurueck und nicht ein Standardwert: eine
+ * geratene Stunde verschiebt das Balance Board und den Wasserbedarf.
+ */
+function dauerAus(text: string): number | null {
+  const zahl = "(\\d+(?:[.,]\\d+)?|" + Object.keys(NUMBER_WORDS).join("|") + ")";
+  const stunden = new RegExp(`${zahl}\\s*(stunden|stunde|std|h)\\b`).exec(text);
+  if (stunden) {
+    const wert = parseAmount(stunden[1]);
+    if (wert !== null && wert > 0 && wert <= 12) return Math.round(wert * 60);
+  }
+  const minuten = new RegExp(`${zahl}\\s*(minuten|minute|min)\\b`).exec(text);
+  if (minuten) {
+    const wert = parseAmount(minuten[1]);
+    if (wert !== null && wert >= 5 && wert <= 720) return Math.round(wert);
+  }
+  return null;
 }
 
 /** Liest "für fünf Tage" oder "für eine Woche" aus dem Satz. */

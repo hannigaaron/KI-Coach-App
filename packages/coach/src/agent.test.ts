@@ -437,3 +437,115 @@ test("ein Widerspruch ohne Gegenstand löscht nichts", async () => {
   await runOffline("Das stimmt nicht", stubActions(log));
   assert.equal(log.some((z) => z.startsWith("zurueck:")), false);
 });
+
+test("Regelpfad trägt ein Training mit Art und Dauer ein", async () => {
+  for (const [satz, erwartet] of [
+    ["Ich war 2 Stunden Volleyball spielen", "training:team_sport/120"],
+    ["Hab heute 90 Minuten trainiert", "training:strength/90"],
+    ["War eine Stunde laufen", "training:cardio/60"],
+    ["Ich hab 20 Minuten gedehnt", "training:mobility/20"],
+  ] as const) {
+    const log: string[] = [];
+    await runOffline(satz, stubActions(log));
+    assert.equal(log[0], erwartet, satz);
+  }
+});
+
+test("ohne erkannte Dauer wird kein Training geraten", async () => {
+  // Die Dauer geht ins Balance Board und in den Wasserbedarf. Eine erfundene
+  // Stunde verschiebt beides, also greift der Zweig gar nicht erst.
+  const log: string[] = [];
+  await runOffline("Ich war heute trainieren", stubActions(log));
+  assert.equal(log.some((z) => z.startsWith("training:")), false);
+});
+
+test("Kundenstunden sind kein eigenes Training", async () => {
+  // Dieselbe Trennung wie im Balance Board: wer seine Kundenstunden als eigene
+  // Einheiten gezählt bekommt, hat eine Statistik, die ihn anlügt.
+  for (const satz of [
+    "Ich hab 2 Stunden Athletiktraining gegeben",
+    "War 3 Stunden mit einer Kundin trainieren",
+  ] as const) {
+    const log: string[] = [];
+    await runOffline(satz, stubActions(log));
+    assert.equal(log.some((z) => z.startsWith("training:")), false, satz);
+  }
+});
+
+test("ein Trainingsvorhaben ist keine Einheit", async () => {
+  const log: string[] = [];
+  await runOffline("Ich will morgen 2 Stunden trainieren", stubActions(log));
+  assert.equal(log.some((z) => z.startsWith("training:")), false);
+});
+
+test("Regelpfad bucht erzählte Zeit auf einen Bereich", async () => {
+  for (const [satz, erwartet] of [
+    ["Ich hab 2 Stunden mit meiner Schwester verbracht", "zeit:beziehung:120"],
+    ["Hab heute 3 Stunden an Content gearbeitet", "zeit:karriere:180"],
+    ["War 45 Minuten spazieren und hab entspannt", "zeit:wellbeing:45"],
+  ] as const) {
+    const log: string[] = [];
+    await runOffline(satz, stubActions(log));
+    assert.equal(log[0], erwartet, satz);
+  }
+});
+
+test("Zeit ohne erkennbaren Bereich wird nicht gebucht", async () => {
+  // Eine falsche Zuordnung erzeugt eine Zahl, der man glaubt.
+  const log: string[] = [];
+  await runOffline("Ich hab 2 Stunden damit verbracht", stubActions(log));
+  assert.equal(log.some((z) => z.startsWith("zeit:")), false);
+});
+
+test("Regelpfad hakt eine Aufgabe ab, statt sie nochmal anzulegen", async () => {
+  const log: string[] = [];
+  await runOffline("Angebot für YAN ist erledigt", stubActions(log));
+  assert.match(log[0]!, /^abhaken:/);
+  assert.equal(log.some((z) => z.startsWith("aufgabe:")), false);
+});
+
+test("Regelpfad zeigt die Einkaufsliste, statt eine neue zu bauen", async () => {
+  const log: string[] = [];
+  await runOffline("Was steht auf der Einkaufsliste?", stubActions(log));
+  assert.equal(log[0], "einkauf:abrufen");
+
+  const log2: string[] = [];
+  await runOffline("Erstell mir eine Einkaufsliste für 5 Tage", stubActions(log2));
+  assert.match(log2[0]!, /^einkauf:5/);
+});
+
+test("Regelpfad durchsucht das Gedächtnis auf Zuruf", async () => {
+  const log: string[] = [];
+  await runOffline("Was weisst du eigentlich über mich?", stubActions(log));
+  assert.match(log[0]!, /^suche:/);
+});
+
+test("Regelpfad nimmt den Mittags Check-in als drei Zahlen an", async () => {
+  for (const [satz, erwartet] of [
+    ["7 6 8", "mittag:7/6/8"],
+    ["Energie 7, Konzentration 6, Sättigung 8", "mittag:7/6/8"],
+    ["Energie 7, Sättigung 4, Konzentration 9", "mittag:7/9/4"],
+  ] as const) {
+    const log: string[] = [];
+    await runOffline(satz, stubActions(log));
+    assert.equal(log[0], erwartet, satz);
+  }
+});
+
+test("drei Zahlen in einem Satz sind kein Check-in", async () => {
+  // Ein geratener Wert steht im Verlauf später wie eine echte Antwort.
+  for (const satz of [
+    "Ich hatte 200 g Reis, 3 Eier und 1 Banane",
+    "Ich hab 7 von 10 Stunden geschlafen und 2 Kaffee getrunken",
+  ] as const) {
+    const log: string[] = [];
+    await runOffline(satz, stubActions(log));
+    assert.equal(log.some((z) => z.startsWith("mittag:")), false, satz);
+  }
+});
+
+test("zwei Zahlen reichen für den Check-in nicht", async () => {
+  const log: string[] = [];
+  await runOffline("7 6", stubActions(log));
+  assert.equal(log.some((z) => z.startsWith("mittag:")), false);
+});

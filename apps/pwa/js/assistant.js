@@ -1993,7 +1993,10 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
       const stunden = eintrag.minuten >= 60
         ? `${Math.round((eintrag.minuten / 60) * 10) / 10} Stunden`
         : `${eintrag.minuten} Minuten`;
-      return `${stunden} auf ${BEREICH_NAME[bereich] || bereich} gebucht: ${eintrag.was}.`;
+      // Ohne Beschreibung endet der Satz nach dem Bereich. Der Regelweg
+      // bucht ohne `was`, und "gebucht: ." ist kein Satz.
+      const wofuer = eintrag.was ? `: ${eintrag.was}` : "";
+      return `${stunden} auf ${BEREICH_NAME[bereich] || bereich} gebucht${wofuer}.`;
     },
 
     async balanceAbrufen({ tage } = {}) {
