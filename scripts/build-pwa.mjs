@@ -8,6 +8,7 @@
 import { cp, mkdir, rm, readdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { execFileSync } from "node:child_process";
 
 const root = process.cwd();
 const outDir = join(root, "dist-pages");
@@ -46,6 +47,31 @@ async function copyRuntime(from, to) {
 
 await copyRuntime(join(root, "packages/core/dist"), join(outDir, "lib/core"));
 await copyRuntime(join(root, "packages/coach/dist"), join(outDir, "lib/coach"));
+
+/**
+ * Syntaxprüfung für den Browsercode.
+ *
+ * `npm test` prüft die Pakete, aber `apps/pwa/js` ist reines Browser
+ * JavaScript und läuft in keinem Test. Ein Tippfehler dort kommt deshalb
+ * grün durch die Prüfung und macht die App beim Öffnen weiss: das Modul
+ * lädt nicht, `#app` bleibt versteckt, und der Nutzer sieht den
+ * Anamnesebogen statt seiner Daten.
+ *
+ * Genau das ist passiert. Seitdem läuft `node --check` über jede Datei,
+ * bevor irgendetwas nach dist-pages geht.
+ */
+const jsDir = join(root, "apps/pwa/js");
+const jsDateien = (await readdir(jsDir)).filter((n) => n.endsWith(".js"));
+for (const name of jsDateien) {
+  try {
+    execFileSync(process.execPath, ["--check", join(jsDir, name)], { stdio: "pipe" });
+  } catch (fehler) {
+    const meldung = String(fehler.stderr || fehler.message).trim();
+    console.error(`\nSyntaxfehler in apps/pwa/js/${name}\n${meldung}\n`);
+    process.exit(1);
+  }
+}
+console.log(`${jsDateien.length} Browserdateien syntaktisch geprüft.`);
 
 // GitHub Pages läuft sonst durch Jekyll und wirft Ordner mit Unterstrich weg.
 await writeFile(join(outDir, ".nojekyll"), "");

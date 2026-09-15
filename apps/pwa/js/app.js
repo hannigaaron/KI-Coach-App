@@ -1,9 +1,10 @@
 import {
   BEREICHE, BEREICH_NAME, CHECKIN_BOEGEN, CHECKIN_MITTE, STANDARD_ZIELE, WOCHENTAGE,
-  MAHLZEITEN, bogenAmTag, bogenFuer, energyBreakdown, hatAngebot, nachOrdnern, offeneMahlzeiten,
+  MAHLZEITEN, bogenAmTag, bogenFuer, eintragAus100g, energyBreakdown, hatAngebot, mengeLesen,
+  mengeSetzen, nachOrdnern, naehrwerteFuer, offeneMahlzeiten, portionsVorschlag, skalierbar,
   impulseFuerTag, planFuer, saubereUrl, uhrzeit, undListe, weckwortGehoert, weightTrend,
 } from "@daevo/core";
-import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE } from "@daevo/coach";
+import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, produktPerBarcode, produkteSuchen } from "@daevo/coach";
 import { Coach, AnthropicProvider } from "@daevo/coach";
 import {
   ablaufFuer, ask, aufgabeAbhaken, aufgabeAnlegenEingestuft, aufgabeLoeschen, aufgabeUmstufen, aufgabenPlan,
@@ -307,12 +308,34 @@ async function send(text) {
   orb.setState("thinking");
   setStatus("denkt nach");
 
+  // Eine laufende Uhr, sobald es länger dauert.
+  //
+  // Bei Planung und persönlichen Themen läuft Opus auf höchster Denkstufe, und
+  // das sind schnell über sechzig Sekunden. "denkt nach" ohne jede Bewegung
+  // sieht in dieser Zeit aus wie eine hängende App, und der Nutzer schickt die
+  // Frage nochmal oder schliesst die App. Die Uhr sagt nichts Neues, sie
+  // beweist nur, dass etwas passiert. Sie startet erst nach vier Sekunden:
+  // eine Uhr bei einer Antwort, die ohnehin gleich da ist, ist Unruhe.
+  const begonnen = Date.now();
+  let uhr = 0;
+  const uhrStarten = () => {
+    uhr = setInterval(() => {
+      if (laufend) { clearInterval(uhr); uhr = 0; return; }
+      const s = Math.round((Date.now() - begonnen) / 1000);
+      pending.text.textContent = `denkt nach, ${s} Sekunden`;
+    }, 1000);
+  };
+  const uhrVorlauf = setTimeout(uhrStarten, 4000);
+  const uhrStoppen = () => { clearTimeout(uhrVorlauf); if (uhr) clearInterval(uhr); uhr = 0; };
+
   // Der Text läuft in die Blase, während er geschrieben wird. Ein Stück Text
   // ist ein Anhängen, null heisst: alles bisherige war ein Zwischenschritt und
   // wird verworfen.
   let laufend = "";
   const onStrom = (stueck) => {
     if (stueck === null) { laufend = ""; pending.text.textContent = "denkt nach"; return; }
+    // Sobald Text kommt, hat das Warten ein Ende und die Uhr stört nur.
+    uhrStoppen();
     laufend += stueck;
     pending.node.classList.remove("pending");
     pending.text.textContent = laufend;
@@ -355,6 +378,7 @@ async function send(text) {
     orb.setState("idle");
     setStatus("bereit");
   } finally {
+    uhrStoppen();
     busy = false;
   }
 }
@@ -891,7 +915,9 @@ function renderMeals(targetId) {
         const kcal = Math.round(meal.entries.reduce((s, e) => s + e.kcal, 0));
         const protein = Math.round(meal.entries.reduce((s, e) => s + e.proteinG, 0));
         const items = meal.entries.map((e) => `${e.quantity} ${e.name}`).join(", ");
-        return `<li data-meal="${meal.id}"><div class="li-main">` +
+        // Antippbar, weil Korrigieren der häufigste Handgriff beim Tracken
+        // ist. Ohne Hinweis darauf findet ihn niemand.
+        return `<li data-meal="${meal.id}" class="tippbar"><div class="li-main">` +
           `<div class="li-title">${escapeHtml(items || meal.text)}</div>` +
           `<div class="li-sub">${meal.at} Uhr, ${protein} g Protein` +
           (meal.feeling ? `, danach ${escapeHtml(meal.feeling)}` : "") +
@@ -1610,8 +1636,9 @@ function renderProfile() {
   const settings = store.getSettings();
   $("apiKey").value = settings.apiKey || "";
   renderModellwahl(settings.modellWahl || "auto");
-  $("optGruendlich").checked = Boolean(settings.immerGruendlich);
-  renderGruendlich(Boolean(settings.immerGruendlich));
+  const tempo = tempoVon(settings);
+  $("tempoSel").value = tempo;
+  renderGruendlich(tempo);
   $("themeSel").value = settings.theme || "system";
   $("anweisungen").value = settings.anweisungen || "";
   zeigeAnweisungsLaenge();
@@ -1676,17 +1703,45 @@ function renderModellwahl(aktuell) {
  * eine veröffentlichte Angabe und keine Messung an deinen Daten. Wer sie nicht
  * gelten lassen will, schaltet hier um.
  */
-function renderGruendlich(an) {
-  $("gruendlichNote").textContent = an
-    ? "Jede Nachricht läuft auf der höchsten Denkstufe. Antworten dauern länger und kosten mehr, auch beim reinen Eintragen."
-    : "Persönliche Themen und Planung denken immer auf der höchsten Stufe. Fachfragen laufen auf mittel, kurzes hin und her auf niedrig.";
+/**
+ * Die gespeicherte Einstellung als Stufe.
+ *
+ * Vorher war es ein Wahrheitswert namens `immerGruendlich`. Wer die App schon
+ * benutzt, hat den gespeichert, und daraus darf nicht plötzlich "schnell"
+ * werden. Deshalb wird der alte Wert gelesen, solange kein neuer dasteht.
+ */
+function tempoVon(settings) {
+  if (settings.tempo === "schnell" || settings.tempo === "normal" || settings.tempo === "gruendlich") {
+    return settings.tempo;
+  }
+  return settings.immerGruendlich ? "gruendlich" : "normal";
 }
 
-$("optGruendlich").addEventListener("change", (event) => {
-  const an = event.target.checked;
-  store.setSettings({ ...store.getSettings(), immerGruendlich: an });
-  renderGruendlich(an);
-  toast(an ? "daevo denkt jetzt überall gründlich" : "daevo denkt so tief, wie die Frage es braucht");
+function renderGruendlich(tempo) {
+  const texte = {
+    schnell:
+      "Planung und Fachfragen antworten schneller und knapper. Persönliche Themen bleiben auf der "
+      + "höchsten Stufe, dort wird nicht gespart, auch wenn hier schnell steht.",
+    normal:
+      "Persönliche Themen und Planung denken auf der höchsten Stufe. Fachfragen laufen auf mittel, "
+      + "kurzes hin und her auf niedrig.",
+    gruendlich:
+      "Jede Nachricht läuft auf der höchsten Denkstufe. Antworten dauern länger und kosten mehr, "
+      + "auch beim reinen Eintragen.",
+  };
+  $("gruendlichNote").textContent = texte[tempo] ?? texte.normal;
+}
+
+$("tempoSel").addEventListener("change", (event) => {
+  const tempo = event.target.value;
+  store.setSettings({ ...store.getSettings(), tempo, immerGruendlich: tempo === "gruendlich" });
+  renderGruendlich(tempo);
+  const sagt = {
+    schnell: "daevo antwortet jetzt schneller und knapper",
+    normal: "daevo denkt so tief, wie die Frage es braucht",
+    gruendlich: "daevo denkt jetzt überall gründlich",
+  };
+  toast(sagt[tempo] ?? sagt.normal);
 });
 
 $("modelSel").addEventListener("change", (event) => {
@@ -1834,9 +1889,18 @@ $("composer").addEventListener("submit", (event) => {
  * gerade gar nicht erwartet.
  */
 let postfachLaeuft = false;
+let postfachSpaeter = 0;
 
 async function postfachPruefen({ laut = false } = {}) {
-  if (postfachLaeuft || busy) return;
+  if (postfachLaeuft) return;
+  // Läuft gerade eine Antwort, wird nicht verworfen, sondern später nochmal
+  // nachgesehen. Stilles Verwerfen hiesse: der Satz liegt bis zum nächsten
+  // Öffnen der App im Postfach, und für den Nutzer ist er verschwunden.
+  if (busy) {
+    clearTimeout(postfachSpaeter);
+    postfachSpaeter = setTimeout(() => postfachPruefen({ laut }), 1500);
+    return;
+  }
   const s = store.getSettings();
   if (!s.pushWorker || !s.pushWort) {
     if (laut) toast("Für das Postfach brauchst du Adresse und Anmeldewort des Push Workers im Profil.");
@@ -1879,6 +1943,12 @@ async function postfachPruefen({ laut = false } = {}) {
 function zwischenablageAnbieten() {
   const knopf = $("btnZwischenablage");
   if (!knopf || !navigator.clipboard?.readText) return;
+  // Wer einen Push Worker eingerichtet hat, bekommt seine Sätze über das
+  // Postfach und die Mitteilung. Dann ist dieser Knopf ein zweiter Weg zum
+  // selben Ziel, und ein zweiter Weg, der bei jedem Öffnen der App über der
+  // Eingabe auftaucht, ist kein Angebot mehr, sondern Störung.
+  const s = store.getSettings();
+  if (s.pushWorker && s.pushWort) { knopf.hidden = true; return; }
   // Nur anbieten, wenn das Eingabefeld leer ist. Wer schon tippt, wird nicht
   // mit einem zweiten Weg unterbrochen.
   if ($("chatInput").value.trim()) return;
@@ -2963,6 +3033,378 @@ $("btnPostfach").addEventListener("click", () => {
   showView("assistant");
   postfachPruefen({ laut: true });
 });
+
+
+/* ---------- Der Mahlzeit Editor ---------- */
+
+/**
+ * Mengen ändern, Posten löschen, Lebensmittel nachtragen.
+ *
+ * Bisher war eine erfasste Mahlzeit endgültig. Wer sich vertippt hatte oder
+ * eine Schätzung des Modells nachschärfen wollte, musste den ganzen Eintrag
+ * löschen und alles neu sagen. Beim Tracken ist das Korrigieren der häufigste
+ * Handgriff überhaupt, und eine App, in der er fehlt, wird nach zwei Wochen
+ * nicht mehr benutzt.
+ *
+ * Gearbeitet wird auf einer Kopie. Erst Speichern schreibt in den Tag. Wer im
+ * Editor herumprobiert und dann abbricht, hat seinen Tag sonst schon geändert,
+ * ohne es zu wollen.
+ */
+let meMahlzeit = null;
+let mePosten = [];
+let meArt = "";
+let meScanLaeuft = false;
+
+/** Öffnet den Editor für eine Mahlzeit des heutigen Tages. */
+function mahlzeitOeffnen(id) {
+  const mahlzeit = store.getDay(day).meals.find((m) => m.id === id);
+  if (!mahlzeit) return;
+  meMahlzeit = mahlzeit;
+  // Tiefe Kopie, damit Abbrechen wirklich abbricht.
+  mePosten = (mahlzeit.entries || []).map((e) => ({ ...e }));
+  meArt = mahlzeit.art || "";
+  $("meZeit").value = mahlzeit.at || nowTime();
+  $("meSuche").value = "";
+  $("meTreffer").hidden = true;
+  $("meSuchHinweis").textContent = "";
+  $("meHandHinweis").textContent = "";
+  meArtenZeichnen();
+  mePostenZeichnen();
+  $("mahlzeitEditor").hidden = false;
+  document.body.classList.add("blatt-offen");
+}
+
+function mahlzeitSchliessen() {
+  $("mahlzeitEditor").hidden = true;
+  document.body.classList.remove("blatt-offen");
+  meScanStoppen();
+  meMahlzeit = null;
+  mePosten = [];
+}
+
+function meArtenZeichnen() {
+  // Die Art ist freiwillig. Eine Mahlzeit ohne Zuordnung ist kein Fehler, und
+  // ein Pflichtfeld würde beim dritten Mal auf gut Glück gefüllt.
+  $("meArten").innerHTML = MAHLZEITEN.map((m) =>
+    `<button type="button" data-art="${m.art}" class="${meArt === m.art ? "an" : ""}">${escapeHtml(m.name)}</button>`,
+  ).join("");
+}
+
+function mePostenZeichnen() {
+  const liste = $("mePosten");
+  if (mePosten.length === 0) {
+    liste.innerHTML = `<li class="me-leer">Kein Posten mehr drin. Speichern löscht die Mahlzeit.</li>`;
+  } else {
+    liste.innerHTML = mePosten.map((e, i) => {
+      const menge = mengeLesen(e.quantity);
+      const kann = skalierbar(e);
+      // Ohne lesbare Menge lässt sich nichts skalieren. Dann steht die Angabe
+      // als Text da, statt ein Feld anzubieten, das nichts bewirkt.
+      const feld = kann
+        ? `<input class="me-menge" type="number" inputmode="decimal" min="0" step="1"
+                  value="${menge.zahl}" data-i="${i}" aria-label="Menge von ${escapeHtml(e.name)}">
+           <span class="me-einheit">${escapeHtml(menge.einheit)}</span>`
+        : `<span class="me-fest">${escapeHtml(e.quantity)}</span>`;
+      return `<li>
+        <div class="me-zeile">
+          <div class="me-name">${escapeHtml(e.name)}</div>
+          <div class="me-mengefeld">${feld}</div>
+          <button type="button" class="me-weg" data-weg="${i}" aria-label="${escapeHtml(e.name)} entfernen">
+            <span class="kreuz"></span>
+          </button>
+        </div>
+        <div class="me-werte">${Math.round(e.kcal)} kcal, ${runde1(e.proteinG)} g Eiweiss,
+          ${runde1(e.fatG)} g Fett, ${runde1(e.carbsG)} g Kohlenhydrate</div>
+      </li>`;
+    }).join("");
+  }
+  meSummeZeichnen();
+}
+
+function meSummeZeichnen() {
+  const summe = mePosten.reduce(
+    (s, e) => ({
+      kcal: s.kcal + e.kcal, p: s.p + e.proteinG, f: s.f + e.fatG, k: s.k + e.carbsG,
+    }),
+    { kcal: 0, p: 0, f: 0, k: 0 },
+  );
+  $("meKcal").textContent = String(Math.round(summe.kcal));
+  $("meProtein").textContent = `${runde1(summe.p)} g`;
+  $("meFett").textContent = `${runde1(summe.f)} g`;
+  $("meKh").textContent = `${runde1(summe.k)} g`;
+}
+
+function runde1(wert) {
+  return Math.round((Number(wert) || 0) * 10) / 10;
+}
+
+/** Hängt einen Posten an und zeigt ihn sofort. */
+function mePostenAnhaengen(eintrag) {
+  mePosten.push(eintrag);
+  mePostenZeichnen();
+  // An das Ende der Liste scrollen, sonst landet der neue Posten unsichtbar
+  // über dem Suchfeld.
+  $("mePosten").lastElementChild?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
+
+/* ---------- Suche und Barcode im Editor ---------- */
+
+async function meSuchen() {
+  const begriff = $("meSuche").value.trim();
+  if (!begriff) return;
+  const hinweis = $("meSuchHinweis");
+  $("meTreffer").hidden = true;
+  hinweis.textContent = "suche";
+
+  // Eine reine Ziffernfolge ist ein Barcode und trifft genau. Alles andere
+  // ist eine Textsuche, und die liefert Treffer unterschiedlicher Güte.
+  const ziffern = begriff.replace(/\D/g, "");
+  try {
+    if (ziffern.length >= 8 && ziffern.length <= 14 && ziffern.length === begriff.replace(/\s/g, "").length) {
+      const t = await produktPerBarcode(ziffern);
+      if (!t) { hinweis.textContent = "Diesen Barcode kennt Open Food Facts nicht."; return; }
+      meTrefferZeichnen([t]);
+      hinweis.textContent = "";
+      return;
+    }
+    const treffer = await produkteSuchen(begriff, { anzahl: 8 });
+    if (treffer.length === 0) {
+      hinweis.textContent = "Nichts gefunden. Scann den Barcode oder trag es von Hand ein.";
+      return;
+    }
+    meTrefferZeichnen(treffer);
+    hinweis.textContent = "";
+  } catch (fehler) {
+    hinweis.textContent = `Die Suche hat nicht geklappt: ${fehler.message}`;
+  }
+}
+
+function meTrefferZeichnen(treffer) {
+  const liste = $("meTreffer");
+  liste.hidden = false;
+  liste.innerHTML = treffer.map((t, i) => {
+    const p = t.produkt;
+    const titel = [p.marke, p.name].filter(Boolean).join(" ");
+    // Die vorgeschlagene Portion kommt vom Hersteller, sonst 100 Gramm. Eine
+    // geratene Portion wäre schlimmer: der Nutzer übernimmt sie ungeprüft.
+    const vorschlag = portionsVorschlag(p);
+    const gramm = vorschlag ? vorschlag.gramm : 100;
+    const n = naehrwerteFuer(p, gramm);
+    const warnung = t.einwaende.length ? `<div class="me-warnung">${escapeHtml(t.einwaende.join(" "))}</div>` : "";
+    return `<li>
+      <button type="button" class="me-treffer-knopf" data-treffer="${i}">
+        <div class="me-name">${escapeHtml(titel || "Ohne Namen")}</div>
+        <div class="me-werte">${gramm} g, ${Math.round(n.kcal)} kcal, ${runde1(n.proteinG)} g Eiweiss</div>
+        ${warnung}
+      </button>
+    </li>`;
+  }).join("");
+  liste.dataset.rohdaten = JSON.stringify(treffer.map((t) => {
+    const vorschlag = portionsVorschlag(t.produkt);
+    const gramm = vorschlag ? vorschlag.gramm : 100;
+    const n = naehrwerteFuer(t.produkt, gramm);
+    return {
+      name: [t.produkt.marke, t.produkt.name].filter(Boolean).join(" ") || "Ohne Namen",
+      gramm,
+      kcal: n.kcal, proteinG: n.proteinG, fatG: n.fatG, carbsG: n.carbsG,
+    };
+  }));
+}
+
+/* ---------- Ereignisse des Editors ---------- */
+
+// Ein Tipp auf eine Mahlzeit öffnet den Editor. Beide Listen, damit es von
+// Heute und von Essen aus gleich funktioniert.
+for (const id of ["mealList", "mealList2"]) {
+  $(id)?.addEventListener("click", (event) => {
+    const zeile = event.target.closest("[data-meal]");
+    if (zeile) mahlzeitOeffnen(zeile.dataset.meal);
+  });
+}
+
+$("meSchliessen").addEventListener("click", mahlzeitSchliessen);
+$("mahlzeitEditor").addEventListener("click", (event) => {
+  // Ein Tipp auf den Hintergrund schliesst. Ein Tipp im Blatt nicht.
+  if (event.target === $("mahlzeitEditor")) mahlzeitSchliessen();
+});
+
+$("meArten").addEventListener("click", (event) => {
+  const knopf = event.target.closest("[data-art]");
+  if (!knopf) return;
+  // Nochmal auf dieselbe Art tippen hebt die Zuordnung auf.
+  meArt = meArt === knopf.dataset.art ? "" : knopf.dataset.art;
+  meArtenZeichnen();
+});
+
+$("mePosten").addEventListener("input", (event) => {
+  const feld = event.target.closest(".me-menge");
+  if (!feld) return;
+  const i = Number(feld.dataset.i);
+  const zahl = Number(feld.value);
+  if (!Number.isFinite(zahl) || zahl <= 0) return;
+  const alt = mePosten[i];
+  if (!alt) return;
+  mePosten[i] = mengeSetzen(alt, zahl);
+  // Nur die Werte neu schreiben, nicht die ganze Liste. Ein Neuaufbau würde
+  // dem Nutzer mitten im Tippen den Fokus aus dem Feld nehmen.
+  const zeile = feld.closest("li")?.querySelector(".me-werte");
+  const e = mePosten[i];
+  if (zeile) {
+    zeile.textContent = `${Math.round(e.kcal)} kcal, ${runde1(e.proteinG)} g Eiweiss, `
+      + `${runde1(e.fatG)} g Fett, ${runde1(e.carbsG)} g Kohlenhydrate`;
+  }
+  meSummeZeichnen();
+});
+
+$("mePosten").addEventListener("click", (event) => {
+  const knopf = event.target.closest("[data-weg]");
+  if (!knopf) return;
+  mePosten.splice(Number(knopf.dataset.weg), 1);
+  mePostenZeichnen();
+});
+
+$("meSuchen").addEventListener("click", meSuchen);
+$("meSuche").addEventListener("keydown", (event) => {
+  if (event.key === "Enter") { event.preventDefault(); meSuchen(); }
+});
+
+$("meTreffer").addEventListener("click", (event) => {
+  const knopf = event.target.closest("[data-treffer]");
+  if (!knopf) return;
+  const rohdaten = JSON.parse($("meTreffer").dataset.rohdaten || "[]");
+  const t = rohdaten[Number(knopf.dataset.treffer)];
+  if (!t) return;
+  mePostenAnhaengen({
+    name: t.name,
+    quantity: `${t.gramm} g`,
+    kcal: Math.round(t.kcal),
+    proteinG: runde1(t.proteinG),
+    fatG: runde1(t.fatG),
+    carbsG: runde1(t.carbsG),
+  });
+  $("meTreffer").hidden = true;
+  $("meSuche").value = "";
+});
+
+$("meHandAdd").addEventListener("click", () => {
+  const name = $("meHandName").value.trim();
+  const gramm = Number($("meHandGramm").value);
+  const kcal = Number($("meHandKcal").value);
+  const hinweis = $("meHandHinweis");
+  if (!name) { hinweis.textContent = "Ohne Namen findest du den Posten später nicht wieder."; return; }
+  if (!Number.isFinite(gramm) || gramm <= 0) { hinweis.textContent = "Die Menge fehlt."; return; }
+  if (!Number.isFinite(kcal) || kcal < 0) { hinweis.textContent = "Die Kalorien je 100 g fehlen."; return; }
+  mePostenAnhaengen(eintragAus100g(name, gramm, {
+    kcal,
+    proteinG: Number($("meHandP").value) || 0,
+    fatG: Number($("meHandF").value) || 0,
+    carbsG: Number($("meHandK").value) || 0,
+  }));
+  for (const id of ["meHandName", "meHandKcal", "meHandP", "meHandF", "meHandK"]) $(id).value = "";
+  $("meHandGramm").value = "100";
+  hinweis.textContent = "Hinzugefügt.";
+});
+
+$("meLoeschen").addEventListener("click", () => {
+  if (!meMahlzeit) return;
+  if (!confirm("Diese Mahlzeit wirklich löschen?")) return;
+  store.removeMeal(day, meMahlzeit.id);
+  mahlzeitSchliessen();
+  refreshAll();
+  toast("Mahlzeit gelöscht");
+});
+
+$("meSpeichern").addEventListener("click", () => {
+  if (!meMahlzeit) return;
+  // Eine Mahlzeit ohne Posten ist keine Mahlzeit. Sie stehen zu lassen hiesse,
+  // eine Zeile mit null Kalorien im Verlauf zu führen.
+  if (mePosten.length === 0) {
+    store.removeMeal(day, meMahlzeit.id);
+    mahlzeitSchliessen();
+    refreshAll();
+    toast("Mahlzeit gelöscht, es war nichts mehr drin");
+    return;
+  }
+  const zeit = $("meZeit").value || meMahlzeit.at;
+  store.updateMeal(day, meMahlzeit.id, {
+    entries: mePosten,
+    at: zeit,
+    art: meArt || undefined,
+    // Von Hand geändert. Das gehört vermerkt: eine korrigierte Mahlzeit ist
+    // keine Schätzung des Modells mehr, und der Coach soll sie nicht
+    // nochmal in Frage stellen.
+    korrigiert: true,
+  });
+  mahlzeitSchliessen();
+  refreshAll();
+  toast("Gespeichert");
+});
+
+/* ---------- Barcode im Editor ---------- */
+
+/**
+ * Der Scanner im Editor.
+ *
+ * Er benutzt `BarcodeDetector`, wo der Browser ihn hat. Eine Kamerabibliothek
+ * wäre die erste Laufzeitabhängigkeit der App und rund 300 Kilobyte je Aufruf.
+ * Fehlt der Detektor, bleibt das Suchfeld: dreizehn Ziffern tippt man in zehn
+ * Sekunden.
+ */
+let meScanStrom = null;
+let meScanTimer = 0;
+
+async function meScanStarten() {
+  if (meScanLaeuft) { meScanStoppen(); return; }
+  if (!("BarcodeDetector" in window)) {
+    $("meSuchHinweis").textContent =
+      "Dieser Browser kann keinen Barcode lesen. Tipp die Ziffern der Packung ins Suchfeld.";
+    $("meSuche").focus();
+    return;
+  }
+  try {
+    meScanStrom = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+  } catch {
+    $("meSuchHinweis").textContent = "Ohne Kamerazugriff geht der Scanner nicht. Tipp die Ziffern ein.";
+    return;
+  }
+  meScanLaeuft = true;
+  $("meSuchHinweis").textContent = "Halte den Barcode ins Bild.";
+  const video = document.createElement("video");
+  video.playsInline = true;
+  video.muted = true;
+  video.srcObject = meScanStrom;
+  video.className = "me-video";
+  $("meSuchHinweis").after(video);
+  await video.play().catch(() => {});
+
+  const detektor = new BarcodeDetector({ formats: ["ean_13", "ean_8", "upc_a", "upc_e"] });
+  const suchen = async () => {
+    if (!meScanLaeuft) return;
+    try {
+      const codes = await detektor.detect(video);
+      if (codes.length && codes[0].rawValue) {
+        $("meSuche").value = codes[0].rawValue;
+        meScanStoppen();
+        meSuchen();
+        return;
+      }
+    } catch { /* ein einzelnes Bild ohne Treffer ist kein Fehler */ }
+    meScanTimer = setTimeout(suchen, 350);
+  };
+  suchen();
+}
+
+function meScanStoppen() {
+  meScanLaeuft = false;
+  clearTimeout(meScanTimer);
+  document.querySelector(".me-video")?.remove();
+  if (meScanStrom) {
+    for (const spur of meScanStrom.getTracks()) spur.stop();
+    meScanStrom = null;
+  }
+}
+
+$("meScan").addEventListener("click", meScanStarten);
 
 /* ---------- Benachrichtigungen ---------- */
 

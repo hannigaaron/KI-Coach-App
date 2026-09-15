@@ -140,12 +140,18 @@ für den Nutzer einsehbar und löschbar.
   Wo Text gegen Listen oder Muster geprüft wird, laufen beide Seiten durch
   `foldUmlauts`. Dadurch bricht eine spätere Textkorrektur die Erkennung nicht.
 - Vor jedem Commit `npm test` und `npm run build:pwa`. Beides muss grün sein.
+- `npm test` prüft die Pakete, nicht `apps/pwa/js`. Das ist reines Browser
+  JavaScript und läuft in keinem Test. Deshalb prüft `build:pwa` jede Datei
+  dort mit `node --check`, bevor irgendetwas nach dist-pages geht. Ein
+  Tippfehler kam sonst grün durch und machte die App beim Öffnen weiss: das
+  Modul lädt nicht, `#app` bleibt versteckt, und der Nutzer sieht den
+  Anamnesebogen statt seiner Daten. Genau das ist passiert.
 
 ## Befehle
 
 ```bash
 npm install
-npm test           # 579 Tests
+npm test           # 605 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -433,8 +439,12 @@ Die Mitteilung trägt den Satz selbst und nicht nur "du hast etwas gesagt".
 Damit sieht der Nutzer auf dem Sperrbildschirm, ob die Erkennung ihn
 verstanden hat, bevor er die App öffnet.
 
-Der Knopf "Aus Zwischenablage senden" bleibt aus dem zweiten Versuch. Er
-kostet nichts und ist der Weg für den Fall, dass kein Worker eingerichtet ist.
+Der Knopf "Aus Zwischenablage senden" bleibt aus dem zweiten Versuch, aber nur
+für den Fall ohne Worker. Steht Adresse und Anmeldewort im Profil, kommt der
+Satz über das Postfach, und dann bleibt der Knopf aus: ein zweiter Weg zum
+selben Ziel, der bei jedem Öffnen über der Eingabe auftaucht, ist kein Angebot
+mehr, sondern Störung.
+
 `?sag=` bleibt ebenfalls, in Safari und auf dem Rechner funktioniert es.
 
 ## Das Mikrofon, das nur einmal ging
@@ -647,6 +657,123 @@ Welche Mahlzeit schon gegessen wurde, erkennt `gegesseneArten` an der Uhrzeit
 des Eintrags, nicht an seinem Text. Wer um 13 Uhr etwas einträgt, hat Mittag
 gegessen, egal wie er es nennt. Ein zweiter Eintrag im selben Fenster gilt als
 dieselbe Mahlzeit: wer nachlegt, isst nicht zweimal zu Mittag.
+
+## Eine Mahlzeit nachträglich ändern
+
+`packages/core/src/portion.ts` rechnet, der Editor steht in `apps/pwa`.
+
+Bisher war eine erfasste Mahlzeit endgültig. Wer sich vertippt hatte oder eine
+Schätzung des Modells nachschärfen wollte, musste den ganzen Eintrag löschen
+und alles neu sagen. Beim Tracken ist das Korrigieren der häufigste Handgriff
+überhaupt, und eine App, in der er fehlt, wird nach zwei Wochen nicht mehr
+benutzt.
+
+Ein `FoodEntry` trägt absolute Nährwerte für seine Menge, keine Werte je 100
+Gramm. Skaliert wird deshalb über das Verhältnis der Mengen, und das ist
+exakt: 300 Gramm Reis haben genau das Anderthalbfache von 200 Gramm. Der
+Vorteil ist, dass auch jeder alte Eintrag skalierbar ist, ohne dass eine Basis
+nachgetragen werden müsste.
+
+`mengeLesen` nimmt auch Angaben ohne Einheit. Das Modell schreibt "2 Eier"
+oder "1 Portion", und auch die lassen sich verdoppeln, denn es geht nur um das
+Verhältnis. Fehlt jede Zahl, steht die Menge als Text da statt als Feld: ein
+Feld, das nichts bewirkt, ist schlimmer als keins.
+
+Gerundet wird erst am Ende und je Wert einzeln. Wer zwischendrin rundet,
+sammelt über fünf Posten ein paar Kalorien ein, und dann stimmt die Summe der
+Zeilen nicht mit der Gesamtsumme überein. Das fällt beim Nachrechnen sofort
+auf und kostet Vertrauen.
+
+Der Editor ist ein Blatt von unten, keine eigene Ansicht. Wer eine Menge
+korrigiert, will danach wieder da sein, wo er war. Gearbeitet wird auf einer
+Kopie, erst Speichern schreibt in den Tag: wer herumprobiert und abbricht,
+hätte sonst seinen Tag schon geändert.
+
+Beim Ändern einer Menge wird nur die betroffene Zeile neu geschrieben, nicht
+die ganze Liste. Ein Neuaufbau nimmt dem Nutzer mitten im Tippen den Fokus aus
+dem Feld.
+
+Drei Wege, etwas hinzuzufügen: Suche über Open Food Facts, Barcode über
+`BarcodeDetector`, und von Hand mit Werten je 100 Gramm. Der dritte ist kein
+Notnagel. Was die Datenbank nicht kennt, kennt sie auch beim zehnten Versuch
+nicht, und ohne diesen Weg bleibt der Eintrag aus.
+
+Eine gespeicherte Mahlzeit trägt danach `korrigiert`. Eine von Hand geänderte
+Mahlzeit ist keine Schätzung des Modells mehr, und der Coach soll sie nicht
+nochmal in Frage stellen.
+
+Eine Mahlzeit ohne Posten wird beim Speichern gelöscht. Eine Zeile mit null
+Kalorien im Verlauf zu führen wäre die schlechtere Antwort.
+
+## Ein Vorhaben ist kein Eintrag
+
+`istAbsicht` in `packages/coach/src/agent.ts`. Der Satz "ich möchte heute zwei
+gute Mahlzeiten essen" hat im Regelpfad einen ganzen Tagesplan als Mahlzeit
+erfasst. Das Wort "esse" steckt in "essen", und damit greift die Erfassung auf
+einem Satz, in dem niemand etwas gegessen hat.
+
+Geprüft wird auf Absichtswörter und gleichzeitig auf das Fehlen einer
+Vergangenheitsform. Wer schreibt "ich möchte wissen, was ich gegessen habe",
+meint die Vergangenheit, obwohl "möchte" darin steht. Ein Absichtswort allein
+reicht deshalb nicht.
+
+Der Text läuft durch `foldUmlauts`, wie überall sonst im Regelpfad. `pattern`
+faltet seine Wörter, also muss die andere Seite mitgefaltet sein, sonst trifft
+"möchte" nie.
+
+## Was der Coach zurückfragt, wenn nichts aufging
+
+`naechsteFrage` in `packages/coach/src/skills.ts` trennt zwei Lagen, die
+vorher denselben Satz bekommen haben.
+
+Teilweise erkannt heisst: nach den fehlenden Mengen fragen. Der Nutzer wollte
+etwas eintragen, es fehlt nur eine Zahl.
+
+Gar nichts erkannt heisst fast immer: das war keine Mahlzeit. Die Rückfrage
+"Wie viel war das ungefähr" auf einen Tagesplan zurückzuwerfen sieht aus, als
+hätte die App nicht zugehört, und genau das ist im Betrieb passiert.
+
+Dasselbe gilt beim gescheiterten Modellaufruf. Der Regelweg kommt nur dann mit
+in die Antwort, wenn er wirklich etwas getan hat, also `ausgeführt` nicht leer
+ist. Hat er nur allgemeinen Text erzeugt, steht allein die Fehlermeldung da.
+Eine Antwort, die wie eine Antwort aussieht und keine ist, über einer Meldung
+"ich komme nicht ins Netz", ist schlimmer als die Meldung allein.
+
+## Doppelt eingetragenes Essen
+
+`packages/core/src/doppelt.ts`. Der Anlass ist ein echter Tag. Um 15:58 waren
+Mousse und Whey eingetragen, um 15:59 eine Mahlzeit aus fünf Posten, und
+direkt danach eine Mahlzeit, die alles davon nochmal enthielt. Am Ende standen
+5172 statt rund 1700 Kalorien da. Der Nutzer hat das nicht zweimal gesagt.
+
+Die Ursache liegt beim Modell. Es sieht die Zahlen des Tages im Kontext und
+schickt beim nächsten Eintrag die ganze bisherige Liste erneut mit, weil es
+"was ich heute gegessen habe" als eine Mahlzeit versteht.
+
+Die Werkzeugbeschreibung sagt das jetzt ausdrücklich, aber darauf allein darf
+sich nichts verlassen. Ein Prompt hilft, bis er einmal nicht greift, und dann
+rechnet die App einen ganzen Tag falsch. Deshalb der Riegel im Code: was
+innerhalb von zwei Stunden schon dasteht, kommt nicht nochmal rein.
+
+Zwei Stunden, weil derselbe Artikel in derselben Menge innerhalb dieser Zeit
+fast immer ein Wiederholungsfehler ist. Darüber wird es normal: Magerquark
+morgens und abends ist bei diesem Nutzer der Regelfall, und ein Filter, der
+das verschluckt, wäre schlimmer als das Problem.
+
+Verglichen wird über Name und Menge, nicht über die Kalorien. Dieselbe Speise
+kommt je nach Quelle mit 148 oder 150 kcal zurück, und ein Vergleich auf die
+Zahl würde genau dann durchfallen, wenn er gebraucht wird. In der Menge fallen
+Leerzeichen ganz weg, denn "100 g" und "100g" wechseln zwischen zwei Antworten.
+
+Verworfenes steht in der Antwort und ganz vorn. Ein stiller Filter, der Essen
+verschluckt, ist derselbe Fehler nochmal, nur in die andere Richtung, und eine
+Korrektur am Ende einer Antwort wird überlesen. Wer wirklich zweimal dasselbe
+gegessen hat, sagt es und bekommt es nachgetragen.
+
+"Gekochter Reis" und "Reis, gekocht" erkennt der Vergleich nicht als gleich.
+Die Lücke bleibt bewusst offen: eine Ähnlichkeitssuche würde irgendwann zwei
+wirklich verschiedene Speisen zusammenwerfen, und eine erfundene Gleichheit
+ist schlimmer als eine übersehene.
 
 ## Nährwerte von Markenprodukten
 
@@ -1004,6 +1131,45 @@ Schein wird dort zu einem grauen Fleck.
 
 Eine dritte Variante mit einem Streiflicht über der Wortmarke wurde verworfen.
 Sie sieht beim ersten Mal am besten aus und beim fünfzigsten am schlechtesten.
+
+## Wie gründlich, und damit wie schnell
+
+Drei Stufen im Profil statt eines Schalters: schnell, ausgewogen, immer
+gründlich. `tiefeAnheben` in `packages/coach/src/agent.ts`.
+
+Der Anlass kam aus dem Betrieb. Eine diktierte Frage nach der Tagesstruktur
+landete über die Regel `woerter > 60` auf Opus mit höchster Denktiefe und
+brauchte über eine Minute. Die Antwort war gut, aber der Nutzer wollte in dem
+Moment keine Abhandlung, sondern eine Reihenfolge.
+
+Gesprochene Nachrichten sind von Natur aus lang. Länge ist deshalb ein
+schlechtes Mass für die nötige Tiefe, und wer viel diktiert, landet dauernd
+auf der teuersten und langsamsten Stufe, ohne es gewollt zu haben.
+
+`schnell` deckelt auf mittlere Denktiefe und schickt Planung von Opus auf
+Sonnet. Was dabei wegfällt, ist echte Qualität, keine eingebildete: die
+Antwort wird kürzer gedacht. Deshalb ist es nicht die Voreinstellung, sondern
+eine Wahl.
+
+Psyche bleibt von `schnell` unberührt. Wer über Scham redet, bekommt keine
+schnelle Antwort, auch wenn er schnell eingestellt hat. Das ist der eine Ort,
+an dem die App die Einstellung überstimmt, und der Grund steht im Code: eine
+hingeworfene Antwort auf so etwas ist schlimmer als eine langsame.
+
+Eine ausdrückliche Modellwahl gewinnt über das Tempo. Wer Opus fest einstellt,
+will Opus, auch wenn es länger dauert.
+
+Die alte Einstellung `immerGruendlich` gilt weiter, solange keine neue
+dasteht. Aus einem gespeicherten `false` darf nicht plötzlich `schnell`
+werden, sonst läuft die App nach einem Update auf Sparflamme. In der
+Oberfläche trägt `ausgewogen` ein `selected`: ohne das zeigt das Feld die
+erste Zeile, bis das Skript den gespeicherten Wert setzt, und eine kurz falsch
+angezeigte Einstellung wird übernommen, weil niemand sie anfasst.
+
+Dazu eine laufende Uhr in der Blase, sobald es länger als vier Sekunden
+dauert. Sie sagt nichts Neues, sie beweist nur, dass etwas passiert. "denkt
+nach" ohne jede Bewegung sieht nach sechzig Sekunden aus wie eine hängende
+App, und der Nutzer schickt die Frage nochmal.
 
 ## Der Chat
 

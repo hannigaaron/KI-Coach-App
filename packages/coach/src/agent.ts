@@ -129,8 +129,8 @@ export class Agent {
     anhaenge?: Anhang[];
     /** "auto" folgt der Zuordnung je Modus, ein Modellname gewinnt. */
     modellWahl?: string;
-    /** Hebt jede Nachricht auf die höchste Denktiefe. */
-    immerGruendlich?: boolean;
+    /** "schnell", "normal" oder "gruendlich". Ein Wahrheitswert gilt weiter. */
+    tempo?: Tempo | boolean;
     /** Nimmt die Antwort entgegen, während sie entsteht. */
     strom?: Strom;
   }): Promise<AgentReply> {
@@ -145,9 +145,16 @@ export class Agent {
         // Fehler selbst zu beheben.
         const deutung = fehlerErklaerung(error);
         const nachsatz = deutung.nochmal ? " Versuch es gleich nochmal." : "";
+
+        // Der Regelweg kommt nur mit, wenn er wirklich etwas getan hat, also
+        // eine Mahlzeit eingetragen, Zahlen geholt oder eine Aufgabe angelegt.
+        // Hat er nur allgemeinen Text erzeugt, ist das eine Antwort, die wie
+        // eine Antwort aussieht und keine ist. Zusammen mit der Fehlermeldung
+        // darunter wirkt sie, als hätte die App nicht zugehört.
+        const hatGehandelt = offline.ausgeführt.length > 0;
         return {
           ...offline,
-          text: `${offline.text}\n\n${deutung.text}${nachsatz}`,
+          text: hatGehandelt ? `${offline.text}\n\n${deutung.text}${nachsatz}` : `${deutung.text}${nachsatz}`,
         };
       }
     }
@@ -161,14 +168,16 @@ export class Agent {
     aktionen: AgentActions;
     anhaenge?: Anhang[];
     modellWahl?: string;
-    immerGruendlich?: boolean;
+    tempo?: Tempo | boolean;
     strom?: Strom;
   }): Promise<AgentReply> {
-    const tiefe = tiefeAnheben(
-      denktiefe(params.nachricht, Boolean(params.anhaenge?.length)),
-      Boolean(params.immerGruendlich),
-    );
-    const modell = modellFuer(tiefe.modus, params.modellWahl ?? "auto");
+    const tempo = params.tempo ?? "normal";
+    const tiefe = tiefeAnheben(denktiefe(params.nachricht, Boolean(params.anhaenge?.length)), tempo);
+    // Eine ausdrückliche Modellwahl des Nutzers gewinnt über das Tempo. Wer
+    // Opus fest einstellt, will Opus, auch wenn es länger dauert.
+    const wahl = params.modellWahl ?? "auto";
+    const schnellerWeg = wahl === "auto" ? modellFuerTempo(tiefe.modus, tempo) : null;
+    const modell = modellFuer(tiefe.modus, schnellerWeg ?? wahl);
     const system = systemBloecke({
       modus: tiefe.modus,
       zeit: params.kontext.zeit,
@@ -356,12 +365,67 @@ export function denktiefe(nachricht: string, mitAnhang = false): {
  * die höchste Stufe. Das kostet mehr und antwortet langsamer, und genau das
  * steht auch daneben.
  */
-export function tiefeAnheben(
-  tiefe: { effort: "low" | "medium" | "high"; maxTokens: number; modus: Modus },
-  immerGruendlich: boolean,
-): { effort: "low" | "medium" | "high"; maxTokens: number; modus: Modus } {
-  if (!immerGruendlich) return tiefe;
-  return { ...tiefe, effort: "high", maxTokens: Math.max(tiefe.maxTokens, 4096) };
+export type Tempo = "schnell" | "normal" | "gruendlich";
+
+export interface Tiefe {
+  effort: "low" | "medium" | "high";
+  maxTokens: number;
+  modus: Modus;
+}
+
+/**
+ * Wie gründlich, und damit wie schnell.
+ *
+ * Drei Stufen statt eines Schalters. Der Grund kam aus dem Betrieb: eine
+ * diktierte Frage nach der Tagesstruktur landete auf Opus mit höchster
+ * Denktiefe und brauchte über eine Minute. Die Antwort war gut, aber der
+ * Nutzer wollte in dem Moment keine Abhandlung, sondern eine Reihenfolge.
+ *
+ * Gesprochene Nachrichten sind von Natur aus lang. Länge ist deshalb ein
+ * schlechtes Mass für die nötige Tiefe, und wer viel diktiert, landet dauernd
+ * auf der teuersten und langsamsten Stufe, ohne es gewollt zu haben.
+ *
+ * `schnell` deckelt auf mittlere Denktiefe. Was dabei wegfällt, ist echte
+ * Qualität, keine eingebildete: die Antwort wird kürzer gedacht. Deshalb ist
+ * es nicht die Voreinstellung, sondern eine Wahl, die der Nutzer trifft.
+ *
+ * Psyche bleibt von `schnell` unberührt. Wer über Scham redet, bekommt keine
+ * schnelle Antwort, auch wenn er eingestellt hat, dass es schnell gehen soll.
+ * Das ist der eine Ort, an dem die App die Einstellung überstimmt, und der
+ * Grund steht hier: eine hingeworfene Antwort auf so etwas ist schlimmer als
+ * eine langsame.
+ */
+export function tiefeAnheben(tiefe: Tiefe, tempo: Tempo | boolean): Tiefe {
+  // Der alte Schalter war ein Wahrheitswert. Eine gespeicherte Einstellung aus
+  // einer älteren Fassung darf nicht dazu führen, dass plötzlich alles auf
+  // Sparflamme läuft.
+  const stufe: Tempo = typeof tempo === "boolean" ? (tempo ? "gruendlich" : "normal") : tempo;
+
+  if (stufe === "gruendlich") {
+    return { ...tiefe, effort: "high", maxTokens: Math.max(tiefe.maxTokens, 4096) };
+  }
+  if (stufe === "schnell" && tiefe.modus !== "psyche") {
+    return {
+      ...tiefe,
+      effort: tiefe.effort === "high" ? "medium" : tiefe.effort,
+      maxTokens: Math.min(tiefe.maxTokens, 4096),
+    };
+  }
+  return tiefe;
+}
+
+/**
+ * Das Modell, wenn es schnell gehen soll.
+ *
+ * Planung rutscht von Opus auf Sonnet. Eine Reihenfolge für fünf Vorhaben
+ * braucht kein Modell, das über Zielkonflikte nachdenkt, sondern eines, das
+ * schnell sortiert. Psyche bleibt auf Opus, aus demselben Grund wie oben.
+ */
+export function modellFuerTempo(modus: Modus, tempo: Tempo | boolean): string | null {
+  const stufe: Tempo = typeof tempo === "boolean" ? (tempo ? "gruendlich" : "normal") : tempo;
+  if (stufe !== "schnell") return null;
+  if (modus === "planung") return "claude-sonnet-5";
+  return null;
 }
 
 function textOf(content: ContentBlock[]): string {
@@ -769,6 +833,34 @@ function foldUmlauts(text: string): string {
  * tragen, sie werden gefaltet wie der zu pruefende Text. Sonst braecht jede
  * spaetere Textkorrektur die Erkennung.
  */
+/**
+ * Ein Vorhaben ist kein Eintrag.
+ *
+ * "Ich möchte heute zwei gute Mahlzeiten essen" hat den Regelpfad dazu
+ * gebracht, den ganzen Tagesplan als Mahlzeit zu erfassen. Das Wort "esse"
+ * steckt in "essen", und damit greift die Erfassung auf einem Satz, in dem
+ * niemand etwas gegessen hat.
+ *
+ * Geprüft wird auf Absichtswörter und gleichzeitig auf das Fehlen einer
+ * Vergangenheitsform. Wer schreibt "ich möchte wissen, was ich gegessen habe",
+ * meint die Vergangenheit, obwohl "möchte" darin steht. Deshalb reicht ein
+ * Absichtswort allein nicht.
+ */
+export function istAbsicht(roh: string): boolean {
+  // Gefaltet, wie überall sonst im Regelpfad. `pattern` faltet seine Wörter,
+  // also muss auch die andere Seite gefaltet sein, sonst trifft "möchte" nie.
+  const text = foldUmlauts(String(roh ?? "").toLowerCase());
+  const absicht = pattern(
+    "moechte", "will ich", "ich will", "wollte", "werde", "vorhaben",
+    "plane", "geplant", "soll ich", "sollte ich", "was mache ich", "muss ich noch",
+  ).test(text);
+  if (!absicht) return false;
+  const vergangenheit = pattern(
+    "gegessen", "getrunken", "gefruehstueckt", "war essen", "hatte ich", "hab ich",
+  ).test(text);
+  return !vergangenheit;
+}
+
 function pattern(...woerter: string[]): RegExp {
   return new RegExp(woerter.map(foldUmlauts).join("|"));
 }
@@ -864,7 +956,8 @@ export async function runOffline(
     return { text: antwort, ausgeführt, source: "offline" };
   }
 
-  if (pattern("gegessen", "esse", "hatte", "frühstück", "mittag", "abendessen", "snack").test(text)) {
+  if (!istAbsicht(text)
+    && pattern("gegessen", "esse", "hatte", "frühstück", "mittag", "abendessen", "snack").test(text)) {
     const antwort = await actions.mahlzeitErfassen(nachricht);
     ausgeführt.push("Mahlzeit eingetragen");
     return { text: antwort, ausgeführt, source: "offline" };

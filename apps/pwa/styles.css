@@ -1497,3 +1497,154 @@ button:disabled { opacity: 0.45; transform: none; }
   color: var(--bg);
   background: var(--accent);
 }
+
+/* ---------- Der Mahlzeit Editor ---------- */
+
+/*
+  Ein Blatt, das von unten kommt, keine eigene Ansicht.
+
+  Der Nutzer korrigiert eine Menge und will danach wieder da sein, wo er war.
+  Eine eigene Ansicht hiesse zweimal navigieren für einen Handgriff, den man
+  fünfmal am Tag macht. Das Blatt endet bewusst vor der Oberkante: was
+  darunter liegt, bleibt sichtbar, und damit bleibt klar, dass man nur kurz
+  woanders ist.
+*/
+.blatt {
+  position: fixed; inset: 0; z-index: 90;
+  display: flex; align-items: flex-end; justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+}
+/* Solange das Blatt offen ist, scrollt nur das Blatt. Ohne das scrollt die
+   Seite darunter mit, und der Nutzer verliert beim Schliessen seine Stelle. */
+body.blatt-offen { overflow: hidden; }
+
+.blatt-innen {
+  width: 100%; max-width: 560px; max-height: 92vh;
+  display: flex; flex-direction: column;
+  background: var(--panel-2);
+  border: 1px solid var(--border); border-bottom: none;
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  box-shadow: var(--schatten-3);
+  animation: blatt-hoch 260ms var(--kurve-start) both;
+}
+@keyframes blatt-hoch {
+  from { transform: translateY(14px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .blatt-innen { animation: none; } }
+
+.blatt-kopf {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s-3); padding: var(--s-4) var(--s-4) var(--s-2);
+}
+.blatt-kopf h2 { margin: 0; font-size: var(--t-lg); font-weight: 600; letter-spacing: -0.01em; }
+
+.blatt-scroll {
+  flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: 0 var(--s-4) var(--s-4);
+}
+
+/* Der Fuss bleibt stehen. Speichern ist die eine Sache, die immer erreichbar
+   sein muss, auch bei zwölf Posten in der Liste. */
+.blatt-fuss {
+  display: flex; gap: var(--s-2); align-items: center;
+  padding: var(--s-3) var(--s-4) calc(var(--s-4) + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--linie);
+}
+.blatt-fuss .primary { margin-left: auto; }
+.ghost.gefahr { color: var(--bad); border-color: var(--bad); }
+
+/* Das Kreuz als Form, nicht als Zeichen. Ein Mal aus der Schrift sitzt je
+   nach Gerät zwei Pixel daneben. */
+.kreuz { display: block; width: 15px; height: 15px; position: relative; }
+.kreuz::before, .kreuz::after {
+  content: ""; position: absolute; left: 0; top: 7px;
+  width: 15px; height: 1.6px; background: currentColor; border-radius: 2px;
+}
+.kreuz::before { transform: rotate(45deg); }
+.kreuz::after { transform: rotate(-45deg); }
+
+.me-kopf { display: flex; gap: var(--s-3); align-items: flex-start; flex-wrap: wrap; }
+.me-kopf .pills { flex: 1; min-width: 200px; }
+.me-kopf .pills button {
+  background: var(--panel); border: 1px solid var(--border); color: var(--text);
+  border-radius: var(--r-pill); padding: 7px 13px; font-size: var(--t-sm); font-weight: 500;
+}
+.me-kopf .pills button.an { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+#meZeit {
+  background: var(--panel); border: 1px solid var(--border); color: var(--text);
+  border-radius: var(--r-md); padding: 7px 10px; font-size: var(--t-sm);
+}
+
+/* Die Summe oben, weil sie der Grund ist, warum jemand hier etwas ändert. */
+.me-summe {
+  display: flex; align-items: center; gap: var(--s-4);
+  margin: var(--s-4) 0 var(--s-3); padding: var(--s-3) 0;
+  border-top: 1px solid var(--linie); border-bottom: 1px solid var(--linie);
+}
+.me-kcal { display: flex; align-items: baseline; gap: 5px; }
+.me-kcal b { font-size: var(--t-2xl); font-weight: 600; letter-spacing: -0.02em; }
+.me-kcal span { font-size: var(--t-xs); color: var(--muted); }
+.me-makros { display: flex; gap: var(--s-4); margin-left: auto; }
+.me-makros div { display: flex; flex-direction: column; align-items: flex-end; }
+.me-makros b { font-size: var(--t-sm); font-weight: 600; }
+.me-makros span { font-size: var(--t-2xs); color: var(--muted); }
+
+.me-posten { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-3); }
+.me-posten > li { border-bottom: 1px solid var(--linie); padding-bottom: var(--s-3); }
+.me-posten > li:last-child { border-bottom: none; }
+.me-leer { color: var(--muted); font-size: var(--t-sm); }
+
+.me-zeile { display: flex; align-items: center; gap: var(--s-2); }
+.me-name { flex: 1; font-size: var(--t-md); font-weight: 500; min-width: 0; overflow-wrap: anywhere; }
+.me-mengefeld { display: flex; align-items: center; gap: 5px; flex: none; }
+/* Breit genug für vier Ziffern. Ein Feld, das bei 1000 umbricht, sieht nach
+   Fehler aus. */
+.me-menge {
+  width: 72px; text-align: right;
+  background: var(--panel); border: 1px solid var(--border); color: var(--text);
+  border-radius: var(--r-md); padding: 7px 8px; font-size: var(--t-sm);
+  font-variant-numeric: tabular-nums;
+}
+.me-einheit, .me-fest { font-size: var(--t-sm); color: var(--muted); }
+.me-weg {
+  flex: none; width: 32px; height: 32px; display: grid; place-items: center;
+  background: transparent; border: none; color: var(--muted); border-radius: var(--r-pill);
+}
+.me-weg:active { color: var(--bad); }
+.me-werte { margin-top: 4px; font-size: var(--t-xs); color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.me-suche { display: flex; gap: var(--s-2); margin-bottom: var(--s-2); }
+.me-suche input {
+  flex: 1; min-width: 0;
+  background: var(--panel); border: 1px solid var(--border); color: var(--text);
+  border-radius: var(--r-md); padding: 9px 11px; font-size: var(--t-sm);
+}
+.me-suche .ghost { flex: none; padding: 9px 12px; font-size: var(--t-sm); }
+
+.me-treffer { list-style: none; margin: var(--s-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.me-treffer-knopf {
+  width: 100%; text-align: left; display: block;
+  background: var(--panel); border: 1px solid var(--border); color: var(--text);
+  border-radius: var(--r-md); padding: var(--s-3);
+  transition: transform var(--schnell) var(--kurve), border-color var(--schnell) var(--kurve);
+}
+.me-treffer-knopf:active { transform: scale(0.98); border-color: var(--accent); }
+.me-warnung { margin-top: 4px; font-size: var(--t-2xs); color: var(--warn); }
+
+.me-video {
+  display: block; width: 100%; max-width: 100%; aspect-ratio: 4 / 3;
+  object-fit: cover; border-radius: var(--r-md); margin: var(--s-2) 0;
+  background: #000;
+}
+
+.me-hand { margin-top: var(--s-5); }
+.me-hand summary {
+  font-size: var(--t-sm); font-weight: 600; color: var(--muted);
+  padding: var(--s-2) 0; cursor: pointer;
+}
+.me-hand summary::marker { color: var(--accent); }
+
+/* Eine Zeile, die sich antippen lässt, muss danach aussehen. */
+.list li.tippbar:active { background: var(--erhoben); }
