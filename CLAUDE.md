@@ -1326,6 +1326,41 @@ Scratchpad öffnet jede Ansicht in beiden Farbmodi und meldet zwei Dinge:
 überlappende Textelemente und seitliches Scrollen. Genau diese Fehler sieht kein
 Test, der Werte prüft, und genau die fallen dem Nutzer als Erstes auf.
 
+## Die Makrobalken
+
+Zwei Fehler, die zusammen auffielen, als die Farben zur Sprache kamen.
+
+Der erste ist ein Namenskonflikt. Die Balken hiessen `.bar`, genau wie die
+Kopfzeile jeder Ansicht. Die Regel für die Kopfzeile steht weiter unten im
+Stylesheet und hat gewonnen: die Balken wurden 52 Pixel hoch statt acht,
+bekamen seitlichen Innenabstand und `display: flex`. Dasselbe noch einmal bei
+`.bars`, das sowohl die Gruppe als auch das Menuesymbol war. Beide heissen
+jetzt `.balken` und `.balken-gruppe`. Ein Klassenname für zwei Bauteile ist
+keine Frage der Ordnung, sondern ein Fehler, der irgendwann eintritt.
+
+Der zweite sind die Farben. Die Balken trugen die Zustandsfarben: Fett lief auf
+`--warn`, also auf der Warnfarbe. Ein Makro ist keine Warnung, und das sieht man
+dem Balken an, bevor man es benennen kann. Das Gelb stach heraus, weil es dafür
+gebaut ist herauszustechen.
+
+Jetzt vier eigene Token auf einem Kreis um die Markenfarbe: Grün-Türkis, Rose,
+Violett, Markenzyan. Die Helligkeit ist nicht geschätzt, sondern gerechnet.
+Jeder Ton trifft auf der Spur genau 7.0 zu 1, im hellen Modus genau 4.0 zu 1,
+bei überall derselben Sättigung von 0.62.
+
+Gleicher Kontrast heisst gleiches Gewicht, gleiche Sättigung heisst gleiche
+Farbkraft. Erst beides zusammen macht aus vier Farben eine Familie. Beim ersten
+Versuch stimmte nur der Kontrast, und das Violett trug mehr Sättigung als die
+übrigen. Es sprang heraus, obwohl die Helligkeit stimmte.
+
+`--alt` und `--water` sind damit weggefallen. Sie hiessen "die dritte Farbe" und
+"die vierte", und ein Token ohne Bedeutung wird beim nächsten Mal irgendwo
+eingesetzt, wo er nicht hingehört. Die Spur hinter dem Balken stand als fester
+Wert in der Regel und brauchte eine zweite Regel für den hellen Modus. Sie ist
+jetzt ein Token.
+
+Über dem Ziel bleibt der Balken rot. Dort ist es wirklich eine Warnung.
+
 ## Der Startbildschirm
 
 Die Marke kommt nicht fertig ins Bild, sie entsteht. Erst öffnet sich ein

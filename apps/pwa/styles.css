@@ -42,9 +42,36 @@
   --on-accent: #0b0d10;
   --good: #3fb950;
   --warn: #d29922;
-  --alt: #a371f7;
-  --water: #2ec5d3;
+  /* --alt und --water sind mit den Makrofarben weggefallen. Sie hatten keine
+     Bedeutung ausser "die dritte Farbe" und "die vierte", und ein Token ohne
+     Bedeutung wird beim nächsten Mal irgendwo eingesetzt, wo er nicht hingehört. */
   --bad: #f85149;
+
+  /* ---------- Makrofarben ----------
+   *
+   * Vier Töne einer Familie, nicht vier Farben nebeneinander. Vorher trugen
+   * die Balken die Zustandsfarben: Fett lief auf `--warn`, also auf der
+   * Warnfarbe. Ein Makro ist keine Warnung, und das sieht man dem Balken an,
+   * bevor man es benennen kann. Das Gelb stach heraus, weil es dafür gebaut
+   * ist herauszustechen.
+   *
+   * Die vier Töne liegen auf einem Kreis um die Markenfarbe: Grün-Türkis,
+   * Rose, Violett, Markenzyan. Ihre Helligkeit ist nicht geschätzt, sondern
+   * gerechnet: jeder trifft auf der Spur genau 7.0 zu 1, im hellen Modus
+   * genau 4.0 zu 1, bei überall derselben Sättigung von 0.62. Gleicher
+   * Kontrast heisst gleiches Gewicht, gleiche Sättigung heisst gleiche
+   * Farbkraft, und damit liest sich die Gruppe als System statt als vier
+   * Einzelfarben. Ein Ton mit mehr Sättigung als die anderen springt heraus,
+   * auch wenn die Helligkeit stimmt: genau das war beim ersten Versuch mit
+   * dem Violett so.
+   */
+  --makro-protein: #2ec28c;
+  --makro-fett: #e694ad;
+  --makro-kohlenhydrate: #b6a0e9;
+  --makro-wasser: #4cb9d5;
+  /* Die Spur hinter dem Balken. Stand vorher als fester Wert in der Regel und
+     war damit im hellen Modus nur über eine zweite Regel zu retten. */
+  --spur: #1b2230;
 
   /* ---------- Typografie ----------
    *
@@ -401,16 +428,39 @@ button:disabled { opacity: 0.5; }
 .mini-v { font-weight: 650; font-variant-numeric: tabular-nums; }
 
 /* Balken */
-.bars { margin-top: 16px; }
-.bar-row { margin-bottom: 13px; }
-.bar-head { display: flex; justify-content: space-between; font-size: 13.5px; margin-bottom: 6px; }
-.bar-head span:last-child { color: var(--muted); font-variant-numeric: tabular-nums; }
-.bar { height: 8px; border-radius: 4px; background: #21262d; overflow: hidden; }
-.bar > i { display: block; height: 100%; width: 0; background: var(--good); border-radius: 4px; transition: width 0.4s ease; }
-.bar > i.warn { background: var(--warn); }
-.bar > i.alt { background: var(--alt); }
-.bar > i.water { background: var(--water); }
-.bar > i.over { background: var(--bad); }
+/* Die Gruppe hiess ebenfalls `.bars`, genau wie das Menuesymbol in der
+   Kopfzeile. Dasselbe Muster wie bei `.bar`: ein Name, zwei Bauteile. */
+.balken-gruppe { margin-top: var(--s-4); }
+/*
+ * Die Makrobalken.
+ *
+ * Sie hiessen `.bar`, genau wie die Kopfzeile jeder Ansicht. Die Regel für die
+ * Kopfzeile steht weiter unten im Stylesheet und hat gewonnen: die Balken
+ * wurden 52 Pixel hoch statt acht, bekamen seitlichen Innenabstand und
+ * `display: flex`. Deshalb der eigene Name. Zwei Bauteile mit einem
+ * Klassennamen ist keine Frage der Ordnung, sondern ein Fehler, der irgendwann
+ * eintritt.
+ */
+.balken-zeile { margin-bottom: var(--s-3); }
+.balken-kopf {
+  display: flex; justify-content: space-between;
+  font-size: var(--t-sm); margin-bottom: var(--s-2);
+}
+.balken-kopf span:last-child { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.balken { height: 8px; border-radius: var(--r-pill); background: var(--spur); overflow: hidden; }
+.balken > i {
+  display: block; height: 100%; width: 0;
+  border-radius: var(--r-pill);
+  transition: width 0.4s var(--kurve);
+}
+.balken > i.protein { background: var(--makro-protein); }
+.balken > i.fett { background: var(--makro-fett); }
+.balken > i.kohlenhydrate { background: var(--makro-kohlenhydrate); }
+.balken > i.wasser { background: var(--makro-wasser); }
+/* Über dem Ziel ist kein Makro mehr, sondern eine Aussage. Hier darf die
+   Warnfarbe stehen, denn hier ist es eine Warnung. */
+.balken > i.over { background: var(--bad); }
 
 .quick { display: flex; gap: 9px; margin-top: 16px; }
 .chip {
@@ -633,6 +683,9 @@ body:has([data-view="assistant"]:not([hidden])) .toast {
     --bg: #f5f7fb; --panel: #ffffff; --panel-2: #edf1f7; --erhoben: #ffffff;
     --border: #dce3ed; --linie: rgba(20, 26, 36, 0.08);
     --text: #141a24; --muted: #5b6675;
+    --makro-protein: #1e7f5c; --makro-fett: #cf3161;
+    --makro-kohlenhydrate: #7e58d8; --makro-wasser: #227a91;
+    --spur: #e4e8ec;
     --accent: var(--brand-deep);
     --accent-text: var(--brand-text);
     --on-accent: #ffffff;
@@ -646,6 +699,9 @@ body:has([data-view="assistant"]:not([hidden])) .toast {
     --bg: #f5f7fb; --panel: #ffffff; --panel-2: #edf1f7; --erhoben: #ffffff;
     --border: #dce3ed; --linie: rgba(20, 26, 36, 0.08);
     --text: #141a24; --muted: #5b6675;
+    --makro-protein: #1e7f5c; --makro-fett: #cf3161;
+    --makro-kohlenhydrate: #7e58d8; --makro-wasser: #227a91;
+    --spur: #e4e8ec;
     --accent: var(--brand-deep);
     --accent-text: var(--brand-text);
     --on-accent: #ffffff;
@@ -657,12 +713,10 @@ body:has([data-view="assistant"]:not([hidden])) .toast {
 }
 
 :root[data-theme="light"] .ring-bg { stroke: var(--brand-deep); stroke-opacity: 0.25; }
-:root[data-theme="light"] .bar { background: #e4e8ec; }
 :root[data-theme="light"] .toast { box-shadow: 0 8px 26px rgba(0, 0, 0, 0.14); }
 
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) .ring-bg { stroke: var(--brand-deep); stroke-opacity: 0.25; }
-  :root:not([data-theme="dark"]) .bar { background: #e4e8ec; }
   :root:not([data-theme="dark"]) .toast { box-shadow: 0 8px 26px rgba(0, 0, 0, 0.14); }
 }
 
