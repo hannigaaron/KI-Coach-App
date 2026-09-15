@@ -747,7 +747,16 @@ try {
       <div class="field"><label for="modelSel">Modell</label>
         <select id="modelSel"></select></div>
       <p class="fineprint" id="modelNote" style="margin-bottom:12px"></p>
-      <label class="switch"><input type="checkbox" id="optGruendlich"><span>Immer gründlich denken</span></label>
+      <div class="field"><label for="tempoSel">Wie gründlich daevo denkt</label>
+        <select id="tempoSel">
+          <option value="schnell">Schnell, kürzere Antworten</option>
+          <!-- Ausgewogen ist vorausgewählt. Ohne das zeigt das Feld die erste
+               Zeile, also schnell, bevor das Skript den gespeicherten Wert
+               setzt, und eine kurz falsch angezeigte Einstellung wird
+               übernommen, weil niemand sie anfasst. -->
+          <option value="normal" selected>Ausgewogen</option>
+          <option value="gruendlich">Immer gründlich</option>
+        </select></div>
       <p class="fineprint" id="gruendlichNote" style="margin-bottom:12px"></p>
       <div class="quick">
         <button id="btnSaveKey" class="chip">Schlüssel speichern</button>

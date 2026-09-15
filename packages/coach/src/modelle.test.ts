@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { AnthropicProvider } from "./anthropic.js";
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, modellFuer, modellFuerBilder } from "./modelle.js";
 import { MODELL_PREISE } from "./kosten.js";
+import { modellFuerTempo, tiefeAnheben } from "./agent.js";
 import type { Modus } from "./persona.js";
 
 const ALLE_MODI: Modus[] = ["erfassen", "coaching", "psyche", "planung", "standard"];
@@ -145,4 +146,42 @@ test("die Auswahl im Profil deckt jedes bekannte Modell ab", () => {
     assert.ok(werte.includes(id), `${id} fehlt in der Auswahl`);
   }
   assert.equal(new Set(werte).size, werte.length);
+});
+
+/* ---------- Tempo ---------- */
+
+test("schnell deckelt die Denktiefe, gründlich hebt sie an", () => {
+  const planung = { effort: "high", maxTokens: 8192, modus: "planung" } as const;
+  assert.equal(tiefeAnheben(planung, "schnell").effort, "medium");
+  assert.equal(tiefeAnheben(planung, "normal").effort, "high");
+  assert.equal(tiefeAnheben(planung, "gruendlich").effort, "high");
+
+  const erfassen = { effort: "low", maxTokens: 2048, modus: "erfassen" } as const;
+  // Schnell macht aus niedrig nicht noch weniger, es gibt nichts darunter.
+  assert.equal(tiefeAnheben(erfassen, "schnell").effort, "low");
+  assert.equal(tiefeAnheben(erfassen, "gruendlich").effort, "high");
+});
+
+test("bei Scham und Schuld gilt schnell nicht", () => {
+  // Der eine Ort, an dem die App die Einstellung des Nutzers überstimmt. Eine
+  // hingeworfene Antwort auf so etwas ist schlimmer als eine langsame.
+  const psyche = { effort: "high", maxTokens: 8192, modus: "psyche" } as const;
+  assert.equal(tiefeAnheben(psyche, "schnell").effort, "high");
+  assert.equal(tiefeAnheben(psyche, "schnell").maxTokens, 8192);
+});
+
+test("eine gespeicherte Einstellung aus der alten Fassung gilt weiter", () => {
+  // Vorher war es ein Wahrheitswert. Aus false darf nicht plötzlich schnell
+  // werden, sonst läuft die App nach einem Update auf Sparflamme.
+  const t = { effort: "medium", maxTokens: 4096, modus: "coaching" } as const;
+  assert.equal(tiefeAnheben(t, false).effort, "medium");
+  assert.equal(tiefeAnheben(t, true).effort, "high");
+});
+
+test("schnell schickt Planung auf Sonnet, Psyche bleibt auf Opus", () => {
+  assert.equal(modellFuerTempo("planung", "schnell"), "claude-sonnet-5");
+  assert.equal(modellFuerTempo("psyche", "schnell"), null);
+  // Ohne schnell ändert sich nichts an der Tabelle.
+  assert.equal(modellFuerTempo("planung", "normal"), null);
+  assert.equal(modellFuerTempo("planung", "gruendlich"), null);
 });

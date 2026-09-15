@@ -140,12 +140,18 @@ für den Nutzer einsehbar und löschbar.
   Wo Text gegen Listen oder Muster geprüft wird, laufen beide Seiten durch
   `foldUmlauts`. Dadurch bricht eine spätere Textkorrektur die Erkennung nicht.
 - Vor jedem Commit `npm test` und `npm run build:pwa`. Beides muss grün sein.
+- `npm test` prüft die Pakete, nicht `apps/pwa/js`. Das ist reines Browser
+  JavaScript und läuft in keinem Test. Deshalb prüft `build:pwa` jede Datei
+  dort mit `node --check`, bevor irgendetwas nach dist-pages geht. Ein
+  Tippfehler kam sonst grün durch und machte die App beim Öffnen weiss: das
+  Modul lädt nicht, `#app` bleibt versteckt, und der Nutzer sieht den
+  Anamnesebogen statt seiner Daten. Genau das ist passiert.
 
 ## Befehle
 
 ```bash
 npm install
-npm test           # 598 Tests
+npm test           # 602 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1087,6 +1093,45 @@ Schein wird dort zu einem grauen Fleck.
 
 Eine dritte Variante mit einem Streiflicht über der Wortmarke wurde verworfen.
 Sie sieht beim ersten Mal am besten aus und beim fünfzigsten am schlechtesten.
+
+## Wie gründlich, und damit wie schnell
+
+Drei Stufen im Profil statt eines Schalters: schnell, ausgewogen, immer
+gründlich. `tiefeAnheben` in `packages/coach/src/agent.ts`.
+
+Der Anlass kam aus dem Betrieb. Eine diktierte Frage nach der Tagesstruktur
+landete über die Regel `woerter > 60` auf Opus mit höchster Denktiefe und
+brauchte über eine Minute. Die Antwort war gut, aber der Nutzer wollte in dem
+Moment keine Abhandlung, sondern eine Reihenfolge.
+
+Gesprochene Nachrichten sind von Natur aus lang. Länge ist deshalb ein
+schlechtes Mass für die nötige Tiefe, und wer viel diktiert, landet dauernd
+auf der teuersten und langsamsten Stufe, ohne es gewollt zu haben.
+
+`schnell` deckelt auf mittlere Denktiefe und schickt Planung von Opus auf
+Sonnet. Was dabei wegfällt, ist echte Qualität, keine eingebildete: die
+Antwort wird kürzer gedacht. Deshalb ist es nicht die Voreinstellung, sondern
+eine Wahl.
+
+Psyche bleibt von `schnell` unberührt. Wer über Scham redet, bekommt keine
+schnelle Antwort, auch wenn er schnell eingestellt hat. Das ist der eine Ort,
+an dem die App die Einstellung überstimmt, und der Grund steht im Code: eine
+hingeworfene Antwort auf so etwas ist schlimmer als eine langsame.
+
+Eine ausdrückliche Modellwahl gewinnt über das Tempo. Wer Opus fest einstellt,
+will Opus, auch wenn es länger dauert.
+
+Die alte Einstellung `immerGruendlich` gilt weiter, solange keine neue
+dasteht. Aus einem gespeicherten `false` darf nicht plötzlich `schnell`
+werden, sonst läuft die App nach einem Update auf Sparflamme. In der
+Oberfläche trägt `ausgewogen` ein `selected`: ohne das zeigt das Feld die
+erste Zeile, bis das Skript den gespeicherten Wert setzt, und eine kurz falsch
+angezeigte Einstellung wird übernommen, weil niemand sie anfasst.
+
+Dazu eine laufende Uhr in der Blase, sobald es länger als vier Sekunden
+dauert. Sie sagt nichts Neues, sie beweist nur, dass etwas passiert. "denkt
+nach" ohne jede Bewegung sieht nach sechzig Sekunden aus wie eine hängende
+App, und der Nutzer schickt die Frage nochmal.
 
 ## Der Chat
 

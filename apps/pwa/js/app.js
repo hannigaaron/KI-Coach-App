@@ -308,12 +308,34 @@ async function send(text) {
   orb.setState("thinking");
   setStatus("denkt nach");
 
+  // Eine laufende Uhr, sobald es länger dauert.
+  //
+  // Bei Planung und persönlichen Themen läuft Opus auf höchster Denkstufe, und
+  // das sind schnell über sechzig Sekunden. "denkt nach" ohne jede Bewegung
+  // sieht in dieser Zeit aus wie eine hängende App, und der Nutzer schickt die
+  // Frage nochmal oder schliesst die App. Die Uhr sagt nichts Neues, sie
+  // beweist nur, dass etwas passiert. Sie startet erst nach vier Sekunden:
+  // eine Uhr bei einer Antwort, die ohnehin gleich da ist, ist Unruhe.
+  const begonnen = Date.now();
+  let uhr = 0;
+  const uhrStarten = () => {
+    uhr = setInterval(() => {
+      if (laufend) { clearInterval(uhr); uhr = 0; return; }
+      const s = Math.round((Date.now() - begonnen) / 1000);
+      pending.text.textContent = `denkt nach, ${s} Sekunden`;
+    }, 1000);
+  };
+  const uhrVorlauf = setTimeout(uhrStarten, 4000);
+  const uhrStoppen = () => { clearTimeout(uhrVorlauf); if (uhr) clearInterval(uhr); uhr = 0; };
+
   // Der Text läuft in die Blase, während er geschrieben wird. Ein Stück Text
   // ist ein Anhängen, null heisst: alles bisherige war ein Zwischenschritt und
   // wird verworfen.
   let laufend = "";
   const onStrom = (stueck) => {
     if (stueck === null) { laufend = ""; pending.text.textContent = "denkt nach"; return; }
+    // Sobald Text kommt, hat das Warten ein Ende und die Uhr stört nur.
+    uhrStoppen();
     laufend += stueck;
     pending.node.classList.remove("pending");
     pending.text.textContent = laufend;
@@ -356,6 +378,7 @@ async function send(text) {
     orb.setState("idle");
     setStatus("bereit");
   } finally {
+    uhrStoppen();
     busy = false;
   }
 }
@@ -1613,8 +1636,9 @@ function renderProfile() {
   const settings = store.getSettings();
   $("apiKey").value = settings.apiKey || "";
   renderModellwahl(settings.modellWahl || "auto");
-  $("optGruendlich").checked = Boolean(settings.immerGruendlich);
-  renderGruendlich(Boolean(settings.immerGruendlich));
+  const tempo = tempoVon(settings);
+  $("tempoSel").value = tempo;
+  renderGruendlich(tempo);
   $("themeSel").value = settings.theme || "system";
   $("anweisungen").value = settings.anweisungen || "";
   zeigeAnweisungsLaenge();
@@ -1679,17 +1703,45 @@ function renderModellwahl(aktuell) {
  * eine veröffentlichte Angabe und keine Messung an deinen Daten. Wer sie nicht
  * gelten lassen will, schaltet hier um.
  */
-function renderGruendlich(an) {
-  $("gruendlichNote").textContent = an
-    ? "Jede Nachricht läuft auf der höchsten Denkstufe. Antworten dauern länger und kosten mehr, auch beim reinen Eintragen."
-    : "Persönliche Themen und Planung denken immer auf der höchsten Stufe. Fachfragen laufen auf mittel, kurzes hin und her auf niedrig.";
+/**
+ * Die gespeicherte Einstellung als Stufe.
+ *
+ * Vorher war es ein Wahrheitswert namens `immerGruendlich`. Wer die App schon
+ * benutzt, hat den gespeichert, und daraus darf nicht plötzlich "schnell"
+ * werden. Deshalb wird der alte Wert gelesen, solange kein neuer dasteht.
+ */
+function tempoVon(settings) {
+  if (settings.tempo === "schnell" || settings.tempo === "normal" || settings.tempo === "gruendlich") {
+    return settings.tempo;
+  }
+  return settings.immerGruendlich ? "gruendlich" : "normal";
 }
 
-$("optGruendlich").addEventListener("change", (event) => {
-  const an = event.target.checked;
-  store.setSettings({ ...store.getSettings(), immerGruendlich: an });
-  renderGruendlich(an);
-  toast(an ? "daevo denkt jetzt überall gründlich" : "daevo denkt so tief, wie die Frage es braucht");
+function renderGruendlich(tempo) {
+  const texte = {
+    schnell:
+      "Planung und Fachfragen antworten schneller und knapper. Persönliche Themen bleiben auf der "
+      + "höchsten Stufe, dort wird nicht gespart, auch wenn hier schnell steht.",
+    normal:
+      "Persönliche Themen und Planung denken auf der höchsten Stufe. Fachfragen laufen auf mittel, "
+      + "kurzes hin und her auf niedrig.",
+    gruendlich:
+      "Jede Nachricht läuft auf der höchsten Denkstufe. Antworten dauern länger und kosten mehr, "
+      + "auch beim reinen Eintragen.",
+  };
+  $("gruendlichNote").textContent = texte[tempo] ?? texte.normal;
+}
+
+$("tempoSel").addEventListener("change", (event) => {
+  const tempo = event.target.value;
+  store.setSettings({ ...store.getSettings(), tempo, immerGruendlich: tempo === "gruendlich" });
+  renderGruendlich(tempo);
+  const sagt = {
+    schnell: "daevo antwortet jetzt schneller und knapper",
+    normal: "daevo denkt so tief, wie die Frage es braucht",
+    gruendlich: "daevo denkt jetzt überall gründlich",
+  };
+  toast(sagt[tempo] ?? sagt.normal);
 });
 
 $("modelSel").addEventListener("change", (event) => {
@@ -1837,9 +1889,18 @@ $("composer").addEventListener("submit", (event) => {
  * gerade gar nicht erwartet.
  */
 let postfachLaeuft = false;
+let postfachSpaeter = 0;
 
 async function postfachPruefen({ laut = false } = {}) {
-  if (postfachLaeuft || busy) return;
+  if (postfachLaeuft) return;
+  // Läuft gerade eine Antwort, wird nicht verworfen, sondern später nochmal
+  // nachgesehen. Stilles Verwerfen hiesse: der Satz liegt bis zum nächsten
+  // Öffnen der App im Postfach, und für den Nutzer ist er verschwunden.
+  if (busy) {
+    clearTimeout(postfachSpaeter);
+    postfachSpaeter = setTimeout(() => postfachPruefen({ laut }), 1500);
+    return;
+  }
   const s = store.getSettings();
   if (!s.pushWorker || !s.pushWort) {
     if (laut) toast("Für das Postfach brauchst du Adresse und Anmeldewort des Push Workers im Profil.");

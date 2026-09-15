@@ -2172,7 +2172,10 @@ export async function ask(nachricht, { onChange, anhaenge = [], onStrom } = {}) 
     },
     aktionen: buildActions({ onChange, anhaenge }),
     modellWahl: store.getSettings().modellWahl || "auto",
-    immerGruendlich: Boolean(store.getSettings().immerGruendlich),
+    // Die alte Einstellung gilt weiter, solange keine neue dasteht. Sonst
+    // liefe die App nach einem Update plötzlich auf Sparflamme.
+    tempo: store.getSettings().tempo
+      || (store.getSettings().immerGruendlich ? "gruendlich" : "normal"),
     // Der Text erscheint, während er entsteht. Das ändert nichts an den
     // Kosten und nichts an der Antwort, nur an der gefühlten Wartezeit.
     strom: onStrom ? { neu: () => onStrom(null), text: (stueck) => onStrom(stueck) } : undefined,
