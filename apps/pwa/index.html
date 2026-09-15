@@ -255,9 +255,83 @@ try {
       <div id="suggestOut" class="card" hidden></div>
 
       <h2 class="abschnitt">Verlauf heute</h2>
+      <p class="sub">Tipp auf eine Mahlzeit, um Mengen zu ändern oder etwas hinzuzufügen.</p>
       <ul id="mealList2" class="list"></ul>
     </div>
   </section>
+
+  <!--
+    Der Mahlzeit Editor. Er liegt ausserhalb der Ansichten, weil er sowohl aus
+    dem Verlauf unter Essen als auch aus der Tagesansicht aufgeht, und ein
+    zweites Mal dasselbe Formular wäre eine zweite Fehlerquelle.
+  -->
+  <div id="mahlzeitEditor" class="blatt" hidden>
+    <div class="blatt-innen" role="dialog" aria-modal="true" aria-labelledby="meTitel">
+      <header class="blatt-kopf">
+        <h2 id="meTitel">Mahlzeit</h2>
+        <button id="meSchliessen" class="icon-btn" aria-label="Schliessen"><span class="kreuz"></span></button>
+      </header>
+
+      <div class="blatt-scroll">
+        <div class="me-kopf">
+          <div id="meArten" class="pills" role="group" aria-label="Art der Mahlzeit"></div>
+          <input id="meZeit" type="time" aria-label="Uhrzeit">
+        </div>
+
+        <!-- Die Summe steht oben und rechnet bei jeder Änderung mit. Wer eine
+             Menge zieht, will sofort sehen, was das mit dem Tag macht. -->
+        <div class="me-summe">
+          <div class="me-kcal"><b id="meKcal">0</b><span>kcal</span></div>
+          <div class="me-makros">
+            <div><b id="meProtein">0</b><span>Eiweiss</span></div>
+            <div><b id="meFett">0</b><span>Fett</span></div>
+            <div><b id="meKh">0</b><span>Kohlenhydrate</span></div>
+          </div>
+        </div>
+
+        <ul id="mePosten" class="me-posten"></ul>
+
+        <h3 class="section-title">Lebensmittel hinzufügen</h3>
+        <div class="me-suche">
+          <input id="meSuche" type="search" autocomplete="off" enterkeyhint="search"
+                 placeholder="Magerquark, Haferflocken, Skyr">
+          <button id="meSuchen" class="ghost" type="button">Suchen</button>
+          <button id="meScan" class="ghost" type="button">Barcode</button>
+        </div>
+        <p id="meSuchHinweis" class="feld-hilfe"></p>
+        <ul id="meTreffer" class="me-treffer" hidden></ul>
+
+        <details class="me-hand">
+          <summary>Von Hand eintragen</summary>
+          <p class="feld-hilfe">Für alles, was die Datenbank nicht kennt. Die Werte stehen auf
+            der Packung je 100 Gramm.</p>
+          <div class="field"><label for="meHandName">Name</label>
+            <input id="meHandName" type="text" autocomplete="off" placeholder="Omas Kuchen"></div>
+          <div class="field-row">
+            <div class="field"><label for="meHandGramm">Gramm</label>
+              <input id="meHandGramm" type="number" inputmode="decimal" min="1" step="1" value="100"></div>
+            <div class="field"><label for="meHandKcal">kcal je 100 g</label>
+              <input id="meHandKcal" type="number" inputmode="decimal" min="0" step="1"></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label for="meHandP">Eiweiss je 100 g</label>
+              <input id="meHandP" type="number" inputmode="decimal" min="0" step="0.1"></div>
+            <div class="field"><label for="meHandF">Fett je 100 g</label>
+              <input id="meHandF" type="number" inputmode="decimal" min="0" step="0.1"></div>
+            <div class="field"><label for="meHandK">Kohlenhydrate je 100 g</label>
+              <input id="meHandK" type="number" inputmode="decimal" min="0" step="0.1"></div>
+          </div>
+          <button id="meHandAdd" class="ghost breit" type="button">Hinzufügen</button>
+          <p id="meHandHinweis" class="feld-hilfe"></p>
+        </details>
+      </div>
+
+      <footer class="blatt-fuss">
+        <button id="meLoeschen" class="ghost gefahr" type="button">Mahlzeit löschen</button>
+        <button id="meSpeichern" class="primary" type="button">Speichern</button>
+      </footer>
+    </div>
+  </div>
 
   <section class="view" data-view="checkin" hidden>
     <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Check-in</h1><div class="bar-spacer"></div></header>

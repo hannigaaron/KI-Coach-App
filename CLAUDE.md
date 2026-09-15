@@ -145,7 +145,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 587 Tests
+npm test           # 598 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -647,6 +647,53 @@ Welche Mahlzeit schon gegessen wurde, erkennt `gegesseneArten` an der Uhrzeit
 des Eintrags, nicht an seinem Text. Wer um 13 Uhr etwas einträgt, hat Mittag
 gegessen, egal wie er es nennt. Ein zweiter Eintrag im selben Fenster gilt als
 dieselbe Mahlzeit: wer nachlegt, isst nicht zweimal zu Mittag.
+
+## Eine Mahlzeit nachträglich ändern
+
+`packages/core/src/portion.ts` rechnet, der Editor steht in `apps/pwa`.
+
+Bisher war eine erfasste Mahlzeit endgültig. Wer sich vertippt hatte oder eine
+Schätzung des Modells nachschärfen wollte, musste den ganzen Eintrag löschen
+und alles neu sagen. Beim Tracken ist das Korrigieren der häufigste Handgriff
+überhaupt, und eine App, in der er fehlt, wird nach zwei Wochen nicht mehr
+benutzt.
+
+Ein `FoodEntry` trägt absolute Nährwerte für seine Menge, keine Werte je 100
+Gramm. Skaliert wird deshalb über das Verhältnis der Mengen, und das ist
+exakt: 300 Gramm Reis haben genau das Anderthalbfache von 200 Gramm. Der
+Vorteil ist, dass auch jeder alte Eintrag skalierbar ist, ohne dass eine Basis
+nachgetragen werden müsste.
+
+`mengeLesen` nimmt auch Angaben ohne Einheit. Das Modell schreibt "2 Eier"
+oder "1 Portion", und auch die lassen sich verdoppeln, denn es geht nur um das
+Verhältnis. Fehlt jede Zahl, steht die Menge als Text da statt als Feld: ein
+Feld, das nichts bewirkt, ist schlimmer als keins.
+
+Gerundet wird erst am Ende und je Wert einzeln. Wer zwischendrin rundet,
+sammelt über fünf Posten ein paar Kalorien ein, und dann stimmt die Summe der
+Zeilen nicht mit der Gesamtsumme überein. Das fällt beim Nachrechnen sofort
+auf und kostet Vertrauen.
+
+Der Editor ist ein Blatt von unten, keine eigene Ansicht. Wer eine Menge
+korrigiert, will danach wieder da sein, wo er war. Gearbeitet wird auf einer
+Kopie, erst Speichern schreibt in den Tag: wer herumprobiert und abbricht,
+hätte sonst seinen Tag schon geändert.
+
+Beim Ändern einer Menge wird nur die betroffene Zeile neu geschrieben, nicht
+die ganze Liste. Ein Neuaufbau nimmt dem Nutzer mitten im Tippen den Fokus aus
+dem Feld.
+
+Drei Wege, etwas hinzuzufügen: Suche über Open Food Facts, Barcode über
+`BarcodeDetector`, und von Hand mit Werten je 100 Gramm. Der dritte ist kein
+Notnagel. Was die Datenbank nicht kennt, kennt sie auch beim zehnten Versuch
+nicht, und ohne diesen Weg bleibt der Eintrag aus.
+
+Eine gespeicherte Mahlzeit trägt danach `korrigiert`. Eine von Hand geänderte
+Mahlzeit ist keine Schätzung des Modells mehr, und der Coach soll sie nicht
+nochmal in Frage stellen.
+
+Eine Mahlzeit ohne Posten wird beim Speichern gelöscht. Eine Zeile mit null
+Kalorien im Verlauf zu führen wäre die schlechtere Antwort.
 
 ## Doppelt eingetragenes Essen
 

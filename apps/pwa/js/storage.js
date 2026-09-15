@@ -331,6 +331,22 @@ export const store = {
     data.meals = data.meals.filter((m) => m.id !== id);
     this.setDay(day, data);
   },
+  /**
+   * Ändert eine erfasste Mahlzeit.
+   *
+   * Nur die Felder, die mitkommen. Eine Mahlzeit trägt Uhrzeit, Quelle,
+   * Gefühl und Sicherheit der Schätzung, und ein Editor, der beim Ändern der
+   * Menge die Herkunft des Eintrags löscht, macht aus einem Fotoeintrag einen
+   * ohne Herkunft.
+   */
+  updateMeal(day, id, aenderung) {
+    const data = this.getDay(day);
+    const meal = data.meals.find((m) => m.id === id);
+    if (!meal) return null;
+    Object.assign(meal, aenderung);
+    this.setDay(day, data);
+    return meal;
+  },
   setMealFeeling(day, id, feeling) {
     const data = this.getDay(day);
     const meal = data.meals.find((m) => m.id === id);
