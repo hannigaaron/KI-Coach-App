@@ -35,7 +35,7 @@ class SpeicherAttrappe {
 globalThis.localStorage = new SpeicherAttrappe();
 
 const { store, todayIso } = await import("./storage.js");
-const { buildActions, dayNumbers, kalenderStandText, plausibelHinweis } = await import("./assistant.js");
+const { buildActions, dayNumbers, kalenderStandText, plausibelHinweis, trifftPosten } = await import("./assistant.js");
 
 const PROFIL = {
   name: "Aaron", sex: "male", ageYears: 23, heightCm: 184, weightKg: 87,
@@ -282,4 +282,78 @@ test("ein unmöglicher Posten wird beim Eintragen gemeldet", async () => {
   const hinweis = plausibelHinweis(tag);
   assert.match(hinweis, /kann so nicht stimmen/);
   assert.match(hinweis, /je Gramm/);
+});
+
+/* ---------- Korrigieren ---------- */
+
+test("eine zu grosse Menge lässt sich korrigieren statt löschen", async () => {
+  // Der echte Fall vom 15. September: statt eines Rippchens stand eine ganze
+  // Tafel Milka im Tag, und das Fett lag bei 167 g gegen ein Ziel von 69.
+  const tag = frischerTag();
+  const aktionen = buildActions({});
+  store.addMeal(tag, {
+    id: "m1", text: "Milka", at: "22:30", source: "test", feeling: null,
+    entries: [{ name: "Milka Nuss Nougat", quantity: "100 g", kcal: 530, proteinG: 6, fatG: 30, carbsG: 57 }],
+  });
+
+  const antwort = await aktionen.mahlzeitKorrigieren({ posten: "Milka", neueMenge: 16 });
+  const posten = store.getDay(tag).meals[0].entries[0];
+  assert.equal(posten.quantity, "16 g");
+  assert.equal(posten.kcal, 85, "530 mal 0,16 sind 84,8 und gerundet 85");
+  assert.equal(posten.fatG, 4.8);
+  // Beide Zahlen stehen in der Antwort, damit die Korrektur nachrechenbar ist.
+  assert.match(antwort, /530/);
+  assert.match(antwort, /85/);
+});
+
+test("eine korrigierte Mahlzeit ist keine Schätzung mehr", async () => {
+  const tag = frischerTag();
+  const aktionen = buildActions({});
+  await aktionen.mahlzeitErfassen("200 g Magerquark");
+  await aktionen.mahlzeitKorrigieren({ neueMenge: 250 });
+  assert.equal(store.getDay(tag).meals[0].korrigiert, true);
+});
+
+test("ohne Zahl in der Menge sagt die Korrektur warum sie nicht geht", async () => {
+  const tag = frischerTag();
+  const aktionen = buildActions({});
+  store.addMeal(tag, {
+    id: "m2", text: "Reste", at: "12:00", source: "test", feeling: null,
+    entries: [{ name: "Reste", quantity: "eine Portion", kcal: 400, proteinG: 20, fatG: 10, carbsG: 50 }],
+  });
+  const antwort = await aktionen.mahlzeitKorrigieren({ posten: "Reste", neueMenge: 200 });
+  assert.match(antwort, /Ohne Zahl/);
+  assert.equal(store.getDay(tag).meals[0].entries[0].kcal, 400, "nichts darf sich still ändern");
+});
+
+test("ein nicht gefundener Posten wird gesagt, nicht geraten", async () => {
+  frischerTag();
+  const aktionen = buildActions({});
+  const antwort = await aktionen.mahlzeitKorrigieren({ posten: "Pizza", neueMenge: 100 });
+  assert.match(antwort, /keinen Eintrag/);
+});
+
+test("der Posten wird in beide Richtungen gefunden", () => {
+  // Das Modell schickt "Milka", der Regelweg den ganzen Satz. Ein Abgleich,
+  // der nur eine Richtung kann, findet den Eintrag in der anderen nie.
+  assert.equal(trifftPosten("Milka Nuss Nougat", "milka"), true);
+  assert.equal(trifftPosten("Milka Nuss Nougat", "das war nur ein Rippchen Milka"), true);
+  assert.equal(trifftPosten("Magerquark", "das war nur ein Rippchen Milka"), false);
+  // Kurze Silben treffen sonst zufällig: "Ei" steckt in "Eintrag".
+  assert.equal(trifftPosten("Ei", "korrigier den Eintrag"), false);
+});
+
+test("der ganze Satz findet den richtigen Posten und nicht den erstbesten", async () => {
+  const tag = frischerTag();
+  const aktionen = buildActions({});
+  store.addMeal(tag, {
+    id: "m3", text: "Milka", at: "22:30", source: "test", feeling: null,
+    entries: [{ name: "Milka Nuss Nougat", quantity: "100 g", kcal: 530, proteinG: 6, fatG: 30, carbsG: 57 }],
+  });
+  const antwort = await aktionen.mahlzeitKorrigieren({
+    posten: "Das war nur ein Rippchen Milka, nicht die ganze Packung",
+    neueMenge: 16,
+  });
+  assert.match(antwort, /Milka/);
+  assert.equal(store.getDay(tag).meals[0].entries[0].quantity, "16 g");
 });

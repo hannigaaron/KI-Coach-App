@@ -30,6 +30,29 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: "mahlzeit_korrigieren",
+    description:
+      "Ändert die Menge eines schon eingetragenen Postens und rechnet Kalorien und Makros mit. " +
+      "IMMER nehmen, sobald ein Eintrag falsch ist oder unplausibel aussieht und die richtige Menge klar ist. " +
+      "Einen falschen Eintrag nur zu beschreiben ist keine Antwort: die falschen Zahlen bleiben sonst im Tag stehen " +
+      "und verfälschen jede weitere Rechnung. Du kannst das selbst beheben, also behebe es. " +
+      "Nehmen statt eintrag_zuruecknehmen, wenn der Nutzer etwas gegessen hat, nur in anderer Menge.",
+    input_schema: {
+      type: "object",
+      properties: {
+        posten: {
+          type: "string",
+          description: "Teil des Namens, etwa Milka oder Reis. Ohne Angabe der zuletzt eingetragene Posten.",
+        },
+        neueMenge: {
+          type: "number",
+          description: "Die richtige Menge als Zahl, in der Einheit, die am Posten steht.",
+        },
+      },
+      required: ["neueMenge"],
+    },
+  },
+  {
     name: "eintrag_zuruecknehmen",
     description:
       "Nimmt den letzten Eintrag zurück. Nehmen, wenn der Nutzer sagt, dass etwas falsch drinsteht, " +

@@ -61,7 +61,7 @@ Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
 
-Der Assistent hat siebenunddreissig Werkzeuge und verändert die App wirklich. Zahlen
+Der Assistent hat achtunddreissig Werkzeuge und verändert die App wirklich. Zahlen
 über den Nutzer kommen immer aus Werkzeugen, nie aus dem Modell. Allgemeines
 Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
@@ -156,7 +156,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 654 Tests
+npm test           # 667 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -829,6 +829,51 @@ Wasser ist der Sonderfall. Gespeichert wird nur die Summe des Tages, nicht der
 einzelne Schluck. Die Rücknahme setzt deshalb auf null und sagt das, statt so
 zu tun, als hätte sie ein Glas entfernt.
 
+## Erkennen ohne Beheben ist gar nichts
+
+Ein Abend im Betrieb, und der wichtigste Fall bisher. Statt eines Rippchens
+stand eine ganze Tafel Milka im Tag, das Fett lag bei 167 Gramm gegen ein Ziel
+von 69. Der Coach hat den Fehler erkannt, richtig benannt, den echten Tag
+korrekt hochgerechnet und dann geschrieben, er könne ihn nicht rückgängig
+machen. Die falschen Zahlen blieben stehen.
+
+Das ist die schlechteste mögliche Antwort. Sie kostet Vertrauen doppelt: die
+App weiss, dass sie falsch liegt, und tut nichts. Wer das zweimal erlebt, hört
+auf zu tracken.
+
+Zwei Lücken steckten dahinter.
+
+Die erste war das fehlende Werkzeug. `mahlzeit_korrigieren` ändert die Menge
+eines eingetragenen Postens und rechnet über `mengeSetzen` mit. Löschen allein
+hätte nicht gereicht: wer ein Rippchen gegessen hat, hat nicht nichts
+gegessen. Löschen und neu eintragen sind zwei Schritte für eine Absicht, und
+den zweiten hätte der Coach ohne Nachfrage sowieso nicht gekonnt.
+
+Der Posten wird im Regelweg nicht geraten. Weitergegeben wird der ganze Satz,
+und die App gleicht ihn gegen die Namen ab, die wirklich im Tag stehen. Ein
+erster Entwurf nahm das erste grossgeschriebene Wort als Substantiv, und in
+"das war nur ein Rippchen Milka" ist das Rippchen. Der Durchlauf im Browser
+hat genau das gefunden, kein Test davor. `trifftPosten` gleicht deshalb in
+beide Richtungen ab: das Modell schickt "Milka", der Regelweg den ganzen Satz.
+Verglichen wird auf ganze Wörter ab drei Zeichen, denn "Ei" steckt in
+"Eintrag".
+
+Die zweite Lücke war die Haltung. Die Persona sagt jetzt ausdrücklich, dass
+ein erkannter Fehler behoben und nicht beschrieben wird, und dass ein Satz wie
+"das kann ich nicht rückgängig machen" falsch ist. Kennt der Coach die
+richtige Menge nicht, fragt er danach und korrigiert mit der Antwort. Eine
+Frage ist die Vorbereitung der Korrektur, nicht ihr Ersatz.
+
+Die Plausibilitätsprüfung hätte diesen Tag nicht gemeldet, denn die Kalorien
+lagen im Rahmen. Ein einzelner Makro sprengt sein Ziel leichter als der ganze
+Tag: ein falsch eingetragenes fettes Lebensmittel verdreifacht das Fett,
+während die Kalorien noch normal aussehen. Deshalb fällt jetzt auch auf, wenn
+Fett oder Kohlenhydrate über dem Doppelten ihres Ziels stehen.
+
+Jeder Befund nennt ausserdem den Ausweg: die richtige Menge sagen oder
+bestätigen, dass es stimmt. Ein Befund ohne Ausweg ist eine Beschwerde, und
+der Nutzer sitzt danach weiter mit falschen Zahlen da.
+
 ## Das Gewicht gehört ins Profil
 
 `gewichtEintragen` schrieb die Wiegung nur in den Tag. Grundumsatz, Protein,
@@ -840,7 +885,7 @@ Tippfehler darf die Ziele nicht kippen.
 
 ## Der Regelweg ist die kostenlose Stufe
 
-30 der 37 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
+31 der 38 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
 Das ist keine Notlösung für den Ausfall, sondern das Produkt: ein Weg, der
 kein Modell anfragt, kostet nichts je Nutzer und skaliert ohne Rechnung.
 

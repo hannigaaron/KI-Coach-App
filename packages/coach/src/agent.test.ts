@@ -6,6 +6,7 @@ import type { ChatMessage, CoachProvider, ContentBlock, ConverseRequest, Convers
 function stubActions(log: string[]): AgentActions {
   return {
     async mahlzeitErfassen(b) { log.push(`mahlzeit:${b}`); return "Eingetragen: 500 kcal, 40 g Protein."; },
+    async mahlzeitKorrigieren(i) { log.push(`korrigieren:${i.posten ?? ""}:${i.neueMenge}`); return "Korrigiert."; },
     async eintragZuruecknehmen(i) { log.push(`zurueck:${i.art ?? ""}:${i.suche ?? ""}`); return "Raus: 200 g Magerquark."; },
     async tagZuEndePlanen(i) { log.push(`planen:${(i.mahlzeiten ?? []).join("+")}`); return "Abendessen 900 kcal."; },
     async gespraecheDurchsuchen(i) { log.push(`suche:${i.suche}`); return "Zwei Gespräche gefunden."; },
@@ -548,4 +549,27 @@ test("zwei Zahlen reichen für den Check-in nicht", async () => {
   const log: string[] = [];
   await runOffline("7 6", stubActions(log));
   assert.equal(log.some((z) => z.startsWith("mittag:")), false);
+});
+
+test("Regelpfad korrigiert eine Menge, statt den Eintrag zu löschen", async () => {
+  // Der echte Fall: statt eines Rippchens stand eine ganze Tafel Milka im Tag.
+  // Wer ein Rippchen gegessen hat, hat nicht nichts gegessen.
+  const log: string[] = [];
+  await runOffline("Das war nur ein Rippchen Milka, nicht die ganze Packung, korrigier das auf 16 g", stubActions(log));
+  assert.match(log[0]!, /^korrigieren:/);
+  assert.match(log[0]!, /16$/);
+  assert.equal(log.some((z) => z.startsWith("zurueck:")), false);
+});
+
+test("eine Korrektur ohne Bezug auf einen Eintrag ist eine neue Mahlzeit", async () => {
+  // Eine falsch erkannte Korrektur ändert eine Zahl, die vorher stimmte.
+  const log: string[] = [];
+  await runOffline("Ich hatte nur ein Brötchen mit 60 g", stubActions(log));
+  assert.equal(log.some((z) => z.startsWith("korrigieren:")), false);
+});
+
+test("eine Korrektur ohne Menge greift nicht", async () => {
+  const log: string[] = [];
+  await runOffline("Das war nur ein Rippchen, nicht die ganze Packung", stubActions(log));
+  assert.equal(log.some((z) => z.startsWith("korrigieren:")), false);
 });

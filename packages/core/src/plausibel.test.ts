@@ -117,3 +117,37 @@ test("harte Befunde stehen im Text vor den auffälligen", () => {
   assert.equal(text.indexOf("erster") < text.indexOf("zweiter"), true);
   assert.match(text, /kann so nicht stimmen/);
 });
+
+test("ein einzelner Makro weit über dem Ziel fällt auf", () => {
+  // Der echte Abend: 167 g Fett gegen ein Ziel von 69, weil eine ganze Tafel
+  // Schokolade statt eines Rippchens im Tag stand. Die Kalorien allein haben
+  // das nicht verraten.
+  const befunde = plausibelPruefen({
+    posten: [posten({ name: "Tag", quantity: "2000 g", kcal: 2965, proteinG: 120, fatG: 167, carbsG: 200 })],
+    zielKcal: 3000, zielFettG: 69,
+  });
+  assert.equal(befunde.some((b) => /Fett stehen bei 167 g/.test(b.text)), true);
+});
+
+test("Fett im Rahmen löst nichts aus", () => {
+  const befunde = plausibelPruefen({
+    posten: [posten({ name: "Tag", quantity: "2000 g", kcal: 2800, proteinG: 150, fatG: 90, carbsG: 300 })],
+    zielKcal: 3000, zielFettG: 69,
+  });
+  assert.deepEqual(befunde, []);
+});
+
+test("ohne Makroziel entfällt die Makroprüfung", () => {
+  const befunde = plausibelPruefen({
+    posten: [posten({ name: "Tag", quantity: "2000 g", kcal: 2965, proteinG: 120, fatG: 167, carbsG: 200 })],
+  });
+  assert.deepEqual(befunde, []);
+});
+
+test("jeder Befund nennt den Weg zur Behebung", () => {
+  // Ein Befund ohne Ausweg ist eine Beschwerde, und der Nutzer sitzt danach
+  // mit falschen Zahlen da.
+  const text = plausibelText([{ schwere: "auffaellig", text: "irgendwas" }]);
+  assert.match(text, /richtige Menge/);
+  assert.match(text, /dann lasse ich es so/);
+});

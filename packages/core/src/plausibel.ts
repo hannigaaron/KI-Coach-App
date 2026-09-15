@@ -64,12 +64,28 @@ export const MAX_PROTEIN_JE_KG = 4;
 /** Ab wie viel Millilitern am Tag die Wassermenge auffällt. */
 export const MAX_WASSER_ML = 6000;
 
+/**
+ * Ab welchem Vielfachen seines Ziels ein einzelner Makro auffaellt.
+ *
+ * Das Doppelte. Der Anlass ist ein echter Abend: 167 Gramm Fett gegen ein Ziel
+ * von 69, weil eine ganze Tafel Schokolade statt eines Rippchens im Tag stand.
+ * Die Kalorien allein haben das nicht verraten, der einzelne Makro schon.
+ *
+ * Ein Makro laesst sich leichter sprengen als der ganze Tag: ein falsch
+ * eingetragenes fettes Lebensmittel verdreifacht das Fett, waehrend die
+ * Kalorien noch im Rahmen aussehen.
+ */
+export const MAX_MAKRO_FAKTOR = 2;
+
 export interface PlausibelLage {
   posten: FoodEntry[];
   /** Das Kalorienziel des Tages. Ohne Ziel entfallen die Befunde, die daran hängen. */
   zielKcal?: number | null;
   /** Körpergewicht in Kilo, für die Proteingrenze. */
   gewichtKg?: number | null;
+  /** Die Makroziele des Tages in Gramm. Ohne sie entfällt die Makroprüfung. */
+  zielFettG?: number | null;
+  zielKohlenhydrateG?: number | null;
   waterMl?: number | null;
   /** Uhrzeit als HH:MM, für den Befund "so früh am Tag". */
   jetzt?: string | null;
@@ -173,6 +189,23 @@ export function plausibelPruefen(lage: PlausibelLage): PlausibelBefund[] {
     }
   }
 
+  // Ein einzelner Makro weit über seinem Ziel. Protein steht weiter unten mit
+  // der eigenen Grenze je Kilo, hier geht es um Fett und Kohlenhydrate.
+  const tagFett = posten.reduce((s, e) => s + (Number(e.fatG) || 0), 0);
+  const tagKh = posten.reduce((s, e) => s + (Number(e.carbsG) || 0), 0);
+  for (const [name, ist, ziel] of [
+    ["Fett", tagFett, Number(lage.zielFettG) || 0],
+    ["Kohlenhydrate", tagKh, Number(lage.zielKohlenhydrateG) || 0],
+  ] as const) {
+    if (ziel > 0 && ist > ziel * MAX_MAKRO_FAKTOR) {
+      befunde.push({
+        schwere: "auffaellig",
+        text: `${name} stehen bei ${Math.round(ist)} g gegen ein Ziel von ${Math.round(ziel)} g. `
+          + `Das ist mehr als das Doppelte, und dahinter steckt meist eine zu grosse Menge an einem Posten.`,
+      });
+    }
+  }
+
   const gewicht = Number(lage.gewichtKg) || 0;
   if (gewicht > 0 && tagProtein > gewicht * MAX_PROTEIN_JE_KG) {
     befunde.push({
@@ -205,5 +238,9 @@ export function plausibelText(befunde: PlausibelBefund[]): string {
   const weich = befunde.filter((b) => b.schwere === "auffaellig");
   const zeilen = [...hart, ...weich].map((b) => `- ${b.text}`);
   const kopf = hart.length ? "Das kann so nicht stimmen:" : "Das fällt mir auf:";
-  return `${kopf}\n${zeilen.join("\n")}`;
+  // Der Weg zur Behebung gehört dazu. Ein Befund ohne Ausweg ist eine
+  // Beschwerde, und der Nutzer sitzt danach mit falschen Zahlen da.
+  const ausweg = "Sag mir die richtige Menge, dann korrigiere ich es. "
+    + "Oder sag, dass es stimmt, dann lasse ich es so.";
+  return `${kopf}\n${zeilen.join("\n")}\n${ausweg}`;
 }

@@ -38,6 +38,7 @@ export interface AgentActions {
   gespraecheDurchsuchen(input: { suche: string }): Promise<string>;
   tagZuEndePlanen(input: { mahlzeiten?: string[] }): Promise<string>;
   gespraechEinordnenAktiv(input: { ordner: string; titel?: string }): Promise<string>;
+  mahlzeitKorrigieren(input: { posten?: string; neueMenge: number }): Promise<string>;
   eintragZuruecknehmen(input: { art?: string; suche?: string }): Promise<string>;
   wasserEintragen(ml: number): Promise<string>;
   tagesstandAbrufen(): Promise<string>;
@@ -454,6 +455,17 @@ async function execute(
         const text = await actions.mahlzeitErfassen(String(input.beschreibung ?? ""));
         return { text, notiz: "Mahlzeit eingetragen" };
       }
+      case "mahlzeit_korrigieren": {
+        const menge = Number(input.neueMenge);
+        if (!Number.isFinite(menge) || menge <= 0) {
+          return { text: "Für die Korrektur brauche ich die richtige Menge als Zahl.", fehler: true };
+        }
+        const text = await actions.mahlzeitKorrigieren({
+          posten: typeof input.posten === "string" ? input.posten : undefined,
+          neueMenge: menge,
+        });
+        return { text, notiz: "Mahlzeit korrigiert" };
+      }
       case "eintrag_zuruecknehmen": {
         const text = await actions.eintragZuruecknehmen({
           art: typeof input.art === "string" ? input.art : undefined,
@@ -793,6 +805,43 @@ function enthaeltMarke(text: string, marke: string): boolean {
 }
 
 /**
+ * Eine Mengenkorrektur aus dem Satz lesen.
+ *
+ * Der Anlass ist ein echter Abend: statt eines Rippchens stand eine ganze
+ * Tafel Milka im Tag. Loeschen allein loest das nicht, denn wer ein Rippchen
+ * gegessen hat, hat nicht nichts gegessen.
+ *
+ * Verlangt werden drei Dinge zusammen: ein Wort der Richtigstellung, eine
+ * Menge mit Einheit und ein Bezug auf etwas Eingetragenes. Alle drei, weil
+ * jedes einzeln zu breit ist. "Das waren 30 Gramm" allein koennte auch eine
+ * neue Mahlzeit sein, und eine falsch erkannte Korrektur aendert eine Zahl,
+ * die vorher stimmte.
+ *
+ * Der Posten wird hier nicht geraten. Weitergegeben wird der ganze Satz, und
+ * die App gleicht ihn gegen die Namen ab, die wirklich im Tag stehen. Ein
+ * erster Entwurf nahm das erste grossgeschriebene Wort als Substantiv, und in
+ * "das war nur ein Rippchen Milka" ist das Rippchen, nicht Milka. Ein
+ * Wortmuster kann nicht wissen, was eingetragen ist, die App schon.
+ */
+function korrekturAus(text: string, nachricht: string): { posten?: string; neueMenge: number } | null {
+  const richtigstellung = pattern("waren nur", "war nur", "waren blos", "nicht die ganze",
+    "nicht die komplette", "nur ein", "nur eine", "nur zwei", "korrigier", "richtig waren",
+    "eigentlich nur", "stattdessen").test(text);
+  if (!richtigstellung) return null;
+
+  const menge = /(\d+(?:[.,]\d+)?)\s*(g|gramm|ml|stueck|st)\b/.exec(text);
+  if (!menge) return null;
+  const zahl = Number(menge[1]!.replace(",", "."));
+  if (!(zahl > 0)) return null;
+
+  // Ein Bezug auf etwas, das schon dasteht. Ohne den ist es eine neue Mahlzeit.
+  const bezug = pattern("eingetragen", "steht", "drin", "das war", "davon", "eintrag").test(text);
+  if (!bezug) return null;
+
+  return { posten: nachricht, neueMenge: zahl };
+}
+
+/**
  * Die Ruecknahme eines Eintrags aus dem Satz lesen.
  *
  * Der Grund fuer diesen Pfad ist der Tag mit den 5172 Kalorien. Der Riegel
@@ -947,6 +996,15 @@ export async function runOffline(
   // Zurücknehmen steht vor allem, was einträgt. "Das hab ich nicht gegessen"
   // enthält "gegessen" und landete sonst auf dem Erfassen, also genau auf dem
   // Gegenteil dessen, was gemeint war.
+  // Korrigieren steht vor Zuruecknehmen. "Das waren nur 25 Gramm" traegt beide
+  // Signale, und wer eine Menge nennt, will nicht loeschen, sondern richtig
+  // stellen. Loeschen und neu eintragen sind zwei Schritte fuer eine Absicht.
+  const korrektur = korrekturAus(text, nachricht);
+  if (korrektur) {
+    const antwort = await actions.mahlzeitKorrigieren(korrektur);
+    return { text: antwort, ausgeführt: ["Mahlzeit korrigiert"], source: "offline" };
+  }
+
   const ruecknahme = ruecknahmeAus(text);
   if (ruecknahme) {
     const antwort = await actions.eintragZuruecknehmen(ruecknahme);
