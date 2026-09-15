@@ -439,8 +439,12 @@ Die Mitteilung trägt den Satz selbst und nicht nur "du hast etwas gesagt".
 Damit sieht der Nutzer auf dem Sperrbildschirm, ob die Erkennung ihn
 verstanden hat, bevor er die App öffnet.
 
-Der Knopf "Aus Zwischenablage senden" bleibt aus dem zweiten Versuch. Er
-kostet nichts und ist der Weg für den Fall, dass kein Worker eingerichtet ist.
+Der Knopf "Aus Zwischenablage senden" bleibt aus dem zweiten Versuch, aber nur
+für den Fall ohne Worker. Steht Adresse und Anmeldewort im Profil, kommt der
+Satz über das Postfach, und dann bleibt der Knopf aus: ein zweiter Weg zum
+selben Ziel, der bei jedem Öffnen über der Eingabe auftaucht, ist kein Angebot
+mehr, sondern Störung.
+
 `?sag=` bleibt ebenfalls, in Safari und auf dem Rechner funktioniert es.
 
 ## Das Mikrofon, das nur einmal ging

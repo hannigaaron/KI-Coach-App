@@ -1943,6 +1943,12 @@ async function postfachPruefen({ laut = false } = {}) {
 function zwischenablageAnbieten() {
   const knopf = $("btnZwischenablage");
   if (!knopf || !navigator.clipboard?.readText) return;
+  // Wer einen Push Worker eingerichtet hat, bekommt seine Sätze über das
+  // Postfach und die Mitteilung. Dann ist dieser Knopf ein zweiter Weg zum
+  // selben Ziel, und ein zweiter Weg, der bei jedem Öffnen der App über der
+  // Eingabe auftaucht, ist kein Angebot mehr, sondern Störung.
+  const s = store.getSettings();
+  if (s.pushWorker && s.pushWort) { knopf.hidden = true; return; }
   // Nur anbieten, wenn das Eingabefeld leer ist. Wer schon tippt, wird nicht
   // mit einem zweiten Weg unterbrochen.
   if ($("chatInput").value.trim()) return;

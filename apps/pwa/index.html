@@ -114,11 +114,12 @@ try {
     <!-- Was gleich mitgeschickt wird. Leer und ausgeblendet, solange nichts anhängt. -->
     <div id="anhangLeiste" class="anhang-leiste" hidden></div>
 
-    <!-- Der Weg aus einem Siri Kurzbefehl. Auf dem iPhone öffnet eine Adresse
-         immer Safari, nie die installierte App, und in Safari liegen die Daten
-         des Nutzers nicht. Deshalb legt der Kurzbefehl den Satz in die
-         Zwischenablage und öffnet die App. Gelesen wird erst auf Tippen: iOS
-         gibt die Zwischenablage nur nach einer Geste frei. -->
+    <!-- Der Weg für den Fall, dass kein Push Worker eingerichtet ist. Mit
+         Worker kommt der Satz aus dem Siri Kurzbefehl über das Postfach und
+         die Mitteilung, und dann bleibt dieser Knopf aus: ein zweiter Weg zum
+         selben Ziel, der bei jedem Öffnen über der Eingabe steht, stört.
+         Gelesen wird erst auf Tippen, iOS gibt die Zwischenablage nur nach
+         einer Geste frei. -->
     <button type="button" id="btnZwischenablage" class="zwischenablage" hidden>
       Aus Zwischenablage senden
     </button>
