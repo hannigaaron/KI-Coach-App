@@ -6,6 +6,7 @@ import type { ChatMessage, CoachProvider, ContentBlock, ConverseRequest, Convers
 function stubActions(log: string[]): AgentActions {
   return {
     async mahlzeitErfassen(b) { log.push(`mahlzeit:${b}`); return "Eingetragen: 500 kcal, 40 g Protein."; },
+    async eintragZuruecknehmen(i) { log.push(`zurueck:${i.art ?? ""}:${i.suche ?? ""}`); return "Raus: 200 g Magerquark."; },
     async tagZuEndePlanen(i) { log.push(`planen:${(i.mahlzeiten ?? []).join("+")}`); return "Abendessen 900 kcal."; },
     async gespraecheDurchsuchen(i) { log.push(`suche:${i.suche}`); return "Zwei Gespräche gefunden."; },
     async gespraechEinordnenAktiv(i) { log.push(`einordnen:${i.ordner}`); return "Verschoben."; },
@@ -407,4 +408,32 @@ test("eine Absicht mit Vergangenheitsform zählt weiter als Eintrag", () => {
   assert.equal(istAbsicht("ich möchte wissen was ich heute gegessen habe"), false);
   assert.equal(istAbsicht("ich möchte heute zwei gute Mahlzeiten essen"), true);
   assert.equal(istAbsicht("ich hab 200 g Magerquark gegessen"), false);
+});
+
+test("Regelpfad nimmt einen Eintrag zurück, statt ihn nochmal einzutragen", async () => {
+  // "Das hab ich nicht gegessen" enthält "gegessen" und landete vorher auf dem
+  // Erfassen, also genau auf dem Gegenteil dessen, was gemeint war.
+  for (const satz of [
+    "Lösch den letzten Eintrag",
+    "Das hab ich doch nicht gegessen",
+    "Die letzte Mahlzeit stimmt nicht",
+    "Nimm den Eintrag raus",
+  ] as const) {
+    const log: string[] = [];
+    await runOffline(satz, stubActions(log));
+    assert.match(log[0] ?? "", /^zurueck:mahlzeit/, satz);
+  }
+});
+
+test("die Rücknahme trifft die genannte Art", async () => {
+  const log: string[] = [];
+  await runOffline("Lösch das Training von heute", stubActions(log));
+  assert.match(log[0]!, /^zurueck:training/);
+});
+
+test("ein Widerspruch ohne Gegenstand löscht nichts", async () => {
+  // "Das stimmt nicht" über eine Aussage des Coaches darf keinen Eintrag entfernen.
+  const log: string[] = [];
+  await runOffline("Das stimmt nicht", stubActions(log));
+  assert.equal(log.some((z) => z.startsWith("zurueck:")), false);
 });

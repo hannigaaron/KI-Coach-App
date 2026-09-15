@@ -46,6 +46,8 @@ import {
   naehrwerteFuer,
   offeneMahlzeiten,
   ohneDoppelte,
+  plausibelPruefen,
+  plausibelText,
   portionsVorschlag,
   setzeAusnahme,
   tagesrandFuer,
@@ -128,6 +130,33 @@ export function kostenUebersicht() {
 }
 
 /* ---------- Zahlen des Tages ---------- */
+
+/**
+ * Die Plausibilitätsprüfung für einen ganzen Tag, als fertiger Satz.
+ *
+ * Läuft nach jedem Eintrag. Der Riegel in `ohneDoppelte` fängt den Fall ab,
+ * den wir kennen: denselben Posten zweimal. Er fängt nicht ab, was aus einer
+ * falsch geschätzten Menge, einer falsch gelesenen Etikettenspalte oder einem
+ * Rechenfehler des Modells entsteht. Diese Prüfung sieht deshalb nicht auf die
+ * Herkunft der Zahl, sondern auf das Ergebnis.
+ *
+ * Leer, wenn nichts auffällt. Eine Bestätigung nach jeder Mahlzeit wäre Lärm,
+ * und Lärm überliest man mitsamt dem, was darin steht.
+ */
+export function plausibelHinweis(day = todayIso()) {
+  const n = dayNumbers(day);
+  const rand = tagesrandFuer(n.profile, day);
+  const posten = (n.data.meals || []).flatMap((m) => m.entries || []);
+  return plausibelText(plausibelPruefen({
+    posten,
+    zielKcal: n.targets.kcal,
+    gewichtKg: n.profile.weightKg,
+    waterMl: n.totals.waterMl,
+    jetzt: day === todayIso() ? nowTime() : null,
+    aufstehen: rand.wakeTime,
+    schlafen: rand.sleepTime,
+  }));
+}
 
 export function dayNumbers(day = todayIso()) {
   const profile = store.getProfile();
@@ -1553,9 +1582,11 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
       const n = dayNumbers();
       // Der Hinweis steht vorn. Eine Korrektur am Ende einer Antwort wird
       // überlesen, und genau sie ist der Grund, warum die Zahlen stimmen.
+      const unplausibel = plausibelHinweis(day);
       return [
         schonDa,
         `Eingetragen: ${posten}. Zusammen ${kcal} kcal und ${protein} g Protein. ${restText(n.rest)}${warnung}`,
+        unplausibel,
       ].filter(Boolean).join(" ").trimEnd();
     },
 
@@ -1715,6 +1746,78 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
       }
 
       return zeilen.join("\n");
+    },
+
+    /**
+     * Nimmt den letzten Eintrag zurück.
+     *
+     * Der Grund ist der Tag mit den 5172 Kalorien. Der Riegel gegen doppelte
+     * Posten verhindert die Wiederholung, aber wenn doch einmal etwas Falsches
+     * drinsteht, musste der Nutzer bisher ins Menue, in die Ernährungsansicht
+     * und den Eintrag dort suchen. Wer den Fehler im Gespräch bemerkt, will ihn
+     * im Gespräch loswerden.
+     *
+     * Zurückgenommen wird immer nur ein Eintrag und immer der jüngste, der
+     * passt. Ein Werkzeug, das auf einen Satz hin mehrere Einträge entfernt,
+     * macht denselben Schaden wie das doppelte Erfassen, nur in die andere
+     * Richtung. Was weg ist, steht in der Antwort mit seinen Zahlen, damit es
+     * sich in einem Satz wieder eintragen lässt.
+     */
+    async eintragZuruecknehmen({ art, suche } = {}) {
+      const day = todayIso();
+      const gesucht = String(suche || "").toLowerCase().trim();
+
+      if (art === "wasser") {
+        const data = store.getDay(day);
+        if (!data.waterMl) return "Für heute steht kein Wasser drin.";
+        // Einzelne Schlucke werden nicht gespeichert, nur die Summe. Ein
+        // Rückgängig ohne Einzelposten kann deshalb nur auf null setzen, und
+        // das gehört gesagt statt geraten.
+        data.waterMl = 0;
+        store.setDay(day, data);
+        changed();
+        return "Wasser für heute auf null gesetzt. Die App speichert nur die Summe, "
+          + "einzelne Gläser lassen sich nicht einzeln zurücknehmen. Sag mir die richtige Menge, dann trage ich sie ein.";
+      }
+
+      if (art === "training") {
+        const data = store.getDay(day);
+        const trainings = data.trainings || [];
+        const weg = trainings[trainings.length - 1];
+        if (!weg) return "Für heute steht kein Training drin.";
+        data.trainings = trainings.slice(0, -1);
+        store.setDay(day, data);
+        changed();
+        return `Zurückgenommen: ${TYP_LABEL[weg.type] || weg.type}, ${weg.minutes} Minuten.`;
+      }
+
+      if (art === "aufgabe") {
+        const offen = store.getAufgaben().filter((x) => !x.erledigt);
+        const treffer = gesucht
+          ? offen.find((x) => x.text.toLowerCase().includes(gesucht))
+          : offen[offen.length - 1];
+        if (!treffer) return "Die Aufgabe finde ich nicht. Sag mir den Wortlaut.";
+        store.setAufgaben(store.getAufgaben().filter((x) => x.id !== treffer.id));
+        changed();
+        return `Gelöscht: ${treffer.text}.`;
+      }
+
+      const data = store.getDay(day);
+      const meals = data.meals || [];
+      const treffer = gesucht
+        ? [...meals].reverse().find((m) => (m.entries || []).some((e) => String(e.name).toLowerCase().includes(gesucht)))
+        : meals[meals.length - 1];
+      if (!treffer) {
+        return gesucht
+          ? `Dazu finde ich heute keinen Eintrag mit ${suche}.`
+          : "Für heute steht noch keine Mahlzeit drin.";
+      }
+      const posten = (treffer.entries || []).map((e) => `${e.quantity} ${e.name}`).join(", ");
+      const kcal = Math.round((treffer.entries || []).reduce((sum, e) => sum + e.kcal, 0));
+      store.removeMeal(day, treffer.id);
+      changed();
+      const n = dayNumbers(day);
+      return `Raus: ${posten}, zusammen ${kcal} kcal. ${restText(n.rest)}`;
     },
 
     async wasserEintragen(ml) {
@@ -2077,6 +2180,15 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
     async gewichtEintragen(kg) {
       const day = todayIso();
       store.setWeight(day, kg);
+      // Das Profilgewicht muss mit. Grundumsatz, Protein, Fett und Wasserziel
+      // rechnen alle gegen `profile.weightKg`, siehe packages/core/src/energy.ts.
+      // Ohne diese Zeile wiegt sich jemand ein halbes Jahr lang und bekommt
+      // weiterhin die Ziele aus dem Anamnesebogen.
+      const profil = store.getProfile();
+      const gerundet = Math.round(kg * 10) / 10;
+      if (gerundet >= 30 && gerundet <= 300 && profil.weightKg !== gerundet) {
+        store.setProfile({ ...profil, weightKg: gerundet });
+      }
       changed();
       const trend = weightTrend(verlaufPunkte(56));
       if (!trend.belastbar) {

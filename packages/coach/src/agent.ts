@@ -38,6 +38,7 @@ export interface AgentActions {
   gespraecheDurchsuchen(input: { suche: string }): Promise<string>;
   tagZuEndePlanen(input: { mahlzeiten?: string[] }): Promise<string>;
   gespraechEinordnenAktiv(input: { ordner: string; titel?: string }): Promise<string>;
+  eintragZuruecknehmen(input: { art?: string; suche?: string }): Promise<string>;
   wasserEintragen(ml: number): Promise<string>;
   tagesstandAbrufen(): Promise<string>;
   mahlzeitVorschlagen(wunsch?: string): Promise<string>;
@@ -453,6 +454,13 @@ async function execute(
         const text = await actions.mahlzeitErfassen(String(input.beschreibung ?? ""));
         return { text, notiz: "Mahlzeit eingetragen" };
       }
+      case "eintrag_zuruecknehmen": {
+        const text = await actions.eintragZuruecknehmen({
+          art: typeof input.art === "string" ? input.art : undefined,
+          suche: typeof input.suche === "string" ? input.suche : undefined,
+        });
+        return { text, notiz: "Eintrag zurückgenommen" };
+      }
       case "wasser_eintragen": {
         const ml = clamp(Number(input.ml), 1, 5000);
         const text = await actions.wasserEintragen(ml);
@@ -785,6 +793,41 @@ function enthaeltMarke(text: string, marke: string): boolean {
 }
 
 /**
+ * Die Ruecknahme eines Eintrags aus dem Satz lesen.
+ *
+ * Der Grund fuer diesen Pfad ist der Tag mit den 5172 Kalorien. Der Riegel
+ * gegen doppelte Posten verhindert die Wiederholung, aber wenn doch einmal
+ * etwas Falsches drinsteht, musste der Nutzer bisher ins Menue, in die
+ * Ernaehrungsansicht und den Eintrag dort suchen. Wer den Fehler im Gespraech
+ * bemerkt, will ihn im Gespraech loswerden.
+ *
+ * Erkannt wird nur, was eindeutig ist: ein Verb der Ruecknahme zusammen mit
+ * einem Wort fuer den Gegenstand. "Loeschen" allein koennte auch das
+ * Gedaechtnis meinen, und ein geloeschter Eintrag ist nicht rueckholbar.
+ */
+function ruecknahmeAus(text: string): { art?: string; suche?: string } | null {
+  const ruecknahme = pattern("loesch", "loeschen", "entferne", "entfernen",
+    "raus damit", "rueckgaengig", "war falsch", "stimmt nicht", "doch nicht gegessen",
+    "nicht gegessen", "falsch eingetragen", "doppelt drin", "steht doppelt").test(text)
+    // "Nimm den Eintrag raus": zwischen Verb und Partikel steht das Objekt,
+    // deshalb reicht eine feste Wortfolge nicht.
+    || (pattern("nimm", "nehme").test(text) && pattern("raus", "weg").test(text));
+  if (!ruecknahme) return null;
+
+  // Ohne Gegenstand nichts tun. "Das stimmt nicht" ueber eine Aussage des
+  // Coaches darf keinen Eintrag entfernen.
+  const gegenstand = pattern("eintrag", "eintraege", "mahlzeit", "essen", "gegessen",
+    "letzte", "letzten", "wasser", "getrunken", "training", "einheit", "aufgabe").test(text);
+  if (!gegenstand) return null;
+
+  const art = pattern("wasser", "getrunken").test(text) ? "wasser"
+    : pattern("training", "einheit").test(text) ? "training"
+      : pattern("aufgabe").test(text) ? "aufgabe"
+        : "mahlzeit";
+  return { art };
+}
+
+/**
  * Aufsteh und Schlafenszeit fuer einen einzelnen Tag aus dem Satz lesen.
  *
  * Nur eindeutige Faelle. "Ich stehe morgen um 5 auf" ist eindeutig, "morgen
@@ -899,6 +942,15 @@ export async function runOffline(
       ausgeführt,
       source: "offline",
     };
+  }
+
+  // Zurücknehmen steht vor allem, was einträgt. "Das hab ich nicht gegessen"
+  // enthält "gegessen" und landete sonst auf dem Erfassen, also genau auf dem
+  // Gegenteil dessen, was gemeint war.
+  const ruecknahme = ruecknahmeAus(text);
+  if (ruecknahme) {
+    const antwort = await actions.eintragZuruecknehmen(ruecknahme);
+    return { text: antwort, ausgeführt: ["Eintrag zurückgenommen"], source: "offline" };
   }
 
   if (pattern("merk dir", "merke dir", "denk dran", "nicht vergessen", "behalte").test(text)) {

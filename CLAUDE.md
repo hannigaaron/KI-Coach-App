@@ -61,7 +61,7 @@ Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
 
-Der Assistent hat fuenfunddreissig Werkzeuge und verändert die App wirklich. Zahlen
+Der Assistent hat siebenunddreissig Werkzeuge und verändert die App wirklich. Zahlen
 über den Nutzer kommen immer aus Werkzeugen, nie aus dem Modell. Allgemeines
 Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
@@ -140,18 +140,23 @@ für den Nutzer einsehbar und löschbar.
   Wo Text gegen Listen oder Muster geprüft wird, laufen beide Seiten durch
   `foldUmlauts`. Dadurch bricht eine spätere Textkorrektur die Erkennung nicht.
 - Vor jedem Commit `npm test` und `npm run build:pwa`. Beides muss grün sein.
-- `npm test` prüft die Pakete, nicht `apps/pwa/js`. Das ist reines Browser
-  JavaScript und läuft in keinem Test. Deshalb prüft `build:pwa` jede Datei
-  dort mit `node --check`, bevor irgendetwas nach dist-pages geht. Ein
-  Tippfehler kam sonst grün durch und machte die App beim Öffnen weiss: das
-  Modul lädt nicht, `#app` bleibt versteckt, und der Nutzer sieht den
-  Anamnesebogen statt seiner Daten. Genau das ist passiert.
+- `build:pwa` prüft jede Datei in `apps/pwa/js` mit `node --check`, bevor
+  irgendetwas nach dist-pages geht. Ein Tippfehler kam sonst grün durch und
+  machte die App beim Öffnen weiss: das Modul lädt nicht, `#app` bleibt
+  versteckt, und der Nutzer sieht den Anamnesebogen statt seiner Daten. Genau
+  das ist passiert.
+- `apps/pwa/js/assistant.test.js` läuft bei `npm test` mit. Die Schicht, die
+  Essen, Gewicht, Training und Zeit in die Daten schreibt, war vorher
+  ungetestet, und jeder Fehler des ersten Betriebswochenendes lag genau dort.
+  Getestet wird ohne Browser: `storage.js` und `assistant.js` fassen weder
+  `document` noch `window` an, ein Ersatz für `localStorage` reicht. Wer dort
+  etwas anfasst, das den Browser braucht, nimmt sich diese Tests weg.
 
 ## Befehle
 
 ```bash
 npm install
-npm test           # 605 Tests
+npm test           # 642 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -774,6 +779,64 @@ gegessen hat, sagt es und bekommt es nachgetragen.
 Die Lücke bleibt bewusst offen: eine Ähnlichkeitssuche würde irgendwann zwei
 wirklich verschiedene Speisen zusammenwerfen, und eine erfundene Gleichheit
 ist schlimmer als eine übersehene.
+
+## Der unmögliche Tag
+
+`packages/core/src/plausibel.ts`. Der Riegel gegen doppelte Posten verhindert
+den Fehler, den wir kennen. Er verhindert nicht den nächsten. Eine falsch
+geschätzte Menge, eine falsch gelesene Etikettenspalte oder ein Rechenfehler
+des Modells erzeugen denselben Schaden über einen anderen Weg. Deshalb prüft
+diese Ebene nicht die Herkunft einer Zahl, sondern das Ergebnis.
+
+Zwei Stufen, und die Trennung ist der ganze Punkt. Hart heisst, der Wert kann
+so nicht stimmen. Über 9,4 Kalorien je Gramm geht kein Lebensmittel, denn
+reines Fett liefert 9, Protein und Kohlenhydrate je 4, Faktoren nach
+Verordnung (EU) Nr. 1169/2011, Anhang XIV. Die Schwelle liegt bei 9,4 und
+nicht bei 9,0, weil Öl mit 900 Kalorien je 100 Gramm genau auf der Grenze
+deklariert wird und eine Rundung keinen Fehlalarm auslösen darf. Ebenso hart:
+Protein, Fett und Kohlenhydrate zusammen wiegen mehr als der Posten selbst.
+
+Auffällig heisst, der Wert ist möglich und fast immer trotzdem ein Fehler:
+mehr als das Doppelte des Tagesziels, über dem Ziel obwohl noch vier Stunden
+Wachzeit übrig sind, über vier Gramm Protein je Kilo Körpergewicht, über sechs
+Liter Wasser. Beides in einen Topf zu werfen würde die harte Aussage
+entwerten: wer dreimal auffällig überliest, überliest beim vierten Mal auch
+das, was wirklich falsch ist.
+
+Eine Menge ohne Gewichtsangabe wird nicht geprüft. "2 Eier" sagt über die
+Masse nichts, und ein geratener Umrechnungsfaktor würde einen Befund erfinden.
+
+Korrigiert wird nichts. Die App kann nicht wissen, ob jemand sich vertippt hat
+oder wirklich so gegessen hat. Fällt nichts auf, steht auch nichts da: eine
+Bestätigung nach jeder Mahlzeit wäre Lärm, und Lärm überliest man mitsamt dem,
+was darin steht.
+
+`eintrag_zuruecknehmen` ist die Antwort auf denselben Tag von der anderen
+Seite. Wer den Fehler im Gespräch bemerkt, musste bisher ins Menue, in die
+Ernährungsansicht und den Eintrag dort suchen. Zurückgenommen wird immer genau
+ein Eintrag und immer der jüngste, der passt: ein Werkzeug, das auf einen Satz
+hin mehrere Einträge entfernt, macht denselben Schaden wie das doppelte
+Erfassen, nur in die andere Richtung. Was weg ist, steht mit seinen Zahlen in
+der Antwort, damit es sich in einem Satz wieder eintragen lässt.
+
+Der Regelpfad dafür steht vor allem, was einträgt. "Das hab ich nicht
+gegessen" enthält "gegessen" und landete sonst auf dem Erfassen, also genau
+auf dem Gegenteil dessen, was gemeint war. Erkannt wird nur ein Verb der
+Rücknahme zusammen mit einem Wort für den Gegenstand: "Das stimmt nicht" über
+eine Aussage des Coaches darf keinen Eintrag löschen.
+
+Wasser ist der Sonderfall. Gespeichert wird nur die Summe des Tages, nicht der
+einzelne Schluck. Die Rücknahme setzt deshalb auf null und sagt das, statt so
+zu tun, als hätte sie ein Glas entfernt.
+
+## Das Gewicht gehört ins Profil
+
+`gewichtEintragen` schrieb die Wiegung nur in den Tag. Grundumsatz, Protein,
+Fett und Wasserziel rechnen aber alle gegen `profile.weightKg`, siehe
+`packages/core/src/energy.ts`. Wer sich ein halbes Jahr lang gewogen hat,
+bekam weiterhin die Ziele aus dem Anamnesebogen. Jetzt geht die Wiegung in
+beides. Ein Wert unter 30 oder über 300 Kilo lässt das Profil in Ruhe: ein
+Tippfehler darf die Ziele nicht kippen.
 
 ## Nährwerte von Markenprodukten
 

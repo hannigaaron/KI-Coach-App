@@ -30,6 +30,28 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: "eintrag_zuruecknehmen",
+    description:
+      "Nimmt den letzten Eintrag zurück. Nehmen, wenn der Nutzer sagt, dass etwas falsch drinsteht, " +
+      "dass er etwas doch nicht gegessen hat, oder dass etwas gelöscht werden soll. " +
+      "Ohne Angabe wird die zuletzt eingetragene Mahlzeit entfernt. " +
+      "Nicht nehmen, um etwas zu korrigieren, das nur in der Menge falsch ist: dafür trägt der Nutzer neu ein.",
+    input_schema: {
+      type: "object",
+      properties: {
+        art: {
+          type: "string",
+          enum: ["mahlzeit", "wasser", "training", "aufgabe"],
+          description: "Was zurückgenommen werden soll. Ohne Angabe die letzte Mahlzeit.",
+        },
+        suche: {
+          type: "string",
+          description: "Teil des Namens, wenn der Nutzer einen bestimmten Eintrag nennt, etwa Magerquark.",
+        },
+      },
+    },
+  },
+  {
     name: "wasser_eintragen",
     description: "Trägt getrunkenes Wasser in Millilitern ein. Ein Glas sind 250 ml, eine Flasche 500 ml.",
     input_schema: {
