@@ -140,6 +140,10 @@ für den Nutzer einsehbar und löschbar.
   Wo Text gegen Listen oder Muster geprüft wird, laufen beide Seiten durch
   `foldUmlauts`. Dadurch bricht eine spätere Textkorrektur die Erkennung nicht.
 - Vor jedem Commit `npm test` und `npm run build:pwa`. Beides muss grün sein.
+- `build:pwa` prüft ausserdem, dass jedes `$("...")` eine Kennung anspricht,
+  die im HTML steht. Ein Knopf, der aus der Oberfläche verschwindet und dessen
+  Listener stehen bleibt, macht die App schwarz, und der Syntaxtest sieht das
+  nicht.
 - `build:pwa` prüft jede Datei in `apps/pwa/js` mit `node --check`, bevor
   irgendetwas nach dist-pages geht. Ein Tippfehler kam sonst grün durch und
   machte die App beim Öffnen weiss: das Modul lädt nicht, `#app` bleibt
@@ -662,6 +666,60 @@ Welche Mahlzeit schon gegessen wurde, erkennt `gegesseneArten` an der Uhrzeit
 des Eintrags, nicht an seinem Text. Wer um 13 Uhr etwas einträgt, hat Mittag
 gegessen, egal wie er es nennt. Ein zweiter Eintrag im selben Fenster gilt als
 dieselbe Mahlzeit: wer nachlegt, isst nicht zweimal zu Mittag.
+
+## Ein Weg ins Erfassen statt vier
+
+Auf der Essen Seite standen Diktieren, Foto, Barcode und Erfassen als vier
+gleich aussehende Knöpfe in einer Reihe. Vier gleichwertige Knöpfe sind keine
+Wahl, sondern eine Aufgabe: man muss jedes Mal alle vier lesen, um einen zu
+drücken.
+
+Jetzt steht dort ein Knopf mit einem Plus und den vier Wegen darunter im
+Blatt. Das Plus ist gebaut und kein Schriftzeichen: zwei Balken mit runden
+Enden, dieselbe Rundung wie am d der Wortmarke. Ein Plus aus dem Zeichensatz
+sitzt je nach Schrift anders in der Zeile und ist nie genau mittig.
+
+Die Reihenfolge ist nach Aufwand sortiert, nicht nach Technik. Foto ist ein
+Griff, Sprechen zwei, Barcode drei, Suchen am meisten. Wer die Liste von oben
+liest, findet den schnellsten Weg zuerst.
+
+Zeilen mit Trennlinien statt Kacheln mit Rahmen. Vier gerahmte Flächen
+untereinander lesen sich als Liste von Behältern, nicht als Wahl. Die Zeichen
+sind gezeichnet und keine Emoji: die sehen auf jedem Gerät anders aus und
+tragen eine fremde Farbigkeit in die Palette. Nur der Kreis um das Plus trägt
+die Markenfarbe, die Kachel selbst nicht, sonst zieht der Knopf mehr
+Aufmerksamkeit als die Zahlen darüber.
+
+Das Blatt liegt ausserhalb der Ansichten, wie der Mahlzeit Editor. Damit lässt
+es sich später auch aus dem Assistenten öffnen, ohne dasselbe Menü ein zweites
+Mal zu bauen.
+
+Der zweite Barcode Scanner auf der Essen Seite ist ersatzlos weg. Der Editor
+konnte dasselbe und landet dort, wo sich die Menge danach noch ändern lässt.
+Zwei Scanner für eine Aufgabe sind zwei Stellen, an denen derselbe Fehler
+auftreten kann.
+
+`mahlzeitNeu` legt eine leere Mahlzeit an und öffnet den Editor darauf. Der
+konnte Suche, Barcode und Handeingabe, kam aber nur an eine bestehende
+Mahlzeit heran: der beste Weg war der einzige, den man nicht von vorn beginnen
+konnte. Wird der Editor mit leerer Liste geschlossen, verschwindet die
+Mahlzeit wieder. Wer abbricht, darf keine Zeile mit null Kalorien im Verlauf
+zurücklassen.
+
+## Kennungen, die es nicht mehr gibt
+
+`build:pwa` prüft, dass jedes `$("...")` in `apps/pwa/js` eine Kennung
+anspricht, die im HTML wirklich steht.
+
+Der Anlass: beim Umbau der Essen Seite verschwand ein Knopf aus der
+Oberfläche, sein Listener blieb stehen. `node --check` fand nichts, denn
+`$("btnFotoEssen")` ist einwandfreies JavaScript. Im Browser warf
+`addEventListener` auf `null`, das Modul brach ab, und die App blieb schwarz.
+Gefunden hat das erst der Durchlauf im Browser.
+
+Geprüft wird nur der Aufruf mit fester Zeichenkette. Was aus einer Variablen
+kommt, lässt sich ohne Ausführen nicht auflösen, und eine Prüfung, die dort
+rät, meldet Fehler, die keine sind.
 
 ## Eine Mahlzeit nachträglich ändern
 

@@ -213,27 +213,29 @@ try {
   <section class="view" data-view="essen" hidden>
     <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Essen</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
-      <div class="composer">
+      <!--
+        Ein Weg hinein statt vier nebeneinander. Vorher standen Diktieren,
+        Foto, Barcode und Erfassen als gleich aussehende Knöpfe in einer Reihe.
+        Vier gleichwertige Knöpfe sind keine Wahl, sondern eine Aufgabe: der
+        Nutzer muss jedes Mal alle vier lesen, um einen zu drücken.
+      -->
+      <button type="button" id="btnErfassen" class="erfassen-knopf" aria-haspopup="dialog" aria-expanded="false">
+        <span class="erfassen-plus" aria-hidden="true"></span>
+        <span class="erfassen-text">
+          <span class="erfassen-titel">Essen erfassen</span>
+          <span class="erfassen-sub">Foto, Barcode, Suche oder sprechen</span>
+        </span>
+      </button>
+
+      <!-- Die Texteingabe bleibt, sie klappt aus dem Blatt heraus auf. -->
+      <div class="composer" id="mealComposer" hidden>
         <textarea id="mealText" rows="3" placeholder="200 g Hähnchenbrust, 150 g Reis und ein Apfel"></textarea>
         <div class="composer-actions">
           <button id="btnVoice" class="ghost">Diktieren</button>
-          <button id="btnFotoEssen" class="ghost">Foto</button>
-          <button id="btnScan" class="ghost">Barcode</button>
           <button id="btnParse" class="primary">Erfassen</button>
         </div>
       </div>
       <div id="mealFeedback" class="feedback" hidden></div>
-
-      <div id="scanBox" class="scan" hidden>
-        <video id="scanVideo" playsinline muted></video>
-        <div id="scanHinweis" class="scan-hinweis">Halte den Barcode ins Bild.</div>
-        <div class="scan-eingabe">
-          <input id="scanCode" type="text" inputmode="numeric" autocomplete="off"
-                 placeholder="Barcode eintippen, etwa 4255719307476">
-          <button id="btnScanSuchen" class="primary">Nachschlagen</button>
-        </div>
-        <button id="btnScanZu" class="ghost">Schliessen</button>
-      </div>
 
       <h2 class="abschnitt">Wie ging es dir danach</h2>
       <div id="feelingRow" class="feelings"></div>
@@ -260,6 +262,61 @@ try {
       <ul id="mealList2" class="list"></ul>
     </div>
   </section>
+
+  <!--
+    Die vier Wege, etwas einzutragen. Eigenes Blatt statt vier Knöpfe in einer
+    Reihe, und ausserhalb der Ansichten, damit es sich später auch aus dem
+    Assistenten öffnen lässt, ohne dasselbe Menü ein zweites Mal zu bauen.
+
+    Die Reihenfolge ist nach Aufwand sortiert, nicht nach Technik. Foto ist ein
+    Griff, Sprechen zwei, Barcode drei, Suchen am meisten. Wer die Liste von
+    oben liest, findet den schnellsten Weg zuerst.
+  -->
+  <div id="erfassenBlatt" class="blatt" hidden>
+    <div class="blatt-innen" role="dialog" aria-modal="true" aria-labelledby="ebTitel">
+      <header class="blatt-kopf">
+        <h2 id="ebTitel">Essen erfassen</h2>
+        <button id="ebSchliessen" class="icon-btn" aria-label="Schliessen"><span class="kreuz"></span></button>
+      </header>
+      <div class="blatt-scroll">
+        <div class="wege">
+          <button type="button" class="weg" data-weg="foto">
+            <span class="weg-zeichen weg-foto" aria-hidden="true"></span>
+            <span class="weg-text">
+              <span class="weg-titel">Per Foto schätzen lassen</span>
+              <span class="weg-sub">Teller fotografieren, Mengen werden an Bezugsgrössen geschätzt</span>
+            </span>
+            <span class="weg-chev" aria-hidden="true"></span>
+          </button>
+          <button type="button" class="weg" data-weg="sprache">
+            <span class="weg-zeichen weg-sprache" aria-hidden="true"></span>
+            <span class="weg-text">
+              <span class="weg-titel">Per Sprache aufzählen</span>
+              <span class="weg-sub">Sprich, was du gegessen hast, mit Mengen</span>
+            </span>
+            <span class="weg-chev" aria-hidden="true"></span>
+          </button>
+          <button type="button" class="weg" data-weg="barcode">
+            <span class="weg-zeichen weg-barcode" aria-hidden="true"></span>
+            <span class="weg-text">
+              <span class="weg-titel">Barcode scannen</span>
+              <span class="weg-sub">Trifft genau, für alles mit Etikett</span>
+            </span>
+            <span class="weg-chev" aria-hidden="true"></span>
+          </button>
+          <button type="button" class="weg" data-weg="suche">
+            <span class="weg-zeichen weg-suche" aria-hidden="true"></span>
+            <span class="weg-text">
+              <span class="weg-titel">Lebensmittel suchen</span>
+              <span class="weg-sub">Nach Namen, aus der Datenbank</span>
+            </span>
+            <span class="weg-chev" aria-hidden="true"></span>
+          </button>
+        </div>
+        <button type="button" id="ebTippen" class="ghost breit">Lieber tippen</button>
+      </div>
+    </div>
+  </div>
 
   <!--
     Der Mahlzeit Editor. Er liegt ausserhalb der Ansichten, weil er sowohl aus

@@ -73,6 +73,34 @@ for (const name of jsDateien) {
 }
 console.log(`${jsDateien.length} Browserdateien syntaktisch geprüft.`);
 
+/*
+ * Jede angesprochene Kennung muss es im HTML auch geben.
+ *
+ * Der Syntaxtest oben findet das nicht. `$("btnFotoEssen")` ist einwandfreies
+ * JavaScript, auch wenn es das Element nicht mehr gibt. Im Browser wirft erst
+ * `addEventListener` auf `null`, das Modul bricht ab, und die App bleibt
+ * schwarz. Genau so ist es passiert, als ein Knopf aus der Oberfläche
+ * verschwand und sein Listener stehen blieb.
+ *
+ * Geprüft wird nur `$("...")` mit fester Zeichenkette. Alles, was aus einer
+ * Variablen kommt, lässt sich ohne Ausführen nicht auflösen, und ein Test,
+ * der dort rät, meldet Fehler, die keine sind.
+ */
+const quellHtml = await readFile(join(root, "apps/pwa/index.html"), "utf8");
+const vorhanden = new Set([...quellHtml.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]));
+const fehlend = [];
+for (const name of jsDateien) {
+  const quelle = await readFile(join(jsDir, name), "utf8");
+  for (const treffer of quelle.matchAll(/\$\(\s*"([^"]+)"\s*\)/g)) {
+    if (!vorhanden.has(treffer[1])) fehlend.push(`${name}: $("${treffer[1]}")`);
+  }
+}
+if (fehlend.length) {
+  console.error(`\nDiese Kennungen gibt es im HTML nicht mehr:\n${[...new Set(fehlend)].join("\n")}\n`);
+  process.exit(1);
+}
+console.log(`${vorhanden.size} Kennungen im HTML, alle angesprochenen gefunden.`);
+
 // GitHub Pages läuft sonst durch Jekyll und wirft Ordner mit Unterstrich weg.
 await writeFile(join(outDir, ".nojekyll"), "");
 

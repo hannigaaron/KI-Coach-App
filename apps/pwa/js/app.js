@@ -2078,16 +2078,20 @@ $("btnParse").addEventListener("click", async () => {
  * verkleinern, auswerten, eintragen. Die Nährwerte laufen durch dieselbe
  * Prüfung wie bei der Texteingabe.
  */
-$("btnFotoEssen").addEventListener("click", () => $("essenFoto").click());
-
 $("essenFoto").addEventListener("change", async (event) => {
   const datei = event.target.files?.[0];
   event.target.value = "";
   if (!datei) return;
 
-  const knopf = $("btnFotoEssen");
+  // Der Knopf, der das Bild angestossen hat, ist inzwischen der eine oben auf
+  // der Seite. Er zeigt den Fortschritt, damit zwischen Auslösen und Ergebnis
+  // nicht zehn Sekunden lang nichts passiert.
+  const knopf = $("btnErfassen");
+  const titel = knopf.querySelector(".erfassen-titel");
+  const sub = knopf.querySelector(".erfassen-sub");
   knopf.disabled = true;
-  knopf.textContent = "Liest";
+  titel.textContent = "Ich lese das Bild";
+  sub.textContent = "Das dauert ein paar Sekunden";
   zeigeFeedback("mealFeedback", "Ich schaue mir das Bild an.");
   try {
     const anhang = await anhangAusDatei(datei);
@@ -2100,72 +2104,12 @@ $("essenFoto").addEventListener("change", async (event) => {
     zeigeFeedback("mealFeedback", `Das hat nicht geklappt: ${error.message}`, true);
   } finally {
     knopf.disabled = false;
-    knopf.textContent = "Foto";
+    titel.textContent = "Essen erfassen";
+    sub.textContent = "Foto, Barcode, Suche oder sprechen";
   }
 });
 
 /* ---------- Barcode ---------- */
-
-/**
- * Der Scanner nutzt BarcodeDetector, wo der Browser ihn hat, sonst bleibt das
- * Eingabefeld. Ein Barcode hat dreizehn Ziffern, die tippt man in zehn Sekunden
- * ab. Eine Kamerabibliothek dafuer waere die erste Laufzeitabhaengigkeit der App
- * und rund 300 Kilobyte, die jeder Aufruf laedt.
- */
-let scanStrom = null;
-let scanLaeuft = false;
-
-async function scanStarten() {
-  const box = $("scanBox");
-  box.hidden = false;
-  $("scanCode").focus();
-
-  const kannScannen = "BarcodeDetector" in window;
-  if (!kannScannen) {
-    $("scanHinweis").textContent = "Dieser Browser kann keine Barcodes lesen. Tipp die Ziffern unter dem Strichcode ein.";
-    $("scanVideo").hidden = true;
-    return;
-  }
-
-  try {
-    scanStrom = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-    const video = $("scanVideo");
-    video.hidden = false;
-    video.srcObject = scanStrom;
-    await video.play();
-    $("scanHinweis").textContent = "Halte den Barcode ins Bild.";
-
-    const detector = new window.BarcodeDetector({ formats: ["ean_13", "ean_8", "upc_a", "upc_e"] });
-    scanLaeuft = true;
-    const suchen = async () => {
-      if (!scanLaeuft) return;
-      try {
-        const codes = await detector.detect(video);
-        if (codes.length && codes[0].rawValue) {
-          $("scanCode").value = codes[0].rawValue;
-          scanBeenden();
-          await barcodeNachschlagen(codes[0].rawValue);
-          return;
-        }
-      } catch { /* Ein einzelnes Bild ohne Code ist kein Fehler. */ }
-      requestAnimationFrame(suchen);
-    };
-    requestAnimationFrame(suchen);
-  } catch {
-    $("scanHinweis").textContent = "Kein Zugriff auf die Kamera. Tipp die Ziffern unter dem Strichcode ein.";
-    $("scanVideo").hidden = true;
-  }
-}
-
-function scanBeenden() {
-  scanLaeuft = false;
-  if (scanStrom) {
-    for (const spur of scanStrom.getTracks()) spur.stop();
-    scanStrom = null;
-  }
-  $("scanVideo").srcObject = null;
-  $("scanBox").hidden = true;
-}
 
 async function barcodeNachschlagen(code) {
   const ziffern = String(code).replace(/\D/g, "");
@@ -2179,17 +2123,49 @@ async function barcodeNachschlagen(code) {
   }
 }
 
-$("btnScan").addEventListener("click", () => {
-  if ($("scanBox").hidden) scanStarten(); else scanBeenden();
+/*
+ * Das Blatt mit den vier Wegen.
+ *
+ * Ein Weg hinein statt vier Knöpfe nebeneinander. Das Blatt schliesst sich,
+ * bevor der gewählte Weg startet: eine Kamera, die hinter einer halb offenen
+ * Ebene aufgeht, sieht aus, als hinge die App.
+ */
+function erfassenOeffnen() {
+  $("erfassenBlatt").hidden = false;
+  document.body.classList.add("blatt-offen");
+  $("btnErfassen").setAttribute("aria-expanded", "true");
+}
+function erfassenSchliessen() {
+  $("erfassenBlatt").hidden = true;
+  document.body.classList.remove("blatt-offen");
+  $("btnErfassen").setAttribute("aria-expanded", "false");
+}
+
+$("btnErfassen").addEventListener("click", erfassenOeffnen);
+$("ebSchliessen").addEventListener("click", erfassenSchliessen);
+// Ein Tipp auf den dunklen Grund schliesst. Ohne das ist der einzige Ausweg
+// das kleine Kreuz oben rechts, und das trifft man mit dem Daumen schlecht.
+$("erfassenBlatt").addEventListener("click", (event) => {
+  if (event.target === $("erfassenBlatt")) erfassenSchliessen();
 });
-$("btnScanZu").addEventListener("click", scanBeenden);
-$("btnScanSuchen").addEventListener("click", () => {
-  const code = $("scanCode").value.trim();
-  scanBeenden();
-  barcodeNachschlagen(code);
+$("ebTippen").addEventListener("click", () => {
+  erfassenSchliessen();
+  $("mealComposer").hidden = false;
+  $("mealText").focus();
 });
-$("scanCode").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") { e.preventDefault(); $("btnScanSuchen").click(); }
+
+$("erfassenBlatt").addEventListener("click", (event) => {
+  const knopf = event.target.closest("[data-weg]");
+  if (!knopf) return;
+  erfassenSchliessen();
+  const weg = knopf.dataset.weg;
+  if (weg === "foto") $("essenFoto").click();
+  if (weg === "barcode") mahlzeitNeu("barcode");
+  if (weg === "suche") mahlzeitNeu("suche");
+  if (weg === "sprache") {
+    $("mealComposer").hidden = false;
+    $("btnVoice").click();
+  }
 });
 
 $("btnVoice").addEventListener("click", () => {
@@ -3056,10 +3032,14 @@ let meArt = "";
 let meScanLaeuft = false;
 
 /** Öffnet den Editor für eine Mahlzeit des heutigen Tages. */
+/** Ob die offene Mahlzeit gerade erst für diesen Editor angelegt wurde. */
+let meNeu = false;
+
 function mahlzeitOeffnen(id) {
   const mahlzeit = store.getDay(day).meals.find((m) => m.id === id);
   if (!mahlzeit) return;
   meMahlzeit = mahlzeit;
+  meNeu = false;
   // Tiefe Kopie, damit Abbrechen wirklich abbricht.
   mePosten = (mahlzeit.entries || []).map((e) => ({ ...e }));
   meArt = mahlzeit.art || "";
@@ -3075,11 +3055,39 @@ function mahlzeitOeffnen(id) {
 }
 
 function mahlzeitSchliessen() {
+  // Eine leer angelegte Mahlzeit verschwindet beim Schliessen wieder. Sie
+  // entsteht nur, damit der Editor etwas zum Anfassen hat: wer den Weg
+  // abbricht, darf keine Zeile mit null Kalorien im Verlauf zurücklassen.
+  if (meMahlzeit && meNeu && mePosten.length === 0) store.removeMeal(day, meMahlzeit.id);
+  meNeu = false;
   $("mahlzeitEditor").hidden = true;
   document.body.classList.remove("blatt-offen");
   meScanStoppen();
   meMahlzeit = null;
   mePosten = [];
+  refreshAll();
+}
+
+/**
+ * Legt eine leere Mahlzeit an und öffnet den Editor darauf.
+ *
+ * Der Editor kann Suche, Barcode und Handeingabe, konnte aber bisher nur an
+ * eine bestehende Mahlzeit. Damit war der beste Weg der einzige, den man nicht
+ * von vorn beginnen konnte.
+ */
+function mahlzeitNeu(fokus) {
+  const id = newId();
+  store.addMeal(day, {
+    id, text: "", at: nowTime(), source: "hand", entries: [], feeling: null,
+  });
+  mahlzeitOeffnen(id);
+  // Nach dem Öffnen, weil mahlzeitOeffnen die Marke zurücksetzt. Danach die
+  // Liste noch einmal zeichnen, sonst steht dort der Satz für eine geleerte
+  // Mahlzeit statt der Einladung für eine neue.
+  meNeu = true;
+  mePostenZeichnen();
+  if (fokus === "suche") $("meSuche").focus();
+  if (fokus === "barcode") meScanStarten();
 }
 
 function meArtenZeichnen() {
@@ -3093,7 +3101,11 @@ function meArtenZeichnen() {
 function mePostenZeichnen() {
   const liste = $("mePosten");
   if (mePosten.length === 0) {
-    liste.innerHTML = `<li class="me-leer">Kein Posten mehr drin. Speichern löscht die Mahlzeit.</li>`;
+    // Zwei Lagen, zwei Sätze. Eine frisch angelegte Mahlzeit war nie voll,
+    // und "kein Posten mehr drin" liest sich dort wie ein Fehler.
+    liste.innerHTML = meNeu
+      ? `<li class="me-leer">Noch nichts drin. Such unten ein Lebensmittel oder scann einen Barcode.</li>`
+      : `<li class="me-leer">Kein Posten mehr drin. Speichern löscht die Mahlzeit.</li>`;
   } else {
     liste.innerHTML = mePosten.map((e, i) => {
       const menge = mengeLesen(e.quantity);
