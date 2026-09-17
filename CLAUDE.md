@@ -61,7 +61,7 @@ Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
 
-Der Assistent hat fuenfunddreissig Werkzeuge und verändert die App wirklich. Zahlen
+Der Assistent hat achtunddreissig Werkzeuge und verändert die App wirklich. Zahlen
 über den Nutzer kommen immer aus Werkzeugen, nie aus dem Modell. Allgemeines
 Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
@@ -140,21 +140,31 @@ für den Nutzer einsehbar und löschbar.
   Wo Text gegen Listen oder Muster geprüft wird, laufen beide Seiten durch
   `foldUmlauts`. Dadurch bricht eine spätere Textkorrektur die Erkennung nicht.
 - Vor jedem Commit `npm test` und `npm run build:pwa`. Beides muss grün sein.
-- `npm test` prüft die Pakete, nicht `apps/pwa/js`. Das ist reines Browser
-  JavaScript und läuft in keinem Test. Deshalb prüft `build:pwa` jede Datei
-  dort mit `node --check`, bevor irgendetwas nach dist-pages geht. Ein
-  Tippfehler kam sonst grün durch und machte die App beim Öffnen weiss: das
-  Modul lädt nicht, `#app` bleibt versteckt, und der Nutzer sieht den
-  Anamnesebogen statt seiner Daten. Genau das ist passiert.
+- `build:pwa` prüft ausserdem, dass jedes `$("...")` eine Kennung anspricht,
+  die im HTML steht. Ein Knopf, der aus der Oberfläche verschwindet und dessen
+  Listener stehen bleibt, macht die App schwarz, und der Syntaxtest sieht das
+  nicht.
+- `build:pwa` prüft jede Datei in `apps/pwa/js` mit `node --check`, bevor
+  irgendetwas nach dist-pages geht. Ein Tippfehler kam sonst grün durch und
+  machte die App beim Öffnen weiss: das Modul lädt nicht, `#app` bleibt
+  versteckt, und der Nutzer sieht den Anamnesebogen statt seiner Daten. Genau
+  das ist passiert.
+- `apps/pwa/js/assistant.test.js` läuft bei `npm test` mit. Die Schicht, die
+  Essen, Gewicht, Training und Zeit in die Daten schreibt, war vorher
+  ungetestet, und jeder Fehler des ersten Betriebswochenendes lag genau dort.
+  Getestet wird ohne Browser: `storage.js` und `assistant.js` fassen weder
+  `document` noch `window` an, ein Ersatz für `localStorage` reicht. Wer dort
+  etwas anfasst, das den Browser braucht, nimmt sich diese Tests weg.
 
 ## Befehle
 
 ```bash
 npm install
-npm test           # 605 Tests
+npm test           # 675 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
+npm run build:demo # Fassung für Nutzer nach dist-demo
 ```
 
 ## Veröffentlichung
@@ -658,6 +668,74 @@ des Eintrags, nicht an seinem Text. Wer um 13 Uhr etwas einträgt, hat Mittag
 gegessen, egal wie er es nennt. Ein zweiter Eintrag im selben Fenster gilt als
 dieselbe Mahlzeit: wer nachlegt, isst nicht zweimal zu Mittag.
 
+## Ein Weg ins Erfassen statt vier
+
+Auf der Essen Seite standen Diktieren, Foto, Barcode und Erfassen als vier
+gleich aussehende Knöpfe in einer Reihe. Vier gleichwertige Knöpfe sind keine
+Wahl, sondern eine Aufgabe: man muss jedes Mal alle vier lesen, um einen zu
+drücken.
+
+Jetzt steht dort ein Knopf mit einem Plus und den vier Wegen darunter im
+Blatt. Das Plus ist gebaut und kein Schriftzeichen: zwei Balken mit runden
+Enden, dieselbe Rundung wie am d der Wortmarke. Ein Plus aus dem Zeichensatz
+sitzt je nach Schrift anders in der Zeile und ist nie genau mittig.
+
+Die Reihenfolge ist nach Aufwand sortiert, nicht nach Technik. Foto ist ein
+Griff, Sprechen zwei, Barcode drei, Suchen am meisten. Wer die Liste von oben
+liest, findet den schnellsten Weg zuerst.
+
+Zeilen mit Trennlinien statt Kacheln mit Rahmen. Vier gerahmte Flächen
+untereinander lesen sich als Liste von Behältern, nicht als Wahl. Die Zeichen
+sind gezeichnet und keine Emoji: die sehen auf jedem Gerät anders aus und
+tragen eine fremde Farbigkeit in die Palette. Nur der Kreis um das Plus trägt
+die Markenfarbe, die Kachel selbst nicht, sonst zieht der Knopf mehr
+Aufmerksamkeit als die Zahlen darüber.
+
+Das Blatt liegt ausserhalb der Ansichten, wie der Mahlzeit Editor. Deshalb
+steht derselbe Knopf auch auf Heute, direkt unter dem Kalorienring: wer sieht,
+wie viel noch offen ist, will als Nächstes etwas eintragen und nicht erst ins
+Menue. Ein Blatt, zwei Knöpfe, kein zweites Menü.
+
+Welcher Knopf geöffnet hat, zählt trotzdem. Er trägt danach den Fortschritt,
+während ein Bild ausgewertet wird, sonst blinkt die Anzeige auf einer Seite,
+die man gerade nicht ansieht.
+
+Tippen und Sprechen brauchen das Textfeld, und das steht auf der Essen Seite.
+Wer von Heute aus kommt, wird erst dorthin gebracht. Ein Feld, das in einer
+versteckten Ansicht den Fokus bekommt, tut sichtbar nichts, und der Nutzer
+hält den Knopf für kaputt.
+
+`zeigeFeedback` prüft ausserdem, ob sein Feld in einer versteckten Ansicht
+liegt, und schickt den ersten Satz dann als kurze Meldung. Ein Ergebnis auf
+einer Seite, die man nicht ansieht, ist kein Ergebnis.
+
+Der zweite Barcode Scanner auf der Essen Seite ist ersatzlos weg. Der Editor
+konnte dasselbe und landet dort, wo sich die Menge danach noch ändern lässt.
+Zwei Scanner für eine Aufgabe sind zwei Stellen, an denen derselbe Fehler
+auftreten kann.
+
+`mahlzeitNeu` legt eine leere Mahlzeit an und öffnet den Editor darauf. Der
+konnte Suche, Barcode und Handeingabe, kam aber nur an eine bestehende
+Mahlzeit heran: der beste Weg war der einzige, den man nicht von vorn beginnen
+konnte. Wird der Editor mit leerer Liste geschlossen, verschwindet die
+Mahlzeit wieder. Wer abbricht, darf keine Zeile mit null Kalorien im Verlauf
+zurücklassen.
+
+## Kennungen, die es nicht mehr gibt
+
+`build:pwa` prüft, dass jedes `$("...")` in `apps/pwa/js` eine Kennung
+anspricht, die im HTML wirklich steht.
+
+Der Anlass: beim Umbau der Essen Seite verschwand ein Knopf aus der
+Oberfläche, sein Listener blieb stehen. `node --check` fand nichts, denn
+`$("btnFotoEssen")` ist einwandfreies JavaScript. Im Browser warf
+`addEventListener` auf `null`, das Modul brach ab, und die App blieb schwarz.
+Gefunden hat das erst der Durchlauf im Browser.
+
+Geprüft wird nur der Aufruf mit fester Zeichenkette. Was aus einer Variablen
+kommt, lässt sich ohne Ausführen nicht auflösen, und eine Prüfung, die dort
+rät, meldet Fehler, die keine sind.
+
 ## Eine Mahlzeit nachträglich ändern
 
 `packages/core/src/portion.ts` rechnet, der Editor steht in `apps/pwa`.
@@ -774,6 +852,148 @@ gegessen hat, sagt es und bekommt es nachgetragen.
 Die Lücke bleibt bewusst offen: eine Ähnlichkeitssuche würde irgendwann zwei
 wirklich verschiedene Speisen zusammenwerfen, und eine erfundene Gleichheit
 ist schlimmer als eine übersehene.
+
+## Der unmögliche Tag
+
+`packages/core/src/plausibel.ts`. Der Riegel gegen doppelte Posten verhindert
+den Fehler, den wir kennen. Er verhindert nicht den nächsten. Eine falsch
+geschätzte Menge, eine falsch gelesene Etikettenspalte oder ein Rechenfehler
+des Modells erzeugen denselben Schaden über einen anderen Weg. Deshalb prüft
+diese Ebene nicht die Herkunft einer Zahl, sondern das Ergebnis.
+
+Zwei Stufen, und die Trennung ist der ganze Punkt. Hart heisst, der Wert kann
+so nicht stimmen. Über 9,4 Kalorien je Gramm geht kein Lebensmittel, denn
+reines Fett liefert 9, Protein und Kohlenhydrate je 4, Faktoren nach
+Verordnung (EU) Nr. 1169/2011, Anhang XIV. Die Schwelle liegt bei 9,4 und
+nicht bei 9,0, weil Öl mit 900 Kalorien je 100 Gramm genau auf der Grenze
+deklariert wird und eine Rundung keinen Fehlalarm auslösen darf. Ebenso hart:
+Protein, Fett und Kohlenhydrate zusammen wiegen mehr als der Posten selbst.
+
+Auffällig heisst, der Wert ist möglich und fast immer trotzdem ein Fehler:
+mehr als das Doppelte des Tagesziels, über dem Ziel obwohl noch vier Stunden
+Wachzeit übrig sind, über vier Gramm Protein je Kilo Körpergewicht, über sechs
+Liter Wasser. Beides in einen Topf zu werfen würde die harte Aussage
+entwerten: wer dreimal auffällig überliest, überliest beim vierten Mal auch
+das, was wirklich falsch ist.
+
+Eine Menge ohne Gewichtsangabe wird nicht geprüft. "2 Eier" sagt über die
+Masse nichts, und ein geratener Umrechnungsfaktor würde einen Befund erfinden.
+
+Korrigiert wird nichts. Die App kann nicht wissen, ob jemand sich vertippt hat
+oder wirklich so gegessen hat. Fällt nichts auf, steht auch nichts da: eine
+Bestätigung nach jeder Mahlzeit wäre Lärm, und Lärm überliest man mitsamt dem,
+was darin steht.
+
+`eintrag_zuruecknehmen` ist die Antwort auf denselben Tag von der anderen
+Seite. Wer den Fehler im Gespräch bemerkt, musste bisher ins Menue, in die
+Ernährungsansicht und den Eintrag dort suchen. Zurückgenommen wird immer genau
+ein Eintrag und immer der jüngste, der passt: ein Werkzeug, das auf einen Satz
+hin mehrere Einträge entfernt, macht denselben Schaden wie das doppelte
+Erfassen, nur in die andere Richtung. Was weg ist, steht mit seinen Zahlen in
+der Antwort, damit es sich in einem Satz wieder eintragen lässt.
+
+Der Regelpfad dafür steht vor allem, was einträgt. "Das hab ich nicht
+gegessen" enthält "gegessen" und landete sonst auf dem Erfassen, also genau
+auf dem Gegenteil dessen, was gemeint war. Erkannt wird nur ein Verb der
+Rücknahme zusammen mit einem Wort für den Gegenstand: "Das stimmt nicht" über
+eine Aussage des Coaches darf keinen Eintrag löschen.
+
+Wasser ist der Sonderfall. Gespeichert wird nur die Summe des Tages, nicht der
+einzelne Schluck. Die Rücknahme setzt deshalb auf null und sagt das, statt so
+zu tun, als hätte sie ein Glas entfernt.
+
+## Erkennen ohne Beheben ist gar nichts
+
+Ein Abend im Betrieb, und der wichtigste Fall bisher. Statt eines Rippchens
+stand eine ganze Tafel Milka im Tag, das Fett lag bei 167 Gramm gegen ein Ziel
+von 69. Der Coach hat den Fehler erkannt, richtig benannt, den echten Tag
+korrekt hochgerechnet und dann geschrieben, er könne ihn nicht rückgängig
+machen. Die falschen Zahlen blieben stehen.
+
+Das ist die schlechteste mögliche Antwort. Sie kostet Vertrauen doppelt: die
+App weiss, dass sie falsch liegt, und tut nichts. Wer das zweimal erlebt, hört
+auf zu tracken.
+
+Zwei Lücken steckten dahinter.
+
+Die erste war das fehlende Werkzeug. `mahlzeit_korrigieren` ändert die Menge
+eines eingetragenen Postens und rechnet über `mengeSetzen` mit. Löschen allein
+hätte nicht gereicht: wer ein Rippchen gegessen hat, hat nicht nichts
+gegessen. Löschen und neu eintragen sind zwei Schritte für eine Absicht, und
+den zweiten hätte der Coach ohne Nachfrage sowieso nicht gekonnt.
+
+Der Posten wird im Regelweg nicht geraten. Weitergegeben wird der ganze Satz,
+und die App gleicht ihn gegen die Namen ab, die wirklich im Tag stehen. Ein
+erster Entwurf nahm das erste grossgeschriebene Wort als Substantiv, und in
+"das war nur ein Rippchen Milka" ist das Rippchen. Der Durchlauf im Browser
+hat genau das gefunden, kein Test davor. `trifftPosten` gleicht deshalb in
+beide Richtungen ab: das Modell schickt "Milka", der Regelweg den ganzen Satz.
+Verglichen wird auf ganze Wörter ab drei Zeichen, denn "Ei" steckt in
+"Eintrag".
+
+Die zweite Lücke war die Haltung. Die Persona sagt jetzt ausdrücklich, dass
+ein erkannter Fehler behoben und nicht beschrieben wird, und dass ein Satz wie
+"das kann ich nicht rückgängig machen" falsch ist. Kennt der Coach die
+richtige Menge nicht, fragt er danach und korrigiert mit der Antwort. Eine
+Frage ist die Vorbereitung der Korrektur, nicht ihr Ersatz.
+
+Die Plausibilitätsprüfung hätte diesen Tag nicht gemeldet, denn die Kalorien
+lagen im Rahmen. Ein einzelner Makro sprengt sein Ziel leichter als der ganze
+Tag: ein falsch eingetragenes fettes Lebensmittel verdreifacht das Fett,
+während die Kalorien noch normal aussehen. Deshalb fällt jetzt auch auf, wenn
+Fett oder Kohlenhydrate über dem Doppelten ihres Ziels stehen.
+
+Jeder Befund nennt ausserdem den Ausweg: die richtige Menge sagen oder
+bestätigen, dass es stimmt. Ein Befund ohne Ausweg ist eine Beschwerde, und
+der Nutzer sitzt danach weiter mit falschen Zahlen da.
+
+## Das Gewicht gehört ins Profil
+
+`gewichtEintragen` schrieb die Wiegung nur in den Tag. Grundumsatz, Protein,
+Fett und Wasserziel rechnen aber alle gegen `profile.weightKg`, siehe
+`packages/core/src/energy.ts`. Wer sich ein halbes Jahr lang gewogen hat,
+bekam weiterhin die Ziele aus dem Anamnesebogen. Jetzt geht die Wiegung in
+beides. Ein Wert unter 30 oder über 300 Kilo lässt das Profil in Ruhe: ein
+Tippfehler darf die Ziele nicht kippen.
+
+## Der Regelweg ist die kostenlose Stufe
+
+31 der 38 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
+Das ist keine Notlösung für den Ausfall, sondern das Produkt: ein Weg, der
+kein Modell anfragt, kostet nichts je Nutzer und skaliert ohne Rechnung.
+
+Die Lücken waren schlecht verteilt. Eine Aufgabe liess sich ohne Schlüssel
+anlegen, aber nicht abhaken. Das Gewicht ging rein, das Training nicht,
+obwohl dieser Nutzer fünf bis sechs Mal die Woche trainiert. Der Mittags
+Check-in kam täglich um 14:00 als Erinnerung und brauchte für die Antwort ein
+Modell.
+
+Die Reihenfolge der Zweige trägt die Bedeutung. Training steht vor der
+Mahlzeit, weil "nach dem Training hatte ich einen Shake" beides enthält und
+sonst nur der Shake ankommt. Abhaken steht vor Anlegen, weil "Angebot
+geschrieben, erledigt" sonst dieselbe Aufgabe ein zweites Mal erzeugt.
+Rücknahme steht vor allem, was einträgt.
+
+Ohne erkannte Dauer wird kein Training eingetragen. Die Dauer geht in das
+Balance Board und in den Wasserbedarf, und eine geratene Stunde verschiebt
+beides. Lieber kein Eintrag als ein erfundener.
+
+"Athletiktraining" ist Arbeit und kein eigenes Training, dieselbe Trennung wie
+in `packages/core/src/balance.ts`. Wer seine Kundenstunden als eigene
+Einheiten gezählt bekommt, hat eine Statistik, die ihn anlügt.
+
+Beim Mittags Check-in gilt: genau drei Zahlen, sonst nichts. Bei zwei oder
+vier ist die Zuordnung geraten, und ein geratener Wert steht im Verlauf später
+wie eine echte Antwort. Beschriftete Zahlen schlagen die Reihenfolge, denn wer
+"Energie 7, Sättigung 4" schreibt, meint nicht Konzentration 4. Steht viel
+Text um die Zahlen herum, greift der Zweig nicht: "ich hab 7 von 10 Stunden
+geschlafen und 2 Kaffee getrunken" ist kein Bogen.
+
+Offen bleiben sieben. Die beiden Fotowerkzeuge brauchen ein Modell, daran
+ändert kein Regelpfad etwas. `standard_setzen`, `standard_bestaetigen` und
+`gespraech_einordnen` brauchen eine Kennung aus dem Zusammenhang, die ein
+Wortmuster nicht kennt. `profil_aendern` und `einkaufsliste_abhaken` sind
+machbar und stehen aus.
 
 ## Nährwerte von Markenprodukten
 
@@ -1006,6 +1226,59 @@ Die Kennzahlen oben auf Heute sind antippbar und führen in die Ansicht dahinter
 Ernährung führt auf den Essen Reiter, dort steht der Fotoknopf direkt neben der
 Texteingabe. Eine Zahl, auf die man tippen kann, spart den Umweg über das Menue.
 
+## Zwei Fassungen aus einer Quelle
+
+`npm run build:pwa` baut die Entwicklerfassung nach `dist-pages`,
+`npm run build:demo` die Fassung für Nutzer nach `dist-demo`. Zwei
+Verzeichnisse, weil beide gleichzeitig existieren müssen: ein Build, der den
+anderen überschreibt, zwingt dazu, vor jedem Ansehen neu zu bauen.
+
+Der Unterschied ist nicht kosmetisch. In der Entwicklerfassung trägt der
+Nutzer Schlüssel, Worker Adresse, Anmeldewort, Coaching Angebot und
+Trainingsplan Vorlagen selbst ein. Das ist richtig, solange Nutzer und
+Betreiber dieselbe Person sind. Für jeden anderen sind diese Felder kein
+Angebot, sondern eine Hürde vor dem Produkt.
+
+Der Schlüssel gehört nicht in die App. Eine statische Web App liefert ihren
+gesamten Code an jeden Besucher aus, ein eingebauter Schlüssel steht damit im
+Klartext im Netz, und Anthropic sperrt ihn, sobald er in einer öffentlichen
+Quelle auftaucht. Deshalb läuft die Fassung für Nutzer über `/chat` auf dem
+Push Worker, `workers/push/src/chat.ts`. Er hält den Schlüssel als Geheimnis,
+`AnthropicProvider` schickt über `baseUrl` dorthin und lässt `x-api-key` weg.
+Im Browser liegt nichts. Dieselbe Bauweise braucht später die native App.
+
+Drei Ebenen schützen den Schlüssel, und keine reicht allein: die Herkunft
+hält fremde Webseiten ab, aber kein Skript ausserhalb eines Browsers. Eine
+Tagesgrenze von 400 Anfragen begrenzt den Schaden, statt ihn zu verhindern.
+Eine Grenze je Gerät und Stunde bremst den, der automatisiert abgreift. Ein
+Ersatz für ein Konto ist das nicht, und das Ausgabenlimit in der Anthropic
+Console bleibt die einzige Grenze, die auch dann hält, wenn alles andere
+versagt.
+
+Was der Betreiber setzt, ist im HTML mit `data-betreiber` markiert und wird
+von `konfigAnwenden` ausgeblendet. Gelöscht wird nichts: eine Quelle, zwei
+Fassungen. Die Werte stehen in `demo.config.json` und werden beim Bauen in
+`js/konfig.js` der Ausgabe geschrieben, nie in die Quelle. Ein Build, der die
+Quelldatei ändert, hinterlässt nach jedem Durchlauf eine Änderung im Baum, und
+irgendwann committet sie jemand versehentlich mit.
+
+Der Build bricht ab, wenn in der Konfiguration etwas nach einem Schlüssel
+aussieht. Diese Datei geht in die veröffentlichte App und ist damit
+öffentlich, also darf der Fehler nicht erst im Betrieb auffallen.
+
+Die Werte werden bei jedem Start gesetzt, nicht nur beim ersten. Sonst bleibt
+eine geänderte Worker Adresse bei allen, die die App schon benutzen, für immer
+die alte. Was der Nutzer selbst gesetzt hat, bleibt unangetastet.
+
+Ausblenden allein reicht nicht. Nach den Abschnitten standen noch zwei Texte
+da, die nur für den Betreiber stimmen: der Menüeintrag zum Profil nannte
+Schlüssel und Kosten, und der Hinweis unter der Denkstufe sagte, gründlicher
+koste mehr. Wer die App geladen hat, zahlt nichts je Nachricht. Gefunden hat
+das kein Lesen, sondern ein Skript, das jede Ansicht der gebauten Fassung
+öffnet und den sichtbaren Text nach Betreiberwörtern absucht.
+
+Vollständig in `docs/DEMO.md`.
+
 ## Das Coaching Angebot
 
 `packages/core/src/angebot.ts`. Die App ist ein Coach, aber sie ersetzt keinen
@@ -1106,6 +1379,41 @@ spüren. Lineare Übergänge wirken maschinell.
 Scratchpad öffnet jede Ansicht in beiden Farbmodi und meldet zwei Dinge:
 überlappende Textelemente und seitliches Scrollen. Genau diese Fehler sieht kein
 Test, der Werte prüft, und genau die fallen dem Nutzer als Erstes auf.
+
+## Die Makrobalken
+
+Zwei Fehler, die zusammen auffielen, als die Farben zur Sprache kamen.
+
+Der erste ist ein Namenskonflikt. Die Balken hiessen `.bar`, genau wie die
+Kopfzeile jeder Ansicht. Die Regel für die Kopfzeile steht weiter unten im
+Stylesheet und hat gewonnen: die Balken wurden 52 Pixel hoch statt acht,
+bekamen seitlichen Innenabstand und `display: flex`. Dasselbe noch einmal bei
+`.bars`, das sowohl die Gruppe als auch das Menuesymbol war. Beide heissen
+jetzt `.balken` und `.balken-gruppe`. Ein Klassenname für zwei Bauteile ist
+keine Frage der Ordnung, sondern ein Fehler, der irgendwann eintritt.
+
+Der zweite sind die Farben. Die Balken trugen die Zustandsfarben: Fett lief auf
+`--warn`, also auf der Warnfarbe. Ein Makro ist keine Warnung, und das sieht man
+dem Balken an, bevor man es benennen kann. Das Gelb stach heraus, weil es dafür
+gebaut ist herauszustechen.
+
+Jetzt vier eigene Token auf einem Kreis um die Markenfarbe: Grün-Türkis, Rose,
+Violett, Markenzyan. Die Helligkeit ist nicht geschätzt, sondern gerechnet.
+Jeder Ton trifft auf der Spur genau 7.0 zu 1, im hellen Modus genau 4.0 zu 1,
+bei überall derselben Sättigung von 0.62.
+
+Gleicher Kontrast heisst gleiches Gewicht, gleiche Sättigung heisst gleiche
+Farbkraft. Erst beides zusammen macht aus vier Farben eine Familie. Beim ersten
+Versuch stimmte nur der Kontrast, und das Violett trug mehr Sättigung als die
+übrigen. Es sprang heraus, obwohl die Helligkeit stimmte.
+
+`--alt` und `--water` sind damit weggefallen. Sie hiessen "die dritte Farbe" und
+"die vierte", und ein Token ohne Bedeutung wird beim nächsten Mal irgendwo
+eingesetzt, wo er nicht hingehört. Die Spur hinter dem Balken stand als fester
+Wert in der Regel und brauchte eine zweite Regel für den hellen Modus. Sie ist
+jetzt ein Token.
+
+Über dem Ziel bleibt der Balken rot. Dort ist es wirklich eine Warnung.
 
 ## Der Startbildschirm
 

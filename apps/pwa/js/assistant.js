@@ -45,13 +45,17 @@ import {
   BEREICH_NAME,
   naehrwerteFuer,
   offeneMahlzeiten,
+  mengeSetzen,
   ohneDoppelte,
+  plausibelPruefen,
+  plausibelText,
   portionsVorschlag,
   setzeAusnahme,
   tagesrandFuer,
   wachMinutenAm,
   wachMinutenAus,
   produktText,
+  skalierbar,
   standardZumNachhaken,
   standardsStatus,
   verteileRest,
@@ -63,18 +67,26 @@ import {
   weightTrend,
 } from "@daevo/core";
 import { brain } from "./brain.js";
+import { KONFIG } from "./konfig.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
 
 const WEEKDAYS = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
 
 function provider() {
   const settings = store.getSettings();
+  // Steht eine eigene Adresse in der Konfiguration, läuft die Anfrage über den
+  // eigenen Server. Der hält den Schlüssel als Geheimnis, im Browser liegt
+  // keiner. Genau deshalb kann die Fassung für Nutzer ohne Eingabe reden.
+  const ueberServer = Boolean(KONFIG.chatUrl);
   return new AnthropicProvider({
     apiKey: settings.apiKey || undefined,
+    baseUrl: ueberServer ? KONFIG.chatUrl : undefined,
     // Rückfallmodell. Welches Modell eine einzelne Nachricht wirklich
     // bekommt, entscheidet der Agent je Modus und überschreibt das hier.
     model: settings.model || "claude-opus-5",
-    browserAccess: true,
+    // Der Kopf für den Direktzugriff aus dem Browser gehört nur auf den
+    // direkten Weg. Über den eigenen Server wäre er sinnlos und irreführend.
+    browserAccess: !ueberServer,
     timeoutMs: 90000,
     onVerbrauch: zaehleVerbrauch,
   });
@@ -128,6 +140,35 @@ export function kostenUebersicht() {
 }
 
 /* ---------- Zahlen des Tages ---------- */
+
+/**
+ * Die Plausibilitätsprüfung für einen ganzen Tag, als fertiger Satz.
+ *
+ * Läuft nach jedem Eintrag. Der Riegel in `ohneDoppelte` fängt den Fall ab,
+ * den wir kennen: denselben Posten zweimal. Er fängt nicht ab, was aus einer
+ * falsch geschätzten Menge, einer falsch gelesenen Etikettenspalte oder einem
+ * Rechenfehler des Modells entsteht. Diese Prüfung sieht deshalb nicht auf die
+ * Herkunft der Zahl, sondern auf das Ergebnis.
+ *
+ * Leer, wenn nichts auffällt. Eine Bestätigung nach jeder Mahlzeit wäre Lärm,
+ * und Lärm überliest man mitsamt dem, was darin steht.
+ */
+export function plausibelHinweis(day = todayIso()) {
+  const n = dayNumbers(day);
+  const rand = tagesrandFuer(n.profile, day);
+  const posten = (n.data.meals || []).flatMap((m) => m.entries || []);
+  return plausibelText(plausibelPruefen({
+    posten,
+    zielKcal: n.targets.kcal,
+    gewichtKg: n.profile.weightKg,
+    zielFettG: n.targets.fatG,
+    zielKohlenhydrateG: n.targets.carbsG,
+    waterMl: n.totals.waterMl,
+    jetzt: day === todayIso() ? nowTime() : null,
+    aufstehen: rand.wakeTime,
+    schlafen: rand.sleepTime,
+  }));
+}
 
 export function dayNumbers(day = todayIso()) {
   const profile = store.getProfile();
@@ -300,6 +341,25 @@ function lageText() {
 /* ---------- Verlauf über Wochen ---------- */
 
 const TYP_LABEL = { strength: "Kraft", team_sport: "Mannschaftssport", cardio: "Ausdauer", mobility: "Mobility" };
+
+/**
+ * Trifft ein Suchtext diesen Posten.
+ *
+ * In beide Richtungen, und das ist der Punkt. Das Modell schickt "Milka",
+ * dann steckt der Suchtext im Namen. Der Regelweg schickt den ganzen Satz,
+ * dann steckt der Name im Suchtext. Ein erster Entwurf prüfte nur die erste
+ * Richtung, und "das war nur ein Rippchen Milka" fand den Eintrag nie.
+ *
+ * Verglichen wird auf ganze Wörter ab drei Zeichen. Ein kürzeres Wort trifft
+ * zufällig: "Ei" steckt in "Eiweiss", "Reis" und "Eintrag".
+ */
+export function trifftPosten(name, suchtext) {
+  const n = String(name || "").toLowerCase();
+  const t = String(suchtext || "").toLowerCase();
+  if (!n || !t) return false;
+  if (n.includes(t)) return true;
+  return n.split(/[^a-zäöüß0-9]+/).some((wort) => wort.length >= 3 && new RegExp(`(^|[^a-zäöüß0-9])${wort}([^a-zäöüß0-9]|$)`).test(t));
+}
 
 /** Die letzten Tage als Reihe für den Rechenkern, ältester Tag zuerst. */
 export function verlaufPunkte(tage = 28) {
@@ -1553,9 +1613,11 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
       const n = dayNumbers();
       // Der Hinweis steht vorn. Eine Korrektur am Ende einer Antwort wird
       // überlesen, und genau sie ist der Grund, warum die Zahlen stimmen.
+      const unplausibel = plausibelHinweis(day);
       return [
         schonDa,
         `Eingetragen: ${posten}. Zusammen ${kcal} kcal und ${protein} g Protein. ${restText(n.rest)}${warnung}`,
+        unplausibel,
       ].filter(Boolean).join(" ").trimEnd();
     },
 
@@ -1715,6 +1777,142 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
       }
 
       return zeilen.join("\n");
+    },
+
+    /**
+     * Nimmt den letzten Eintrag zurück.
+     *
+     * Der Grund ist der Tag mit den 5172 Kalorien. Der Riegel gegen doppelte
+     * Posten verhindert die Wiederholung, aber wenn doch einmal etwas Falsches
+     * drinsteht, musste der Nutzer bisher ins Menue, in die Ernährungsansicht
+     * und den Eintrag dort suchen. Wer den Fehler im Gespräch bemerkt, will ihn
+     * im Gespräch loswerden.
+     *
+     * Zurückgenommen wird immer nur ein Eintrag und immer der jüngste, der
+     * passt. Ein Werkzeug, das auf einen Satz hin mehrere Einträge entfernt,
+     * macht denselben Schaden wie das doppelte Erfassen, nur in die andere
+     * Richtung. Was weg ist, steht in der Antwort mit seinen Zahlen, damit es
+     * sich in einem Satz wieder eintragen lässt.
+     */
+    async eintragZuruecknehmen({ art, suche } = {}) {
+      const day = todayIso();
+      const gesucht = String(suche || "").toLowerCase().trim();
+
+      if (art === "wasser") {
+        const data = store.getDay(day);
+        if (!data.waterMl) return "Für heute steht kein Wasser drin.";
+        // Einzelne Schlucke werden nicht gespeichert, nur die Summe. Ein
+        // Rückgängig ohne Einzelposten kann deshalb nur auf null setzen, und
+        // das gehört gesagt statt geraten.
+        data.waterMl = 0;
+        store.setDay(day, data);
+        changed();
+        return "Wasser für heute auf null gesetzt. Die App speichert nur die Summe, "
+          + "einzelne Gläser lassen sich nicht einzeln zurücknehmen. Sag mir die richtige Menge, dann trage ich sie ein.";
+      }
+
+      if (art === "training") {
+        const data = store.getDay(day);
+        const trainings = data.trainings || [];
+        const weg = trainings[trainings.length - 1];
+        if (!weg) return "Für heute steht kein Training drin.";
+        data.trainings = trainings.slice(0, -1);
+        store.setDay(day, data);
+        changed();
+        return `Zurückgenommen: ${TYP_LABEL[weg.type] || weg.type}, ${weg.minutes} Minuten.`;
+      }
+
+      if (art === "aufgabe") {
+        const offen = store.getAufgaben().filter((x) => !x.erledigt);
+        const treffer = gesucht
+          ? offen.find((x) => x.text.toLowerCase().includes(gesucht))
+          : offen[offen.length - 1];
+        if (!treffer) return "Die Aufgabe finde ich nicht. Sag mir den Wortlaut.";
+        store.setAufgaben(store.getAufgaben().filter((x) => x.id !== treffer.id));
+        changed();
+        return `Gelöscht: ${treffer.text}.`;
+      }
+
+      const data = store.getDay(day);
+      const meals = data.meals || [];
+      const treffer = gesucht
+        ? [...meals].reverse().find((m) => (m.entries || []).some((e) => String(e.name).toLowerCase().includes(gesucht)))
+        : meals[meals.length - 1];
+      if (!treffer) {
+        return gesucht
+          ? `Dazu finde ich heute keinen Eintrag mit ${suche}.`
+          : "Für heute steht noch keine Mahlzeit drin.";
+      }
+      const posten = (treffer.entries || []).map((e) => `${e.quantity} ${e.name}`).join(", ");
+      const kcal = Math.round((treffer.entries || []).reduce((sum, e) => sum + e.kcal, 0));
+      store.removeMeal(day, treffer.id);
+      changed();
+      const n = dayNumbers(day);
+      return `Raus: ${posten}, zusammen ${kcal} kcal. ${restText(n.rest)}`;
+    },
+
+    /**
+     * Korrigiert die Menge eines schon eingetragenen Postens.
+     *
+     * Der Anlass ist ein echter Abend. Statt eines Rippchens stand eine ganze
+     * Tafel Milka im Tag, das Fett lag bei 167 Gramm gegen ein Ziel von 69.
+     * Der Coach hat den Fehler erkannt, richtig benannt und dann geschrieben,
+     * er koenne ihn nicht rueckgaengig machen. Das ist die schlechteste
+     * moegliche Antwort: die falschen Zahlen bleiben stehen, und der Nutzer
+     * bekommt eine Erklaerung statt einer Loesung.
+     *
+     * Loeschen allein reicht dafuer nicht. Wer ein Rippchen gegessen hat, hat
+     * nicht nichts gegessen. Erst die Korrektur macht aus dem Erkennen eine
+     * Behebung.
+     *
+     * Gerechnet wird ueber `mengeSetzen`, also ueber das Verhaeltnis der
+     * Mengen. Das ist exakt, solange die Naehrwerte linear zur Menge stehen,
+     * und das tun sie. Die Zahlen kommen damit aus dem Rechenkern und nicht
+     * aus dem Modell, genau wie beim Erfassen.
+     */
+    async mahlzeitKorrigieren({ posten, neueMenge } = {}) {
+      const day = todayIso();
+      const gesucht = String(posten || "").toLowerCase().trim();
+      const data = store.getDay(day);
+      const meals = data.meals || [];
+
+      // Von hinten, weil der jüngste Eintrag fast immer der gemeinte ist.
+      let treffer = null;
+      for (let i = meals.length - 1; i >= 0 && !treffer; i--) {
+        const eintraege = meals[i].entries || [];
+        for (let j = eintraege.length - 1; j >= 0 && !treffer; j--) {
+          if (!gesucht || trifftPosten(eintraege[j].name, gesucht)) {
+            treffer = { meal: meals[i], index: j, eintrag: eintraege[j] };
+          }
+        }
+      }
+      if (!treffer) {
+        return gesucht
+          ? `Dazu finde ich heute keinen Eintrag mit ${posten}.`
+          : "Für heute steht noch keine Mahlzeit drin, die ich ändern könnte.";
+      }
+
+      const zahl = Number(String(neueMenge ?? "").replace(",", "."));
+      if (!skalierbar(treffer.eintrag)) {
+        return `${treffer.eintrag.name} steht als "${treffer.eintrag.quantity}" da. `
+          + "Ohne Zahl in der Menge kann ich nichts umrechnen. Nimm den Eintrag raus und sag mir die Menge neu.";
+      }
+      if (!(zahl > 0)) {
+        return `Für ${treffer.eintrag.name} brauche ich die richtige Menge als Zahl.`;
+      }
+
+      const alt = treffer.eintrag;
+      const neu = mengeSetzen(alt, zahl);
+      const eintraege = [...(treffer.meal.entries || [])];
+      eintraege[treffer.index] = neu;
+      // `korrigiert` sagt dem Coach, dass das keine Schätzung mehr ist. Eine
+      // korrigierte Mahlzeit soll er nicht nochmal in Frage stellen.
+      store.updateMeal(day, treffer.meal.id, { entries: eintraege, korrigiert: true });
+      changed();
+
+      const n = dayNumbers(day);
+      return `Korrigiert: ${alt.name} von ${alt.quantity} auf ${neu.quantity}, `
+        + `${Math.round(alt.kcal)} kcal werden ${Math.round(neu.kcal)}. ${restText(n.rest)}`;
     },
 
     async wasserEintragen(ml) {
@@ -1890,7 +2088,10 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
       const stunden = eintrag.minuten >= 60
         ? `${Math.round((eintrag.minuten / 60) * 10) / 10} Stunden`
         : `${eintrag.minuten} Minuten`;
-      return `${stunden} auf ${BEREICH_NAME[bereich] || bereich} gebucht: ${eintrag.was}.`;
+      // Ohne Beschreibung endet der Satz nach dem Bereich. Der Regelweg
+      // bucht ohne `was`, und "gebucht: ." ist kein Satz.
+      const wofuer = eintrag.was ? `: ${eintrag.was}` : "";
+      return `${stunden} auf ${BEREICH_NAME[bereich] || bereich} gebucht${wofuer}.`;
     },
 
     async balanceAbrufen({ tage } = {}) {
@@ -2077,6 +2278,15 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
     async gewichtEintragen(kg) {
       const day = todayIso();
       store.setWeight(day, kg);
+      // Das Profilgewicht muss mit. Grundumsatz, Protein, Fett und Wasserziel
+      // rechnen alle gegen `profile.weightKg`, siehe packages/core/src/energy.ts.
+      // Ohne diese Zeile wiegt sich jemand ein halbes Jahr lang und bekommt
+      // weiterhin die Ziele aus dem Anamnesebogen.
+      const profil = store.getProfile();
+      const gerundet = Math.round(kg * 10) / 10;
+      if (gerundet >= 30 && gerundet <= 300 && profil.weightKg !== gerundet) {
+        store.setProfile({ ...profil, weightKg: gerundet });
+      }
       changed();
       const trend = weightTrend(verlaufPunkte(56));
       if (!trend.belastbar) {

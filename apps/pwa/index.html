@@ -175,14 +175,27 @@ try {
         </div>
       </div>
 
+      <!--
+        Derselbe Weg ins Erfassen wie auf der Essen Seite, direkt unter der
+        Zahl, auf die er sich bezieht. Wer sieht, wie viel noch offen ist, will
+        als Nächstes etwas eintragen, und nicht erst ins Menue.
+      -->
+      <button type="button" id="btnErfassenHeute" class="erfassen-knopf" aria-haspopup="dialog" aria-expanded="false">
+        <span class="erfassen-plus" aria-hidden="true"></span>
+        <span class="erfassen-text">
+          <span class="erfassen-titel">Essen erfassen</span>
+          <span class="erfassen-sub">Foto, Barcode, Suche oder sprechen</span>
+        </span>
+      </button>
+
       <div class="ring-kacheln" id="heuteBalance"></div>
       <p class="fineprint" id="heuteBalanceHinweis" style="margin-top:0"></p>
 
-      <div class="bars">
-        <div class="bar-row"><div class="bar-head"><span>Protein</span><span id="pTxt"></span></div><div class="bar"><i id="pBar"></i></div></div>
-        <div class="bar-row"><div class="bar-head"><span>Fett</span><span id="fTxt"></span></div><div class="bar"><i id="fBar" class="warn"></i></div></div>
-        <div class="bar-row"><div class="bar-head"><span>Kohlenhydrate</span><span id="cTxt"></span></div><div class="bar"><i id="cBar" class="alt"></i></div></div>
-        <div class="bar-row"><div class="bar-head"><span>Wasser</span><span id="wTxt"></span></div><div class="bar"><i id="wBar" class="water"></i></div></div>
+      <div class="balken-gruppe">
+        <div class="balken-zeile"><div class="balken-kopf"><span>Protein</span><span id="pTxt"></span></div><div class="balken"><i id="pBar" class="protein"></i></div></div>
+        <div class="balken-zeile"><div class="balken-kopf"><span>Fett</span><span id="fTxt"></span></div><div class="balken"><i id="fBar" class="fett"></i></div></div>
+        <div class="balken-zeile"><div class="balken-kopf"><span>Kohlenhydrate</span><span id="cTxt"></span></div><div class="balken"><i id="cBar" class="kohlenhydrate"></i></div></div>
+        <div class="balken-zeile"><div class="balken-kopf"><span>Wasser</span><span id="wTxt"></span></div><div class="balken"><i id="wBar" class="wasser"></i></div></div>
       </div>
 
       <div class="quick">
@@ -213,27 +226,29 @@ try {
   <section class="view" data-view="essen" hidden>
     <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Essen</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
-      <div class="composer">
+      <!--
+        Ein Weg hinein statt vier nebeneinander. Vorher standen Diktieren,
+        Foto, Barcode und Erfassen als gleich aussehende Knöpfe in einer Reihe.
+        Vier gleichwertige Knöpfe sind keine Wahl, sondern eine Aufgabe: der
+        Nutzer muss jedes Mal alle vier lesen, um einen zu drücken.
+      -->
+      <button type="button" id="btnErfassen" class="erfassen-knopf" aria-haspopup="dialog" aria-expanded="false">
+        <span class="erfassen-plus" aria-hidden="true"></span>
+        <span class="erfassen-text">
+          <span class="erfassen-titel">Essen erfassen</span>
+          <span class="erfassen-sub">Foto, Barcode, Suche oder sprechen</span>
+        </span>
+      </button>
+
+      <!-- Die Texteingabe bleibt, sie klappt aus dem Blatt heraus auf. -->
+      <div class="composer" id="mealComposer" hidden>
         <textarea id="mealText" rows="3" placeholder="200 g Hähnchenbrust, 150 g Reis und ein Apfel"></textarea>
         <div class="composer-actions">
           <button id="btnVoice" class="ghost">Diktieren</button>
-          <button id="btnFotoEssen" class="ghost">Foto</button>
-          <button id="btnScan" class="ghost">Barcode</button>
           <button id="btnParse" class="primary">Erfassen</button>
         </div>
       </div>
       <div id="mealFeedback" class="feedback" hidden></div>
-
-      <div id="scanBox" class="scan" hidden>
-        <video id="scanVideo" playsinline muted></video>
-        <div id="scanHinweis" class="scan-hinweis">Halte den Barcode ins Bild.</div>
-        <div class="scan-eingabe">
-          <input id="scanCode" type="text" inputmode="numeric" autocomplete="off"
-                 placeholder="Barcode eintippen, etwa 4255719307476">
-          <button id="btnScanSuchen" class="primary">Nachschlagen</button>
-        </div>
-        <button id="btnScanZu" class="ghost">Schliessen</button>
-      </div>
 
       <h2 class="abschnitt">Wie ging es dir danach</h2>
       <div id="feelingRow" class="feelings"></div>
@@ -260,6 +275,61 @@ try {
       <ul id="mealList2" class="list"></ul>
     </div>
   </section>
+
+  <!--
+    Die vier Wege, etwas einzutragen. Eigenes Blatt statt vier Knöpfe in einer
+    Reihe, und ausserhalb der Ansichten, damit es sich später auch aus dem
+    Assistenten öffnen lässt, ohne dasselbe Menü ein zweites Mal zu bauen.
+
+    Die Reihenfolge ist nach Aufwand sortiert, nicht nach Technik. Foto ist ein
+    Griff, Sprechen zwei, Barcode drei, Suchen am meisten. Wer die Liste von
+    oben liest, findet den schnellsten Weg zuerst.
+  -->
+  <div id="erfassenBlatt" class="blatt" hidden>
+    <div class="blatt-innen" role="dialog" aria-modal="true" aria-labelledby="ebTitel">
+      <header class="blatt-kopf">
+        <h2 id="ebTitel">Essen erfassen</h2>
+        <button id="ebSchliessen" class="icon-btn" aria-label="Schliessen"><span class="kreuz"></span></button>
+      </header>
+      <div class="blatt-scroll">
+        <div class="wege">
+          <button type="button" class="weg" data-weg="foto">
+            <span class="weg-zeichen weg-foto" aria-hidden="true"></span>
+            <span class="weg-text">
+              <span class="weg-titel">Per Foto schätzen lassen</span>
+              <span class="weg-sub">Teller fotografieren, Mengen werden an Bezugsgrössen geschätzt</span>
+            </span>
+            <span class="weg-chev" aria-hidden="true"></span>
+          </button>
+          <button type="button" class="weg" data-weg="sprache">
+            <span class="weg-zeichen weg-sprache" aria-hidden="true"></span>
+            <span class="weg-text">
+              <span class="weg-titel">Per Sprache aufzählen</span>
+              <span class="weg-sub">Sprich, was du gegessen hast, mit Mengen</span>
+            </span>
+            <span class="weg-chev" aria-hidden="true"></span>
+          </button>
+          <button type="button" class="weg" data-weg="barcode">
+            <span class="weg-zeichen weg-barcode" aria-hidden="true"></span>
+            <span class="weg-text">
+              <span class="weg-titel">Barcode scannen</span>
+              <span class="weg-sub">Trifft genau, für alles mit Etikett</span>
+            </span>
+            <span class="weg-chev" aria-hidden="true"></span>
+          </button>
+          <button type="button" class="weg" data-weg="suche">
+            <span class="weg-zeichen weg-suche" aria-hidden="true"></span>
+            <span class="weg-text">
+              <span class="weg-titel">Lebensmittel suchen</span>
+              <span class="weg-sub">Nach Namen, aus der Datenbank</span>
+            </span>
+            <span class="weg-chev" aria-hidden="true"></span>
+          </button>
+        </div>
+        <button type="button" id="ebTippen" class="ghost breit">Lieber tippen</button>
+      </div>
+    </div>
+  </div>
 
   <!--
     Der Mahlzeit Editor. Er liegt ausserhalb der Ansichten, weil er sowohl aus
@@ -655,6 +725,10 @@ try {
       <button id="btnStimmenAlle" class="ghost breit">Alle Stimmen zeigen, die dein Gerät meldet</button>
       <pre id="e-stimmenRoh" class="stimmen-roh" hidden></pre>
 
+      <!-- Nur für den Betreiber. In der Fassung für Nutzer ausgeblendet:
+           ein Kurzbefehl auf einen eigenen Worker ist nichts, was jemand
+           einrichtet, der die App geladen hat. -->
+      <div data-betreiber>
       <h2 class="abschnitt">Freihändig ansprechen</h2>
       <p class="sub">Über Siri, auch bei gesperrtem Bildschirm. Der Satz geht an deinen
         Push Worker, du bekommst eine Mitteilung, und ein Tipp darauf öffnet daevo mit
@@ -682,23 +756,33 @@ try {
         und wird beim Abholen gelöscht.</p>
       <button id="btnPostfach" class="ghost breit">Postfach jetzt abholen</button>
 
+      </div>
+
       <h2 class="abschnitt">Benachrichtigungen</h2>
       <p class="sub">Sechs Impulse am Tag, auch wenn die App zu ist. Eiweiss, Trinken, Energie, Shake, Stress, Pause.</p>
-      <div class="field"><label for="e-pushWorker">Adresse des Push Workers</label>
-        <input id="e-pushWorker" type="url" inputmode="url" autocomplete="off" spellcheck="false"
-               autocapitalize="none" autocorrect="off"
-               placeholder="https://daevo-push.DEINNAME.workers.dev">
-        <p class="feld-hilfe">Steht am Ende von npx wrangler deploy. Einrichtung in docs/PUSH-EINRICHTEN.md.</p>
-      </div>
-      <div class="field"><label for="e-pushWort">Anmeldewort, optional</label>
-        <input id="e-pushWort" type="password" autocomplete="off" spellcheck="false"
-               autocapitalize="none" autocorrect="off" placeholder="leer lassen, wenn keins gesetzt ist">
+      <!-- Adresse und Anmeldewort stehen in der Fassung für Nutzer fest in
+           der App. Der Knopf darunter bleibt, denn ob jemand Mitteilungen
+           will, entscheidet er selbst. -->
+      <div data-betreiber>
+        <div class="field"><label for="e-pushWorker">Adresse des Push Workers</label>
+          <input id="e-pushWorker" type="url" inputmode="url" autocomplete="off" spellcheck="false"
+                 autocapitalize="none" autocorrect="off"
+                 placeholder="https://daevo-push.DEINNAME.workers.dev">
+          <p class="feld-hilfe">Steht am Ende von npx wrangler deploy. Einrichtung in docs/PUSH-EINRICHTEN.md.</p>
+        </div>
+        <div class="field"><label for="e-pushWort">Anmeldewort, optional</label>
+          <input id="e-pushWort" type="password" autocomplete="off" spellcheck="false"
+                 autocapitalize="none" autocorrect="off" placeholder="leer lassen, wenn keins gesetzt ist">
+        </div>
       </div>
       <button id="btnPushAn" class="primary breit">Benachrichtigungen einschalten</button>
       <button id="btnPushProbe" class="ghost breit" hidden>Probe schicken</button>
       <button id="btnPushAus" class="ghost breit" hidden>Ausschalten</button>
       <p id="e-pushhilfe" class="feld-hilfe"></p>
 
+      <!-- Das Angebot gehört dem Betreiber. Ein Nutzer soll es sehen,
+           nicht einstellen. -->
+      <div data-betreiber>
       <h2 class="abschnitt">Dein Coaching Angebot</h2>
       <p class="sub">Was Nutzer sehen, wenn sie persönliche Betreuung wollen. Leer lassen blendet es aus.</p>
       <div class="field"><label for="a-name">Dein Name als Coach</label>
@@ -721,6 +805,8 @@ try {
       <label class="switch"><input type="checkbox" id="a-aus"><span>Bei mir selbst ausblenden</span></label>
       <button id="btnAngebotSpeichern" class="primary breit">Angebot speichern</button>
 
+      </div>
+
       <h2 class="abschnitt">Training</h2>
       <ul id="sessionList" class="list"></ul>
       <div class="field-row">
@@ -742,12 +828,19 @@ try {
       </div>
       <button id="btnAddSession" class="ghost">Einheit hinzufügen</button>
 
-      <h2 class="abschnitt">Den echten Coach freischalten</h2>
-      <p class="sub">Ohne Schlüssel versteht daevo nur einfache Sätze und rechnet mit einer internen Tabelle. Mit deinem eigenen Anthropic Schlüssel wird er zum echten Gesprächspartner mit Gedächtnis.</p>
-      <div class="field"><label for="apiKey">Anthropic API Schlüssel</label><input id="apiKey" type="password" placeholder="sk-ant-..." autocomplete="off"></div>
-      <div class="field"><label for="modelSel">Modell</label>
-        <select id="modelSel"></select></div>
-      <p class="fineprint" id="modelNote" style="margin-bottom:12px"></p>
+      <h2 class="abschnitt" data-betreiber>Den echten Coach freischalten</h2>
+      <!-- Der Schlüssel ist die Sache des Betreibers. In der Fassung für
+           Nutzer läuft die Anfrage über den eigenen Server, der ihn als
+           Geheimnis hält, und im Browser liegt nichts. Die Wahl, wie gründlich
+           daevo denkt, bleibt sichtbar: die gehört dem Nutzer. -->
+      <div data-betreiber>
+        <p class="sub">Ohne Schlüssel versteht daevo nur einfache Sätze und rechnet mit einer internen Tabelle. Mit deinem eigenen Anthropic Schlüssel wird er zum echten Gesprächspartner mit Gedächtnis.</p>
+        <div class="field"><label for="apiKey">Anthropic API Schlüssel</label><input id="apiKey" type="password" placeholder="sk-ant-..." autocomplete="off"></div>
+        <div class="field"><label for="modelSel">Modell</label>
+          <select id="modelSel"></select></div>
+        <p class="fineprint" id="modelNote" style="margin-bottom:12px"></p>
+      </div>
+      <h2 class="abschnitt" data-nutzer hidden>Wie daevo denkt</h2>
       <div class="field"><label for="tempoSel">Wie gründlich daevo denkt</label>
         <select id="tempoSel">
           <option value="schnell">Schnell, kürzere Antworten</option>
@@ -759,15 +852,17 @@ try {
           <option value="gruendlich">Immer gründlich</option>
         </select></div>
       <p class="fineprint" id="gruendlichNote" style="margin-bottom:12px"></p>
-      <div class="quick">
-        <button id="btnSaveKey" class="chip">Schlüssel speichern</button>
-        <button id="btnPruefeKey" class="chip">Schlüssel prüfen</button>
+      <div data-betreiber>
+        <div class="quick">
+          <button id="btnSaveKey" class="chip">Schlüssel speichern</button>
+          <button id="btnPruefeKey" class="chip">Schlüssel prüfen</button>
+        </div>
+        <p class="fineprint" id="keyStatus" style="margin-bottom:12px"></p>
+        <p class="fineprint">Der Schlüssel bleibt in diesem Browser und geht direkt an Anthropic. Er steht nicht in der Website. Setz dir in der Anthropic Console ein Ausgabenlimit, bevor du ihn einträgst.</p>
       </div>
-      <p class="fineprint" id="keyStatus" style="margin-bottom:12px"></p>
-      <p class="fineprint">Der Schlüssel bleibt in diesem Browser und geht direkt an Anthropic. Er steht nicht in der Website. Setz dir in der Anthropic Console ein Ausgabenlimit, bevor du ihn einträgst.</p>
 
-      <h2 class="abschnitt">Was daevo kostet</h2>
-      <div class="card" id="kostenKarte">
+      <h2 class="abschnitt" data-betreiber>Was daevo kostet</h2>
+      <div class="card" id="kostenKarte" data-betreiber>
         <div class="kv"><span>Heute</span><b id="kostenHeute">0</b></div>
         <div class="kv"><span>Letzte 30 Tage</span><b id="kostenGesamt">0</b></div>
         <div class="kv"><span>Hochgerechnet im Monat</span><b id="kostenMonat">0</b></div>
@@ -868,7 +963,14 @@ try {
       </div>
     </div>
 
-    <button class="menu-item leise" data-go="profil"><b>Profil</b><span>Ziele, Training, Schlüssel, Kosten</span></button>
+    <!-- Zwei Untertitel, weil im Profil zwei verschiedene Dinge stehen.
+         Schlüssel und Kosten gibt es in der Fassung für Nutzer nicht, und ein
+         Menü, das auf etwas hinweist, das die Seite nicht enthält, schickt den
+         Leser suchen. -->
+    <button class="menu-item leise" data-go="profil"><b>Profil</b>
+      <span data-betreiber>Ziele, Training, Schlüssel, Kosten</span>
+      <span data-nutzer hidden>Ziele, Training, Stimme, Erinnerungen</span>
+    </button>
   </nav>
 </main>
 
