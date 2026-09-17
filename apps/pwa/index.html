@@ -963,7 +963,14 @@ try {
       </div>
     </div>
 
-    <button class="menu-item leise" data-go="profil"><b>Profil</b><span>Ziele, Training, Schlüssel, Kosten</span></button>
+    <!-- Zwei Untertitel, weil im Profil zwei verschiedene Dinge stehen.
+         Schlüssel und Kosten gibt es in der Fassung für Nutzer nicht, und ein
+         Menü, das auf etwas hinweist, das die Seite nicht enthält, schickt den
+         Leser suchen. -->
+    <button class="menu-item leise" data-go="profil"><b>Profil</b>
+      <span data-betreiber>Ziele, Training, Schlüssel, Kosten</span>
+      <span data-nutzer hidden>Ziele, Training, Stimme, Erinnerungen</span>
+    </button>
   </nav>
 </main>
 

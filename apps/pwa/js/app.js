@@ -1727,8 +1727,13 @@ function renderGruendlich(tempo) {
       "Persönliche Themen und Planung denken auf der höchsten Stufe. Fachfragen laufen auf mittel, "
       + "kurzes hin und her auf niedrig.",
     gruendlich:
-      "Jede Nachricht läuft auf der höchsten Denkstufe. Antworten dauern länger und kosten mehr, "
-      + "auch beim reinen Eintragen.",
+      // Was "mehr" bedeutet, hängt davon ab, wer zahlt. Wer seinen eigenen
+      // Schlüssel benutzt, zahlt je Nachricht. Wer die App geladen hat, wartet
+      // nur länger, und ein Hinweis auf Kosten wäre dort schlicht falsch.
+      istDemo()
+        ? "Jede Nachricht läuft auf der höchsten Denkstufe. Antworten dauern länger, auch beim reinen Eintragen."
+        : "Jede Nachricht läuft auf der höchsten Denkstufe. Antworten dauern länger und kosten mehr, "
+          + "auch beim reinen Eintragen.",
   };
   $("gruendlichNote").textContent = texte[tempo] ?? texte.normal;
 }

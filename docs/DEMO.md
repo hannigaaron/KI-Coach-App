@@ -80,6 +80,20 @@ Markiert im HTML mit `data-betreiber`, ausgeblendet von `konfigAnwenden` in
 - Anthropic Schlüssel, Modellwahl, Schlüssel prüfen
 - Was daevo kostet
 
+Dazu zwei Texte, die nur in der Entwicklerfassung stimmen. Der Menüeintrag
+zum Profil nennt dort Schlüssel und Kosten, in der Fassung für Nutzer Stimme
+und Erinnerungen: ein Menü, das auf etwas hinweist, das die Seite nicht
+enthält, schickt den Leser suchen. Und der Hinweis unter der Denkstufe sagt
+nur dem Betreiber, dass gründlicher auch teurer ist. Wer die App geladen hat,
+zahlt nichts je Nachricht, er wartet nur länger, und ein Hinweis auf Kosten
+wäre dort schlicht falsch.
+
+Geprüft wird das nicht durch Lesen. Ein Skript öffnet jede Ansicht der
+gebauten Fassung und sucht den sichtbaren Text nach Betreiberwörtern ab:
+Kosten, Schlüssel, API, Anthropic, Worker, Anmeldewort, Kurzbefehl, wrangler,
+Cloudflare, Modellnamen. Genau so sind die beiden Texte oben gefunden worden,
+nachdem die Abschnitte schon ausgeblendet waren.
+
 Was bleibt, gehört dem Nutzer: Körper und Ziel, Tagesablauf, Stimme,
 Benachrichtigungen ein und aus, Training, wie gründlich daevo denkt, Tonfall,
 Aussehen, Sprache, Sicherung, Daten löschen.

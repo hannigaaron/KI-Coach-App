@@ -1270,6 +1270,13 @@ Die Werte werden bei jedem Start gesetzt, nicht nur beim ersten. Sonst bleibt
 eine geänderte Worker Adresse bei allen, die die App schon benutzen, für immer
 die alte. Was der Nutzer selbst gesetzt hat, bleibt unangetastet.
 
+Ausblenden allein reicht nicht. Nach den Abschnitten standen noch zwei Texte
+da, die nur für den Betreiber stimmen: der Menüeintrag zum Profil nannte
+Schlüssel und Kosten, und der Hinweis unter der Denkstufe sagte, gründlicher
+koste mehr. Wer die App geladen hat, zahlt nichts je Nachricht. Gefunden hat
+das kein Lesen, sondern ein Skript, das jede Ansicht der gebauten Fassung
+öffnet und den sichtbaren Text nach Betreiberwörtern absucht.
+
 Vollständig in `docs/DEMO.md`.
 
 ## Das Coaching Angebot
