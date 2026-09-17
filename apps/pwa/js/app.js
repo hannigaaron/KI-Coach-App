@@ -6,6 +6,7 @@ import {
 } from "@daevo/core";
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, produktPerBarcode, produkteSuchen } from "@daevo/coach";
 import { Coach, AnthropicProvider } from "@daevo/coach";
+import { KONFIG, istDemo } from "./konfig.js";
 import {
   ablaufFuer, ask, aufgabeAbhaken, aufgabeAnlegenEingestuft, aufgabeLoeschen, aufgabeUmstufen, aufgabenPlan,
   balanceFuer, balanceRat, briefing,
@@ -1826,9 +1827,36 @@ function anamneseFertig(ergebnis) {
   startApp();
 }
 
+/**
+ * Wendet die eingebaute Konfiguration an und räumt die Betreiberfelder weg.
+ *
+ * Die Werte werden bei jedem Start gesetzt, nicht nur beim ersten. Ändert der
+ * Betreiber seine Worker Adresse und liefert eine neue Fassung aus, soll sie
+ * auch bei denen greifen, die die App schon benutzen. Ein Wert, der nur einmal
+ * geschrieben wird, bleibt sonst für immer der alte.
+ *
+ * Was der Nutzer selbst gesetzt hat, bleibt unangetastet: Stimme, Tonfall,
+ * Aussehen, seine Zahlen. Nur was dem Betreiber gehört, wird überschrieben.
+ */
+function konfigAnwenden() {
+  if (!istDemo()) return;
+
+  if (KONFIG.pushUrl) {
+    store.setSettings({ ...store.getSettings(), pushWorker: KONFIG.pushUrl });
+  }
+  if (KONFIG.angebot) {
+    // Der Nutzer kann das Angebot nicht ändern, also gibt es nichts zu
+    // erhalten. Ein Zusammenführen würde nur alte Felder mitschleppen.
+    store.setAngebot({ coachName: "", buchungUrl: "", buchungText: "", plaene: [], ...KONFIG.angebot });
+  }
+  for (const el of document.querySelectorAll("[data-betreiber]")) el.hidden = true;
+  for (const el of document.querySelectorAll("[data-nutzer]")) el.hidden = false;
+}
+
 function startApp() {
   $("setup").hidden = true;
   $("app").hidden = false;
+  konfigAnwenden();
   options = { ...options, ...(store.getSettings().voice || {}) };
   renderFeelings();
   ensureStandards();

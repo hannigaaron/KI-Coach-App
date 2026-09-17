@@ -725,6 +725,10 @@ try {
       <button id="btnStimmenAlle" class="ghost breit">Alle Stimmen zeigen, die dein Gerät meldet</button>
       <pre id="e-stimmenRoh" class="stimmen-roh" hidden></pre>
 
+      <!-- Nur für den Betreiber. In der Fassung für Nutzer ausgeblendet:
+           ein Kurzbefehl auf einen eigenen Worker ist nichts, was jemand
+           einrichtet, der die App geladen hat. -->
+      <div data-betreiber>
       <h2 class="abschnitt">Freihändig ansprechen</h2>
       <p class="sub">Über Siri, auch bei gesperrtem Bildschirm. Der Satz geht an deinen
         Push Worker, du bekommst eine Mitteilung, und ein Tipp darauf öffnet daevo mit
@@ -752,23 +756,33 @@ try {
         und wird beim Abholen gelöscht.</p>
       <button id="btnPostfach" class="ghost breit">Postfach jetzt abholen</button>
 
+      </div>
+
       <h2 class="abschnitt">Benachrichtigungen</h2>
       <p class="sub">Sechs Impulse am Tag, auch wenn die App zu ist. Eiweiss, Trinken, Energie, Shake, Stress, Pause.</p>
-      <div class="field"><label for="e-pushWorker">Adresse des Push Workers</label>
-        <input id="e-pushWorker" type="url" inputmode="url" autocomplete="off" spellcheck="false"
-               autocapitalize="none" autocorrect="off"
-               placeholder="https://daevo-push.DEINNAME.workers.dev">
-        <p class="feld-hilfe">Steht am Ende von npx wrangler deploy. Einrichtung in docs/PUSH-EINRICHTEN.md.</p>
-      </div>
-      <div class="field"><label for="e-pushWort">Anmeldewort, optional</label>
-        <input id="e-pushWort" type="password" autocomplete="off" spellcheck="false"
-               autocapitalize="none" autocorrect="off" placeholder="leer lassen, wenn keins gesetzt ist">
+      <!-- Adresse und Anmeldewort stehen in der Fassung für Nutzer fest in
+           der App. Der Knopf darunter bleibt, denn ob jemand Mitteilungen
+           will, entscheidet er selbst. -->
+      <div data-betreiber>
+        <div class="field"><label for="e-pushWorker">Adresse des Push Workers</label>
+          <input id="e-pushWorker" type="url" inputmode="url" autocomplete="off" spellcheck="false"
+                 autocapitalize="none" autocorrect="off"
+                 placeholder="https://daevo-push.DEINNAME.workers.dev">
+          <p class="feld-hilfe">Steht am Ende von npx wrangler deploy. Einrichtung in docs/PUSH-EINRICHTEN.md.</p>
+        </div>
+        <div class="field"><label for="e-pushWort">Anmeldewort, optional</label>
+          <input id="e-pushWort" type="password" autocomplete="off" spellcheck="false"
+                 autocapitalize="none" autocorrect="off" placeholder="leer lassen, wenn keins gesetzt ist">
+        </div>
       </div>
       <button id="btnPushAn" class="primary breit">Benachrichtigungen einschalten</button>
       <button id="btnPushProbe" class="ghost breit" hidden>Probe schicken</button>
       <button id="btnPushAus" class="ghost breit" hidden>Ausschalten</button>
       <p id="e-pushhilfe" class="feld-hilfe"></p>
 
+      <!-- Das Angebot gehört dem Betreiber. Ein Nutzer soll es sehen,
+           nicht einstellen. -->
+      <div data-betreiber>
       <h2 class="abschnitt">Dein Coaching Angebot</h2>
       <p class="sub">Was Nutzer sehen, wenn sie persönliche Betreuung wollen. Leer lassen blendet es aus.</p>
       <div class="field"><label for="a-name">Dein Name als Coach</label>
@@ -791,6 +805,8 @@ try {
       <label class="switch"><input type="checkbox" id="a-aus"><span>Bei mir selbst ausblenden</span></label>
       <button id="btnAngebotSpeichern" class="primary breit">Angebot speichern</button>
 
+      </div>
+
       <h2 class="abschnitt">Training</h2>
       <ul id="sessionList" class="list"></ul>
       <div class="field-row">
@@ -812,12 +828,19 @@ try {
       </div>
       <button id="btnAddSession" class="ghost">Einheit hinzufügen</button>
 
-      <h2 class="abschnitt">Den echten Coach freischalten</h2>
-      <p class="sub">Ohne Schlüssel versteht daevo nur einfache Sätze und rechnet mit einer internen Tabelle. Mit deinem eigenen Anthropic Schlüssel wird er zum echten Gesprächspartner mit Gedächtnis.</p>
-      <div class="field"><label for="apiKey">Anthropic API Schlüssel</label><input id="apiKey" type="password" placeholder="sk-ant-..." autocomplete="off"></div>
-      <div class="field"><label for="modelSel">Modell</label>
-        <select id="modelSel"></select></div>
-      <p class="fineprint" id="modelNote" style="margin-bottom:12px"></p>
+      <h2 class="abschnitt" data-betreiber>Den echten Coach freischalten</h2>
+      <!-- Der Schlüssel ist die Sache des Betreibers. In der Fassung für
+           Nutzer läuft die Anfrage über den eigenen Server, der ihn als
+           Geheimnis hält, und im Browser liegt nichts. Die Wahl, wie gründlich
+           daevo denkt, bleibt sichtbar: die gehört dem Nutzer. -->
+      <div data-betreiber>
+        <p class="sub">Ohne Schlüssel versteht daevo nur einfache Sätze und rechnet mit einer internen Tabelle. Mit deinem eigenen Anthropic Schlüssel wird er zum echten Gesprächspartner mit Gedächtnis.</p>
+        <div class="field"><label for="apiKey">Anthropic API Schlüssel</label><input id="apiKey" type="password" placeholder="sk-ant-..." autocomplete="off"></div>
+        <div class="field"><label for="modelSel">Modell</label>
+          <select id="modelSel"></select></div>
+        <p class="fineprint" id="modelNote" style="margin-bottom:12px"></p>
+      </div>
+      <h2 class="abschnitt" data-nutzer hidden>Wie daevo denkt</h2>
       <div class="field"><label for="tempoSel">Wie gründlich daevo denkt</label>
         <select id="tempoSel">
           <option value="schnell">Schnell, kürzere Antworten</option>
@@ -829,15 +852,17 @@ try {
           <option value="gruendlich">Immer gründlich</option>
         </select></div>
       <p class="fineprint" id="gruendlichNote" style="margin-bottom:12px"></p>
-      <div class="quick">
-        <button id="btnSaveKey" class="chip">Schlüssel speichern</button>
-        <button id="btnPruefeKey" class="chip">Schlüssel prüfen</button>
+      <div data-betreiber>
+        <div class="quick">
+          <button id="btnSaveKey" class="chip">Schlüssel speichern</button>
+          <button id="btnPruefeKey" class="chip">Schlüssel prüfen</button>
+        </div>
+        <p class="fineprint" id="keyStatus" style="margin-bottom:12px"></p>
+        <p class="fineprint">Der Schlüssel bleibt in diesem Browser und geht direkt an Anthropic. Er steht nicht in der Website. Setz dir in der Anthropic Console ein Ausgabenlimit, bevor du ihn einträgst.</p>
       </div>
-      <p class="fineprint" id="keyStatus" style="margin-bottom:12px"></p>
-      <p class="fineprint">Der Schlüssel bleibt in diesem Browser und geht direkt an Anthropic. Er steht nicht in der Website. Setz dir in der Anthropic Console ein Ausgabenlimit, bevor du ihn einträgst.</p>
 
-      <h2 class="abschnitt">Was daevo kostet</h2>
-      <div class="card" id="kostenKarte">
+      <h2 class="abschnitt" data-betreiber>Was daevo kostet</h2>
+      <div class="card" id="kostenKarte" data-betreiber>
         <div class="kv"><span>Heute</span><b id="kostenHeute">0</b></div>
         <div class="kv"><span>Letzte 30 Tage</span><b id="kostenGesamt">0</b></div>
         <div class="kv"><span>Hochgerechnet im Monat</span><b id="kostenMonat">0</b></div>

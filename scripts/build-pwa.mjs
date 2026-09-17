@@ -11,7 +11,19 @@ import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 
 const root = process.cwd();
-const outDir = join(root, "dist-pages");
+/*
+ * Zwei Fassungen aus einer Quelle.
+ *
+ * Ohne Schalter entsteht die Entwicklerfassung: der Nutzer trägt Schlüssel,
+ * Worker und Angebot selbst ein. Mit `--demo` entsteht die Fassung für Nutzer:
+ * dieselben Werte stehen fest in der App, die Felder dafür sind weg.
+ *
+ * Zwei getrennte Verzeichnisse, weil beide gleichzeitig existieren müssen. Ein
+ * Build, der den anderen überschreibt, zwingt dazu, vor jedem Ansehen neu zu
+ * bauen, und dann sieht man am Ende nur noch eine von beiden an.
+ */
+const demo = process.argv.includes("--demo");
+const outDir = join(root, demo ? "dist-demo" : "dist-pages");
 
 const required = [
   join(root, "packages/core/dist/index.js"),
@@ -101,6 +113,42 @@ if (fehlend.length) {
 }
 console.log(`${vorhanden.size} Kennungen im HTML, alle angesprochenen gefunden.`);
 
+/*
+ * Die eingebaute Konfiguration.
+ *
+ * Geschrieben wird erst in der Ausgabe, nie in die Quelle. Ein Build, der die
+ * Quelldatei ändert, hinterlässt nach jedem Durchlauf eine Änderung im Baum,
+ * und irgendwann committet sie jemand versehentlich mit.
+ *
+ * Geprüft wird ausserdem, dass nichts Geheimes hineinrutscht. Die Datei landet
+ * im Netz, und ein Schlüssel darin wäre öffentlich.
+ */
+if (demo) {
+  const pfad = join(root, "demo.config.json");
+  if (!existsSync(pfad)) {
+    console.error(`Fehlt: ${pfad}\nDie Fassung für Nutzer braucht ihre Konfiguration.`);
+    process.exit(1);
+  }
+  const konfig = JSON.parse(await readFile(pfad, "utf8"));
+  const roh = JSON.stringify(konfig);
+  const verdaechtig = [/sk-ant-/, /"anmeldeWort"/i, /"wort"\s*:/i, /BEGIN [A-Z ]*PRIVATE KEY/];
+  for (const muster of verdaechtig) {
+    if (muster.test(roh)) {
+      console.error(`\nIn demo.config.json steht etwas Geheimes (${muster}).\n`
+        + "Diese Datei geht in die veröffentlichte App und ist damit öffentlich.\n");
+      process.exit(1);
+    }
+  }
+  const ziel = join(outDir, "js/konfig.js");
+  const quelle = await readFile(join(root, "apps/pwa/js/konfig.js"), "utf8");
+  const kopf = quelle.slice(0, quelle.indexOf("export const KONFIG"));
+  await writeFile(ziel,
+    `${kopf}export const KONFIG = ${JSON.stringify({ DEMO: true, ...konfig, _: undefined }, null, 2)};\n\n`
+    + "/** Kurz und lesbar an den Stellen, die sich danach richten. */\n"
+    + "export const istDemo = () => KONFIG.DEMO === true;\n");
+  console.log("Konfiguration eingebaut, Fassung für Nutzer.");
+}
+
 // GitHub Pages läuft sonst durch Jekyll und wirft Ordner mit Unterstrich weg.
 await writeFile(join(outDir, ".nojekyll"), "");
 
@@ -127,4 +175,4 @@ for (const path of ["./lib/core/index.js", "./lib/coach/index.js"]) {
   }
 }
 
-console.log(`dist-pages gebaut, ${files.length} Dateien.`);
+console.log(`${demo ? "dist-demo" : "dist-pages"} gebaut, ${files.length} Dateien.`);

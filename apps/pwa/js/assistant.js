@@ -67,18 +67,26 @@ import {
   weightTrend,
 } from "@daevo/core";
 import { brain } from "./brain.js";
+import { KONFIG } from "./konfig.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
 
 const WEEKDAYS = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
 
 function provider() {
   const settings = store.getSettings();
+  // Steht eine eigene Adresse in der Konfiguration, läuft die Anfrage über den
+  // eigenen Server. Der hält den Schlüssel als Geheimnis, im Browser liegt
+  // keiner. Genau deshalb kann die Fassung für Nutzer ohne Eingabe reden.
+  const ueberServer = Boolean(KONFIG.chatUrl);
   return new AnthropicProvider({
     apiKey: settings.apiKey || undefined,
+    baseUrl: ueberServer ? KONFIG.chatUrl : undefined,
     // Rückfallmodell. Welches Modell eine einzelne Nachricht wirklich
     // bekommt, entscheidet der Agent je Modus und überschreibt das hier.
     model: settings.model || "claude-opus-5",
-    browserAccess: true,
+    // Der Kopf für den Direktzugriff aus dem Browser gehört nur auf den
+    // direkten Weg. Über den eigenen Server wäre er sinnlos und irreführend.
+    browserAccess: !ueberServer,
     timeoutMs: 90000,
     onVerbrauch: zaehleVerbrauch,
   });

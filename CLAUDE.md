@@ -160,10 +160,11 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 667 Tests
+npm test           # 675 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
+npm run build:demo # Fassung für Nutzer nach dist-demo
 ```
 
 ## Veröffentlichung
@@ -1224,6 +1225,52 @@ jedes Mal alle zu lesen.
 Die Kennzahlen oben auf Heute sind antippbar und führen in die Ansicht dahinter.
 Ernährung führt auf den Essen Reiter, dort steht der Fotoknopf direkt neben der
 Texteingabe. Eine Zahl, auf die man tippen kann, spart den Umweg über das Menue.
+
+## Zwei Fassungen aus einer Quelle
+
+`npm run build:pwa` baut die Entwicklerfassung nach `dist-pages`,
+`npm run build:demo` die Fassung für Nutzer nach `dist-demo`. Zwei
+Verzeichnisse, weil beide gleichzeitig existieren müssen: ein Build, der den
+anderen überschreibt, zwingt dazu, vor jedem Ansehen neu zu bauen.
+
+Der Unterschied ist nicht kosmetisch. In der Entwicklerfassung trägt der
+Nutzer Schlüssel, Worker Adresse, Anmeldewort, Coaching Angebot und
+Trainingsplan Vorlagen selbst ein. Das ist richtig, solange Nutzer und
+Betreiber dieselbe Person sind. Für jeden anderen sind diese Felder kein
+Angebot, sondern eine Hürde vor dem Produkt.
+
+Der Schlüssel gehört nicht in die App. Eine statische Web App liefert ihren
+gesamten Code an jeden Besucher aus, ein eingebauter Schlüssel steht damit im
+Klartext im Netz, und Anthropic sperrt ihn, sobald er in einer öffentlichen
+Quelle auftaucht. Deshalb läuft die Fassung für Nutzer über `/chat` auf dem
+Push Worker, `workers/push/src/chat.ts`. Er hält den Schlüssel als Geheimnis,
+`AnthropicProvider` schickt über `baseUrl` dorthin und lässt `x-api-key` weg.
+Im Browser liegt nichts. Dieselbe Bauweise braucht später die native App.
+
+Drei Ebenen schützen den Schlüssel, und keine reicht allein: die Herkunft
+hält fremde Webseiten ab, aber kein Skript ausserhalb eines Browsers. Eine
+Tagesgrenze von 400 Anfragen begrenzt den Schaden, statt ihn zu verhindern.
+Eine Grenze je Gerät und Stunde bremst den, der automatisiert abgreift. Ein
+Ersatz für ein Konto ist das nicht, und das Ausgabenlimit in der Anthropic
+Console bleibt die einzige Grenze, die auch dann hält, wenn alles andere
+versagt.
+
+Was der Betreiber setzt, ist im HTML mit `data-betreiber` markiert und wird
+von `konfigAnwenden` ausgeblendet. Gelöscht wird nichts: eine Quelle, zwei
+Fassungen. Die Werte stehen in `demo.config.json` und werden beim Bauen in
+`js/konfig.js` der Ausgabe geschrieben, nie in die Quelle. Ein Build, der die
+Quelldatei ändert, hinterlässt nach jedem Durchlauf eine Änderung im Baum, und
+irgendwann committet sie jemand versehentlich mit.
+
+Der Build bricht ab, wenn in der Konfiguration etwas nach einem Schlüssel
+aussieht. Diese Datei geht in die veröffentlichte App und ist damit
+öffentlich, also darf der Fehler nicht erst im Betrieb auffallen.
+
+Die Werte werden bei jedem Start gesetzt, nicht nur beim ersten. Sonst bleibt
+eine geänderte Worker Adresse bei allen, die die App schon benutzen, für immer
+die alte. Was der Nutzer selbst gesetzt hat, bleibt unangetastet.
+
+Vollständig in `docs/DEMO.md`.
 
 ## Das Coaching Angebot
 
