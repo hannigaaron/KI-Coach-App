@@ -6,6 +6,8 @@ import type { ChatMessage, CoachProvider, ContentBlock, ConverseRequest, Convers
 function stubActions(log: string[]): AgentActions {
   return {
     async mahlzeitErfassen(b) { log.push(`mahlzeit:${b}`); return "Eingetragen: 500 kcal, 40 g Protein."; },
+    async mahlzeitKorrigieren(i) { log.push(`korrigieren:${i.posten ?? ""}:${i.neueMenge}`); return "Korrigiert."; },
+    async eintragZuruecknehmen(i) { log.push(`zurueck:${i.art ?? ""}:${i.suche ?? ""}`); return "Raus: 200 g Magerquark."; },
     async tagZuEndePlanen(i) { log.push(`planen:${(i.mahlzeiten ?? []).join("+")}`); return "Abendessen 900 kcal."; },
     async gespraecheDurchsuchen(i) { log.push(`suche:${i.suche}`); return "Zwei Gespräche gefunden."; },
     async gespraechEinordnenAktiv(i) { log.push(`einordnen:${i.ordner}`); return "Verschoben."; },
@@ -407,4 +409,167 @@ test("eine Absicht mit Vergangenheitsform zählt weiter als Eintrag", () => {
   assert.equal(istAbsicht("ich möchte wissen was ich heute gegessen habe"), false);
   assert.equal(istAbsicht("ich möchte heute zwei gute Mahlzeiten essen"), true);
   assert.equal(istAbsicht("ich hab 200 g Magerquark gegessen"), false);
+});
+
+test("Regelpfad nimmt einen Eintrag zurück, statt ihn nochmal einzutragen", async () => {
+  // "Das hab ich nicht gegessen" enthält "gegessen" und landete vorher auf dem
+  // Erfassen, also genau auf dem Gegenteil dessen, was gemeint war.
+  for (const satz of [
+    "Lösch den letzten Eintrag",
+    "Das hab ich doch nicht gegessen",
+    "Die letzte Mahlzeit stimmt nicht",
+    "Nimm den Eintrag raus",
+  ] as const) {
+    const log: string[] = [];
+    await runOffline(satz, stubActions(log));
+    assert.match(log[0] ?? "", /^zurueck:mahlzeit/, satz);
+  }
+});
+
+test("die Rücknahme trifft die genannte Art", async () => {
+  const log: string[] = [];
+  await runOffline("Lösch das Training von heute", stubActions(log));
+  assert.match(log[0]!, /^zurueck:training/);
+});
+
+test("ein Widerspruch ohne Gegenstand löscht nichts", async () => {
+  // "Das stimmt nicht" über eine Aussage des Coaches darf keinen Eintrag entfernen.
+  const log: string[] = [];
+  await runOffline("Das stimmt nicht", stubActions(log));
+  assert.equal(log.some((z) => z.startsWith("zurueck:")), false);
+});
+
+test("Regelpfad trägt ein Training mit Art und Dauer ein", async () => {
+  for (const [satz, erwartet] of [
+    ["Ich war 2 Stunden Volleyball spielen", "training:team_sport/120"],
+    ["Hab heute 90 Minuten trainiert", "training:strength/90"],
+    ["War eine Stunde laufen", "training:cardio/60"],
+    ["Ich hab 20 Minuten gedehnt", "training:mobility/20"],
+  ] as const) {
+    const log: string[] = [];
+    await runOffline(satz, stubActions(log));
+    assert.equal(log[0], erwartet, satz);
+  }
+});
+
+test("ohne erkannte Dauer wird kein Training geraten", async () => {
+  // Die Dauer geht ins Balance Board und in den Wasserbedarf. Eine erfundene
+  // Stunde verschiebt beides, also greift der Zweig gar nicht erst.
+  const log: string[] = [];
+  await runOffline("Ich war heute trainieren", stubActions(log));
+  assert.equal(log.some((z) => z.startsWith("training:")), false);
+});
+
+test("Kundenstunden sind kein eigenes Training", async () => {
+  // Dieselbe Trennung wie im Balance Board: wer seine Kundenstunden als eigene
+  // Einheiten gezählt bekommt, hat eine Statistik, die ihn anlügt.
+  for (const satz of [
+    "Ich hab 2 Stunden Athletiktraining gegeben",
+    "War 3 Stunden mit einer Kundin trainieren",
+  ] as const) {
+    const log: string[] = [];
+    await runOffline(satz, stubActions(log));
+    assert.equal(log.some((z) => z.startsWith("training:")), false, satz);
+  }
+});
+
+test("ein Trainingsvorhaben ist keine Einheit", async () => {
+  const log: string[] = [];
+  await runOffline("Ich will morgen 2 Stunden trainieren", stubActions(log));
+  assert.equal(log.some((z) => z.startsWith("training:")), false);
+});
+
+test("Regelpfad bucht erzählte Zeit auf einen Bereich", async () => {
+  for (const [satz, erwartet] of [
+    ["Ich hab 2 Stunden mit meiner Schwester verbracht", "zeit:beziehung:120"],
+    ["Hab heute 3 Stunden an Content gearbeitet", "zeit:karriere:180"],
+    ["War 45 Minuten spazieren und hab entspannt", "zeit:wellbeing:45"],
+  ] as const) {
+    const log: string[] = [];
+    await runOffline(satz, stubActions(log));
+    assert.equal(log[0], erwartet, satz);
+  }
+});
+
+test("Zeit ohne erkennbaren Bereich wird nicht gebucht", async () => {
+  // Eine falsche Zuordnung erzeugt eine Zahl, der man glaubt.
+  const log: string[] = [];
+  await runOffline("Ich hab 2 Stunden damit verbracht", stubActions(log));
+  assert.equal(log.some((z) => z.startsWith("zeit:")), false);
+});
+
+test("Regelpfad hakt eine Aufgabe ab, statt sie nochmal anzulegen", async () => {
+  const log: string[] = [];
+  await runOffline("Angebot für YAN ist erledigt", stubActions(log));
+  assert.match(log[0]!, /^abhaken:/);
+  assert.equal(log.some((z) => z.startsWith("aufgabe:")), false);
+});
+
+test("Regelpfad zeigt die Einkaufsliste, statt eine neue zu bauen", async () => {
+  const log: string[] = [];
+  await runOffline("Was steht auf der Einkaufsliste?", stubActions(log));
+  assert.equal(log[0], "einkauf:abrufen");
+
+  const log2: string[] = [];
+  await runOffline("Erstell mir eine Einkaufsliste für 5 Tage", stubActions(log2));
+  assert.match(log2[0]!, /^einkauf:5/);
+});
+
+test("Regelpfad durchsucht das Gedächtnis auf Zuruf", async () => {
+  const log: string[] = [];
+  await runOffline("Was weisst du eigentlich über mich?", stubActions(log));
+  assert.match(log[0]!, /^suche:/);
+});
+
+test("Regelpfad nimmt den Mittags Check-in als drei Zahlen an", async () => {
+  for (const [satz, erwartet] of [
+    ["7 6 8", "mittag:7/6/8"],
+    ["Energie 7, Konzentration 6, Sättigung 8", "mittag:7/6/8"],
+    ["Energie 7, Sättigung 4, Konzentration 9", "mittag:7/9/4"],
+  ] as const) {
+    const log: string[] = [];
+    await runOffline(satz, stubActions(log));
+    assert.equal(log[0], erwartet, satz);
+  }
+});
+
+test("drei Zahlen in einem Satz sind kein Check-in", async () => {
+  // Ein geratener Wert steht im Verlauf später wie eine echte Antwort.
+  for (const satz of [
+    "Ich hatte 200 g Reis, 3 Eier und 1 Banane",
+    "Ich hab 7 von 10 Stunden geschlafen und 2 Kaffee getrunken",
+  ] as const) {
+    const log: string[] = [];
+    await runOffline(satz, stubActions(log));
+    assert.equal(log.some((z) => z.startsWith("mittag:")), false, satz);
+  }
+});
+
+test("zwei Zahlen reichen für den Check-in nicht", async () => {
+  const log: string[] = [];
+  await runOffline("7 6", stubActions(log));
+  assert.equal(log.some((z) => z.startsWith("mittag:")), false);
+});
+
+test("Regelpfad korrigiert eine Menge, statt den Eintrag zu löschen", async () => {
+  // Der echte Fall: statt eines Rippchens stand eine ganze Tafel Milka im Tag.
+  // Wer ein Rippchen gegessen hat, hat nicht nichts gegessen.
+  const log: string[] = [];
+  await runOffline("Das war nur ein Rippchen Milka, nicht die ganze Packung, korrigier das auf 16 g", stubActions(log));
+  assert.match(log[0]!, /^korrigieren:/);
+  assert.match(log[0]!, /16$/);
+  assert.equal(log.some((z) => z.startsWith("zurueck:")), false);
+});
+
+test("eine Korrektur ohne Bezug auf einen Eintrag ist eine neue Mahlzeit", async () => {
+  // Eine falsch erkannte Korrektur ändert eine Zahl, die vorher stimmte.
+  const log: string[] = [];
+  await runOffline("Ich hatte nur ein Brötchen mit 60 g", stubActions(log));
+  assert.equal(log.some((z) => z.startsWith("korrigieren:")), false);
+});
+
+test("eine Korrektur ohne Menge greift nicht", async () => {
+  const log: string[] = [];
+  await runOffline("Das war nur ein Rippchen, nicht die ganze Packung", stubActions(log));
+  assert.equal(log.some((z) => z.startsWith("korrigieren:")), false);
 });

@@ -9,6 +9,7 @@ import {
   sperren,
   type Abo,
 } from "./abos.js";
+import { chatWeiterreichen } from "./chat.js";
 import { postAblegen, postAbholen, postMitteilung } from "./postfach.js";
 import type { Env, ScheduledEvent } from "./umgebung.js";
 
@@ -71,6 +72,14 @@ export default {
         if (!wortStimmt(anfrage, env)) return antwort({ fehler: "Dafür braucht es das Anmeldewort." }, 401, kopf);
         const posten = await postAbholen(env.ABOS);
         return antwort({ ok: true, posten }, 200, kopf);
+      }
+
+      if (url.pathname === "/chat" && anfrage.method === "POST") {
+        // Der Schlüssel liegt hier, nicht im Browser. Warum das der einzige
+        // Weg für eine öffentliche App ist, steht in chat.ts.
+        const weiter = await chatWeiterreichen(anfrage, env);
+        for (const [k, v] of Object.entries(kopf)) weiter.headers.set(k, v);
+        return weiter;
       }
 
       if (url.pathname === "/stand" && anfrage.method === "GET") {

@@ -1,0 +1,12 @@
+{
+  "_": "Was in der Fassung für Nutzer fest eingebaut ist. Hier steht nichts Geheimes: die Adresse des Workers ist öffentlich, der Schlüssel liegt als Geheimnis auf dem Worker. Das Anmeldewort gehört NICHT hierher, es steht in .push-geheim.json und geht nie in den Build.",
+  "chatUrl": "https://daevo-push.ittaste.workers.dev",
+  "pushUrl": "https://daevo-push.ittaste.workers.dev",
+  "angebot": {
+    "coachName": "Coach Aaron",
+    "buchungUrl": "",
+    "mail": "personalcoach.aaron@gmail.com",
+    "buchungText": "ca. 30 min, kostenlos zum Kennenlernen und Besprechen deiner Ziele und bisherigen Herausforderungen",
+    "plaene": []
+  }
+}

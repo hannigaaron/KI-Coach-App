@@ -18,6 +18,22 @@ const API_VERSION = "2023-06-01";
 export interface AnthropicOptions {
   apiKey: string | undefined;
   model: string;
+  /**
+   * Eine eigene Adresse statt api.anthropic.com, für den Weg über einen
+   * eigenen Server.
+   *
+   * Das ist die Voraussetzung dafür, dass die App ohne Schlüssel im Browser
+   * läuft. Eine statische Web App liefert ihren gesamten Code an jeden
+   * Besucher aus: ein eingebauter Schlüssel steht damit im Klartext im Netz,
+   * und Anthropic sperrt ihn, sobald er in einer öffentlichen Quelle auftaucht.
+   * Liegt er stattdessen als Geheimnis auf dem Server, sieht der Browser ihn
+   * nie.
+   *
+   * Ist die Adresse gesetzt, geht kein `x-api-key` mehr raus. Der Server setzt
+   * ihn. Ein Schlüssel, der trotzdem mitginge, wäre wieder im Browser, und
+   * genau das soll der Weg verhindern.
+   */
+  baseUrl?: string;
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
   /**
@@ -56,10 +72,20 @@ export class AnthropicProvider implements CoachProvider {
   }
 
   get available(): boolean {
-    return Boolean(this.options.apiKey);
+    return Boolean(this.options.apiKey || this.options.baseUrl);
+  }
+
+  /** Wohin die Anfrage geht. Der eigene Server schlägt Anthropic direkt. */
+  private ziel(): string {
+    return this.options.baseUrl ? `${this.options.baseUrl.replace(/\/+$/, "")}/chat` : API_URL;
   }
 
   private headers(): Record<string, string> {
+    // Über den eigenen Server geht kein Schlüssel und kein Browserzugriff
+    // raus. Beides gehört dorthin, wo der Schlüssel liegt.
+    if (this.options.baseUrl) {
+      return { "content-type": "application/json" };
+    }
     return {
       "content-type": "application/json",
       "x-api-key": this.options.apiKey as string,
@@ -113,7 +139,7 @@ export class AnthropicProvider implements CoachProvider {
       // globalThis. Browser werfen dann "Illegal invocation", und es geht
       // keine einzige Anfrage raus.
       const holen = this.fetchImpl;
-      const response = await holen(API_URL, {
+      const response = await holen(this.ziel(), {
         method: "POST",
         headers: this.headers(),
         signal: controller.signal,
@@ -193,7 +219,7 @@ export class AnthropicProvider implements CoachProvider {
     const timeout = setTimeout(() => controller.abort(), this.options.timeoutMs ?? 90000);
     try {
       const holen = this.fetchImpl;
-      const response = await holen(API_URL, {
+      const response = await holen(this.ziel(), {
         method: "POST",
         headers: this.headers(),
         signal: controller.signal,
@@ -346,7 +372,7 @@ export class AnthropicProvider implements CoachProvider {
     }
 
     try {
-      const antwort = await holen(API_URL, {
+      const antwort = await holen(this.ziel(), {
         method: "POST",
         headers: this.headers(),
         body: JSON.stringify({
@@ -401,7 +427,7 @@ export class AnthropicProvider implements CoachProvider {
     const kaputt: string[] = [];
     for (const wahl of Object.values(MODELLE)) {
       try {
-        const antwort = await this.fetchImpl(API_URL, {
+        const antwort = await this.fetchImpl(this.ziel(), {
           method: "POST",
           headers: this.headers(),
           body: JSON.stringify({
@@ -429,7 +455,7 @@ export class AnthropicProvider implements CoachProvider {
     const timeout = setTimeout(() => controller.abort(), this.options.timeoutMs ?? 30000);
     try {
       const holen = this.fetchImpl;
-      const response = await holen(API_URL, {
+      const response = await holen(this.ziel(), {
         method: "POST",
         headers: {
           "content-type": "application/json",

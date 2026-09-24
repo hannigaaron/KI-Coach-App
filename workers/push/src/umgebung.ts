@@ -32,6 +32,12 @@ export interface Env {
    * App öffentlich ist, gehört hier eines hin.
    */
   ANMELDE_WORT?: string;
+  /**
+   * Der Anthropic Schlüssel. Nur gesetzt, wenn dieser Worker auch die
+   * Modellanfragen weiterreicht, siehe chat.ts. Er liegt als Geheimnis hier
+   * und geht nie an den Browser.
+   */
+  ANTHROPIC_KEY?: string;
 }
 
 export interface ScheduledEvent {

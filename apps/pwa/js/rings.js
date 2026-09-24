@@ -18,13 +18,30 @@
  * ehrlich. Wer 200 Prozent seiner Arbeitszeit macht, soll das lesen können.
  */
 
-export const BEREICH_FARBE = {
-  karriere: "#1E7FA8",
-  fitness: "#E4572E",
-  wellbeing: "#2FBF71",
-  me_time: "#A06CD5",
-  beziehung: "#F2B035",
-};
+/**
+ * Die Farbe eines Bereichs, aus dem Stylesheet.
+ *
+ * Vorher standen die fünf Werte hier als feste Zeichenketten. Zwei Probleme
+ * hatte das. Erstens waren sie in beiden Farbmodi gleich: ein Ton, der auf
+ * Schwarz stimmt, stimmt auf Weiss nicht. Zweitens standen sie neben den
+ * Tokens statt in ihnen, und damit ausserhalb des Systems, das für alles
+ * andere in der App gilt.
+ *
+ * Gelesen wird bei jedem Zeichnen, nicht einmal beim Laden. Der Nutzer kann
+ * das Aussehen im Profil umschalten, und ein einmal gelesener Wert bliebe
+ * danach der alte.
+ */
+export function bereichFarbe(bereich) {
+  const wert = getComputedStyle(document.documentElement)
+    .getPropertyValue(`--bereich-${bereich}`).trim();
+  // Der Rückfall greift, wenn jemand einen Bereich zeichnet, den es im
+  // Stylesheet nicht gibt. Eine leere Farbe macht den Ring unsichtbar, und
+  // ein unsichtbarer Ring sieht aus wie ein Wert von null.
+  return wert || "currentColor";
+}
+
+/** Nur für Code, der die ganze Tabelle braucht. */
+export const BEREICHE = ["karriere", "fitness", "wellbeing", "me_time", "beziehung"];
 
 /** Farbe für den Tagesring. Kommt aus der Marke. */
 const TAG_FARBE = "#1E7FA8";
@@ -101,7 +118,7 @@ export function anteilsRing(bereiche, { groesse = 200, restAnteil = 0 } = {}) {
     summe -= teile[i].anteil;
     svg.appendChild(el("circle", {
       cx: mitte, cy: mitte, r: radius,
-      fill: "none", stroke: BEREICH_FARBE[teile[i].stand.bereich] || TAG_FARBE,
+      fill: "none", stroke: bereichFarbe(teile[i].stand.bereich) || TAG_FARBE,
       "stroke-width": breite, "stroke-linecap": "butt",
       "stroke-dasharray": `${umfang * Math.min(1, bis)} ${umfang}`,
       transform: `rotate(-90 ${mitte} ${mitte})`,
@@ -148,7 +165,7 @@ export function ringStapel(bereiche, { groesse = 190 } = {}) {
     if (radius < breite) return;
     ring(svg, {
       radius, breite, anteil: stand.anteil,
-      farbe: BEREICH_FARBE[stand.bereich] || TAG_FARBE, mitte,
+      farbe: bereichFarbe(stand.bereich) || TAG_FARBE, mitte,
     });
   });
 
