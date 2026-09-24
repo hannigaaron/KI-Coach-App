@@ -65,6 +65,33 @@
    * auch wenn die Helligkeit stimmt: genau das war beim ersten Versuch mit
    * dem Violett so.
    */
+  /* ---------- Die fünf Bereiche des Balance Boards ----------
+   *
+   * Dieselbe Rechnung wie bei den Makros, und das ist der Punkt: eine App,
+   * ein System. Fünf Farbtöne im Abstand von 40 Grad, überall dieselbe
+   * Sättigung von 0.62, jeder auf der Spur genau 7.0 zu 1, im hellen Modus
+   * genau 4.0 zu 1.
+   *
+   * Vorher standen fünf zufällige Farben in `rings.js`: Kontrast von 3.53 bis
+   * 8.37, Sättigung von 0.56 bis 0.88, Farbtöne über den ganzen Kreis
+   * verstreut. Das Gewicht stand damit verkehrt herum. Karriere ist bei
+   * diesem Nutzer der grösste Bereich und trug den schwächsten Ton, Beziehung
+   * der kleinste und den lautesten. Wer auf die Kacheln schaut, liest zuerst
+   * die Farbe und erst danach die Zahl.
+   *
+   * Kein Gelb und kein Orange. Beides trägt in dieser App die Bedeutung
+   * Warnung, und ein Lebensbereich ist keine Warnung.
+   *
+   * Sie stehen hier und nicht mehr in JavaScript, weil sie sonst in beiden
+   * Farbmodi gleich bleiben. Ein Ton, der auf Schwarz stimmt, stimmt auf
+   * Weiss nicht.
+   */
+  --bereich-karriere: #42bad3;
+  --bereich-fitness: #2ec379;
+  --bereich-wellbeing: #9ca9e8;
+  --bereich-me_time: #c29ce8;
+  --bereich-beziehung: #e591c9;
+
   --makro-protein: #2ec28c;
   --makro-fett: #e694ad;
   --makro-kohlenhydrate: #b6a0e9;
@@ -514,13 +541,24 @@ button:disabled { opacity: 0.5; }
   display: flex; flex-wrap: wrap; justify-content: center;
   gap: 10px; margin: 14px 0 6px;
 }
-/* Feste Hoehe, weil "Familie und Beziehung" zweizeilig umbricht und die
-   untere Reihe sonst hoeher steht als die obere. */
+/*
+ * Alle Kacheln gleich hoch, egal wie lang ihre Beschriftung ist.
+ *
+ * "Familie und Beziehung" bricht auf zwei Zeilen um, und ohne eine gemeinsame
+ * Höhe steht die untere Reihe dann tiefer als die obere. Die Kommentarzeile
+ * dafür stand schon hier, die Höhe fehlte: eine Absicht, die nur als Text
+ * existiert, ist keine.
+ *
+ * Fünf Kacheln füllen keine Dreierreihe, die letzte Reihe bleibt also halb
+ * leer. Das ist bewusst in Kauf genommen. Die Alternative wären fünf Zeilen
+ * über die volle Breite, und die kosten auf Heute eine halbe Bildschirmhöhe
+ * für eine Übersicht, die man im Vorbeigehen liest.
+ */
 .ring-kachel {
-  flex: 0 1 calc(33.333% - 7px); min-width: 96px;
+  flex: 0 1 calc(33.333% - 7px); min-width: 96px; min-height: 152px;
   display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
   background: var(--panel); border: 1px solid var(--border); border-radius: var(--r-md);
-  padding: 12px 6px 10px; text-align: center; color: var(--text);
+  padding: var(--s-3) var(--s-2) var(--s-3); text-align: center; color: var(--text);
 }
 /* Nur wo eine Wertzeile steht, also auf dem Balance Board. Auf Heute gibt es
    keine, dort wuerde die feste Hoehe nur Leerraum erzeugen. */
@@ -685,6 +723,9 @@ body:has([data-view="assistant"]:not([hidden])) .toast {
     --text: #141a24; --muted: #5b6675;
     --makro-protein: #1e7f5c; --makro-fett: #cf3161;
     --makro-kohlenhydrate: #7e58d8; --makro-wasser: #227a91;
+    --bereich-karriere: #217b8c; --bereich-fitness: #1e804f;
+    --bereich-wellbeing: #5167d6; --bereich-me_time: #924ed5;
+    --bereich-beziehung: #c72f94;
     --spur: #e4e8ec;
     --accent: var(--brand-deep);
     --accent-text: var(--brand-text);
@@ -701,6 +742,9 @@ body:has([data-view="assistant"]:not([hidden])) .toast {
     --text: #141a24; --muted: #5b6675;
     --makro-protein: #1e7f5c; --makro-fett: #cf3161;
     --makro-kohlenhydrate: #7e58d8; --makro-wasser: #227a91;
+    --bereich-karriere: #217b8c; --bereich-fitness: #1e804f;
+    --bereich-wellbeing: #5167d6; --bereich-me_time: #924ed5;
+    --bereich-beziehung: #c72f94;
     --spur: #e4e8ec;
     --accent: var(--brand-deep);
     --accent-text: var(--brand-text);

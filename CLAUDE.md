@@ -1415,6 +1415,66 @@ jetzt ein Token.
 
 Über dem Ziel bleibt der Balken rot. Dort ist es wirklich eine Warnung.
 
+## Die Demo startet gefüllt
+
+`apps/pwa/js/beispiel.js`. Eine leere App zeigt nichts: ein Ring auf null,
+vier leere Balken, ein Verlauf ohne Zeilen. Genau die Ansichten, die das
+Produkt ausmachen, brauchen Vergangenheit. Das Balance Board braucht gebuchte
+Zeit, die Musteranalyse zehn gemeinsame Tage, der Gewichtstrend vier Wiegungen
+über zwei Wochen.
+
+Deshalb kommen in der Fassung für Nutzer beim ersten Start vierzehn Tage
+herein, einmal und nur wenn wirklich nichts da ist. Über Daten löschen im
+Profil kommt der leere Zustand zurück, und mit ihm der Fragebogen.
+
+Die Person ist erfunden, und das ist keine Feinheit. Im Gedächtnis des
+Betreibers stehen Notizen über Therapie, Familie und Diagnosen. Eine Demo ist
+eine öffentliche Adresse: wer den Link hat, liest alles. Echte Daten haben
+dort nichts zu suchen, auch nicht die eigenen.
+
+Der Generator läuft über einen Zufall mit Startwert, damit die Demo bei jedem
+Aufbau gleich aussieht. Echter Zufall hiesse: jeder Besucher sieht andere
+Zahlen, und ein Screenshot von gestern passt nicht mehr zu dem von heute.
+
+Geschrieben wird über `store.importAll`, also über den Weg, über den auch eine
+echte Sicherung zurückkommt. Ein zweiter Schreibweg wäre eine zweite Stelle,
+an der dieselbe Form auseinanderlaufen kann.
+
+Ein Tag ohne Eintrag ist dabei. Niemand trackt vierzehn Tage am Stück, die App
+kommt mit Lücken zurecht, und das zu zeigen ist mehr wert als eine glatte
+Reihe. Heute dagegen ist bewusst ein guter Tag: eine Demo öffnet in einem
+Zustand, der zeigt, was die App kann.
+
+## Die fünf Bereiche haben eine Farbfamilie
+
+Dieselbe Rechnung wie bei den Makrobalken, und das ist der Punkt: eine App,
+ein System.
+
+Vorher standen fünf feste Farben in `rings.js`: Kontrast von 3.53 bis 8.37,
+Sättigung von 0.56 bis 0.88, Farbtöne über den ganzen Kreis verstreut. Das
+Gewicht stand damit verkehrt herum. Karriere ist bei diesem Nutzer der grösste
+Bereich und trug den schwächsten Ton, Beziehung der kleinste und den
+lautesten. Wer auf die Kacheln schaut, liest zuerst die Farbe.
+
+Jetzt fünf Töne im Abstand von 40 Grad, überall Sättigung 0.62, jeder auf der
+Spur genau 7.0 zu 1 und im hellen Modus genau 4.0 zu 1. Kein Gelb und kein
+Orange: beides trägt in dieser App die Bedeutung Warnung, und ein
+Lebensbereich ist keine Warnung.
+
+Sie stehen als Token im Stylesheet und werden über `bereichFarbe()` gelesen,
+nicht mehr als Zeichenketten in JavaScript. Vorher waren sie in beiden
+Farbmodi gleich, und ein Ton, der auf Schwarz stimmt, stimmt auf Weiss nicht.
+Gelesen wird bei jedem Zeichnen: der Nutzer kann das Aussehen im Profil
+umschalten, und ein einmal gelesener Wert bliebe danach der alte.
+
+Die Kacheln haben jetzt eine gemeinsame Mindesthöhe. "Familie und Beziehung"
+bricht auf zwei Zeilen um, und ohne sie stand die untere Reihe tiefer als die
+obere. Die Kommentarzeile dafür stand schon im Stylesheet, die Höhe fehlte:
+eine Absicht, die nur als Text existiert, ist keine. Dass fünf Kacheln keine
+Dreierreihe füllen, bleibt in Kauf genommen. Fünf Zeilen über die volle Breite
+kosten auf Heute eine halbe Bildschirmhöhe für eine Übersicht, die man im
+Vorbeigehen liest.
+
 ## Der Startbildschirm
 
 Die Marke kommt nicht fertig ins Bild, sie entsteht. Erst öffnet sich ein

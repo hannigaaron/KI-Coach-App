@@ -22,7 +22,7 @@ import {
 import { brain } from "./brain.js";
 import { Orb } from "./orb.js";
 import { anhangAusDatei, grossInKb } from "./media.js";
-import { BEREICH_FARBE, anteilsRing, kurzDauer, metrikRing, richtungVon, ringMitZahl, wertungsRing } from "./rings.js";
+import { bereichFarbe, anteilsRing, kurzDauer, metrikRing, richtungVon, ringMitZahl, wertungsRing } from "./rings.js";
 import { Listener, alleStimmen, istDeutsch, speak, stimmenBereit, stopSpeaking, voiceSupport, waehlbareStimmen } from "./voice.js";
 import { SetupFlow } from "./setup-ui.js";
 import { postfachHolen, pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
@@ -819,7 +819,7 @@ function renderHeuteBalance() {
     kachel.appendChild(ringMitZahl({
       anteil: stand.anteilAmTag,
       zahl: `${Math.round(stand.anteilAmTag * 100)}%`,
-      farbe: BEREICH_FARBE[stand.bereich],
+      farbe: bereichFarbe(stand.bereich),
       groesse: 72,
     }));
     const name = document.createElement("div");
@@ -2352,7 +2352,7 @@ function renderBalance() {
     kachel.appendChild(ringMitZahl({
       anteil: stand.anteilAmTag,
       zahl: `${Math.round(stand.anteilAmTag * 100)}%`,
-      farbe: BEREICH_FARBE[stand.bereich],
+      farbe: bereichFarbe(stand.bereich),
       groesse: 84,
     }));
     const name = document.createElement("div");
@@ -3889,8 +3889,31 @@ $("btnSetupSicherungStart").addEventListener("click", () => {
   }
 });
 
-if (profile) startApp();
-else new SetupFlow($("setupFlow"), { onFertig: anamneseFertig });
+/**
+ * Der erste Start der Fassung für Nutzer.
+ *
+ * Eine leere App zeigt nichts: ein Ring auf null, vier leere Balken, ein
+ * Verlauf ohne Zeilen. Genau die Ansichten, die das Produkt ausmachen,
+ * brauchen Vergangenheit, das Balance Board gebuchte Zeit, die Muster zehn
+ * gemeinsame Tage, der Gewichtstrend vier Wiegungen über zwei Wochen.
+ *
+ * Deshalb kommen in der Demo vierzehn Tage einer erfundenen Person herein,
+ * einmal, und nur wenn wirklich nichts da ist. Wer die Demo benutzt hat und
+ * neu lädt, findet seine eigenen Eingaben wieder. Über Daten löschen im Profil
+ * kommt der leere Zustand zurück, und mit ihm der Fragebogen.
+ */
+async function demoVorbereiten() {
+  if (!istDemo() || profile) return false;
+  const { beispieldaten } = await import("./beispiel.js");
+  store.importAll(beispieldaten());
+  profile = store.getProfile();
+  return Boolean(profile);
+}
+
+demoVorbereiten().then((gefuellt) => {
+  if (profile || gefuellt) startApp();
+  else new SetupFlow($("setupFlow"), { onFertig: anamneseFertig });
+});
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
