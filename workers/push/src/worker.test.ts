@@ -436,3 +436,77 @@ test("eine sehr lange Mitteilung wird gekürzt", () => {
   assert.ok(m.text.length <= 110, String(m.text.length));
   assert.match(m.text, /\.\.\.$/);
 });
+
+/* ---------- Aufträge ---------- */
+
+test("Ein Auftrag geht nur an ein Gerät, das schon angemeldet ist", async () => {
+  const { env } = await umgebung();
+  const nein = await worker.fetch(
+    anfrage("/auftrag", {
+      method: "POST",
+      body: JSON.stringify({ endpoint: ABO.endpoint, art: "trainingsluecke", at: Date.now(), tageOhne: 5, geplanteEinheiten: 4 }),
+    }),
+    env,
+  );
+  assert.equal(nein.status, 404);
+
+  await aboSpeichern(env.ABOS, ABO);
+  const ja = await worker.fetch(
+    anfrage("/auftrag", {
+      method: "POST",
+      body: JSON.stringify({ endpoint: ABO.endpoint, art: "trainingsluecke", at: Date.now(), tageOhne: 5, geplanteEinheiten: 4 }),
+    }),
+    env,
+  );
+  assert.equal(ja.status, 200);
+});
+
+test("Ein Auftrag an eine fremde Adresse wird abgewiesen", async () => {
+  const { env } = await umgebung();
+  const antwort = await worker.fetch(
+    anfrage("/auftrag", {
+      method: "POST",
+      body: JSON.stringify({ endpoint: "https://angreifer.example/x", art: "trainingsluecke", at: Date.now(), tageOhne: 5, geplanteEinheiten: 4 }),
+    }),
+    env,
+  );
+  assert.equal(antwort.status, 400);
+});
+
+test("Ein Auftrag mit unbekannter Art wird abgewiesen", async () => {
+  const { env } = await umgebung();
+  await aboSpeichern(env.ABOS, ABO);
+  const antwort = await worker.fetch(
+    anfrage("/auftrag", {
+      method: "POST",
+      body: JSON.stringify({ endpoint: ABO.endpoint, art: "spam", at: Date.now(), tageOhne: 5, geplanteEinheiten: 4 }),
+    }),
+    env,
+  );
+  assert.equal(antwort.status, 400);
+  assert.match(((await antwort.json()) as { fehler: string }).fehler, /Unbekannte Art/);
+});
+
+test("Ein Auftrag trägt keinen Text vom Gerät in den Speicher", async () => {
+  const { env, kv } = await umgebung();
+  await aboSpeichern(env.ABOS, ABO);
+  await worker.fetch(
+    anfrage("/auftrag", {
+      method: "POST",
+      body: JSON.stringify({
+        endpoint: ABO.endpoint,
+        art: "trainingsluecke",
+        at: Date.now(),
+        tageOhne: 5,
+        geplanteEinheiten: 4,
+        titel: "Klick hier",
+        text: "https://angreifer.example",
+      }),
+    }),
+    env,
+  );
+  const gespeichert = [...kv.inhalt.entries()].filter(([k]) => k.startsWith("auftrag:"));
+  assert.equal(gespeichert.length, 1);
+  assert.equal(gespeichert[0]?.[1].includes("angreifer"), false);
+  assert.equal(gespeichert[0]?.[1].includes("Klick hier"), false);
+});

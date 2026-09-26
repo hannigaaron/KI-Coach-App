@@ -1,14 +1,17 @@
 import { berlinZeit, faelligerImpuls, impulseFuerTag, type Impuls } from "@daevo/core";
 import { sendeWebPush, vapidPruefen } from "@daevo/push";
 import {
+  aboId,
   aboLoeschen,
   aboLoeschenNachId,
+  aboNachId,
   aboSpeichern,
   alleAbos,
   endpunktErlaubt,
   sperren,
   type Abo,
 } from "./abos.js";
+import { auftragAblegen, auftragsMitteilung, faelligeAuftraege } from "./auftrag.js";
 import { chatWeiterreichen } from "./chat.js";
 import { postAblegen, postAbholen, postMitteilung } from "./postfach.js";
 import type { Env, ScheduledEvent } from "./umgebung.js";
@@ -32,7 +35,7 @@ import type { Env, ScheduledEvent } from "./umgebung.js";
 
 export default {
   async scheduled(_event: ScheduledEvent, env: Env, ctx: { waitUntil(p: Promise<unknown>): void }): Promise<void> {
-    ctx.waitUntil(versendeFaellige(env));
+    ctx.waitUntil(Promise.all([versendeFaellige(env), versendeAuftraege(env)]).then(() => undefined));
   },
 
   async fetch(anfrage: Request, env: Env): Promise<Response> {
@@ -62,6 +65,10 @@ export default {
 
       if (url.pathname === "/probe" && anfrage.method === "POST") {
         return await probe(anfrage, env, kopf);
+      }
+
+      if (url.pathname === "/auftrag" && anfrage.method === "POST") {
+        return await auftragAnnehmen(anfrage, env, kopf);
       }
 
       if (url.pathname === "/postfach" && anfrage.method === "POST") {
@@ -100,6 +107,33 @@ export default {
 };
 
 /* ---------- Versand ---------- */
+
+/**
+ * Die Aufträge, die an Zahlen des Nutzers hängen.
+ *
+ * Getrennt vom Impulsversand, weil hier je Gerät ein anderer Text rausgeht.
+ * Die Impulse sind für alle gleich, ein Auftrag gilt genau einem Gerät.
+ */
+export async function versendeAuftraege(env: Env, jetzt: number = Date.now()): Promise<number> {
+  const schluessel = { oeffentlich: env.VAPID_PUBLIC, privat: env.VAPID_PRIVATE };
+  let zugestellt = 0;
+  for (const auftrag of await faelligeAuftraege(env.ABOS, jetzt)) {
+    const abo = await aboNachId(env.ABOS, auftrag.aboId);
+    // Das Gerät hat sich abgemeldet, seit der Auftrag abgelegt wurde. Der
+    // Auftrag ist damit erledigt, nicht gescheitert.
+    if (!abo) continue;
+    const ergebnis = await sendeWebPush({
+      abo,
+      inhalt: auftragsMitteilung(auftrag),
+      schluessel,
+      kontakt: env.PUSH_KONTAKT,
+    });
+    if (ergebnis.ok) zugestellt++;
+    else if (ergebnis.abgelaufen) await aboLoeschenNachId(env.ABOS, auftrag.aboId);
+    else console.error(`[auftrag] ${auftrag.art} status=${ergebnis.status} ${ergebnis.fehler ?? ""}`);
+  }
+  return zugestellt;
+}
 
 export async function versendeFaellige(env: Env, jetzt: Date = new Date()): Promise<void> {
   const { tag, zeit } = berlinZeit(jetzt);
@@ -185,6 +219,47 @@ async function probe(anfrage: Request, env: Env, kopf: Record<string, string>): 
 
   const ergebnis = await verschicke(env, impuls);
   return antwort({ ok: true, art: impuls.art, ...ergebnis }, 200, kopf);
+}
+
+/**
+ * Ein Auftrag von der App.
+ *
+ * Ohne Anmeldewort, und das ist Absicht: die Fassung für Nutzer kennt keines.
+ * Die Absicherung liegt woanders. Der Auftrag trägt keinen Text, sondern nur
+ * eine Art und eine Zahl, und er geht nur an ein Gerät, das schon angemeldet
+ * ist. Wer einen fremden Endpunkt kennt, kann damit also höchstens eine
+ * Trainingsfrage auslösen, keinen eigenen Text auf einen Sperrbildschirm
+ * legen. Warum das so gebaut ist, steht in auftrag.ts.
+ */
+async function auftragAnnehmen(anfrage: Request, env: Env, kopf: Record<string, string>): Promise<Response> {
+  const daten = (await anfrage.json().catch(() => ({}))) as {
+    endpoint?: string;
+    art?: string;
+    at?: number;
+    tageOhne?: number;
+    geplanteEinheiten?: number;
+  };
+  if (!daten.endpoint) return antwort({ fehler: "Ohne endpoint geht nichts." }, 400, kopf);
+  if (!endpunktErlaubt(daten.endpoint)) {
+    return antwort({ fehler: "Dieser Endpunkt gehört zu keinem bekannten Push Dienst." }, 400, kopf);
+  }
+
+  const id = await aboId(daten.endpoint);
+  if (!(await aboNachId(env.ABOS, id))) {
+    return antwort({ fehler: "Dieses Gerät ist nicht angemeldet." }, 404, kopf);
+  }
+
+  try {
+    const auftrag = await auftragAblegen(env.ABOS, id, {
+      art: String(daten.art ?? ""),
+      at: Number(daten.at),
+      tageOhne: Number(daten.tageOhne),
+      geplanteEinheiten: Number(daten.geplanteEinheiten),
+    });
+    return antwort({ ok: true, art: auftrag.art, at: auftrag.at }, 200, kopf);
+  } catch (fehler) {
+    return antwort({ fehler: fehler instanceof Error ? fehler.message : String(fehler) }, 400, kopf);
+  }
 }
 
 /**

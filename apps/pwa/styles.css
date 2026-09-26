@@ -1878,3 +1878,93 @@ body.blatt-offen { overflow: hidden; }
   border-right: 1.6px solid var(--muted); border-top: 1.6px solid var(--muted);
   transform: rotate(45deg);
 }
+
+/* ---------- Das Foto, bevor es rausgeht ----------
+ *
+ * Die Bühne trägt drei Ebenen übereinander: das Bild, eine Zeile, die darüber
+ * läuft, und ein paar Punkte, die aufleuchten. Alle drei laufen nur, solange
+ * wirklich gerechnet wird, gesteuert über `.laeuft` am Element. Eine
+ * Animation, die immer läuft, heisst nichts mehr: der Nutzer kann dann nicht
+ * mehr sehen, ob die App arbeitet oder wartet.
+ *
+ * 4 zu 3 als festes Seitenverhältnis. Ein Bild vom Handy kommt hoch oder quer,
+ * und ohne feste Höhe springt der Knopf darunter beim Laden an eine andere
+ * Stelle. `object-fit: cover` schneidet lieber ab, als zu verzerren: ein
+ * verzerrter Teller sieht aus wie ein Fehler der App.
+ */
+.foto-buehne {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  margin: var(--s-2) 0 var(--s-5);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--erhoben);
+  border: 1px solid var(--border);
+}
+.foto-bild { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Die Zeile läuft von oben nach unten und wieder zurück. Ein Sprung zurück an
+   den Anfang wirkt wie ein Ruckler, deshalb `alternate`. */
+.foto-scan {
+  position: absolute; left: 0; right: 0; top: 0; height: 2px;
+  background: var(--brand);
+  box-shadow: 0 0 14px 2px color-mix(in srgb, var(--brand) 60%, transparent);
+  opacity: 0;
+}
+.foto-buehne.laeuft .foto-scan {
+  opacity: 1;
+  animation: foto-scan 2.2s var(--kurve) infinite alternate;
+}
+/* Bewegt wird `top` und nicht `transform`. Die Zeile ist zwei Pixel hoch, und
+   translateY(100%) sind damit zwei Pixel statt der ganzen Bühne. */
+@keyframes foto-scan {
+  from { top: 0; }
+  to { top: calc(100% - 2px); }
+}
+
+/* Die Punkte. Sie sitzen auf festen Stellen statt zufällig: derselbe Ablauf
+   bei jedem Bild ist ruhiger als ein Feld, das jedes Mal anders flackert. */
+.foto-funken { position: absolute; inset: 0; pointer-events: none; }
+.foto-funken i {
+  position: absolute; left: var(--x); top: var(--y);
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--brand);
+  opacity: 0;
+}
+.foto-buehne.laeuft .foto-funken i {
+  animation: foto-funke 3.5s var(--kurve) var(--v) infinite;
+}
+@keyframes foto-funke {
+  0%, 100% { opacity: 0; transform: scale(0.4); }
+  12% { opacity: 0.9; transform: scale(1); }
+  30% { opacity: 0; transform: scale(0.4); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .foto-buehne.laeuft .foto-scan,
+  .foto-buehne.laeuft .foto-funken i { animation: none; }
+  .foto-buehne.laeuft .foto-scan { opacity: 0.5; }
+}
+
+.foto-details {
+  width: 100%;
+  padding: var(--s-3);
+  background: var(--erhoben);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  color: var(--text);
+  font: inherit;
+}
+.foto-details:focus-visible { outline: 2px solid var(--brand-deep); outline-offset: 1px; }
+
+/* Ein Knopf über die ganze Breite, ohne die Randausrichtung des sonstigen
+   Fusses. Er ist hier die einzige Handlung, und ein einzelner Knopf, der
+   rechts klebt, sieht aus, als fehle links noch einer. */
+.foto-fuss { display: block; }
+.foto-fuss .primary { margin: 0; border-radius: var(--r-pill); padding: var(--s-4); }
+
+/* Während gerechnet wird, bleibt der Knopf gesperrt, aber nicht blass. Der
+   allgemeine Wert von 0.45 ist für einen Knopf gedacht, den man gerade nicht
+   benutzen darf. Hier ist es der einzige Ort, an dem der Fortschritt steht,
+   und ein Fortschritt, den man kaum lesen kann, ist keiner. */
+.foto-fuss .primary:disabled { opacity: 0.88; }

@@ -160,7 +160,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 675 Tests
+npm test           # 710 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1102,6 +1102,122 @@ Reihenfolge nicht offensichtlich ist: der Worker muss stehen, bevor er
 Geheimnisse annimmt. Wer die Geheimnisse zuerst setzt, wird mitten im Ablauf
 gefragt, ob ein Worker angelegt werden soll, und wer dort abbricht, hat
 weder das eine noch das andere.
+
+## Die Trainingslücke
+
+`packages/core/src/trainingsluecke.ts`, `workers/push/src/auftrag.ts`,
+`apps/pwa/js/luecke.js`.
+
+Ab vier Tagen ohne eingetragenes Training fragt daevo, was dazwischen gekommen
+ist. Vier, weil drei Tage Pause bei drei bis vier Einheiten die Woche noch
+normal sind, etwa von Freitag auf Montag. Danach ist es keine Wochenendpause
+mehr.
+
+Gefragt wird nicht, warum jemand nicht trainiert hat. Das ist ein Vorwurf und
+erzeugt eine Rechtfertigung. Gefragt wird nach dem, was dazwischen kam.
+
+Drei Bedingungen, und jede einzelne verhindert die Frage. Ohne Trainingsplan im
+Profil weiss die App nicht, was überhaupt geplant war. Ohne ein einziges
+Training in den letzten 60 Tagen ist es keine Lücke, sondern keine Datenlage,
+und eine Frage nach einer Lücke setzt voraus, dass es vorher keine war. Nach
+einer gestellten Frage bleibt es drei Tage still: bei einer zweiwöchigen Pause
+käme sonst jeden Tag dieselbe Frage, und eine tägliche Frage wird weggewischt,
+mitsamt allen anderen Nachrichten der App.
+
+Der Tag der Frage wird erst gesetzt, wenn der Worker sie angenommen hat. Wer
+ihn vorher setzt, verliert die Frage bei jedem Netzfehler still und fragt drei
+Tage lang nicht mehr.
+
+### Warum der Umweg über den Worker
+
+Alle anderen Impulse hängen an keiner Zahl des Nutzers und laufen deshalb blind
+über den Cron, siehe `tagesimpulse.ts`. Diese hier hängt am Trainingslog, und
+das liegt auf dem Gerät. Der Worker kann sie nicht selbst erkennen.
+
+Also erkennt sie die App und legt einen Auftrag ab, der Cron stellt ihn um
+18:00 zu. Abends, weil "was ist dazwischen gekommen" morgens nicht beantwortbar
+ist: da liegt der Tag noch vor einem.
+
+Der entscheidende Punkt ist, was der Auftrag nicht enthält: keinen Text. Er
+trägt die Art und die Anzahl Tage, sonst nichts. Den Text baut der Worker beim
+Versand selbst, über dieselbe Funktion, die auch die App benutzt. Käme er vom
+Gerät, wäre dieser Weg eine offene Stelle, über die sich beliebiger Text auf
+einen fremden Sperrbildschirm schieben liesse. So ist das Schlimmste, was
+jemand mit einem fremden Endpunkt anrichten kann, eine Trainingsfrage an ein
+Gerät, das ohnehin angemeldet ist.
+
+Deshalb hängt an `/auftrag` auch kein Anmeldewort, anders als am Postfach. Die
+Fassung für Nutzer kennt keines, und ein Weg, den nur der Betreiber benutzen
+kann, wäre für die Nutzer kein Weg.
+
+Je Gerät und Art genau ein Auftrag. Ein zweiter überschreibt den ersten: die
+App legt bei jedem Start einen an, und ohne das stünden nach einer Woche sieben
+Fragen im Speicher. Weiter als zwei Tage voraus wird nichts angenommen, denn
+ein Auftrag ist eine Momentaufnahme des Trainingslogs, und wer morgen
+trainiert, macht den Auftrag von heute falsch.
+
+### Antworten, ohne die App zu öffnen
+
+Die Nachricht trägt drei Knöpfe: keine Zeit, zu platt, krank oder verletzt. Ein
+Tipp darauf legt die Antwort ab, und die App bleibt zu. Genau das war der
+Zweck.
+
+Der Service Worker kommt nicht an den localStorage der App heran. Die Antwort
+geht deshalb in den Cache, und die App holt sie beim nächsten Öffnen ab,
+gelesen und gelöscht in einem Durchgang. Eine Antwort, die liegen bleibt, steht
+sonst zweimal im Gedächtnis. Ist ein Fenster offen, bekommt es die Antwort
+zusätzlich sofort über `postMessage`: sonst sieht der Nutzer seine eigene
+Antwort erst nach einem Neustart.
+
+Gespeichert wird als `muster` mit Wichtigkeit 4, nicht als `fakt`. "Keine Zeit
+gehabt" ist wiederkehrendes Verhalten und keine Tatsache, die gilt. Ein Grund,
+der dreimal auftaucht, ist die eigentliche Information.
+
+Drei Gründe und nicht fünf. Jeder führt zu einer anderen Reaktion: keine Zeit
+heisst Planung, zu platt heisst Regeneration, krank heisst gar nichts machen.
+Ein Knopf "Sonstiges" fehlt bewusst, denn wer etwas anderes sagen will, tippt
+auf die Nachricht und schreibt es. Dieser Weg bleibt immer offen, und er muss
+es: wie viele Knöpfe ein System anzeigt, steht in `Notification.maxActions`,
+überzählige lässt es stillschweigend weg, und Safari auf dem iPhone zeigt
+derzeit gar keine. Deshalb wird im Service Worker gekürzt statt gehofft, und
+deshalb stehen die häufigsten Gründe vorn.
+
+## Das Foto, bevor es rausgeht
+
+`fotoBlatt` in `apps/pwa`. Vorher ging das Bild sofort weg: Datei gewählt, zehn
+Sekunden nichts, dann ein Ergebnis. Zwei Dinge fehlten dabei. Der Nutzer sah
+nicht, ob das Bild etwas taugt, und er konnte nichts dazu sagen.
+
+Gerade das Dazusagen ist bei einem Teller die halbe Genauigkeit. Was unter der
+Sauce liegt, sieht kein Modell, und vier Stangen Spargel neben dem Fleisch sind
+im Bild eine Schätzung und im Text eine Zahl. Das Feld heisst deshalb Details
+und ist optional: wer nichts zu ergänzen hat, drückt weiter.
+
+Der Knopf zählt drei Schritte statt zu warten. Sie sind echt und nicht
+erfunden: Bild vorbereiten, Mengen schätzen, Nährwerte prüfen. Wie lange jeder
+dauert, weiss die Anzeige nicht, deshalb steht keine Zeit daneben.
+
+Die Zeile, die über das Bild läuft, ist keine Dekoration. Eine Bildauswertung
+dauert je nach Netz fünf bis fünfzehn Sekunden, und ein Standbild ohne jede
+Bewegung sieht nach der Hälfte davon aus wie eine hängende App. Sie läuft nur,
+solange wirklich gerechnet wird, gesteuert über `.laeuft` an der Bühne: eine
+Animation, die immer läuft, sagt nichts mehr. Bewegt wird dabei `top` und nicht
+`transform`, denn die Zeile ist zwei Pixel hoch, und `translateY(100%)` sind
+damit zwei Pixel statt der ganzen Bühne.
+
+Das Bild steht im Verhältnis 4 zu 3 mit `object-fit: cover`. Ein Foto vom Handy
+kommt hoch oder quer, und ohne feste Höhe springt der Knopf darunter beim Laden
+an eine andere Stelle. Abgeschnitten ist besser als verzerrt: ein verzerrter
+Teller sieht aus wie ein Fehler der App.
+
+Der laufende Knopf bleibt gesperrt, aber nicht blass. Die allgemeine Regel
+setzt gesperrte Knöpfe auf 0.45, und das ist für einen Knopf gedacht, den man
+gerade nicht benutzen darf. Hier steht der Fortschritt drin, und ein
+Fortschritt, den man kaum lesen kann, ist keiner.
+
+Beim Schliessen wird die Adresse des Bildes freigegeben. Ohne das hält der
+Browser jedes Foto der Sitzung im Speicher, und bei zehn Tellern am Tag
+summiert sich das auf einem Handy.
 
 ## Denkblöcke im Verlauf
 

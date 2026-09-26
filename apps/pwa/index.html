@@ -332,6 +332,53 @@ try {
   </div>
 
   <!--
+    Das Foto, bevor es rausgeht.
+
+    Vorher ging das Bild sofort weg: Datei gewählt, zehn Sekunden nichts, dann
+    ein Ergebnis. Zwei Dinge fehlten dabei. Der Nutzer sah nicht, ob das Bild
+    etwas taugt, und er konnte nichts dazu sagen. Gerade das Dazusagen ist bei
+    einem Teller die halbe Genauigkeit: was unter der Sauce liegt, sieht kein
+    Modell.
+
+    Die Zeile, die über das Bild läuft, ist keine Dekoration. Eine
+    Bildauswertung dauert je nach Netz fünf bis fünfzehn Sekunden, und ein
+    Standbild ohne jede Bewegung sieht nach der Hälfte davon aus wie eine
+    hängende App.
+  -->
+  <div id="fotoBlatt" class="blatt" hidden>
+    <div class="blatt-innen" role="dialog" aria-modal="true" aria-labelledby="fbTitel">
+      <header class="blatt-kopf">
+        <h2 id="fbTitel">KI Foto-Tracking</h2>
+        <button id="fbSchliessen" class="icon-btn" aria-label="Schliessen"><span class="kreuz"></span></button>
+      </header>
+      <div class="blatt-scroll">
+        <div id="fbBuehne" class="foto-buehne">
+          <img id="fbBild" class="foto-bild" alt="Dein Teller">
+          <span class="foto-scan" aria-hidden="true"></span>
+          <span class="foto-funken" aria-hidden="true">
+            <i style="--x: 12%; --y: 22%; --v: 0s"></i>
+            <i style="--x: 78%; --y: 15%; --v: .7s"></i>
+            <i style="--x: 31%; --y: 74%; --v: 1.4s"></i>
+            <i style="--x: 88%; --y: 61%; --v: 2.1s"></i>
+            <i style="--x: 57%; --y: 41%; --v: 2.8s"></i>
+          </span>
+        </div>
+
+        <label class="feld-label" for="fbDetails">Details (optional)</label>
+        <textarea id="fbDetails" class="foto-details" rows="3"
+          placeholder="4 Stangen Spargel dazu, Reis war eine grosse Kelle"></textarea>
+        <p class="sub">Mengen, die man nicht sieht, gehören hierhin. Alles andere liest daevo aus dem Bild.</p>
+        <div id="fbFeedback" class="feedback" hidden></div>
+      </div>
+      <div class="blatt-fuss foto-fuss">
+        <button type="button" id="fbAuswerten" class="primary breit">
+          <span id="fbAuswertenText">Auswerten</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!--
     Der Mahlzeit Editor. Er liegt ausserhalb der Ansichten, weil er sowohl aus
     dem Verlauf unter Essen als auch aus der Tagesansicht aufgeht, und ein
     zweites Mal dasselbe Formular wäre eine zweite Fehlerquelle.

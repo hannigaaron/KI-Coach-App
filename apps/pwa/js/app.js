@@ -7,6 +7,7 @@ import {
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, produktPerBarcode, produkteSuchen } from "@daevo/coach";
 import { Coach, AnthropicProvider } from "@daevo/coach";
 import { KONFIG, istDemo } from "./konfig.js";
+import { antwortVerarbeiten, antwortenAbholen, lueckeAusSpeicher, lueckeMelden } from "./luecke.js";
 import {
   ablaufFuer, ask, aufgabeAbhaken, aufgabeAnlegenEingestuft, aufgabeLoeschen, aufgabeUmstufen, aufgabenPlan,
   balanceFuer, balanceRat, briefing,
@@ -1893,6 +1894,18 @@ function startApp() {
     postfachPruefen();
   }
 
+  // Die Trainingslücke. Läuft still: wer trainiert hat, merkt nichts davon.
+  lueckePruefen();
+
+  // Über die Frage nach der Trainingslücke geöffnet, ohne einen der Knöpfe
+  // benutzt zu haben. Dann steht die Frage im Chat und der Nutzer antwortet
+  // frei, statt aus drei Gründen zu wählen.
+  const frage = params.get("frage");
+  if (frage === "trainingsluecke") {
+    history.replaceState(null, "", location.pathname);
+    lueckeFrageOeffnen();
+  }
+
   const gesagt = (params.get("sag") || "").trim();
   if (gesagt) {
     history.replaceState(null, "", location.pathname);
@@ -2126,30 +2139,106 @@ $("essenFoto").addEventListener("change", async (event) => {
   const datei = event.target.files?.[0];
   event.target.value = "";
   if (!datei) return;
+  await fotoBlattOeffnen(datei);
+});
 
-  // Der Knopf, der das Bild angestossen hat, ist inzwischen der eine oben auf
-  // der Seite. Er zeigt den Fortschritt, damit zwischen Auslösen und Ergebnis
-  // nicht zehn Sekunden lang nichts passiert.
-  const knopf = erfassenAuslöser ?? $("btnErfassen");
-  const titel = knopf.querySelector(".erfassen-titel");
-  const sub = knopf.querySelector(".erfassen-sub");
-  knopf.disabled = true;
-  titel.textContent = "Ich lese das Bild";
-  sub.textContent = "Das dauert ein paar Sekunden";
-  zeigeFeedback("mealFeedback", "Ich schaue mir das Bild an.");
+/* ---------- Das Foto, bevor es rausgeht ---------- */
+
+/**
+ * Was der Nutzer sieht, während gerechnet wird.
+ *
+ * Drei Schritte, nicht einer. Eine Bildauswertung dauert fünf bis fünfzehn
+ * Sekunden, und ein Knopf, der die ganze Zeit dasselbe sagt, sieht nach der
+ * Hälfte davon aus wie eine hängende App. Die Schritte sind echt und nicht
+ * erfunden: verkleinern, auswerten, gegen die Makroformel prüfen. Was die
+ * Anzeige nicht weiss, ist wie lange jeder dauert, deshalb steht keine Zeit
+ * daneben.
+ */
+const FOTO_SCHRITTE = ["Bild vorbereiten", "Mengen schätzen", "Nährwerte prüfen"];
+
+/** Das gewählte Bild, bis es ausgewertet oder verworfen ist. */
+let fotoDatei = null;
+let fotoUrl = null;
+
+async function fotoBlattOeffnen(datei) {
+  fotoDatei = datei;
+  if (fotoUrl) URL.revokeObjectURL(fotoUrl);
+  fotoUrl = URL.createObjectURL(datei);
+  $("fbBild").src = fotoUrl;
+  $("fbDetails").value = "";
+  $("fbFeedback").hidden = true;
+  fotoSchritt(null);
+  $("fotoBlatt").hidden = false;
+  document.body.classList.add("blatt-offen");
+}
+
+function fotoBlattSchliessen() {
+  $("fotoBlatt").hidden = true;
+  document.body.classList.remove("blatt-offen");
+  // Die Adresse des Bildes wird freigegeben, sonst hält der Browser jedes
+  // Foto dieser Sitzung im Speicher. Bei zehn Tellern am Tag summiert sich
+  // das auf einem Handy spürbar.
+  if (fotoUrl) { URL.revokeObjectURL(fotoUrl); fotoUrl = null; }
+  fotoDatei = null;
+  $("fbBild").removeAttribute("src");
+}
+
+/**
+ * Setzt den Schritt. `null` heisst: nicht am Rechnen.
+ *
+ * Die Animation hängt an derselben Zustandsvariable wie die Beschriftung. Wer
+ * beides getrennt setzt, hat irgendwann einen laufenden Scanner über einem
+ * fertigen Ergebnis.
+ */
+function fotoSchritt(index) {
+  const laeuft = index !== null;
+  $("fbBuehne").classList.toggle("laeuft", laeuft);
+  $("fbAuswerten").disabled = laeuft;
+  $("fbAuswertenText").textContent = laeuft
+    ? `${index + 1}/${FOTO_SCHRITTE.length} ${FOTO_SCHRITTE[index]}...`
+    : "Auswerten";
+}
+
+$("fbSchliessen").addEventListener("click", fotoBlattSchliessen);
+$("fotoBlatt").addEventListener("click", (event) => {
+  if (event.target === $("fotoBlatt")) fotoBlattSchliessen();
+});
+
+$("fbAuswerten").addEventListener("click", async () => {
+  if (!fotoDatei) return;
+  const hinweis = $("fbDetails").value.trim().slice(0, 500);
+  const feedback = $("fbFeedback");
+  feedback.hidden = true;
+
   try {
-    const anhang = await anhangAusDatei(datei);
-    if (anhang.fehler) { zeigeFeedback("mealFeedback", anhang.fehler, true); return; }
-    const text = await buildActions({ onChange: refreshAll, anhaenge: [anhang] }).fotoAlsMahlzeit({});
+    fotoSchritt(0);
+    const anhang = await anhangAusDatei(fotoDatei);
+    if (anhang.fehler) {
+      feedback.hidden = false;
+      feedback.className = "feedback err";
+      feedback.textContent = anhang.fehler;
+      fotoSchritt(null);
+      return;
+    }
+
+    fotoSchritt(1);
+    const aktionen = buildActions({ onChange: refreshAll, anhaenge: [anhang] });
+    const text = await aktionen.fotoAlsMahlzeit(hinweis ? { hinweis } : {});
+
+    // Der dritte Schritt ist die Prüfung gegen die Makroformel, und die läuft
+    // in fotoAlsMahlzeit schon mit. Er wird hier nur noch angezeigt, damit
+    // die Zählung nicht bei 2 von 3 stehen bleibt.
+    fotoSchritt(2);
+    fotoBlattSchliessen();
     zeigeFeedback("mealFeedback", text);
     renderMeals("mealList2");
     refreshAll();
   } catch (error) {
-    zeigeFeedback("mealFeedback", `Das hat nicht geklappt: ${error.message}`, true);
+    feedback.hidden = false;
+    feedback.className = "feedback err";
+    feedback.textContent = `Das hat nicht geklappt: ${error.message}`;
   } finally {
-    knopf.disabled = false;
-    titel.textContent = "Essen erfassen";
-    sub.textContent = "Foto, Barcode, Suche oder sprechen";
+    fotoSchritt(null);
   }
 });
 
@@ -3604,7 +3693,70 @@ function nurZahl(text) {
 // Nutzer als kaputt.
 navigator.serviceWorker?.addEventListener("message", (event) => {
   if (event.data?.typ === "impuls") impulsOeffnen(event.data.daten);
+  // Eine Antwort, die der Nutzer direkt in der Benachrichtigung gegeben hat,
+  // während die App offen war. Sie wird sofort verarbeitet statt erst beim
+  // nächsten Start: sonst sieht der Nutzer seine eigene Antwort nicht.
+  if (event.data?.typ === "antwort") {
+    const satz = antwortVerarbeiten(event.data.daten, { store, brain });
+    if (satz) { toast("Antwort übernommen"); refreshAll(); }
+  }
 });
+
+/* ---------- Die Trainingslücke ---------- */
+
+/**
+ * Prüft die Lücke und beauftragt den Worker mit der Frage.
+ *
+ * Zwei Teile, die getrennt scheitern dürfen. Die Antworten werden immer
+ * abgeholt, auch wenn kein Worker eingerichtet ist: sie liegen schon da, und
+ * eine Antwort zu verlieren, weil eine Adresse fehlt, wäre absurd.
+ *
+ * Läuft still. Ohne Push Abo passiert nichts, und wer trainiert hat, soll von
+ * dieser Funktion nie etwas merken.
+ */
+async function lueckePruefen() {
+  for (const eintrag of await antwortenAbholen()) {
+    const satz = antwortVerarbeiten(eintrag, { store, brain });
+    if (satz) toast("Antwort übernommen");
+  }
+
+  const luecke = lueckeAusSpeicher(store);
+  if (!luecke) return;
+
+  const worker = store.getSettings().pushWorker || KONFIG.pushUrl || "";
+  if (!worker || !navigator.serviceWorker) return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const abo = await reg.pushManager?.getSubscription();
+    if (!abo) return;
+    await lueckeMelden({ store, worker, endpoint: abo.endpoint, luecke });
+  } catch {
+    // Kein Netz, kein Abo, kein Worker. Beim nächsten Öffnen wieder, denn
+    // `lueckeGefragt` wird erst nach einer angenommenen Meldung gesetzt.
+  }
+}
+
+/**
+ * Stellt die Frage im Chat.
+ *
+ * Für den Weg über den Tipp auf die Nachricht statt auf einen ihrer Knöpfe.
+ * Die Frage steht damit im Verlauf, und die Antwort geht als normale
+ * Nachricht an den Coach, der sie im Zusammenhang beantwortet.
+ */
+function lueckeFrageOeffnen() {
+  const luecke = lueckeAusSpeicher(store);
+  if (!luecke) return;
+  showView("assistant");
+  const chat = store.getChat();
+  const letzte = chat[chat.length - 1];
+  const text = `${luecke.titel}. ${luecke.text}`;
+  if (!(letzte?.role === "assistant" && letzte.text === text)) {
+    chat.push({ role: "assistant", text, at: new Date().toISOString() });
+    store.setChat(chat);
+    renderTranscript();
+  }
+  $("chatInput").focus();
+}
 
 function stimmProbe() {
   const e = store.getSettings();
