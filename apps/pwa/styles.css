@@ -431,6 +431,43 @@ button:disabled { opacity: 0.5; }
 .section-title { font-size: 13px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin: 26px 0 10px; }
 
 /* Ring */
+/* ---------- Der Held ----------
+ *
+ * Eine Seite hat einen Helden oder keinen. Vorher standen auf Heute zwei
+ * grosse Ringe übereinander, der obere mit einer abgeleiteten Punktzahl. Zwei
+ * Helden sind keiner: das Auge sucht, statt zu lesen.
+ *
+ * Der Held trägt keinen Kasten. Ein Rahmen um das Wichtigste auf der Seite
+ * macht es zu einem Objekt neben anderen Objekten. Was ihn zusammenhält, ist
+ * der Abstand zu seinen Nachbarn.
+ */
+.held {
+  display: flex; flex-direction: column; align-items: center;
+  gap: var(--s-2); padding: var(--s-1) 0 var(--s-4);
+}
+.held-ring { position: relative; width: 196px; height: 196px; }
+.held-ring .ring { width: 196px; height: 196px; }
+/* Dünner als der kleine Ring. Eine Spur, die mitwächst, wird zum Reifen: auf
+   196 Pixeln trägt dieselbe Stärke von fünf optisch doppelt so viel wie auf
+   132, und der Ring nimmt der Zahl in seiner Mitte das Gewicht. */
+.held-ring .ring circle { stroke-width: 3.6; }
+.held-zahl {
+  font-size: var(--t-4xl); font-weight: 680; letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums; line-height: 1;
+}
+.held-label { font-size: var(--t-sm); color: var(--muted); margin-top: var(--s-2); }
+/* Die Nebenzahlen stehen in einer Zeile und nicht in einer Tabelle daneben.
+   Gegessen und Ziel erklären die grosse Zahl, sie konkurrieren nicht mit ihr. */
+.held-satz {
+  margin: 0; font-size: var(--t-sm); color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.held-satz b, .held-satz span:not(.held-punkt) { color: var(--text); font-weight: 600; }
+.held-punkt {
+  display: inline-block; width: 3px; height: 3px; border-radius: 50%;
+  background: currentColor; opacity: 0.5; margin: 0 var(--s-2) 3px;
+}
+
 .ring-card {
   background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
   padding: 18px; display: flex; gap: 18px; align-items: center;
@@ -453,6 +490,43 @@ button:disabled { opacity: 0.5; }
 .mini:last-child { border-bottom: none; }
 .mini-k { color: var(--muted); }
 .mini-v { font-weight: 650; font-variant-numeric: tabular-nums; }
+
+/* ---------- Messwerte ----------
+ *
+ * Ein Ring ist die falsche Form für einen kleinen Anteil. Drei Prozent auf
+ * einem Ring sind ein Stummel von zehn Grad, und daneben steht eine Zahl, die
+ * das Gleiche noch einmal sagt. Fünf davon nebeneinander ergeben ausserdem
+ * eine Reihe zu drei und eine zu zwei, also eine Waise.
+ *
+ * Ein Balken trägt jeden Anteil von null bis über hundert, liest sich in
+ * einer Spalte untereinander und lässt Name, Wert und Ziel auf einer Zeile
+ * stehen. Dieselbe Form wie bei den Makros: eine App, ein System.
+ */
+.messwerte { display: flex; flex-direction: column; gap: var(--s-4); margin: var(--s-4) 0 var(--s-2); }
+.messwert { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 0; color: inherit; }
+button.messwert { cursor: pointer; }
+button.messwert:active { opacity: 0.65; }
+.messwert-kopf {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: var(--s-3); margin-bottom: var(--s-2);
+}
+.messwert-name { font-size: var(--t-sm); font-weight: 600; letter-spacing: -0.005em; }
+.messwert-wert { font-size: var(--t-sm); color: var(--muted); font-variant-numeric: tabular-nums; }
+.messwert-wert b { color: var(--text); font-weight: 650; }
+.messwert-zusatz { color: var(--muted); font-weight: 500; }
+.messwert.gross .messwert-name { font-size: var(--t-md); }
+.messwert.gross .messwert-wert b { font-size: var(--t-xl); letter-spacing: -0.02em; }
+/* Die Farbe kommt je Zeile über eine Variable, nicht über eine Klasse je
+   Bereich. Fünf Klassen für fünf Farben wären fünf Stellen, an denen eine
+   Farbe später nicht mitgezogen wird. */
+.messwert .balken > i { background: var(--ton, var(--brand)); }
+/* Über dem Ziel. Nicht rot, denn über einem Fitnessziel zu liegen ist kein
+   Fehler. Eine Schraffur sagt "voll und darüber hinaus", eine volle Spur
+   allein sähe aus wie genau erreicht. */
+.messwert .balken > i.drueber {
+  background-image: repeating-linear-gradient(115deg,
+    rgba(0, 0, 0, 0.2) 0 2px, transparent 2px 9px);
+}
 
 /* Balken */
 /* Die Gruppe hiess ebenfalls `.bars`, genau wie das Menuesymbol in der
@@ -849,12 +923,27 @@ img.only-light { display: none; }
   border-left: 2px solid currentColor; border-bottom: 2px solid currentColor;
   transform: rotate(45deg); margin-left: 4px;
 }
-.icon-btn .speaker {
-  display: block; width: 16px; height: 16px; border-radius: 50%;
-  border: 2px solid currentColor;
+/*
+ * Sprachausgabe.
+ *
+ * Vorher ein leerer Kreis mit gestricheltem Rand im Aus-Zustand. Ein Kreis
+ * ist kein Lautsprecher, und gestrichelt gegen durchgezogen ist als einziger
+ * Unterschied zwischen an und aus zu leise.
+ *
+ * Als SVG und nicht aus Rahmen zusammengesetzt. Ein Trichter aus
+ * `border-left` mit durchsichtigem Rand oben und unten ergibt ein Dreieck,
+ * das je nach Zeilenhöhe zwei Pixel neben dem Korpus sitzt, und die Welle als
+ * halber Kreisrand wurde zur einzelnen Klammer. Für eine Form mit Schrägen
+ * ist ein Pfad das richtige Mittel.
+ */
+.icon-btn .speaker { display: block; width: 22px; height: 22px; }
+.speaker-korpus { fill: currentColor; }
+.speaker-welle, .speaker-strich { fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; }
+/* An zeigt die Welle, aus zeigt das Kreuz. Eine Form, die sich ändert, liest
+   sich schneller als eine Linienart, die sich ändert. */
+.icon-btn[aria-pressed="true"] .speaker-strich,
+.icon-btn[aria-pressed="false"] .speaker-welle { display: none; }
 }
-.icon-btn[aria-pressed="false"] { color: var(--muted); }
-.icon-btn[aria-pressed="false"] .speaker { border-style: dashed; }
 
 /* Bühne mit dem Kreis */
 .stage {
@@ -1269,13 +1358,25 @@ input[type="range"]::-moz-range-thumb {
   background: transparent; border: 0; color: var(--muted); font-size: 17px; line-height: 1;
 }
 .gs-leer { color: var(--muted); font-size: 14.5px; line-height: 1.6; padding: 22px 2px; }
-.icon-btn .stapel, .icon-btn .plus { display: block; width: 20px; height: 20px; position: relative; }
-.icon-btn .stapel::before, .icon-btn .stapel::after {
-  content: ""; position: absolute; left: 2px; right: 2px; height: 2px; border-radius: 2px;
-  background: currentColor;
+.icon-btn .plus { display: block; width: 20px; height: 20px; position: relative; }
+/*
+ * Gespräche.
+ *
+ * Vorher waren das drei gleich lange Striche, also genau das Menüsymbol
+ * daneben. Zwei verschiedene Handlungen mit demselben Bild nimmt niemand als
+ * zwei wahr: der Nutzer drückt eines von beiden und lernt nichts dazu.
+ * Jetzt eine Liste mit Punkten davor.
+ */
+.icon-btn .stapel { display: block; width: 18px; height: 14px; position: relative; }
+.icon-btn .stapel::before, .icon-btn .stapel::after { content: ""; position: absolute; background: currentColor; }
+.icon-btn .stapel::before {
+  left: 0; top: 0; width: 4px; height: 4px; border-radius: 50%;
+  box-shadow: 0 5px 0 currentColor, 0 10px 0 currentColor;
 }
-.icon-btn .stapel::before { top: 5px; box-shadow: 0 5px 0 currentColor; }
-.icon-btn .stapel::after { top: 15px; }
+.icon-btn .stapel::after {
+  left: 7px; top: 1px; width: 11px; height: 2px; border-radius: 2px;
+  box-shadow: 0 5px 0 currentColor, 0 10px 0 currentColor;
+}
 .icon-btn .plus::before, .icon-btn .plus::after {
   content: ""; position: absolute; background: currentColor; border-radius: 2px;
 }
@@ -1968,3 +2069,36 @@ body.blatt-offen { overflow: hidden; }
    benutzen darf. Hier ist es der einzige Ort, an dem der Fortschritt steht,
    und ein Fortschritt, den man kaum lesen kann, ist keiner. */
 .foto-fuss .primary:disabled { opacity: 0.88; }
+
+
+/* ---------- Betriebsarten ----------
+ *
+ * Kopf leeren und das Weckwort sind Zustände, keine Eingabehilfen. Sie
+ * standen in der Pille als zwei Wörter zwischen vier Symbolen und haben den
+ * Platzhalter im Feld abgeschnitten. Jetzt stehen sie darüber, beschriftet,
+ * mit einem Punkt, der den Zustand trägt.
+ */
+.modi {
+  display: flex; gap: var(--s-2);
+  padding: 0 var(--s-4) var(--s-2);
+}
+.modus {
+  display: inline-flex; align-items: center; gap: var(--s-2);
+  padding: 7px var(--s-3); border-radius: var(--r-pill);
+  border: 1px solid var(--border); background: var(--panel-2);
+  color: var(--muted); font: inherit; font-size: var(--t-xs); font-weight: 600;
+  transition: color var(--schnell) var(--kurve), border-color var(--schnell) var(--kurve);
+}
+.modus:active { transform: scale(0.98); }
+.modus-punkt {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor; opacity: 0.45;
+  transition: opacity var(--schnell) var(--kurve), box-shadow var(--schnell) var(--kurve);
+}
+/* An heisst: Farbe, voller Punkt und ein Schimmer darum. Drei Signale, weil
+   ein offenes Mikrofon Akku zieht und niemand es übersehen darf. */
+.modus[aria-pressed="true"] { color: var(--accent-text); border-color: var(--accent); }
+.modus[aria-pressed="true"] .modus-punkt {
+  opacity: 1; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+@media (prefers-reduced-motion: reduce) { .modus, .modus-punkt { transition: none; } }

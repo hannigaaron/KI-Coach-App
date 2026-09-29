@@ -91,7 +91,11 @@ try {
         <span class="plus"></span>
       </button>
       <button id="btnSpeaker" class="icon-btn" aria-label="Sprachausgabe umschalten" aria-pressed="true">
-        <span class="speaker"></span>
+        <svg class="speaker" viewBox="0 0 24 24" aria-hidden="true">
+          <path class="speaker-korpus" d="M4 9.3h3.3L12 5.2v13.6L7.3 14.7H4z"/>
+          <path class="speaker-welle" d="M15.4 9.1a4.2 4.2 0 0 1 0 5.8"/>
+          <path class="speaker-strich" d="M15.8 9.4l5 5M20.8 9.4l-5 5"/>
+        </svg>
       </button>
     </header>
 
@@ -124,12 +128,24 @@ try {
       Aus Zwischenablage senden
     </button>
 
+    <!--
+      Kopf leeren und das Weckwort sind Betriebsarten, keine Eingabehilfen.
+      In der Pille standen sie als zwei Wörter zwischen vier Symbolen, und der
+      Platzhalter im Feld war danach abgeschnitten: "Schreib oder spr". Sechs
+      Bedienelemente in einer Zeile auf 390 Pixeln gehen nicht auf.
+    -->
+    <div class="modi">
+      <button type="button" id="btnDump" class="modus" aria-label="Kopf leeren, alles rausreden">
+        <span class="modus-punkt" aria-hidden="true"></span>Kopf leeren
+      </button>
+      <button type="button" id="btnWeckwort" class="modus" aria-pressed="false" aria-label="Auf Hey daevo hören">
+        <span class="modus-punkt" aria-hidden="true"></span>Hey daevo
+      </button>
+    </div>
+
     <form id="composer" class="composer-bar">
       <button type="button" id="btnMic" class="icon-btn mic" aria-label="Diktieren"><span class="mic-dot"></span></button>
       <button type="button" id="btnAnhang" class="icon-btn clip" aria-label="Foto oder Datei anhängen"><span class="clip-icon"></span></button>
-      <button type="button" id="btnDump" class="icon-btn dump" aria-label="Kopf leeren, alles rausreden">Kopf</button>
-      <button type="button" id="btnWeckwort" class="icon-btn weckwort" aria-pressed="false"
-              aria-label="Auf Hey daevo hören">Hey</button>
       <input id="chatInput" type="text" placeholder="Schreib oder sprich" autocomplete="off" enterkeyhint="send">
       <button type="submit" id="btnSend" class="icon-btn send" aria-label="Senden"><span class="arrow"></span></button>
     </form>
@@ -151,28 +167,40 @@ try {
   <section class="view" data-view="heute" hidden>
     <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Heute</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
-      <div class="wertung">
-        <div class="metriken" id="tagMetriken"></div>
-        <div id="tagWertung"></div>
-        <p class="wertung-satz" id="tagWertungSatz"></p>
-      </div>
-
-      <div class="ring-card">
-        <div class="ring-wrap">
+      <!--
+        Die Kalorien sind der Grund, warum jemand diese Seite aufmacht. Vorher
+        stand hier eine abgeleitete Punktzahl über die halbe Bildschirmhöhe,
+        und die Zahl, um die es geht, lag klein darunter. Eine grosse Zahl ist
+        ein Versprechen: sie sagt, das hier ist das Wichtigste. Wenn das nicht
+        stimmt, glaubt der Nutzer der Seite beim nächsten Mal weniger.
+      -->
+      <div class="held">
+        <div class="held-ring">
           <svg viewBox="0 0 120 120" class="ring" aria-hidden="true">
             <circle class="ring-bg" cx="60" cy="60" r="52"></circle>
             <circle id="ringKcal" class="ring-fg" cx="60" cy="60" r="52"></circle>
           </svg>
           <div class="ring-center">
-            <div id="kcalLeft" class="ring-num">0</div>
-            <div class="ring-label">kcal übrig</div>
+            <div id="kcalLeft" class="held-zahl">0</div>
+            <div class="held-label">kcal übrig</div>
           </div>
         </div>
-        <div class="ring-side">
-          <div class="mini"><span class="mini-k">Gegessen</span><span id="kcalEaten" class="mini-v">0</span></div>
-          <div class="mini"><span class="mini-k">Ziel</span><span id="kcalTarget" class="mini-v">0</span></div>
-          <div class="mini"><span class="mini-k" id="scoreLabel">Ernährung</span><span id="scoreVal" class="mini-v">0</span></div>
-        </div>
+        <p class="held-satz">
+          <span id="kcalEaten">0</span> gegessen<span class="held-punkt" aria-hidden="true"></span><span id="kcalTarget">0</span> Ziel
+        </p>
+      </div>
+
+      <div class="balken-gruppe" id="makroGruppe">
+        <div class="balken-zeile"><div class="balken-kopf"><span>Protein</span><span id="pTxt"></span></div><div class="balken"><i id="pBar" class="protein"></i></div></div>
+        <div class="balken-zeile"><div class="balken-kopf"><span>Fett</span><span id="fTxt"></span></div><div class="balken"><i id="fBar" class="fett"></i></div></div>
+        <div class="balken-zeile"><div class="balken-kopf"><span>Kohlenhydrate</span><span id="cTxt"></span></div><div class="balken"><i id="cBar" class="kohlenhydrate"></i></div></div>
+        <div class="balken-zeile"><div class="balken-kopf"><span>Wasser</span><span id="wTxt"></span></div><div class="balken"><i id="wBar" class="wasser"></i></div></div>
+      </div>
+
+      <div class="quick">
+        <button class="chip" data-water="250">+250 ml</button>
+        <button class="chip" data-water="500">+500 ml</button>
+        <button class="chip" data-water="750">+750 ml</button>
       </div>
 
       <!--
@@ -188,21 +216,25 @@ try {
         </span>
       </button>
 
-      <div class="ring-kacheln" id="heuteBalance"></div>
+      <!--
+        Die Tagesnutzung ist eine abgeleitete Zahl und steht deshalb hinter
+        dem, woraus sie abgeleitet ist. Als Leiste und nicht als Ring: ein
+        Ring in der Grösse eines Helden behauptet, er sei einer.
+      -->
+      <h2 class="abschnitt">Wie der Tag läuft</h2>
+      <div class="messwert gross" id="tagLeiste">
+        <div class="messwert-kopf">
+          <span class="messwert-name">Tagesnutzung</span>
+          <span class="messwert-wert"><b id="tagWert">0</b> <span id="tagUrteil" class="messwert-zusatz"></span></span>
+        </div>
+        <div class="balken"><i id="tagBalken"></i></div>
+      </div>
+      <p class="sub" id="tagWertungSatz"></p>
+      <div class="messwerte" id="tagMetriken"></div>
+
+      <h2 class="abschnitt">Wo die Zeit hingeht</h2>
+      <div class="messwerte" id="heuteBalance"></div>
       <p class="fineprint" id="heuteBalanceHinweis" style="margin-top:0"></p>
-
-      <div class="balken-gruppe">
-        <div class="balken-zeile"><div class="balken-kopf"><span>Protein</span><span id="pTxt"></span></div><div class="balken"><i id="pBar" class="protein"></i></div></div>
-        <div class="balken-zeile"><div class="balken-kopf"><span>Fett</span><span id="fTxt"></span></div><div class="balken"><i id="fBar" class="fett"></i></div></div>
-        <div class="balken-zeile"><div class="balken-kopf"><span>Kohlenhydrate</span><span id="cTxt"></span></div><div class="balken"><i id="cBar" class="kohlenhydrate"></i></div></div>
-        <div class="balken-zeile"><div class="balken-kopf"><span>Wasser</span><span id="wTxt"></span></div><div class="balken"><i id="wBar" class="wasser"></i></div></div>
-      </div>
-
-      <div class="quick">
-        <button class="chip" data-water="250">+250 ml</button>
-        <button class="chip" data-water="500">+500 ml</button>
-        <button class="chip" data-water="750">+750 ml</button>
-      </div>
 
       <h2 class="abschnitt">Gewicht</h2>
       <div class="card">
@@ -587,13 +619,18 @@ try {
         <button class="seg-btn" data-tage="30">30 Tage</button>
       </div>
 
+      <!--
+        Ein Ring, nicht zwei. Vorher stand neben dem Anteilsring noch die
+        Tagesnutzung als zweiter Ring in anderer Grösse. Zwei Ringe
+        nebeneinander, die verschiedene Fragen beantworten, lesen sich als ein
+        Vergleich, der keiner ist.
+      -->
       <div class="ring-buehne">
         <div id="balanceStapel" class="ring-stapel"></div>
-        <div id="balanceTagesring" class="ring-tag"></div>
       </div>
-      <p class="fineprint" id="balanceNutzung"></p>
 
-      <div class="ring-kacheln" id="balanceKacheln"></div>
+      <div class="messwerte" id="balanceKacheln"></div>
+      <p class="fineprint" id="balanceNutzung"></p>
 
       <p class="fineprint" id="balanceHinweis"></p>
 

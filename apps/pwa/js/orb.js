@@ -42,7 +42,16 @@ const ORIGIN_Y = -6;
 const STRANDS = 30;
 const PER_STRAND = 108;
 const RING_PARTICLES = STRANDS * PER_STRAND;
-const STEM_PARTICLES = 1500;
+/*
+ * Die Punktzahl des Stamms folgt seiner Fläche, nicht dem Gefühl.
+ *
+ * Der Ring trägt 3240 Punkte auf einem Band von rund 157500 Quadrateinheiten,
+ * also 0,0206 je Einheit. Der Stamm misst 140 mal 740, also 103600 Einheiten,
+ * und braucht bei gleicher Dichte rund 2130. Mit den vorherigen 1500 lag er
+ * bei zwei Dritteln davon: der Ring wirkte dicht, der Stamm ausgefranst, und
+ * das d las sich als zerrissener Buchstabe statt als Wortmarke.
+ */
+const STEM_PARTICLES = 2130;
 const ALPHA_STEPS = 12;
 
 /**

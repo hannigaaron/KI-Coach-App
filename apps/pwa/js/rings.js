@@ -210,7 +210,10 @@ export function kurzDauer(minuten) {
   const h = Math.floor(minuten / 60);
   const m = Math.round(minuten % 60);
   if (h === 0) return `${m} min`;
-  return m === 0 ? `${h} h` : `${h}:${String(m).padStart(2, "0")} h`;
+  // Vorher stand hier "8:12 h" neben "43 min" in derselben Spalte. Eine
+  // Uhrzeitschreibweise für eine Dauer zwingt den Leser ausserdem, jede Zeile
+  // einzeln zu deuten: 8:12 sieht aus wie zwölf nach acht.
+  return m === 0 ? `${h} h` : `${h} h ${String(m).padStart(2, "0")}`;
 }
 
 

@@ -30,7 +30,7 @@ import {
 import { brain } from "./brain.js";
 import { Orb } from "./orb.js";
 import { anhangAusDatei, grossInKb } from "./media.js";
-import { bereichFarbe, anteilsRing, kurzDauer, metrikRing, richtungVon, ringMitZahl, wertungsRing } from "./rings.js";
+import { bereichFarbe, anteilsRing, kurzDauer, wertungsRing } from "./rings.js";
 import { Listener, alleStimmen, istDeutsch, speak, stimmenBereit, stopSpeaking, voiceSupport, waehlbareStimmen } from "./voice.js";
 import { SetupFlow } from "./setup-ui.js";
 import { postfachHolen, pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
@@ -767,17 +767,62 @@ function refreshAll() {
  */
 const URTEIL = [
   { ab: 85, wort: "Stark" },
-  { ab: 70, wort: "Ziemlich gut" },
+  { ab: 70, wort: "Gut" },
   { ab: 50, wort: "Solide" },
-  { ab: 30, wort: "Dünn" },
-  { ab: 0, wort: "Schwach" },
+  // "Dünn" und "Schwach" beschrieben den Nutzer, nicht den Tag, und bei einer
+  // App, die auch Körpergewicht führt, liest sich "dünn" doppelt falsch. Ein
+  // Urteil über einen Tag soll sagen, wie voll er war, nicht wie jemand ist.
+  { ab: 30, wort: "Mager" },
+  { ab: 0, wort: "Leer" },
 ];
+
+/**
+ * Baut eine Messwertzeile.
+ *
+ * Eine Funktion für alle: Tagesnutzung, die vier Teile darunter und die fünf
+ * Lebensbereiche laufen durch dieselbe. Drei Bauarten für dieselbe Form wären
+ * drei Stellen, an denen sie später auseinanderlaufen.
+ */
+function messwert({ name, wert, zusatz = "", anteil, ton, ziel, ueber = false }) {
+  const el = document.createElement(ziel ? "button" : "div");
+  el.className = "messwert";
+  if (ziel) { el.type = "button"; el.addEventListener("click", () => showView(ziel)); }
+  if (ton) el.style.setProperty("--ton", ton);
+
+  const kopf = document.createElement("div");
+  kopf.className = "messwert-kopf";
+  const links = document.createElement("span");
+  links.className = "messwert-name";
+  links.textContent = name;
+  const rechts = document.createElement("span");
+  rechts.className = "messwert-wert";
+  rechts.innerHTML = `<b>${escapeHtml(String(wert))}</b>${zusatz ? ` <span class="messwert-zusatz">${escapeHtml(zusatz)}</span>` : ""}`;
+  kopf.append(links, rechts);
+
+  const spur = document.createElement("div");
+  spur.className = "balken";
+  const fuellung = document.createElement("i");
+  // Über hundert Prozent wird gedeckelt, sonst läuft der Balken aus seiner
+  // Spur. Dass es mehr war, steht in der Zahl daneben und zusätzlich als
+  // Schraffur: eine volle Spur allein sieht aus wie genau erreicht.
+  fuellung.style.width = `${Math.max(0, Math.min(1, anteil)) * 100}%`;
+  if (ueber || anteil > 1) fuellung.classList.add("drueber");
+  spur.appendChild(fuellung);
+
+  el.append(kopf, spur);
+  return el;
+}
 
 function renderTagWertung() {
   const heute = tagesnutzungFuer(day);
   const gesternTag = new Date(`${day}T12:00:00`);
   gesternTag.setDate(gesternTag.getDate() - 1);
   const gestern = tagesnutzungFuer(gesternTag.toISOString().slice(0, 10));
+
+  $("tagWert").textContent = String(heute.wert);
+  $("tagUrteil").textContent = URTEIL.find((u) => heute.wert >= u.ab).wort;
+  $("tagBalken").style.width = `${Math.max(0, Math.min(100, heute.wert))}%`;
+  $("tagWertungSatz").textContent = heute.satz;
 
   // Jede Kennzahl führt dorthin, wo man sie ändern kann. Eine Zahl ohne Weg
   // zur Handlung ist nur eine Zahl.
@@ -787,35 +832,29 @@ function renderTagWertung() {
   metriken.innerHTML = "";
   for (const teil of heute.teile) {
     const alt = gestern.teile.find((x) => x.name === teil.name);
-    const kachel = metrikRing({
+    metriken.appendChild(messwert({
       name: teil.name,
       wert: teil.wert,
-      richtung: richtungVon(teil.wert, alt?.wert),
-    });
-    const ziel = ZIEL[teil.name];
-    if (ziel) {
-      kachel.classList.add("klickbar");
-      kachel.setAttribute("role", "button");
-      kachel.setAttribute("tabindex", "0");
-      kachel.dataset.ziel = ziel;
-      kachel.addEventListener("click", () => showView(ziel));
-      kachel.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); showView(ziel); }
-      });
-    }
-    metriken.appendChild(kachel);
+      zusatz: vergleichWort(teil.wert, alt?.wert),
+      anteil: teil.wert / 100,
+      ziel: ZIEL[teil.name],
+    }));
   }
+}
 
-  const wrap = $("tagWertung");
-  wrap.innerHTML = "";
-  wrap.appendChild(wertungsRing({
-    wert: heute.wert,
-    etikett: "TAGESNUTZUNG",
-    urteil: URTEIL.find((u) => heute.wert >= u.ab).wort,
-    groesse: 230,
-  }));
-
-  $("tagWertungSatz").textContent = heute.satz;
+/**
+ * Der Vergleich zu gestern in Worten statt als Pfeil.
+ *
+ * Ein Pfeil neben einer Zahl von 0 bis 100 sagt die Richtung und verschweigt
+ * die Grösse. "plus 12" ist beides in derselben Breite. Unter drei Punkten
+ * steht nichts: ein Punkt auf hundert ist Rauschen, und ein Pfeil auf Rauschen
+ * erzeugt Aktionismus.
+ */
+function vergleichWort(jetzt, vorher) {
+  if (!Number.isFinite(Number(vorher))) return "";
+  const diff = Math.round(Number(jetzt) - Number(vorher));
+  if (Math.abs(diff) < 3) return "wie gestern";
+  return `${diff > 0 ? "+" : ""}${diff} zu gestern`;
 }
 
 /* ---------- Der Bericht ---------- */
@@ -986,25 +1025,24 @@ function renderHeuteBalance() {
   const b = balanceFuer(1, day);
   el.innerHTML = "";
   for (const stand of b.bereiche) {
-    const kachel = document.createElement("div");
-    kachel.className = "ring-kachel";
-    kachel.appendChild(ringMitZahl({
-      anteil: stand.anteilAmTag,
-      zahl: `${Math.round(stand.anteilAmTag * 100)}%`,
-      farbe: bereichFarbe(stand.bereich),
-      groesse: 72,
+    el.appendChild(messwert({
+      name: stand.name,
+      wert: kurzDauer(stand.minuten),
+      zusatz: stand.zielMinuten ? `von ${kurzDauer(stand.zielMinuten)}` : "",
+      // Der Balken misst gegen das Ziel, nicht gegen den Tag. Vorher füllte
+      // ihn der Anteil am Tag, während die Zahl daneben das Ziel nannte: zwei
+      // Fragen in einer Zeile, und keine davon war ablesbar. Den Anteil am Tag
+      // beantwortet der Ring auf der Balance Seite.
+      anteil: stand.zielMinuten > 0 ? stand.minuten / stand.zielMinuten : 0,
+      ton: bereichFarbe(stand.bereich),
+      ziel: "balance",
     }));
-    const name = document.createElement("div");
-    name.className = "k-name";
-    name.textContent = stand.name;
-    kachel.appendChild(name);
-    el.appendChild(kachel);
   }
 
   const nutzung = tagesnutzungFuer(day);
   const leer = b.bereiche.filter((x) => x.minuten === 0).map((x) => x.name);
   $("heuteBalanceHinweis").textContent = b.gesamtMinuten === 0
-    ? "Heute ist noch keine Minute gemessen. Kalender, eingetragene Zeit oder erledigte Aufgabe füllen die Ringe."
+    ? "Heute ist noch keine Minute gemessen. Kalender, eingetragene Zeit oder erledigte Aufgabe füllen die Balken."
     : `Tagesnutzung ${nutzung.wert} von 100.${leer.length ? ` Noch nichts in: ${leer.join(", ")}.` : ""}`;
 }
 
@@ -1018,9 +1056,9 @@ function renderToday() {
   $("kcalEaten").textContent = `${n.totals.kcal} kcal`;
   $("kcalTarget").textContent = `${n.targets.kcal} kcal`;
 
-  const scoreIsMeaningful = new Date().getHours() >= 18 || n.totals.kcal >= n.targets.kcal * 0.7;
-  $("scoreLabel").textContent = scoreIsMeaningful ? "Ernährung" : "Protein offen";
-  $("scoreVal").textContent = scoreIsMeaningful ? `${n.score.total} / 100` : `${Math.max(0, n.rest.proteinG)} g`;
+  // Die Ernährungsnote stand früher als dritte Zeile neben dem Ring. Sie ist
+  // eine abgeleitete Zahl und steht jetzt bei den anderen abgeleiteten Zahlen
+  // weiter unten. Der Ring trägt nur, was direkt gemessen ist.
 
   setBar("p", n.totals.proteinG, n.targets.proteinG, "g");
   setBar("f", n.totals.fatG, n.targets.fatG, "g");
@@ -2589,41 +2627,22 @@ function renderBalance() {
   stapel.innerHTML = "";
   stapel.appendChild(anteilsRing(b.bereiche, { groesse: 200, restAnteil: b.restAnteil }));
 
-  const tagesring = $("balanceTagesring");
-  tagesring.innerHTML = "";
-  if (balanceTage === 1) {
-    const nutzung = tagesnutzungFuer();
-    tagesring.appendChild(ringMitZahl({
-      anteil: nutzung.wert / 100, zahl: nutzung.wert, unten: "von 100", groesse: 128,
-    }));
-    $("balanceNutzung").textContent = `${nutzung.satz} ${nutzung.teile.map((t) => `${t.name} ${t.wert}`).join(", ")}.`;
-  } else {
-    $("balanceNutzung").textContent =
-      `Zeitraum ${b.tage} Tage. Die Tagesnutzung gibt es nur für heute, über Wochen sagt ein einzelner Wert nichts.`;
-  }
+  $("balanceNutzung").textContent = balanceTage === 1
+    ? tagesnutzungFuer().satz
+    : `Zeitraum ${b.tage} Tage. Die Tagesnutzung gibt es nur für heute, über Wochen sagt ein einzelner Wert nichts.`;
 
   const kacheln = $("balanceKacheln");
   kacheln.innerHTML = "";
   for (const stand of b.bereiche) {
-    const kachel = document.createElement("div");
-    kachel.className = "ring-kachel";
-    // Der Ring zeigt den Anteil an der Zeit, die Zahl darunter das Ziel.
-    // Zwei verschiedene Fragen, und beide gehören auf die Kachel.
-    kachel.appendChild(ringMitZahl({
-      anteil: stand.anteilAmTag,
-      zahl: `${Math.round(stand.anteilAmTag * 100)}%`,
-      farbe: bereichFarbe(stand.bereich),
-      groesse: 84,
+    // Balken statt Ring. Drei Prozent auf einem Ring sind ein Stummel von zehn
+    // Grad, und fünf Ringe ergeben eine Reihe zu drei und eine zu zwei.
+    kacheln.appendChild(messwert({
+      name: stand.name,
+      wert: kurzDauer(stand.minuten),
+      zusatz: `von ${kurzDauer(stand.zielMinuten)}`,
+      anteil: stand.zielMinuten > 0 ? stand.minuten / stand.zielMinuten : 0,
+      ton: bereichFarbe(stand.bereich),
     }));
-    const name = document.createElement("div");
-    name.className = "k-name";
-    name.textContent = stand.name;
-    const wert = document.createElement("div");
-    wert.className = "k-wert";
-    wert.textContent = `${kurzDauer(stand.minuten)} von ${kurzDauer(stand.zielMinuten)}`;
-    kachel.appendChild(name);
-    kachel.appendChild(wert);
-    kacheln.appendChild(kachel);
   }
 
   const teile = [];

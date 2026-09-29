@@ -1712,6 +1712,108 @@ Scratchpad öffnet jede Ansicht in beiden Farbmodi und meldet zwei Dinge:
 überlappende Textelemente und seitliches Scrollen. Genau diese Fehler sieht kein
 Test, der Werte prüft, und genau die fallen dem Nutzer als Erstes auf.
 
+## Eine Seite hat einen Helden oder keinen
+
+Heute öffnete mit einer abgeleiteten Punktzahl über die halbe Bildschirmhöhe.
+Die Kalorien, wegen derer jemand die Seite aufmacht, lagen klein darunter in
+einer Kachel.
+
+Eine grosse Zahl ist ein Versprechen. Sie sagt: das hier ist das Wichtigste.
+Stimmt das nicht, glaubt der Nutzer der Seite beim nächsten Mal weniger, und
+zwar auch dort, wo sie recht hat.
+
+Jetzt trägt der Kalorienring die Seite, 196 Pixel, ohne Kasten. Ein Rahmen um
+das Wichtigste macht es zu einem Objekt neben anderen Objekten. Was ihn
+zusammenhält, ist der Abstand zu seinen Nachbarn. Direkt darunter die Makros,
+weil sie zur selben Frage gehören. Die Tagesnutzung steht hinter dem, woraus
+sie abgeleitet ist, als Leiste und nicht als Ring.
+
+Der Ring des Helden ist dünner als der kleine. Eine Spur, die mitwächst, wird
+zum Reifen: dieselbe Stärke von fünf trägt auf 196 Pixeln optisch doppelt so
+viel wie auf 132 und nimmt der Zahl in der Mitte das Gewicht.
+
+Die Urteilswörter hiessen "Dünn" und "Schwach". Beide beschreiben den Nutzer
+und nicht den Tag, und in einer App, die auch Körpergewicht führt, liest sich
+"dünn" doppelt falsch. Jetzt "Mager" und "Leer".
+
+## Ein Ring ist die falsche Form für einen kleinen Anteil
+
+Die fünf Lebensbereiche standen als fünf Ringe, drei in einer Reihe und zwei
+darunter. Drei Prozent auf einem Ring sind ein Stummel von zehn Grad, daneben
+steht eine Zahl, die dasselbe noch einmal sagt, und fünf Kacheln in einem
+Dreierraster ergeben eine Waise.
+
+Jetzt Balken, dieselbe Form wie bei den Makros. Ein Balken trägt jeden Anteil
+von null bis über hundert, liest sich in einer Spalte untereinander und lässt
+Name, Wert und Ziel auf einer Zeile stehen. Eine App, ein System.
+
+`messwert()` baut jede dieser Zeilen: Tagesnutzung, ihre vier Teile und die
+fünf Bereiche. Drei Bauarten für dieselbe Form wären drei Stellen, an denen
+sie später auseinanderlaufen. Die Farbe kommt je Zeile über `--ton`, nicht
+über eine Klasse je Bereich: fünf Klassen für fünf Farben wären fünf Stellen,
+an denen eine Farbe nicht mitgezogen wird.
+
+Der Balken misst gegen das Ziel. Vorher füllte ihn der Anteil am Tag, während
+die Zahl daneben das Ziel nannte: "8 h 12 von 5 h 43" über einem Balken bei
+fünfzig Prozent. Zwei Fragen in einer Zeile, und keine davon war ablesbar. Den
+Anteil am Tag beantwortet der Ring auf der Balance Seite, und damit hat jede
+Form genau eine Aufgabe.
+
+Über dem Ziel bekommt der Balken eine Schraffur statt einer Warnfarbe. Über
+einem Fitnessziel zu liegen ist kein Fehler, und eine volle Spur allein sähe
+aus wie genau erreicht.
+
+`kurzDauer` gab "8:12 h" neben "43 min" in derselben Spalte aus. Zwei
+Schreibweisen für dieselbe Grösse zwingen dazu, jede Zeile einzeln zu deuten,
+und 8:12 sieht ausserdem aus wie zwölf nach acht. Jetzt "8 h 12".
+
+## Zwei Handlungen, ein Bild
+
+In der Kopfzeile des Assistenten waren das Menü und die Gespräche dasselbe
+Symbol: drei gleich lange Striche. Zwei verschiedene Handlungen mit demselben
+Bild nimmt niemand als zwei wahr. Der Nutzer drückt eines von beiden und lernt
+nichts dazu. Die Gespräche tragen jetzt eine Liste mit Punkten davor.
+
+Die Sprachausgabe war ein leerer Kreis, im Aus-Zustand mit gestricheltem Rand.
+Ein Kreis ist kein Lautsprecher, und gestrichelt gegen durchgezogen ist als
+einziger Unterschied zwischen an und aus zu leise. Jetzt ein Pfad mit Korpus
+und Trichter, dazu eine Welle, die im Aus-Zustand zum Kreuz wird.
+
+Als SVG und nicht aus Rahmen zusammengesetzt. Ein Trichter aus `border-left`
+mit durchsichtigem Rand oben und unten ergibt ein Dreieck, das je nach
+Zeilenhöhe zwei Pixel neben dem Korpus sitzt, und eine Welle als halber
+Kreisrand wurde im Betrieb zur einzelnen Klammer. Für eine Form mit Schrägen
+ist ein Pfad das richtige Mittel, nicht ein Kasten mit Rändern.
+
+## Sechs Bedienelemente gehen nicht in eine Zeile
+
+In der Eingabepille standen Mikrofon, Büroklammer, "Kopf", "Hey", das Textfeld
+und Senden. Auf 390 Pixeln blieb vom Platzhalter "Schreib oder spr" übrig, und
+ein abgeschnittener Platzhalter sieht aus wie ein Fehler, nicht wie Platzmangel.
+
+Kopf leeren und das Weckwort sind Betriebsarten und keine Eingabehilfen. Sie
+stehen jetzt beschriftet über der Pille, mit einem Punkt, der den Zustand
+trägt. An heisst Farbe, voller Punkt und ein Schimmer darum: drei Signale,
+weil ein offenes Mikrofon Akku zieht und niemand es übersehen darf.
+
+## Der Stamm des d hatte zu wenig Punkte
+
+Der Kreis auf dem Assistenten las sich als zerrissener Buchstabe. Der Grund
+war Dichte, nicht Geometrie.
+
+Der Ring trägt 3240 Punkte auf einem Band von rund 157500 Quadrateinheiten,
+also 0,0206 je Einheit. Der Stamm misst 140 mal 740, also 103600 Einheiten,
+und hatte 1500 Punkte, also zwei Drittel der Dichte. Der Ring wirkte dicht,
+der Stamm ausgefranst, und beide zusammen wie zwei Teile, die nicht
+zusammengehören. Jetzt 2130, gerechnet und nicht geschätzt.
+
+Gemessen danach: 61 Bilder je Sekunde bei dreifacher Pixeldichte. Die Zusage
+aus dem Abschnitt über den Kreis gilt weiter.
+
+Offen bleibt der Unterschied in der Textur: der Ring liegt auf 30 Fäden und
+zeigt Streifen, der Stamm ist zufällig gefüllt und wirkt massiv. Die Streifen
+sind Absicht, die volle Fläche nicht.
+
 ## Die Makrobalken
 
 Zwei Fehler, die zusammen auffielen, als die Farben zur Sprache kamen.
