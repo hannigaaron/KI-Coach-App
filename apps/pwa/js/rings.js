@@ -314,3 +314,105 @@ export function richtungVon(heute, gestern) {
   if (d <= -5) return "runter";
   return "gleich";
 }
+
+/**
+ * Das Netz aus Soll und Ist.
+ *
+ * Fünf Achsen, eine je Lebensbereich, jede von null bis 160 Prozent des
+ * eigenen Wochenziels. Die gestrichelte Fläche ist das Ziel und damit immer
+ * ein regelmässiges Fünfeck, die gefüllte der gemessene Stand.
+ *
+ * Auf Prozent des Ziels und nicht auf Stunden, weil die Bereiche sonst nicht
+ * auf eine Achse passen: vierzig Stunden Arbeit gegen sieben Stunden Me Time
+ * drücken alles ausser Karriere an den Mittelpunkt. Die Stunden stehen in den
+ * Balken darunter, wo man sie ablesen kann.
+ *
+ * Die Reihenfolge der Achsen ist fest und darf sich nie ändern. Ein Netz ist
+ * nur mit sich selbst vergleichbar, und wenn Me Time nächstes Jahr an einer
+ * anderen Ecke sitzt, passt kein Bild von heute mehr dazu.
+ */
+export const NETZ_MAX = 1.6;
+
+export function netzDiagramm({ bereiche, groesse = 300, beschriftet = true }) {
+  const cx = groesse / 2;
+  const cy = groesse / 2;
+  // Platz für die Beschriftung am Rand. Ohne den Abzug steht der Text
+  // ausserhalb der viewBox und wird an der Kante abgeschnitten.
+  // 66 Pixel Rand für die Beschriftung. Der erste Entwurf nahm 40, und
+  // "Wellbeing" und "Familie" liefen an den Seiten aus der viewBox heraus:
+  // im Betrieb stand dort "Fitne" und "milie". Der Rand muss das längste
+  // Wort tragen, nicht das durchschnittliche.
+  const r = groesse / 2 - (beschriftet ? 66 : 8);
+  // Die Beschriftung sitzt in festen Pixeln ausserhalb des Netzes, nicht auf
+  // einem Anteil oberhalb des Maximums. Ein Bereich über 160 Prozent wird auf
+  // den Rand gedeckelt, und ein Etikett auf einem Anteil landete dann genau
+  // auf seinem eigenen Punkt: im Betrieb stand "Fitness" auf dem grünen Kreis.
+  const rEtikett = r + 14;
+
+  const svg = el("svg", {
+    viewBox: `0 0 ${groesse} ${groesse}`, width: groesse, height: groesse,
+    role: "img",
+    "aria-label": bereiche.map((b) => `${b.name} ${Math.round(b.anteil * 100)} Prozent des Ziels`).join(", "),
+  });
+
+  const winkel = (i) => ((i * 360) / bereiche.length - 90) * (Math.PI / 180);
+  const punkt = (i, anteil) => {
+    const w = winkel(i);
+    const rr = (Math.min(Math.max(anteil, 0), NETZ_MAX) / NETZ_MAX) * r;
+    return [cx + Math.cos(w) * rr, cy + Math.sin(w) * rr];
+  };
+  const pfad = (werte) => werte.map((a, i) => punkt(i, a).map((n) => n.toFixed(1)).join(",")).join(" ");
+
+  // Das Netz im Hintergrund. Die Stufe bei 100 Prozent fehlt hier, weil dort
+  // schon die gestrichelte Ziellinie liegt: zwei Linien an derselben Stelle
+  // sind eine zu viel.
+  for (const stufe of [0.5, 1.5]) {
+    svg.appendChild(el("polygon", {
+      points: pfad(bereiche.map(() => stufe)),
+      fill: "none", stroke: "currentColor", "stroke-opacity": "0.13", "stroke-width": "1",
+    }));
+  }
+  for (let i = 0; i < bereiche.length; i++) {
+    const [x, y] = punkt(i, NETZ_MAX);
+    svg.appendChild(el("line", {
+      x1: cx, y1: cy, x2: x.toFixed(1), y2: y.toFixed(1),
+      stroke: "currentColor", "stroke-opacity": "0.11", "stroke-width": "1",
+    }));
+  }
+
+  svg.appendChild(el("polygon", {
+    points: pfad(bereiche.map(() => 1)),
+    fill: "none", stroke: "currentColor", "stroke-opacity": "0.8",
+    "stroke-width": "1.6", "stroke-dasharray": "5 4",
+  }));
+
+  const brand = getComputedStyle(document.documentElement).getPropertyValue("--brand").trim() || "currentColor";
+  svg.appendChild(el("polygon", {
+    points: pfad(bereiche.map((b) => b.anteil)),
+    fill: brand, "fill-opacity": "0.2", stroke: brand,
+    "stroke-width": "2", "stroke-linejoin": "round",
+  }));
+
+  bereiche.forEach((b, i) => {
+    const farbe = bereichFarbe(b.bereich);
+    const [px, py] = punkt(i, b.anteil);
+    svg.appendChild(el("circle", {
+      cx: px.toFixed(1), cy: py.toFixed(1), r: beschriftet ? 4 : 3,
+      fill: farbe, stroke: "var(--bg)", "stroke-width": "2",
+    }));
+    if (!beschriftet) return;
+    const w = winkel(i);
+    const tx = cx + Math.cos(w) * rEtikett;
+    const ty = cy + Math.sin(w) * rEtikett;
+    const t = el("text", {
+      x: tx.toFixed(1), y: (ty + 4).toFixed(1),
+      "text-anchor": tx > cx + 6 ? "start" : tx < cx - 6 ? "end" : "middle",
+      fill: farbe, "font-size": "12", "font-weight": "600",
+    });
+    // Der lange Name bricht in SVG nicht um und würde über den Rand laufen.
+    t.textContent = b.name.replace(" und Beziehung", "");
+    svg.appendChild(t);
+  });
+
+  return svg;
+}

@@ -1,4 +1,6 @@
-import { LUECKEN_ANTWORTEN, lueckenText, RUECKBLICK_TAGE } from "@daevo/core";
+import {
+  BEREICHE, BEREICH_NAME, LUECKEN_ANTWORTEN, lueckenText, RUECKBLICK_TAGE, schieflagenText,
+} from "@daevo/core";
 import type { KVNamespace } from "./umgebung.js";
 
 /**
@@ -25,7 +27,7 @@ import type { KVNamespace } from "./umgebung.js";
 const PRAEFIX = "auftrag:";
 
 /** Bekannte Arten. Alles andere wird abgewiesen, statt durchgereicht. */
-export const ARTEN = ["trainingsluecke"] as const;
+export const ARTEN = ["trainingsluecke", "schieflage"] as const;
 export type AuftragsArt = (typeof ARTEN)[number];
 
 /**
@@ -55,15 +57,29 @@ export interface Auftrag {
   art: AuftragsArt;
   /** Wann zugestellt werden soll, in Millisekunden. */
   at: number;
-  tageOhne: number;
-  geplanteEinheiten: number;
+  /** Nur für die Trainingslücke. */
+  tageOhne?: number;
+  geplanteEinheiten?: number;
+  /**
+   * Nur für die Schieflage. Der Bereich kommt als Kennung und nicht als Name:
+   * ein Name wäre freier Text vom Gerät, und genau den nimmt dieser Weg nicht
+   * an. Den Namen schlägt der Worker in der festen Tabelle nach.
+   */
+  bereich?: string;
+  gegenBereich?: string;
+  prozent?: number;
+  minutenOffen?: number;
 }
 
 export interface AuftragEingabe {
   art: string;
   at: number;
-  tageOhne: number;
-  geplanteEinheiten: number;
+  tageOhne?: unknown;
+  geplanteEinheiten?: unknown;
+  bereich?: unknown;
+  gegenBereich?: unknown;
+  prozent?: unknown;
+  minutenOffen?: unknown;
 }
 
 /**
@@ -80,8 +96,20 @@ export async function auftragAblegen(
   jetzt: number = Date.now(),
 ): Promise<Auftrag> {
   const art = pruefeArt(eingabe.art);
-  const tageOhne = ganzeZahl(eingabe.tageOhne, 1, RUECKBLICK_TAGE, "tageOhne");
-  const geplanteEinheiten = ganzeZahl(eingabe.geplanteEinheiten, 1, 14, "geplanteEinheiten");
+  // Je Art ihre eigenen Felder, und jedes einzeln geprüft. Ein Auftrag, der
+  // irgendeine Zahl durchreicht, wäre genau die offene Stelle, die dieser
+  // Weg nicht sein soll.
+  const werte: Record<string, number | string> = art === "trainingsluecke"
+    ? {
+      tageOhne: ganzeZahl(eingabe.tageOhne, 1, RUECKBLICK_TAGE, "tageOhne"),
+      geplanteEinheiten: ganzeZahl(eingabe.geplanteEinheiten, 1, 14, "geplanteEinheiten"),
+    }
+    : {
+      bereich: pruefeBereich(eingabe.bereich, "bereich"),
+      ...(eingabe.gegenBereich ? { gegenBereich: pruefeBereich(eingabe.gegenBereich, "gegenBereich") } : {}),
+      prozent: ganzeZahl(eingabe.prozent, 0, 99, "prozent"),
+      minutenOffen: ganzeZahl(eingabe.minutenOffen, 1, 10080, "minutenOffen"),
+    };
 
   const at = Number(eingabe.at);
   if (!Number.isFinite(at)) throw new Error("Ohne Zeitpunkt kein Auftrag.");
@@ -91,10 +119,8 @@ export async function auftragAblegen(
   const zeit = Math.max(at, jetzt);
 
   const id = `${PRAEFIX}${aboId}:${art}`;
-  await kv.put(id, JSON.stringify({ at: zeit, tageOhne, geplanteEinheiten }), {
-    expirationTtl: AUFTRAG_TTL_S,
-  });
-  return { id, aboId, art, at: zeit, tageOhne, geplanteEinheiten };
+  await kv.put(id, JSON.stringify({ at: zeit, ...werte }), { expirationTtl: AUFTRAG_TTL_S });
+  return { id, aboId, art, at: zeit, ...werte } as Auftrag;
 }
 
 /**
@@ -113,7 +139,7 @@ export async function faelligeAuftraege(
   for (const { name } of keys) {
     const roh = await kv.get(name);
     if (!roh) continue;
-    let daten: { at?: number; tageOhne?: number; geplanteEinheiten?: number };
+    let daten: Record<string, number | string | undefined>;
     try {
       daten = JSON.parse(roh) as typeof daten;
     } catch {
@@ -129,13 +155,12 @@ export async function faelligeAuftraege(
       continue;
     }
     faellig.push({
+      ...daten,
       id: name,
       aboId: rest.slice(0, trenner),
       art: rest.slice(trenner + 1) as AuftragsArt,
       at: daten.at as number,
-      tageOhne: Number(daten.tageOhne) || 0,
-      geplanteEinheiten: Number(daten.geplanteEinheiten) || 0,
-    });
+    } as Auftrag);
     await kv.delete(name);
   }
   return faellig;
@@ -156,7 +181,32 @@ export function auftragsMitteilung(auftrag: Auftrag): {
   aktionen: Array<{ action: string; title: string }>;
   daten: Record<string, unknown>;
 } {
-  const { titel, text } = lueckenText(auftrag.tageOhne, auftrag.geplanteEinheiten);
+  if (auftrag.art === "schieflage") {
+    // Der Name kommt aus der festen Tabelle, nicht vom Gerät.
+    const name = BEREICH_NAME[auftrag.bereich as keyof typeof BEREICH_NAME] ?? "Ein Bereich";
+    const gegen = auftrag.gegenBereich
+      ? BEREICH_NAME[auftrag.gegenBereich as keyof typeof BEREICH_NAME] ?? null
+      : null;
+    const { titel, text } = schieflagenText(
+      name,
+      (auftrag.prozent ?? 0) / 100,
+      auftrag.minutenOffen ?? 0,
+      gegen,
+    );
+    return {
+      titel,
+      text,
+      marke: "auftrag-schieflage",
+      ziel: "./?ansicht=balance",
+      // Keine Knöpfe. Hier gibt es nichts mit drei Antworten zu beantworten,
+      // sondern etwas anzusehen. Ein Knopf ohne Wirkung ist schlimmer als
+      // keiner.
+      aktionen: [],
+      daten: { art: auftrag.art, frage: false, bereich: auftrag.bereich },
+    };
+  }
+
+  const { titel, text } = lueckenText(auftrag.tageOhne ?? 0, auftrag.geplanteEinheiten ?? 0);
   return {
     titel,
     text,
@@ -170,6 +220,13 @@ export function auftragsMitteilung(auftrag: Auftrag): {
 function pruefeArt(art: string): AuftragsArt {
   if (!(ARTEN as readonly string[]).includes(art)) throw new Error(`Unbekannte Art: ${art}`);
   return art as AuftragsArt;
+}
+
+/** Nur eine der fünf bekannten Kennungen. Alles andere ist fremder Text. */
+function pruefeBereich(wert: unknown, feld: string): string {
+  const s = String(wert ?? "");
+  if (!(BEREICHE as readonly string[]).includes(s)) throw new Error(`${feld} ist kein bekannter Bereich.`);
+  return s;
 }
 
 function ganzeZahl(wert: unknown, min: number, max: number, name: string): number {

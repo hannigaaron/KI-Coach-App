@@ -161,7 +161,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 784 Tests
+npm test           # 805 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1761,6 +1761,93 @@ spüren. Lineare Übergänge wirken maschinell.
 Scratchpad öffnet jede Ansicht in beiden Farbmodi und meldet zwei Dinge:
 überlappende Textelemente und seitliches Scrollen. Genau diese Fehler sieht kein
 Test, der Werte prüft, und genau die fallen dem Nutzer als Erstes auf.
+
+## Das Netz aus Soll und Ist
+
+`netzDiagramm` in `apps/pwa/js/rings.js`, Schieflage in
+`packages/core/src/schieflage.ts`.
+
+Das Board zeigte, wo die Zeit hingeht. Was fehlte: der Stand gegen das, was
+sich der Nutzer vorgenommen hatte. Das Ziel stand schon da, als Wochenziele in
+Stunden je Bereich, es wurde nur nirgends dagegengehalten.
+
+Jetzt ein Netz mit fünf Achsen, eine je Bereich. Die gestrichelte Fläche ist
+das Ziel und damit immer ein regelmässiges Fünfeck, die gefüllte der gemessene
+Stand. Darunter die Balken mit den Stunden. Zusammenfassung vor Detail: die
+Schieflage sieht man in einer Sekunde an der Form, die genaue Zahl liest man
+eine Zeile tiefer.
+
+Beides und nicht eines. Ein Netz kann genau eine Sache besser als alles
+andere, nämlich zwei Formen auf denselben Achsen vergleichen, und genau das
+ist hier die Frage. Seine Schwächen sind, dass man Zahlen nicht ablesen kann
+und dass die Fläche im Quadrat wächst, eine Abweichung also dramatischer
+aussieht als sie ist. Beides erledigen die Balken darunter.
+
+Gerechnet wird in Prozent des Ziels und nicht in Stunden. Vierzig Stunden
+Arbeit gegen sieben Stunden Me Time auf derselben Achse drücken alles ausser
+Karriere an den Mittelpunkt.
+
+Die Reihenfolge der Achsen ist fest und darf sich nie ändern. Ein Netz ist nur
+mit sich selbst vergleichbar, und wenn Me Time eines Tages an einer anderen
+Ecke sitzt, passt kein Bild von heute mehr dazu.
+
+Der Rand für die Beschriftung ist 66 Pixel. Der erste Entwurf nahm 40, und
+"Wellbeing" und "Familie" liefen an den Seiten aus der viewBox: im Betrieb
+stand dort "Fitne" und "milie". Der Rand muss das längste Wort tragen, nicht
+das durchschnittliche. Die Beschriftung sitzt ausserdem in festen Pixeln
+ausserhalb des Netzes und nicht auf einem Anteil oberhalb des Maximums: ein
+Bereich über 160 Prozent wird auf den Rand gedeckelt, und ein Etikett auf
+einem Anteil landete dann genau auf seinem eigenen Punkt.
+
+### Wann daevo sich meldet
+
+`schieflageFinden` entscheidet das, und fast jede Zeile darin ist eine
+Bedingung, die eine Meldung verhindert. Eine Erinnerung, die jede Woche kommt,
+wird nach drei Wochen weggewischt, und mit ihr alle anderen Nachrichten der
+App.
+
+Ein Bereich unter 40 Prozent seines Ziels. Darunter ist es kein schwacher
+Zeitraum mehr, sondern ein Muster: wer sich fünf Stunden vornimmt und zwei
+schafft, hatte eine volle Woche, wer eineinhalb schafft, hat es nicht vor.
+
+Gerechnet über vier Wochen, nicht über eine. Eine Woche ist eine
+Momentaufnahme. Der Zeitraum steht in jedem Satz, sonst liest man die Zahl als
+die von heute, besonders wenn darüber die Ansicht für heute steht.
+
+Mindestens zehn Tage mit gemessener Zeit. Darunter meldet die App eine
+Schieflage, die nur eine Lücke im Eintragen ist, und das ist der sicherste Weg,
+jemandem das Board abzugewöhnen. Gezählt wird aus denselben drei Quellen, aus
+denen das Board seine Minuten nimmt: Kalendertermine, eingetragene Trainings
+und Zeit, die der Coach gebucht hat. Nur die eigenen Einträge zu zählen würde
+jeden übergehen, dessen Zeit vollständig im Kalender steht.
+
+Höchstens alle drei Tage, also zweimal die Woche als Obergrenze und nicht als
+Ziel.
+
+Ein Bereich über seinem Ziel allein ist keine Meldung wert. Wer viel trainiert
+und sonst alles schafft, hat kein Problem, sondern eine gute Woche. Erst die
+Kombination aus einem Bereich, der leer bleibt, und einem, der überzieht, ist
+die Aussage, um die es geht.
+
+Der Text sagt nicht, was der Nutzer falsch macht. Er sagt, was sich der Nutzer
+vorgenommen hatte und wo er steht. Den Unterschied zieht er selbst, und genau
+das ist der Punkt: die Zahl kommt von ihm, nicht von der App. Ein Test hält
+fest, dass die Wörter "zu wenig", "schlecht", "versagt" und "solltest" nicht
+darin vorkommen.
+
+Verschickt wird über denselben Weg wie die Trainingslücke, `/auftrag` auf dem
+Worker. Der Auftrag trägt die Kennung des Bereichs und Zahlen, nie einen
+Namen: ein Name wäre freier Text vom Gerät, und genau den nimmt dieser Weg
+nicht an. Den Namen schlägt der Worker in der festen Tabelle nach. Je Art ein
+eigener Eintrag im Speicher, damit sich Trainingslücke und Schieflage nicht
+gegenseitig überschreiben.
+
+Diese Mitteilung trägt keine Knöpfe. Hier gibt es nichts mit drei Antworten zu
+beantworten, sondern etwas anzusehen, und sie führt direkt auf die Balance
+Seite. Ein Knopf ohne Wirkung ist schlimmer als keiner.
+
+Dieselbe Aussage steht auch in der Ansicht und nicht nur in der Mitteilung.
+Wer sie weggewischt hat und später selbst nachsieht, soll dasselbe lesen.
 
 ## Eine Schrift, die im Projekt liegt
 

@@ -640,11 +640,32 @@ try {
         nebeneinander, die verschiedene Fragen beantworten, lesen sich als ein
         Vergleich, der keiner ist.
       -->
+      <!--
+        Das Netz zeigt Soll gegen Ist, die Balken darunter die Stunden.
+        Zusammenfassung vor Detail: die Schieflage sieht man in einer Sekunde
+        an der Form, die genaue Zahl liest man eine Zeile tiefer.
+
+        Der Ring mit der Zusammensetzung des Tages steht darunter, denn er
+        beantwortet eine dritte Frage: wohin die Zeit ging, nicht ob sie zum
+        Ziel passt.
+      -->
+      <div class="netz-buehne">
+        <div id="balanceNetz"></div>
+        <div class="legende">
+          <span><i class="legende-umriss"></i>dein Ziel</span>
+          <span><i class="legende-flaeche"></i><span id="netzZeitraum">letzte Woche</span></span>
+        </div>
+      </div>
+      <div class="hinweis" id="balanceRatSchieflage" hidden></div>
+      <p class="fineprint" id="netzHinweis"></p>
+
+      <h2 class="abschnitt">Stunden gegen Ziel</h2>
+      <div class="messwerte" id="balanceKacheln"></div>
+
+      <h2 class="abschnitt">Wie der Zeitraum aufgeteilt war</h2>
       <div class="ring-buehne">
         <div id="balanceStapel" class="ring-stapel"></div>
       </div>
-
-      <div class="messwerte" id="balanceKacheln"></div>
       <p class="fineprint" id="balanceNutzung"></p>
 
       <p class="fineprint" id="balanceHinweis"></p>

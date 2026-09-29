@@ -2341,3 +2341,41 @@ h1,
 @media (prefers-reduced-motion: reduce) {
   .view.kommt-rein, .view.kommt-zurueck { animation: none; }
 }
+
+/* ---------- Das Netz ----------
+ *
+ * Es steht ohne Kasten, wie der Held auf Heute. Was es zusammenhält, ist der
+ * Abstand zu seinen Nachbarn. Ein Rahmen darum machte aus der
+ * Zusammenfassung ein Objekt neben anderen Objekten.
+ */
+.netz-buehne {
+  display: flex; flex-direction: column; align-items: center;
+  gap: var(--s-2); padding: var(--s-2) 0 var(--s-3);
+  color: var(--text);
+}
+.netz-buehne svg { display: block; max-width: 100%; height: auto; }
+
+.legende { display: flex; gap: var(--s-5); align-items: center; font-size: var(--t-xs); color: var(--muted); }
+.legende span { display: inline-flex; align-items: center; gap: 7px; }
+.legende-umriss {
+  width: 13px; height: 13px; border-radius: 4px;
+  border: 1.6px dashed currentColor; opacity: 0.8;
+}
+.legende-flaeche {
+  width: 13px; height: 13px; border-radius: 4px;
+  background: var(--brand); opacity: 0.85;
+}
+
+/* Der Hinweis auf eine Schieflage. Er steht in der Ansicht und nicht nur in
+   der Mitteilung: wer die weggewischt hat und später selbst nachsieht, soll
+   dasselbe lesen. Warnfarbe wäre falsch, eine Schieflage ist kein Fehler,
+   sondern ein Unterschied zu dem, was sich der Nutzer vorgenommen hat. */
+.hinweis {
+  margin: var(--s-3) 0 var(--s-2);
+  padding: var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--erhoben);
+  border-left: 3px solid var(--accent);
+}
+.hinweis .li-title { font-family: var(--schrift-display); font-weight: 600; font-size: var(--t-sm); }
+.hinweis .li-sub { color: var(--muted); font-size: var(--t-sm); margin-top: 3px; }

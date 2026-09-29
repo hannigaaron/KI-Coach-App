@@ -12,7 +12,10 @@ import {
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, produktPerBarcode, produkteSuchen } from "@daevo/coach";
 import { Coach, AnthropicProvider } from "@daevo/coach";
 import { KONFIG, istDemo } from "./konfig.js";
-import { antwortVerarbeiten, antwortenAbholen, lueckeAusSpeicher, lueckeMelden } from "./luecke.js";
+import {
+  antwortVerarbeiten, antwortenAbholen, lueckeAusSpeicher, lueckeMelden,
+  schieflageAusSpeicher, schieflageMelden,
+} from "./luecke.js";
 import { healthDateiLesen, healthSchreiben, schreibBericht } from "./gesundheit.js";
 import {
   ablaufFuer, ask, aufgabeAbhaken, aufgabeAnlegenEingestuft, aufgabeLoeschen, aufgabeUmstufen, aufgabenPlan,
@@ -30,7 +33,7 @@ import {
 import { brain } from "./brain.js";
 import { Orb } from "./orb.js";
 import { anhangAusDatei, grossInKb } from "./media.js";
-import { bereichFarbe, anteilsRing, kurzDauer, wertungsRing } from "./rings.js";
+import { bereichFarbe, anteilsRing, kurzDauer, netzDiagramm, wertungsRing } from "./rings.js";
 import { Listener, alleStimmen, istDeutsch, speak, stimmenBereit, stopSpeaking, voiceSupport, waehlbareStimmen } from "./voice.js";
 import { SetupFlow } from "./setup-ui.js";
 import { postfachHolen, pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
@@ -2255,6 +2258,13 @@ function startApp() {
     lueckeFrageOeffnen();
   }
 
+  // Aus der Mitteilung über die Schieflage. Sie stellt keine Frage, sie zeigt
+  // etwas, also geht sie direkt dorthin.
+  if (params.get("ansicht") === "balance") {
+    history.replaceState(null, "", location.pathname);
+    showView("balance");
+  }
+
   const gesagt = (params.get("sag") || "").trim();
   if (gesagt) {
     history.replaceState(null, "", location.pathname);
@@ -2766,6 +2776,37 @@ function renderBalance() {
   const stapel = $("balanceStapel");
   stapel.innerHTML = "";
   stapel.appendChild(anteilsRing(b.bereiche, { groesse: 200, restAnteil: b.restAnteil }));
+
+  // Das Netz. Die Breite folgt dem Fenster, weil die Beschriftung aussen
+  // sitzt: auf einem schmalen Gerät läuft sie sonst über den Rand.
+  const netz = $("balanceNetz");
+  netz.innerHTML = "";
+  netz.appendChild(netzDiagramm({
+    bereiche: b.bereiche,
+    groesse: Math.min(340, Math.max(280, window.innerWidth - 40)),
+  }));
+  $("netzZeitraum").textContent =
+    balanceTage === 1 ? "heute" : balanceTage === 7 ? "letzte Woche" : `letzte ${balanceTage} Tage`;
+
+  // Ohne gesetzte Ziele ist die gestrichelte Form eine Behauptung. Dann steht
+  // da, woher sie kommt, statt sie als Vorgabe auszugeben.
+  const ohneZiel = b.bereiche.filter((x) => x.zielMinuten <= 0).length;
+  // Die Schieflage steht auch in der Ansicht und nicht nur in der Mitteilung.
+  // Wer die Mitteilung weggewischt hat und später selbst nachsieht, soll
+  // dasselbe lesen.
+  const schief = schieflageAusSpeicher(store, balanceFuer, todayIso());
+  const schiefKasten = $("balanceRatSchieflage");
+  if (schief) {
+    schiefKasten.hidden = false;
+    schiefKasten.innerHTML = `<div class="li-title">${escapeHtml(schief.titel)}</div>`
+      + `<div class="li-sub">${escapeHtml(schief.text)}</div>`;
+  } else {
+    schiefKasten.hidden = true;
+  }
+
+  $("netzHinweis").textContent = ohneZiel
+    ? `Für ${ohneZiel} von ${b.bereiche.length} Bereichen steht noch kein Wochenziel. Trag sie unten ein, dann wird die gestrichelte Form deine.`
+    : "Die gestrichelte Form ist dein Wochenziel, heruntergerechnet auf den Zeitraum. Das Netz reicht bis 160 Prozent.";
 
   $("balanceNutzung").textContent = balanceTage === 1
     ? tagesnutzungFuer().satz
@@ -4051,7 +4092,8 @@ async function lueckePruefen() {
   }
 
   const luecke = lueckeAusSpeicher(store);
-  if (!luecke) return;
+  const schieflage = schieflageAusSpeicher(store, balanceFuer);
+  if (!luecke && !schieflage) return;
 
   const worker = store.getSettings().pushWorker || KONFIG.pushUrl || "";
   if (!worker || !navigator.serviceWorker) return;
@@ -4059,10 +4101,13 @@ async function lueckePruefen() {
     const reg = await navigator.serviceWorker.ready;
     const abo = await reg.pushManager?.getSubscription();
     if (!abo) return;
-    await lueckeMelden({ store, worker, endpoint: abo.endpoint, luecke });
+    // Beide nacheinander und nicht parallel. Zwei Mitteilungen, die im selben
+    // Moment eintreffen, liest der Nutzer als eine und wischt beide weg.
+    if (luecke) await lueckeMelden({ store, worker, endpoint: abo.endpoint, luecke });
+    if (schieflage) await schieflageMelden({ store, worker, endpoint: abo.endpoint, schieflage });
   } catch {
     // Kein Netz, kein Abo, kein Worker. Beim nächsten Öffnen wieder, denn
-    // `lueckeGefragt` wird erst nach einer angenommenen Meldung gesetzt.
+    // der Tag der Meldung wird erst gesetzt, wenn der Worker angenommen hat.
   }
 }
 

@@ -120,3 +120,70 @@ test("ein kaputter Eintrag blockiert die anderen nicht", async () => {
   assert.equal(faellig.length, 1);
   assert.equal(kv.inhalt.has("auftrag:kaputt:trainingsluecke"), false);
 });
+
+/* ---------- Die Schieflage ---------- */
+
+const schief = {
+  art: "schieflage",
+  at: JETZT + 3600_000,
+  bereich: "me_time",
+  gegenBereich: "karriere",
+  prozent: 30,
+  minutenOffen: 295,
+};
+
+test("Eine Schieflage wird abgelegt und zugestellt", async () => {
+  const kv = kvAttrappe();
+  await auftragAblegen(kv, "abc123", schief, JETZT);
+  const faellig = await faelligeAuftraege(kv, JETZT + 3600_000);
+  assert.equal(faellig.length, 1);
+  assert.equal(faellig[0]?.art, "schieflage");
+  assert.equal(faellig[0]?.bereich, "me_time");
+  assert.equal(faellig[0]?.minutenOffen, 295);
+});
+
+test("Der Bereich kommt als Kennung, nicht als Name", async () => {
+  // Ein Name wäre freier Text vom Gerät, und genau den nimmt dieser Weg nicht
+  // an. Das ist der ganze Grund, warum der Worker die Texte selbst baut.
+  const kv = kvAttrappe();
+  await assert.rejects(
+    () => auftragAblegen(kv, "a", { ...schief, bereich: "Klick hier: angreifer.example" }, JETZT),
+    /kein bekannter Bereich/,
+  );
+  await assert.rejects(() => auftragAblegen(kv, "a", { ...schief, bereich: "" }, JETZT), /kein bekannter Bereich/);
+  assert.equal(kv.inhalt.size, 0);
+});
+
+test("Unsinnige Zahlen in der Schieflage werden abgewiesen", async () => {
+  const kv = kvAttrappe();
+  await assert.rejects(() => auftragAblegen(kv, "a", { ...schief, prozent: 400 }, JETZT), /prozent/);
+  await assert.rejects(() => auftragAblegen(kv, "a", { ...schief, minutenOffen: 0 }, JETZT), /minutenOffen/);
+});
+
+test("Der Gegenbereich darf fehlen", async () => {
+  const kv = kvAttrappe();
+  const { gegenBereich, ...ohne } = schief;
+  void gegenBereich;
+  const a = await auftragAblegen(kv, "a", ohne, JETZT);
+  assert.equal(a.gegenBereich, undefined);
+});
+
+test("Die Mitteilung zur Schieflage schlägt den Namen selbst nach", () => {
+  const m = auftragsMitteilung({
+    id: "auftrag:a:schieflage", aboId: "a", art: "schieflage", at: JETZT,
+    bereich: "me_time", gegenBereich: "karriere", prozent: 30, minutenOffen: 295,
+  });
+  assert.match(m.titel, /Me Time bei 30 Prozent/);
+  assert.match(m.text, /Karriere/);
+  assert.equal(m.aktionen.length, 0, "hier gibt es nichts mit drei Antworten zu beantworten");
+  assert.equal(m.ziel, "./?ansicht=balance");
+});
+
+test("Beide Arten liegen nebeneinander, ohne sich zu überschreiben", async () => {
+  const kv = kvAttrappe();
+  await auftragAblegen(kv, "abc123", gut, JETZT);
+  await auftragAblegen(kv, "abc123", schief, JETZT);
+  const faellig = await faelligeAuftraege(kv, JETZT + 3600_000);
+  assert.equal(faellig.length, 2);
+  assert.deepEqual(faellig.map((a) => a.art).sort(), ["schieflage", "trainingsluecke"]);
+});

@@ -15,7 +15,7 @@
  * Browser testbar, wie storage.js und assistant.js auch.
  */
 
-import { LUECKEN_ANTWORTEN, LUECKE_UHRZEIT, trainingslueckeFinden } from "@daevo/core";
+import { LUECKEN_ANTWORTEN, LUECKE_UHRZEIT, schieflageFinden, trainingslueckeFinden } from "@daevo/core";
 
 /** Derselbe Name wie im Service Worker. Wer ihn hier ändert, bricht beides. */
 export const ANTWORT_CACHE = "daevo-antworten";
@@ -87,6 +87,78 @@ export async function lueckeMelden({ store, worker, endpoint, luecke, jetzt = ne
 
   store.setSettings({ ...store.getSettings(), lueckeGefragt: jetzt.toISOString().slice(0, 10) });
   return luecke;
+}
+
+/**
+ * Sucht die Schieflage im Life Balance Board.
+ *
+ * Gerechnet wird über die letzten vier Wochen und nicht über eine. Eine Woche
+ * ist eine Momentaufnahme: wer eine harte Projektwoche hatte, hat kein Muster,
+ * sondern eine harte Projektwoche. Erst über vier Wochen ist ein leerer
+ * Bereich eine Aussage.
+ */
+export function schieflageAusSpeicher(store, balanceFuer, heute = new Date().toISOString().slice(0, 10)) {
+  const b = balanceFuer(28);
+  // Tage mit gemessener Zeit, nicht Tage im Zeitraum. Ein leeres Board über
+  // vier Wochen ist keine Schieflage, sondern ein Board ohne Daten.
+  //
+  // Gezählt wird aus denselben drei Quellen, aus denen das Board seine
+  // Minuten nimmt: Kalendertermine, eingetragene Trainings und Zeit, die der
+  // Coach gebucht hat. Nur die eigenen Einträge zu zählen würde jeden
+  // übergehen, dessen Zeit vollständig im Kalender steht.
+  const grenze = new Date(Date.parse(`${heute}T00:00:00Z`) - 28 * 86400000).toISOString().slice(0, 10);
+  const tage = new Set();
+  for (const z of store.getZeiten()) if (z?.tag >= grenze && z.tag <= heute) tage.add(z.tag);
+  for (const tag of store.allDays()) {
+    if (tag < grenze || tag > heute) continue;
+    if ((store.getDay(tag).trainings?.length || 0) > 0) tage.add(tag);
+  }
+  for (const termin of store.getKalender().termine || []) {
+    // `von` sind Millisekunden, nicht ein Datum als Text.
+    if (!Number.isFinite(Number(termin?.von))) continue;
+    const tag = new Date(Number(termin.von)).toISOString().slice(0, 10);
+    if (tag >= grenze && tag <= heute) tage.add(tag);
+  }
+  const tageMitZeit = tage.size;
+
+  return schieflageFinden({
+    bereiche: b.bereiche,
+    tageMitZeit,
+    heute,
+    zuletztGemeldet: store.getSettings()?.schieflageGemeldet ?? null,
+  });
+}
+
+/**
+ * Beauftragt den Worker mit der Meldung.
+ *
+ * Wie bei der Trainingslücke geht die Kennung des Bereichs raus und nicht sein
+ * Name. Der Worker baut den Text selbst, damit über diesen Weg kein fremder
+ * Text auf einen Sperrbildschirm gelangt.
+ */
+export async function schieflageMelden({ store, worker, endpoint, schieflage, jetzt = new Date(), holen = fetch }) {
+  if (!schieflage || !worker || !endpoint) return null;
+
+  const antwort = await holen(`${String(worker).replace(/\/+$/, "")}/auftrag`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      endpoint,
+      art: "schieflage",
+      at: naechsterZeitpunkt(jetzt),
+      bereich: schieflage.fehlt.bereich,
+      gegenBereich: schieflage.frisst?.bereich,
+      prozent: Math.round(schieflage.fehlt.anteil * 100),
+      minutenOffen: Math.max(1, schieflage.fehlt.minutenOffen),
+    }),
+  });
+  if (!antwort.ok) {
+    const grund = await antwort.json().catch(() => ({}));
+    throw new Error(grund.fehler || `Der Worker hat mit ${antwort.status} geantwortet.`);
+  }
+
+  store.setSettings({ ...store.getSettings(), schieflageGemeldet: jetzt.toISOString().slice(0, 10) });
+  return schieflage;
 }
 
 /**

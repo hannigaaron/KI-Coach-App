@@ -236,8 +236,12 @@ async function auftragAnnehmen(anfrage: Request, env: Env, kopf: Record<string, 
     endpoint?: string;
     art?: string;
     at?: number;
-    tageOhne?: number;
-    geplanteEinheiten?: number;
+    tageOhne?: unknown;
+    geplanteEinheiten?: unknown;
+    bereich?: unknown;
+    gegenBereich?: unknown;
+    prozent?: unknown;
+    minutenOffen?: unknown;
   };
   if (!daten.endpoint) return antwort({ fehler: "Ohne endpoint geht nichts." }, 400, kopf);
   if (!endpunktErlaubt(daten.endpoint)) {
@@ -253,8 +257,12 @@ async function auftragAnnehmen(anfrage: Request, env: Env, kopf: Record<string, 
     const auftrag = await auftragAblegen(env.ABOS, id, {
       art: String(daten.art ?? ""),
       at: Number(daten.at),
-      tageOhne: Number(daten.tageOhne),
-      geplanteEinheiten: Number(daten.geplanteEinheiten),
+      tageOhne: daten.tageOhne,
+      geplanteEinheiten: daten.geplanteEinheiten,
+      bereich: daten.bereich,
+      gegenBereich: daten.gegenBereich,
+      prozent: daten.prozent,
+      minutenOffen: daten.minutenOffen,
     });
     return antwort({ ok: true, art: auftrag.art, at: auftrag.at }, 200, kopf);
   } catch (fehler) {

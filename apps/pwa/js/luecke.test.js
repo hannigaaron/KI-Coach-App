@@ -155,3 +155,87 @@ test("eine unbekannte Aktion schreibt nichts", () => {
   assert.equal(antwortVerarbeiten({ aktion: "quatsch" }, { store, brain: { add: (n) => notizen.push(n) } }), null);
   assert.equal(notizen.length, 0);
 });
+
+/* ---------- Die Schieflage ---------- */
+
+function balanceAttrappe(bereiche) {
+  return () => ({ bereiche });
+}
+const bereich = (b, name, minuten, ziel) => ({
+  bereich: b, name, minuten, zielMinuten: ziel,
+  anteil: ziel > 0 ? minuten / ziel : 0, anteilAmTag: 0,
+});
+const SCHIEF = [
+  bereich("karriere", "Karriere", 3900, 2400),
+  bereich("me_time", "Me Time", 125, 420),
+];
+
+/** Ein Speicher mit genug Tagen gemessener Zeit. */
+function speicherMitZeit(tage = 14, settings = {}) {
+  const heute = Date.parse("2026-09-29T00:00:00Z");
+  const zeiten = Array.from({ length: tage }, (_, i) => ({
+    tag: new Date(heute - i * 86400000).toISOString().slice(0, 10), minuten: 60,
+  }));
+  let einstellungen = { ...settings };
+  return {
+    allDays: () => [],
+    getDay: () => ({ trainings: [] }),
+    getZeiten: () => zeiten,
+    getKalender: () => ({ termine: [] }),
+    getProfile: () => ({ sessions: [] }),
+    getSettings: () => einstellungen,
+    setSettings: (s) => { einstellungen = s; },
+  };
+}
+
+test("Die Schieflage kommt aus dem Board und den gemessenen Tagen", async () => {
+  const { schieflageAusSpeicher } = await import("./luecke.js");
+  const s = schieflageAusSpeicher(speicherMitZeit(), balanceAttrappe(SCHIEF), "2026-09-29");
+  assert.ok(s);
+  assert.equal(s.fehlt.bereich, "me_time");
+  assert.equal(s.frisst.bereich, "karriere");
+});
+
+test("Zu wenige Tage mit gemessener Zeit melden nichts", async () => {
+  const { schieflageAusSpeicher } = await import("./luecke.js");
+  assert.equal(schieflageAusSpeicher(speicherMitZeit(6), balanceAttrappe(SCHIEF), "2026-09-29"), null);
+});
+
+test("Kalendertermine zählen als gemessene Zeit", async () => {
+  // Wer seine ganze Zeit im Kalender hat und nichts von Hand einträgt, käme
+  // sonst nie über die Schwelle.
+  const { schieflageAusSpeicher } = await import("./luecke.js");
+  const heute = Date.parse("2026-09-29T12:00:00Z");
+  const store = speicherMitZeit(0);
+  store.getKalender = () => ({
+    termine: Array.from({ length: 12 }, (_, i) => ({ von: heute - i * 86400000, bis: heute })),
+  });
+  assert.ok(schieflageAusSpeicher(store, balanceAttrappe(SCHIEF), "2026-09-29"));
+});
+
+test("Gemeldet wird die Kennung des Bereichs, nicht sein Name", async () => {
+  const { schieflageAusSpeicher, schieflageMelden } = await import("./luecke.js");
+  const store = speicherMitZeit();
+  let gesendet = null;
+  await schieflageMelden({
+    store,
+    worker: "https://w.example",
+    endpoint: "https://web.push.apple.com/AB12",
+    schieflage: schieflageAusSpeicher(store, balanceAttrappe(SCHIEF), "2026-09-29"),
+    jetzt: new Date("2026-09-29T09:00:00"),
+    holen: async (url, o) => { gesendet = JSON.parse(o.body); return { ok: true, json: async () => ({}) }; },
+  });
+  assert.equal(gesendet.art, "schieflage");
+  assert.equal(gesendet.bereich, "me_time");
+  assert.equal(gesendet.gegenBereich, "karriere");
+  assert.equal(gesendet.prozent, 30);
+  assert.equal("titel" in gesendet, false);
+  assert.equal("name" in gesendet, false);
+  assert.equal(store.getSettings().schieflageGemeldet, "2026-09-29");
+});
+
+test("Eine gemeldete Schieflage sperrt die nächsten drei Tage", async () => {
+  const { schieflageAusSpeicher } = await import("./luecke.js");
+  const store = speicherMitZeit(14, { schieflageGemeldet: "2026-09-28" });
+  assert.equal(schieflageAusSpeicher(store, balanceAttrappe(SCHIEF), "2026-09-29"), null);
+});
