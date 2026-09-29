@@ -69,6 +69,8 @@ import {
   belastungText,
   bereitschaft,
   bereitschaftText,
+  bericht,
+  berichtText,
 } from "@daevo/core";
 import { brain } from "./brain.js";
 import { KONFIG } from "./konfig.js";
@@ -357,6 +359,61 @@ const TYP_LABEL = { strength: "Kraft", team_sport: "Mannschaftssport", cardio: "
  * Verglichen wird auf ganze Wörter ab drei Zeichen. Ein kürzeres Wort trifft
  * zufällig: "Ei" steckt in "Eiweiss", "Reis" und "Eintrag".
  */
+/**
+ * Baut die Tage für den Bericht.
+ *
+ * Die Zahlen kommen aus `dayNumbers`, also aus demselben Weg wie die
+ * Tagesansicht. Eine zweite Rechnung wäre eine zweite Stelle, an der eine
+ * Kalorie anders herauskommt als in der App daneben.
+ */
+export function berichtTage(von, bis) {
+  const tage = [];
+  for (let t = Date.parse(`${von}T00:00:00Z`); t <= Date.parse(`${bis}T00:00:00Z`); t += 86400000) {
+    const tag = new Date(t).toISOString().slice(0, 10);
+    const daten = store.getDay(tag);
+    const { totals } = dayNumbers(tag);
+    const trainings = Array.isArray(daten.trainings) ? daten.trainings : [];
+    const checkin = (daten.checkins || []).find((c) => Number.isFinite(Number(c?.energy)));
+    tage.push({
+      tag,
+      kcal: totals.kcal,
+      proteinG: totals.proteinG,
+      wasserMl: totals.waterMl,
+      // `Number(null)` ist 0 und damit endlich. `getDay` liefert `weightKg: null`
+      // für jeden Tag ohne Wiegung, und ohne diese Prüfung wird daraus eine
+      // Wiegung von null Kilo. Im Bericht stand dann "+83.8 kg seit".
+      gewichtKg: daten.weightKg === null || daten.weightKg === undefined ? null : Number(daten.weightKg),
+      trainingMinuten: trainings.reduce((s, e) => s + (Number(e?.minutes) || 0), 0),
+      trainingEinheiten: trainings.length,
+      energie: checkin ? Number(checkin.energy) : null,
+      schlafMinuten: Number.isFinite(Number(daten.gesundheit?.schlafMinuten))
+        ? Number(daten.gesundheit.schlafMinuten)
+        : null,
+    });
+  }
+  return tage;
+}
+
+/** Ein Bericht über die letzten `tage` Tage, mit dem Zeitraum davor zum Vergleich. */
+export function berichtFuer(anzahl, heute = todayIso()) {
+  const ende = Date.parse(`${heute}T00:00:00Z`);
+  const iso = (ms) => new Date(ms).toISOString().slice(0, 10);
+  const von = iso(ende - (anzahl - 1) * 86400000);
+  const vorherVon = iso(ende - (2 * anzahl - 1) * 86400000);
+  const vorherBis = iso(ende - anzahl * 86400000);
+
+  return bericht({
+    tage: berichtTage(von, heute),
+    vorher: berichtTage(vorherVon, vorherBis),
+    ziele: (() => {
+      const z = dayNumbers(heute).targets;
+      return { kcal: z.kcal, proteinG: z.proteinG, wasserMl: z.waterMl };
+    })(),
+    von,
+    bis: heute,
+  });
+}
+
 /** Alle Tage aus dem Speicher als Tabelle. Für die Fensterrechnungen. */
 function alleTage() {
   const tage = {};
@@ -2126,6 +2183,18 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
      * einmal zu lesen und einmal zu filtern ist billiger als 28 Einzelzugriffe
      * mit Datumsrechnung dazwischen.
      */
+    /**
+     * Der Bericht über einen Zeitraum.
+     *
+     * Sieben oder achtundzwanzig Tage, alles andere wird darauf gerundet. Eine
+     * freie Zahl klänge genauer, als sie ist: ein Bericht über elf Tage
+     * vergleicht gegen elf Tage davor, und die Grenze liegt dann mitten in
+     * einer Woche.
+     */
+    async berichtErstellen({ tage } = {}) {
+      return berichtText(berichtFuer(Number(tage) >= 21 ? 28 : 7));
+    },
+
     async belastungAbrufen() {
       return belastungText(belastung({ tage: alleTage(), heute: todayIso() }));
     },

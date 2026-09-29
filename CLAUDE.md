@@ -61,7 +61,7 @@ Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
 
-Der Assistent hat vierzig Werkzeuge und verändert die App wirklich. Zahlen
+Der Assistent hat einundvierzig Werkzeuge und verändert die App wirklich. Zahlen
 über den Nutzer kommen immer aus Werkzeugen, nie aus dem Modell. Allgemeines
 Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
@@ -160,7 +160,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 764 Tests
+npm test           # 780 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -958,7 +958,7 @@ Tippfehler darf die Ziele nicht kippen.
 
 ## Der Regelweg ist die kostenlose Stufe
 
-33 der 40 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
+34 der 41 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
 Das ist keine Notlösung für den Ausfall, sondern das Produkt: ein Weg, der
 kein Modell anfragt, kostet nichts je Nutzer und skaliert ohne Rechnung.
 
@@ -1181,6 +1181,72 @@ es: wie viele Knöpfe ein System anzeigt, steht in `Notification.maxActions`,
 überzählige lässt es stillschweigend weg, und Safari auf dem iPhone zeigt
 derzeit gar keine. Deshalb wird im Service Worker gekürzt statt gehofft, und
 deshalb stehen die häufigsten Gründe vorn.
+
+## Der Bericht
+
+`packages/core/src/bericht.ts`, Ansicht unter Coaching.
+
+Die zwei Check-ins fragen ab, wie eine Woche sich angefühlt hat. Was fehlte,
+ist der Blick auf das, was wirklich passiert ist, über mehrere Wochen und auf
+einer Seite.
+
+Zwei Regeln stehen über allem. Genannt wird nur, was gemessen wurde. Und zu
+jeder Zahl gehört, auf wie vielen Tagen sie beruht.
+
+Ein Schnitt aus weniger als einem Drittel der Tage kommt gar nicht vor. Er
+beschreibt dann nicht den Zeitraum, sondern die Auswahl der Tage, an denen
+jemand Lust zum Eintragen hatte, und das sind fast immer die guten. Statt einer
+Zahl steht dann, wie viele Tage fehlen, und dass das keine Kritik ist.
+
+Null Kalorien an einem Tag ohne Eintrag ist keine Angabe, sondern eine Lücke.
+Sie mitzumitteln zieht jeden Schnitt nach unten und macht aus vierzehn guten
+Tagen und vierzehn leeren einen halbierten Schnitt.
+
+Das Gewicht ist kein Schnitt, sondern eine Strecke: der Durchschnitt von 87 und
+85 Kilo sagt über eine Abnahme nichts. Ausgegeben wird der letzte Wert und die
+Differenz zum ersten.
+
+Training und Einheiten werden summiert, alles andere gemittelt. Eine Summe von
+Energiewerten wäre keine Zahl, die etwas bedeutet.
+
+Der Trend vergleicht gegen den gleich langen Zeitraum davor, mit einer Schwelle
+von fünf Prozent. Darunter ist es Rauschen, und ein Pfeil auf Rauschen erzeugt
+Aktionismus. Dieselbe Überlegung wie bei `checkinVergleich`.
+
+Der Trend urteilt nicht. "20 Prozent mehr als davor" steht da, nicht "besser":
+ob mehr Kalorien besser sind, hängt am Ziel, und das weiss diese Funktion
+nicht.
+
+Das Fazit hat höchstens drei Sätze, und jeder hängt an einer Zahl von oben. Ein
+Fazit, das mehr sagt als die Zahlen hergeben, ist der Punkt, an dem ein Bericht
+anfängt zu lügen.
+
+`berichtText` gibt reinen Text ohne Auszeichnung. Der Bericht ist zum
+Weitergeben gebaut, nicht zum Ansehen: einer, den man nur in der App lesen
+kann, wird nicht verschickt. Der Knopf nimmt `navigator.share`, wo es das gibt,
+sonst die Zwischenablage. Ein Abbruch im Teilen Dialog wirft ebenfalls, und das
+ist kein Fehler.
+
+Sieben oder achtundzwanzig Tage, alles andere wird darauf gerundet. Eine freie
+Zahl klänge genauer, als sie ist: ein Bericht über elf Tage vergleicht gegen
+elf Tage davor, und die Grenze liegt dann mitten in einer Woche.
+
+### Number(null) ist 0, dreimal
+
+Derselbe Fehler in drei Modulen innerhalb einer Woche, deshalb steht er hier
+und nicht nur im Code.
+
+`Number(null)` ergibt 0, und `Number.isFinite(0)` ist true. Jede Prüfung der
+Form `Number.isFinite(Number(wert))` hält damit ein fehlendes Feld für eine
+gültige Null.
+
+In `bereitschaft.ts` zählte ein fehlender Wochenbogen als "gar kein Stress" und
+hob die Bereitschaft. In `bericht.ts` und in `berichtTage` zählte jeder Tag
+ohne Wiegung als Wiegung von null Kilo, und im Bericht stand "+83.8 kg seit".
+Zweimal hat es die gerenderte Ansicht gezeigt, einmal ein Test.
+
+Wo ein Feld fehlen darf, wird auf null und undefined geprüft, bevor `Number`
+überhaupt gerufen wird. Wo ein Wert positiv sein muss, steht zusätzlich `> 0`.
 
 ## Apple Health, über die Exportdatei
 

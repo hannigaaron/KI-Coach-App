@@ -67,6 +67,7 @@ export interface AgentActions {
   kopfLeeren(input: { text: string }): Promise<string>;
   musterErkennen(input: { tage?: number }): Promise<string>;
   belastungAbrufen(): Promise<string>;
+  berichtErstellen(input: { tage?: number }): Promise<string>;
   bereitschaftAbrufen(): Promise<string>;
   balanceAbrufen(input: { tage?: number }): Promise<string>;
   zeitEintragen(input: { bereich: string; minuten: number; was: string; tag?: string }): Promise<string>;
@@ -607,6 +608,10 @@ async function execute(
       case "muster_erkennen": {
         const tage = Number.isFinite(Number(input.tage)) ? clamp(Number(input.tage), 14, 180) : undefined;
         return { text: await actions.musterErkennen({ tage }) };
+      }
+      case "bericht_erstellen": {
+        const tage = Number.isFinite(Number(input.tage)) ? clamp(Number(input.tage), 7, 28) : undefined;
+        return { text: await actions.berichtErstellen({ tage }) };
       }
       case "belastung_abrufen":
         return { text: await actions.belastungAbrufen() };
@@ -1184,6 +1189,13 @@ export async function runOffline(
   if (pattern("tagesform", "bereitschaft", "wie belastbar", "kann ich heute (hart|schwer)",
     "bin ich heute (fit|bereit)", "wie fit bin ich", "schaffe ich heute ein training").test(text)) {
     return { text: await actions.bereitschaftAbrufen(), ausgeführt, source: "offline" };
+  }
+
+  if (pattern("wochenbericht", "monatsbericht", "wie lief (meine|der) (woche|monat)",
+    "rückblick auf (die|den)", "ruckblick auf (die|den)", "bericht", "zusammenfassung der woche",
+    "wie war mein monat").test(text)) {
+    const monat = /monat/.test(text);
+    return { text: await actions.berichtErstellen({ tage: monat ? 28 : 7 }), ausgeführt, source: "offline" };
   }
 
   if (pattern("belastung", "trainingslast", "zu viel trainiert", "übertreibe ich", "ubertreibe ich",

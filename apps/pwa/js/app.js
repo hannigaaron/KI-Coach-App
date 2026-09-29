@@ -7,6 +7,7 @@ import {
   belastungText,
   bereitschaft,
   bereitschaftText,
+  berichtText,
 } from "@daevo/core";
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, produktPerBarcode, produkteSuchen } from "@daevo/coach";
 import { Coach, AnthropicProvider } from "@daevo/coach";
@@ -24,6 +25,7 @@ import {
   trainingsplanUebernehmen, trainingsplanVorschlag, widerspruchListe,
   kalenderEntfernen, kalenderImportieren, kalenderStand, kalenderUebersicht,
   kostenUebersicht, recommendations, standardsUebersicht, tagesErinnerungen, verlaufPunkte,
+  berichtFuer,
 } from "./assistant.js";
 import { brain } from "./brain.js";
 import { Orb } from "./orb.js";
@@ -723,6 +725,7 @@ function showView(name) {
   if (name === "tag") renderTag();
   if (name === "balance") renderBalance();
   if (name === "bereitschaft") renderBereitschaft();
+  if (name === "bericht") renderBericht();
   if (name === "standards") { renderStandards(); zeigeAngebot("standardsAngebot"); }
   if (name === "gespraeche") renderGespraeche();
   if (name === "wochencheck") wcStart();
@@ -814,6 +817,39 @@ function renderTagWertung() {
 
   $("tagWertungSatz").textContent = heute.satz;
 }
+
+/* ---------- Der Bericht ---------- */
+
+function renderBericht() {
+  const b = berichtFuer(Number($("berichtZeitraum").value) || 28);
+  $("berichtKopf").textContent =
+    `${b.von} bis ${b.bis}, ${b.tageMitDaten} von ${b.tageGesamt} Tagen mit Eintrag.`;
+  $("berichtWerte").innerHTML = b.werte
+    .map((w) => `<li><div class="li-main"><div class="li-title">${escapeHtml(w.name)}: ${escapeHtml(w.wert)}</div>`
+      + `<div class="li-sub">${escapeHtml(w.trend || "kein Vergleich")}, ${w.tage} Tage</div></div></li>`)
+    .join("") || '<li><div class="li-main"><div class="li-title">Noch nichts zu berichten</div></div></li>';
+  $("berichtFazit").textContent = b.fazit.join("\n");
+}
+
+$("berichtZeitraum").addEventListener("change", renderBericht);
+
+/*
+ * Teilen, wo es das gibt, sonst in die Zwischenablage.
+ *
+ * `navigator.share` ist auf dem iPhone der kurze Weg in eine Nachricht, auf
+ * dem Rechner gibt es ihn oft nicht. Ein Knopf, der dort nichts tut, wäre die
+ * schlechtere Lösung als einer, der still kopiert.
+ */
+$("btnBerichtTeilen").addEventListener("click", async () => {
+  const text = berichtText(berichtFuer(Number($("berichtZeitraum").value) || 28));
+  try {
+    if (navigator.share) await navigator.share({ text });
+    else { await navigator.clipboard.writeText(text); toast("Bericht kopiert"); }
+  } catch (fehler) {
+    // Abbrechen im Teilen Dialog wirft ebenfalls. Das ist kein Fehler.
+    if (fehler?.name !== "AbortError") toast("Das hat nicht geklappt");
+  }
+});
 
 /* ---------- Apple Health ---------- */
 

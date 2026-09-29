@@ -36,6 +36,7 @@ function stubActions(log: string[]): AgentActions {
     async kopfLeeren(i) { log.push(`kopf:${i.text.slice(0, 12)}`); return "Fang hiermit an: Angebot schreiben."; },
     async musterErkennen(i) { log.push(`muster:${i.tage ?? ""}`); return "Schlaf und Energie hängen zusammen."; },
     async belastungAbrufen() { log.push("belastung"); return "240 Minuten in 7 Tagen, dein Schnitt liegt bei 210."; },
+    async berichtErstellen(i) { log.push(`bericht:${i.tage ?? ""}`); return "daevo Bericht, 7 Tage."; },
     async bereitschaftAbrufen() { log.push("bereitschaft"); return "Bereitschaft 72 von 100."; },
     async balanceAbrufen(i) { log.push(`balance:${i.tage ?? ""}`); return "Karriere 40 Stunden, Me Time 0 Minuten."; },
     async zeitEintragen(i) { log.push(`zeit:${i.bereich}:${i.minuten}`); return "Gebucht."; },

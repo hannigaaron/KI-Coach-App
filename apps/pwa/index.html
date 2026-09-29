@@ -513,6 +513,34 @@ try {
     beschreiben und keinen Tagesstand. Heute beantwortet "wie weit bin ich",
     hier steht "wie steht die Woche zu den letzten vier".
   -->
+  <!--
+    Der Bericht.
+
+    Er ist zum Weitergeben gebaut, nicht zum Ansehen. Deshalb steht unter den
+    Werten ein reiner Text ohne Auszeichnung: ein Bericht, den man nur in der
+    App lesen kann, wird nicht verschickt.
+  -->
+  <section class="view" data-view="bericht" hidden>
+    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Bericht</h1><div class="bar-spacer"></div></header>
+    <div class="scroll">
+      <div class="field-row">
+        <div class="field"><label for="berichtZeitraum">Zeitraum</label>
+          <select id="berichtZeitraum">
+            <option value="7">Eine Woche</option>
+            <option value="28" selected>Vier Wochen</option>
+          </select></div>
+        <div class="field"><label for="btnBerichtTeilen">&nbsp;</label>
+          <button id="btnBerichtTeilen" class="ghost" style="width:100%">Text kopieren</button></div>
+      </div>
+      <p class="sub" id="berichtKopf"></p>
+      <ul class="list" id="berichtWerte"></ul>
+      <pre class="pre" id="berichtFazit"></pre>
+      <p class="fineprint">Ein Schnitt aus weniger als einem Drittel der Tage steht nicht da. Er beschreibt
+        dann nicht den Zeitraum, sondern die Tage, an denen du Lust zum Eintragen hattest, und das sind fast
+        immer die guten. Ein Trend unter fünf Prozent gilt als unverändert.</p>
+    </div>
+  </section>
+
   <section class="view" data-view="bereitschaft" hidden>
     <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Bereitschaft</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
@@ -1034,6 +1062,7 @@ try {
       <div class="menu-unter" hidden>
         <button class="menu-item" data-go="checkin"><b>Check-in</b><span>Energie, Schlaf, Stimmung</span></button>
         <button class="menu-item" data-go="wochencheck"><b>Wochen Check-in</b><span>Mittwoch Bilanz, Sonntag Rückblick</span></button>
+        <button class="menu-item" data-go="bericht"><b>Bericht</b><span>Woche und Monat, zum Weitergeben</span></button>
         <button class="menu-item" data-go="bereitschaft"><b>Bereitschaft</b><span>Tagesform und Belastung aus deinen Daten</span></button>
         <button class="menu-item" data-go="standards"><b>Mindeststandards</b><span>Deine Untergrenze, jede Woche</span></button>
         <button class="menu-item" data-go="empfehlungen"><b>Empfehlungen</b><span>Muster und Widersprüche</span></button>

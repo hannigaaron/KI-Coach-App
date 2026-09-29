@@ -390,3 +390,35 @@ test("Bereitschaft braucht den Morgen Check-in", async () => {
   assert.match(text, /Bereitschaft \d+ von 100/);
   assert.match(text, /keine Messung/);
 });
+
+test("Der Bericht rechnet über die wirklich gespeicherten Tage", async () => {
+  const heute = frischerTag();
+  const aktionen = buildActions({});
+  // Vierzehn Tage mit Essen, jeden zweiten Tag ein Training.
+  for (let i = 0; i < 14; i++) {
+    const tag = new Date(Date.parse(`${heute}T00:00:00Z`) - i * 86400000).toISOString().slice(0, 10);
+    const day = store.getDay(tag);
+    day.meals = [{ id: `m${i}`, at: "12:00", entries: [
+      { name: "Reis", quantity: "300 g", kcal: 390, proteinG: 8, fatG: 1, carbsG: 85 },
+      { name: "Hähnchen", quantity: "200 g", kcal: 330, proteinG: 62, fatG: 7, carbsG: 0 },
+    ] }];
+    day.waterMl = 3000;
+    if (i % 2 === 0) day.trainings = [{ id: `t${i}`, type: "strength", minutes: 60, at: "18:00", note: "" }];
+    store.setDay(tag, day);
+  }
+
+  const text = await aktionen.berichtErstellen({ tage: 7 });
+  assert.match(text, /daevo Bericht/);
+  assert.match(text, /Kalorien: 720 kcal im Schnitt/);
+  assert.match(text, /Einheiten: 4/);
+  assert.match(text, /7 von 7 Tagen mit Eintrag/);
+});
+
+test("Der Bericht rundet auf Woche oder Monat, statt eine freie Zahl zu nehmen", async () => {
+  frischerTag();
+  const aktionen = buildActions({});
+  const woche = await aktionen.berichtErstellen({ tage: 9 });
+  const monat = await aktionen.berichtErstellen({ tage: 25 });
+  const spanne = (t) => t.split("\n")[0];
+  assert.notEqual(spanne(woche), spanne(monat));
+});

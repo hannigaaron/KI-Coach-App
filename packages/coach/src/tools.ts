@@ -493,6 +493,23 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: "bericht_erstellen",
+    description:
+      "Baut den Bericht über die letzte Woche oder den letzten Monat: Kalorien, Protein, Wasser, " +
+      "Training, Schlaf, Energie und Gewicht, jeweils mit der Zahl der Tage, auf denen der Wert beruht, " +
+      "und dem Vergleich zum Zeitraum davor. " +
+      "Nehmen, wenn er nach seiner Woche oder seinem Monat fragt, nach Fortschritt, oder wenn er etwas " +
+      "zum Weiterschicken will. " +
+      "Ein Schnitt aus weniger als einem Drittel der Tage kommt nicht vor: der beschreibt nicht den " +
+      "Zeitraum, sondern die Tage, an denen er Lust zum Eintragen hatte. Das steht dann auch so da.",
+    input_schema: {
+      type: "object",
+      properties: {
+        tage: { type: "number", description: "7 für die Woche, 28 für den Monat. Ohne Angabe 7." },
+      },
+    },
+  },
+  {
     name: "belastung_abrufen",
     description:
       "Rechnet die Trainingslast der letzten 7 Tage gegen den Schnitt der letzten 28, beide in Minuten. " +
