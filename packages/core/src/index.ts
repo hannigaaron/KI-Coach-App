@@ -28,3 +28,4 @@ export * from "./weckwort.js";
 export * from "./trainingsluecke.js";
 export * from "./belastung.js";
 export * from "./bereitschaft.js";
+export * from "./health.js";

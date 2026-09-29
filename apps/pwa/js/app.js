@@ -12,6 +12,7 @@ import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, produktPerBarcode, produkteS
 import { Coach, AnthropicProvider } from "@daevo/coach";
 import { KONFIG, istDemo } from "./konfig.js";
 import { antwortVerarbeiten, antwortenAbholen, lueckeAusSpeicher, lueckeMelden } from "./luecke.js";
+import { healthDateiLesen, healthSchreiben, schreibBericht } from "./gesundheit.js";
 import {
   ablaufFuer, ask, aufgabeAbhaken, aufgabeAnlegenEingestuft, aufgabeLoeschen, aufgabeUmstufen, aufgabenPlan,
   balanceFuer, balanceRat, briefing,
@@ -726,7 +727,7 @@ function showView(name) {
   if (name === "gespraeche") renderGespraeche();
   if (name === "wochencheck") wcStart();
   if (name === "empfehlungen") { renderRecommendations(); zeigeAngebot("empfehlungenAngebot"); }
-  if (name === "profil") renderProfile();
+  if (name === "profil") { renderProfile(); healthStandZeigen(); }
   if (name === "assistant") renderTranscript();
 }
 
@@ -812,6 +813,63 @@ function renderTagWertung() {
   }));
 
   $("tagWertungSatz").textContent = heute.satz;
+}
+
+/* ---------- Apple Health ---------- */
+
+/**
+ * Der Import aus der Exportdatei.
+ *
+ * Erst lesen, dann anzeigen, dann schreiben. Ein Import, der erst schreibt und
+ * danach berichtet, lässt dem Nutzer keine Wahl, und bei einer Datei mit zwei
+ * Jahren Daten ist das die falsche Reihenfolge.
+ *
+ * Der Fortschritt steht am Knopf. Eine Exportdatei von jemandem, der lange
+ * eine Uhr trägt, braucht zwanzig Sekunden und mehr, und ein Knopf, der sich
+ * dabei nicht rührt, sieht aus wie eine hängende App.
+ */
+$("btnHealthDatei").addEventListener("click", () => $("healthDatei").click());
+
+$("healthDatei").addEventListener("change", async (event) => {
+  const datei = event.target.files?.[0];
+  event.target.value = "";
+  if (!datei) return;
+
+  const knopf = $("btnHealthDatei");
+  const ausgabe = $("healthBericht");
+  knopf.disabled = true;
+  ausgabe.hidden = false;
+  ausgabe.textContent = "Ich lese die Datei.";
+
+  try {
+    const ergebnis = await healthDateiLesen(datei, {
+      aufFortschritt: (zeichen) => {
+        knopf.textContent = `${Math.round(zeichen / 1_000_000)} MB gelesen`;
+      },
+    });
+    knopf.textContent = "Ich schreibe die Tage";
+    ausgabe.textContent = schreibBericht(healthSchreiben(ergebnis, { store }), ergebnis);
+    healthStandZeigen();
+    // Der Import setzt das Profilgewicht. `profile` ist eine Kopie im Modul,
+    // und ohne das Nachladen zeigt das Feld weiter den alten Wert, den der
+    // nächste Druck auf Speichern dann wieder zurückschreibt.
+    profile = store.getProfile();
+    renderProfile();
+    refreshAll();
+  } catch (fehler) {
+    ausgabe.textContent = `Das hat nicht geklappt: ${fehler.message}`;
+  } finally {
+    knopf.disabled = false;
+    knopf.textContent = "Export auswählen";
+  }
+});
+
+/** Wann zuletzt importiert wurde. Ohne das weiss niemand, wie alt die Kopie ist. */
+function healthStandZeigen() {
+  const stand = store.getSettings().healthImport;
+  $("healthStand").textContent = stand?.at
+    ? `Zuletzt eingelesen am ${stand.at.slice(0, 10)}, ${stand.tage} Tage.`
+    : "Noch nichts eingelesen.";
 }
 
 /* ---------- Bereitschaft und Belastung ---------- */

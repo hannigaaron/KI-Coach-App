@@ -673,6 +673,18 @@ try {
       <ul class="list" id="planVorschlag"></ul>
       <button id="btnPlanUebernehmen" class="ghost" hidden>In das Profil übernehmen</button>
 
+      <h2 class="abschnitt">Apple Health</h2>
+      <p class="sub">HealthKit gibt es nur für native Apps. Der Weg für eine Web App ist der Export, den die
+        Health App selbst anbietet: Profil oben rechts, ganz unten "Alle Gesundheitsdaten exportieren".
+        Dann das ZIP hier auswählen. Es geht nichts an einen Server, alles läuft auf deinem Gerät.</p>
+      <input id="healthDatei" type="file" accept=".zip,.xml,application/zip,text/xml" hidden>
+      <button id="btnHealthDatei" class="primary">Export auswählen</button>
+      <p class="sub" id="healthStand"></p>
+      <pre class="pre" id="healthBericht" hidden></pre>
+      <p class="fineprint">Übernommen werden Schritte, Schlafdauer, Ruhepuls, Herzfrequenzvariabilität und
+        Gewicht, höchstens für die letzten zwei Jahre. Ein Gewicht, das du selbst eingetragen hast, bleibt
+        stehen. Das ist eine Kopie und kein Abo: was nach dem Export dazukommt, kennt daevo nicht.</p>
+
       <h2 class="abschnitt">Kalender verbinden</h2>
       <p class="sub" id="kalQuellenSub">Beide Kalender geben eine .ics Datei aus. Die liest daevo direkt im Gerät, es geht nichts an einen Server.</p>
       <input id="kalDatei" type="file" accept=".ics,text/calendar" hidden>

@@ -160,7 +160,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 734 Tests
+npm test           # 764 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1181,6 +1181,86 @@ es: wie viele Knöpfe ein System anzeigt, steht in `Notification.maxActions`,
 überzählige lässt es stillschweigend weg, und Safari auf dem iPhone zeigt
 derzeit gar keine. Deshalb wird im Service Worker gekürzt statt gehofft, und
 deshalb stehen die häufigsten Gründe vorn.
+
+## Apple Health, über die Exportdatei
+
+`packages/core/src/health.ts` liest, `apps/pwa/js/zip.js` packt aus,
+`apps/pwa/js/gesundheit.js` schreibt. Oberfläche im Profil.
+
+HealthKit gibt es nur nativ. Eine Web App kommt nicht heran, und daran ändert
+auch kein MCP etwas: MCP verbindet ein Sprachmodell mit Werkzeugen, nicht eine
+Web App mit einem Gerät. Der einzige Weg ohne App Store ist der Export, den die
+Health App selbst anbietet. Heraus kommt ein ZIP mit
+`apple_health_export/export.xml`.
+
+Das ist ein Import und kein Abgleich, genau wie beim Kalender. Was nach dem
+Export im Gerät passiert, kennt die App nicht, und das steht auch in der
+Oberfläche: eine Kopie, die für ein Abo gehalten wird, ist schlimmer als gar
+keine.
+
+### Warum in Stücken
+
+Ein `export.xml` von jemandem, der seit Jahren eine Uhr trägt, hat mehrere
+hundert Megabyte und bis zu einer Million Einträge. Eine Zeichenkette dieser
+Grösse bringt den Browser um, ein XML Baum erst recht. Der Sammler nimmt
+deshalb Stück für Stück entgegen und hält nur die Tageswerte.
+
+Ein Datensatz kann an einer Stückgrenze zerrissen werden. Deshalb bleibt der
+Rest hinter dem letzten vollständigen Tag im Puffer und wird dem nächsten Stück
+vorangestellt. Ohne das fehlt bei jedem Stückwechsel genau ein Eintrag, und bei
+einer Million Einträgen fällt das niemandem auf. Der Test schneidet dieselbe
+Datei an fünf verschiedenen Stellen durch und erwartet jedes Mal dieselbe
+Summe.
+
+### Das ZIP ohne Bibliothek
+
+Eine ZIP Bibliothek wäre die erste Laufzeitabhängigkeit der App, je nach Paket
+20 bis 100 Kilobyte. Gebraucht wird davon genau eines: eine einzelne Datei aus
+dem Archiv holen. Das Format ist seit 1989 unverändert, und das Entpacken
+bringt der Browser selbst mit, `DecompressionStream("deflate-raw")`.
+
+Gelesen wird das zentrale Verzeichnis am Ende der Datei, nicht die Einträge von
+vorn: sonst liest man das ganze Archiv. Die Daten kommen über `Blob.slice` und
+laufen als Strom durch das Entpacken. Nichts davon liegt komplett im Speicher.
+
+Der lokale Kopf wird trotzdem gelesen, obwohl das Verzeichnis dieselben Längen
+trägt. Sie können abweichen, und wer die aus dem Verzeichnis nimmt, liest bei
+manchen Archiven ein paar Byte daneben. Das Entpacken bricht dann mit einer
+Meldung ab, die nichts erklärt.
+
+ZIP64 wird erkannt und abgelehnt, mit dem Hinweis, das Archiv von Hand zu
+entpacken. Eine halbe Unterstützung, die bei grossen Archiven still falsch
+liest, wäre schlechter als eine klare Absage.
+
+### Was übernommen wird
+
+Schritte und aktive Kalorien werden summiert, denn die Uhr schreibt sie in
+vielen kleinen Stücken über den Tag. Ruhepuls und HRV werden gemittelt: die
+Summe von vierzig Pulswerten ist keine Zahl, die etwas bedeutet. Gewicht wird
+zuletzt genommen.
+
+Beim Schlaf zählt nur `Asleep`, nicht `InBed`. Liegezeit als Schlaf zu zählen
+macht aus neun Stunden im Bett neun Stunden Schlaf. Eine Nacht wird dem
+Aufwachtag zugeschlagen und nicht dem Einschlaftag: so fragt auch der Morgen
+Check-in danach.
+
+Höchstens zwei Jahre. Wer die Uhr seit 2015 trägt, hat über dreitausend Tage im
+Export, und die bringen den localStorage an seine Grenze, ohne dass irgendeine
+Auswertung so weit zurückschaut. Die längste ist der Belastungsverlauf mit 28
+Tagen.
+
+Schritte werden überschrieben, ein Gewicht nicht. Die Uhr zählt Schritte
+genauer als jede Schätzung. Beim Gewicht ist es umgekehrt: wer sich selbst
+einträgt und danach eine Waage synchronisiert, hätte sonst zwei Wahrheiten, und
+die des Nutzers verliert.
+
+Erst lesen, dann anzeigen, dann schreiben. Ein Import, der erst schreibt und
+danach berichtet, lässt keine Wahl.
+
+`profile` ist eine Kopie im Modul. Der Import setzt das Profilgewicht über den
+Speicher, und ohne ein Nachladen zeigte das Feld weiter den alten Wert, den der
+nächste Druck auf Speichern wieder zurückgeschrieben hätte. Auch das hat erst
+der Durchlauf im Browser gezeigt.
 
 ## Belastung und Bereitschaft
 
