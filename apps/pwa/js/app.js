@@ -713,8 +713,43 @@ function setupAssistant() {
 
 /* ---------- Bereiche ---------- */
 
+/**
+ * Die Reihenfolge der Ansichten.
+ *
+ * Sie entscheidet über die Richtung des Übergangs. Wer vom Assistenten nach
+ * Heute geht, geht nach vorn, und wer zurück geht, kommt von links wieder
+ * herein. Ohne Richtung wirkt jeder Wechsel gleich, und dann hat der Nutzer
+ * nach drei Sprüngen kein Gefühl mehr dafür, wo er ist.
+ *
+ * Was nicht in der Liste steht, gilt als weiter hinten. Eine Ansicht, die
+ * jemand später hinzufügt, bekommt damit einen vernünftigen Übergang, ohne
+ * dass er daran denken muss.
+ */
+const ANSICHT_TIEFE = ["assistant", "gespraeche", "heute", "essen", "tag", "balance", "bereitschaft", "bericht"];
+
+let letzteAnsicht = "assistant";
+
 function showView(name) {
+  const von = ANSICHT_TIEFE.indexOf(letzteAnsicht);
+  const nach = ANSICHT_TIEFE.indexOf(name);
+  // -1 heisst "nicht in der Liste", also hinten. Zwei unbekannte Ansichten
+  // nacheinander ergeben damit keinen Übergang, und das ist richtig: zwischen
+  // zwei Nebenseiten gibt es kein Vor und Zurück.
+  const zurueck = name !== letzteAnsicht && (nach < von || (nach === -1 && von === -1 ? false : nach < von));
+  letzteAnsicht = name;
+
   for (const view of document.querySelectorAll(".view")) view.hidden = view.dataset.view !== name;
+  const offen = document.querySelector(".view:not([hidden])");
+  if (offen) {
+    // Die Klasse wird entfernt und im nächsten Bild neu gesetzt. Ohne das
+    // startet die Animation beim zweiten Mal auf dieselbe Ansicht nicht neu.
+    offen.classList.remove("kommt-rein", "kommt-zurueck");
+    void offen.offsetWidth;
+    offen.classList.add(zurueck ? "kommt-zurueck" : "kommt-rein");
+    // Eine neue Ansicht fängt oben an. Ohne das steht man auf einer frischen
+    // Seite mitten im Text, weil die vorherige dort gescrollt war.
+    offen.querySelector(".scroll")?.scrollTo({ top: 0 });
+  }
   $("menu").hidden = true;
   if (name === "heute") renderToday();
   if (name === "essen") { $("fridgeInput").value = store.getFridge().join(", "); renderMeals("mealList2"); renderRestDesTages(); }

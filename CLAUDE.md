@@ -55,7 +55,8 @@ Nicht mit Zahlen. Der Kreis aus dem Logo ist die Oberfläche, darunter das
 Gespräch, unten die Eingabe.
 
 Der Kreis liegt in `apps/pwa/js/orb.js` und läuft auf Canvas. Er besteht aus
-rund 4100 Partikeln auf 30 Fäden um einen gedachten Schlauch. Die Geometrie
+rund 5400 Partikeln auf 30 Fäden um einen gedachten Schlauch, im Bogen wie im
+Stamm. Die Geometrie
 ist dieselbe wie im Logo. Canvas statt SVG, weil ein paar tausend Punkte pro
 Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
@@ -1760,6 +1761,119 @@ spüren. Lineare Übergänge wirken maschinell.
 Scratchpad öffnet jede Ansicht in beiden Farbmodi und meldet zwei Dinge:
 überlappende Textelemente und seitliches Scrollen. Genau diese Fehler sieht kein
 Test, der Werte prüft, und genau die fallen dem Nutzer als Erstes auf.
+
+## Eine Schrift, die im Projekt liegt
+
+Poppins in zwei Schnitten, 500 und 600, als Datei unter `apps/pwa/schrift`.
+Zusammen 16 Kilobyte, nur die lateinische Teilmenge. Der Bereich U+0000 bis
+U+00FF deckt ä, ö, ü und ß ab.
+
+Nicht von Google geladen, und dafür gibt es zwei Gründe. Die App muss ohne
+Netz starten, das ist der halbe Sinn einer installierten Web App, und eine
+Schrift von einem fremden Server bricht dort weg. Ausserdem verrät jeder Abruf
+an fonts.gstatic.com, wann jemand die App aufmacht, und bei einer App, in der
+Notizen über Therapie und Familie liegen, liefert man so etwas nicht nebenbei
+mit. Der Service Worker legt beide Dateien in den Cache.
+
+300 fehlt bewusst. Das Light gibt es nur in der Wortmarke, und die liegt als
+Pfad vor. Eine dritte Datei für zwei Buchstaben wäre Ladezeit ohne Gegenwert.
+
+Zwei Rollen, nicht eine. Poppins trägt Überschriften und die Zahlen, die
+Systemschrift den Fliesstext. Eine geometrische Schrift ist auf 13 Pixeln
+Lauftext schlechter lesbar, weil ihre runden Formen eng laufen und die
+Unterschiede zwischen a, o und e kleiner werden. In einer Zahl von 48 Pixeln
+ist genau diese Geometrie der Grund, sie zu nehmen: die Null ist ein Kreis,
+wie der Ring, in dem sie steht. Eine Schrift überall einzusetzen macht sie
+ausserdem unsichtbar, sie fällt nur auf, wo daneben etwas anderes steht.
+
+Der Rückfall ist nicht beliebig: fehlt Poppins, kommt etwas Geometrisches und
+keine Voreinstellung mit Serifen. `font-display: swap`, damit ein fehlender
+Download keine leere Seite ergibt.
+
+Die Zahl im Wertungsring wird als SVG Text gesetzt und erbt die Schrift nicht
+über die üblichen Regeln, dafür steht eine eigene Zeile im Stylesheet.
+
+SIL Open Font License 1.1, der Text liegt neben den Dateien.
+
+## Der Wechsel zwischen Ansichten
+
+Vorher schnitt die App hart um. Ein Schnitt ohne Übergang nimmt dem Nutzer die
+Auskunft, ob er tiefer hinein oder wieder heraus gegangen ist.
+
+`ANSICHT_TIEFE` legt die Reihenfolge fest, und daraus kommt die Richtung: nach
+vorn schiebt sich die neue Ansicht von rechts herein, zurück von links. Was
+nicht in der Liste steht, gilt als weiter hinten, damit eine später
+hinzugefügte Ansicht ohne Zutun einen vernünftigen Übergang bekommt.
+
+Nur die neue Ansicht wird bewegt, die alte nicht. Zwei Ebenen gleichzeitig
+bräuchten beide gleichzeitig im Baum, also ein Umbauen von `hidden` auf
+Überlagerung, und das kostet an jeder Stelle, an der eine Ansicht ihre Höhe
+misst. Der Gewinn wäre eine Nuance.
+
+Der Assistent wird nur aufgeblendet und nicht geschoben. Dort läuft der Kreis
+auf einem Canvas, und eine Transformation auf dem Vorfahren zwingt den Browser,
+das Canvas in eine eigene Ebene zu legen und pro Bild neu zusammenzusetzen.
+
+190 Millisekunden. Darunter sieht man nur ein Zucken, darüber wartet man. Die
+Klasse wird vor dem Setzen entfernt und ein Bild später neu gesetzt, sonst
+startet die Animation beim zweiten Mal auf dieselbe Ansicht nicht. Eine neue
+Ansicht fängt oben an, sonst steht man auf einer frischen Seite mitten im Text.
+
+## Der Erfassen Knopf war ein Chip
+
+Er sah aus wie die Wasserchips darüber: gerahmtes Rechteck mit runden Ecken.
+Zwei Dinge mit demselben Aussehen und sehr verschiedenem Gewicht, und der
+wichtigere verliert, weil er weiter unten steht.
+
+Der Unterschied liegt jetzt in der Art der Fläche und nicht in der Farbe. Ein
+Chip ist umrandet und flach, dieser Knopf ist gefüllt und erhoben. Eine Füllung
+in der Markenfarbe wäre die naheliegende Lösung und die falsche: ein voll
+eingefärbter Knopf zieht mehr Aufmerksamkeit als die Zahlen darüber, und die
+sind der Inhalt der Seite.
+
+Beim Drücken sinkt er ein, kleiner und flacher zugleich. Nur kleiner werden
+liest sich als Wackeln, erst der wegfallende Schatten macht daraus eine
+Bewegung nach unten. Am rechten Rand ein Winkel, sonst sieht die Kachel aus,
+als stünde dort etwas, statt als ginge dort etwas auf. Solange das Blatt offen
+ist, zeigt der Winkel nach unten und das Plus steht auf der Diagonale, beides
+über `aria-expanded` und damit aus demselben Zustand, den auch die
+Hilfstechnik liest.
+
+## Der Stamm des d ist jetzt derselbe Schlauch wie der Bogen
+
+Zwei Fehler nacheinander, und der zweite fiel erst auf, als der erste weg war.
+
+Der erste war die Dichte. Der Ring trägt 3240 Punkte auf rund 157500
+Quadrateinheiten, also 0,0206 je Einheit. Der Stamm misst 140 mal 740 und
+hatte 1500 Punkte, also zwei Drittel davon. Der Buchstabe las sich als
+zerrissen. Jetzt 2130, gerechnet und nicht geschätzt.
+
+Der zweite war die Textur. Der Ring läuft auf 30 Fäden um einen gedachten
+Schlauch, der Stamm wurde im umschliessenden Rechteck gewürfelt und ausserhalb
+der Kapsel verworfen. Das ergab eine gleichmässig gefüllte Fläche neben einem
+Bündel aus Fäden: zwei Texturen in einem Buchstaben, und der Stamm wirkte wie
+ein aufgeklebter Balken.
+
+Der Stamm ist dieselbe Form wie der Bogen, nur gerade, also bekommt er
+dieselbe Struktur. Statt zu verwerfen wird gerechnet: zu jeder Höhe steht
+fest, wie weit der Schlauch dort reicht, in der Mitte der volle Radius, an den
+Enden die halbe Sehne des Kreises. Der Punkt sitzt auf seinem Faden bei cos(b)
+mal dieser Weite und liegt damit immer drin. Die runden Enden entstehen dabei
+von selbst, weil die Fäden dort zusammenlaufen, und die Wurzel fällt einmal
+beim Bauen an statt in jedem Bild.
+
+Beide Teile drehen mit derselben Geschwindigkeit und benutzen dieselbe
+Tiefenformel. Liefen sie verschieden, zerfiele der Buchstabe beim Zusehen in
+zwei.
+
+Der Puffer für die Bildpunkte wird jetzt aus `stemCount` dimensioniert und
+nicht aus der Konstante. Die Zahl der Fäden rundet, und bei einem Wert, der
+nicht durch 30 teilbar ist, entstünden mehr Punkte als die Konstante sagt.
+`Float32Array` schreibt dann still nicht weiter, und dem Stamm fehlte ein
+Stück ohne Fehlermeldung.
+
+Gemessen nach beiden Änderungen: 61 Bilder je Sekunde bei dreifacher
+Pixeldichte, mit rund 5400 Punkten.
 
 ## Eine Seite hat einen Helden oder keinen
 

@@ -128,38 +128,57 @@ export class Orb {
         this.ring[k++] = 2.1 + Math.random() * 1.8;
       }
     }
-    // Der Stamm ist eine Kapsel: ein Rechteck mit je einem Halbkreis oben und
-    // unten. Genau so steht er im Logo, seit die Enden rund sind. Die Punkte
-    // werden im umschliessenden Rechteck gewuerfelt und ausserhalb der Kapsel
-    // verworfen. Ohne das Verwerfen bekaemen die runden Enden Ecken zurueck.
+    // Der Stamm ist dieselbe Form wie der Ring, nur gerade: ein Schlauch mit
+    // runden Enden. Also bekommt er auch dieselbe Struktur, 30 Faeden um den
+    // Schlauch herum.
+    //
+    // Vorher wurden die Punkte im umschliessenden Rechteck gewuerfelt und
+    // ausserhalb der Kapsel verworfen. Das ergab eine gleichmaessig gefuellte
+    // Flaeche, waehrend der Ring als Buendel aus Faeden lief. Zwei Texturen in
+    // einem Buchstaben, und der Stamm wirkte wie ein aufgeklebter Balken.
+    //
+    // Statt zu verwerfen wird jetzt gerechnet. Zu jeder Hoehe steht fest, wie
+    // weit der Schlauch dort reicht: in der Mitte der volle Radius, an den
+    // Enden der halbe Kreis. Der Punkt sitzt auf seinem Faden bei cos(b) mal
+    // dieser Weite und liegt damit immer drin. Die runden Enden entstehen
+    // dabei von selbst, weil die Faeden dort zusammenlaufen.
     const stemCx = STEM_X + STEM_W / 2;
     const capR = STEM_W / 2;
     const yTopCap = STEM_TOP + capR;
     const yBotCap = BASE - capR;
-    this.stem = new Float32Array(STEM_PARTICLES * 4); // x, y, seed, size
-    this.stemCount = 0;
+    const PRO_STAMM_FADEN = Math.round(STEM_PARTICLES / STRANDS);
+    this.stemCount = STRANDS * PRO_STAMM_FADEN;
+    this.stem = new Float32Array(this.stemCount * 5); // b, y, weite, seed, size
     k = 0;
-    let versuche = 0;
-    while (this.stemCount < STEM_PARTICLES && versuche < STEM_PARTICLES * 40) {
-      versuche++;
-      const x = STEM_X + Math.random() * STEM_W;
-      const y = STEM_TOP + Math.random() * (BASE - STEM_TOP);
-      const dx = x - stemCx;
-      let drin;
-      if (y >= yTopCap && y <= yBotCap) drin = true;
-      else {
-        const dy = y < yTopCap ? y - yTopCap : y - yBotCap;
-        drin = dx * dx + dy * dy <= capR * capR;
+    for (let strand = 0; strand < STRANDS; strand++) {
+      const b0 = (strand / STRANDS) * Math.PI * 2;
+      const rScale = 0.55 + Math.random() * 0.45;
+      const seed = Math.random() * Math.PI * 2;
+      for (let j = 0; j < PRO_STAMM_FADEN; j++) {
+        const y = STEM_TOP + Math.random() * (BASE - STEM_TOP);
+        let weite = capR;
+        if (y < yTopCap || y > yBotCap) {
+          const dy = y < yTopCap ? y - yTopCap : y - yBotCap;
+          // Die halbe Sehne des Kreises auf dieser Hoehe. Hier einmal beim
+          // Bauen gerechnet, damit im Bild pro Punkt keine Wurzel anfaellt.
+          weite = Math.sqrt(Math.max(0, capR * capR - dy * dy));
+        }
+        this.stem[k++] = b0 + (Math.random() - 0.5) * 0.18;
+        this.stem[k++] = y;
+        this.stem[k++] = weite * rScale * (0.9 + Math.random() * 0.2);
+        this.stem[k++] = seed;
+        this.stem[k++] = 2.1 + Math.random() * 1.8;
       }
-      if (!drin) continue;
-      this.stem[k++] = x;
-      this.stem[k++] = y;
-      this.stem[k++] = Math.random() * Math.PI * 2;
-      this.stem[k++] = 2.2 + Math.random() * 1.8;
-      this.stemCount++;
     }
+    this.stemCx = stemCx;
+
     // Ziel für die berechneten Bildpunkte: x, y, grösse, Helligkeitsstufe
-    this.out = new Float32Array((RING_PARTICLES + STEM_PARTICLES) * 4);
+    // Die Grösse kommt aus `stemCount` und nicht aus der Konstante. Die Zahl
+    // der Faeden rundet, und bei einem Wert, der nicht durch STRANDS teilbar
+    // ist, entstehen mehr Punkte als die Konstante sagt. Der Puffer waere dann
+    // zu klein, und Float32Array schreibt still nicht weiter: der Stamm haette
+    // ein Stueck weniger, ohne Fehlermeldung.
+    this.out = new Float32Array((RING_PARTICLES + this.stemCount) * 4);
   }
 
   /**
@@ -275,17 +294,20 @@ export class Orb {
     }
 
     for (let i = 0; i < this.stemCount; i++) {
-      const p = i * 4;
-      const x = this.stem[p];
+      const p = i * 5;
+      // Dieselbe Drehung wie beim Ring, 0.45 je Sekunde. Liefen beide Teile
+      // verschieden schnell, zerfiele der Buchstabe beim Zusehen in zwei.
+      const bAng = this.stem[p] + t * 0.45;
       const y = this.stem[p + 1];
-      const seed = this.stem[p + 2];
-      const size = this.stem[p + 3];
+      const weite = this.stem[p + 2];
+      const seed = this.stem[p + 3];
+      const size = this.stem[p + 4];
       const v = (y - STEM_TOP) / (BASE - STEM_TOP);
-      const u = (x - STEM_X) / STEM_W;
       const wobble = Math.sin(v * 9 + t * 1.2 + seed) * m.amp * 0.22;
-      const depth = 0.55 + 0.45 * Math.sin(u * Math.PI);
+      // Dieselbe Tiefenformel wie beim Ring, damit beide gleich hell wirken.
+      const depth = 0.42 + 0.58 * (0.5 + 0.5 * Math.sin(bAng));
 
-      out[o++] = x + wobble;
+      out[o++] = this.stemCx + Math.cos(bAng) * weite + wobble;
       out[o++] = y;
       out[o++] = size * (0.6 + depth * 0.7);
       out[o++] = Math.min(1, depth * m.bright * 1.1);

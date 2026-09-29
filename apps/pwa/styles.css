@@ -1,4 +1,43 @@
 /*
+ * Poppins, als Datei im Projekt und nicht von Google geladen.
+ *
+ * Die App muss ohne Netz starten, das ist der halbe Sinn einer installierten
+ * Web App. Eine Schrift von einem fremden Server bricht dort weg, und die
+ * Seite springt beim ersten Öffnen ohne Empfang in die Systemschrift. Ausserdem
+ * verrät jeder Abruf an fonts.gstatic.com, wann jemand die App aufmacht, und
+ * bei einer App, in der Notizen über Therapie und Familie liegen, ist das
+ * nichts, was man nebenbei mitliefert.
+ *
+ * Nur die lateinische Teilmenge, zwei Schnitte, zusammen 16 Kilobyte. Der
+ * Bereich U+0000 bis U+00FF deckt ä, ö, ü und ß ab.
+ *
+ * 500 und 600, weil die Wortmarke auf dem Sprung zwischen den Gewichten
+ * beruht. 300 fehlt hier bewusst: das Light gibt es nur in der Wortmarke, und
+ * die liegt als Pfad vor. Eine dritte Datei für zwei Buchstaben wäre
+ * Ladezeit ohne Gegenwert.
+ *
+ * SIL Open Font License 1.1, der Text liegt in apps/pwa/schrift/OFL.txt.
+ */
+@font-face {
+  font-family: "Poppins";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("./schrift/poppins-500.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+2000-206F, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Poppins";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("./schrift/poppins-600.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+2000-206F, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD;
+}
+
+/*
   Markenfarben daevo.
 
   --brand ist das Logoblau aus dem Personal Coach Aaron Logo. Es hat auf Weiß
@@ -17,6 +56,20 @@
   /* Für Text auf hellem Grund. --brand-deep erreicht auf #f6f8fa nur 4.24 zu 1
      und ist dort für Fliesstext zu schwach. Dieser Ton liegt bei 4.98. */
   --brand-text: #1b7399;
+
+  /* ---------- Schrift ----------
+   *
+   * Zwei Rollen. Poppins trägt Überschriften und Zahlen, die Systemschrift
+   * den Fliesstext. Eine geometrische Schrift wie Poppins ist auf 13 Pixeln
+   * Lauftext schlechter lesbar als die Systemschrift, weil ihre runden
+   * Formen eng laufen und die Unterschiede zwischen a, o und e kleiner
+   * werden. In einer Zahl von 48 Pixeln ist genau diese Geometrie der Grund,
+   * sie zu nehmen: die Null ist ein Kreis, wie der Ring, in dem sie steht.
+   *
+   * Der Rückfall ist nicht beliebig. Fehlt Poppins, soll etwas Geometrisches
+   * kommen und keine Serifenschrift aus der Voreinstellung. */
+  --schrift-display: "Poppins", ui-rounded, "Avenir Next", "Segoe UI Variable Display",
+    system-ui, -apple-system, sans-serif;
 
   /* ---------- Flächen ----------
    *
@@ -1859,16 +1912,43 @@ body.blatt-offen { overflow: hidden; }
  * dieselbe Rundung wie am d der Wortmarke. Ein Plus aus dem Zeichensatz sitzt
  * je nach Schrift anders in der Zeile und ist nie genau mittig.
  */
+/*
+ * Der Knopf sah aus wie die Wasserchips darüber: gerahmtes Rechteck mit
+ * runden Ecken. Zwei Dinge mit demselben Aussehen und sehr verschiedenem
+ * Gewicht, und der wichtigere verliert, weil er weiter unten steht.
+ *
+ * Der Unterschied liegt jetzt in der Art der Fläche und nicht in der Farbe.
+ * Ein Chip ist umrandet und flach, dieser Knopf ist gefüllt und erhoben. Eine
+ * Füllung in der Markenfarbe wäre die naheliegende Lösung und die falsche:
+ * ein voll eingefärbter Knopf zieht mehr Aufmerksamkeit als die Zahlen
+ * darüber, und die sind der Inhalt der Seite.
+ */
 .erfassen-knopf {
   width: 100%; display: flex; align-items: center; gap: var(--s-4);
   padding: var(--s-4); margin-bottom: var(--s-4);
-  background: var(--panel); border: 1px solid var(--border);
+  background: var(--erhoben); border: 0;
   border-radius: var(--r-lg); box-shadow: var(--schatten-2);
   color: var(--text); text-align: left; cursor: pointer;
-  transition: transform var(--schnell) var(--kurve), border-color var(--schnell) var(--kurve);
+  transition: transform var(--schnell) var(--kurve), box-shadow var(--schnell) var(--kurve);
 }
-.erfassen-knopf:active { transform: scale(0.98); }
-.erfassen-knopf:hover { border-color: var(--accent); }
+/* Beim Drücken sinkt er ein: kleiner und flacher zugleich. Nur kleiner
+   werden liest sich als Wackeln, der wegfallende Schatten macht daraus
+   eine Bewegung nach unten. */
+.erfassen-knopf:active { transform: scale(0.985); box-shadow: var(--schatten-1); }
+.erfassen-knopf:hover { box-shadow: var(--schatten-3); }
+
+/* Ein Winkel am rechten Rand. Ohne ihn sieht die Kachel aus, als stünde dort
+   etwas, statt als ginge dort etwas auf. */
+.erfassen-chev {
+  margin-left: auto; flex: 0 0 auto;
+  width: 9px; height: 9px; border-top: 2px solid var(--muted); border-right: 2px solid var(--muted);
+  border-radius: 1px; transform: rotate(45deg);
+  transition: transform var(--normal) var(--kurve);
+}
+/* Solange das Blatt offen ist, zeigt der Winkel nach unten und das Plus steht
+   auf der Diagonale. Ein Knopf, der geöffnet hat, soll das sagen. */
+.erfassen-knopf[aria-expanded="true"] .erfassen-chev { transform: rotate(135deg); }
+.erfassen-knopf[aria-expanded="true"] .erfassen-plus { transform: rotate(45deg); }
 
 /* Der Kreis trägt die Markenfarbe, der Rest der Kachel nicht. Ein voll
    eingefärbter Knopf in der Markenfarbe zieht mehr Aufmerksamkeit als die
@@ -1877,6 +1957,7 @@ body.blatt-offen { overflow: hidden; }
   position: relative; flex: 0 0 auto;
   width: 44px; height: 44px; border-radius: var(--r-pill);
   background: var(--accent); box-shadow: var(--schatten-1);
+  transition: transform var(--normal) var(--kurve);
 }
 .erfassen-plus::before,
 .erfassen-plus::after {
@@ -1888,6 +1969,9 @@ body.blatt-offen { overflow: hidden; }
 .erfassen-plus::after { width: 2.5px; height: 17px; }
 
 .erfassen-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .erfassen-knopf, .erfassen-plus, .erfassen-chev { transition: none; }
+}
 .erfassen-titel { font-size: var(--t-md); font-weight: 600; letter-spacing: -0.01em; }
 .erfassen-sub { font-size: var(--t-xs); color: var(--muted); }
 
@@ -2180,3 +2264,80 @@ body.blatt-offen { overflow: hidden; }
 }
 .punkte i.an { opacity: 1; width: 18px; border-radius: var(--r-pill); }
 @media (prefers-reduced-motion: reduce) { .punkte i { transition: none; } }
+
+/* ---------- Wo Poppins steht ----------
+ *
+ * Überschriften und Zahlen, nichts sonst. Eine Schrift überall einzusetzen
+ * macht sie unsichtbar: sie fällt nur auf, wenn daneben etwas anderes steht.
+ *
+ * Die Laufweite geht enger, als die Systemschrift sie brauchte. Poppins läuft
+ * von sich aus weiter, und bei gleicher Einstellung wirkt eine Überschrift
+ * auseinandergezogen.
+ */
+h1,
+.bar h1,
+.abschnitt,
+.menu-item b,
+.karte-name,
+.messwert-name {
+  font-family: var(--schrift-display);
+  letter-spacing: -0.015em;
+}
+
+/* Zahlen, die die Seite tragen. Tabellarisch bleibt es überall: eine 1 ist
+   sonst schmaler als eine 8, und eine Zahl, die beim Hochzählen wackelt,
+   sieht nach Fehler aus. */
+.held-zahl,
+.karte-zahl,
+.ring-num,
+.messwert.gross .messwert-wert b,
+.wertung-zahl {
+  font-family: var(--schrift-display);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Die Zahl im Wertungsring wird als SVG Text gesetzt und erbt die Schrift
+   nicht über die üblichen Regeln. */
+.wertung svg text, .ring-svg text { font-family: var(--schrift-display); }
+
+/* ---------- Der Wechsel zwischen Ansichten ----------
+ *
+ * Vorher schnitt die App hart um. Ein Schnitt ohne Übergang nimmt dem Nutzer
+ * die Auskunft, ob er tiefer hinein oder wieder heraus gegangen ist, und
+ * genau daran erkennt man billige Apps.
+ *
+ * Die neue Ansicht kommt herein, die alte wird nicht animiert. Zwei Ebenen
+ * gleichzeitig zu bewegen braucht beide gleichzeitig im Baum, also ein
+ * Umbauen von `hidden` auf Überlagerung, und das kostet an jeder Stelle, an
+ * der eine Ansicht ihre Höhe misst. Der Gewinn wäre eine Nuance.
+ *
+ * 190 Millisekunden. Darunter sieht man nur ein Zucken, darüber wartet man.
+ */
+@keyframes ansicht-rein {
+  from { opacity: 0; transform: translate3d(14px, 0, 0); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes ansicht-zurueck {
+  from { opacity: 0; transform: translate3d(-14px, 0, 0); }
+  to { opacity: 1; transform: none; }
+}
+.view.kommt-rein { animation: ansicht-rein 190ms var(--kurve) both; }
+.view.kommt-zurueck { animation: ansicht-zurueck 190ms var(--kurve) both; }
+
+/*
+ * Der Assistent wird nicht geschoben.
+ *
+ * Auf ihm läuft der Kreis auf einem Canvas. Eine Transformation auf dem
+ * Vorfahren zwingt den Browser, das Canvas in eine eigene Ebene zu legen und
+ * pro Bild neu zusammenzusetzen, und die Bildrate bricht für die Dauer der
+ * Animation ein. Ein Aufblenden reicht dort.
+ */
+.view[data-view="assistant"].kommt-rein,
+.view[data-view="assistant"].kommt-zurueck {
+  animation-name: ansicht-auf;
+}
+@keyframes ansicht-auf { from { opacity: 0; } to { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .view.kommt-rein, .view.kommt-zurueck { animation: none; }
+}
