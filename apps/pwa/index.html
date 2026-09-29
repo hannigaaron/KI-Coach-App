@@ -506,6 +506,33 @@ try {
     </div>
   </section>
 
+  <!--
+    Bereitschaft und Belastung.
+
+    Eigene Ansicht und nicht auf Heute, weil beide Zahlen einen Verlauf
+    beschreiben und keinen Tagesstand. Heute beantwortet "wie weit bin ich",
+    hier steht "wie steht die Woche zu den letzten vier".
+  -->
+  <section class="view" data-view="bereitschaft" hidden>
+    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Bereitschaft</h1><div class="bar-spacer"></div></header>
+    <div class="scroll">
+      <div class="wertung"><div id="bereitschaftRing"></div></div>
+      <p class="sub" id="bereitschaftSub">Wird beim Öffnen gerechnet.</p>
+      <ul class="list" id="bereitschaftTeile"></ul>
+      <p class="fineprint">Das ist keine Messung. daevo hat keinen Sensor. Die Zahl fasst zusammen, was du selbst
+        angegeben hast, plus deine eigene Trainingslast. Jeder Teil nennt seine Quelle.</p>
+
+      <h2 class="abschnitt">Belastung</h2>
+      <p class="sub">Deine letzten sieben Tage gegen deinen Schnitt der letzten achtundzwanzig, beide in Minuten.</p>
+      <pre class="pre" id="belastungText">Wird beim Öffnen gerechnet.</pre>
+      <p class="fineprint">Das Verfahren stammt aus dem Leistungssport und heisst dort acute chronic workload
+        ratio. Die Schwellen 0,8 und 1,5 stammen aus Gabbett, British Journal of Sports Medicine 2016. Genau
+        diese Arbeit ist seit 2020 stark kritisiert worden, unter anderem von Impellizzeri und anderen. Der
+        Quotient beschreibt zuverlässig, wie deine Woche zu deinem Schnitt steht. Dass ein hoher Wert zu
+        Verletzungen führt, ist umstritten, und daevo behauptet es deshalb nicht.</p>
+    </div>
+  </section>
+
   <section class="view" data-view="einkauf" hidden>
     <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Einkaufen</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
@@ -995,6 +1022,7 @@ try {
       <div class="menu-unter" hidden>
         <button class="menu-item" data-go="checkin"><b>Check-in</b><span>Energie, Schlaf, Stimmung</span></button>
         <button class="menu-item" data-go="wochencheck"><b>Wochen Check-in</b><span>Mittwoch Bilanz, Sonntag Rückblick</span></button>
+        <button class="menu-item" data-go="bereitschaft"><b>Bereitschaft</b><span>Tagesform und Belastung aus deinen Daten</span></button>
         <button class="menu-item" data-go="standards"><b>Mindeststandards</b><span>Deine Untergrenze, jede Woche</span></button>
         <button class="menu-item" data-go="empfehlungen"><b>Empfehlungen</b><span>Muster und Widersprüche</span></button>
         <button class="menu-item" data-go="reflexion"><b>Gedächtnis</b><span>Was daevo über dich weiß</span></button>

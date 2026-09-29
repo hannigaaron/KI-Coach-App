@@ -357,3 +357,36 @@ test("der ganze Satz findet den richtigen Posten und nicht den erstbesten", asyn
   assert.match(antwort, /Milka/);
   assert.equal(store.getDay(tag).meals[0].entries[0].quantity, "16 g");
 });
+
+/* ---------- Belastung und Bereitschaft ---------- */
+
+test("Belastung rechnet über die wirklich gespeicherten Tage", async () => {
+  frischerTag();
+  const aktionen = buildActions({});
+  const heute = new Date();
+  // Vier Wochen, jeden zweiten Tag eine Stunde. Danach liegt die letzte Woche
+  // im gewohnten Bereich.
+  for (let i = 0; i < 28; i += 2) {
+    const tag = new Date(heute.getTime() - i * 86400000).toISOString().slice(0, 10);
+    store.addTraining(tag, { id: `t${i}`, type: "strength", minutes: 60, at: "18:00", note: "" });
+  }
+  const text = await aktionen.belastungAbrufen();
+  assert.match(text, /240 Minuten in 7 Tagen/);
+  assert.match(text, /gewohnten Bereich/);
+});
+
+test("Ohne genug Einheiten sagt die Belastung das, statt zu rechnen", async () => {
+  frischerTag();
+  assert.match(await buildActions({}).belastungAbrufen(), /mindestens 4 Einheiten/);
+});
+
+test("Bereitschaft braucht den Morgen Check-in", async () => {
+  const tag = frischerTag();
+  const aktionen = buildActions({});
+  assert.match(await aktionen.bereitschaftAbrufen(), /Mach den Morgen Check-in/);
+
+  store.addCheckin(tag, { kind: "morning", at: "07:30", note: "", energy: 8, sleepQuality: 7, mood: 7 });
+  const text = await aktionen.bereitschaftAbrufen();
+  assert.match(text, /Bereitschaft \d+ von 100/);
+  assert.match(text, /keine Messung/);
+});

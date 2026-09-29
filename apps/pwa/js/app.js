@@ -3,6 +3,10 @@ import {
   MAHLZEITEN, bogenAmTag, bogenFuer, eintragAus100g, energyBreakdown, hatAngebot, mengeLesen,
   mengeSetzen, nachOrdnern, naehrwerteFuer, offeneMahlzeiten, portionsVorschlag, skalierbar,
   impulseFuerTag, planFuer, saubereUrl, uhrzeit, undListe, weckwortGehoert, weightTrend,
+  belastung,
+  belastungText,
+  bereitschaft,
+  bereitschaftText,
 } from "@daevo/core";
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, produktPerBarcode, produkteSuchen } from "@daevo/coach";
 import { Coach, AnthropicProvider } from "@daevo/coach";
@@ -717,6 +721,7 @@ function showView(name) {
   if (name === "kalender") renderKalender();
   if (name === "tag") renderTag();
   if (name === "balance") renderBalance();
+  if (name === "bereitschaft") renderBereitschaft();
   if (name === "standards") { renderStandards(); zeigeAngebot("standardsAngebot"); }
   if (name === "gespraeche") renderGespraeche();
   if (name === "wochencheck") wcStart();
@@ -807,6 +812,78 @@ function renderTagWertung() {
   }));
 
   $("tagWertungSatz").textContent = heute.satz;
+}
+
+/* ---------- Bereitschaft und Belastung ---------- */
+
+/**
+ * Sammelt die Tage aus dem Speicher.
+ *
+ * Beide Module rechnen über dasselbe Fenster, deshalb wird einmal gelesen und
+ * zweimal benutzt. `allDays` kann über achtzig Tage liefern, und der Speicher
+ * ist der langsamste Teil dieser Kette.
+ */
+function tageFuerBelastung() {
+  const tage = {};
+  for (const tag of store.allDays()) tage[tag] = store.getDay(tag);
+  return tage;
+}
+
+/**
+ * Der letzte Wochenbogen mit seinem Alter.
+ *
+ * Das Alter geht mit, weil Stress im Check-in steht und nicht heute Morgen
+ * gemessen wurde. Ein Wert von vorletzter Woche darf die Bereitschaft von
+ * heute nicht mehr bestimmen, und die Entscheidung darüber gehört in den
+ * Rechenkern, nicht hierher.
+ */
+function letzterStress() {
+  const boegen = store.getCheckinBoegen().filter((b) => Number.isFinite(Number(b?.werte?.stress)));
+  const letzter = boegen.sort((a, b) => String(a.tag).localeCompare(String(b.tag))).pop();
+  if (!letzter) return { stress: null, stressAlterTage: null };
+  const tage = Math.round((Date.parse(`${todayIso()}T00:00:00Z`) - Date.parse(`${letzter.tag}T00:00:00Z`)) / 86400000);
+  return { stress: Number(letzter.werte.stress), stressAlterTage: Number.isFinite(tage) ? tage : null };
+}
+
+function renderBereitschaft() {
+  const last = belastung({ tage: tageFuerBelastung(), heute: todayIso() });
+  $("belastungText").textContent = belastungText(last);
+
+  // Der Morgen Check-in von heute. Gibt es mehrere, gilt der letzte: wer
+  // zweimal antwortet, hat sich korrigiert.
+  const morgen = (store.getDay(todayIso()).checkins || [])
+    .filter((c) => c.kind === "morning")
+    .pop();
+
+  const b = bereitschaft({
+    schlafQualitaet: morgen?.sleepQuality ?? null,
+    energie: morgen?.energy ?? null,
+    belastung: last,
+    ...letzterStress(),
+  });
+
+  const ring = $("bereitschaftRing");
+  ring.innerHTML = "";
+  const teile = $("bereitschaftTeile");
+  if (!b) {
+    teile.innerHTML = "";
+    $("bereitschaftSub").textContent = bereitschaftText(null);
+    return;
+  }
+
+  ring.appendChild(wertungsRing({
+    wert: b.wert,
+    etikett: "BEREITSCHAFT",
+    urteil: b.urteil === "bereit" ? "Gas geben" : b.urteil === "solide" ? "trägt" : "runterfahren",
+    groesse: 230,
+  }));
+  // Nur der Rat, nicht der ganze Text. Die Teile stehen darunter als Liste,
+  // und die Grenze der Zahl steht fest im HTML.
+  $("bereitschaftSub").textContent = bereitschaftText(b).split("\n").filter(Boolean).slice(-2)[0];
+  teile.innerHTML = b.teile
+    .map((t) => `<li><div class="li-main"><div class="li-title">${escapeHtml(t.name)} ${t.wert} von 100</div>`
+      + `<div class="li-sub">aus ${escapeHtml(t.quelle)}</div></div></li>`)
+    .join("");
 }
 
 function renderHeuteBalance() {

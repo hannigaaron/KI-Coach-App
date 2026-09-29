@@ -66,6 +66,8 @@ export interface AgentActions {
   aufgabenPriorisieren(): Promise<string>;
   kopfLeeren(input: { text: string }): Promise<string>;
   musterErkennen(input: { tage?: number }): Promise<string>;
+  belastungAbrufen(): Promise<string>;
+  bereitschaftAbrufen(): Promise<string>;
   balanceAbrufen(input: { tage?: number }): Promise<string>;
   zeitEintragen(input: { bereich: string; minuten: number; was: string; tag?: string }): Promise<string>;
   widerspruechePruefen(): Promise<string>;
@@ -606,6 +608,10 @@ async function execute(
         const tage = Number.isFinite(Number(input.tage)) ? clamp(Number(input.tage), 14, 180) : undefined;
         return { text: await actions.musterErkennen({ tage }) };
       }
+      case "belastung_abrufen":
+        return { text: await actions.belastungAbrufen() };
+      case "bereitschaft_abrufen":
+        return { text: await actions.bereitschaftAbrufen() };
       case "widersprueche_pruefen":
         return { text: await actions.widerspruechePruefen() };
       case "mittagscheck_speichern": {
@@ -1171,6 +1177,18 @@ export async function runOffline(
   if (pattern("balance", "ausgleich", "zu wenig zeit", "keine zeit für", "keine zeit fuer",
     "wie war meine woche", "wochenübersicht", "wochenubersicht", "me time", "erholung").test(text)) {
     return { text: await actions.balanceAbrufen({}), ausgeführt, source: "offline" };
+  }
+
+  // Vor dem Muster Zweig. "Kann ich heute hart trainieren" ist eine Frage nach
+  // dem heutigen Zustand, "warum bin ich ständig müde" eine nach Wochen.
+  if (pattern("tagesform", "bereitschaft", "wie belastbar", "kann ich heute (hart|schwer)",
+    "bin ich heute (fit|bereit)", "wie fit bin ich", "schaffe ich heute ein training").test(text)) {
+    return { text: await actions.bereitschaftAbrufen(), ausgeführt, source: "offline" };
+  }
+
+  if (pattern("belastung", "trainingslast", "zu viel trainiert", "übertreibe ich", "ubertreibe ich",
+    "brauche ich eine pause", "trainiere ich genug", "zu wenig trainiert").test(text)) {
+    return { text: await actions.belastungAbrufen(), ausgeführt, source: "offline" };
   }
 
   if (pattern("woran liegt", "warum bin ich (immer|ständig|staendig)", "muster", "zusammenhang",

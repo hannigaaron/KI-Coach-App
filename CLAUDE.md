@@ -61,7 +61,7 @@ Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
 
-Der Assistent hat achtunddreissig Werkzeuge und verändert die App wirklich. Zahlen
+Der Assistent hat vierzig Werkzeuge und verändert die App wirklich. Zahlen
 über den Nutzer kommen immer aus Werkzeugen, nie aus dem Modell. Allgemeines
 Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
@@ -160,7 +160,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 710 Tests
+npm test           # 734 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -958,7 +958,7 @@ Tippfehler darf die Ziele nicht kippen.
 
 ## Der Regelweg ist die kostenlose Stufe
 
-31 der 38 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
+33 der 40 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
 Das ist keine Notlösung für den Ausfall, sondern das Produkt: ein Weg, der
 kein Modell anfragt, kostet nichts je Nutzer und skaliert ohne Rechnung.
 
@@ -1181,6 +1181,76 @@ es: wie viele Knöpfe ein System anzeigt, steht in `Notification.maxActions`,
 überzählige lässt es stillschweigend weg, und Safari auf dem iPhone zeigt
 derzeit gar keine. Deshalb wird im Service Worker gekürzt statt gehofft, und
 deshalb stehen die häufigsten Gründe vorn.
+
+## Belastung und Bereitschaft
+
+`packages/core/src/belastung.ts` und `packages/core/src/bereitschaft.ts`,
+Ansicht unter Coaching.
+
+Die Trainingslücke beantwortet eine grobe Frage: steht da seit vier Tagen
+nichts. Sie sieht den umgekehrten Fall nicht. Wer jeden Tag trainiert und dabei
+gegen seinen eigenen Schnitt siebzig Prozent drauflegt, bekommt von ihr nie
+etwas zu hören.
+
+Die Belastung rechnet die letzten 7 Tage gegen die letzten 28, beide in Minuten
+und beide auf dieselbe Fensterlänge gebracht. Ohne die Umrechnung vergliche man
+vier Wochen mit einer und bekäme immer einen Wert um 0,25.
+
+Gemessen wird in Minuten, nicht in Punkten. Eine Gewichtung je Trainingsart
+wäre die naheliegende Verbesserung und wäre erfunden: welche Zahl ein
+Volleyballabend gegen eine Krafteinheit trägt, müsste jemand festlegen. Die MET
+Werte aus dem Compendium of Physical Activities wären eine Quelle, aber die
+Zuordnung der vier Arten dieser App auf MET Werte bliebe eine Entscheidung.
+
+Unter vier Einheiten in 28 Tagen kommt keine Zahl. Der Quotient teilt durch den
+Schnitt, und steht im Nenner fast nichts, wird aus einer einzigen Einheit ein
+Ausschlag von mehreren hundert Prozent. Das sieht aus wie eine Aussage, ohne
+eine zu sein.
+
+Zur Quelle gehört eine Warnung, und sie steht auch in der Oberfläche. Die
+Schwellen 0,8 und 1,5 stammen aus Gabbett, British Journal of Sports Medicine
+2016, und genau diese Arbeit ist seit 2020 stark kritisiert worden, unter
+anderem von Impellizzeri und anderen, wegen der Art, wie die Quotienten
+gebildet wurden. Der Quotient beschreibt zuverlässig, wie eine Woche zum
+eigenen Schnitt steht. Dass ein hoher Wert zu Verletzungen führt, ist
+umstritten, und die App behauptet es nicht.
+
+### Die Bereitschaft misst nichts
+
+Oura und Whoop rechnen so etwas aus Herzfrequenzvariabilität, Temperatur und
+Schlafphasen. daevo hat keinen Sensor. Eine Zahl, die so aussieht wie deren
+Zahl, wäre geraten, und geratene Zahlen sind in dieser App der eine Fehler, der
+nicht passieren darf.
+
+Diese Zahl fasst deshalb zusammen, was der Nutzer selbst angegeben hat, plus
+den einen Wert, den die App wirklich rechnen kann: seine Trainingslast gegen
+seinen eigenen Schnitt. Jeder Teil nennt seine Quelle, und der Text sagt in
+jeder Ausgabe, dass es keine Messung ist. Nicht nur beim ersten Mal: wer die
+Zahl vier Wochen lang sieht, hält sie sonst irgendwann für eine Messung, und
+dann glaubt er ihr mehr als sich selbst.
+
+Gewichtung: Schlaf 35, Energie 30, Belastung 20, Ruhe 15. Schlaf und Energie
+wiegen zusammen fast zwei Drittel, weil das die beiden Angaben sind, die heute
+Morgen wirklich gemacht wurden. Die Belastung ist Kontext und keine Aussage
+über diesen Morgen. Die Ruhe wiegt am wenigsten, weil ihr Wert aus dem
+Wochenbogen kommt und bis zu sieben Tage alt sein darf. Ein Teil ohne Datenlage
+fällt raus und die übrigen Gewichte werden hochgerechnet, dieselbe Regel wie
+bei `tagesnutzung`.
+
+Ein Rückgang der Belastung senkt die Bereitschaft nicht, er hebt sie: wer eine
+ruhige Woche hatte, ist ausgeruhter. Das ist eine Überlegung und keine Messung,
+und deshalb steht sie in `bereitschaft.ts` und nicht in `belastung.ts`.
+
+Der Teil heisst Ruhe und nicht Stress, weil sein Wert der umgekehrte ist.
+"Stress 100 von 100" neben lauter Werten, bei denen hoch gut ist, liest sich als
+maximaler Stress und bedeutet das Gegenteil. Der gemeldete Wert steht in der
+Quelle, damit nichts verlorengeht.
+
+`Number(null)` ist 0, und 0 ist ein gültiger Stresswert. Ohne eine eigene
+Prüfung auf null zählte ein fehlender Wochenbogen als "gar kein Stress" und hob
+die Bereitschaft. Gefunden hat das die Ansicht und kein Test: in der Demo stand
+"Stress 0 von 100", obwohl es dort keinen Bogen gibt. Das ist inzwischen der
+dritte Fehler dieser Art, den erst der Durchlauf im Browser gezeigt hat.
 
 ## Das Foto, bevor es rausgeht
 

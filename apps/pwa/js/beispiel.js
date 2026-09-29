@@ -166,6 +166,18 @@ function tageBauen(heute) {
       : [];
 
     const checkins = [];
+    // Der Morgen Check-in. Ohne ihn bleibt die Bereitschaft leer, und genau
+    // die Ansicht, die zeigt was die App kann, zeigt dann nichts.
+    if (!luecke && rnd() < 0.8) {
+      checkins.push({
+        kind: "morning",
+        at: "07:20",
+        note: "",
+        energy: 5 + Math.floor(rnd() * 5),
+        sleepQuality: 5 + Math.floor(rnd() * 5),
+        mood: 5 + Math.floor(rnd() * 5),
+      });
+    }
     if (!luecke && rnd() < 0.7) {
       checkins.push({
         id: `c${abstand}`,

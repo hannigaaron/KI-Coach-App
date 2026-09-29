@@ -65,6 +65,10 @@ import {
   targetCorrection,
   waterTargetMl,
   weightTrend,
+  belastung,
+  belastungText,
+  bereitschaft,
+  bereitschaftText,
 } from "@daevo/core";
 import { brain } from "./brain.js";
 import { KONFIG } from "./konfig.js";
@@ -353,6 +357,13 @@ const TYP_LABEL = { strength: "Kraft", team_sport: "Mannschaftssport", cardio: "
  * Verglichen wird auf ganze Wörter ab drei Zeichen. Ein kürzeres Wort trifft
  * zufällig: "Ei" steckt in "Eiweiss", "Reis" und "Eintrag".
  */
+/** Alle Tage aus dem Speicher als Tabelle. Für die Fensterrechnungen. */
+function alleTage() {
+  const tage = {};
+  for (const tag of store.allDays()) tage[tag] = store.getDay(tag);
+  return tage;
+}
+
 export function trifftPosten(name, suchtext) {
   const n = String(name || "").toLowerCase();
   const t = String(suchtext || "").toLowerCase();
@@ -2106,6 +2117,42 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
 
     async musterErkennen({ tage } = {}) {
       return musterUebersicht(Math.max(14, Math.min(180, tage || 60)));
+    },
+
+    /**
+     * Die Trainingslast gegen den eigenen Schnitt.
+     *
+     * Liest jeden Tag aus dem Speicher, auch die vor dem Fenster. `allDays`
+     * einmal zu lesen und einmal zu filtern ist billiger als 28 Einzelzugriffe
+     * mit Datumsrechnung dazwischen.
+     */
+    async belastungAbrufen() {
+      return belastungText(belastung({ tage: alleTage(), heute: todayIso() }));
+    },
+
+    /**
+     * Die Tagesform aus den eigenen Angaben.
+     *
+     * Keine Messung, und das steht auch in jeder Ausgabe. Was hier fehlt,
+     * fällt raus, statt mit null zu zählen: sonst misst die Zahl, wie fleissig
+     * jemand Check-ins ausfüllt.
+     */
+    async bereitschaftAbrufen() {
+      const day = todayIso();
+      const morgen = (store.getDay(day).checkins || []).filter((c) => c.kind === "morning").pop();
+      const boegen = store.getCheckinBoegen().filter((b) => Number.isFinite(Number(b?.werte?.stress)));
+      const letzter = boegen.sort((a, b) => String(a.tag).localeCompare(String(b.tag))).pop();
+      const alter = letzter
+        ? Math.round((Date.parse(`${day}T00:00:00Z`) - Date.parse(`${letzter.tag}T00:00:00Z`)) / 86400000)
+        : null;
+
+      return bereitschaftText(bereitschaft({
+        schlafQualitaet: morgen?.sleepQuality ?? null,
+        energie: morgen?.energy ?? null,
+        belastung: belastung({ tage: alleTage(), heute: day }),
+        stress: letzter ? Number(letzter.werte.stress) : null,
+        stressAlterTage: Number.isFinite(alter) ? alter : null,
+      }));
     },
 
     async widerspruechePruefen() {

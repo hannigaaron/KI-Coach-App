@@ -26,3 +26,5 @@ export * from "./tagesimpulse.js";
 export * from "./zeitzone.js";
 export * from "./weckwort.js";
 export * from "./trainingsluecke.js";
+export * from "./belastung.js";
+export * from "./bereitschaft.js";
