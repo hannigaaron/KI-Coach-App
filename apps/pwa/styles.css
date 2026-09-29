@@ -2102,3 +2102,81 @@ body.blatt-offen { overflow: hidden; }
   opacity: 1; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
 }
 @media (prefers-reduced-motion: reduce) { .modus, .modus-punkt { transition: none; } }
+
+/* ---------- Karten zum Durchwischen ----------
+ *
+ * Eine Zahl je Karte. Sieben Zeilen untereinander werden überflogen, eine
+ * Zahl, die allein steht, wird gelesen.
+ *
+ * Das Wischen macht der Browser über scroll-snap. Eine Bibliothek wäre die
+ * erste Laufzeitabhängigkeit der App und das Verhalten wäre schlechter: ein
+ * nachgebauter Wisch kennt weder den Schwung des Fingers noch die
+ * Systemeinstellung für weniger Bewegung.
+ */
+.karten {
+  display: flex; gap: var(--s-3);
+  overflow-x: auto; scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  /* Der Innenabstand liegt auf dem Streifen und nicht auf der Seite, damit
+     die erste Karte am Rand einrastet und die letzte nicht klebt. */
+  padding: var(--s-2) var(--s-4) var(--s-4);
+  margin: 0 calc(var(--s-4) * -1);
+  scrollbar-width: none;
+}
+.karten::-webkit-scrollbar { display: none; }
+.karten:focus-visible { outline: 2px solid var(--brand-deep); outline-offset: -2px; border-radius: var(--r-lg); }
+
+.karte {
+  scroll-snap-align: center;
+  flex: 0 0 min(272px, 76vw);
+  display: flex; flex-direction: column;
+  padding: var(--s-5);
+  border-radius: var(--r-lg);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--schatten-1);
+}
+.karte-kopf { display: flex; align-items: center; gap: var(--s-3); }
+/* Das Zeichen trägt die Farbe des Werts, der Rest der Karte nicht. Eine
+   eingefärbte Karte je Wert ergäbe sieben bunte Flächen nebeneinander, und
+   die Farbe hätte danach keine Bedeutung mehr. */
+.karte-zeichen {
+  width: 34px; height: 34px; flex: 0 0 34px;
+  display: grid; place-items: center;
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--ton, var(--brand)) 16%, transparent);
+  color: var(--ton, var(--brand));
+}
+.karte-zeichen svg { width: 20px; height: 20px; display: block; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.karte-name { font-size: var(--t-sm); font-weight: 600; letter-spacing: -0.005em; }
+
+/* Die Zahl trägt die Karte. Alles darum bleibt klein, sonst ist es wieder
+   eine Liste, nur mit mehr Abstand. */
+.karte-zahl {
+  margin-top: auto; padding-top: var(--s-5);
+  font-size: var(--t-4xl); font-weight: 680; letter-spacing: -0.035em;
+  line-height: 1; font-variant-numeric: tabular-nums;
+}
+.karte-einheit { font-size: var(--t-md); color: var(--muted); font-weight: 500; margin-left: 6px; letter-spacing: 0; }
+.karte-zusatz { font-size: var(--t-sm); color: var(--muted); margin-top: var(--s-2); }
+.karte-fuss {
+  margin-top: var(--s-4); padding-top: var(--s-3);
+  border-top: 1px solid var(--linie);
+  font-size: var(--t-xs); color: var(--muted);
+  display: flex; justify-content: space-between; gap: var(--s-2);
+}
+.karte-trend { color: var(--text); font-weight: 600; }
+/* Kein Vergleich ist das Unwichtigste auf der Karte und stand fett neben der
+   Zahl der Tage. Eine Abwesenheit braucht kein Gewicht. */
+.karte-trend.leise { color: var(--muted); font-weight: 500; }
+
+/* Die Punkte sagen, wie viele es sind und wo man steht. Ohne sie wischt
+   niemand weiter, weil nichts darauf hinweist, dass da noch etwas kommt. */
+.punkte { display: flex; justify-content: center; gap: 6px; margin: 0 0 var(--s-4); }
+.punkte i {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--text); opacity: 0.22;
+  transition: opacity var(--schnell) var(--kurve), width var(--schnell) var(--kurve);
+}
+.punkte i.an { opacity: 1; width: 18px; border-radius: var(--r-pill); }
+@media (prefers-reduced-motion: reduce) { .punkte i { transition: none; } }

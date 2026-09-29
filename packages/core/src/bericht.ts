@@ -46,13 +46,35 @@ export interface BerichtEingabe {
 
 export interface BerichtWert {
   name: string;
-  /** Der Wert als Text, mit Einheit. */
+  /**
+   * Eine feste Kennung, ASCII. Die Oberfläche wählt darüber das Zeichen.
+   * Über den Namen zu gehen wäre eine Kopplung an einen Text, den irgendwann
+   * jemand umformuliert, und dann fehlt das Zeichen ohne Fehlermeldung.
+   */
+  schluessel: BerichtSchluessel;
+  /**
+   * Die Zahl allein, ohne Einheit. Eine Karte, die nur einen Wert zeigt, setzt
+   * Zahl, Einheit und Zusatz in drei Grössen. Aus einer fertigen Zeile wie
+   * "2800 kcal im Schnitt" liesse sich das nur mit einer Regex zurückholen,
+   * und eine Regex auf den eigenen Text ist eine Schnittstelle, die niemand
+   * gepflegt hat.
+   */
+  zahl: string;
+  /** Die Einheit, etwa "kcal" oder "g". Leer, wo es keine gibt. */
+  einheit: string;
+  /** Was die Zahl ist, etwa "im Schnitt" oder "zusammen". */
+  zusatz: string;
+  /** Der Wert als eine Zeile, für den Text zum Weitergeben. */
   wert: string;
   /** Auf wie vielen Tagen er beruht. */
   tage: number;
   /** Der Vergleich zum Zeitraum davor, oder null. */
   trend: string | null;
 }
+
+export type BerichtSchluessel =
+  | "kalorien" | "protein" | "wasser" | "training" | "einheiten"
+  | "schlaf" | "energie" | "gewicht";
 
 export interface Bericht {
   von: string;
@@ -89,11 +111,11 @@ export function bericht(e: BerichtEingabe): Bericht {
   const werte: BerichtWert[] = [];
 
   const feld = (
+    schluessel: BerichtSchluessel,
     name: string,
     lies: (t: BerichtTag) => number | null | undefined,
-    formatiere: (wert: number, n: number) => string,
+    formatiere: (wert: number) => { zahl: string; einheit: string },
     art: "schnitt" | "summe" = "schnitt",
-    hochIstBesser = true,
   ) => {
     const jetzt = zahlen(tage, lies);
     if (art === "schnitt" && jetzt.length < Math.ceil(gesamt * MIN_ABDECKUNG)) return;
@@ -103,21 +125,29 @@ export function bericht(e: BerichtEingabe): Bericht {
     const wertVorher = vorher.length
       ? (art === "summe" ? summe(vorher) : summe(vorher) / vorher.length)
       : null;
+    const zusatz = art === "summe" ? "zusammen" : "im Schnitt";
+    const { zahl, einheit } = formatiere(wertJetzt);
     werte.push({
       name,
-      wert: formatiere(wertJetzt, jetzt.length),
+      schluessel,
+      zahl,
+      einheit,
+      zusatz,
+      wert: [zahl, einheit, zusatz].filter(Boolean).join(" "),
       tage: jetzt.length,
-      trend: trendText(wertJetzt, wertVorher, hochIstBesser),
+      trend: trendText(wertJetzt, wertVorher),
     });
   };
 
-  feld("Kalorien", (t) => t.kcal, (w) => `${Math.round(w)} kcal im Schnitt`);
-  feld("Protein", (t) => t.proteinG, (w) => `${Math.round(w)} g im Schnitt`);
-  feld("Wasser", (t) => t.wasserMl, (w) => `${(w / 1000).toFixed(1)} l im Schnitt`);
-  feld("Training", (t) => t.trainingMinuten, (w) => `${Math.round(w)} Minuten`, "summe");
-  feld("Einheiten", (t) => t.trainingEinheiten, (w) => `${Math.round(w)}`, "summe");
-  feld("Schlaf", (t) => t.schlafMinuten, (w) => `${stunden(w)} im Schnitt`);
-  feld("Energie", (t) => t.energie, (w) => `${w.toFixed(1)} von 10`);
+  feld("kalorien", "Kalorien", (t) => t.kcal, (w) => ({ zahl: String(Math.round(w)), einheit: "kcal" }));
+  feld("protein", "Protein", (t) => t.proteinG, (w) => ({ zahl: String(Math.round(w)), einheit: "g" }));
+  // "Liter" ausgeschrieben. Ein kleines l neben einer grossen Zahl ist auf
+  // einer Karte kaum von einem Strich zu unterscheiden.
+  feld("wasser", "Wasser", (t) => t.wasserMl, (w) => ({ zahl: (w / 1000).toFixed(1), einheit: "Liter" }));
+  feld("training", "Training", (t) => t.trainingMinuten, (w) => ({ zahl: String(Math.round(w)), einheit: "Minuten" }), "summe");
+  feld("einheiten", "Einheiten", (t) => t.trainingEinheiten, (w) => ({ zahl: String(Math.round(w)), einheit: "" }), "summe");
+  feld("schlaf", "Schlaf", (t) => t.schlafMinuten, (w) => ({ zahl: stunden(w), einheit: "" }));
+  feld("energie", "Energie", (t) => t.energie, (w) => ({ zahl: w.toFixed(1), einheit: "von 10" }));
 
   // Das Gewicht ist kein Schnitt, sondern eine Strecke. Der Durchschnitt von
   // 87 und 85 Kilo sagt über eine Abnahme nichts.
@@ -134,6 +164,10 @@ export function bericht(e: BerichtEingabe): Bericht {
     const diff = letzte - erste;
     werte.push({
       name: "Gewicht",
+      schluessel: "gewicht",
+      zahl: letzte.toFixed(1),
+      einheit: "kg",
+      zusatz: `${vorzeichen(diff)} kg seit ${wiegungen[0]!.tag}`,
       wert: `${letzte.toFixed(1)} kg, ${vorzeichen(diff)} kg seit ${wiegungen[0]!.tag}`,
       tage: wiegungen.length,
       trend: null,
@@ -199,20 +233,24 @@ function fazit(e: BerichtEingabe, werte: BerichtWert[], mitDaten: number, gesamt
       : `Im Schnitt lagst du ${Math.abs(ab)} kcal ${ab >= 0 ? "über" : "unter"} deinem Ziel.`);
   }
 
-  const training = werte.find((w) => w.name === "Einheiten");
-  if (training) saetze.push(`Eingetragen sind ${training.wert} Einheiten in ${gesamt} Tagen.`);
+  // Die blosse Zahl, nicht `wert`. Der trägt seit der Aufteilung in Zahl,
+  // Einheit und Zusatz auch den Zusatz, und daraus wurde im Betrieb
+  // "Eingetragen sind 6 zusammen Einheiten in 28 Tagen".
+  const training = werte.find((w) => w.schluessel === "einheiten");
+  if (training) saetze.push(`Eingetragen sind ${training.zahl} Einheiten in ${gesamt} Tagen.`);
 
   return saetze.slice(0, 3);
 }
 
-function trendText(jetzt: number, vorher: number | null, hochIstBesser: boolean): string | null {
+/*
+ * "besser" und "schlechter" bleiben weg. Ob mehr Kalorien besser sind, hängt
+ * am Ziel, und das weiss diese Funktion nicht.
+ */
+function trendText(jetzt: number, vorher: number | null): string | null {
   if (vorher === null || vorher === 0) return null;
   const anteil = (jetzt - vorher) / Math.abs(vorher);
   if (Math.abs(anteil) < TREND_SCHWELLE) return "wie davor";
   const richtung = anteil > 0 ? "mehr" : "weniger";
-  // "besser" und "schlechter" bleiben weg. Ob mehr Kalorien besser sind, hängt
-  // am Ziel, und das weiss diese Funktion nicht.
-  void hochIstBesser;
   return `${Math.abs(Math.round(anteil * 100))} Prozent ${richtung} als davor`;
 }
 

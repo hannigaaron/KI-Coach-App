@@ -160,7 +160,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 780 Tests
+npm test           # 784 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1230,6 +1230,55 @@ ist kein Fehler.
 Sieben oder achtundzwanzig Tage, alles andere wird darauf gerundet. Eine freie
 Zahl klänge genauer, als sie ist: ein Bericht über elf Tage vergleicht gegen
 elf Tage davor, und die Grenze liegt dann mitten in einer Woche.
+
+### Eine Karte je Wert
+
+Der Bericht gab sieben Zeilen untereinander aus. Eine Liste wird überflogen,
+und danach ist keine Zahl hängen geblieben. Eine Zahl, die allein auf einer
+Karte steht, wird gelesen.
+
+Jetzt ein Streifen zum seitlichen Wischen, eine Karte je Wert, mit Zeichen,
+Zahl, Einheit, Trend und der Zahl der Tage. Das Wischen macht der Browser
+selbst über `scroll-snap-type: x mandatory`. Eine Bibliothek dafür wäre die
+erste Laufzeitabhängigkeit der App, und das Ergebnis wäre schlechter: ein
+nachgebauter Wisch kennt weder den Schwung des Fingers noch die
+Systemeinstellung für weniger Bewegung.
+
+Dafür liefert `bericht.ts` Zahl, Einheit und Zusatz jetzt getrennt statt als
+eine fertige Zeile. Aus "2800 kcal im Schnitt" liesse sich die Zahl nur mit
+einer Regex zurückholen, und eine Regex auf den eigenen Text ist eine
+Schnittstelle, die niemand gepflegt hat. `wert` bleibt als eine Zeile für den
+Text zum Weitergeben.
+
+Beim Umbau ist genau dieser Fehler einmal passiert, nur andersherum: das Fazit
+las `wert` und gab "Eingetragen sind 6 zusammen Einheiten in 28 Tagen" aus.
+Jetzt liest es `zahl`, und ein Test hält es fest.
+
+Jeder Wert trägt ausserdem eine feste Kennung in ASCII, über die die
+Oberfläche das Zeichen wählt. Über den Namen zu gehen wäre eine Kopplung an
+einen Text, den irgendwann jemand umformuliert, und dann fehlt das Zeichen
+ohne Fehlermeldung.
+
+Die Punkte unter dem Streifen folgen dem Scrollstand und nicht einem Zähler,
+den die App selbst führt. Sonst laufen beide auseinander, sobald jemand mit
+Schwung über zwei Karten wischt. Ohne die Punkte wischt ausserdem niemand
+weiter, weil nichts sagt, dass hinter der ersten Karte noch sechs liegen.
+Pfeiltasten schieben den Streifen um eine Karte: wischen geht nur mit dem
+Finger, und auf dem Rechner wäre der Streifen sonst eine Sackgasse.
+
+Die Zeichen liegen alle auf einem Raster von 24 mit derselben Strichstärke,
+damit sie als eine Familie lesbar sind, und sie tragen die Farben, die es
+schon gibt: Makrofarben für Kalorien, Protein und Energie, Bereichsfarben für
+Training, Schlaf und Gewicht. Eine achte Farbe nur für diese Karten wäre eine
+Farbe ohne Bedeutung. Nur das Zeichen trägt Farbe, die Karte nicht: sieben
+eingefärbte Flächen nebeneinander nehmen der Farbe jede Aussage.
+
+Zwei Zeichen mussten neu gezeichnet werden, weil sie bei 20 Pixeln nicht
+lasen. Die Flamme war ein runder Klumpen mit einem Strich darunter und sah aus
+wie ein Tropfen. Protein war eine Aminosäurekette, inhaltlich richtig und
+optisch ein Gekritzel. Jetzt eine Flamme mit Zunge und ein Knochen. "Liter"
+steht ausgeschrieben: ein kleines l neben einer grossen Zahl ist kaum von
+einem Strich zu unterscheiden.
 
 ### Number(null) ist 0, dreimal
 

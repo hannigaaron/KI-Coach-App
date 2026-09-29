@@ -565,7 +565,20 @@ try {
           <button id="btnBerichtTeilen" class="ghost" style="width:100%">Text kopieren</button></div>
       </div>
       <p class="sub" id="berichtKopf"></p>
-      <ul class="list" id="berichtWerte"></ul>
+
+      <!--
+        Eine Karte je Wert, seitlich durchgewischt. Sieben Zeilen
+        untereinander liest niemand, er überfliegt sie und merkt sich keine.
+        Eine Zahl, die allein auf einer Karte steht, wird gelesen.
+
+        Das Wischen macht der Browser selbst über scroll-snap. Eine Bibliothek
+        dafür wäre die erste Laufzeitabhängigkeit der App, und das Verhalten
+        wäre schlechter: ein nachgebauter Wisch kennt weder den Schwung des
+        Fingers noch die Einstellung für weniger Bewegung.
+      -->
+      <div class="karten" id="berichtWerte" tabindex="0" role="group" aria-label="Werte, seitlich wischen"></div>
+      <div class="punkte" id="berichtPunkte" aria-hidden="true"></div>
+
       <pre class="pre" id="berichtFazit"></pre>
       <p class="fineprint">Ein Schnitt aus weniger als einem Drittel der Tage steht nicht da. Er beschreibt
         dann nicht den Zeitraum, sondern die Tage, an denen du Lust zum Eintragen hattest, und das sind fast

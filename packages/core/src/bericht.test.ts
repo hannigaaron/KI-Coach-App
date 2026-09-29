@@ -55,8 +55,8 @@ test("Eine Lücke zieht den Schnitt nicht nach unten", () => {
 
 test("Training wird summiert, Kalorien werden gemittelt", () => {
   const b = lauf(zeitraum("2026-09-01", 28, voll));
-  assert.equal(b.werte.find((w) => w.name === "Training")?.wert, "840 Minuten");
-  assert.equal(b.werte.find((w) => w.name === "Einheiten")?.wert, "14");
+  assert.equal(b.werte.find((w) => w.name === "Training")?.wert, "840 Minuten zusammen");
+  assert.equal(b.werte.find((w) => w.name === "Einheiten")?.zahl, "14");
 });
 
 test("Das Gewicht ist eine Strecke und kein Schnitt", () => {
@@ -118,4 +118,38 @@ test("Ein Gewicht von null ist keine Wiegung", () => {
   // Number(null) ist 0. Ohne diese Prüfung stand im Bericht "+83.8 kg seit".
   const tage = zeitraum("2026-09-01", 28, (i) => ({ ...voll(i), gewichtKg: i === 27 ? 83.8 : 0 }));
   assert.equal(lauf(tage).werte.some((w) => w.name === "Gewicht"), false);
+});
+
+test("Jeder Wert liefert Zahl, Einheit und Zusatz getrennt", () => {
+  // Eine Karte, die nur einen Wert zeigt, setzt die drei in drei Grössen. Aus
+  // einer fertigen Zeile liesse sich das nur mit einer Regex zurückholen.
+  const b = lauf(zeitraum("2026-09-01", 28, voll));
+  const kcal = b.werte.find((w) => w.schluessel === "kalorien");
+  assert.ok(kcal);
+  assert.match(kcal.zahl, /^\d+$/);
+  assert.equal(kcal.einheit, "kcal");
+  assert.equal(b.werte.find((w) => w.schluessel === "wasser")?.einheit, "Liter");
+  assert.equal(kcal.zusatz, "im Schnitt");
+  assert.equal(kcal.wert, `${kcal.zahl} kcal im Schnitt`);
+});
+
+test("Eine Summe sagt zusammen, ein Schnitt sagt im Schnitt", () => {
+  const b = lauf(zeitraum("2026-09-01", 28, voll));
+  assert.equal(b.werte.find((w) => w.schluessel === "training")?.zusatz, "zusammen");
+  assert.equal(b.werte.find((w) => w.schluessel === "protein")?.zusatz, "im Schnitt");
+});
+
+test("Jeder Wert trägt eine Kennung in ASCII", () => {
+  // Über den Namen zu gehen wäre eine Kopplung an einen Text, den irgendwann
+  // jemand umformuliert, und dann fehlt das Zeichen ohne Fehlermeldung.
+  const tage = zeitraum("2026-09-01", 28, (i) => ({ ...voll(i), schlafMinuten: 430, gewichtKg: i % 9 === 0 ? 87 - i / 28 : null }));
+  for (const w of lauf(tage).werte) assert.match(w.schluessel, /^[a-z]+$/);
+});
+
+test("Das Fazit nennt die blosse Zahl der Einheiten", () => {
+  // `wert` trägt seit der Aufteilung auch den Zusatz, und daraus wurde im
+  // Betrieb "Eingetragen sind 6 zusammen Einheiten in 28 Tagen".
+  const text = lauf(zeitraum("2026-09-01", 28, voll)).fazit.join(" ");
+  assert.match(text, /Eingetragen sind 14 Einheiten in 28 Tagen/);
+  assert.doesNotMatch(text, /zusammen Einheiten/);
 });

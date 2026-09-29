@@ -859,16 +859,121 @@ function vergleichWort(jetzt, vorher) {
 
 /* ---------- Der Bericht ---------- */
 
+/*
+ * Die Zeichen der Berichtskarten.
+ *
+ * Alle auf demselben Raster von 24 und mit derselben Strichstärke, damit sie
+ * als eine Familie lesbar sind. Gezeichnet und keine Emoji: die sehen auf
+ * jedem Gerät anders aus und tragen eine fremde Farbigkeit in die Palette,
+ * dieselbe Überlegung wie bei den vier Wegen ins Erfassen.
+ *
+ * Die Farbe kommt aus dem Design System. Kalorien und Protein tragen die
+ * Makrofarben, die der Nutzer auf Heute schon kennt, Training und Energie die
+ * Bereichsfarben. Eine achte Farbe nur für diese Karten wäre eine Farbe ohne
+ * Bedeutung.
+ */
+const KARTEN_ZEICHEN = {
+  // Eine Flamme, geschlossen gezeichnet statt als Pfad aus dem Nichts.
+  // Eine Flamme mit Zunge. Der erste Entwurf war ein runder Klumpen mit einem
+  // Strich darunter und las sich bei 20 Pixeln als Tropfen.
+  kalorien: { pfad: "M12 21a6 6 0 0 0 6-6c0-4-3-6.5-6-12-3 5.5-6 8-6 12a6 6 0 0 0 6 6zM12 21a2.8 2.8 0 0 0 2.8-2.8c0-1.9-1.4-3-2.8-5.4-1.4 2.4-2.8 3.5-2.8 5.4A2.8 2.8 0 0 0 12 21z", ton: "var(--makro-fett)" },
+  // Ein Knochen. Der erste Entwurf war eine Aminosäurekette, inhaltlich
+  // richtig und bei 20 Pixeln ein Gekritzel.
+  protein: { pfad: "M8.5 15.5l7-7M7.2 12.6a2.4 2.4 0 1 1 1.1-4 2.4 2.4 0 1 1 3.4 3.4M12.3 15.7a2.4 2.4 0 1 1 3.4 3.4 2.4 2.4 0 1 1 4-1.1", ton: "var(--makro-protein)" },
+  wasser: { pfad: "M12 3.5c3.2 3.6 5 6.2 5 8.6a5 5 0 0 1-10 0c0-2.4 1.8-5 5-8.6z", ton: "var(--makro-wasser)" },
+  training: { pfad: "M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10", ton: "var(--bereich-fitness)" },
+  einheiten: { pfad: "M4 12l5 5L20 6", ton: "var(--bereich-fitness)" },
+  schlaf: { pfad: "M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10z", ton: "var(--bereich-wellbeing)" },
+  energie: { pfad: "M13 3 5.5 13.5H11l-1 7.5 7.5-10.5H12z", ton: "var(--makro-kohlenhydrate)" },
+  gewicht: { pfad: "M5 8h14l2 12H3zM9 8a3 3 0 0 1 6 0", ton: "var(--bereich-karriere)" },
+};
+
+/** Baut eine Karte des Berichts. */
+function berichtKarte(w) {
+  const zeichen = KARTEN_ZEICHEN[w.schluessel] ?? { pfad: "M5 12h14", ton: "var(--brand)" };
+  const karte = document.createElement("div");
+  karte.className = "karte";
+  karte.style.setProperty("--ton", zeichen.ton);
+  karte.innerHTML = `
+    <div class="karte-kopf">
+      <span class="karte-zeichen" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="${zeichen.pfad}"></path></svg>
+      </span>
+      <span class="karte-name">${escapeHtml(w.name)}</span>
+    </div>
+    <div class="karte-zahl">${escapeHtml(w.zahl)}${w.einheit ? `<span class="karte-einheit">${escapeHtml(w.einheit)}</span>` : ""}</div>
+    <div class="karte-zusatz">${escapeHtml(w.zusatz)}</div>
+    <div class="karte-fuss">
+      <span class="karte-trend${w.trend ? "" : " leise"}">${escapeHtml(w.trend || "kein Vergleich")}</span>
+      <span>${w.tage} Tage</span>
+    </div>`;
+  return karte;
+}
+
 function renderBericht() {
   const b = berichtFuer(Number($("berichtZeitraum").value) || 28);
   $("berichtKopf").textContent =
     `${b.von} bis ${b.bis}, ${b.tageMitDaten} von ${b.tageGesamt} Tagen mit Eintrag.`;
-  $("berichtWerte").innerHTML = b.werte
-    .map((w) => `<li><div class="li-main"><div class="li-title">${escapeHtml(w.name)}: ${escapeHtml(w.wert)}</div>`
-      + `<div class="li-sub">${escapeHtml(w.trend || "kein Vergleich")}, ${w.tage} Tage</div></div></li>`)
-    .join("") || '<li><div class="li-main"><div class="li-title">Noch nichts zu berichten</div></div></li>';
+
+  const streifen = $("berichtWerte");
+  streifen.innerHTML = "";
+  for (const w of b.werte) streifen.appendChild(berichtKarte(w));
+  if (!b.werte.length) {
+    const leer = document.createElement("div");
+    leer.className = "karte";
+    leer.innerHTML = '<div class="karte-kopf"><span class="karte-name">Noch nichts zu berichten</span></div>'
+      + '<div class="karte-zusatz">Trag ein paar Tage ein, dann steht hier etwas.</div>';
+    streifen.appendChild(leer);
+  }
+
+  punkteBauen(streifen, $("berichtPunkte"), b.werte.length);
   $("berichtFazit").textContent = b.fazit.join("\n");
 }
+
+/**
+ * Die Punkte unter dem Streifen.
+ *
+ * Ohne sie wischt niemand weiter: nichts auf der Seite sagt, dass hinter der
+ * ersten Karte noch sechs liegen. Der aktive Punkt folgt dem Scrollstand und
+ * nicht einem Zähler, den die App selbst führt. Sonst laufen beide
+ * auseinander, sobald jemand mit Schwung über zwei Karten wischt.
+ */
+function punkteBauen(streifen, leiste, anzahl) {
+  leiste.innerHTML = "";
+  if (anzahl < 2) return;
+  for (let i = 0; i < anzahl; i++) leiste.appendChild(document.createElement("i"));
+
+  const setzen = () => {
+    const karten = [...streifen.children];
+    if (!karten.length) return;
+    const mitte = streifen.scrollLeft + streifen.clientWidth / 2;
+    let naechste = 0;
+    let abstand = Infinity;
+    karten.forEach((k, i) => {
+      const d = Math.abs(k.offsetLeft + k.offsetWidth / 2 - mitte);
+      if (d < abstand) { abstand = d; naechste = i; }
+    });
+    [...leiste.children].forEach((punkt, i) => punkt.classList.toggle("an", i === naechste));
+  };
+  streifen.onscroll = setzen;
+  setzen();
+}
+
+/*
+ * Pfeiltasten schieben den Streifen um eine Karte.
+ *
+ * Wischen geht nur mit dem Finger. Auf dem Rechner und mit einer Tastatur
+ * bliebe der Streifen sonst eine Reihe, aus der man nur die erste Karte
+ * sieht, und das ist kein Bedienelement, sondern eine Sackgasse.
+ */
+$("berichtWerte").addEventListener("keydown", (event) => {
+  const richtung = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+  if (!richtung) return;
+  event.preventDefault();
+  const karte = $("berichtWerte").firstElementChild;
+  if (!karte) return;
+  $("berichtWerte").scrollBy({ left: richtung * (karte.offsetWidth + 12), behavior: "smooth" });
+});
 
 $("berichtZeitraum").addEventListener("change", renderBericht);
 
