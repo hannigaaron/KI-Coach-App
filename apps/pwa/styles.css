@@ -87,16 +87,21 @@
 
   /* ---------- Die starke Fläche ----------
    *
-   * Für den einen Knopf, der sich von allem abheben soll. Im dunklen Modus
-   * Weiss, im hellen der Grundton. Dieselbe Rolle, umgekehrte Werte: was auf
-   * Schwarz heraussticht, verschwindet auf Weiss.
+   * Für den einen Knopf, der sich von allem abheben soll. Beide Modi tragen
+   * Markenblau statt Weiss oder Schwarz: der Knopf hebt sich ab, ohne den
+   * härtesten Kontrast der Palette zu verbrauchen. Im dunklen Modus das
+   * Logoblau, im hellen ein abgedunkeltes Blau derselben Familie.
    *
-   * Der Kreis darauf trägt die Markenfarbe, die zur jeweiligen Fläche passt.
-   * Logoblau auf Weiss liegt bei 1.57 zu 1 und wäre dort unbrauchbar, deshalb
-   * dort das dunkle Blau und umgekehrt. */
-  --stark: #ffffff;
+   * Die Werte sind gerechnet. Dunkel: Text #0b0e14 auf #96d8f0 liegt bei
+   * 12.31 zu 1, die Unterzeile bei Deckkraft 0.82 noch bei 5.84. Hell: Weiss
+   * auf #186688 liegt bei 6.37 zu 1, die Unterzeile bei 0.82 noch bei 4.86.
+   * Das dokumentierte #1e7fa8 reicht dort nicht: die Unterzeile käme auf 3.58
+   * und läge unter 4.5.
+   *
+   * Der Kreis darauf trägt die jeweils andere Stufe derselben Farbe. */
+  --stark: #96d8f0;
   --auf-stark: #0b0e14;
-  --stark-marke: var(--brand-deep);
+  --stark-marke: #1e7fa8;
   --auf-stark-marke: #ffffff;
   --border: #232b3a;
   /* Trennlinien innerhalb einer Fläche. Schwächer als ein Rahmen, weil sie
@@ -874,9 +879,9 @@ body:has([data-view="assistant"]:not([hidden])) .toast {
     --schatten-1: 0 1px 2px rgba(20, 26, 36, 0.06);
     --schatten-2: 0 4px 16px -6px rgba(20, 26, 36, 0.14);
     --schatten-3: 0 16px 40px -14px rgba(20, 26, 36, 0.2);
-    --stark: #141a24;
+    --stark: #186688;
     --auf-stark: #ffffff;
-    --stark-marke: var(--brand);
+    --stark-marke: #96d8f0;
     --auf-stark-marke: #0b0e14;
 }
 
@@ -898,9 +903,9 @@ body:has([data-view="assistant"]:not([hidden])) .toast {
     --schatten-1: 0 1px 2px rgba(20, 26, 36, 0.06);
     --schatten-2: 0 4px 16px -6px rgba(20, 26, 36, 0.14);
     --schatten-3: 0 16px 40px -14px rgba(20, 26, 36, 0.2);
-    --stark: #141a24;
+    --stark: #186688;
     --auf-stark: #ffffff;
-    --stark-marke: var(--brand);
+    --stark-marke: #96d8f0;
     --auf-stark-marke: #0b0e14;
   }
 }
@@ -2000,8 +2005,14 @@ body.blatt-offen { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .erfassen-knopf, .erfassen-plus, .erfassen-chev { transition: none; }
 }
-.erfassen-titel { font-size: var(--t-md); font-weight: 600; letter-spacing: -0.01em; }
-.erfassen-sub { font-size: var(--t-xs); color: var(--muted); }
+.erfassen-titel {
+  font-family: var(--schrift-display); font-size: var(--t-lg); font-weight: 600;
+  letter-spacing: -0.02em;
+}
+/* Nicht --muted. Der Ton ist für Text auf dem Grundton gerechnet und liegt auf
+   der starken Fläche daneben. Die eigene Farbe mit Deckkraft bleibt in beiden
+   Modi im Verhältnis: 0.82 ergibt dunkel 5.84 zu 1 und hell 4.86 zu 1. */
+.erfassen-sub { font-size: var(--t-sm); font-weight: 500; color: currentColor; opacity: 0.82; }
 
 /*
  * Die vier Wege im Blatt.

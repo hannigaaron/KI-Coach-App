@@ -1972,18 +1972,26 @@ darüber, und die sind der Inhalt der Seite.
 
 Im Betrieb war das zu wenig. Der Knopf hob sich vom Grund ab, aber nicht von
 den Wasserchips, und die Haupthandlung der Seite sah aus wie ein Nebenweg.
-Jetzt trägt er die starke Fläche: im dunklen Modus Weiss, im hellen der
-Grundton. Dieselbe Rolle, umgekehrte Werte, denn was auf Schwarz heraussticht,
-verschwindet auf Weiss.
 
-Die alte Überlegung galt für die Markenfarbe und gilt dort weiter. Weiss ist
-keine Farbe der Palette, es konkurriert nicht mit den Makrobalken oder den
-Bereichsfarben, sondern steht ausserhalb. Genau deshalb funktioniert es hier
-und wäre an einer zweiten Stelle sofort verbraucht.
+Der zweite Versuch war Weiss im dunklen Modus und der Grundton im hellen. Das
+war die Überkorrektur: der härteste Kontrast der Palette für einen Knopf, der
+sich nur abheben soll. Weiss auf Schwarz nimmt der grossen Zahl darüber die
+Aufmerksamkeit, und zwei Flächen mit maximalem Kontrast auf einer Seite lesen
+sich als zwei Hauptsachen.
 
-Der Kreis auf dem Knopf trägt die Markenfarbe, die zur jeweiligen Fläche
-passt: auf Weiss das dunkle Blau, auf Dunkel das Logoblau. Logoblau auf Weiss
-liegt bei 1.57 zu 1 und wäre dort unbrauchbar.
+Jetzt trägt er Markenblau in beiden Modi, nur in zwei Stufen. Dunkel das
+Logoblau `#96d8f0`, hell ein abgedunkeltes `#186688`. Die Farbe ist dieselbe,
+die Helligkeit dreht sich, und der Knopf bleibt Teil der Palette statt
+ausserhalb zu stehen.
+
+Die Werte sind gerechnet, nicht geschätzt. Dunkel liegt der Titel bei 12.31 zu
+1, hell bei 6.37. Das dokumentierte `#1e7fa8` reicht auf hellem Grund nicht:
+die Unterzeile käme dort auf 3.58 und läge unter 4.5. Deshalb der dunklere Ton
+und Deckkraft 0.82 statt 0.62, damit die Unterzeile bei 4.86 landet.
+
+Der Kreis auf dem Knopf trägt die jeweils andere Stufe derselben Farbe: auf
+dem hellen Blau das dunkle, auf dem dunklen Blau das Logoblau. Logoblau auf
+Logoblau wäre kein Kreis mehr.
 
 Die Untertitelzeile nimmt nicht `--muted`. Der Ton ist für Text auf dem
 Grundton gerechnet und liegt auf der starken Fläche daneben. Die eigene Farbe
