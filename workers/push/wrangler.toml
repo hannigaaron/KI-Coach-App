@@ -19,7 +19,12 @@ id = "HIER_DIE_KENNUNG_EINTRAGEN"
 [vars]
 # Woher die App kommen darf. Ohne Begrenzung kann jede fremde Seite Abos
 # anlegen und löschen.
-HERKUNFT = "https://hannigaaron.github.io,http://localhost:8080"
+# Zwei Adressen, weil zwei Fassungen laufen: die Entwicklerfassung auf GitHub
+# Pages, die Fassung für Nutzer auf Cloudflare Pages. Getrennte Adressen sind
+# Absicht und nicht Zufall, siehe docs/DEMO.md: der localStorage hängt an der
+# Adresse und nicht am Pfad, zwei Fassungen auf einer Adresse teilen also
+# ihre Daten.
+HERKUNFT = "https://hannigaaron.github.io,https://daevo.pages.dev,http://localhost:8080"
 PUSH_KONTAKT = "mailto:hannigaaron@gmail.com"
 
 # VAPID_PUBLIC, VAPID_PRIVATE und ANMELDE_WORT sind Geheimnisse und stehen

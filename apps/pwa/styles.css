@@ -1,4 +1,43 @@
 /*
+ * Poppins, als Datei im Projekt und nicht von Google geladen.
+ *
+ * Die App muss ohne Netz starten, das ist der halbe Sinn einer installierten
+ * Web App. Eine Schrift von einem fremden Server bricht dort weg, und die
+ * Seite springt beim ersten Öffnen ohne Empfang in die Systemschrift. Ausserdem
+ * verrät jeder Abruf an fonts.gstatic.com, wann jemand die App aufmacht, und
+ * bei einer App, in der Notizen über Therapie und Familie liegen, ist das
+ * nichts, was man nebenbei mitliefert.
+ *
+ * Nur die lateinische Teilmenge, zwei Schnitte, zusammen 16 Kilobyte. Der
+ * Bereich U+0000 bis U+00FF deckt ä, ö, ü und ß ab.
+ *
+ * 500 und 600, weil die Wortmarke auf dem Sprung zwischen den Gewichten
+ * beruht. 300 fehlt hier bewusst: das Light gibt es nur in der Wortmarke, und
+ * die liegt als Pfad vor. Eine dritte Datei für zwei Buchstaben wäre
+ * Ladezeit ohne Gegenwert.
+ *
+ * SIL Open Font License 1.1, der Text liegt in apps/pwa/schrift/OFL.txt.
+ */
+@font-face {
+  font-family: "Poppins";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("./schrift/poppins-500.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+2000-206F, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Poppins";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("./schrift/poppins-600.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+2000-206F, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD;
+}
+
+/*
   Markenfarben daevo.
 
   --brand ist das Logoblau aus dem Personal Coach Aaron Logo. Es hat auf Weiß
@@ -18,6 +57,20 @@
      und ist dort für Fliesstext zu schwach. Dieser Ton liegt bei 4.98. */
   --brand-text: #1b7399;
 
+  /* ---------- Schrift ----------
+   *
+   * Zwei Rollen. Poppins trägt Überschriften und Zahlen, die Systemschrift
+   * den Fliesstext. Eine geometrische Schrift wie Poppins ist auf 13 Pixeln
+   * Lauftext schlechter lesbar als die Systemschrift, weil ihre runden
+   * Formen eng laufen und die Unterschiede zwischen a, o und e kleiner
+   * werden. In einer Zahl von 48 Pixeln ist genau diese Geometrie der Grund,
+   * sie zu nehmen: die Null ist ein Kreis, wie der Ring, in dem sie steht.
+   *
+   * Der Rückfall ist nicht beliebig. Fehlt Poppins, soll etwas Geometrisches
+   * kommen und keine Serifenschrift aus der Voreinstellung. */
+  --schrift-display: "Poppins", ui-rounded, "Avenir Next", "Segoe UI Variable Display",
+    system-ui, -apple-system, sans-serif;
+
   /* ---------- Flächen ----------
    *
    * Die Neutraltöne sind nicht neutral. Sie tragen einen leichten Blaustich in
@@ -31,6 +84,25 @@
   --panel-2: #0f141c;
   /* Für Elemente, die auf einem Panel liegen und sich davon abheben müssen. */
   --erhoben: #1a2130;
+
+  /* ---------- Die starke Fläche ----------
+   *
+   * Für den einen Knopf, der sich von allem abheben soll. Beide Modi tragen
+   * Markenblau statt Weiss oder Schwarz: der Knopf hebt sich ab, ohne den
+   * härtesten Kontrast der Palette zu verbrauchen. Im dunklen Modus das
+   * Logoblau, im hellen ein abgedunkeltes Blau derselben Familie.
+   *
+   * Die Werte sind gerechnet. Dunkel: Text #0b0e14 auf #96d8f0 liegt bei
+   * 12.31 zu 1, die Unterzeile bei Deckkraft 0.82 noch bei 5.84. Hell: Weiss
+   * auf #186688 liegt bei 6.37 zu 1, die Unterzeile bei 0.82 noch bei 4.86.
+   * Das dokumentierte #1e7fa8 reicht dort nicht: die Unterzeile käme auf 3.58
+   * und läge unter 4.5.
+   *
+   * Der Kreis darauf trägt die jeweils andere Stufe derselben Farbe. */
+  --stark: #96d8f0;
+  --auf-stark: #0b0e14;
+  --stark-marke: #1e7fa8;
+  --auf-stark-marke: #ffffff;
   --border: #232b3a;
   /* Trennlinien innerhalb einer Fläche. Schwächer als ein Rahmen, weil sie
      gliedern und nicht abgrenzen. */
@@ -431,6 +503,43 @@ button:disabled { opacity: 0.5; }
 .section-title { font-size: 13px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin: 26px 0 10px; }
 
 /* Ring */
+/* ---------- Der Held ----------
+ *
+ * Eine Seite hat einen Helden oder keinen. Vorher standen auf Heute zwei
+ * grosse Ringe übereinander, der obere mit einer abgeleiteten Punktzahl. Zwei
+ * Helden sind keiner: das Auge sucht, statt zu lesen.
+ *
+ * Der Held trägt keinen Kasten. Ein Rahmen um das Wichtigste auf der Seite
+ * macht es zu einem Objekt neben anderen Objekten. Was ihn zusammenhält, ist
+ * der Abstand zu seinen Nachbarn.
+ */
+.held {
+  display: flex; flex-direction: column; align-items: center;
+  gap: var(--s-2); padding: var(--s-1) 0 var(--s-4);
+}
+.held-ring { position: relative; width: 196px; height: 196px; }
+.held-ring .ring { width: 196px; height: 196px; }
+/* Dünner als der kleine Ring. Eine Spur, die mitwächst, wird zum Reifen: auf
+   196 Pixeln trägt dieselbe Stärke von fünf optisch doppelt so viel wie auf
+   132, und der Ring nimmt der Zahl in seiner Mitte das Gewicht. */
+.held-ring .ring circle { stroke-width: 3.6; }
+.held-zahl {
+  font-size: var(--t-4xl); font-weight: 680; letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums; line-height: 1;
+}
+.held-label { font-size: var(--t-sm); color: var(--muted); margin-top: var(--s-2); }
+/* Die Nebenzahlen stehen in einer Zeile und nicht in einer Tabelle daneben.
+   Gegessen und Ziel erklären die grosse Zahl, sie konkurrieren nicht mit ihr. */
+.held-satz {
+  margin: 0; font-size: var(--t-sm); color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.held-satz b, .held-satz span:not(.held-punkt) { color: var(--text); font-weight: 600; }
+.held-punkt {
+  display: inline-block; width: 3px; height: 3px; border-radius: 50%;
+  background: currentColor; opacity: 0.5; margin: 0 var(--s-2) 3px;
+}
+
 .ring-card {
   background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
   padding: 18px; display: flex; gap: 18px; align-items: center;
@@ -453,6 +562,43 @@ button:disabled { opacity: 0.5; }
 .mini:last-child { border-bottom: none; }
 .mini-k { color: var(--muted); }
 .mini-v { font-weight: 650; font-variant-numeric: tabular-nums; }
+
+/* ---------- Messwerte ----------
+ *
+ * Ein Ring ist die falsche Form für einen kleinen Anteil. Drei Prozent auf
+ * einem Ring sind ein Stummel von zehn Grad, und daneben steht eine Zahl, die
+ * das Gleiche noch einmal sagt. Fünf davon nebeneinander ergeben ausserdem
+ * eine Reihe zu drei und eine zu zwei, also eine Waise.
+ *
+ * Ein Balken trägt jeden Anteil von null bis über hundert, liest sich in
+ * einer Spalte untereinander und lässt Name, Wert und Ziel auf einer Zeile
+ * stehen. Dieselbe Form wie bei den Makros: eine App, ein System.
+ */
+.messwerte { display: flex; flex-direction: column; gap: var(--s-4); margin: var(--s-4) 0 var(--s-2); }
+.messwert { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 0; color: inherit; }
+button.messwert { cursor: pointer; }
+button.messwert:active { opacity: 0.65; }
+.messwert-kopf {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: var(--s-3); margin-bottom: var(--s-2);
+}
+.messwert-name { font-size: var(--t-sm); font-weight: 600; letter-spacing: -0.005em; }
+.messwert-wert { font-size: var(--t-sm); color: var(--muted); font-variant-numeric: tabular-nums; }
+.messwert-wert b { color: var(--text); font-weight: 650; }
+.messwert-zusatz { color: var(--muted); font-weight: 500; }
+.messwert.gross .messwert-name { font-size: var(--t-md); }
+.messwert.gross .messwert-wert b { font-size: var(--t-xl); letter-spacing: -0.02em; }
+/* Die Farbe kommt je Zeile über eine Variable, nicht über eine Klasse je
+   Bereich. Fünf Klassen für fünf Farben wären fünf Stellen, an denen eine
+   Farbe später nicht mitgezogen wird. */
+.messwert .balken > i { background: var(--ton, var(--brand)); }
+/* Über dem Ziel. Nicht rot, denn über einem Fitnessziel zu liegen ist kein
+   Fehler. Eine Schraffur sagt "voll und darüber hinaus", eine volle Spur
+   allein sähe aus wie genau erreicht. */
+.messwert .balken > i.drueber {
+  background-image: repeating-linear-gradient(115deg,
+    rgba(0, 0, 0, 0.2) 0 2px, transparent 2px 9px);
+}
 
 /* Balken */
 /* Die Gruppe hiess ebenfalls `.bars`, genau wie das Menuesymbol in der
@@ -733,6 +879,10 @@ body:has([data-view="assistant"]:not([hidden])) .toast {
     --schatten-1: 0 1px 2px rgba(20, 26, 36, 0.06);
     --schatten-2: 0 4px 16px -6px rgba(20, 26, 36, 0.14);
     --schatten-3: 0 16px 40px -14px rgba(20, 26, 36, 0.2);
+    --stark: #186688;
+    --auf-stark: #ffffff;
+    --stark-marke: #96d8f0;
+    --auf-stark-marke: #0b0e14;
 }
 
 @media (prefers-color-scheme: light) {
@@ -753,6 +903,10 @@ body:has([data-view="assistant"]:not([hidden])) .toast {
     --schatten-1: 0 1px 2px rgba(20, 26, 36, 0.06);
     --schatten-2: 0 4px 16px -6px rgba(20, 26, 36, 0.14);
     --schatten-3: 0 16px 40px -14px rgba(20, 26, 36, 0.2);
+    --stark: #186688;
+    --auf-stark: #ffffff;
+    --stark-marke: #96d8f0;
+    --auf-stark-marke: #0b0e14;
   }
 }
 
@@ -849,12 +1003,27 @@ img.only-light { display: none; }
   border-left: 2px solid currentColor; border-bottom: 2px solid currentColor;
   transform: rotate(45deg); margin-left: 4px;
 }
-.icon-btn .speaker {
-  display: block; width: 16px; height: 16px; border-radius: 50%;
-  border: 2px solid currentColor;
+/*
+ * Sprachausgabe.
+ *
+ * Vorher ein leerer Kreis mit gestricheltem Rand im Aus-Zustand. Ein Kreis
+ * ist kein Lautsprecher, und gestrichelt gegen durchgezogen ist als einziger
+ * Unterschied zwischen an und aus zu leise.
+ *
+ * Als SVG und nicht aus Rahmen zusammengesetzt. Ein Trichter aus
+ * `border-left` mit durchsichtigem Rand oben und unten ergibt ein Dreieck,
+ * das je nach Zeilenhöhe zwei Pixel neben dem Korpus sitzt, und die Welle als
+ * halber Kreisrand wurde zur einzelnen Klammer. Für eine Form mit Schrägen
+ * ist ein Pfad das richtige Mittel.
+ */
+.icon-btn .speaker { display: block; width: 22px; height: 22px; }
+.speaker-korpus { fill: currentColor; }
+.speaker-welle, .speaker-strich { fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; }
+/* An zeigt die Welle, aus zeigt das Kreuz. Eine Form, die sich ändert, liest
+   sich schneller als eine Linienart, die sich ändert. */
+.icon-btn[aria-pressed="true"] .speaker-strich,
+.icon-btn[aria-pressed="false"] .speaker-welle { display: none; }
 }
-.icon-btn[aria-pressed="false"] { color: var(--muted); }
-.icon-btn[aria-pressed="false"] .speaker { border-style: dashed; }
 
 /* Bühne mit dem Kreis */
 .stage {
@@ -1269,13 +1438,25 @@ input[type="range"]::-moz-range-thumb {
   background: transparent; border: 0; color: var(--muted); font-size: 17px; line-height: 1;
 }
 .gs-leer { color: var(--muted); font-size: 14.5px; line-height: 1.6; padding: 22px 2px; }
-.icon-btn .stapel, .icon-btn .plus { display: block; width: 20px; height: 20px; position: relative; }
-.icon-btn .stapel::before, .icon-btn .stapel::after {
-  content: ""; position: absolute; left: 2px; right: 2px; height: 2px; border-radius: 2px;
-  background: currentColor;
+.icon-btn .plus { display: block; width: 20px; height: 20px; position: relative; }
+/*
+ * Gespräche.
+ *
+ * Vorher waren das drei gleich lange Striche, also genau das Menüsymbol
+ * daneben. Zwei verschiedene Handlungen mit demselben Bild nimmt niemand als
+ * zwei wahr: der Nutzer drückt eines von beiden und lernt nichts dazu.
+ * Jetzt eine Liste mit Punkten davor.
+ */
+.icon-btn .stapel { display: block; width: 18px; height: 14px; position: relative; }
+.icon-btn .stapel::before, .icon-btn .stapel::after { content: ""; position: absolute; background: currentColor; }
+.icon-btn .stapel::before {
+  left: 0; top: 0; width: 4px; height: 4px; border-radius: 50%;
+  box-shadow: 0 5px 0 currentColor, 0 10px 0 currentColor;
 }
-.icon-btn .stapel::before { top: 5px; box-shadow: 0 5px 0 currentColor; }
-.icon-btn .stapel::after { top: 15px; }
+.icon-btn .stapel::after {
+  left: 7px; top: 1px; width: 11px; height: 2px; border-radius: 2px;
+  box-shadow: 0 5px 0 currentColor, 0 10px 0 currentColor;
+}
 .icon-btn .plus::before, .icon-btn .plus::after {
   content: ""; position: absolute; background: currentColor; border-radius: 2px;
 }
@@ -1758,37 +1939,80 @@ body.blatt-offen { overflow: hidden; }
  * dieselbe Rundung wie am d der Wortmarke. Ein Plus aus dem Zeichensatz sitzt
  * je nach Schrift anders in der Zeile und ist nie genau mittig.
  */
+/*
+ * Der Knopf sah aus wie die Wasserchips darüber: gerahmtes Rechteck mit
+ * runden Ecken. Zwei Dinge mit demselben Aussehen und sehr verschiedenem
+ * Gewicht, und der wichtigere verliert, weil er weiter unten steht.
+ *
+ * Der Unterschied liegt jetzt in der Art der Fläche und nicht in der Farbe.
+ * Ein Chip ist umrandet und flach, dieser Knopf ist gefüllt und erhoben. Eine
+ * Füllung in der Markenfarbe wäre die naheliegende Lösung und die falsche:
+ * ein voll eingefärbter Knopf zieht mehr Aufmerksamkeit als die Zahlen
+ * darüber, und die sind der Inhalt der Seite.
+ */
 .erfassen-knopf {
   width: 100%; display: flex; align-items: center; gap: var(--s-4);
-  padding: var(--s-4); margin-bottom: var(--s-4);
-  background: var(--panel); border: 1px solid var(--border);
+  padding: var(--s-5) var(--s-5) var(--s-5) var(--s-4);
+  /* Luft nach oben, nicht nur nach unten. Vorher klebte der Knopf an den
+     Wasserchips darüber, und zwei Bedienelemente ohne Abstand lesen sich als
+     eine Gruppe, obwohl das eine ein Nebenweg und das andere die
+     Haupthandlung der Seite ist. */
+  margin: var(--s-6) 0 var(--s-5);
+  background: var(--stark); border: 0;
   border-radius: var(--r-lg); box-shadow: var(--schatten-2);
-  color: var(--text); text-align: left; cursor: pointer;
-  transition: transform var(--schnell) var(--kurve), border-color var(--schnell) var(--kurve);
+  color: var(--auf-stark); text-align: left; cursor: pointer;
+  transition: transform var(--schnell) var(--kurve), box-shadow var(--schnell) var(--kurve);
 }
-.erfassen-knopf:active { transform: scale(0.98); }
-.erfassen-knopf:hover { border-color: var(--accent); }
+/* Beim Drücken sinkt er ein: kleiner und flacher zugleich. Nur kleiner
+   werden liest sich als Wackeln, der wegfallende Schatten macht daraus
+   eine Bewegung nach unten. */
+.erfassen-knopf:active { transform: scale(0.985); box-shadow: var(--schatten-1); }
+.erfassen-knopf:hover { box-shadow: var(--schatten-3); }
+
+/* Ein Winkel am rechten Rand. Ohne ihn sieht die Kachel aus, als stünde dort
+   etwas, statt als ginge dort etwas auf. */
+.erfassen-chev {
+  margin-left: auto; flex: 0 0 auto;
+  width: 10px; height: 10px; border-top: 2px solid currentColor; border-right: 2px solid currentColor;
+  opacity: 0.45;
+  border-radius: 1px; transform: rotate(45deg);
+  transition: transform var(--normal) var(--kurve);
+}
+/* Solange das Blatt offen ist, zeigt der Winkel nach unten und das Plus steht
+   auf der Diagonale. Ein Knopf, der geöffnet hat, soll das sagen. */
+.erfassen-knopf[aria-expanded="true"] .erfassen-chev { transform: rotate(135deg); }
+.erfassen-knopf[aria-expanded="true"] .erfassen-plus { transform: rotate(45deg); }
 
 /* Der Kreis trägt die Markenfarbe, der Rest der Kachel nicht. Ein voll
    eingefärbter Knopf in der Markenfarbe zieht mehr Aufmerksamkeit als die
    Zahlen darüber, und die sind der Inhalt der Seite. */
 .erfassen-plus {
   position: relative; flex: 0 0 auto;
-  width: 44px; height: 44px; border-radius: var(--r-pill);
-  background: var(--accent); box-shadow: var(--schatten-1);
+  width: 50px; height: 50px; border-radius: var(--r-pill);
+  background: var(--stark-marke); box-shadow: none;
+  transition: transform var(--normal) var(--kurve);
 }
 .erfassen-plus::before,
 .erfassen-plus::after {
   content: ""; position: absolute; left: 50%; top: 50%;
-  background: var(--on-accent); border-radius: var(--r-pill);
+  background: var(--auf-stark-marke); border-radius: var(--r-pill);
   transform: translate(-50%, -50%);
 }
-.erfassen-plus::before { width: 17px; height: 2.5px; }
-.erfassen-plus::after { width: 2.5px; height: 17px; }
+.erfassen-plus::before { width: 19px; height: 2.8px; }
+.erfassen-plus::after { width: 2.8px; height: 19px; }
 
 .erfassen-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.erfassen-titel { font-size: var(--t-md); font-weight: 600; letter-spacing: -0.01em; }
-.erfassen-sub { font-size: var(--t-xs); color: var(--muted); }
+@media (prefers-reduced-motion: reduce) {
+  .erfassen-knopf, .erfassen-plus, .erfassen-chev { transition: none; }
+}
+.erfassen-titel {
+  font-family: var(--schrift-display); font-size: var(--t-lg); font-weight: 600;
+  letter-spacing: -0.02em;
+}
+/* Nicht --muted. Der Ton ist für Text auf dem Grundton gerechnet und liegt auf
+   der starken Fläche daneben. Die eigene Farbe mit Deckkraft bleibt in beiden
+   Modi im Verhältnis: 0.82 ergibt dunkel 5.84 zu 1 und hell 4.86 zu 1. */
+.erfassen-sub { font-size: var(--t-sm); font-weight: 500; color: currentColor; opacity: 0.82; }
 
 /*
  * Die vier Wege im Blatt.
@@ -1878,3 +2102,336 @@ body.blatt-offen { overflow: hidden; }
   border-right: 1.6px solid var(--muted); border-top: 1.6px solid var(--muted);
   transform: rotate(45deg);
 }
+
+/* ---------- Das Foto, bevor es rausgeht ----------
+ *
+ * Die Bühne trägt drei Ebenen übereinander: das Bild, eine Zeile, die darüber
+ * läuft, und ein paar Punkte, die aufleuchten. Alle drei laufen nur, solange
+ * wirklich gerechnet wird, gesteuert über `.laeuft` am Element. Eine
+ * Animation, die immer läuft, heisst nichts mehr: der Nutzer kann dann nicht
+ * mehr sehen, ob die App arbeitet oder wartet.
+ *
+ * 4 zu 3 als festes Seitenverhältnis. Ein Bild vom Handy kommt hoch oder quer,
+ * und ohne feste Höhe springt der Knopf darunter beim Laden an eine andere
+ * Stelle. `object-fit: cover` schneidet lieber ab, als zu verzerren: ein
+ * verzerrter Teller sieht aus wie ein Fehler der App.
+ */
+.foto-buehne {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  margin: var(--s-2) 0 var(--s-5);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--erhoben);
+  border: 1px solid var(--border);
+}
+.foto-bild { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Die Zeile läuft von oben nach unten und wieder zurück. Ein Sprung zurück an
+   den Anfang wirkt wie ein Ruckler, deshalb `alternate`. */
+.foto-scan {
+  position: absolute; left: 0; right: 0; top: 0; height: 2px;
+  background: var(--brand);
+  box-shadow: 0 0 14px 2px color-mix(in srgb, var(--brand) 60%, transparent);
+  opacity: 0;
+}
+.foto-buehne.laeuft .foto-scan {
+  opacity: 1;
+  animation: foto-scan 2.2s var(--kurve) infinite alternate;
+}
+/* Bewegt wird `top` und nicht `transform`. Die Zeile ist zwei Pixel hoch, und
+   translateY(100%) sind damit zwei Pixel statt der ganzen Bühne. */
+@keyframes foto-scan {
+  from { top: 0; }
+  to { top: calc(100% - 2px); }
+}
+
+/* Die Punkte. Sie sitzen auf festen Stellen statt zufällig: derselbe Ablauf
+   bei jedem Bild ist ruhiger als ein Feld, das jedes Mal anders flackert. */
+.foto-funken { position: absolute; inset: 0; pointer-events: none; }
+.foto-funken i {
+  position: absolute; left: var(--x); top: var(--y);
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--brand);
+  opacity: 0;
+}
+.foto-buehne.laeuft .foto-funken i {
+  animation: foto-funke 3.5s var(--kurve) var(--v) infinite;
+}
+@keyframes foto-funke {
+  0%, 100% { opacity: 0; transform: scale(0.4); }
+  12% { opacity: 0.9; transform: scale(1); }
+  30% { opacity: 0; transform: scale(0.4); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .foto-buehne.laeuft .foto-scan,
+  .foto-buehne.laeuft .foto-funken i { animation: none; }
+  .foto-buehne.laeuft .foto-scan { opacity: 0.5; }
+}
+
+.foto-details {
+  width: 100%;
+  padding: var(--s-3);
+  background: var(--erhoben);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  color: var(--text);
+  font: inherit;
+}
+.foto-details:focus-visible { outline: 2px solid var(--brand-deep); outline-offset: 1px; }
+
+/* Ein Knopf über die ganze Breite, ohne die Randausrichtung des sonstigen
+   Fusses. Er ist hier die einzige Handlung, und ein einzelner Knopf, der
+   rechts klebt, sieht aus, als fehle links noch einer. */
+.foto-fuss { display: block; }
+.foto-fuss .primary { margin: 0; border-radius: var(--r-pill); padding: var(--s-4); }
+
+/* Während gerechnet wird, bleibt der Knopf gesperrt, aber nicht blass. Der
+   allgemeine Wert von 0.45 ist für einen Knopf gedacht, den man gerade nicht
+   benutzen darf. Hier ist es der einzige Ort, an dem der Fortschritt steht,
+   und ein Fortschritt, den man kaum lesen kann, ist keiner. */
+.foto-fuss .primary:disabled { opacity: 0.88; }
+
+
+/* ---------- Betriebsarten ----------
+ *
+ * Kopf leeren und das Weckwort sind Zustände, keine Eingabehilfen. Sie
+ * standen in der Pille als zwei Wörter zwischen vier Symbolen und haben den
+ * Platzhalter im Feld abgeschnitten. Jetzt stehen sie darüber, beschriftet,
+ * mit einem Punkt, der den Zustand trägt.
+ */
+.modi {
+  display: flex; gap: var(--s-2);
+  padding: 0 var(--s-4) var(--s-2);
+}
+.modus {
+  display: inline-flex; align-items: center; gap: var(--s-2);
+  padding: 7px var(--s-3); border-radius: var(--r-pill);
+  border: 1px solid var(--border); background: var(--panel-2);
+  color: var(--muted); font: inherit; font-size: var(--t-xs); font-weight: 600;
+  transition: color var(--schnell) var(--kurve), border-color var(--schnell) var(--kurve);
+}
+.modus:active { transform: scale(0.98); }
+.modus-punkt {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor; opacity: 0.45;
+  transition: opacity var(--schnell) var(--kurve), box-shadow var(--schnell) var(--kurve);
+}
+/* An heisst: Farbe, voller Punkt und ein Schimmer darum. Drei Signale, weil
+   ein offenes Mikrofon Akku zieht und niemand es übersehen darf. */
+.modus[aria-pressed="true"] { color: var(--accent-text); border-color: var(--accent); }
+.modus[aria-pressed="true"] .modus-punkt {
+  opacity: 1; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+@media (prefers-reduced-motion: reduce) { .modus, .modus-punkt { transition: none; } }
+
+/* ---------- Karten zum Durchwischen ----------
+ *
+ * Eine Zahl je Karte. Sieben Zeilen untereinander werden überflogen, eine
+ * Zahl, die allein steht, wird gelesen.
+ *
+ * Das Wischen macht der Browser über scroll-snap. Eine Bibliothek wäre die
+ * erste Laufzeitabhängigkeit der App und das Verhalten wäre schlechter: ein
+ * nachgebauter Wisch kennt weder den Schwung des Fingers noch die
+ * Systemeinstellung für weniger Bewegung.
+ */
+.karten {
+  display: flex; gap: var(--s-3);
+  overflow-x: auto; scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  /* Der Innenabstand liegt auf dem Streifen und nicht auf der Seite, damit
+     die erste Karte am Rand einrastet und die letzte nicht klebt. */
+  padding: var(--s-2) var(--s-4) var(--s-4);
+  margin: 0 calc(var(--s-4) * -1);
+  scrollbar-width: none;
+}
+.karten::-webkit-scrollbar { display: none; }
+.karten:focus-visible { outline: 2px solid var(--brand-deep); outline-offset: -2px; border-radius: var(--r-lg); }
+
+.karte {
+  scroll-snap-align: center;
+  flex: 0 0 min(272px, 76vw);
+  display: flex; flex-direction: column;
+  padding: var(--s-5);
+  border-radius: var(--r-lg);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--schatten-1);
+}
+.karte-kopf { display: flex; align-items: center; gap: var(--s-3); }
+/* Das Zeichen trägt die Farbe des Werts, der Rest der Karte nicht. Eine
+   eingefärbte Karte je Wert ergäbe sieben bunte Flächen nebeneinander, und
+   die Farbe hätte danach keine Bedeutung mehr. */
+.karte-zeichen {
+  width: 34px; height: 34px; flex: 0 0 34px;
+  display: grid; place-items: center;
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--ton, var(--brand)) 16%, transparent);
+  color: var(--ton, var(--brand));
+}
+.karte-zeichen svg { width: 20px; height: 20px; display: block; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.karte-name { font-size: var(--t-sm); font-weight: 600; letter-spacing: -0.005em; }
+
+/* Die Zahl trägt die Karte. Alles darum bleibt klein, sonst ist es wieder
+   eine Liste, nur mit mehr Abstand. */
+.karte-zahl {
+  margin-top: auto; padding-top: var(--s-5);
+  font-size: var(--t-4xl); font-weight: 680; letter-spacing: -0.035em;
+  line-height: 1; font-variant-numeric: tabular-nums;
+}
+.karte-einheit { font-size: var(--t-md); color: var(--muted); font-weight: 500; margin-left: 6px; letter-spacing: 0; }
+.karte-zusatz { font-size: var(--t-sm); color: var(--muted); margin-top: var(--s-2); }
+.karte-fuss {
+  margin-top: var(--s-4); padding-top: var(--s-3);
+  border-top: 1px solid var(--linie);
+  font-size: var(--t-xs); color: var(--muted);
+  display: flex; justify-content: space-between; gap: var(--s-2);
+}
+.karte-trend { color: var(--text); font-weight: 600; }
+/* Kein Vergleich ist das Unwichtigste auf der Karte und stand fett neben der
+   Zahl der Tage. Eine Abwesenheit braucht kein Gewicht. */
+.karte-trend.leise { color: var(--muted); font-weight: 500; }
+
+/* Die Punkte sagen, wie viele es sind und wo man steht. Ohne sie wischt
+   niemand weiter, weil nichts darauf hinweist, dass da noch etwas kommt. */
+.punkte { display: flex; justify-content: center; gap: 6px; margin: 0 0 var(--s-4); }
+.punkte i {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--text); opacity: 0.22;
+  transition: opacity var(--schnell) var(--kurve), width var(--schnell) var(--kurve);
+}
+.punkte i.an { opacity: 1; width: 18px; border-radius: var(--r-pill); }
+@media (prefers-reduced-motion: reduce) { .punkte i { transition: none; } }
+
+/* ---------- Wo Poppins steht ----------
+ *
+ * Überschriften und Zahlen, nichts sonst. Eine Schrift überall einzusetzen
+ * macht sie unsichtbar: sie fällt nur auf, wenn daneben etwas anderes steht.
+ *
+ * Die Laufweite geht enger, als die Systemschrift sie brauchte. Poppins läuft
+ * von sich aus weiter, und bei gleicher Einstellung wirkt eine Überschrift
+ * auseinandergezogen.
+ */
+h1,
+.bar h1,
+.abschnitt,
+.menu-item b,
+.karte-name,
+.messwert-name {
+  font-family: var(--schrift-display);
+  letter-spacing: -0.015em;
+}
+
+/* Zahlen, die die Seite tragen. Tabellarisch bleibt es überall: eine 1 ist
+   sonst schmaler als eine 8, und eine Zahl, die beim Hochzählen wackelt,
+   sieht nach Fehler aus. */
+.held-zahl,
+.karte-zahl,
+.ring-num,
+.messwert.gross .messwert-wert b,
+.wertung-zahl {
+  font-family: var(--schrift-display);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Die Zahl im Wertungsring wird als SVG Text gesetzt und erbt die Schrift
+   nicht über die üblichen Regeln. */
+.wertung svg text, .ring-svg text { font-family: var(--schrift-display); }
+
+/* ---------- Der Wechsel zwischen Ansichten ----------
+ *
+ * Vorher schnitt die App hart um. Ein Schnitt ohne Übergang nimmt dem Nutzer
+ * die Auskunft, ob er tiefer hinein oder wieder heraus gegangen ist, und
+ * genau daran erkennt man billige Apps.
+ *
+ * Die neue Ansicht kommt herein, die alte wird nicht animiert. Zwei Ebenen
+ * gleichzeitig zu bewegen braucht beide gleichzeitig im Baum, also ein
+ * Umbauen von `hidden` auf Überlagerung, und das kostet an jeder Stelle, an
+ * der eine Ansicht ihre Höhe misst. Der Gewinn wäre eine Nuance.
+ *
+ * 190 Millisekunden. Darunter sieht man nur ein Zucken, darüber wartet man.
+ */
+@keyframes ansicht-rein {
+  from { opacity: 0; transform: translate3d(14px, 0, 0); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes ansicht-zurueck {
+  from { opacity: 0; transform: translate3d(-14px, 0, 0); }
+  to { opacity: 1; transform: none; }
+}
+.view.kommt-rein { animation: ansicht-rein 190ms var(--kurve) both; }
+.view.kommt-zurueck { animation: ansicht-zurueck 190ms var(--kurve) both; }
+
+/*
+ * Der Assistent wird nicht geschoben.
+ *
+ * Auf ihm läuft der Kreis auf einem Canvas. Eine Transformation auf dem
+ * Vorfahren zwingt den Browser, das Canvas in eine eigene Ebene zu legen und
+ * pro Bild neu zusammenzusetzen, und die Bildrate bricht für die Dauer der
+ * Animation ein. Ein Aufblenden reicht dort.
+ */
+.view[data-view="assistant"].kommt-rein,
+.view[data-view="assistant"].kommt-zurueck {
+  animation-name: ansicht-auf;
+}
+@keyframes ansicht-auf { from { opacity: 0; } to { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .view.kommt-rein, .view.kommt-zurueck { animation: none; }
+}
+
+/* ---------- Das Netz ----------
+ *
+ * Es steht ohne Kasten, wie der Held auf Heute. Was es zusammenhält, ist der
+ * Abstand zu seinen Nachbarn. Ein Rahmen darum machte aus der
+ * Zusammenfassung ein Objekt neben anderen Objekten.
+ */
+.netz-buehne {
+  display: flex; flex-direction: column; align-items: center;
+  gap: var(--s-2); padding: var(--s-2) 0 var(--s-3);
+  color: var(--text);
+}
+.netz-buehne svg { display: block; max-width: 100%; height: auto; }
+
+.legende { display: flex; gap: var(--s-5); align-items: center; font-size: var(--t-xs); color: var(--muted); }
+.legende span { display: inline-flex; align-items: center; gap: 7px; }
+.legende-umriss {
+  width: 13px; height: 13px; border-radius: 4px;
+  border: 1.6px dashed currentColor; opacity: 0.8;
+}
+.legende-flaeche {
+  width: 13px; height: 13px; border-radius: 4px;
+  background: var(--brand); opacity: 0.85;
+}
+
+/* Der Hinweis auf eine Schieflage. Er steht in der Ansicht und nicht nur in
+   der Mitteilung: wer die weggewischt hat und später selbst nachsieht, soll
+   dasselbe lesen. Warnfarbe wäre falsch, eine Schieflage ist kein Fehler,
+   sondern ein Unterschied zu dem, was sich der Nutzer vorgenommen hat. */
+.hinweis {
+  margin: var(--s-3) 0 var(--s-2);
+  padding: var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--erhoben);
+  border-left: 3px solid var(--accent);
+}
+.hinweis .li-title { font-family: var(--schrift-display); font-weight: 600; font-size: var(--t-sm); }
+.hinweis .li-sub { color: var(--muted); font-size: var(--t-sm); margin-top: 3px; }
+
+/* Die Linie auf der Berichtskarte. Sie trägt die Farbe ihres Werts, aber
+   gedämpft: die Zahl darüber ist die Aussage, die Linie nur ihre Form. */
+.funke {
+  display: block; width: 100%; height: 34px;
+  margin-top: var(--s-3);
+  overflow: visible;
+}
+.funke path {
+  fill: none; stroke: var(--ton, var(--brand)); stroke-width: 1.8;
+  stroke-linecap: round; stroke-linejoin: round;
+  /* preserveAspectRatio none verzerrt die Linie in der Breite. Ohne das
+     bliebe die Strichstärke ungleichmässig, sobald die Karte skaliert. */
+  vector-effect: non-scaling-stroke;
+  opacity: 0.85;
+}
+.funke circle { fill: var(--ton, var(--brand)); }

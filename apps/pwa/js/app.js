@@ -3,10 +3,21 @@ import {
   MAHLZEITEN, bogenAmTag, bogenFuer, eintragAus100g, energyBreakdown, hatAngebot, mengeLesen,
   mengeSetzen, nachOrdnern, naehrwerteFuer, offeneMahlzeiten, portionsVorschlag, skalierbar,
   impulseFuerTag, planFuer, saubereUrl, uhrzeit, undListe, weckwortGehoert, weightTrend,
+  belastung,
+  belastungText,
+  bereitschaft,
+  bereitschaftText,
+  berichtText,
+  spanneKurz,
 } from "@daevo/core";
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, produktPerBarcode, produkteSuchen } from "@daevo/coach";
 import { Coach, AnthropicProvider } from "@daevo/coach";
 import { KONFIG, istDemo } from "./konfig.js";
+import {
+  antwortVerarbeiten, antwortenAbholen, lueckeAusSpeicher, lueckeMelden,
+  schieflageAusSpeicher, schieflageMelden,
+} from "./luecke.js";
+import { healthDateiLesen, healthSchreiben, schreibBericht } from "./gesundheit.js";
 import {
   ablaufFuer, ask, aufgabeAbhaken, aufgabeAnlegenEingestuft, aufgabeLoeschen, aufgabeUmstufen, aufgabenPlan,
   balanceFuer, balanceRat, briefing,
@@ -18,11 +29,13 @@ import {
   trainingsplanUebernehmen, trainingsplanVorschlag, widerspruchListe,
   kalenderEntfernen, kalenderImportieren, kalenderStand, kalenderUebersicht,
   kostenUebersicht, recommendations, standardsUebersicht, tagesErinnerungen, verlaufPunkte,
+  berichtFuer,
+  berichtZeitraeume,
 } from "./assistant.js";
 import { brain } from "./brain.js";
 import { Orb } from "./orb.js";
 import { anhangAusDatei, grossInKb } from "./media.js";
-import { bereichFarbe, anteilsRing, kurzDauer, metrikRing, richtungVon, ringMitZahl, wertungsRing } from "./rings.js";
+import { bereichFarbe, anteilsRing, kurzDauer, netzDiagramm, wertungsRing } from "./rings.js";
 import { Listener, alleStimmen, istDeutsch, speak, stimmenBereit, stopSpeaking, voiceSupport, waehlbareStimmen } from "./voice.js";
 import { SetupFlow } from "./setup-ui.js";
 import { postfachHolen, pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
@@ -705,8 +718,43 @@ function setupAssistant() {
 
 /* ---------- Bereiche ---------- */
 
+/**
+ * Die Reihenfolge der Ansichten.
+ *
+ * Sie entscheidet über die Richtung des Übergangs. Wer vom Assistenten nach
+ * Heute geht, geht nach vorn, und wer zurück geht, kommt von links wieder
+ * herein. Ohne Richtung wirkt jeder Wechsel gleich, und dann hat der Nutzer
+ * nach drei Sprüngen kein Gefühl mehr dafür, wo er ist.
+ *
+ * Was nicht in der Liste steht, gilt als weiter hinten. Eine Ansicht, die
+ * jemand später hinzufügt, bekommt damit einen vernünftigen Übergang, ohne
+ * dass er daran denken muss.
+ */
+const ANSICHT_TIEFE = ["assistant", "gespraeche", "heute", "essen", "tag", "balance", "bereitschaft", "bericht"];
+
+let letzteAnsicht = "assistant";
+
 function showView(name) {
+  const von = ANSICHT_TIEFE.indexOf(letzteAnsicht);
+  const nach = ANSICHT_TIEFE.indexOf(name);
+  // -1 heisst "nicht in der Liste", also hinten. Zwei unbekannte Ansichten
+  // nacheinander ergeben damit keinen Übergang, und das ist richtig: zwischen
+  // zwei Nebenseiten gibt es kein Vor und Zurück.
+  const zurueck = name !== letzteAnsicht && (nach < von || (nach === -1 && von === -1 ? false : nach < von));
+  letzteAnsicht = name;
+
   for (const view of document.querySelectorAll(".view")) view.hidden = view.dataset.view !== name;
+  const offen = document.querySelector(".view:not([hidden])");
+  if (offen) {
+    // Die Klasse wird entfernt und im nächsten Bild neu gesetzt. Ohne das
+    // startet die Animation beim zweiten Mal auf dieselbe Ansicht nicht neu.
+    offen.classList.remove("kommt-rein", "kommt-zurueck");
+    void offen.offsetWidth;
+    offen.classList.add(zurueck ? "kommt-zurueck" : "kommt-rein");
+    // Eine neue Ansicht fängt oben an. Ohne das steht man auf einer frischen
+    // Seite mitten im Text, weil die vorherige dort gescrollt war.
+    offen.querySelector(".scroll")?.scrollTo({ top: 0 });
+  }
   $("menu").hidden = true;
   if (name === "heute") renderToday();
   if (name === "essen") { $("fridgeInput").value = store.getFridge().join(", "); renderMeals("mealList2"); renderRestDesTages(); }
@@ -716,11 +764,13 @@ function showView(name) {
   if (name === "kalender") renderKalender();
   if (name === "tag") renderTag();
   if (name === "balance") renderBalance();
+  if (name === "bereitschaft") renderBereitschaft();
+  if (name === "bericht") { berichtZeitraumFuellen(); renderBericht(); }
   if (name === "standards") { renderStandards(); zeigeAngebot("standardsAngebot"); }
   if (name === "gespraeche") renderGespraeche();
   if (name === "wochencheck") wcStart();
   if (name === "empfehlungen") { renderRecommendations(); zeigeAngebot("empfehlungenAngebot"); }
-  if (name === "profil") renderProfile();
+  if (name === "profil") { renderProfile(); healthStandZeigen(); }
   if (name === "assistant") renderTranscript();
 }
 
@@ -757,17 +807,62 @@ function refreshAll() {
  */
 const URTEIL = [
   { ab: 85, wort: "Stark" },
-  { ab: 70, wort: "Ziemlich gut" },
+  { ab: 70, wort: "Gut" },
   { ab: 50, wort: "Solide" },
-  { ab: 30, wort: "Dünn" },
-  { ab: 0, wort: "Schwach" },
+  // "Dünn" und "Schwach" beschrieben den Nutzer, nicht den Tag, und bei einer
+  // App, die auch Körpergewicht führt, liest sich "dünn" doppelt falsch. Ein
+  // Urteil über einen Tag soll sagen, wie voll er war, nicht wie jemand ist.
+  { ab: 30, wort: "Mager" },
+  { ab: 0, wort: "Leer" },
 ];
+
+/**
+ * Baut eine Messwertzeile.
+ *
+ * Eine Funktion für alle: Tagesnutzung, die vier Teile darunter und die fünf
+ * Lebensbereiche laufen durch dieselbe. Drei Bauarten für dieselbe Form wären
+ * drei Stellen, an denen sie später auseinanderlaufen.
+ */
+function messwert({ name, wert, zusatz = "", anteil, ton, ziel, ueber = false }) {
+  const el = document.createElement(ziel ? "button" : "div");
+  el.className = "messwert";
+  if (ziel) { el.type = "button"; el.addEventListener("click", () => showView(ziel)); }
+  if (ton) el.style.setProperty("--ton", ton);
+
+  const kopf = document.createElement("div");
+  kopf.className = "messwert-kopf";
+  const links = document.createElement("span");
+  links.className = "messwert-name";
+  links.textContent = name;
+  const rechts = document.createElement("span");
+  rechts.className = "messwert-wert";
+  rechts.innerHTML = `<b>${escapeHtml(String(wert))}</b>${zusatz ? ` <span class="messwert-zusatz">${escapeHtml(zusatz)}</span>` : ""}`;
+  kopf.append(links, rechts);
+
+  const spur = document.createElement("div");
+  spur.className = "balken";
+  const fuellung = document.createElement("i");
+  // Über hundert Prozent wird gedeckelt, sonst läuft der Balken aus seiner
+  // Spur. Dass es mehr war, steht in der Zahl daneben und zusätzlich als
+  // Schraffur: eine volle Spur allein sieht aus wie genau erreicht.
+  fuellung.style.width = `${Math.max(0, Math.min(1, anteil)) * 100}%`;
+  if (ueber || anteil > 1) fuellung.classList.add("drueber");
+  spur.appendChild(fuellung);
+
+  el.append(kopf, spur);
+  return el;
+}
 
 function renderTagWertung() {
   const heute = tagesnutzungFuer(day);
   const gesternTag = new Date(`${day}T12:00:00`);
   gesternTag.setDate(gesternTag.getDate() - 1);
   const gestern = tagesnutzungFuer(gesternTag.toISOString().slice(0, 10));
+
+  $("tagWert").textContent = String(heute.wert);
+  $("tagUrteil").textContent = URTEIL.find((u) => heute.wert >= u.ab).wort;
+  $("tagBalken").style.width = `${Math.max(0, Math.min(100, heute.wert))}%`;
+  $("tagWertungSatz").textContent = heute.satz;
 
   // Jede Kennzahl führt dorthin, wo man sie ändern kann. Eine Zahl ohne Weg
   // zur Handlung ist nur eine Zahl.
@@ -777,35 +872,358 @@ function renderTagWertung() {
   metriken.innerHTML = "";
   for (const teil of heute.teile) {
     const alt = gestern.teile.find((x) => x.name === teil.name);
-    const kachel = metrikRing({
+    metriken.appendChild(messwert({
       name: teil.name,
       wert: teil.wert,
-      richtung: richtungVon(teil.wert, alt?.wert),
-    });
-    const ziel = ZIEL[teil.name];
-    if (ziel) {
-      kachel.classList.add("klickbar");
-      kachel.setAttribute("role", "button");
-      kachel.setAttribute("tabindex", "0");
-      kachel.dataset.ziel = ziel;
-      kachel.addEventListener("click", () => showView(ziel));
-      kachel.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); showView(ziel); }
-      });
-    }
-    metriken.appendChild(kachel);
+      zusatz: vergleichWort(teil.wert, alt?.wert),
+      anteil: teil.wert / 100,
+      ziel: ZIEL[teil.name],
+    }));
+  }
+}
+
+/**
+ * Der Vergleich zu gestern in Worten statt als Pfeil.
+ *
+ * Ein Pfeil neben einer Zahl von 0 bis 100 sagt die Richtung und verschweigt
+ * die Grösse. "plus 12" ist beides in derselben Breite. Unter drei Punkten
+ * steht nichts: ein Punkt auf hundert ist Rauschen, und ein Pfeil auf Rauschen
+ * erzeugt Aktionismus.
+ */
+function vergleichWort(jetzt, vorher) {
+  if (!Number.isFinite(Number(vorher))) return "";
+  const diff = Math.round(Number(jetzt) - Number(vorher));
+  if (Math.abs(diff) < 3) return "wie gestern";
+  return `${diff > 0 ? "+" : ""}${diff} zu gestern`;
+}
+
+/* ---------- Der Bericht ---------- */
+
+/*
+ * Die Zeichen der Berichtskarten.
+ *
+ * Alle auf demselben Raster von 24 und mit derselben Strichstärke, damit sie
+ * als eine Familie lesbar sind. Gezeichnet und keine Emoji: die sehen auf
+ * jedem Gerät anders aus und tragen eine fremde Farbigkeit in die Palette,
+ * dieselbe Überlegung wie bei den vier Wegen ins Erfassen.
+ *
+ * Die Farbe kommt aus dem Design System. Kalorien und Protein tragen die
+ * Makrofarben, die der Nutzer auf Heute schon kennt, Training und Energie die
+ * Bereichsfarben. Eine achte Farbe nur für diese Karten wäre eine Farbe ohne
+ * Bedeutung.
+ */
+const KARTEN_ZEICHEN = {
+  // Eine Flamme, geschlossen gezeichnet statt als Pfad aus dem Nichts.
+  // Eine Flamme mit Zunge. Der erste Entwurf war ein runder Klumpen mit einem
+  // Strich darunter und las sich bei 20 Pixeln als Tropfen.
+  kalorien: { pfad: "M12 21a6 6 0 0 0 6-6c0-4-3-6.5-6-12-3 5.5-6 8-6 12a6 6 0 0 0 6 6zM12 21a2.8 2.8 0 0 0 2.8-2.8c0-1.9-1.4-3-2.8-5.4-1.4 2.4-2.8 3.5-2.8 5.4A2.8 2.8 0 0 0 12 21z", ton: "var(--makro-fett)" },
+  // Ein Knochen. Der erste Entwurf war eine Aminosäurekette, inhaltlich
+  // richtig und bei 20 Pixeln ein Gekritzel.
+  protein: { pfad: "M8.5 15.5l7-7M7.2 12.6a2.4 2.4 0 1 1 1.1-4 2.4 2.4 0 1 1 3.4 3.4M12.3 15.7a2.4 2.4 0 1 1 3.4 3.4 2.4 2.4 0 1 1 4-1.1", ton: "var(--makro-protein)" },
+  wasser: { pfad: "M12 3.5c3.2 3.6 5 6.2 5 8.6a5 5 0 0 1-10 0c0-2.4 1.8-5 5-8.6z", ton: "var(--makro-wasser)" },
+  training: { pfad: "M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10", ton: "var(--bereich-fitness)" },
+  einheiten: { pfad: "M4 12l5 5L20 6", ton: "var(--bereich-fitness)" },
+  schlaf: { pfad: "M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10z", ton: "var(--bereich-wellbeing)" },
+  schlafqualitaet: { pfad: "M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10zM12 2.5l.7 1.6 1.6.7-1.6.7-.7 1.6-.7-1.6-1.6-.7 1.6-.7z", ton: "var(--bereich-wellbeing)" },
+  energie: { pfad: "M13 3 5.5 13.5H11l-1 7.5 7.5-10.5H12z", ton: "var(--makro-kohlenhydrate)" },
+  gewicht: { pfad: "M5 8h14l2 12H3zM9 8a3 3 0 0 1 6 0", ton: "var(--bereich-karriere)" },
+};
+
+/**
+ * Die kleine Linie auf der Karte.
+ *
+ * Sie trägt keine Achse und keine Zahl. Ihre Aufgabe ist die Form: geht es
+ * rauf, runter oder zappelt es. Für alles Genaue steht die Zahl darüber.
+ *
+ * Lücken unterbrechen die Linie, statt auf null zu fallen. Eine Linie, die an
+ * jedem Tag ohne Eintrag den Boden berührt, behauptet einen Einbruch, den es
+ * nicht gab, und das ist genau der Fehler, den diese App nirgends machen darf.
+ *
+ * Unter drei Werten wird nichts gezeichnet. Zwei Punkte ergeben immer eine
+ * gerade Linie, und eine gerade Linie sieht nach einer Aussage aus.
+ */
+function sparkline(verlauf, breite = 224, hoehe = 34) {
+  const werte = Array.isArray(verlauf) ? verlauf : [];
+  const vorhanden = werte.filter((v) => v !== null && Number.isFinite(v));
+  if (vorhanden.length < 3) return "";
+
+  const min = Math.min(...vorhanden);
+  const max = Math.max(...vorhanden);
+  // Bei einer flachen Reihe hat die Spanne keine Höhe. Ohne diesen Fall
+  // teilte die Rechnung durch null und jeder Punkt landete bei NaN.
+  const spanne = max - min || 1;
+  const rand = 3;
+  const x = (i) => (werte.length > 1 ? (i / (werte.length - 1)) * (breite - 2 * rand) + rand : breite / 2);
+  const y = (v) => hoehe - rand - ((v - min) / spanne) * (hoehe - 2 * rand);
+
+  const stuecke = [];
+  let offen = false;
+  werte.forEach((v, i) => {
+    if (v === null || !Number.isFinite(v)) { offen = false; return; }
+    stuecke.push(`${offen ? "L" : "M"}${x(i).toFixed(1)} ${y(v).toFixed(1)}`);
+    offen = true;
+  });
+
+  const letzterIndex = werte.length - 1 - [...werte].reverse().findIndex((v) => v !== null && Number.isFinite(v));
+  const letzter = werte[letzterIndex];
+  return `<svg class="funke" viewBox="0 0 ${breite} ${hoehe}" preserveAspectRatio="none" aria-hidden="true">
+      <path d="${stuecke.join(" ")}"></path>
+      <circle cx="${x(letzterIndex).toFixed(1)}" cy="${y(letzter).toFixed(1)}" r="2.6"></circle>
+    </svg>`;
+}
+
+/** Baut eine Karte des Berichts. */
+function berichtKarte(w) {
+  const zeichen = KARTEN_ZEICHEN[w.schluessel] ?? { pfad: "M5 12h14", ton: "var(--brand)" };
+  const karte = document.createElement("div");
+  karte.className = "karte";
+  karte.style.setProperty("--ton", zeichen.ton);
+  karte.innerHTML = `
+    <div class="karte-kopf">
+      <span class="karte-zeichen" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="${zeichen.pfad}"></path></svg>
+      </span>
+      <span class="karte-name">${escapeHtml(w.name)}</span>
+    </div>
+    <div class="karte-zahl">${escapeHtml(w.zahl)}${w.einheit ? `<span class="karte-einheit">${escapeHtml(w.einheit)}</span>` : ""}</div>
+    <div class="karte-zusatz">${escapeHtml(w.zusatz)}</div>
+    ${sparkline(w.verlauf)}
+    <div class="karte-fuss">
+      <span class="karte-trend${w.trend ? "" : " leise"}">${escapeHtml(w.trend || "kein Vergleich")}</span>
+      <span>${w.tage} Tage</span>
+    </div>`;
+  return karte;
+}
+
+/**
+ * Füllt die Zeitraumliste.
+ *
+ * Bei jedem Öffnen neu, denn mit jedem Monatswechsel kommt ein Eintrag dazu.
+ * Die bisherige Wahl bleibt stehen, solange es sie noch gibt: wer im
+ * September stand und zurückkommt, will nicht wieder bei vier Wochen landen.
+ */
+function berichtZeitraumFuellen() {
+  const feld = $("berichtZeitraum");
+  const vorher = feld.value;
+  const liste = berichtZeitraeume();
+  feld.innerHTML = liste
+    .map((z) => `<option value="${escapeHtml(z.wert)}">${escapeHtml(z.name)}</option>`)
+    .join("");
+  feld.value = liste.some((z) => z.wert === vorher) ? vorher : "28";
+}
+
+function renderBericht() {
+  const b = berichtFuer($("berichtZeitraum").value || "28");
+  $("berichtKopf").textContent =
+    `${spanneKurz(b.von, b.bis)}, ${b.tageMitDaten} von ${b.tageGesamt} Tagen mit Eintrag.`;
+
+  const streifen = $("berichtWerte");
+  streifen.innerHTML = "";
+  for (const w of b.werte) streifen.appendChild(berichtKarte(w));
+  if (!b.werte.length) {
+    const leer = document.createElement("div");
+    leer.className = "karte";
+    leer.innerHTML = '<div class="karte-kopf"><span class="karte-name">Noch nichts zu berichten</span></div>'
+      + '<div class="karte-zusatz">Trag ein paar Tage ein, dann steht hier etwas.</div>';
+    streifen.appendChild(leer);
   }
 
-  const wrap = $("tagWertung");
-  wrap.innerHTML = "";
-  wrap.appendChild(wertungsRing({
-    wert: heute.wert,
-    etikett: "TAGESNUTZUNG",
-    urteil: URTEIL.find((u) => heute.wert >= u.ab).wort,
+  punkteBauen(streifen, $("berichtPunkte"), b.werte.length);
+  $("berichtFazit").textContent = b.fazit.join("\n");
+}
+
+/**
+ * Die Punkte unter dem Streifen.
+ *
+ * Ohne sie wischt niemand weiter: nichts auf der Seite sagt, dass hinter der
+ * ersten Karte noch sechs liegen. Der aktive Punkt folgt dem Scrollstand und
+ * nicht einem Zähler, den die App selbst führt. Sonst laufen beide
+ * auseinander, sobald jemand mit Schwung über zwei Karten wischt.
+ */
+function punkteBauen(streifen, leiste, anzahl) {
+  leiste.innerHTML = "";
+  if (anzahl < 2) return;
+  for (let i = 0; i < anzahl; i++) leiste.appendChild(document.createElement("i"));
+
+  const setzen = () => {
+    const karten = [...streifen.children];
+    if (!karten.length) return;
+    const mitte = streifen.scrollLeft + streifen.clientWidth / 2;
+    let naechste = 0;
+    let abstand = Infinity;
+    karten.forEach((k, i) => {
+      const d = Math.abs(k.offsetLeft + k.offsetWidth / 2 - mitte);
+      if (d < abstand) { abstand = d; naechste = i; }
+    });
+    [...leiste.children].forEach((punkt, i) => punkt.classList.toggle("an", i === naechste));
+  };
+  streifen.onscroll = setzen;
+  setzen();
+}
+
+/*
+ * Pfeiltasten schieben den Streifen um eine Karte.
+ *
+ * Wischen geht nur mit dem Finger. Auf dem Rechner und mit einer Tastatur
+ * bliebe der Streifen sonst eine Reihe, aus der man nur die erste Karte
+ * sieht, und das ist kein Bedienelement, sondern eine Sackgasse.
+ */
+$("berichtWerte").addEventListener("keydown", (event) => {
+  const richtung = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+  if (!richtung) return;
+  event.preventDefault();
+  const karte = $("berichtWerte").firstElementChild;
+  if (!karte) return;
+  $("berichtWerte").scrollBy({ left: richtung * (karte.offsetWidth + 12), behavior: "smooth" });
+});
+
+$("berichtZeitraum").addEventListener("change", renderBericht);
+
+/*
+ * Teilen, wo es das gibt, sonst in die Zwischenablage.
+ *
+ * `navigator.share` ist auf dem iPhone der kurze Weg in eine Nachricht, auf
+ * dem Rechner gibt es ihn oft nicht. Ein Knopf, der dort nichts tut, wäre die
+ * schlechtere Lösung als einer, der still kopiert.
+ */
+$("btnBerichtTeilen").addEventListener("click", async () => {
+  const text = berichtText(berichtFuer($("berichtZeitraum").value || "28"));
+  try {
+    if (navigator.share) await navigator.share({ text });
+    else { await navigator.clipboard.writeText(text); toast("Bericht kopiert"); }
+  } catch (fehler) {
+    // Abbrechen im Teilen Dialog wirft ebenfalls. Das ist kein Fehler.
+    if (fehler?.name !== "AbortError") toast("Das hat nicht geklappt");
+  }
+});
+
+/* ---------- Apple Health ---------- */
+
+/**
+ * Der Import aus der Exportdatei.
+ *
+ * Erst lesen, dann anzeigen, dann schreiben. Ein Import, der erst schreibt und
+ * danach berichtet, lässt dem Nutzer keine Wahl, und bei einer Datei mit zwei
+ * Jahren Daten ist das die falsche Reihenfolge.
+ *
+ * Der Fortschritt steht am Knopf. Eine Exportdatei von jemandem, der lange
+ * eine Uhr trägt, braucht zwanzig Sekunden und mehr, und ein Knopf, der sich
+ * dabei nicht rührt, sieht aus wie eine hängende App.
+ */
+$("btnHealthDatei").addEventListener("click", () => $("healthDatei").click());
+
+$("healthDatei").addEventListener("change", async (event) => {
+  const datei = event.target.files?.[0];
+  event.target.value = "";
+  if (!datei) return;
+
+  const knopf = $("btnHealthDatei");
+  const ausgabe = $("healthBericht");
+  knopf.disabled = true;
+  ausgabe.hidden = false;
+  ausgabe.textContent = "Ich lese die Datei.";
+
+  try {
+    const ergebnis = await healthDateiLesen(datei, {
+      aufFortschritt: (zeichen) => {
+        knopf.textContent = `${Math.round(zeichen / 1_000_000)} MB gelesen`;
+      },
+    });
+    knopf.textContent = "Ich schreibe die Tage";
+    ausgabe.textContent = schreibBericht(healthSchreiben(ergebnis, { store }), ergebnis);
+    healthStandZeigen();
+    // Der Import setzt das Profilgewicht. `profile` ist eine Kopie im Modul,
+    // und ohne das Nachladen zeigt das Feld weiter den alten Wert, den der
+    // nächste Druck auf Speichern dann wieder zurückschreibt.
+    profile = store.getProfile();
+    renderProfile();
+    refreshAll();
+  } catch (fehler) {
+    ausgabe.textContent = `Das hat nicht geklappt: ${fehler.message}`;
+  } finally {
+    knopf.disabled = false;
+    knopf.textContent = "Export auswählen";
+  }
+});
+
+/** Wann zuletzt importiert wurde. Ohne das weiss niemand, wie alt die Kopie ist. */
+function healthStandZeigen() {
+  const stand = store.getSettings().healthImport;
+  $("healthStand").textContent = stand?.at
+    ? `Zuletzt eingelesen am ${stand.at.slice(0, 10)}, ${stand.tage} Tage.`
+    : "Noch nichts eingelesen.";
+}
+
+/* ---------- Bereitschaft und Belastung ---------- */
+
+/**
+ * Sammelt die Tage aus dem Speicher.
+ *
+ * Beide Module rechnen über dasselbe Fenster, deshalb wird einmal gelesen und
+ * zweimal benutzt. `allDays` kann über achtzig Tage liefern, und der Speicher
+ * ist der langsamste Teil dieser Kette.
+ */
+function tageFuerBelastung() {
+  const tage = {};
+  for (const tag of store.allDays()) tage[tag] = store.getDay(tag);
+  return tage;
+}
+
+/**
+ * Der letzte Wochenbogen mit seinem Alter.
+ *
+ * Das Alter geht mit, weil Stress im Check-in steht und nicht heute Morgen
+ * gemessen wurde. Ein Wert von vorletzter Woche darf die Bereitschaft von
+ * heute nicht mehr bestimmen, und die Entscheidung darüber gehört in den
+ * Rechenkern, nicht hierher.
+ */
+function letzterStress() {
+  const boegen = store.getCheckinBoegen().filter((b) => Number.isFinite(Number(b?.werte?.stress)));
+  const letzter = boegen.sort((a, b) => String(a.tag).localeCompare(String(b.tag))).pop();
+  if (!letzter) return { stress: null, stressAlterTage: null };
+  const tage = Math.round((Date.parse(`${todayIso()}T00:00:00Z`) - Date.parse(`${letzter.tag}T00:00:00Z`)) / 86400000);
+  return { stress: Number(letzter.werte.stress), stressAlterTage: Number.isFinite(tage) ? tage : null };
+}
+
+function renderBereitschaft() {
+  const last = belastung({ tage: tageFuerBelastung(), heute: todayIso() });
+  $("belastungText").textContent = belastungText(last);
+
+  // Der Morgen Check-in von heute. Gibt es mehrere, gilt der letzte: wer
+  // zweimal antwortet, hat sich korrigiert.
+  const morgen = (store.getDay(todayIso()).checkins || [])
+    .filter((c) => c.kind === "morning")
+    .pop();
+
+  const b = bereitschaft({
+    schlafQualitaet: morgen?.sleepQuality ?? null,
+    energie: morgen?.energy ?? null,
+    belastung: last,
+    ...letzterStress(),
+  });
+
+  const ring = $("bereitschaftRing");
+  ring.innerHTML = "";
+  const teile = $("bereitschaftTeile");
+  if (!b) {
+    teile.innerHTML = "";
+    $("bereitschaftSub").textContent = bereitschaftText(null);
+    return;
+  }
+
+  ring.appendChild(wertungsRing({
+    wert: b.wert,
+    etikett: "BEREITSCHAFT",
+    urteil: b.urteil === "bereit" ? "Gas geben" : b.urteil === "solide" ? "trägt" : "runterfahren",
     groesse: 230,
   }));
-
-  $("tagWertungSatz").textContent = heute.satz;
+  // Nur der Rat, nicht der ganze Text. Die Teile stehen darunter als Liste,
+  // und die Grenze der Zahl steht fest im HTML.
+  $("bereitschaftSub").textContent = bereitschaftText(b).split("\n").filter(Boolean).slice(-2)[0];
+  teile.innerHTML = b.teile
+    .map((t) => `<li><div class="li-main"><div class="li-title">${escapeHtml(t.name)} ${t.wert} von 100</div>`
+      + `<div class="li-sub">aus ${escapeHtml(t.quelle)}</div></div></li>`)
+    .join("");
 }
 
 function renderHeuteBalance() {
@@ -814,25 +1232,24 @@ function renderHeuteBalance() {
   const b = balanceFuer(1, day);
   el.innerHTML = "";
   for (const stand of b.bereiche) {
-    const kachel = document.createElement("div");
-    kachel.className = "ring-kachel";
-    kachel.appendChild(ringMitZahl({
-      anteil: stand.anteilAmTag,
-      zahl: `${Math.round(stand.anteilAmTag * 100)}%`,
-      farbe: bereichFarbe(stand.bereich),
-      groesse: 72,
+    el.appendChild(messwert({
+      name: stand.name,
+      wert: kurzDauer(stand.minuten),
+      zusatz: stand.zielMinuten ? `von ${kurzDauer(stand.zielMinuten)}` : "",
+      // Der Balken misst gegen das Ziel, nicht gegen den Tag. Vorher füllte
+      // ihn der Anteil am Tag, während die Zahl daneben das Ziel nannte: zwei
+      // Fragen in einer Zeile, und keine davon war ablesbar. Den Anteil am Tag
+      // beantwortet der Ring auf der Balance Seite.
+      anteil: stand.zielMinuten > 0 ? stand.minuten / stand.zielMinuten : 0,
+      ton: bereichFarbe(stand.bereich),
+      ziel: "balance",
     }));
-    const name = document.createElement("div");
-    name.className = "k-name";
-    name.textContent = stand.name;
-    kachel.appendChild(name);
-    el.appendChild(kachel);
   }
 
   const nutzung = tagesnutzungFuer(day);
   const leer = b.bereiche.filter((x) => x.minuten === 0).map((x) => x.name);
   $("heuteBalanceHinweis").textContent = b.gesamtMinuten === 0
-    ? "Heute ist noch keine Minute gemessen. Kalender, eingetragene Zeit oder erledigte Aufgabe füllen die Ringe."
+    ? "Heute ist noch keine Minute gemessen. Kalender, eingetragene Zeit oder erledigte Aufgabe füllen die Balken."
     : `Tagesnutzung ${nutzung.wert} von 100.${leer.length ? ` Noch nichts in: ${leer.join(", ")}.` : ""}`;
 }
 
@@ -846,9 +1263,9 @@ function renderToday() {
   $("kcalEaten").textContent = `${n.totals.kcal} kcal`;
   $("kcalTarget").textContent = `${n.targets.kcal} kcal`;
 
-  const scoreIsMeaningful = new Date().getHours() >= 18 || n.totals.kcal >= n.targets.kcal * 0.7;
-  $("scoreLabel").textContent = scoreIsMeaningful ? "Ernährung" : "Protein offen";
-  $("scoreVal").textContent = scoreIsMeaningful ? `${n.score.total} / 100` : `${Math.max(0, n.rest.proteinG)} g`;
+  // Die Ernährungsnote stand früher als dritte Zeile neben dem Ring. Sie ist
+  // eine abgeleitete Zahl und steht jetzt bei den anderen abgeleiteten Zahlen
+  // weiter unten. Der Ring trägt nur, was direkt gemessen ist.
 
   setBar("p", n.totals.proteinG, n.targets.proteinG, "g");
   setBar("f", n.totals.fatG, n.targets.fatG, "g");
@@ -1893,6 +2310,25 @@ function startApp() {
     postfachPruefen();
   }
 
+  // Die Trainingslücke. Läuft still: wer trainiert hat, merkt nichts davon.
+  lueckePruefen();
+
+  // Über die Frage nach der Trainingslücke geöffnet, ohne einen der Knöpfe
+  // benutzt zu haben. Dann steht die Frage im Chat und der Nutzer antwortet
+  // frei, statt aus drei Gründen zu wählen.
+  const frage = params.get("frage");
+  if (frage === "trainingsluecke") {
+    history.replaceState(null, "", location.pathname);
+    lueckeFrageOeffnen();
+  }
+
+  // Aus der Mitteilung über die Schieflage. Sie stellt keine Frage, sie zeigt
+  // etwas, also geht sie direkt dorthin.
+  if (params.get("ansicht") === "balance") {
+    history.replaceState(null, "", location.pathname);
+    showView("balance");
+  }
+
   const gesagt = (params.get("sag") || "").trim();
   if (gesagt) {
     history.replaceState(null, "", location.pathname);
@@ -2126,30 +2562,106 @@ $("essenFoto").addEventListener("change", async (event) => {
   const datei = event.target.files?.[0];
   event.target.value = "";
   if (!datei) return;
+  await fotoBlattOeffnen(datei);
+});
 
-  // Der Knopf, der das Bild angestossen hat, ist inzwischen der eine oben auf
-  // der Seite. Er zeigt den Fortschritt, damit zwischen Auslösen und Ergebnis
-  // nicht zehn Sekunden lang nichts passiert.
-  const knopf = erfassenAuslöser ?? $("btnErfassen");
-  const titel = knopf.querySelector(".erfassen-titel");
-  const sub = knopf.querySelector(".erfassen-sub");
-  knopf.disabled = true;
-  titel.textContent = "Ich lese das Bild";
-  sub.textContent = "Das dauert ein paar Sekunden";
-  zeigeFeedback("mealFeedback", "Ich schaue mir das Bild an.");
+/* ---------- Das Foto, bevor es rausgeht ---------- */
+
+/**
+ * Was der Nutzer sieht, während gerechnet wird.
+ *
+ * Drei Schritte, nicht einer. Eine Bildauswertung dauert fünf bis fünfzehn
+ * Sekunden, und ein Knopf, der die ganze Zeit dasselbe sagt, sieht nach der
+ * Hälfte davon aus wie eine hängende App. Die Schritte sind echt und nicht
+ * erfunden: verkleinern, auswerten, gegen die Makroformel prüfen. Was die
+ * Anzeige nicht weiss, ist wie lange jeder dauert, deshalb steht keine Zeit
+ * daneben.
+ */
+const FOTO_SCHRITTE = ["Bild vorbereiten", "Mengen schätzen", "Nährwerte prüfen"];
+
+/** Das gewählte Bild, bis es ausgewertet oder verworfen ist. */
+let fotoDatei = null;
+let fotoUrl = null;
+
+async function fotoBlattOeffnen(datei) {
+  fotoDatei = datei;
+  if (fotoUrl) URL.revokeObjectURL(fotoUrl);
+  fotoUrl = URL.createObjectURL(datei);
+  $("fbBild").src = fotoUrl;
+  $("fbDetails").value = "";
+  $("fbFeedback").hidden = true;
+  fotoSchritt(null);
+  $("fotoBlatt").hidden = false;
+  document.body.classList.add("blatt-offen");
+}
+
+function fotoBlattSchliessen() {
+  $("fotoBlatt").hidden = true;
+  document.body.classList.remove("blatt-offen");
+  // Die Adresse des Bildes wird freigegeben, sonst hält der Browser jedes
+  // Foto dieser Sitzung im Speicher. Bei zehn Tellern am Tag summiert sich
+  // das auf einem Handy spürbar.
+  if (fotoUrl) { URL.revokeObjectURL(fotoUrl); fotoUrl = null; }
+  fotoDatei = null;
+  $("fbBild").removeAttribute("src");
+}
+
+/**
+ * Setzt den Schritt. `null` heisst: nicht am Rechnen.
+ *
+ * Die Animation hängt an derselben Zustandsvariable wie die Beschriftung. Wer
+ * beides getrennt setzt, hat irgendwann einen laufenden Scanner über einem
+ * fertigen Ergebnis.
+ */
+function fotoSchritt(index) {
+  const laeuft = index !== null;
+  $("fbBuehne").classList.toggle("laeuft", laeuft);
+  $("fbAuswerten").disabled = laeuft;
+  $("fbAuswertenText").textContent = laeuft
+    ? `${index + 1}/${FOTO_SCHRITTE.length} ${FOTO_SCHRITTE[index]}...`
+    : "Auswerten";
+}
+
+$("fbSchliessen").addEventListener("click", fotoBlattSchliessen);
+$("fotoBlatt").addEventListener("click", (event) => {
+  if (event.target === $("fotoBlatt")) fotoBlattSchliessen();
+});
+
+$("fbAuswerten").addEventListener("click", async () => {
+  if (!fotoDatei) return;
+  const hinweis = $("fbDetails").value.trim().slice(0, 500);
+  const feedback = $("fbFeedback");
+  feedback.hidden = true;
+
   try {
-    const anhang = await anhangAusDatei(datei);
-    if (anhang.fehler) { zeigeFeedback("mealFeedback", anhang.fehler, true); return; }
-    const text = await buildActions({ onChange: refreshAll, anhaenge: [anhang] }).fotoAlsMahlzeit({});
+    fotoSchritt(0);
+    const anhang = await anhangAusDatei(fotoDatei);
+    if (anhang.fehler) {
+      feedback.hidden = false;
+      feedback.className = "feedback err";
+      feedback.textContent = anhang.fehler;
+      fotoSchritt(null);
+      return;
+    }
+
+    fotoSchritt(1);
+    const aktionen = buildActions({ onChange: refreshAll, anhaenge: [anhang] });
+    const text = await aktionen.fotoAlsMahlzeit(hinweis ? { hinweis } : {});
+
+    // Der dritte Schritt ist die Prüfung gegen die Makroformel, und die läuft
+    // in fotoAlsMahlzeit schon mit. Er wird hier nur noch angezeigt, damit
+    // die Zählung nicht bei 2 von 3 stehen bleibt.
+    fotoSchritt(2);
+    fotoBlattSchliessen();
     zeigeFeedback("mealFeedback", text);
     renderMeals("mealList2");
     refreshAll();
   } catch (error) {
-    zeigeFeedback("mealFeedback", `Das hat nicht geklappt: ${error.message}`, true);
+    feedback.hidden = false;
+    feedback.className = "feedback err";
+    feedback.textContent = `Das hat nicht geklappt: ${error.message}`;
   } finally {
-    knopf.disabled = false;
-    titel.textContent = "Essen erfassen";
-    sub.textContent = "Foto, Barcode, Suche oder sprechen";
+    fotoSchritt(null);
   }
 });
 
@@ -2329,41 +2841,53 @@ function renderBalance() {
   stapel.innerHTML = "";
   stapel.appendChild(anteilsRing(b.bereiche, { groesse: 200, restAnteil: b.restAnteil }));
 
-  const tagesring = $("balanceTagesring");
-  tagesring.innerHTML = "";
-  if (balanceTage === 1) {
-    const nutzung = tagesnutzungFuer();
-    tagesring.appendChild(ringMitZahl({
-      anteil: nutzung.wert / 100, zahl: nutzung.wert, unten: "von 100", groesse: 128,
-    }));
-    $("balanceNutzung").textContent = `${nutzung.satz} ${nutzung.teile.map((t) => `${t.name} ${t.wert}`).join(", ")}.`;
+  // Das Netz. Die Breite folgt dem Fenster, weil die Beschriftung aussen
+  // sitzt: auf einem schmalen Gerät läuft sie sonst über den Rand.
+  const netz = $("balanceNetz");
+  netz.innerHTML = "";
+  netz.appendChild(netzDiagramm({
+    bereiche: b.bereiche,
+    groesse: Math.min(340, Math.max(280, window.innerWidth - 40)),
+  }));
+  $("netzZeitraum").textContent =
+    balanceTage === 1 ? "heute" : balanceTage === 7 ? "letzte Woche" : `letzte ${balanceTage} Tage`;
+
+  // Ohne gesetzte Ziele ist die gestrichelte Form eine Behauptung. Dann steht
+  // da, woher sie kommt, statt sie als Vorgabe auszugeben.
+  const ohneZiel = b.bereiche.filter((x) => x.zielMinuten <= 0).length;
+  // Die Schieflage steht auch in der Ansicht und nicht nur in der Mitteilung.
+  // Wer die Mitteilung weggewischt hat und später selbst nachsieht, soll
+  // dasselbe lesen.
+  const schief = schieflageAusSpeicher(store, balanceFuer, todayIso());
+  const schiefKasten = $("balanceRatSchieflage");
+  if (schief) {
+    schiefKasten.hidden = false;
+    schiefKasten.innerHTML = `<div class="li-title">${escapeHtml(schief.titel)}</div>`
+      + `<div class="li-sub">${escapeHtml(schief.text)}</div>`;
   } else {
-    $("balanceNutzung").textContent =
-      `Zeitraum ${b.tage} Tage. Die Tagesnutzung gibt es nur für heute, über Wochen sagt ein einzelner Wert nichts.`;
+    schiefKasten.hidden = true;
   }
+
+  $("netzHinweis").textContent = ohneZiel
+    ? `Für ${ohneZiel} von ${b.bereiche.length} Bereichen steht noch kein Wochenziel. Trag sie unten ein, dann wird die gestrichelte Form deine.`
+    : "Die gestrichelte Form ist dein Wochenziel, heruntergerechnet auf den Zeitraum. Das Netz reicht bis 160 Prozent.";
+
+  $("balanceNutzung").textContent = balanceTage === 1
+    ? tagesnutzungFuer().satz
+    : `Zeitraum ${b.tage} Tage. Die Tagesnutzung gibt es nur für heute, über Wochen sagt ein einzelner Wert nichts.`;
 
   const kacheln = $("balanceKacheln");
   kacheln.innerHTML = "";
   for (const stand of b.bereiche) {
-    const kachel = document.createElement("div");
-    kachel.className = "ring-kachel";
-    // Der Ring zeigt den Anteil an der Zeit, die Zahl darunter das Ziel.
-    // Zwei verschiedene Fragen, und beide gehören auf die Kachel.
-    kachel.appendChild(ringMitZahl({
-      anteil: stand.anteilAmTag,
-      zahl: `${Math.round(stand.anteilAmTag * 100)}%`,
-      farbe: bereichFarbe(stand.bereich),
-      groesse: 84,
+    // Balken statt Ring. Drei Prozent auf einem Ring sind ein Stummel von zehn
+    // Grad, und fünf Ringe ergeben eine Reihe zu drei und eine zu zwei.
+    kacheln.appendChild(messwert({
+      name: stand.name,
+      wert: kurzDauer(stand.minuten),
+      zusatz: `von ${kurzDauer(stand.zielMinuten)}`,
+      anteil: stand.zielMinuten > 0 ? stand.minuten / stand.zielMinuten : 0,
+      ton: bereichFarbe(stand.bereich),
     }));
-    const name = document.createElement("div");
-    name.className = "k-name";
-    name.textContent = stand.name;
-    const wert = document.createElement("div");
-    wert.className = "k-wert";
-    wert.textContent = `${kurzDauer(stand.minuten)} von ${kurzDauer(stand.zielMinuten)}`;
-    kachel.appendChild(name);
-    kachel.appendChild(wert);
-    kacheln.appendChild(kachel);
   }
 
   const teile = [];
@@ -3604,7 +4128,74 @@ function nurZahl(text) {
 // Nutzer als kaputt.
 navigator.serviceWorker?.addEventListener("message", (event) => {
   if (event.data?.typ === "impuls") impulsOeffnen(event.data.daten);
+  // Eine Antwort, die der Nutzer direkt in der Benachrichtigung gegeben hat,
+  // während die App offen war. Sie wird sofort verarbeitet statt erst beim
+  // nächsten Start: sonst sieht der Nutzer seine eigene Antwort nicht.
+  if (event.data?.typ === "antwort") {
+    const satz = antwortVerarbeiten(event.data.daten, { store, brain });
+    if (satz) { toast("Antwort übernommen"); refreshAll(); }
+  }
 });
+
+/* ---------- Die Trainingslücke ---------- */
+
+/**
+ * Prüft die Lücke und beauftragt den Worker mit der Frage.
+ *
+ * Zwei Teile, die getrennt scheitern dürfen. Die Antworten werden immer
+ * abgeholt, auch wenn kein Worker eingerichtet ist: sie liegen schon da, und
+ * eine Antwort zu verlieren, weil eine Adresse fehlt, wäre absurd.
+ *
+ * Läuft still. Ohne Push Abo passiert nichts, und wer trainiert hat, soll von
+ * dieser Funktion nie etwas merken.
+ */
+async function lueckePruefen() {
+  for (const eintrag of await antwortenAbholen()) {
+    const satz = antwortVerarbeiten(eintrag, { store, brain });
+    if (satz) toast("Antwort übernommen");
+  }
+
+  const luecke = lueckeAusSpeicher(store);
+  const schieflage = schieflageAusSpeicher(store, balanceFuer);
+  if (!luecke && !schieflage) return;
+
+  const worker = store.getSettings().pushWorker || KONFIG.pushUrl || "";
+  if (!worker || !navigator.serviceWorker) return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const abo = await reg.pushManager?.getSubscription();
+    if (!abo) return;
+    // Beide nacheinander und nicht parallel. Zwei Mitteilungen, die im selben
+    // Moment eintreffen, liest der Nutzer als eine und wischt beide weg.
+    if (luecke) await lueckeMelden({ store, worker, endpoint: abo.endpoint, luecke });
+    if (schieflage) await schieflageMelden({ store, worker, endpoint: abo.endpoint, schieflage });
+  } catch {
+    // Kein Netz, kein Abo, kein Worker. Beim nächsten Öffnen wieder, denn
+    // der Tag der Meldung wird erst gesetzt, wenn der Worker angenommen hat.
+  }
+}
+
+/**
+ * Stellt die Frage im Chat.
+ *
+ * Für den Weg über den Tipp auf die Nachricht statt auf einen ihrer Knöpfe.
+ * Die Frage steht damit im Verlauf, und die Antwort geht als normale
+ * Nachricht an den Coach, der sie im Zusammenhang beantwortet.
+ */
+function lueckeFrageOeffnen() {
+  const luecke = lueckeAusSpeicher(store);
+  if (!luecke) return;
+  showView("assistant");
+  const chat = store.getChat();
+  const letzte = chat[chat.length - 1];
+  const text = `${luecke.titel}. ${luecke.text}`;
+  if (!(letzte?.role === "assistant" && letzte.text === text)) {
+    chat.push({ role: "assistant", text, at: new Date().toISOString() });
+    store.setChat(chat);
+    renderTranscript();
+  }
+  $("chatInput").focus();
+}
 
 function stimmProbe() {
   const e = store.getSettings();

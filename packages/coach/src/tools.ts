@@ -493,6 +493,45 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: "bericht_erstellen",
+    description:
+      "Baut den Bericht über die letzte Woche oder den letzten Monat: Kalorien, Protein, Wasser, " +
+      "Training, Schlaf, Energie und Gewicht, jeweils mit der Zahl der Tage, auf denen der Wert beruht, " +
+      "und dem Vergleich zum Zeitraum davor. " +
+      "Nehmen, wenn er nach seiner Woche oder seinem Monat fragt, nach Fortschritt, oder wenn er etwas " +
+      "zum Weiterschicken will. " +
+      "Ein Schnitt aus weniger als einem Drittel der Tage kommt nicht vor: der beschreibt nicht den " +
+      "Zeitraum, sondern die Tage, an denen er Lust zum Eintragen hatte. Das steht dann auch so da.",
+    input_schema: {
+      type: "object",
+      properties: {
+        tage: { type: "number", description: "7 für die Woche, 28 für den Monat. Ohne Angabe 7." },
+      },
+    },
+  },
+  {
+    name: "belastung_abrufen",
+    description:
+      "Rechnet die Trainingslast der letzten 7 Tage gegen den Schnitt der letzten 28, beide in Minuten. " +
+      "Nehmen, wenn er fragt, ob er zu viel oder zu wenig trainiert, ob er übertreibt, " +
+      "ob eine Pause dran ist, oder wenn du vor einem Trainingsplan wissen willst, wo er gerade steht. " +
+      "Die Antwort sagt, wie seine Woche zu seinem eigenen Schnitt steht. Sie sagt nichts über " +
+      "Verletzungsrisiko, und du behauptest das auch nicht: die Quelle dafür ist umstritten. " +
+      "Unter vier Einheiten in 28 Tagen kommt keine Zahl, sondern der Hinweis darauf.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "bereitschaft_abrufen",
+    description:
+      "Fasst zusammen, wie belastbar der Nutzer heute ist: Schlafqualität und Energie aus seinem " +
+      "Morgen Check-in, seine Trainingslast, sein Stress aus dem letzten Wochenbogen. " +
+      "Nehmen, wenn er fragt, ob er heute hart trainieren kann, wie seine Tagesform ist, " +
+      "oder bevor du ihm für heute etwas Anstrengendes vorschlägst. " +
+      "Das ist ausdrücklich keine Messung, daevo hat keinen Sensor. Es ist zusammengefasst, was er " +
+      "selbst angegeben hat. Gib es genau so weiter und tu nie so, als wäre es Physiologie.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
     name: "widersprueche_pruefen",
     description:
       "Vergleicht, was sich der Nutzer vornimmt, mit dem, was seine Daten zeigen: Ziele gegen Durchschnitt, " +

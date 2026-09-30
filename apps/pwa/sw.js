@@ -6,11 +6,13 @@
  * ist der einzige Weg, den Nutzer zu erreichen, waehrend die App geschlossen
  * ist. Siehe workers/push.
  */
-const CACHE = "daevo-v49";
+const CACHE = "daevo-v53";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
+  "./schrift/poppins-500.woff2",
+  "./schrift/poppins-600.woff2",
   "./manifest.webmanifest",
   "./js/app.js",
   "./js/storage.js",
@@ -24,6 +26,9 @@ const ASSETS = [
   "./js/media.js",
   "./js/rings.js",
   "./js/push.js",
+  "./js/luecke.js",
+  "./js/gesundheit.js",
+  "./js/zip.js",
   "./lib/core/index.js",
   "./lib/coach/index.js",
   "./icons/icon-192.png",
@@ -95,8 +100,28 @@ self.addEventListener("push", (event) => {
     // Ein doppelt gestarteter Cron erzeugt so keine zweite Zeile.
     tag: inhalt.marke || "daevo",
     renotify: Boolean(inhalt.marke),
-    data: { ziel: inhalt.ziel || "./", ...(inhalt.daten || {}) },
+    data: {
+      ziel: inhalt.ziel || "./",
+      titel,
+      frageText: inhalt.text || "",
+      aktionen: inhalt.aktionen || [],
+      ...(inhalt.daten || {}),
+    },
   };
+
+  // Knoepfe in der Nachricht. Damit laesst sich antworten, ohne die App zu
+  // oeffnen. Wie viele das System zeigt, steht in Notification.maxActions,
+  // und ueberzaehlige laesst es stillschweigend weg. Deshalb wird hier
+  // gekuerzt statt gehofft: sonst faellt bei manchen Systemen die Reihenfolge
+  // auseinander. Auf dem iPhone zeigt Safari derzeit keine Knoepfe an. Der
+  // Tipp auf die Nachricht selbst bleibt deshalb immer ein Weg.
+  const aktionen = Array.isArray(inhalt.aktionen) ? inhalt.aktionen : [];
+  if (aktionen.length) {
+    const platz = typeof Notification !== "undefined" && Number.isFinite(Notification.maxActions)
+      ? Notification.maxActions
+      : 2;
+    optionen.actions = aktionen.slice(0, Math.max(0, platz));
+  }
   event.waitUntil(self.registration.showNotification(titel, optionen));
 });
 
@@ -109,7 +134,18 @@ self.addEventListener("push", (event) => {
  */
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const ziel = event.notification.data?.ziel || "./";
+  const daten = event.notification.data || {};
+
+  // Ein Tipp auf einen Knopf ist eine fertige Antwort. Sie wird hier abgelegt
+  // und die App bleibt zu: genau das war der Zweck der Knoepfe. Der Service
+  // Worker kommt nicht an den localStorage der App heran, deshalb der Umweg
+  // ueber den Cache. Die App holt es beim naechsten Oeffnen ab.
+  if (event.action) {
+    event.waitUntil(antwortAblegen(event.action, daten));
+    return;
+  }
+
+  const ziel = daten.ziel || "./";
   const url = new URL(ziel, self.location.href).href;
 
   event.waitUntil(
@@ -123,3 +159,38 @@ self.addEventListener("notificationclick", (event) => {
     }),
   );
 });
+
+/* ---------- Antworten aus der Benachrichtigung ---------- */
+
+/** Wo die Antworten liegen, bis die App sie abholt. */
+const ANTWORT_CACHE = "daevo-antworten";
+
+/**
+ * Legt eine Antwort ab, ohne die App zu oeffnen.
+ *
+ * Der Cache ist hier der einzige Speicher, der beiden Seiten offen steht.
+ * IndexedDB ginge auch, kostet aber eine Schemaverwaltung fuer drei Felder.
+ * Ist ein Fenster offen, bekommt es die Antwort zusaetzlich sofort: sonst
+ * sieht der Nutzer seine eigene Antwort erst nach einem Neustart.
+ */
+async function antwortAblegen(aktion, daten) {
+  const eintrag = {
+    aktion,
+    art: daten.art || "",
+    frage: daten.titel || "",
+    frageText: daten.frageText || "",
+    at: Date.now(),
+  };
+  try {
+    const cache = await caches.open(ANTWORT_CACHE);
+    await cache.put(
+      new Request(`${self.location.origin}/daevo-antwort/${eintrag.at}-${aktion}`),
+      new Response(JSON.stringify(eintrag), { headers: { "content-type": "application/json" } }),
+    );
+  } catch {
+    // Ohne Cache geht die Antwort verloren. Das ist schlecht, aber besser als
+    // eine Benachrichtigung, die beim Antippen einen Fehler wirft.
+  }
+  const fenster = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+  for (const f of fenster) f.postMessage({ typ: "antwort", daten: eintrag });
+}

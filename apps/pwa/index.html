@@ -91,7 +91,11 @@ try {
         <span class="plus"></span>
       </button>
       <button id="btnSpeaker" class="icon-btn" aria-label="Sprachausgabe umschalten" aria-pressed="true">
-        <span class="speaker"></span>
+        <svg class="speaker" viewBox="0 0 24 24" aria-hidden="true">
+          <path class="speaker-korpus" d="M4 9.3h3.3L12 5.2v13.6L7.3 14.7H4z"/>
+          <path class="speaker-welle" d="M15.4 9.1a4.2 4.2 0 0 1 0 5.8"/>
+          <path class="speaker-strich" d="M15.8 9.4l5 5M20.8 9.4l-5 5"/>
+        </svg>
       </button>
     </header>
 
@@ -124,12 +128,24 @@ try {
       Aus Zwischenablage senden
     </button>
 
+    <!--
+      Kopf leeren und das Weckwort sind Betriebsarten, keine Eingabehilfen.
+      In der Pille standen sie als zwei Wörter zwischen vier Symbolen, und der
+      Platzhalter im Feld war danach abgeschnitten: "Schreib oder spr". Sechs
+      Bedienelemente in einer Zeile auf 390 Pixeln gehen nicht auf.
+    -->
+    <div class="modi">
+      <button type="button" id="btnDump" class="modus" aria-label="Kopf leeren, alles rausreden">
+        <span class="modus-punkt" aria-hidden="true"></span>Kopf leeren
+      </button>
+      <button type="button" id="btnWeckwort" class="modus" aria-pressed="false" aria-label="Auf Hey daevo hören">
+        <span class="modus-punkt" aria-hidden="true"></span>Hey daevo
+      </button>
+    </div>
+
     <form id="composer" class="composer-bar">
       <button type="button" id="btnMic" class="icon-btn mic" aria-label="Diktieren"><span class="mic-dot"></span></button>
       <button type="button" id="btnAnhang" class="icon-btn clip" aria-label="Foto oder Datei anhängen"><span class="clip-icon"></span></button>
-      <button type="button" id="btnDump" class="icon-btn dump" aria-label="Kopf leeren, alles rausreden">Kopf</button>
-      <button type="button" id="btnWeckwort" class="icon-btn weckwort" aria-pressed="false"
-              aria-label="Auf Hey daevo hören">Hey</button>
       <input id="chatInput" type="text" placeholder="Schreib oder sprich" autocomplete="off" enterkeyhint="send">
       <button type="submit" id="btnSend" class="icon-btn send" aria-label="Senden"><span class="arrow"></span></button>
     </form>
@@ -151,28 +167,40 @@ try {
   <section class="view" data-view="heute" hidden>
     <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Heute</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
-      <div class="wertung">
-        <div class="metriken" id="tagMetriken"></div>
-        <div id="tagWertung"></div>
-        <p class="wertung-satz" id="tagWertungSatz"></p>
-      </div>
-
-      <div class="ring-card">
-        <div class="ring-wrap">
+      <!--
+        Die Kalorien sind der Grund, warum jemand diese Seite aufmacht. Vorher
+        stand hier eine abgeleitete Punktzahl über die halbe Bildschirmhöhe,
+        und die Zahl, um die es geht, lag klein darunter. Eine grosse Zahl ist
+        ein Versprechen: sie sagt, das hier ist das Wichtigste. Wenn das nicht
+        stimmt, glaubt der Nutzer der Seite beim nächsten Mal weniger.
+      -->
+      <div class="held">
+        <div class="held-ring">
           <svg viewBox="0 0 120 120" class="ring" aria-hidden="true">
             <circle class="ring-bg" cx="60" cy="60" r="52"></circle>
             <circle id="ringKcal" class="ring-fg" cx="60" cy="60" r="52"></circle>
           </svg>
           <div class="ring-center">
-            <div id="kcalLeft" class="ring-num">0</div>
-            <div class="ring-label">kcal übrig</div>
+            <div id="kcalLeft" class="held-zahl">0</div>
+            <div class="held-label">kcal übrig</div>
           </div>
         </div>
-        <div class="ring-side">
-          <div class="mini"><span class="mini-k">Gegessen</span><span id="kcalEaten" class="mini-v">0</span></div>
-          <div class="mini"><span class="mini-k">Ziel</span><span id="kcalTarget" class="mini-v">0</span></div>
-          <div class="mini"><span class="mini-k" id="scoreLabel">Ernährung</span><span id="scoreVal" class="mini-v">0</span></div>
-        </div>
+        <p class="held-satz">
+          <span id="kcalEaten">0</span> gegessen<span class="held-punkt" aria-hidden="true"></span><span id="kcalTarget">0</span> Ziel
+        </p>
+      </div>
+
+      <div class="balken-gruppe" id="makroGruppe">
+        <div class="balken-zeile"><div class="balken-kopf"><span>Protein</span><span id="pTxt"></span></div><div class="balken"><i id="pBar" class="protein"></i></div></div>
+        <div class="balken-zeile"><div class="balken-kopf"><span>Fett</span><span id="fTxt"></span></div><div class="balken"><i id="fBar" class="fett"></i></div></div>
+        <div class="balken-zeile"><div class="balken-kopf"><span>Kohlenhydrate</span><span id="cTxt"></span></div><div class="balken"><i id="cBar" class="kohlenhydrate"></i></div></div>
+        <div class="balken-zeile"><div class="balken-kopf"><span>Wasser</span><span id="wTxt"></span></div><div class="balken"><i id="wBar" class="wasser"></i></div></div>
+      </div>
+
+      <div class="quick">
+        <button class="chip" data-water="250">+250 ml</button>
+        <button class="chip" data-water="500">+500 ml</button>
+        <button class="chip" data-water="750">+750 ml</button>
       </div>
 
       <!--
@@ -186,23 +214,28 @@ try {
           <span class="erfassen-titel">Essen erfassen</span>
           <span class="erfassen-sub">Foto, Barcode, Suche oder sprechen</span>
         </span>
+        <span class="erfassen-chev" aria-hidden="true"></span>
       </button>
 
-      <div class="ring-kacheln" id="heuteBalance"></div>
+      <!--
+        Die Tagesnutzung ist eine abgeleitete Zahl und steht deshalb hinter
+        dem, woraus sie abgeleitet ist. Als Leiste und nicht als Ring: ein
+        Ring in der Grösse eines Helden behauptet, er sei einer.
+      -->
+      <h2 class="abschnitt">Wie der Tag läuft</h2>
+      <div class="messwert gross" id="tagLeiste">
+        <div class="messwert-kopf">
+          <span class="messwert-name">Tagesnutzung</span>
+          <span class="messwert-wert"><b id="tagWert">0</b> <span id="tagUrteil" class="messwert-zusatz"></span></span>
+        </div>
+        <div class="balken"><i id="tagBalken"></i></div>
+      </div>
+      <p class="sub" id="tagWertungSatz"></p>
+      <div class="messwerte" id="tagMetriken"></div>
+
+      <h2 class="abschnitt">Wo die Zeit hingeht</h2>
+      <div class="messwerte" id="heuteBalance"></div>
       <p class="fineprint" id="heuteBalanceHinweis" style="margin-top:0"></p>
-
-      <div class="balken-gruppe">
-        <div class="balken-zeile"><div class="balken-kopf"><span>Protein</span><span id="pTxt"></span></div><div class="balken"><i id="pBar" class="protein"></i></div></div>
-        <div class="balken-zeile"><div class="balken-kopf"><span>Fett</span><span id="fTxt"></span></div><div class="balken"><i id="fBar" class="fett"></i></div></div>
-        <div class="balken-zeile"><div class="balken-kopf"><span>Kohlenhydrate</span><span id="cTxt"></span></div><div class="balken"><i id="cBar" class="kohlenhydrate"></i></div></div>
-        <div class="balken-zeile"><div class="balken-kopf"><span>Wasser</span><span id="wTxt"></span></div><div class="balken"><i id="wBar" class="wasser"></i></div></div>
-      </div>
-
-      <div class="quick">
-        <button class="chip" data-water="250">+250 ml</button>
-        <button class="chip" data-water="500">+500 ml</button>
-        <button class="chip" data-water="750">+750 ml</button>
-      </div>
 
       <h2 class="abschnitt">Gewicht</h2>
       <div class="card">
@@ -238,6 +271,7 @@ try {
           <span class="erfassen-titel">Essen erfassen</span>
           <span class="erfassen-sub">Foto, Barcode, Suche oder sprechen</span>
         </span>
+        <span class="erfassen-chev" aria-hidden="true"></span>
       </button>
 
       <!-- Die Texteingabe bleibt, sie klappt aus dem Blatt heraus auf. -->
@@ -327,6 +361,53 @@ try {
           </button>
         </div>
         <button type="button" id="ebTippen" class="ghost breit">Lieber tippen</button>
+      </div>
+    </div>
+  </div>
+
+  <!--
+    Das Foto, bevor es rausgeht.
+
+    Vorher ging das Bild sofort weg: Datei gewählt, zehn Sekunden nichts, dann
+    ein Ergebnis. Zwei Dinge fehlten dabei. Der Nutzer sah nicht, ob das Bild
+    etwas taugt, und er konnte nichts dazu sagen. Gerade das Dazusagen ist bei
+    einem Teller die halbe Genauigkeit: was unter der Sauce liegt, sieht kein
+    Modell.
+
+    Die Zeile, die über das Bild läuft, ist keine Dekoration. Eine
+    Bildauswertung dauert je nach Netz fünf bis fünfzehn Sekunden, und ein
+    Standbild ohne jede Bewegung sieht nach der Hälfte davon aus wie eine
+    hängende App.
+  -->
+  <div id="fotoBlatt" class="blatt" hidden>
+    <div class="blatt-innen" role="dialog" aria-modal="true" aria-labelledby="fbTitel">
+      <header class="blatt-kopf">
+        <h2 id="fbTitel">KI Foto-Tracking</h2>
+        <button id="fbSchliessen" class="icon-btn" aria-label="Schliessen"><span class="kreuz"></span></button>
+      </header>
+      <div class="blatt-scroll">
+        <div id="fbBuehne" class="foto-buehne">
+          <img id="fbBild" class="foto-bild" alt="Dein Teller">
+          <span class="foto-scan" aria-hidden="true"></span>
+          <span class="foto-funken" aria-hidden="true">
+            <i style="--x: 12%; --y: 22%; --v: 0s"></i>
+            <i style="--x: 78%; --y: 15%; --v: .7s"></i>
+            <i style="--x: 31%; --y: 74%; --v: 1.4s"></i>
+            <i style="--x: 88%; --y: 61%; --v: 2.1s"></i>
+            <i style="--x: 57%; --y: 41%; --v: 2.8s"></i>
+          </span>
+        </div>
+
+        <label class="feld-label" for="fbDetails">Details (optional)</label>
+        <textarea id="fbDetails" class="foto-details" rows="3"
+          placeholder="4 Stangen Spargel dazu, Reis war eine grosse Kelle"></textarea>
+        <p class="sub">Mengen, die man nicht sieht, gehören hierhin. Alles andere liest daevo aus dem Bild.</p>
+        <div id="fbFeedback" class="feedback" hidden></div>
+      </div>
+      <div class="blatt-fuss foto-fuss">
+        <button type="button" id="fbAuswerten" class="primary breit">
+          <span id="fbAuswertenText">Auswerten</span>
+        </button>
       </div>
     </div>
   </div>
@@ -459,6 +540,74 @@ try {
     </div>
   </section>
 
+  <!--
+    Bereitschaft und Belastung.
+
+    Eigene Ansicht und nicht auf Heute, weil beide Zahlen einen Verlauf
+    beschreiben und keinen Tagesstand. Heute beantwortet "wie weit bin ich",
+    hier steht "wie steht die Woche zu den letzten vier".
+  -->
+  <!--
+    Der Bericht.
+
+    Er ist zum Weitergeben gebaut, nicht zum Ansehen. Deshalb steht unter den
+    Werten ein reiner Text ohne Auszeichnung: ein Bericht, den man nur in der
+    App lesen kann, wird nicht verschickt.
+  -->
+  <section class="view" data-view="bericht" hidden>
+    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Bericht</h1><div class="bar-spacer"></div></header>
+    <div class="scroll">
+      <!--
+        Der Zeitraum steht allein. Vorher lag daneben der Teilen Knopf in
+        derselben Zeile, und zwei gleich breite Felder nebeneinander lesen
+        sich als zwei Auswahlfelder. Ein Knopf, der etwas mit dem ganzen
+        Bericht macht, gehört ans Ende und nicht neben den Filter.
+      -->
+      <div class="field"><label for="berichtZeitraum">Zeitraum</label>
+        <select id="berichtZeitraum"></select></div>
+      <p class="sub" id="berichtKopf"></p>
+
+      <!--
+        Eine Karte je Wert, seitlich durchgewischt. Sieben Zeilen
+        untereinander liest niemand, er überfliegt sie und merkt sich keine.
+        Eine Zahl, die allein auf einer Karte steht, wird gelesen.
+
+        Das Wischen macht der Browser selbst über scroll-snap. Eine Bibliothek
+        dafür wäre die erste Laufzeitabhängigkeit der App, und das Verhalten
+        wäre schlechter: ein nachgebauter Wisch kennt weder den Schwung des
+        Fingers noch die Einstellung für weniger Bewegung.
+      -->
+      <div class="karten" id="berichtWerte" tabindex="0" role="group" aria-label="Werte, seitlich wischen"></div>
+      <div class="punkte" id="berichtPunkte" aria-hidden="true"></div>
+
+      <pre class="pre" id="berichtFazit"></pre>
+      <button id="btnBerichtTeilen" class="ghost breit">Bericht als Text kopieren</button>
+      <p class="fineprint">Ein Schnitt aus weniger als einem Drittel der Tage steht nicht da. Er beschreibt
+        dann nicht den Zeitraum, sondern die Tage, an denen du Lust zum Eintragen hattest, und das sind fast
+        immer die guten. Ein Trend unter fünf Prozent gilt als unverändert.</p>
+    </div>
+  </section>
+
+  <section class="view" data-view="bereitschaft" hidden>
+    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Bereitschaft</h1><div class="bar-spacer"></div></header>
+    <div class="scroll">
+      <div class="wertung"><div id="bereitschaftRing"></div></div>
+      <p class="sub" id="bereitschaftSub">Wird beim Öffnen gerechnet.</p>
+      <ul class="list" id="bereitschaftTeile"></ul>
+      <p class="fineprint">Das ist keine Messung. daevo hat keinen Sensor. Die Zahl fasst zusammen, was du selbst
+        angegeben hast, plus deine eigene Trainingslast. Jeder Teil nennt seine Quelle.</p>
+
+      <h2 class="abschnitt">Belastung</h2>
+      <p class="sub">Deine letzten sieben Tage gegen deinen Schnitt der letzten achtundzwanzig, beide in Minuten.</p>
+      <pre class="pre" id="belastungText">Wird beim Öffnen gerechnet.</pre>
+      <p class="fineprint">Das Verfahren stammt aus dem Leistungssport und heisst dort acute chronic workload
+        ratio. Die Schwellen 0,8 und 1,5 stammen aus Gabbett, British Journal of Sports Medicine 2016. Genau
+        diese Arbeit ist seit 2020 stark kritisiert worden, unter anderem von Impellizzeri und anderen. Der
+        Quotient beschreibt zuverlässig, wie deine Woche zu deinem Schnitt steht. Dass ein hoher Wert zu
+        Verletzungen führt, ist umstritten, und daevo behauptet es deshalb nicht.</p>
+    </div>
+  </section>
+
   <section class="view" data-view="einkauf" hidden>
     <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Einkaufen</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
@@ -485,13 +634,39 @@ try {
         <button class="seg-btn" data-tage="30">30 Tage</button>
       </div>
 
+      <!--
+        Ein Ring, nicht zwei. Vorher stand neben dem Anteilsring noch die
+        Tagesnutzung als zweiter Ring in anderer Grösse. Zwei Ringe
+        nebeneinander, die verschiedene Fragen beantworten, lesen sich als ein
+        Vergleich, der keiner ist.
+      -->
+      <!--
+        Das Netz zeigt Soll gegen Ist, die Balken darunter die Stunden.
+        Zusammenfassung vor Detail: die Schieflage sieht man in einer Sekunde
+        an der Form, die genaue Zahl liest man eine Zeile tiefer.
+
+        Der Ring mit der Zusammensetzung des Tages steht darunter, denn er
+        beantwortet eine dritte Frage: wohin die Zeit ging, nicht ob sie zum
+        Ziel passt.
+      -->
+      <div class="netz-buehne">
+        <div id="balanceNetz"></div>
+        <div class="legende">
+          <span><i class="legende-umriss"></i>dein Ziel</span>
+          <span><i class="legende-flaeche"></i><span id="netzZeitraum">letzte Woche</span></span>
+        </div>
+      </div>
+      <div class="hinweis" id="balanceRatSchieflage" hidden></div>
+      <p class="fineprint" id="netzHinweis"></p>
+
+      <h2 class="abschnitt">Stunden gegen Ziel</h2>
+      <div class="messwerte" id="balanceKacheln"></div>
+
+      <h2 class="abschnitt">Wie der Zeitraum aufgeteilt war</h2>
       <div class="ring-buehne">
         <div id="balanceStapel" class="ring-stapel"></div>
-        <div id="balanceTagesring" class="ring-tag"></div>
       </div>
       <p class="fineprint" id="balanceNutzung"></p>
-
-      <div class="ring-kacheln" id="balanceKacheln"></div>
 
       <p class="fineprint" id="balanceHinweis"></p>
 
@@ -598,6 +773,18 @@ try {
       <p class="sub" id="planVorschlagSub">Was seit mindestens drei Wochen zur selben Zeit stattfindet, ist dein Plan. Egal, was im Profil steht.</p>
       <ul class="list" id="planVorschlag"></ul>
       <button id="btnPlanUebernehmen" class="ghost" hidden>In das Profil übernehmen</button>
+
+      <h2 class="abschnitt">Apple Health</h2>
+      <p class="sub">HealthKit gibt es nur für native Apps. Der Weg für eine Web App ist der Export, den die
+        Health App selbst anbietet: Profil oben rechts, ganz unten "Alle Gesundheitsdaten exportieren".
+        Dann das ZIP hier auswählen. Es geht nichts an einen Server, alles läuft auf deinem Gerät.</p>
+      <input id="healthDatei" type="file" accept=".zip,.xml,application/zip,text/xml" hidden>
+      <button id="btnHealthDatei" class="primary">Export auswählen</button>
+      <p class="sub" id="healthStand"></p>
+      <pre class="pre" id="healthBericht" hidden></pre>
+      <p class="fineprint">Übernommen werden Schritte, Schlafdauer, Ruhepuls, Herzfrequenzvariabilität und
+        Gewicht, höchstens für die letzten zwei Jahre. Ein Gewicht, das du selbst eingetragen hast, bleibt
+        stehen. Das ist eine Kopie und kein Abo: was nach dem Export dazukommt, kennt daevo nicht.</p>
 
       <h2 class="abschnitt">Kalender verbinden</h2>
       <p class="sub" id="kalQuellenSub">Beide Kalender geben eine .ics Datei aus. Die liest daevo direkt im Gerät, es geht nichts an einen Server.</p>
@@ -948,6 +1135,8 @@ try {
       <div class="menu-unter" hidden>
         <button class="menu-item" data-go="checkin"><b>Check-in</b><span>Energie, Schlaf, Stimmung</span></button>
         <button class="menu-item" data-go="wochencheck"><b>Wochen Check-in</b><span>Mittwoch Bilanz, Sonntag Rückblick</span></button>
+        <button class="menu-item" data-go="bericht"><b>Bericht</b><span>Woche und Monat, zum Weitergeben</span></button>
+        <button class="menu-item" data-go="bereitschaft"><b>Bereitschaft</b><span>Tagesform und Belastung aus deinen Daten</span></button>
         <button class="menu-item" data-go="standards"><b>Mindeststandards</b><span>Deine Untergrenze, jede Woche</span></button>
         <button class="menu-item" data-go="empfehlungen"><b>Empfehlungen</b><span>Muster und Widersprüche</span></button>
         <button class="menu-item" data-go="reflexion"><b>Gedächtnis</b><span>Was daevo über dich weiß</span></button>

@@ -43,6 +43,36 @@ Danach `demo.config.json` im Wurzelverzeichnis ausfüllen und bauen:
 npm run build:demo
 ```
 
+## Wo die Demo liegt, und warum nicht auf GitHub Pages
+
+Die Fassung für Nutzer läuft auf Cloudflare Pages, nicht als Unterordner der
+Entwicklerfassung. Der Grund ist der localStorage: er hängt an der Adresse und
+nicht am Pfad. Zwei Fassungen unter `hannigaaron.github.io` teilen damit
+denselben Speicher, egal ob eine davon in `/demo/` liegt. Wer die Demo
+aufmacht, sieht die echten Daten des Betreibers, und die Beispieldaten der
+Demo landen in seinem Profil.
+
+Das ist auf GitHub Pages nicht lösbar. Alle Repositories eines Kontos liegen
+unter derselben Adresse, ein eigenes Repository ergibt also keine eigene
+Adresse. Eine zweite Adresse ist der einzige saubere Weg.
+
+Cloudflare Pages liefert sie, kostenlos und auf demselben Konto, auf dem
+schon der Push Worker läuft:
+
+```bash
+npm run deploy:demo
+```
+
+Der Befehl baut nach `dist-demo` und lädt es hoch. Beim ersten Mal legt
+Wrangler das Projekt `daevo` an und fragt nach dem Produktionszweig. Danach
+liegt die App auf `https://daevo.pages.dev`.
+
+Diese Adresse steht in `HERKUNFT` in `workers/push/wrangler.toml`. Ohne sie
+weist der Worker jede Anfrage der Demo ab, und der Chat antwortet nicht.
+
+Ein eigener Name wie `app.daevo.de` geht später über Cloudflare Pages, Custom
+Domains. Dann gehört die neue Adresse ebenfalls in `HERKUNFT`.
+
 In `demo.config.json` steht nichts Geheimes. Die Adresse des Workers ist
 öffentlich, der Schlüssel liegt auf dem Worker. Das Anmeldewort gehört nicht
 hinein: es steht in `.push-geheim.json` und geht nie in einen Build. Der Build

@@ -166,6 +166,27 @@ function tageBauen(heute) {
       : [];
 
     const checkins = [];
+    // Der Morgen Check-in. Ohne ihn bleibt die Bereitschaft leer, und genau
+    // die Ansicht, die zeigt was die App kann, zeigt dann nichts.
+    if (!luecke && rnd() < 0.8) {
+      checkins.push({
+        kind: "morning",
+        at: "07:20",
+        note: "",
+        energy: 5 + Math.floor(rnd() * 5),
+        sleepQuality: 5 + Math.floor(rnd() * 5),
+        mood: 5 + Math.floor(rnd() * 5),
+      });
+    }
+
+    // Schlafdauer, wie sie nach einem Apple Health Import dastünde. Ohne sie
+    // bleibt die Schlafkarte im Bericht leer, und genau die Ansicht, die
+    // zeigen soll was die App kann, zeigt eine Lücke.
+    const gesundheit = luecke ? null : {
+      schlafMinuten: 360 + Math.floor(rnd() * 110),
+      ruhepuls: 48 + Math.floor(rnd() * 8),
+      hrv: 55 + Math.floor(rnd() * 30),
+    };
     if (!luecke && rnd() < 0.7) {
       checkins.push({
         id: `c${abstand}`,
@@ -195,6 +216,7 @@ function tageBauen(heute) {
       meals,
       waterMl: 500 * (3 + Math.floor(rnd() * 4)),
       checkins,
+      ...(gesundheit ? { gesundheit } : {}),
       steps: schritte,
       standards,
       weightKg,
