@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { bericht, berichtText, MIN_ABDECKUNG, type BerichtTag } from "./bericht.js";
+import {
+  bericht, berichtText, datumKurz, spanneKurz, MIN_ABDECKUNG, type BerichtTag,
+} from "./bericht.js";
 
 const ZIELE = { kcal: 2900, proteinG: 175, wasserMl: 3500 };
 
@@ -62,7 +64,7 @@ test("Training wird summiert, Kalorien werden gemittelt", () => {
 test("Das Gewicht ist eine Strecke und kein Schnitt", () => {
   const tage = zeitraum("2026-09-01", 28, (i) => ({ ...voll(i), gewichtKg: i === 0 ? 87.4 : i === 27 ? 85.9 : null }));
   const g = lauf(tage).werte.find((w) => w.name === "Gewicht");
-  assert.equal(g?.wert, "85.9 kg, -1.5 kg seit 2026-09-01");
+  assert.equal(g?.wert, "85.9 kg, -1.5 kg seit 1. Sep");
 });
 
 test("Eine einzelne Wiegung ergibt keine Strecke", () => {
@@ -103,7 +105,7 @@ test("Das Fazit hängt an Zahlen und hat höchstens drei Sätze", () => {
 
 test("Der Text lässt sich kopieren und trägt die Abdeckung", () => {
   const text = berichtText(lauf(zeitraum("2026-09-01", 28, voll)));
-  assert.match(text, /daevo Bericht, 2026-09-01 bis 2026-09-28/);
+  assert.match(text, /daevo Bericht, 1\. Sep bis 28\. Sep/);
   assert.match(text, /28 von 28 Tagen mit Eintrag/);
   assert.doesNotMatch(text, /[*#]/, "keine Auszeichnung, der Text geht in eine Nachricht");
 });
@@ -152,4 +154,43 @@ test("Das Fazit nennt die blosse Zahl der Einheiten", () => {
   const text = lauf(zeitraum("2026-09-01", 28, voll)).fazit.join(" ");
   assert.match(text, /Eingetragen sind 14 Einheiten in 28 Tagen/);
   assert.doesNotMatch(text, /zusammen Einheiten/);
+});
+
+test("Die Schlafqualität kommt aus dem Check-in, nicht aus der Uhr", () => {
+  // Wer keinen Health Import gemacht hat, hat trotzdem eine Aussage über
+  // seinen Schlaf.
+  const tage = zeitraum("2026-09-01", 28, (i) => ({ ...voll(i), schlafQualitaet: 6 + (i % 3) }));
+  const w = lauf(tage).werte.find((x) => x.schluessel === "schlafqualitaet");
+  assert.ok(w);
+  assert.equal(w.einheit, "von 10");
+  assert.equal(w.tage, 28);
+});
+
+test("Jeder Wert trägt seinen Verlauf je Tag, mit Lücken", () => {
+  // Eine Lücke bleibt null. Eine Linie, die an jeder Lücke auf den Boden
+  // fällt, behauptet einen Einbruch, den es nicht gab.
+  const tage = zeitraum("2026-09-01", 28, (i) => (i % 2 === 0 ? voll(i) : {}));
+  const w = lauf(tage).werte.find((x) => x.schluessel === "kalorien");
+  assert.ok(w);
+  assert.equal(w.verlauf.length, 28);
+  assert.equal(w.verlauf[0] !== null, true);
+  assert.equal(w.verlauf[1], null);
+  assert.equal(w.verlauf.filter((v) => v !== null).length, 14);
+});
+
+test("Ein Tag mit nur einem Morgen Check-in zählt als Tag mit Eintrag", () => {
+  const tage = zeitraum("2026-09-01", 28, (i) => (i === 0 ? { schlafQualitaet: 7 } : {}));
+  assert.equal(lauf(tage).tageMitDaten, 1);
+});
+
+test("Ein Datum wird gesagt, nicht als Datenbankzeile gesetzt", () => {
+  assert.equal(datumKurz("2026-09-03"), "3. Sep");
+  assert.equal(datumKurz("2026-12-24", true), "24. Dez 2026");
+  // Kaputtes bleibt stehen, statt zu einem erfundenen Datum zu werden.
+  assert.equal(datumKurz("morgen"), "morgen");
+});
+
+test("Das Jahr kommt nur mit, wenn der Zeitraum zwei Jahre berührt", () => {
+  assert.equal(spanneKurz("2026-09-01", "2026-09-28"), "1. Sep bis 28. Sep");
+  assert.equal(spanneKurz("2025-12-20", "2026-01-10"), "20. Dez 2025 bis 10. Jan 2026");
 });

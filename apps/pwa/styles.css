@@ -2379,3 +2379,20 @@ h1,
 }
 .hinweis .li-title { font-family: var(--schrift-display); font-weight: 600; font-size: var(--t-sm); }
 .hinweis .li-sub { color: var(--muted); font-size: var(--t-sm); margin-top: 3px; }
+
+/* Die Linie auf der Berichtskarte. Sie trägt die Farbe ihres Werts, aber
+   gedämpft: die Zahl darüber ist die Aussage, die Linie nur ihre Form. */
+.funke {
+  display: block; width: 100%; height: 34px;
+  margin-top: var(--s-3);
+  overflow: visible;
+}
+.funke path {
+  fill: none; stroke: var(--ton, var(--brand)); stroke-width: 1.8;
+  stroke-linecap: round; stroke-linejoin: round;
+  /* preserveAspectRatio none verzerrt die Linie in der Breite. Ohne das
+     bliebe die Strichstärke ungleichmässig, sobald die Karte skaliert. */
+  vector-effect: non-scaling-stroke;
+  opacity: 0.85;
+}
+.funke circle { fill: var(--ton, var(--brand)); }

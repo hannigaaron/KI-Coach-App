@@ -8,6 +8,7 @@ import {
   bereitschaft,
   bereitschaftText,
   berichtText,
+  spanneKurz,
 } from "@daevo/core";
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, produktPerBarcode, produkteSuchen } from "@daevo/coach";
 import { Coach, AnthropicProvider } from "@daevo/coach";
@@ -29,6 +30,7 @@ import {
   kalenderEntfernen, kalenderImportieren, kalenderStand, kalenderUebersicht,
   kostenUebersicht, recommendations, standardsUebersicht, tagesErinnerungen, verlaufPunkte,
   berichtFuer,
+  berichtZeitraeume,
 } from "./assistant.js";
 import { brain } from "./brain.js";
 import { Orb } from "./orb.js";
@@ -763,7 +765,7 @@ function showView(name) {
   if (name === "tag") renderTag();
   if (name === "balance") renderBalance();
   if (name === "bereitschaft") renderBereitschaft();
-  if (name === "bericht") renderBericht();
+  if (name === "bericht") { berichtZeitraumFuellen(); renderBericht(); }
   if (name === "standards") { renderStandards(); zeigeAngebot("standardsAngebot"); }
   if (name === "gespraeche") renderGespraeche();
   if (name === "wochencheck") wcStart();
@@ -922,9 +924,53 @@ const KARTEN_ZEICHEN = {
   training: { pfad: "M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10", ton: "var(--bereich-fitness)" },
   einheiten: { pfad: "M4 12l5 5L20 6", ton: "var(--bereich-fitness)" },
   schlaf: { pfad: "M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10z", ton: "var(--bereich-wellbeing)" },
+  schlafqualitaet: { pfad: "M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10zM12 2.5l.7 1.6 1.6.7-1.6.7-.7 1.6-.7-1.6-1.6-.7 1.6-.7z", ton: "var(--bereich-wellbeing)" },
   energie: { pfad: "M13 3 5.5 13.5H11l-1 7.5 7.5-10.5H12z", ton: "var(--makro-kohlenhydrate)" },
   gewicht: { pfad: "M5 8h14l2 12H3zM9 8a3 3 0 0 1 6 0", ton: "var(--bereich-karriere)" },
 };
+
+/**
+ * Die kleine Linie auf der Karte.
+ *
+ * Sie trägt keine Achse und keine Zahl. Ihre Aufgabe ist die Form: geht es
+ * rauf, runter oder zappelt es. Für alles Genaue steht die Zahl darüber.
+ *
+ * Lücken unterbrechen die Linie, statt auf null zu fallen. Eine Linie, die an
+ * jedem Tag ohne Eintrag den Boden berührt, behauptet einen Einbruch, den es
+ * nicht gab, und das ist genau der Fehler, den diese App nirgends machen darf.
+ *
+ * Unter drei Werten wird nichts gezeichnet. Zwei Punkte ergeben immer eine
+ * gerade Linie, und eine gerade Linie sieht nach einer Aussage aus.
+ */
+function sparkline(verlauf, breite = 224, hoehe = 34) {
+  const werte = Array.isArray(verlauf) ? verlauf : [];
+  const vorhanden = werte.filter((v) => v !== null && Number.isFinite(v));
+  if (vorhanden.length < 3) return "";
+
+  const min = Math.min(...vorhanden);
+  const max = Math.max(...vorhanden);
+  // Bei einer flachen Reihe hat die Spanne keine Höhe. Ohne diesen Fall
+  // teilte die Rechnung durch null und jeder Punkt landete bei NaN.
+  const spanne = max - min || 1;
+  const rand = 3;
+  const x = (i) => (werte.length > 1 ? (i / (werte.length - 1)) * (breite - 2 * rand) + rand : breite / 2);
+  const y = (v) => hoehe - rand - ((v - min) / spanne) * (hoehe - 2 * rand);
+
+  const stuecke = [];
+  let offen = false;
+  werte.forEach((v, i) => {
+    if (v === null || !Number.isFinite(v)) { offen = false; return; }
+    stuecke.push(`${offen ? "L" : "M"}${x(i).toFixed(1)} ${y(v).toFixed(1)}`);
+    offen = true;
+  });
+
+  const letzterIndex = werte.length - 1 - [...werte].reverse().findIndex((v) => v !== null && Number.isFinite(v));
+  const letzter = werte[letzterIndex];
+  return `<svg class="funke" viewBox="0 0 ${breite} ${hoehe}" preserveAspectRatio="none" aria-hidden="true">
+      <path d="${stuecke.join(" ")}"></path>
+      <circle cx="${x(letzterIndex).toFixed(1)}" cy="${y(letzter).toFixed(1)}" r="2.6"></circle>
+    </svg>`;
+}
 
 /** Baut eine Karte des Berichts. */
 function berichtKarte(w) {
@@ -941,6 +987,7 @@ function berichtKarte(w) {
     </div>
     <div class="karte-zahl">${escapeHtml(w.zahl)}${w.einheit ? `<span class="karte-einheit">${escapeHtml(w.einheit)}</span>` : ""}</div>
     <div class="karte-zusatz">${escapeHtml(w.zusatz)}</div>
+    ${sparkline(w.verlauf)}
     <div class="karte-fuss">
       <span class="karte-trend${w.trend ? "" : " leise"}">${escapeHtml(w.trend || "kein Vergleich")}</span>
       <span>${w.tage} Tage</span>
@@ -948,10 +995,27 @@ function berichtKarte(w) {
   return karte;
 }
 
+/**
+ * Füllt die Zeitraumliste.
+ *
+ * Bei jedem Öffnen neu, denn mit jedem Monatswechsel kommt ein Eintrag dazu.
+ * Die bisherige Wahl bleibt stehen, solange es sie noch gibt: wer im
+ * September stand und zurückkommt, will nicht wieder bei vier Wochen landen.
+ */
+function berichtZeitraumFuellen() {
+  const feld = $("berichtZeitraum");
+  const vorher = feld.value;
+  const liste = berichtZeitraeume();
+  feld.innerHTML = liste
+    .map((z) => `<option value="${escapeHtml(z.wert)}">${escapeHtml(z.name)}</option>`)
+    .join("");
+  feld.value = liste.some((z) => z.wert === vorher) ? vorher : "28";
+}
+
 function renderBericht() {
-  const b = berichtFuer(Number($("berichtZeitraum").value) || 28);
+  const b = berichtFuer($("berichtZeitraum").value || "28");
   $("berichtKopf").textContent =
-    `${b.von} bis ${b.bis}, ${b.tageMitDaten} von ${b.tageGesamt} Tagen mit Eintrag.`;
+    `${spanneKurz(b.von, b.bis)}, ${b.tageMitDaten} von ${b.tageGesamt} Tagen mit Eintrag.`;
 
   const streifen = $("berichtWerte");
   streifen.innerHTML = "";
@@ -1023,7 +1087,7 @@ $("berichtZeitraum").addEventListener("change", renderBericht);
  * schlechtere Lösung als einer, der still kopiert.
  */
 $("btnBerichtTeilen").addEventListener("click", async () => {
-  const text = berichtText(berichtFuer(Number($("berichtZeitraum").value) || 28));
+  const text = berichtText(berichtFuer($("berichtZeitraum").value || "28"));
   try {
     if (navigator.share) await navigator.share({ text });
     else { await navigator.clipboard.writeText(text); toast("Bericht kopiert"); }

@@ -557,15 +557,14 @@ try {
   <section class="view" data-view="bericht" hidden>
     <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Bericht</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
-      <div class="field-row">
-        <div class="field"><label for="berichtZeitraum">Zeitraum</label>
-          <select id="berichtZeitraum">
-            <option value="7">Eine Woche</option>
-            <option value="28" selected>Vier Wochen</option>
-          </select></div>
-        <div class="field"><label for="btnBerichtTeilen">&nbsp;</label>
-          <button id="btnBerichtTeilen" class="ghost" style="width:100%">Text kopieren</button></div>
-      </div>
+      <!--
+        Der Zeitraum steht allein. Vorher lag daneben der Teilen Knopf in
+        derselben Zeile, und zwei gleich breite Felder nebeneinander lesen
+        sich als zwei Auswahlfelder. Ein Knopf, der etwas mit dem ganzen
+        Bericht macht, gehört ans Ende und nicht neben den Filter.
+      -->
+      <div class="field"><label for="berichtZeitraum">Zeitraum</label>
+        <select id="berichtZeitraum"></select></div>
       <p class="sub" id="berichtKopf"></p>
 
       <!--
@@ -582,6 +581,7 @@ try {
       <div class="punkte" id="berichtPunkte" aria-hidden="true"></div>
 
       <pre class="pre" id="berichtFazit"></pre>
+      <button id="btnBerichtTeilen" class="ghost breit">Bericht als Text kopieren</button>
       <p class="fineprint">Ein Schnitt aus weniger als einem Drittel der Tage steht nicht da. Er beschreibt
         dann nicht den Zeitraum, sondern die Tage, an denen du Lust zum Eintragen hattest, und das sind fast
         immer die guten. Ein Trend unter fünf Prozent gilt als unverändert.</p>

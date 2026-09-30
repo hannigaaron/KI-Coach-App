@@ -374,6 +374,7 @@ export function berichtTage(von, bis) {
     const { totals } = dayNumbers(tag);
     const trainings = Array.isArray(daten.trainings) ? daten.trainings : [];
     const checkin = (daten.checkins || []).find((c) => Number.isFinite(Number(c?.energy)));
+    const morgen = (daten.checkins || []).filter((c) => c?.kind === "morning").pop();
     tage.push({
       tag,
       kcal: totals.kcal,
@@ -389,28 +390,89 @@ export function berichtTage(von, bis) {
       schlafMinuten: Number.isFinite(Number(daten.gesundheit?.schlafMinuten))
         ? Number(daten.gesundheit.schlafMinuten)
         : null,
+      // Die Qualität kommt aus dem Morgen Check-in und braucht keine Uhr.
+      schlafQualitaet: morgen && Number.isFinite(Number(morgen.sleepQuality))
+        ? Number(morgen.sleepQuality)
+        : null,
     });
   }
   return tage;
 }
 
-/** Ein Bericht über die letzten `tage` Tage, mit dem Zeitraum davor zum Vergleich. */
-export function berichtFuer(anzahl, heute = todayIso()) {
-  const ende = Date.parse(`${heute}T00:00:00Z`);
-  const iso = (ms) => new Date(ms).toISOString().slice(0, 10);
-  const von = iso(ende - (anzahl - 1) * 86400000);
-  const vorherVon = iso(ende - (2 * anzahl - 1) * 86400000);
-  const vorherBis = iso(ende - anzahl * 86400000);
+/**
+ * Die wählbaren Zeiträume.
+ *
+ * Woche und vier Wochen sind gleitend, sie enden heute. Ein Monat ist fest:
+ * "September" heisst vom Ersten bis zum Letzten, und genau so vergleicht ihn
+ * auch jeder mit dem August. Beides zusammen in einer Liste, weil beides
+ * dieselbe Frage beantwortet, nur mit anderem Ausschnitt.
+ *
+ * Angeboten werden nur Monate, in denen wirklich etwas steht. Eine Liste mit
+ * zwölf leeren Monaten sieht nach einer App aus, die seit einem Jahr nicht
+ * benutzt wurde.
+ */
+export function berichtZeitraeume(heute = todayIso()) {
+  const monate = new Set();
+  for (const tag of store.allDays()) {
+    if (tag <= heute) monate.add(tag.slice(0, 7));
+  }
+  const NAMEN = ["Januar", "Februar", "März", "April", "Mai", "Juni",
+    "Juli", "August", "September", "Oktober", "November", "Dezember"];
 
+  return [
+    { wert: "7", name: "Letzte Woche" },
+    { wert: "28", name: "Letzte vier Wochen" },
+    ...[...monate].sort().reverse().map((m) => {
+      const [jahr, monat] = m.split("-");
+      // Der laufende Monat heisst so und trägt keine Jahreszahl: niemand
+      // sagt "September 2026", wenn September gerade läuft.
+      const laufend = m === heute.slice(0, 7);
+      return { wert: m, name: laufend ? `${NAMEN[Number(monat) - 1]}, bisher` : `${NAMEN[Number(monat) - 1]} ${jahr}` };
+    }),
+  ];
+}
+
+/**
+ * Ein Bericht über einen der Zeiträume.
+ *
+ * `wahl` ist "7", "28" oder ein Monat als JJJJ-MM. Verglichen wird immer mit
+ * dem gleich langen Zeitraum davor, bei einem Monat also mit dem Vormonat und
+ * nicht mit den 30 Tagen davor: wer den September ansieht, vergleicht ihn mit
+ * dem August.
+ */
+export function berichtFuer(wahl = "28", heute = todayIso()) {
+  const iso = (ms) => new Date(ms).toISOString().slice(0, 10);
+  let von;
+  let bis;
+  let vorherVon;
+  let vorherBis;
+
+  if (/^\d{4}-\d{2}$/.test(String(wahl))) {
+    const [jahr, monat] = String(wahl).split("-").map(Number);
+    von = `${wahl}-01`;
+    // Tag 0 des Folgemonats ist der letzte des gesuchten. Ein laufender Monat
+    // endet heute: die Tage danach gibt es noch nicht, und sie als leer zu
+    // zählen würde jeden Schnitt und jede Abdeckung verfälschen.
+    const letzter = new Date(Date.UTC(jahr, monat, 0)).toISOString().slice(0, 10);
+    bis = letzter > heute ? heute : letzter;
+    vorherVon = new Date(Date.UTC(jahr, monat - 2, 1)).toISOString().slice(0, 10);
+    vorherBis = new Date(Date.UTC(jahr, monat - 1, 0)).toISOString().slice(0, 10);
+  } else {
+    const anzahl = Number(wahl) >= 21 ? 28 : 7;
+    const ende = Date.parse(`${heute}T00:00:00Z`);
+    von = iso(ende - (anzahl - 1) * 86400000);
+    bis = heute;
+    vorherVon = iso(ende - (2 * anzahl - 1) * 86400000);
+    vorherBis = iso(ende - anzahl * 86400000);
+  }
+
+  const z = dayNumbers(heute).targets;
   return bericht({
-    tage: berichtTage(von, heute),
+    tage: berichtTage(von, bis),
     vorher: berichtTage(vorherVon, vorherBis),
-    ziele: (() => {
-      const z = dayNumbers(heute).targets;
-      return { kcal: z.kcal, proteinG: z.proteinG, wasserMl: z.waterMl };
-    })(),
+    ziele: { kcal: z.kcal, proteinG: z.proteinG, wasserMl: z.waterMl },
     von,
-    bis: heute,
+    bis,
   });
 }
 
@@ -2192,7 +2254,7 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
      * einer Woche.
      */
     async berichtErstellen({ tage } = {}) {
-      return berichtText(berichtFuer(Number(tage) >= 21 ? 28 : 7));
+      return berichtText(berichtFuer(Number(tage) >= 21 ? "28" : "7"));
     },
 
     async belastungAbrufen() {

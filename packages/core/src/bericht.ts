@@ -26,6 +26,15 @@ export interface BerichtTag {
   energie?: number | null;
   /** Schlafminuten, etwa aus dem Apple Health Import. */
   schlafMinuten?: number | null;
+  /**
+   * Schlafqualität aus dem Morgen Check-in, 1 bis 10.
+   *
+   * Getrennt von der Dauer, weil beides verschiedene Fragen beantwortet und
+   * aus verschiedenen Quellen kommt. Die Dauer braucht eine Uhr, die Qualität
+   * nur den Nutzer. Wer keinen Health Import gemacht hat, hat trotzdem eine
+   * Aussage über seinen Schlaf.
+   */
+  schlafQualitaet?: number | null;
 }
 
 export interface BerichtZiele {
@@ -70,11 +79,19 @@ export interface BerichtWert {
   tage: number;
   /** Der Vergleich zum Zeitraum davor, oder null. */
   trend: string | null;
+  /**
+   * Der Wert je Tag über den Zeitraum, in der Reihenfolge der Tage.
+   *
+   * `null` steht für einen Tag ohne Angabe und wird nicht durch eine Null
+   * ersetzt: eine Linie, die an jeder Lücke auf den Boden fällt, behauptet
+   * einen Einbruch, den es nicht gab.
+   */
+  verlauf: (number | null)[];
 }
 
 export type BerichtSchluessel =
   | "kalorien" | "protein" | "wasser" | "training" | "einheiten"
-  | "schlaf" | "energie" | "gewicht";
+  | "schlaf" | "schlafqualitaet" | "energie" | "gewicht";
 
 export interface Bericht {
   von: string;
@@ -127,7 +144,16 @@ export function bericht(e: BerichtEingabe): Bericht {
       : null;
     const zusatz = art === "summe" ? "zusammen" : "im Schnitt";
     const { zahl, einheit } = formatiere(wertJetzt);
+    // Der Verlauf behält die Lücken. Sie sind die Auskunft darüber, wie
+    // vollständig der Zeitraum erfasst ist, und die gehört zu jeder Zahl.
+    const verlauf = tage.map((t) => {
+      const roh = lies(t);
+      if (roh === null || roh === undefined) return null;
+      const n = Number(roh);
+      return Number.isFinite(n) && n > 0 ? n : null;
+    });
     werte.push({
+      verlauf,
       name,
       schluessel,
       zahl,
@@ -147,6 +173,7 @@ export function bericht(e: BerichtEingabe): Bericht {
   feld("training", "Training", (t) => t.trainingMinuten, (w) => ({ zahl: String(Math.round(w)), einheit: "Minuten" }), "summe");
   feld("einheiten", "Einheiten", (t) => t.trainingEinheiten, (w) => ({ zahl: String(Math.round(w)), einheit: "" }), "summe");
   feld("schlaf", "Schlaf", (t) => t.schlafMinuten, (w) => ({ zahl: stunden(w), einheit: "" }));
+  feld("schlafqualitaet", "Schlafqualität", (t) => t.schlafQualitaet, (w) => ({ zahl: w.toFixed(1), einheit: "von 10" }));
   feld("energie", "Energie", (t) => t.energie, (w) => ({ zahl: w.toFixed(1), einheit: "von 10" }));
 
   // Das Gewicht ist kein Schnitt, sondern eine Strecke. Der Durchschnitt von
@@ -167,10 +194,11 @@ export function bericht(e: BerichtEingabe): Bericht {
       schluessel: "gewicht",
       zahl: letzte.toFixed(1),
       einheit: "kg",
-      zusatz: `${vorzeichen(diff)} kg seit ${wiegungen[0]!.tag}`,
-      wert: `${letzte.toFixed(1)} kg, ${vorzeichen(diff)} kg seit ${wiegungen[0]!.tag}`,
+      zusatz: `${vorzeichen(diff)} kg seit ${datumKurz(wiegungen[0]!.tag)}`,
+      wert: `${letzte.toFixed(1)} kg, ${vorzeichen(diff)} kg seit ${datumKurz(wiegungen[0]!.tag)}`,
       tage: wiegungen.length,
       trend: null,
+      verlauf: tage.map((t) => (t.gewichtKg === null || t.gewichtKg === undefined ? null : Number(t.gewichtKg) || null)),
     });
   }
 
@@ -183,9 +211,35 @@ export function bericht(e: BerichtEingabe): Bericht {
  * Bewusst ohne Auszeichnung, damit er sich in eine Nachricht kopieren lässt.
  * Ein Bericht, den man nur in der App ansehen kann, wird nicht weitergegeben.
  */
+/**
+ * Ein Datum, wie man es sagt.
+ *
+ * "2026-09-03 bis 2026-09-30" ist eine Datenbankzeile und keine Sprache. Der
+ * Monat steht als Kürzel und nicht als Zahl, weil 3.9. und 9.3. sich nur
+ * durch die Reihenfolge unterscheiden und jeder zweite Leser kurz stockt.
+ *
+ * Das Jahr kommt nur mit, wenn ein Zeitraum zwei Jahre berührt. Sonst steht
+ * es zweimal in einer Zeile, in der es niemanden interessiert.
+ */
+const MONAT_KURZ = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
+
+export function datumKurz(iso: string, mitJahr = false): string {
+  const treffer = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso));
+  if (!treffer) return String(iso);
+  const [, jahr, monat, tag] = treffer;
+  const kurz = `${Number(tag)}. ${MONAT_KURZ[Number(monat) - 1]}`;
+  return mitJahr ? `${kurz} ${jahr}` : kurz;
+}
+
+/** Ein Zeitraum in einer Zeile. */
+export function spanneKurz(von: string, bis: string): string {
+  const ueberJahre = von.slice(0, 4) !== bis.slice(0, 4);
+  return `${datumKurz(von, ueberJahre)} bis ${datumKurz(bis, ueberJahre)}`;
+}
+
 export function berichtText(b: Bericht): string {
   const zeilen = [
-    `daevo Bericht, ${b.von} bis ${b.bis}`,
+    `daevo Bericht, ${spanneKurz(b.von, b.bis)}`,
     `${b.tageMitDaten} von ${b.tageGesamt} Tagen mit Eintrag.`,
     "",
   ];
@@ -268,7 +322,7 @@ function zahlen(tage: BerichtTag[], lies: (t: BerichtTag) => number | null | und
 }
 
 function hatDaten(t: BerichtTag): boolean {
-  return [t.kcal, t.trainingMinuten, t.gewichtKg, t.energie, t.schlafMinuten, t.wasserMl]
+  return [t.kcal, t.trainingMinuten, t.gewichtKg, t.energie, t.schlafMinuten, t.schlafQualitaet, t.wasserMl]
     .some((w) => Number.isFinite(Number(w)) && Number(w) > 0);
 }
 

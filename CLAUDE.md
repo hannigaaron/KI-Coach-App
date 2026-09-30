@@ -161,7 +161,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 805 Tests
+npm test           # 810 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1280,6 +1280,59 @@ wie ein Tropfen. Protein war eine Aminosäurekette, inhaltlich richtig und
 optisch ein Gekritzel. Jetzt eine Flamme mit Zunge und ein Knochen. "Liter"
 steht ausgeschrieben: ein kleines l neben einer grossen Zahl ist kaum von
 einem Strich zu unterscheiden.
+
+### Zeiträume und wo der Teilen Knopf hingehört
+
+Woche und vier Wochen sind gleitend, sie enden heute. Ein Monat ist fest: wer
+den September ansieht, meint den Ersten bis den Letzten, und er vergleicht ihn
+mit dem August und nicht mit den 30 Tagen davor. Beides steht in einer Liste,
+weil beides dieselbe Frage beantwortet, nur mit anderem Ausschnitt.
+
+Angeboten werden nur Monate, in denen wirklich etwas steht. Eine Liste mit
+zwölf leeren Monaten sieht nach einer App aus, die seit einem Jahr nicht
+benutzt wurde. Der laufende Monat heisst "September, bisher" und trägt keine
+Jahreszahl: niemand sagt "September 2026", während der September läuft. Sein
+Ende ist heute und nicht der Monatsletzte, denn die Tage danach gibt es noch
+nicht, und sie als leer zu zählen verfälscht jeden Schnitt und jede Abdeckung.
+
+Der Teilen Knopf stand neben der Zeitraumwahl, in derselben Zeile und gleich
+breit. Zwei gleich breite Felder nebeneinander lesen sich als zwei
+Auswahlfelder, und der Knopf beantwortete damit die Frage "welcher Zeitraum"
+mit "Text kopieren". Er steht jetzt am Ende: was den ganzen Bericht betrifft,
+gehört hinter den Bericht und nicht neben den Filter.
+
+Daten werden gesagt, nicht gesetzt. "2026-09-03 bis 2026-09-30" ist eine
+Datenbankzeile. Der Monat steht als Kürzel und nicht als Zahl, weil 3.9. und
+9.3. sich nur in der Reihenfolge unterscheiden und jeder zweite Leser kurz
+stockt. Das Jahr kommt nur mit, wenn ein Zeitraum zwei Jahre berührt.
+
+### Die Linie auf der Karte
+
+Jede Karte trägt den Verlauf ihres Werts über den Zeitraum. Keine Achse, keine
+Zahl: ihre Aufgabe ist die Form, für alles Genaue steht die Zahl darüber.
+
+Lücken unterbrechen die Linie, statt auf null zu fallen. Eine Linie, die an
+jedem Tag ohne Eintrag den Boden berührt, behauptet einen Einbruch, den es
+nicht gab, und das ist genau der Fehler, den diese App nirgends machen darf.
+Deshalb trägt `BerichtWert.verlauf` `null` für einen Tag ohne Angabe und nicht
+eine Null.
+
+Unter drei Werten wird nichts gezeichnet. Zwei Punkte ergeben immer eine
+gerade Linie, und eine gerade Linie sieht nach einer Aussage aus.
+
+Bei einer flachen Reihe hat die Spanne keine Höhe. Ohne den Sonderfall teilte
+die Rechnung durch null und jeder Punkt landete bei NaN.
+
+### Schlaf kommt aus zwei Quellen
+
+Die Dauer braucht eine Uhr und kommt aus dem Apple Health Import. Die Qualität
+braucht nur den Nutzer und kommt aus dem Morgen Check-in. Beides sind
+verschiedene Fragen, deshalb zwei Karten und nicht eine.
+
+Wer keinen Health Import gemacht hat, hatte vorher gar keine Aussage über
+seinen Schlaf im Bericht: die Karte hing allein an der Dauer. Die Demo bekommt
+ausserdem Schlafminuten, sonst zeigt genau die Ansicht, die das Produkt
+ausmacht, an dieser Stelle eine Lücke.
 
 ### Number(null) ist 0, dreimal
 
