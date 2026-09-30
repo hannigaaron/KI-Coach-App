@@ -1712,6 +1712,14 @@ koste mehr. Wer die App geladen hat, zahlt nichts je Nachricht. Gefunden hat
 das kein Lesen, sondern ein Skript, das jede Ansicht der gebauten Fassung
 öffnet und den sichtbaren Text nach Betreiberwörtern absucht.
 
+Die Fassung für Nutzer liegt nicht als Unterordner der Entwicklerfassung auf
+GitHub Pages, sondern auf Cloudflare Pages, `npm run deploy:demo`. Der
+localStorage hängt an der Adresse und nicht am Pfad: zwei Fassungen unter
+derselben Adresse teilen ihre Daten, und die Demo würde die echten Notizen
+über Therapie und Familie anzeigen. Auf GitHub Pages ist das nicht lösbar,
+denn alle Repositories eines Kontos liegen unter derselben Adresse. Die neue
+Adresse gehört in `HERKUNFT` im Worker, sonst weist er die Demo ab.
+
 Vollständig in `docs/DEMO.md`.
 
 ## Das Coaching Angebot
