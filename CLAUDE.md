@@ -1965,11 +1965,33 @@ Er sah aus wie die Wasserchips darüber: gerahmtes Rechteck mit runden Ecken.
 Zwei Dinge mit demselben Aussehen und sehr verschiedenem Gewicht, und der
 wichtigere verliert, weil er weiter unten steht.
 
-Der Unterschied liegt jetzt in der Art der Fläche und nicht in der Farbe. Ein
-Chip ist umrandet und flach, dieser Knopf ist gefüllt und erhoben. Eine Füllung
-in der Markenfarbe wäre die naheliegende Lösung und die falsche: ein voll
-eingefärbter Knopf zieht mehr Aufmerksamkeit als die Zahlen darüber, und die
-sind der Inhalt der Seite.
+Der erste Versuch war eine erhobene Fläche im Panelton: ein Chip ist umrandet
+und flach, dieser Knopf gefüllt und erhoben. Die Begründung dafür war, dass
+eine Füllung in der Markenfarbe mehr Aufmerksamkeit zieht als die Zahlen
+darüber, und die sind der Inhalt der Seite.
+
+Im Betrieb war das zu wenig. Der Knopf hob sich vom Grund ab, aber nicht von
+den Wasserchips, und die Haupthandlung der Seite sah aus wie ein Nebenweg.
+Jetzt trägt er die starke Fläche: im dunklen Modus Weiss, im hellen der
+Grundton. Dieselbe Rolle, umgekehrte Werte, denn was auf Schwarz heraussticht,
+verschwindet auf Weiss.
+
+Die alte Überlegung galt für die Markenfarbe und gilt dort weiter. Weiss ist
+keine Farbe der Palette, es konkurriert nicht mit den Makrobalken oder den
+Bereichsfarben, sondern steht ausserhalb. Genau deshalb funktioniert es hier
+und wäre an einer zweiten Stelle sofort verbraucht.
+
+Der Kreis auf dem Knopf trägt die Markenfarbe, die zur jeweiligen Fläche
+passt: auf Weiss das dunkle Blau, auf Dunkel das Logoblau. Logoblau auf Weiss
+liegt bei 1.57 zu 1 und wäre dort unbrauchbar.
+
+Die Untertitelzeile nimmt nicht `--muted`. Der Ton ist für Text auf dem
+Grundton gerechnet und liegt auf der starken Fläche daneben. Die eigene Farbe
+mit Deckkraft bleibt in beiden Modi im Verhältnis.
+
+Darüber 24 Pixel Luft statt keiner. Vorher klebte der Knopf an den
+Wasserchips, und zwei Bedienelemente ohne Abstand lesen sich als eine Gruppe,
+obwohl das eine ein Nebenweg ist und das andere die Haupthandlung.
 
 Beim Drücken sinkt er ein, kleiner und flacher zugleich. Nur kleiner werden
 liest sich als Wackeln, erst der wegfallende Schatten macht daraus eine

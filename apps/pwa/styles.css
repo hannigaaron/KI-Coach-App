@@ -84,6 +84,20 @@
   --panel-2: #0f141c;
   /* Für Elemente, die auf einem Panel liegen und sich davon abheben müssen. */
   --erhoben: #1a2130;
+
+  /* ---------- Die starke Fläche ----------
+   *
+   * Für den einen Knopf, der sich von allem abheben soll. Im dunklen Modus
+   * Weiss, im hellen der Grundton. Dieselbe Rolle, umgekehrte Werte: was auf
+   * Schwarz heraussticht, verschwindet auf Weiss.
+   *
+   * Der Kreis darauf trägt die Markenfarbe, die zur jeweiligen Fläche passt.
+   * Logoblau auf Weiss liegt bei 1.57 zu 1 und wäre dort unbrauchbar, deshalb
+   * dort das dunkle Blau und umgekehrt. */
+  --stark: #ffffff;
+  --auf-stark: #0b0e14;
+  --stark-marke: var(--brand-deep);
+  --auf-stark-marke: #ffffff;
   --border: #232b3a;
   /* Trennlinien innerhalb einer Fläche. Schwächer als ein Rahmen, weil sie
      gliedern und nicht abgrenzen. */
@@ -860,6 +874,10 @@ body:has([data-view="assistant"]:not([hidden])) .toast {
     --schatten-1: 0 1px 2px rgba(20, 26, 36, 0.06);
     --schatten-2: 0 4px 16px -6px rgba(20, 26, 36, 0.14);
     --schatten-3: 0 16px 40px -14px rgba(20, 26, 36, 0.2);
+    --stark: #141a24;
+    --auf-stark: #ffffff;
+    --stark-marke: var(--brand);
+    --auf-stark-marke: #0b0e14;
 }
 
 @media (prefers-color-scheme: light) {
@@ -880,6 +898,10 @@ body:has([data-view="assistant"]:not([hidden])) .toast {
     --schatten-1: 0 1px 2px rgba(20, 26, 36, 0.06);
     --schatten-2: 0 4px 16px -6px rgba(20, 26, 36, 0.14);
     --schatten-3: 0 16px 40px -14px rgba(20, 26, 36, 0.2);
+    --stark: #141a24;
+    --auf-stark: #ffffff;
+    --stark-marke: var(--brand);
+    --auf-stark-marke: #0b0e14;
   }
 }
 
@@ -1925,10 +1947,15 @@ body.blatt-offen { overflow: hidden; }
  */
 .erfassen-knopf {
   width: 100%; display: flex; align-items: center; gap: var(--s-4);
-  padding: var(--s-4); margin-bottom: var(--s-4);
-  background: var(--erhoben); border: 0;
+  padding: var(--s-5) var(--s-5) var(--s-5) var(--s-4);
+  /* Luft nach oben, nicht nur nach unten. Vorher klebte der Knopf an den
+     Wasserchips darüber, und zwei Bedienelemente ohne Abstand lesen sich als
+     eine Gruppe, obwohl das eine ein Nebenweg und das andere die
+     Haupthandlung der Seite ist. */
+  margin: var(--s-6) 0 var(--s-5);
+  background: var(--stark); border: 0;
   border-radius: var(--r-lg); box-shadow: var(--schatten-2);
-  color: var(--text); text-align: left; cursor: pointer;
+  color: var(--auf-stark); text-align: left; cursor: pointer;
   transition: transform var(--schnell) var(--kurve), box-shadow var(--schnell) var(--kurve);
 }
 /* Beim Drücken sinkt er ein: kleiner und flacher zugleich. Nur kleiner
@@ -1941,7 +1968,8 @@ body.blatt-offen { overflow: hidden; }
    etwas, statt als ginge dort etwas auf. */
 .erfassen-chev {
   margin-left: auto; flex: 0 0 auto;
-  width: 9px; height: 9px; border-top: 2px solid var(--muted); border-right: 2px solid var(--muted);
+  width: 10px; height: 10px; border-top: 2px solid currentColor; border-right: 2px solid currentColor;
+  opacity: 0.45;
   border-radius: 1px; transform: rotate(45deg);
   transition: transform var(--normal) var(--kurve);
 }
@@ -1955,18 +1983,18 @@ body.blatt-offen { overflow: hidden; }
    Zahlen darüber, und die sind der Inhalt der Seite. */
 .erfassen-plus {
   position: relative; flex: 0 0 auto;
-  width: 44px; height: 44px; border-radius: var(--r-pill);
-  background: var(--accent); box-shadow: var(--schatten-1);
+  width: 50px; height: 50px; border-radius: var(--r-pill);
+  background: var(--stark-marke); box-shadow: none;
   transition: transform var(--normal) var(--kurve);
 }
 .erfassen-plus::before,
 .erfassen-plus::after {
   content: ""; position: absolute; left: 50%; top: 50%;
-  background: var(--on-accent); border-radius: var(--r-pill);
+  background: var(--auf-stark-marke); border-radius: var(--r-pill);
   transform: translate(-50%, -50%);
 }
-.erfassen-plus::before { width: 17px; height: 2.5px; }
-.erfassen-plus::after { width: 2.5px; height: 17px; }
+.erfassen-plus::before { width: 19px; height: 2.8px; }
+.erfassen-plus::after { width: 2.8px; height: 19px; }
 
 .erfassen-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 @media (prefers-reduced-motion: reduce) {
