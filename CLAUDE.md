@@ -55,13 +55,14 @@ Nicht mit Zahlen. Der Kreis aus dem Logo ist die Oberfläche, darunter das
 Gespräch, unten die Eingabe.
 
 Der Kreis liegt in `apps/pwa/js/orb.js` und läuft auf Canvas. Er besteht aus
-rund 4100 Partikeln auf 30 Fäden um einen gedachten Schlauch. Die Geometrie
+rund 5400 Partikeln auf 30 Fäden um einen gedachten Schlauch, im Bogen wie im
+Stamm. Die Geometrie
 ist dieselbe wie im Logo. Canvas statt SVG, weil ein paar tausend Punkte pro
 Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
 
-Der Assistent hat achtunddreissig Werkzeuge und verändert die App wirklich. Zahlen
+Der Assistent hat einundvierzig Werkzeuge und verändert die App wirklich. Zahlen
 über den Nutzer kommen immer aus Werkzeugen, nie aus dem Modell. Allgemeines
 Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
@@ -160,7 +161,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 675 Tests
+npm test           # 810 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -958,7 +959,7 @@ Tippfehler darf die Ziele nicht kippen.
 
 ## Der Regelweg ist die kostenlose Stufe
 
-31 der 38 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
+34 der 41 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
 Das ist keine Notlösung für den Ausfall, sondern das Produkt: ein Weg, der
 kein Modell anfragt, kostet nichts je Nutzer und skaliert ohne Rechnung.
 
@@ -1102,6 +1103,440 @@ Reihenfolge nicht offensichtlich ist: der Worker muss stehen, bevor er
 Geheimnisse annimmt. Wer die Geheimnisse zuerst setzt, wird mitten im Ablauf
 gefragt, ob ein Worker angelegt werden soll, und wer dort abbricht, hat
 weder das eine noch das andere.
+
+## Die Trainingslücke
+
+`packages/core/src/trainingsluecke.ts`, `workers/push/src/auftrag.ts`,
+`apps/pwa/js/luecke.js`.
+
+Ab vier Tagen ohne eingetragenes Training fragt daevo, was dazwischen gekommen
+ist. Vier, weil drei Tage Pause bei drei bis vier Einheiten die Woche noch
+normal sind, etwa von Freitag auf Montag. Danach ist es keine Wochenendpause
+mehr.
+
+Gefragt wird nicht, warum jemand nicht trainiert hat. Das ist ein Vorwurf und
+erzeugt eine Rechtfertigung. Gefragt wird nach dem, was dazwischen kam.
+
+Drei Bedingungen, und jede einzelne verhindert die Frage. Ohne Trainingsplan im
+Profil weiss die App nicht, was überhaupt geplant war. Ohne ein einziges
+Training in den letzten 60 Tagen ist es keine Lücke, sondern keine Datenlage,
+und eine Frage nach einer Lücke setzt voraus, dass es vorher keine war. Nach
+einer gestellten Frage bleibt es drei Tage still: bei einer zweiwöchigen Pause
+käme sonst jeden Tag dieselbe Frage, und eine tägliche Frage wird weggewischt,
+mitsamt allen anderen Nachrichten der App.
+
+Der Tag der Frage wird erst gesetzt, wenn der Worker sie angenommen hat. Wer
+ihn vorher setzt, verliert die Frage bei jedem Netzfehler still und fragt drei
+Tage lang nicht mehr.
+
+### Warum der Umweg über den Worker
+
+Alle anderen Impulse hängen an keiner Zahl des Nutzers und laufen deshalb blind
+über den Cron, siehe `tagesimpulse.ts`. Diese hier hängt am Trainingslog, und
+das liegt auf dem Gerät. Der Worker kann sie nicht selbst erkennen.
+
+Also erkennt sie die App und legt einen Auftrag ab, der Cron stellt ihn um
+18:00 zu. Abends, weil "was ist dazwischen gekommen" morgens nicht beantwortbar
+ist: da liegt der Tag noch vor einem.
+
+Der entscheidende Punkt ist, was der Auftrag nicht enthält: keinen Text. Er
+trägt die Art und die Anzahl Tage, sonst nichts. Den Text baut der Worker beim
+Versand selbst, über dieselbe Funktion, die auch die App benutzt. Käme er vom
+Gerät, wäre dieser Weg eine offene Stelle, über die sich beliebiger Text auf
+einen fremden Sperrbildschirm schieben liesse. So ist das Schlimmste, was
+jemand mit einem fremden Endpunkt anrichten kann, eine Trainingsfrage an ein
+Gerät, das ohnehin angemeldet ist.
+
+Deshalb hängt an `/auftrag` auch kein Anmeldewort, anders als am Postfach. Die
+Fassung für Nutzer kennt keines, und ein Weg, den nur der Betreiber benutzen
+kann, wäre für die Nutzer kein Weg.
+
+Je Gerät und Art genau ein Auftrag. Ein zweiter überschreibt den ersten: die
+App legt bei jedem Start einen an, und ohne das stünden nach einer Woche sieben
+Fragen im Speicher. Weiter als zwei Tage voraus wird nichts angenommen, denn
+ein Auftrag ist eine Momentaufnahme des Trainingslogs, und wer morgen
+trainiert, macht den Auftrag von heute falsch.
+
+### Antworten, ohne die App zu öffnen
+
+Die Nachricht trägt drei Knöpfe: keine Zeit, zu platt, krank oder verletzt. Ein
+Tipp darauf legt die Antwort ab, und die App bleibt zu. Genau das war der
+Zweck.
+
+Der Service Worker kommt nicht an den localStorage der App heran. Die Antwort
+geht deshalb in den Cache, und die App holt sie beim nächsten Öffnen ab,
+gelesen und gelöscht in einem Durchgang. Eine Antwort, die liegen bleibt, steht
+sonst zweimal im Gedächtnis. Ist ein Fenster offen, bekommt es die Antwort
+zusätzlich sofort über `postMessage`: sonst sieht der Nutzer seine eigene
+Antwort erst nach einem Neustart.
+
+Gespeichert wird als `muster` mit Wichtigkeit 4, nicht als `fakt`. "Keine Zeit
+gehabt" ist wiederkehrendes Verhalten und keine Tatsache, die gilt. Ein Grund,
+der dreimal auftaucht, ist die eigentliche Information.
+
+Drei Gründe und nicht fünf. Jeder führt zu einer anderen Reaktion: keine Zeit
+heisst Planung, zu platt heisst Regeneration, krank heisst gar nichts machen.
+Ein Knopf "Sonstiges" fehlt bewusst, denn wer etwas anderes sagen will, tippt
+auf die Nachricht und schreibt es. Dieser Weg bleibt immer offen, und er muss
+es: wie viele Knöpfe ein System anzeigt, steht in `Notification.maxActions`,
+überzählige lässt es stillschweigend weg, und Safari auf dem iPhone zeigt
+derzeit gar keine. Deshalb wird im Service Worker gekürzt statt gehofft, und
+deshalb stehen die häufigsten Gründe vorn.
+
+## Der Bericht
+
+`packages/core/src/bericht.ts`, Ansicht unter Coaching.
+
+Die zwei Check-ins fragen ab, wie eine Woche sich angefühlt hat. Was fehlte,
+ist der Blick auf das, was wirklich passiert ist, über mehrere Wochen und auf
+einer Seite.
+
+Zwei Regeln stehen über allem. Genannt wird nur, was gemessen wurde. Und zu
+jeder Zahl gehört, auf wie vielen Tagen sie beruht.
+
+Ein Schnitt aus weniger als einem Drittel der Tage kommt gar nicht vor. Er
+beschreibt dann nicht den Zeitraum, sondern die Auswahl der Tage, an denen
+jemand Lust zum Eintragen hatte, und das sind fast immer die guten. Statt einer
+Zahl steht dann, wie viele Tage fehlen, und dass das keine Kritik ist.
+
+Null Kalorien an einem Tag ohne Eintrag ist keine Angabe, sondern eine Lücke.
+Sie mitzumitteln zieht jeden Schnitt nach unten und macht aus vierzehn guten
+Tagen und vierzehn leeren einen halbierten Schnitt.
+
+Das Gewicht ist kein Schnitt, sondern eine Strecke: der Durchschnitt von 87 und
+85 Kilo sagt über eine Abnahme nichts. Ausgegeben wird der letzte Wert und die
+Differenz zum ersten.
+
+Training und Einheiten werden summiert, alles andere gemittelt. Eine Summe von
+Energiewerten wäre keine Zahl, die etwas bedeutet.
+
+Der Trend vergleicht gegen den gleich langen Zeitraum davor, mit einer Schwelle
+von fünf Prozent. Darunter ist es Rauschen, und ein Pfeil auf Rauschen erzeugt
+Aktionismus. Dieselbe Überlegung wie bei `checkinVergleich`.
+
+Der Trend urteilt nicht. "20 Prozent mehr als davor" steht da, nicht "besser":
+ob mehr Kalorien besser sind, hängt am Ziel, und das weiss diese Funktion
+nicht.
+
+Das Fazit hat höchstens drei Sätze, und jeder hängt an einer Zahl von oben. Ein
+Fazit, das mehr sagt als die Zahlen hergeben, ist der Punkt, an dem ein Bericht
+anfängt zu lügen.
+
+`berichtText` gibt reinen Text ohne Auszeichnung. Der Bericht ist zum
+Weitergeben gebaut, nicht zum Ansehen: einer, den man nur in der App lesen
+kann, wird nicht verschickt. Der Knopf nimmt `navigator.share`, wo es das gibt,
+sonst die Zwischenablage. Ein Abbruch im Teilen Dialog wirft ebenfalls, und das
+ist kein Fehler.
+
+Sieben oder achtundzwanzig Tage, alles andere wird darauf gerundet. Eine freie
+Zahl klänge genauer, als sie ist: ein Bericht über elf Tage vergleicht gegen
+elf Tage davor, und die Grenze liegt dann mitten in einer Woche.
+
+### Eine Karte je Wert
+
+Der Bericht gab sieben Zeilen untereinander aus. Eine Liste wird überflogen,
+und danach ist keine Zahl hängen geblieben. Eine Zahl, die allein auf einer
+Karte steht, wird gelesen.
+
+Jetzt ein Streifen zum seitlichen Wischen, eine Karte je Wert, mit Zeichen,
+Zahl, Einheit, Trend und der Zahl der Tage. Das Wischen macht der Browser
+selbst über `scroll-snap-type: x mandatory`. Eine Bibliothek dafür wäre die
+erste Laufzeitabhängigkeit der App, und das Ergebnis wäre schlechter: ein
+nachgebauter Wisch kennt weder den Schwung des Fingers noch die
+Systemeinstellung für weniger Bewegung.
+
+Dafür liefert `bericht.ts` Zahl, Einheit und Zusatz jetzt getrennt statt als
+eine fertige Zeile. Aus "2800 kcal im Schnitt" liesse sich die Zahl nur mit
+einer Regex zurückholen, und eine Regex auf den eigenen Text ist eine
+Schnittstelle, die niemand gepflegt hat. `wert` bleibt als eine Zeile für den
+Text zum Weitergeben.
+
+Beim Umbau ist genau dieser Fehler einmal passiert, nur andersherum: das Fazit
+las `wert` und gab "Eingetragen sind 6 zusammen Einheiten in 28 Tagen" aus.
+Jetzt liest es `zahl`, und ein Test hält es fest.
+
+Jeder Wert trägt ausserdem eine feste Kennung in ASCII, über die die
+Oberfläche das Zeichen wählt. Über den Namen zu gehen wäre eine Kopplung an
+einen Text, den irgendwann jemand umformuliert, und dann fehlt das Zeichen
+ohne Fehlermeldung.
+
+Die Punkte unter dem Streifen folgen dem Scrollstand und nicht einem Zähler,
+den die App selbst führt. Sonst laufen beide auseinander, sobald jemand mit
+Schwung über zwei Karten wischt. Ohne die Punkte wischt ausserdem niemand
+weiter, weil nichts sagt, dass hinter der ersten Karte noch sechs liegen.
+Pfeiltasten schieben den Streifen um eine Karte: wischen geht nur mit dem
+Finger, und auf dem Rechner wäre der Streifen sonst eine Sackgasse.
+
+Die Zeichen liegen alle auf einem Raster von 24 mit derselben Strichstärke,
+damit sie als eine Familie lesbar sind, und sie tragen die Farben, die es
+schon gibt: Makrofarben für Kalorien, Protein und Energie, Bereichsfarben für
+Training, Schlaf und Gewicht. Eine achte Farbe nur für diese Karten wäre eine
+Farbe ohne Bedeutung. Nur das Zeichen trägt Farbe, die Karte nicht: sieben
+eingefärbte Flächen nebeneinander nehmen der Farbe jede Aussage.
+
+Zwei Zeichen mussten neu gezeichnet werden, weil sie bei 20 Pixeln nicht
+lasen. Die Flamme war ein runder Klumpen mit einem Strich darunter und sah aus
+wie ein Tropfen. Protein war eine Aminosäurekette, inhaltlich richtig und
+optisch ein Gekritzel. Jetzt eine Flamme mit Zunge und ein Knochen. "Liter"
+steht ausgeschrieben: ein kleines l neben einer grossen Zahl ist kaum von
+einem Strich zu unterscheiden.
+
+### Zeiträume und wo der Teilen Knopf hingehört
+
+Woche und vier Wochen sind gleitend, sie enden heute. Ein Monat ist fest: wer
+den September ansieht, meint den Ersten bis den Letzten, und er vergleicht ihn
+mit dem August und nicht mit den 30 Tagen davor. Beides steht in einer Liste,
+weil beides dieselbe Frage beantwortet, nur mit anderem Ausschnitt.
+
+Angeboten werden nur Monate, in denen wirklich etwas steht. Eine Liste mit
+zwölf leeren Monaten sieht nach einer App aus, die seit einem Jahr nicht
+benutzt wurde. Der laufende Monat heisst "September, bisher" und trägt keine
+Jahreszahl: niemand sagt "September 2026", während der September läuft. Sein
+Ende ist heute und nicht der Monatsletzte, denn die Tage danach gibt es noch
+nicht, und sie als leer zu zählen verfälscht jeden Schnitt und jede Abdeckung.
+
+Der Teilen Knopf stand neben der Zeitraumwahl, in derselben Zeile und gleich
+breit. Zwei gleich breite Felder nebeneinander lesen sich als zwei
+Auswahlfelder, und der Knopf beantwortete damit die Frage "welcher Zeitraum"
+mit "Text kopieren". Er steht jetzt am Ende: was den ganzen Bericht betrifft,
+gehört hinter den Bericht und nicht neben den Filter.
+
+Daten werden gesagt, nicht gesetzt. "2026-09-03 bis 2026-09-30" ist eine
+Datenbankzeile. Der Monat steht als Kürzel und nicht als Zahl, weil 3.9. und
+9.3. sich nur in der Reihenfolge unterscheiden und jeder zweite Leser kurz
+stockt. Das Jahr kommt nur mit, wenn ein Zeitraum zwei Jahre berührt.
+
+### Die Linie auf der Karte
+
+Jede Karte trägt den Verlauf ihres Werts über den Zeitraum. Keine Achse, keine
+Zahl: ihre Aufgabe ist die Form, für alles Genaue steht die Zahl darüber.
+
+Lücken unterbrechen die Linie, statt auf null zu fallen. Eine Linie, die an
+jedem Tag ohne Eintrag den Boden berührt, behauptet einen Einbruch, den es
+nicht gab, und das ist genau der Fehler, den diese App nirgends machen darf.
+Deshalb trägt `BerichtWert.verlauf` `null` für einen Tag ohne Angabe und nicht
+eine Null.
+
+Unter drei Werten wird nichts gezeichnet. Zwei Punkte ergeben immer eine
+gerade Linie, und eine gerade Linie sieht nach einer Aussage aus.
+
+Bei einer flachen Reihe hat die Spanne keine Höhe. Ohne den Sonderfall teilte
+die Rechnung durch null und jeder Punkt landete bei NaN.
+
+### Schlaf kommt aus zwei Quellen
+
+Die Dauer braucht eine Uhr und kommt aus dem Apple Health Import. Die Qualität
+braucht nur den Nutzer und kommt aus dem Morgen Check-in. Beides sind
+verschiedene Fragen, deshalb zwei Karten und nicht eine.
+
+Wer keinen Health Import gemacht hat, hatte vorher gar keine Aussage über
+seinen Schlaf im Bericht: die Karte hing allein an der Dauer. Die Demo bekommt
+ausserdem Schlafminuten, sonst zeigt genau die Ansicht, die das Produkt
+ausmacht, an dieser Stelle eine Lücke.
+
+### Number(null) ist 0, dreimal
+
+Derselbe Fehler in drei Modulen innerhalb einer Woche, deshalb steht er hier
+und nicht nur im Code.
+
+`Number(null)` ergibt 0, und `Number.isFinite(0)` ist true. Jede Prüfung der
+Form `Number.isFinite(Number(wert))` hält damit ein fehlendes Feld für eine
+gültige Null.
+
+In `bereitschaft.ts` zählte ein fehlender Wochenbogen als "gar kein Stress" und
+hob die Bereitschaft. In `bericht.ts` und in `berichtTage` zählte jeder Tag
+ohne Wiegung als Wiegung von null Kilo, und im Bericht stand "+83.8 kg seit".
+Zweimal hat es die gerenderte Ansicht gezeigt, einmal ein Test.
+
+Wo ein Feld fehlen darf, wird auf null und undefined geprüft, bevor `Number`
+überhaupt gerufen wird. Wo ein Wert positiv sein muss, steht zusätzlich `> 0`.
+
+## Apple Health, über die Exportdatei
+
+`packages/core/src/health.ts` liest, `apps/pwa/js/zip.js` packt aus,
+`apps/pwa/js/gesundheit.js` schreibt. Oberfläche im Profil.
+
+HealthKit gibt es nur nativ. Eine Web App kommt nicht heran, und daran ändert
+auch kein MCP etwas: MCP verbindet ein Sprachmodell mit Werkzeugen, nicht eine
+Web App mit einem Gerät. Der einzige Weg ohne App Store ist der Export, den die
+Health App selbst anbietet. Heraus kommt ein ZIP mit
+`apple_health_export/export.xml`.
+
+Das ist ein Import und kein Abgleich, genau wie beim Kalender. Was nach dem
+Export im Gerät passiert, kennt die App nicht, und das steht auch in der
+Oberfläche: eine Kopie, die für ein Abo gehalten wird, ist schlimmer als gar
+keine.
+
+### Warum in Stücken
+
+Ein `export.xml` von jemandem, der seit Jahren eine Uhr trägt, hat mehrere
+hundert Megabyte und bis zu einer Million Einträge. Eine Zeichenkette dieser
+Grösse bringt den Browser um, ein XML Baum erst recht. Der Sammler nimmt
+deshalb Stück für Stück entgegen und hält nur die Tageswerte.
+
+Ein Datensatz kann an einer Stückgrenze zerrissen werden. Deshalb bleibt der
+Rest hinter dem letzten vollständigen Tag im Puffer und wird dem nächsten Stück
+vorangestellt. Ohne das fehlt bei jedem Stückwechsel genau ein Eintrag, und bei
+einer Million Einträgen fällt das niemandem auf. Der Test schneidet dieselbe
+Datei an fünf verschiedenen Stellen durch und erwartet jedes Mal dieselbe
+Summe.
+
+### Das ZIP ohne Bibliothek
+
+Eine ZIP Bibliothek wäre die erste Laufzeitabhängigkeit der App, je nach Paket
+20 bis 100 Kilobyte. Gebraucht wird davon genau eines: eine einzelne Datei aus
+dem Archiv holen. Das Format ist seit 1989 unverändert, und das Entpacken
+bringt der Browser selbst mit, `DecompressionStream("deflate-raw")`.
+
+Gelesen wird das zentrale Verzeichnis am Ende der Datei, nicht die Einträge von
+vorn: sonst liest man das ganze Archiv. Die Daten kommen über `Blob.slice` und
+laufen als Strom durch das Entpacken. Nichts davon liegt komplett im Speicher.
+
+Der lokale Kopf wird trotzdem gelesen, obwohl das Verzeichnis dieselben Längen
+trägt. Sie können abweichen, und wer die aus dem Verzeichnis nimmt, liest bei
+manchen Archiven ein paar Byte daneben. Das Entpacken bricht dann mit einer
+Meldung ab, die nichts erklärt.
+
+ZIP64 wird erkannt und abgelehnt, mit dem Hinweis, das Archiv von Hand zu
+entpacken. Eine halbe Unterstützung, die bei grossen Archiven still falsch
+liest, wäre schlechter als eine klare Absage.
+
+### Was übernommen wird
+
+Schritte und aktive Kalorien werden summiert, denn die Uhr schreibt sie in
+vielen kleinen Stücken über den Tag. Ruhepuls und HRV werden gemittelt: die
+Summe von vierzig Pulswerten ist keine Zahl, die etwas bedeutet. Gewicht wird
+zuletzt genommen.
+
+Beim Schlaf zählt nur `Asleep`, nicht `InBed`. Liegezeit als Schlaf zu zählen
+macht aus neun Stunden im Bett neun Stunden Schlaf. Eine Nacht wird dem
+Aufwachtag zugeschlagen und nicht dem Einschlaftag: so fragt auch der Morgen
+Check-in danach.
+
+Höchstens zwei Jahre. Wer die Uhr seit 2015 trägt, hat über dreitausend Tage im
+Export, und die bringen den localStorage an seine Grenze, ohne dass irgendeine
+Auswertung so weit zurückschaut. Die längste ist der Belastungsverlauf mit 28
+Tagen.
+
+Schritte werden überschrieben, ein Gewicht nicht. Die Uhr zählt Schritte
+genauer als jede Schätzung. Beim Gewicht ist es umgekehrt: wer sich selbst
+einträgt und danach eine Waage synchronisiert, hätte sonst zwei Wahrheiten, und
+die des Nutzers verliert.
+
+Erst lesen, dann anzeigen, dann schreiben. Ein Import, der erst schreibt und
+danach berichtet, lässt keine Wahl.
+
+`profile` ist eine Kopie im Modul. Der Import setzt das Profilgewicht über den
+Speicher, und ohne ein Nachladen zeigte das Feld weiter den alten Wert, den der
+nächste Druck auf Speichern wieder zurückgeschrieben hätte. Auch das hat erst
+der Durchlauf im Browser gezeigt.
+
+## Belastung und Bereitschaft
+
+`packages/core/src/belastung.ts` und `packages/core/src/bereitschaft.ts`,
+Ansicht unter Coaching.
+
+Die Trainingslücke beantwortet eine grobe Frage: steht da seit vier Tagen
+nichts. Sie sieht den umgekehrten Fall nicht. Wer jeden Tag trainiert und dabei
+gegen seinen eigenen Schnitt siebzig Prozent drauflegt, bekommt von ihr nie
+etwas zu hören.
+
+Die Belastung rechnet die letzten 7 Tage gegen die letzten 28, beide in Minuten
+und beide auf dieselbe Fensterlänge gebracht. Ohne die Umrechnung vergliche man
+vier Wochen mit einer und bekäme immer einen Wert um 0,25.
+
+Gemessen wird in Minuten, nicht in Punkten. Eine Gewichtung je Trainingsart
+wäre die naheliegende Verbesserung und wäre erfunden: welche Zahl ein
+Volleyballabend gegen eine Krafteinheit trägt, müsste jemand festlegen. Die MET
+Werte aus dem Compendium of Physical Activities wären eine Quelle, aber die
+Zuordnung der vier Arten dieser App auf MET Werte bliebe eine Entscheidung.
+
+Unter vier Einheiten in 28 Tagen kommt keine Zahl. Der Quotient teilt durch den
+Schnitt, und steht im Nenner fast nichts, wird aus einer einzigen Einheit ein
+Ausschlag von mehreren hundert Prozent. Das sieht aus wie eine Aussage, ohne
+eine zu sein.
+
+Zur Quelle gehört eine Warnung, und sie steht auch in der Oberfläche. Die
+Schwellen 0,8 und 1,5 stammen aus Gabbett, British Journal of Sports Medicine
+2016, und genau diese Arbeit ist seit 2020 stark kritisiert worden, unter
+anderem von Impellizzeri und anderen, wegen der Art, wie die Quotienten
+gebildet wurden. Der Quotient beschreibt zuverlässig, wie eine Woche zum
+eigenen Schnitt steht. Dass ein hoher Wert zu Verletzungen führt, ist
+umstritten, und die App behauptet es nicht.
+
+### Die Bereitschaft misst nichts
+
+Oura und Whoop rechnen so etwas aus Herzfrequenzvariabilität, Temperatur und
+Schlafphasen. daevo hat keinen Sensor. Eine Zahl, die so aussieht wie deren
+Zahl, wäre geraten, und geratene Zahlen sind in dieser App der eine Fehler, der
+nicht passieren darf.
+
+Diese Zahl fasst deshalb zusammen, was der Nutzer selbst angegeben hat, plus
+den einen Wert, den die App wirklich rechnen kann: seine Trainingslast gegen
+seinen eigenen Schnitt. Jeder Teil nennt seine Quelle, und der Text sagt in
+jeder Ausgabe, dass es keine Messung ist. Nicht nur beim ersten Mal: wer die
+Zahl vier Wochen lang sieht, hält sie sonst irgendwann für eine Messung, und
+dann glaubt er ihr mehr als sich selbst.
+
+Gewichtung: Schlaf 35, Energie 30, Belastung 20, Ruhe 15. Schlaf und Energie
+wiegen zusammen fast zwei Drittel, weil das die beiden Angaben sind, die heute
+Morgen wirklich gemacht wurden. Die Belastung ist Kontext und keine Aussage
+über diesen Morgen. Die Ruhe wiegt am wenigsten, weil ihr Wert aus dem
+Wochenbogen kommt und bis zu sieben Tage alt sein darf. Ein Teil ohne Datenlage
+fällt raus und die übrigen Gewichte werden hochgerechnet, dieselbe Regel wie
+bei `tagesnutzung`.
+
+Ein Rückgang der Belastung senkt die Bereitschaft nicht, er hebt sie: wer eine
+ruhige Woche hatte, ist ausgeruhter. Das ist eine Überlegung und keine Messung,
+und deshalb steht sie in `bereitschaft.ts` und nicht in `belastung.ts`.
+
+Der Teil heisst Ruhe und nicht Stress, weil sein Wert der umgekehrte ist.
+"Stress 100 von 100" neben lauter Werten, bei denen hoch gut ist, liest sich als
+maximaler Stress und bedeutet das Gegenteil. Der gemeldete Wert steht in der
+Quelle, damit nichts verlorengeht.
+
+`Number(null)` ist 0, und 0 ist ein gültiger Stresswert. Ohne eine eigene
+Prüfung auf null zählte ein fehlender Wochenbogen als "gar kein Stress" und hob
+die Bereitschaft. Gefunden hat das die Ansicht und kein Test: in der Demo stand
+"Stress 0 von 100", obwohl es dort keinen Bogen gibt. Das ist inzwischen der
+dritte Fehler dieser Art, den erst der Durchlauf im Browser gezeigt hat.
+
+## Das Foto, bevor es rausgeht
+
+`fotoBlatt` in `apps/pwa`. Vorher ging das Bild sofort weg: Datei gewählt, zehn
+Sekunden nichts, dann ein Ergebnis. Zwei Dinge fehlten dabei. Der Nutzer sah
+nicht, ob das Bild etwas taugt, und er konnte nichts dazu sagen.
+
+Gerade das Dazusagen ist bei einem Teller die halbe Genauigkeit. Was unter der
+Sauce liegt, sieht kein Modell, und vier Stangen Spargel neben dem Fleisch sind
+im Bild eine Schätzung und im Text eine Zahl. Das Feld heisst deshalb Details
+und ist optional: wer nichts zu ergänzen hat, drückt weiter.
+
+Der Knopf zählt drei Schritte statt zu warten. Sie sind echt und nicht
+erfunden: Bild vorbereiten, Mengen schätzen, Nährwerte prüfen. Wie lange jeder
+dauert, weiss die Anzeige nicht, deshalb steht keine Zeit daneben.
+
+Die Zeile, die über das Bild läuft, ist keine Dekoration. Eine Bildauswertung
+dauert je nach Netz fünf bis fünfzehn Sekunden, und ein Standbild ohne jede
+Bewegung sieht nach der Hälfte davon aus wie eine hängende App. Sie läuft nur,
+solange wirklich gerechnet wird, gesteuert über `.laeuft` an der Bühne: eine
+Animation, die immer läuft, sagt nichts mehr. Bewegt wird dabei `top` und nicht
+`transform`, denn die Zeile ist zwei Pixel hoch, und `translateY(100%)` sind
+damit zwei Pixel statt der ganzen Bühne.
+
+Das Bild steht im Verhältnis 4 zu 3 mit `object-fit: cover`. Ein Foto vom Handy
+kommt hoch oder quer, und ohne feste Höhe springt der Knopf darunter beim Laden
+an eine andere Stelle. Abgeschnitten ist besser als verzerrt: ein verzerrter
+Teller sieht aus wie ein Fehler der App.
+
+Der laufende Knopf bleibt gesperrt, aber nicht blass. Die allgemeine Regel
+setzt gesperrte Knöpfe auf 0.45, und das ist für einen Knopf gedacht, den man
+gerade nicht benutzen darf. Hier steht der Fortschritt drin, und ein
+Fortschritt, den man kaum lesen kann, ist keiner.
+
+Beim Schliessen wird die Adresse des Bildes freigegeben. Ohne das hält der
+Browser jedes Foto der Sitzung im Speicher, und bei zehn Tellern am Tag
+summiert sich das auf einem Handy.
 
 ## Denkblöcke im Verlauf
 
@@ -1277,6 +1712,14 @@ koste mehr. Wer die App geladen hat, zahlt nichts je Nachricht. Gefunden hat
 das kein Lesen, sondern ein Skript, das jede Ansicht der gebauten Fassung
 öffnet und den sichtbaren Text nach Betreiberwörtern absucht.
 
+Die Fassung für Nutzer liegt nicht als Unterordner der Entwicklerfassung auf
+GitHub Pages, sondern auf Cloudflare Pages, `npm run deploy:demo`. Der
+localStorage hängt an der Adresse und nicht am Pfad: zwei Fassungen unter
+derselben Adresse teilen ihre Daten, und die Demo würde die echten Notizen
+über Therapie und Familie anzeigen. Auf GitHub Pages ist das nicht lösbar,
+denn alle Repositories eines Kontos liegen unter derselben Adresse. Die neue
+Adresse gehört in `HERKUNFT` im Worker, sonst weist er die Demo ab.
+
 Vollständig in `docs/DEMO.md`.
 
 ## Das Coaching Angebot
@@ -1379,6 +1822,338 @@ spüren. Lineare Übergänge wirken maschinell.
 Scratchpad öffnet jede Ansicht in beiden Farbmodi und meldet zwei Dinge:
 überlappende Textelemente und seitliches Scrollen. Genau diese Fehler sieht kein
 Test, der Werte prüft, und genau die fallen dem Nutzer als Erstes auf.
+
+## Das Netz aus Soll und Ist
+
+`netzDiagramm` in `apps/pwa/js/rings.js`, Schieflage in
+`packages/core/src/schieflage.ts`.
+
+Das Board zeigte, wo die Zeit hingeht. Was fehlte: der Stand gegen das, was
+sich der Nutzer vorgenommen hatte. Das Ziel stand schon da, als Wochenziele in
+Stunden je Bereich, es wurde nur nirgends dagegengehalten.
+
+Jetzt ein Netz mit fünf Achsen, eine je Bereich. Die gestrichelte Fläche ist
+das Ziel und damit immer ein regelmässiges Fünfeck, die gefüllte der gemessene
+Stand. Darunter die Balken mit den Stunden. Zusammenfassung vor Detail: die
+Schieflage sieht man in einer Sekunde an der Form, die genaue Zahl liest man
+eine Zeile tiefer.
+
+Beides und nicht eines. Ein Netz kann genau eine Sache besser als alles
+andere, nämlich zwei Formen auf denselben Achsen vergleichen, und genau das
+ist hier die Frage. Seine Schwächen sind, dass man Zahlen nicht ablesen kann
+und dass die Fläche im Quadrat wächst, eine Abweichung also dramatischer
+aussieht als sie ist. Beides erledigen die Balken darunter.
+
+Gerechnet wird in Prozent des Ziels und nicht in Stunden. Vierzig Stunden
+Arbeit gegen sieben Stunden Me Time auf derselben Achse drücken alles ausser
+Karriere an den Mittelpunkt.
+
+Die Reihenfolge der Achsen ist fest und darf sich nie ändern. Ein Netz ist nur
+mit sich selbst vergleichbar, und wenn Me Time eines Tages an einer anderen
+Ecke sitzt, passt kein Bild von heute mehr dazu.
+
+Der Rand für die Beschriftung ist 66 Pixel. Der erste Entwurf nahm 40, und
+"Wellbeing" und "Familie" liefen an den Seiten aus der viewBox: im Betrieb
+stand dort "Fitne" und "milie". Der Rand muss das längste Wort tragen, nicht
+das durchschnittliche. Die Beschriftung sitzt ausserdem in festen Pixeln
+ausserhalb des Netzes und nicht auf einem Anteil oberhalb des Maximums: ein
+Bereich über 160 Prozent wird auf den Rand gedeckelt, und ein Etikett auf
+einem Anteil landete dann genau auf seinem eigenen Punkt.
+
+### Wann daevo sich meldet
+
+`schieflageFinden` entscheidet das, und fast jede Zeile darin ist eine
+Bedingung, die eine Meldung verhindert. Eine Erinnerung, die jede Woche kommt,
+wird nach drei Wochen weggewischt, und mit ihr alle anderen Nachrichten der
+App.
+
+Ein Bereich unter 40 Prozent seines Ziels. Darunter ist es kein schwacher
+Zeitraum mehr, sondern ein Muster: wer sich fünf Stunden vornimmt und zwei
+schafft, hatte eine volle Woche, wer eineinhalb schafft, hat es nicht vor.
+
+Gerechnet über vier Wochen, nicht über eine. Eine Woche ist eine
+Momentaufnahme. Der Zeitraum steht in jedem Satz, sonst liest man die Zahl als
+die von heute, besonders wenn darüber die Ansicht für heute steht.
+
+Mindestens zehn Tage mit gemessener Zeit. Darunter meldet die App eine
+Schieflage, die nur eine Lücke im Eintragen ist, und das ist der sicherste Weg,
+jemandem das Board abzugewöhnen. Gezählt wird aus denselben drei Quellen, aus
+denen das Board seine Minuten nimmt: Kalendertermine, eingetragene Trainings
+und Zeit, die der Coach gebucht hat. Nur die eigenen Einträge zu zählen würde
+jeden übergehen, dessen Zeit vollständig im Kalender steht.
+
+Höchstens alle drei Tage, also zweimal die Woche als Obergrenze und nicht als
+Ziel.
+
+Ein Bereich über seinem Ziel allein ist keine Meldung wert. Wer viel trainiert
+und sonst alles schafft, hat kein Problem, sondern eine gute Woche. Erst die
+Kombination aus einem Bereich, der leer bleibt, und einem, der überzieht, ist
+die Aussage, um die es geht.
+
+Der Text sagt nicht, was der Nutzer falsch macht. Er sagt, was sich der Nutzer
+vorgenommen hatte und wo er steht. Den Unterschied zieht er selbst, und genau
+das ist der Punkt: die Zahl kommt von ihm, nicht von der App. Ein Test hält
+fest, dass die Wörter "zu wenig", "schlecht", "versagt" und "solltest" nicht
+darin vorkommen.
+
+Verschickt wird über denselben Weg wie die Trainingslücke, `/auftrag` auf dem
+Worker. Der Auftrag trägt die Kennung des Bereichs und Zahlen, nie einen
+Namen: ein Name wäre freier Text vom Gerät, und genau den nimmt dieser Weg
+nicht an. Den Namen schlägt der Worker in der festen Tabelle nach. Je Art ein
+eigener Eintrag im Speicher, damit sich Trainingslücke und Schieflage nicht
+gegenseitig überschreiben.
+
+Diese Mitteilung trägt keine Knöpfe. Hier gibt es nichts mit drei Antworten zu
+beantworten, sondern etwas anzusehen, und sie führt direkt auf die Balance
+Seite. Ein Knopf ohne Wirkung ist schlimmer als keiner.
+
+Dieselbe Aussage steht auch in der Ansicht und nicht nur in der Mitteilung.
+Wer sie weggewischt hat und später selbst nachsieht, soll dasselbe lesen.
+
+## Eine Schrift, die im Projekt liegt
+
+Poppins in zwei Schnitten, 500 und 600, als Datei unter `apps/pwa/schrift`.
+Zusammen 16 Kilobyte, nur die lateinische Teilmenge. Der Bereich U+0000 bis
+U+00FF deckt ä, ö, ü und ß ab.
+
+Nicht von Google geladen, und dafür gibt es zwei Gründe. Die App muss ohne
+Netz starten, das ist der halbe Sinn einer installierten Web App, und eine
+Schrift von einem fremden Server bricht dort weg. Ausserdem verrät jeder Abruf
+an fonts.gstatic.com, wann jemand die App aufmacht, und bei einer App, in der
+Notizen über Therapie und Familie liegen, liefert man so etwas nicht nebenbei
+mit. Der Service Worker legt beide Dateien in den Cache.
+
+300 fehlt bewusst. Das Light gibt es nur in der Wortmarke, und die liegt als
+Pfad vor. Eine dritte Datei für zwei Buchstaben wäre Ladezeit ohne Gegenwert.
+
+Zwei Rollen, nicht eine. Poppins trägt Überschriften und die Zahlen, die
+Systemschrift den Fliesstext. Eine geometrische Schrift ist auf 13 Pixeln
+Lauftext schlechter lesbar, weil ihre runden Formen eng laufen und die
+Unterschiede zwischen a, o und e kleiner werden. In einer Zahl von 48 Pixeln
+ist genau diese Geometrie der Grund, sie zu nehmen: die Null ist ein Kreis,
+wie der Ring, in dem sie steht. Eine Schrift überall einzusetzen macht sie
+ausserdem unsichtbar, sie fällt nur auf, wo daneben etwas anderes steht.
+
+Der Rückfall ist nicht beliebig: fehlt Poppins, kommt etwas Geometrisches und
+keine Voreinstellung mit Serifen. `font-display: swap`, damit ein fehlender
+Download keine leere Seite ergibt.
+
+Die Zahl im Wertungsring wird als SVG Text gesetzt und erbt die Schrift nicht
+über die üblichen Regeln, dafür steht eine eigene Zeile im Stylesheet.
+
+SIL Open Font License 1.1, der Text liegt neben den Dateien.
+
+## Der Wechsel zwischen Ansichten
+
+Vorher schnitt die App hart um. Ein Schnitt ohne Übergang nimmt dem Nutzer die
+Auskunft, ob er tiefer hinein oder wieder heraus gegangen ist.
+
+`ANSICHT_TIEFE` legt die Reihenfolge fest, und daraus kommt die Richtung: nach
+vorn schiebt sich die neue Ansicht von rechts herein, zurück von links. Was
+nicht in der Liste steht, gilt als weiter hinten, damit eine später
+hinzugefügte Ansicht ohne Zutun einen vernünftigen Übergang bekommt.
+
+Nur die neue Ansicht wird bewegt, die alte nicht. Zwei Ebenen gleichzeitig
+bräuchten beide gleichzeitig im Baum, also ein Umbauen von `hidden` auf
+Überlagerung, und das kostet an jeder Stelle, an der eine Ansicht ihre Höhe
+misst. Der Gewinn wäre eine Nuance.
+
+Der Assistent wird nur aufgeblendet und nicht geschoben. Dort läuft der Kreis
+auf einem Canvas, und eine Transformation auf dem Vorfahren zwingt den Browser,
+das Canvas in eine eigene Ebene zu legen und pro Bild neu zusammenzusetzen.
+
+190 Millisekunden. Darunter sieht man nur ein Zucken, darüber wartet man. Die
+Klasse wird vor dem Setzen entfernt und ein Bild später neu gesetzt, sonst
+startet die Animation beim zweiten Mal auf dieselbe Ansicht nicht. Eine neue
+Ansicht fängt oben an, sonst steht man auf einer frischen Seite mitten im Text.
+
+## Der Erfassen Knopf war ein Chip
+
+Er sah aus wie die Wasserchips darüber: gerahmtes Rechteck mit runden Ecken.
+Zwei Dinge mit demselben Aussehen und sehr verschiedenem Gewicht, und der
+wichtigere verliert, weil er weiter unten steht.
+
+Der erste Versuch war eine erhobene Fläche im Panelton: ein Chip ist umrandet
+und flach, dieser Knopf gefüllt und erhoben. Die Begründung dafür war, dass
+eine Füllung in der Markenfarbe mehr Aufmerksamkeit zieht als die Zahlen
+darüber, und die sind der Inhalt der Seite.
+
+Im Betrieb war das zu wenig. Der Knopf hob sich vom Grund ab, aber nicht von
+den Wasserchips, und die Haupthandlung der Seite sah aus wie ein Nebenweg.
+
+Der zweite Versuch war Weiss im dunklen Modus und der Grundton im hellen. Das
+war die Überkorrektur: der härteste Kontrast der Palette für einen Knopf, der
+sich nur abheben soll. Weiss auf Schwarz nimmt der grossen Zahl darüber die
+Aufmerksamkeit, und zwei Flächen mit maximalem Kontrast auf einer Seite lesen
+sich als zwei Hauptsachen.
+
+Jetzt trägt er Markenblau in beiden Modi, nur in zwei Stufen. Dunkel das
+Logoblau `#96d8f0`, hell ein abgedunkeltes `#186688`. Die Farbe ist dieselbe,
+die Helligkeit dreht sich, und der Knopf bleibt Teil der Palette statt
+ausserhalb zu stehen.
+
+Die Werte sind gerechnet, nicht geschätzt. Dunkel liegt der Titel bei 12.31 zu
+1, hell bei 6.37. Das dokumentierte `#1e7fa8` reicht auf hellem Grund nicht:
+die Unterzeile käme dort auf 3.58 und läge unter 4.5. Deshalb der dunklere Ton
+und Deckkraft 0.82 statt 0.62, damit die Unterzeile bei 4.86 landet.
+
+Der Kreis auf dem Knopf trägt die jeweils andere Stufe derselben Farbe: auf
+dem hellen Blau das dunkle, auf dem dunklen Blau das Logoblau. Logoblau auf
+Logoblau wäre kein Kreis mehr.
+
+Die Untertitelzeile nimmt nicht `--muted`. Der Ton ist für Text auf dem
+Grundton gerechnet und liegt auf der starken Fläche daneben. Die eigene Farbe
+mit Deckkraft bleibt in beiden Modi im Verhältnis.
+
+Darüber 24 Pixel Luft statt keiner. Vorher klebte der Knopf an den
+Wasserchips, und zwei Bedienelemente ohne Abstand lesen sich als eine Gruppe,
+obwohl das eine ein Nebenweg ist und das andere die Haupthandlung.
+
+Beim Drücken sinkt er ein, kleiner und flacher zugleich. Nur kleiner werden
+liest sich als Wackeln, erst der wegfallende Schatten macht daraus eine
+Bewegung nach unten. Am rechten Rand ein Winkel, sonst sieht die Kachel aus,
+als stünde dort etwas, statt als ginge dort etwas auf. Solange das Blatt offen
+ist, zeigt der Winkel nach unten und das Plus steht auf der Diagonale, beides
+über `aria-expanded` und damit aus demselben Zustand, den auch die
+Hilfstechnik liest.
+
+## Der Stamm des d ist jetzt derselbe Schlauch wie der Bogen
+
+Zwei Fehler nacheinander, und der zweite fiel erst auf, als der erste weg war.
+
+Der erste war die Dichte. Der Ring trägt 3240 Punkte auf rund 157500
+Quadrateinheiten, also 0,0206 je Einheit. Der Stamm misst 140 mal 740 und
+hatte 1500 Punkte, also zwei Drittel davon. Der Buchstabe las sich als
+zerrissen. Jetzt 2130, gerechnet und nicht geschätzt.
+
+Der zweite war die Textur. Der Ring läuft auf 30 Fäden um einen gedachten
+Schlauch, der Stamm wurde im umschliessenden Rechteck gewürfelt und ausserhalb
+der Kapsel verworfen. Das ergab eine gleichmässig gefüllte Fläche neben einem
+Bündel aus Fäden: zwei Texturen in einem Buchstaben, und der Stamm wirkte wie
+ein aufgeklebter Balken.
+
+Der Stamm ist dieselbe Form wie der Bogen, nur gerade, also bekommt er
+dieselbe Struktur. Statt zu verwerfen wird gerechnet: zu jeder Höhe steht
+fest, wie weit der Schlauch dort reicht, in der Mitte der volle Radius, an den
+Enden die halbe Sehne des Kreises. Der Punkt sitzt auf seinem Faden bei cos(b)
+mal dieser Weite und liegt damit immer drin. Die runden Enden entstehen dabei
+von selbst, weil die Fäden dort zusammenlaufen, und die Wurzel fällt einmal
+beim Bauen an statt in jedem Bild.
+
+Beide Teile drehen mit derselben Geschwindigkeit und benutzen dieselbe
+Tiefenformel. Liefen sie verschieden, zerfiele der Buchstabe beim Zusehen in
+zwei.
+
+Der Puffer für die Bildpunkte wird jetzt aus `stemCount` dimensioniert und
+nicht aus der Konstante. Die Zahl der Fäden rundet, und bei einem Wert, der
+nicht durch 30 teilbar ist, entstünden mehr Punkte als die Konstante sagt.
+`Float32Array` schreibt dann still nicht weiter, und dem Stamm fehlte ein
+Stück ohne Fehlermeldung.
+
+Gemessen nach beiden Änderungen: 61 Bilder je Sekunde bei dreifacher
+Pixeldichte, mit rund 5400 Punkten.
+
+## Eine Seite hat einen Helden oder keinen
+
+Heute öffnete mit einer abgeleiteten Punktzahl über die halbe Bildschirmhöhe.
+Die Kalorien, wegen derer jemand die Seite aufmacht, lagen klein darunter in
+einer Kachel.
+
+Eine grosse Zahl ist ein Versprechen. Sie sagt: das hier ist das Wichtigste.
+Stimmt das nicht, glaubt der Nutzer der Seite beim nächsten Mal weniger, und
+zwar auch dort, wo sie recht hat.
+
+Jetzt trägt der Kalorienring die Seite, 196 Pixel, ohne Kasten. Ein Rahmen um
+das Wichtigste macht es zu einem Objekt neben anderen Objekten. Was ihn
+zusammenhält, ist der Abstand zu seinen Nachbarn. Direkt darunter die Makros,
+weil sie zur selben Frage gehören. Die Tagesnutzung steht hinter dem, woraus
+sie abgeleitet ist, als Leiste und nicht als Ring.
+
+Der Ring des Helden ist dünner als der kleine. Eine Spur, die mitwächst, wird
+zum Reifen: dieselbe Stärke von fünf trägt auf 196 Pixeln optisch doppelt so
+viel wie auf 132 und nimmt der Zahl in der Mitte das Gewicht.
+
+Die Urteilswörter hiessen "Dünn" und "Schwach". Beide beschreiben den Nutzer
+und nicht den Tag, und in einer App, die auch Körpergewicht führt, liest sich
+"dünn" doppelt falsch. Jetzt "Mager" und "Leer".
+
+## Ein Ring ist die falsche Form für einen kleinen Anteil
+
+Die fünf Lebensbereiche standen als fünf Ringe, drei in einer Reihe und zwei
+darunter. Drei Prozent auf einem Ring sind ein Stummel von zehn Grad, daneben
+steht eine Zahl, die dasselbe noch einmal sagt, und fünf Kacheln in einem
+Dreierraster ergeben eine Waise.
+
+Jetzt Balken, dieselbe Form wie bei den Makros. Ein Balken trägt jeden Anteil
+von null bis über hundert, liest sich in einer Spalte untereinander und lässt
+Name, Wert und Ziel auf einer Zeile stehen. Eine App, ein System.
+
+`messwert()` baut jede dieser Zeilen: Tagesnutzung, ihre vier Teile und die
+fünf Bereiche. Drei Bauarten für dieselbe Form wären drei Stellen, an denen
+sie später auseinanderlaufen. Die Farbe kommt je Zeile über `--ton`, nicht
+über eine Klasse je Bereich: fünf Klassen für fünf Farben wären fünf Stellen,
+an denen eine Farbe nicht mitgezogen wird.
+
+Der Balken misst gegen das Ziel. Vorher füllte ihn der Anteil am Tag, während
+die Zahl daneben das Ziel nannte: "8 h 12 von 5 h 43" über einem Balken bei
+fünfzig Prozent. Zwei Fragen in einer Zeile, und keine davon war ablesbar. Den
+Anteil am Tag beantwortet der Ring auf der Balance Seite, und damit hat jede
+Form genau eine Aufgabe.
+
+Über dem Ziel bekommt der Balken eine Schraffur statt einer Warnfarbe. Über
+einem Fitnessziel zu liegen ist kein Fehler, und eine volle Spur allein sähe
+aus wie genau erreicht.
+
+`kurzDauer` gab "8:12 h" neben "43 min" in derselben Spalte aus. Zwei
+Schreibweisen für dieselbe Grösse zwingen dazu, jede Zeile einzeln zu deuten,
+und 8:12 sieht ausserdem aus wie zwölf nach acht. Jetzt "8 h 12".
+
+## Zwei Handlungen, ein Bild
+
+In der Kopfzeile des Assistenten waren das Menü und die Gespräche dasselbe
+Symbol: drei gleich lange Striche. Zwei verschiedene Handlungen mit demselben
+Bild nimmt niemand als zwei wahr. Der Nutzer drückt eines von beiden und lernt
+nichts dazu. Die Gespräche tragen jetzt eine Liste mit Punkten davor.
+
+Die Sprachausgabe war ein leerer Kreis, im Aus-Zustand mit gestricheltem Rand.
+Ein Kreis ist kein Lautsprecher, und gestrichelt gegen durchgezogen ist als
+einziger Unterschied zwischen an und aus zu leise. Jetzt ein Pfad mit Korpus
+und Trichter, dazu eine Welle, die im Aus-Zustand zum Kreuz wird.
+
+Als SVG und nicht aus Rahmen zusammengesetzt. Ein Trichter aus `border-left`
+mit durchsichtigem Rand oben und unten ergibt ein Dreieck, das je nach
+Zeilenhöhe zwei Pixel neben dem Korpus sitzt, und eine Welle als halber
+Kreisrand wurde im Betrieb zur einzelnen Klammer. Für eine Form mit Schrägen
+ist ein Pfad das richtige Mittel, nicht ein Kasten mit Rändern.
+
+## Sechs Bedienelemente gehen nicht in eine Zeile
+
+In der Eingabepille standen Mikrofon, Büroklammer, "Kopf", "Hey", das Textfeld
+und Senden. Auf 390 Pixeln blieb vom Platzhalter "Schreib oder spr" übrig, und
+ein abgeschnittener Platzhalter sieht aus wie ein Fehler, nicht wie Platzmangel.
+
+Kopf leeren und das Weckwort sind Betriebsarten und keine Eingabehilfen. Sie
+stehen jetzt beschriftet über der Pille, mit einem Punkt, der den Zustand
+trägt. An heisst Farbe, voller Punkt und ein Schimmer darum: drei Signale,
+weil ein offenes Mikrofon Akku zieht und niemand es übersehen darf.
+
+## Der Stamm des d hatte zu wenig Punkte
+
+Der Kreis auf dem Assistenten las sich als zerrissener Buchstabe. Der Grund
+war Dichte, nicht Geometrie.
+
+Der Ring trägt 3240 Punkte auf einem Band von rund 157500 Quadrateinheiten,
+also 0,0206 je Einheit. Der Stamm misst 140 mal 740, also 103600 Einheiten,
+und hatte 1500 Punkte, also zwei Drittel der Dichte. Der Ring wirkte dicht,
+der Stamm ausgefranst, und beide zusammen wie zwei Teile, die nicht
+zusammengehören. Jetzt 2130, gerechnet und nicht geschätzt.
+
+Gemessen danach: 61 Bilder je Sekunde bei dreifacher Pixeldichte. Die Zusage
+aus dem Abschnitt über den Kreis gilt weiter.
+
+Offen bleibt der Unterschied in der Textur: der Ring liegt auf 30 Fäden und
+zeigt Streifen, der Stamm ist zufällig gefüllt und wirkt massiv. Die Streifen
+sind Absicht, die volle Fläche nicht.
 
 ## Die Makrobalken
 

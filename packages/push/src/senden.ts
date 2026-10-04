@@ -13,6 +13,15 @@ export interface PushInhalt {
   ziel?: string;
   /** Beliebige Zusatzdaten für den Service Worker. */
   daten?: Record<string, unknown>;
+  /**
+   * Knöpfe in der Benachrichtigung.
+   *
+   * Damit lässt sich antworten, ohne die App zu öffnen. Nicht jedes System
+   * zeigt sie an, und wie viele es zeigt, sagt `Notification.maxActions`.
+   * Überzählige werden stillschweigend weggelassen, deshalb stehen die
+   * wichtigsten vorn.
+   */
+  aktionen?: Array<{ action: string; title: string }>;
 }
 
 export interface Versandergebnis {

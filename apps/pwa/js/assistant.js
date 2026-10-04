@@ -65,6 +65,12 @@ import {
   targetCorrection,
   waterTargetMl,
   weightTrend,
+  belastung,
+  belastungText,
+  bereitschaft,
+  bereitschaftText,
+  bericht,
+  berichtText,
 } from "@daevo/core";
 import { brain } from "./brain.js";
 import { KONFIG } from "./konfig.js";
@@ -353,6 +359,130 @@ const TYP_LABEL = { strength: "Kraft", team_sport: "Mannschaftssport", cardio: "
  * Verglichen wird auf ganze Wörter ab drei Zeichen. Ein kürzeres Wort trifft
  * zufällig: "Ei" steckt in "Eiweiss", "Reis" und "Eintrag".
  */
+/**
+ * Baut die Tage für den Bericht.
+ *
+ * Die Zahlen kommen aus `dayNumbers`, also aus demselben Weg wie die
+ * Tagesansicht. Eine zweite Rechnung wäre eine zweite Stelle, an der eine
+ * Kalorie anders herauskommt als in der App daneben.
+ */
+export function berichtTage(von, bis) {
+  const tage = [];
+  for (let t = Date.parse(`${von}T00:00:00Z`); t <= Date.parse(`${bis}T00:00:00Z`); t += 86400000) {
+    const tag = new Date(t).toISOString().slice(0, 10);
+    const daten = store.getDay(tag);
+    const { totals } = dayNumbers(tag);
+    const trainings = Array.isArray(daten.trainings) ? daten.trainings : [];
+    const checkin = (daten.checkins || []).find((c) => Number.isFinite(Number(c?.energy)));
+    const morgen = (daten.checkins || []).filter((c) => c?.kind === "morning").pop();
+    tage.push({
+      tag,
+      kcal: totals.kcal,
+      proteinG: totals.proteinG,
+      wasserMl: totals.waterMl,
+      // `Number(null)` ist 0 und damit endlich. `getDay` liefert `weightKg: null`
+      // für jeden Tag ohne Wiegung, und ohne diese Prüfung wird daraus eine
+      // Wiegung von null Kilo. Im Bericht stand dann "+83.8 kg seit".
+      gewichtKg: daten.weightKg === null || daten.weightKg === undefined ? null : Number(daten.weightKg),
+      trainingMinuten: trainings.reduce((s, e) => s + (Number(e?.minutes) || 0), 0),
+      trainingEinheiten: trainings.length,
+      energie: checkin ? Number(checkin.energy) : null,
+      schlafMinuten: Number.isFinite(Number(daten.gesundheit?.schlafMinuten))
+        ? Number(daten.gesundheit.schlafMinuten)
+        : null,
+      // Die Qualität kommt aus dem Morgen Check-in und braucht keine Uhr.
+      schlafQualitaet: morgen && Number.isFinite(Number(morgen.sleepQuality))
+        ? Number(morgen.sleepQuality)
+        : null,
+    });
+  }
+  return tage;
+}
+
+/**
+ * Die wählbaren Zeiträume.
+ *
+ * Woche und vier Wochen sind gleitend, sie enden heute. Ein Monat ist fest:
+ * "September" heisst vom Ersten bis zum Letzten, und genau so vergleicht ihn
+ * auch jeder mit dem August. Beides zusammen in einer Liste, weil beides
+ * dieselbe Frage beantwortet, nur mit anderem Ausschnitt.
+ *
+ * Angeboten werden nur Monate, in denen wirklich etwas steht. Eine Liste mit
+ * zwölf leeren Monaten sieht nach einer App aus, die seit einem Jahr nicht
+ * benutzt wurde.
+ */
+export function berichtZeitraeume(heute = todayIso()) {
+  const monate = new Set();
+  for (const tag of store.allDays()) {
+    if (tag <= heute) monate.add(tag.slice(0, 7));
+  }
+  const NAMEN = ["Januar", "Februar", "März", "April", "Mai", "Juni",
+    "Juli", "August", "September", "Oktober", "November", "Dezember"];
+
+  return [
+    { wert: "7", name: "Letzte Woche" },
+    { wert: "28", name: "Letzte vier Wochen" },
+    ...[...monate].sort().reverse().map((m) => {
+      const [jahr, monat] = m.split("-");
+      // Der laufende Monat heisst so und trägt keine Jahreszahl: niemand
+      // sagt "September 2026", wenn September gerade läuft.
+      const laufend = m === heute.slice(0, 7);
+      return { wert: m, name: laufend ? `${NAMEN[Number(monat) - 1]}, bisher` : `${NAMEN[Number(monat) - 1]} ${jahr}` };
+    }),
+  ];
+}
+
+/**
+ * Ein Bericht über einen der Zeiträume.
+ *
+ * `wahl` ist "7", "28" oder ein Monat als JJJJ-MM. Verglichen wird immer mit
+ * dem gleich langen Zeitraum davor, bei einem Monat also mit dem Vormonat und
+ * nicht mit den 30 Tagen davor: wer den September ansieht, vergleicht ihn mit
+ * dem August.
+ */
+export function berichtFuer(wahl = "28", heute = todayIso()) {
+  const iso = (ms) => new Date(ms).toISOString().slice(0, 10);
+  let von;
+  let bis;
+  let vorherVon;
+  let vorherBis;
+
+  if (/^\d{4}-\d{2}$/.test(String(wahl))) {
+    const [jahr, monat] = String(wahl).split("-").map(Number);
+    von = `${wahl}-01`;
+    // Tag 0 des Folgemonats ist der letzte des gesuchten. Ein laufender Monat
+    // endet heute: die Tage danach gibt es noch nicht, und sie als leer zu
+    // zählen würde jeden Schnitt und jede Abdeckung verfälschen.
+    const letzter = new Date(Date.UTC(jahr, monat, 0)).toISOString().slice(0, 10);
+    bis = letzter > heute ? heute : letzter;
+    vorherVon = new Date(Date.UTC(jahr, monat - 2, 1)).toISOString().slice(0, 10);
+    vorherBis = new Date(Date.UTC(jahr, monat - 1, 0)).toISOString().slice(0, 10);
+  } else {
+    const anzahl = Number(wahl) >= 21 ? 28 : 7;
+    const ende = Date.parse(`${heute}T00:00:00Z`);
+    von = iso(ende - (anzahl - 1) * 86400000);
+    bis = heute;
+    vorherVon = iso(ende - (2 * anzahl - 1) * 86400000);
+    vorherBis = iso(ende - anzahl * 86400000);
+  }
+
+  const z = dayNumbers(heute).targets;
+  return bericht({
+    tage: berichtTage(von, bis),
+    vorher: berichtTage(vorherVon, vorherBis),
+    ziele: { kcal: z.kcal, proteinG: z.proteinG, wasserMl: z.waterMl },
+    von,
+    bis,
+  });
+}
+
+/** Alle Tage aus dem Speicher als Tabelle. Für die Fensterrechnungen. */
+function alleTage() {
+  const tage = {};
+  for (const tag of store.allDays()) tage[tag] = store.getDay(tag);
+  return tage;
+}
+
 export function trifftPosten(name, suchtext) {
   const n = String(name || "").toLowerCase();
   const t = String(suchtext || "").toLowerCase();
@@ -2106,6 +2236,54 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
 
     async musterErkennen({ tage } = {}) {
       return musterUebersicht(Math.max(14, Math.min(180, tage || 60)));
+    },
+
+    /**
+     * Die Trainingslast gegen den eigenen Schnitt.
+     *
+     * Liest jeden Tag aus dem Speicher, auch die vor dem Fenster. `allDays`
+     * einmal zu lesen und einmal zu filtern ist billiger als 28 Einzelzugriffe
+     * mit Datumsrechnung dazwischen.
+     */
+    /**
+     * Der Bericht über einen Zeitraum.
+     *
+     * Sieben oder achtundzwanzig Tage, alles andere wird darauf gerundet. Eine
+     * freie Zahl klänge genauer, als sie ist: ein Bericht über elf Tage
+     * vergleicht gegen elf Tage davor, und die Grenze liegt dann mitten in
+     * einer Woche.
+     */
+    async berichtErstellen({ tage } = {}) {
+      return berichtText(berichtFuer(Number(tage) >= 21 ? "28" : "7"));
+    },
+
+    async belastungAbrufen() {
+      return belastungText(belastung({ tage: alleTage(), heute: todayIso() }));
+    },
+
+    /**
+     * Die Tagesform aus den eigenen Angaben.
+     *
+     * Keine Messung, und das steht auch in jeder Ausgabe. Was hier fehlt,
+     * fällt raus, statt mit null zu zählen: sonst misst die Zahl, wie fleissig
+     * jemand Check-ins ausfüllt.
+     */
+    async bereitschaftAbrufen() {
+      const day = todayIso();
+      const morgen = (store.getDay(day).checkins || []).filter((c) => c.kind === "morning").pop();
+      const boegen = store.getCheckinBoegen().filter((b) => Number.isFinite(Number(b?.werte?.stress)));
+      const letzter = boegen.sort((a, b) => String(a.tag).localeCompare(String(b.tag))).pop();
+      const alter = letzter
+        ? Math.round((Date.parse(`${day}T00:00:00Z`) - Date.parse(`${letzter.tag}T00:00:00Z`)) / 86400000)
+        : null;
+
+      return bereitschaftText(bereitschaft({
+        schlafQualitaet: morgen?.sleepQuality ?? null,
+        energie: morgen?.energy ?? null,
+        belastung: belastung({ tage: alleTage(), heute: day }),
+        stress: letzter ? Number(letzter.werte.stress) : null,
+        stressAlterTage: Number.isFinite(alter) ? alter : null,
+      }));
     },
 
     async widerspruechePruefen() {

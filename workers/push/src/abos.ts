@@ -110,3 +110,15 @@ export async function sperren(kv: KVNamespace, tag: string, art: string): Promis
   await kv.put(schluessel, new Date().toISOString(), { expirationTtl: 2 * 24 * 60 * 60 });
   return true;
 }
+
+/** Ein einzelnes Abo, oder null. Für den Versand an genau ein Gerät. */
+export async function aboNachId(kv: KVNamespace, id: string): Promise<Abo | null> {
+  const roh = await kv.get(PRAEFIX + id);
+  if (!roh) return null;
+  try {
+    const abo = JSON.parse(roh) as Abo;
+    return abo?.endpoint && abo.keys?.p256dh && abo.keys?.auth ? abo : null;
+  } catch {
+    return null;
+  }
+}
