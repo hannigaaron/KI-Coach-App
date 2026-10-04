@@ -1682,6 +1682,13 @@ Push Worker, `workers/push/src/chat.ts`. Er hält den Schlüssel als Geheimnis,
 `AnthropicProvider` schickt über `baseUrl` dorthin und lässt `x-api-key` weg.
 Im Browser liegt nichts. Dieselbe Bauweise braucht später die native App.
 
+Der Schlüssel wird getrimmt, bevor er in den Kopf geht. Er wird von Hand in
+eine Eingabeaufforderung eingefügt, und dabei hängt sich leicht ein
+Zeilenumbruch an. Anthropic antwortet darauf mit `invalid x-api-key`, also
+derselben Meldung wie bei einem wirklich falschen Schlüssel. Wer das sieht,
+legt einen neuen an, fügt ihn genauso ein und scheitert wieder. Genau dieser
+Fall ist im Betrieb aufgetreten.
+
 Drei Ebenen schützen den Schlüssel, und keine reicht allein: die Herkunft
 hält fremde Webseiten ab, aber kein Skript ausserhalb eines Browsers. Eine
 Tagesgrenze von 400 Anfragen begrenzt den Schaden, statt ihn zu verhindern.
