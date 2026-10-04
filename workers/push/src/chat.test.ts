@@ -38,6 +38,25 @@ test("ohne Schlüssel sagt der Worker das, statt still zu scheitern", async () =
   assert.match(await antwort.text(), /kein Schlüssel/);
 });
 
+test("ein Schlüssel aus lauter Leerraum zählt als keiner", async () => {
+  const env = umgebung({ ANTHROPIC_KEY: "  \n" });
+  const antwort = await chatWeiterreichen(anfrage(), env, async () => new Response("{}"));
+  assert.equal(antwort.status, 503);
+});
+
+test("Leerraum um den Schlüssel geht nicht mit in den Kopf", async () => {
+  // Beim Einfügen in die Eingabeaufforderung hängt sich leicht ein
+  // Zeilenumbruch an. Anthropic antwortet darauf mit "invalid x-api-key",
+  // und der Fehler sieht aus wie ein falscher Schlüssel.
+  const env = umgebung({ ANTHROPIC_KEY: " sk-test\n" });
+  let gesehen = "";
+  await chatWeiterreichen(anfrage(), env, async (_url, init) => {
+    gesehen = ((init as RequestInit).headers as Record<string, string>)["x-api-key"]!;
+    return new Response("{}");
+  });
+  assert.equal(gesehen, "sk-test");
+});
+
 test("der Schlüssel geht an Anthropic und nicht an den Browser", async () => {
   const env = umgebung();
   let gesehen: Record<string, string> = {};

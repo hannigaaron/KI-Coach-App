@@ -93,7 +93,13 @@ export async function chatWeiterreichen(
   env: Env,
   holen: typeof fetch = fetch,
 ): Promise<Response> {
-  if (!env.ANTHROPIC_KEY) {
+  // Getrimmt, weil ein Schlüssel von Hand eingefügt wird. Ein angehängter
+  // Zeilenumbruch oder ein Leerzeichen bleibt beim Einfügen unsichtbar, geht
+  // aber in den Kopf und führt zu "invalid x-api-key". Der Fehler sieht dann
+  // nach einem falschen Schlüssel aus, und man legt einen neuen an, der
+  // genauso scheitert.
+  const schluessel = (env.ANTHROPIC_KEY || "").trim();
+  if (!schluessel) {
     return new Response(JSON.stringify({ error: { message: "Auf diesem Worker liegt kein Schlüssel." } }), {
       status: 503,
       headers: { "content-type": "application/json" },
@@ -121,7 +127,7 @@ export async function chatWeiterreichen(
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "x-api-key": env.ANTHROPIC_KEY,
+      "x-api-key": schluessel,
       "anthropic-version": API_VERSION,
     },
     body: koerper,
