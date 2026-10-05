@@ -64,6 +64,12 @@ export interface AgentActions {
   aufgabeAnlegen(input: { text: string; minuten?: number; faellig?: string; wichtigkeit?: number }): Promise<string>;
   aufgabeAbhaken(input: { text: string }): Promise<string>;
   aufgabenPriorisieren(): Promise<string>;
+  /** Der Tag mit Uhrzeiten, eigene Aufgaben und die aus Todoist. */
+  tagesplanErstellen(): Promise<string>;
+  /** Die offenen Aufgaben auf die nächsten sieben Tage verteilt. */
+  wochenplanErstellen(): Promise<string>;
+  /** Das heutige Training an Schlaf, Stress und Kalender angepasst. */
+  trainingAnpassen(input: { schlechtGeschlafen?: boolean; gestresst?: boolean }): Promise<string>;
   kopfLeeren(input: { text: string }): Promise<string>;
   musterErkennen(input: { tage?: number }): Promise<string>;
   belastungAbrufen(): Promise<string>;
@@ -539,6 +545,17 @@ async function execute(
       }
       case "aufgaben_priorisieren":
         return { text: await actions.aufgabenPriorisieren() };
+      case "tagesplan_erstellen":
+        return { text: await actions.tagesplanErstellen() };
+      case "wochenplan_erstellen":
+        return { text: await actions.wochenplanErstellen() };
+      case "training_anpassen":
+        return {
+          text: await actions.trainingAnpassen({
+            schlechtGeschlafen: input.schlecht_geschlafen === true,
+            gestresst: input.gestresst === true,
+          }),
+        };
       case "kopf_leeren": {
         const text = String(input.text ?? "").trim();
         if (text.length < 20) {
@@ -1077,6 +1094,37 @@ export async function runOffline(
     return { text: antwort, ausgeführt, source: "offline" };
   }
 
+  // Die Frage, wie trainiert werden soll, vor allem, was ein Training
+  // einträgt. "Ich hatte eine kurze Nacht, soll ich heute trainieren" enthält
+  // "hatte" und landete sonst beim Erfassen einer Mahlzeit. Aussagen über
+  // Schlaf und Stress werden als Ja oder Nein weitergegeben, nicht als Zahl:
+  // "schlecht geschlafen" ist keine 3 von 10.
+  if (pattern("soll ich (heute )?(trainieren|ins gym|zum training|training machen)", "training anpassen",
+    "trainingsplan anpassen", "leichter trainieren", "angepasstes training", "alternativ\\w* training",
+    "wie (soll|sollte) ich heute trainieren", "kann ich heute trainieren").test(text)
+    || (pattern("geschlafen", "gestresst", "stress", "voller tag", "vollen tag", "kaum zeit").test(text)
+      && pattern("training", "trainieren", "gym", "workout", "einheit", "krafttraining").test(text))) {
+    const antwort = await actions.trainingAnpassen({
+      schlechtGeschlafen: pattern("(schlecht|kaum|wenig|mies|nicht gut|kurz) geschlafen", "kurze nacht", "schlechte nacht").test(text),
+      gestresst: pattern("gestresst", "viel stress", "stressig", "unter druck").test(text),
+    });
+    return { text: antwort, ausgeführt, source: "offline" };
+  }
+
+  // Woche vor Tag, weil "plan meine Woche" sonst am Wort "plan" hängen bleibt.
+  if (pattern("wochenplan", "woche planen", "plan(e)? (mir )?(meine|die) woche", "was muss ich diese woche",
+    "aufgaben (fur|fuer) (die|diese) woche").test(text)) {
+    return { text: await actions.wochenplanErstellen(), ausgeführt, source: "offline" };
+  }
+
+  // Die Frage nach dem Tag mit Aufgaben. Vor dem Kalender Zweig, denn dort
+  // steht "tagesplan" auch, und die Antwort dort kennt nur Termine, keine
+  // Aufgaben. Wer fragt, was er heute machen muss, meint seine Liste.
+  if (pattern("was muss ich heute", "was habe? ich heute zu (tun|erledigen)", "tagesplan",
+    "plan(e)? (mir )?(meinen|den) tag", "sinnvolle reihenfolge", "to ?dos? (fur|fuer) heute").test(text)) {
+    return { text: await actions.tagesplanErstellen(), ausgeführt, source: "offline" };
+  }
+
   // Training vor der Mahlzeit. "Nach dem Training hatte ich einen Shake"
   // enthaelt "hatte" und landete sonst nur auf dem Erfassen, das Training fiel
   // weg. Ohne erkannte Dauer greift der Zweig nicht und der Satz laeuft
@@ -1146,7 +1194,7 @@ export async function runOffline(
   // nach der Zeit zu erkennen.
   if (pattern("wann habe ich", "wann muss ich", "was steht an", "mein tag", "heute noch vor",
     "wie sieht (mein|der) tag", "zeit habe ich", "freie zeit", "wann trainiere",
-    "wann soll ich essen", "tagesablauf", "tagesplan").test(text)) {
+    "wann soll ich essen", "tagesablauf").test(text)) {
     return { text: await actions.tagesablaufPlanen({}), ausgeführt, source: "offline" };
   }
 
@@ -1164,7 +1212,7 @@ export async function runOffline(
     return { text: await actions.kalenderAbrufen({ stand: true }), ausgeführt, source: "offline" };
   }
 
-  if (pattern("kalender", "termine", "diese woche", "nächste woche", "naechste woche", "wochenplan").test(text)) {
+  if (pattern("kalender", "termine", "diese woche", "nächste woche", "naechste woche").test(text)) {
     return { text: await actions.kalenderAbrufen({}), ausgeführt, source: "offline" };
   }
 

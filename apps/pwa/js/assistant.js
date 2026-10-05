@@ -2,6 +2,7 @@ import {
   Agent, AnthropicProvider, Coach, addiere, buildShoppingList, cacheQuote, denktiefe, dollarText,
   einstufeAufgabe, einstufungText, ersparnis, hochrechnung, kopfLeeren, kopfText, leereSumme,
   mahlzeitAusFoto, modellFuerBilder, produktPerBarcode, produkteSuchen, summiere, vorratAusFoto,
+  todoistAbhaken, todoistAufgaben, todoistIdVon,
 } from "@daevo/coach";
 import {
   abendAbschluss,
@@ -71,6 +72,13 @@ import {
   bereitschaftText,
   bericht,
   berichtText,
+  zeitplan,
+  zeitplanText,
+  lueckenOhne,
+  wochenplan,
+  wochenplanText,
+  trainingAnpassen,
+  anpassungText,
 } from "@daevo/core";
 import { brain } from "./brain.js";
 import { KONFIG } from "./konfig.js";
@@ -895,10 +903,52 @@ function zeitbudget() {
   };
 }
 
+/**
+ * Die eigenen Aufgaben und die aus Todoist, zusammen.
+ *
+ * Todoist nur, solange ein Token hinterlegt ist. Wer die Verbindung löst,
+ * soll nicht weiter mit einer alten Kopie planen.
+ */
+export function alleAufgaben() {
+  const eigene = store.getAufgaben();
+  if (!todoistVerbunden()) return eigene;
+  return [...eigene, ...(store.getTodoist().aufgaben || [])];
+}
+
+export function todoistVerbunden() {
+  return Boolean(String(store.getSettings().todoistToken || "").trim());
+}
+
+/** Wie lange ein gelesener Stand aus Todoist als frisch gilt. */
+const TODOIST_FRISCH_MS = 5 * 60000;
+
+/**
+ * Liest Todoist neu, wenn der Stand älter als fünf Minuten ist.
+ *
+ * Gibt einen Satz zurück, wenn etwas nicht geklappt hat, sonst einen leeren.
+ * Ein Fehler hält die Planung nicht auf: es wird mit dem letzten Stand
+ * gerechnet, und das steht dann dabei. Ein Plan ohne Netz ist besser als
+ * keiner, aber nur, wenn er sagt, worauf er beruht.
+ */
+export async function todoistAktualisieren({ erzwingen = false, fetchImpl } = {}) {
+  if (!todoistVerbunden()) return "";
+  const alt = store.getTodoist();
+  const alter = alt.abgerufen ? Date.now() - Date.parse(alt.abgerufen) : Infinity;
+  if (!erzwingen && alter < TODOIST_FRISCH_MS) return "";
+  try {
+    const aufgaben = await todoistAufgaben(todayIso(), { token: store.getSettings().todoistToken, fetchImpl });
+    store.setTodoist({ abgerufen: new Date().toISOString(), aufgaben });
+    return "";
+  } catch (e) {
+    const wann = alt.abgerufen ? ` Gerechnet ist mit dem Stand von ${uhrzeitVon(Date.parse(alt.abgerufen))} Uhr.` : "";
+    return `${e?.message || "Todoist war nicht erreichbar."}${wann}`;
+  }
+}
+
 export function aufgabenPlan() {
   const budget = zeitbudget();
   const plan = priorisiere({
-    aufgaben: store.getAufgaben(),
+    aufgaben: alleAufgaben(),
     tag: todayIso(),
     freieMinuten: budget.freieMinuten,
     bereitsGearbeitet: budget.bereitsGearbeitet,
@@ -908,7 +958,137 @@ export function aufgabenPlan() {
       "Kein Kalender verbunden. Gerechnet ist mit der Zeit bis zu deiner Schlafenszeit, nicht mit echten Terminen.",
     );
   }
+  const angenommen = [...plan.heute, ...plan.morgen].filter((a) => a.dauerAngenommen).length;
+  if (angenommen > 0) {
+    plan.begruendung.push(
+      `Bei ${angenommen} ${angenommen === 1 ? "Aufgabe" : "Aufgaben"} aus Todoist steht keine Dauer, gerechnet ist mit 30 Minuten. ` +
+      "Trag in Todoist eine Dauer ein, dann rechne ich damit.",
+    );
+  }
   return plan;
+}
+
+/**
+ * Was heute ausser Terminen belegt ist: das Training aus dem Profil und eine
+ * halbe Stunde je Mahlzeit.
+ *
+ * Die halbe Stunde ist eine Regel und keine Messung. Ohne sie legt der Plan
+ * eine Aufgabe genau auf die Uhrzeit, zu der die App selbst eine Mahlzeit
+ * empfiehlt.
+ */
+function belegtAusserKalender(tagIso, ablauf) {
+  const profile = store.getProfile() || PROFIL_NOTFALL;
+  const wochentag = new Date(`${tagIso}T12:00:00`).getDay();
+  const belegt = [];
+  for (const s of profile.sessions || []) {
+    if (Number(s.weekday) !== wochentag || !/^\d{1,2}:\d{2}$/.test(String(s.startsAt || ""))) continue;
+    const [h, m] = String(s.startsAt).split(":").map(Number);
+    const von = new Date(`${tagIso}T00:00:00`);
+    von.setHours(h, m, 0, 0);
+    belegt.push({ von: von.getTime(), bis: von.getTime() + Math.max(15, Number(s.minutes) || 60) * 60000 });
+  }
+  for (const e of ablauf.essensfenster || []) belegt.push({ von: e.um, bis: e.um + 30 * 60000 });
+  return belegt;
+}
+
+/** Der Tag mit Uhrzeiten: Reihenfolge aus `aufgabenPlan`, Zeiten aus dem Kalender. */
+export function tagesplan(jetzt = Date.now()) {
+  const plan = aufgabenPlan();
+  const tag = todayIso();
+  const ablauf = ablaufFuer(tag);
+  const luecken = lueckenOhne(ablauf.luecken, belegtAusserKalender(tag, ablauf));
+  return { plan, zeiten: zeitplan({ aufgaben: plan.heute, luecken, ab: jetzt }) };
+}
+
+export function tagesplanText(jetzt = Date.now()) {
+  const { plan, zeiten } = tagesplan(jetzt);
+  const zeilen = [zeitplanText(zeiten)];
+  if (plan.morgen.length) zeilen.push(`Kann bis morgen warten: ${plan.morgen.map((a) => a.text).join(", ")}.`);
+  if (plan.spaeter.length) zeilen.push(`Ohne Frist und heute ohne Nutzen: ${plan.spaeter.map((a) => a.text).join(", ")}.`);
+  for (const b of plan.begruendung) zeilen.push(b);
+  return zeilen.join("\n");
+}
+
+/** Die nächsten sieben Tage, heute zuerst. */
+export function wochenplanFuer(jetzt = Date.now()) {
+  const tage = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(`${todayIso()}T12:00:00`);
+    d.setDate(d.getDate() + i);
+    const tag = d.toISOString().slice(0, 10);
+    const ablauf = ablaufFuer(tag);
+    const luecken = lueckenOhne(ablauf.luecken, belegtAusserKalender(tag, ablauf));
+    // Heute zählt nur, was noch vor einem liegt.
+    const ab = i === 0 ? jetzt : 0;
+    const frei = luecken.reduce((s, l) => s + Math.max(0, l.bis - Math.max(l.von, ab)), 0) / 60000;
+    tage.push({ tag, freieMinuten: Math.round(frei), belegtMinuten: ablauf.belegtMinuten });
+  }
+  return wochenplan({ aufgaben: alleAufgaben(), tage });
+}
+
+/**
+ * Was die Bereitschaft heute an Zahlen bekommt.
+ *
+ * Eine Stelle für beides, Bereitschaft und Trainingsanpassung. Zwei
+ * Rechnungen derselben Eingabe laufen irgendwann auseinander, und dann sagt
+ * die eine Ansicht "bereit" und die andere "leichter trainieren".
+ */
+export function bereitschaftsEingabe(day = todayIso()) {
+  const morgen = (store.getDay(day).checkins || []).filter((c) => c.kind === "morning").pop();
+  const boegen = store.getCheckinBoegen().filter((b) => Number.isFinite(Number(b?.werte?.stress)));
+  const letzter = boegen.sort((a, b) => String(a.tag).localeCompare(String(b.tag))).pop();
+  const alter = letzter
+    ? Math.round((Date.parse(`${day}T00:00:00Z`) - Date.parse(`${letzter.tag}T00:00:00Z`)) / 86400000)
+    : null;
+  return {
+    schlafQualitaet: morgen?.sleepQuality ?? null,
+    energie: morgen?.energy ?? null,
+    belastung: belastung({ tage: alleTage(), heute: day }),
+    stress: letzter ? Number(letzter.werte.stress) : null,
+    stressAlterTage: Number.isFinite(alter) ? alter : null,
+  };
+}
+
+/**
+ * Das Training von heute an Schlaf, Stress und Kalender angepasst.
+ *
+ * Die geplante Einheit kommt aus dem Profil, nicht aus dem Kalender. Ein
+ * Kalendertermin sagt, wann trainiert wird, aber nicht was, und eine
+ * geratene Trainingsart würde die falsche Anweisung erzeugen.
+ */
+export function trainingsanpassungText(angaben = {}, jetzt = Date.now()) {
+  const day = todayIso();
+  const profile = store.getProfile() || PROFIL_NOTFALL;
+  const wochentag = new Date(`${day}T12:00:00`).getDay();
+  const session = (profile.sessions || [])
+    .filter((s) => Number(s.weekday) === wochentag)
+    .sort((a, b) => String(a.startsAt).localeCompare(String(b.startsAt)))[0];
+  const geplant = session
+    ? { art: session.type, minuten: Number(session.minutes) || 60, quelle: `deinem Trainingsplan, ${session.startsAt} Uhr` }
+    : null;
+
+  const eingabe = bereitschaftsEingabe(day);
+  const hatKalender = (store.getKalender().termine || []).length > 0;
+  const frei = hatKalender ? restDesTages(ablaufFuer(day), jetzt).freieMinuten : null;
+
+  const an = trainingAnpassen({
+    schlafMinuten: store.getDay(day).gesundheit?.schlafMinuten ?? null,
+    schlafQualitaet: eingabe.schlafQualitaet,
+    stress: eingabe.stressAlterTage !== null && eingabe.stressAlterTage <= 7 ? eingabe.stress : null,
+    bereitschaft: bereitschaft(eingabe),
+    freieMinuten: frei,
+    geplant,
+    angaben: { schlechtGeschlafen: angaben.schlechtGeschlafen === true, gestresst: angaben.gestresst === true },
+  });
+  const text = anpassungText(an, geplant);
+  return geplant ? text : `${text}\nIn deinem Profil steht für heute keine Einheit. Die Anweisungen gelten, falls du trotzdem trainierst.`;
+}
+
+export function wochenplanTextFuer(jetzt = Date.now()) {
+  const text = wochenplanText(wochenplanFuer(jetzt));
+  return (store.getKalender().termine || []).length
+    ? text
+    : `${text}\nKein Kalender verbunden. Gerechnet ist mit deinen Wachzeiten, nicht mit echten Terminen.`;
 }
 
 export function aufgabenPlanText() {
@@ -989,13 +1169,39 @@ export function aufgabeFinden(text) {
   const worte = foldUm(text).split(/\W+/).filter((w) => w.length > 2);
   let bester = null;
   let beste = 0;
-  for (const a of store.getAufgaben()) {
+  for (const a of alleAufgaben()) {
     if (a.erledigt) continue;
     const ziel = foldUm(a.text);
     const treffer = worte.filter((w) => ziel.includes(w)).length;
     if (treffer > beste) { beste = treffer; bester = a; }
   }
   return beste > 0 ? bester : null;
+}
+
+/**
+ * Hakt eine Aufgabe ab, egal woher sie kommt.
+ *
+ * Eine Aufgabe aus Todoist wird zuerst dort geschlossen und erst danach hier
+ * entfernt. Andersherum stünde sie bei einem Netzfehler hier als erledigt und
+ * dort weiter offen, und beim nächsten Lesen käme sie zurück, ohne dass
+ * jemand weiss, warum. Gibt einen Satz zurück, der sagt, was passiert ist.
+ */
+export async function aufgabeErledigen(id, { fetchImpl } = {}) {
+  const a = alleAufgaben().find((x) => x.id === id);
+  if (!a) return { ok: false, text: "Die Aufgabe gibt es nicht mehr." };
+  const todoistId = todoistIdVon(id);
+  if (!todoistId) {
+    aufgabeAbhaken(id);
+    return { ok: true, text: `Abgehakt: ${a.text}.` };
+  }
+  try {
+    await todoistAbhaken(todoistId, { token: store.getSettings().todoistToken, fetchImpl });
+  } catch (e) {
+    return { ok: false, text: `In Todoist konnte ich "${a.text}" nicht abhaken. ${e?.message || ""}`.trim() };
+  }
+  const stand = store.getTodoist();
+  store.setTodoist({ ...stand, aufgaben: (stand.aufgaben || []).filter((x) => x.id !== id) });
+  return { ok: true, text: `Abgehakt, auch in Todoist: ${a.text}.` };
 }
 
 export function aufgabeAbhaken(id) {
@@ -1255,7 +1461,9 @@ export function briefing(art = "morgen") {
     datum,
     tagesablauf: (store.getKalender().termine || []).length ? tagesablaufText(ablaufFuer(day)) : "",
     ziele: n.targets,
-    aufgaben: aufgabenPlanText(),
+    // Morgens mit Uhrzeiten. "Erst das Angebot" hilft wenig, wenn unklar
+    // ist, ob es zwischen die Termine überhaupt passt.
+    aufgaben: tagesplanText(),
     standards: status.filter((s) => !s.erfuellt).map((s) => s.satz),
     trend: trend.belastbar
       ? `Gewicht: ${trend.aktuellKg} kg geglättet, ${trend.kgProWoche > 0 ? "plus" : "minus"} ${Math.abs(trend.kgProWoche).toFixed(2)} kg je Woche.`
@@ -2200,9 +2408,9 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
     async aufgabeAbhaken({ text } = {}) {
       const a = aufgabeFinden(text || "");
       if (!a) return "Die Aufgabe finde ich nicht. Sag mir den Wortlaut.";
-      aufgabeAbhaken(a.id);
-      changed();
-      return `Abgehakt: ${a.text}.`;
+      const ergebnis = await aufgabeErledigen(a.id);
+      if (ergebnis.ok) changed();
+      return ergebnis.text;
     },
 
     async zeitEintragen({ bereich, minuten, was, tag } = {}) {
@@ -2269,21 +2477,21 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
      * jemand Check-ins ausfüllt.
      */
     async bereitschaftAbrufen() {
-      const day = todayIso();
-      const morgen = (store.getDay(day).checkins || []).filter((c) => c.kind === "morning").pop();
-      const boegen = store.getCheckinBoegen().filter((b) => Number.isFinite(Number(b?.werte?.stress)));
-      const letzter = boegen.sort((a, b) => String(a.tag).localeCompare(String(b.tag))).pop();
-      const alter = letzter
-        ? Math.round((Date.parse(`${day}T00:00:00Z`) - Date.parse(`${letzter.tag}T00:00:00Z`)) / 86400000)
-        : null;
+      return bereitschaftText(bereitschaft(bereitschaftsEingabe()));
+    },
 
-      return bereitschaftText(bereitschaft({
-        schlafQualitaet: morgen?.sleepQuality ?? null,
-        energie: morgen?.energy ?? null,
-        belastung: belastung({ tage: alleTage(), heute: day }),
-        stress: letzter ? Number(letzter.werte.stress) : null,
-        stressAlterTage: Number.isFinite(alter) ? alter : null,
-      }));
+    async tagesplanErstellen() {
+      const hinweis = await todoistAktualisieren();
+      return [tagesplanText(), hinweis].filter(Boolean).join("\n");
+    },
+
+    async wochenplanErstellen() {
+      const hinweis = await todoistAktualisieren();
+      return [wochenplanTextFuer(), hinweis].filter(Boolean).join("\n");
+    },
+
+    async trainingAnpassen({ schlechtGeschlafen, gestresst } = {}) {
+      return trainingsanpassungText({ schlechtGeschlafen, gestresst });
     },
 
     async widerspruechePruefen() {
@@ -2299,7 +2507,8 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
     },
 
     async aufgabenPriorisieren() {
-      return aufgabenPlanText();
+      const hinweis = await todoistAktualisieren();
+      return [aufgabenPlanText(), hinweis].filter(Boolean).join("\n");
     },
 
     async mittagscheckSpeichern({ energie, konzentration, saettigung, notiz } = {}) {
@@ -2309,7 +2518,8 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
     },
 
     async briefingErstellen({ art } = {}) {
-      return briefing(art === "abend" ? "abend" : "morgen");
+      const hinweis = await todoistAktualisieren();
+      return [briefing(art === "abend" ? "abend" : "morgen"), hinweis].filter(Boolean).join("\n");
     },
 
     async kalenderAbrufen({ tage, stand } = {}) {

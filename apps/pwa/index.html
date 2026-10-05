@@ -799,6 +799,15 @@ try {
       </div>
       <ul class="list" id="kalQuellen"></ul>
       <p class="fineprint" id="kalAnleitung"></p>
+
+      <h2 class="abschnitt">Todoist verbinden</h2>
+      <p class="sub" id="todoistStand">Wer seine Aufgaben in Todoist führt, pflegt sie nicht zweimal. daevo liest sie dort, legt sie in deinen Tag und hakt sie dort ab.</p>
+      <div class="field"><label for="todoistToken">Persönlicher Token</label>
+        <input id="todoistToken" type="password" autocomplete="off" spellcheck="false" placeholder="In Todoist kopieren und hier einfügen"></div>
+      <button id="btnTodoistVerbinden" class="primary breit">Verbinden und prüfen</button>
+      <button id="btnTodoistTrennen" class="ghost breit" hidden>Verbindung trennen</button>
+      <p class="fineprint">Den Token findest du in Todoist unter Einstellungen, Integrationen, Entwickler. Er bleibt auf
+        deinem Gerät. Die Aufgaben gehen direkt von Todoist zu dir, ohne Umweg über einen Server.</p>
     </div>
   </section>
 
@@ -1009,7 +1018,7 @@ try {
         <div class="field"><label for="t-type">Art</label>
           <select id="t-type">
             <option value="strength">Krafttraining</option><option value="team_sport">Mannschaftssport</option>
-            <option value="cardio">Ausdaür</option><option value="mobility">Mobility</option>
+            <option value="cardio">Ausdauer</option><option value="mobility">Mobility</option>
           </select></div>
         <div class="field"><label for="t-min">Dauer in Minuten</label><input id="t-min" type="number" inputmode="numeric" value="75"></div>
       </div>
@@ -1093,7 +1102,7 @@ try {
         <textarea id="sicherungText" rows="4" spellcheck="false" autocapitalize="none" autocorrect="off"></textarea>
         <button id="btnSicherungKopieren" class="ghost breit">Kopieren</button>
         <button id="btnExport" class="ghost breit">Als Datei speichern</button>
-        <p class="feld-hilfe">Schick dir den Text selbst zu, dann hast du ihn auf jedem Gerät. Er enthält deinen Schlüssel und dein Anmeldewort, also nicht öffentlich posten.</p>
+        <p class="feld-hilfe">Schick dir den Text selbst zu, dann hast du ihn auf jedem Gerät. Er enthält deine Schlüssel, dein Anmeldewort und deinen Todoist Token, also nicht öffentlich posten.</p>
       </div>
       <button id="btnWiederherstellen" class="ghost breit">Sicherung einspielen</button>
       <div class="field" id="wiederherstellenFeld" hidden>
