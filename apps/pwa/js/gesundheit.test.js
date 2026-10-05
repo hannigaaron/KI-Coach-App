@@ -14,7 +14,7 @@ class SpeicherAttrappe {
 globalThis.localStorage = new SpeicherAttrappe();
 
 const { store } = await import("./storage.js");
-const { MAX_TAGE, healthDateiLesen, healthSchreiben, istExport, schreibBericht } = await import("./gesundheit.js");
+const { MAX_TAGE, healthDateiLesen, healthSchreiben, istExport, kurzbefehlSchreiben, schreibBericht } = await import("./gesundheit.js");
 
 const HEUTE = "2026-09-29";
 const PROFIL = {
@@ -196,3 +196,46 @@ async function zipBauen(name, inhalt) {
     new Uint8Array(z.buffer), nameBytes, new Uint8Array(ende.buffer),
   ]);
 }
+
+test("Safari: ein Datenstrom ohne asynchronen Iterator wird trotzdem gelesen", async () => {
+  // Safari kennt `for await` über einen ReadableStream nicht. Ohne den
+  // Iterator nachzustellen liefe dieser Test in Node immer grün.
+  const proto = ReadableStream.prototype;
+  const iterator = Object.getOwnPropertyDescriptor(proto, Symbol.asyncIterator);
+  const values = Object.getOwnPropertyDescriptor(proto, "values");
+  delete proto[Symbol.asyncIterator];
+  delete proto.values;
+  try {
+    const e = await healthDateiLesen(new Blob([xml(schritte("2026-09-28", 9000))]));
+    assert.equal(e.tage.length, 1);
+  } finally {
+    if (iterator) Object.defineProperty(proto, Symbol.asyncIterator, iterator);
+    if (values) Object.defineProperty(proto, "values", values);
+  }
+});
+
+test("Kurzbefehl: Tageswerte gehen nach denselben Regeln in den Tag wie der Export", () => {
+  frisch();
+  const tag = store.getDay("2026-09-29");
+  tag.weightKg = 85;
+  store.setDay("2026-09-29", tag);
+
+  const bericht = kurzbefehlSchreiben(
+    [{ tag: "2026-09-29", schritte: 11200, ruhepuls: 57, gewichtKg: 86.4 }, { tag: "kaputt", schritte: 1 }],
+    { store, heute: "2026-09-29" },
+  );
+  assert.equal(bericht.tage, 1);
+  const day = store.getDay("2026-09-29");
+  assert.equal(day.steps, 11200);
+  assert.equal(day.gesundheit.ruhepuls, 57);
+  assert.equal(day.weightKg, 85, "ein selbst eingetragenes Gewicht bleibt stehen");
+  const s = store.getSettings();
+  assert.ok(s.healthKurzbefehl?.at, "der Kurzbefehl stempelt getrennt");
+  assert.equal(s.healthImport, undefined, "der Stempel des Exports bleibt unberührt");
+});
+
+test("Kurzbefehl: ohne Tage passiert nichts", () => {
+  frisch();
+  assert.equal(kurzbefehlSchreiben([], { store, heute: "2026-09-29" }), null);
+  assert.equal(kurzbefehlSchreiben(undefined, { store, heute: "2026-09-29" }), null);
+});

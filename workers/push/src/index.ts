@@ -13,6 +13,7 @@ import {
 } from "./abos.js";
 import { auftragAblegen, auftragsMitteilung, faelligeAuftraege } from "./auftrag.js";
 import { chatWeiterreichen } from "./chat.js";
+import { gesundheitAbholen, gesundheitAblegen, tagPruefen, werteLesen } from "./gesundheit.js";
 import { postAblegen, postAbholen, postMitteilung } from "./postfach.js";
 import type { Env, ScheduledEvent } from "./umgebung.js";
 
@@ -79,6 +80,16 @@ export default {
         if (!wortStimmt(anfrage, env)) return antwort({ fehler: "Dafür braucht es das Anmeldewort." }, 401, kopf);
         const posten = await postAbholen(env.ABOS);
         return antwort({ ok: true, posten }, 200, kopf);
+      }
+
+      if (url.pathname === "/gesundheit" && anfrage.method === "POST") {
+        return await gesundheitEinwerfen(anfrage, env, kopf);
+      }
+
+      if (url.pathname === "/gesundheit" && anfrage.method === "GET") {
+        if (!wortStimmt(anfrage, env)) return antwort({ fehler: "Dafür braucht es das Anmeldewort." }, 401, kopf);
+        const tage = await gesundheitAbholen(env.ABOS);
+        return antwort({ ok: true, tage }, 200, kopf);
       }
 
       if (url.pathname === "/chat" && anfrage.method === "POST") {
@@ -321,6 +332,35 @@ async function postEinwerfen(anfrage: Request, env: Env, kopf: Record<string, st
   // App holt ihn beim nächsten Öffnen. Deshalb ist das kein Fehler, sondern
   // eine Zahl in der Antwort.
   return antwort({ ok: true, zugestellt, geraete: abos.length }, 200, kopf);
+}
+
+/**
+ * Nimmt die Health Werte aus dem Kurzbefehl an.
+ *
+ * Das Anmeldewort ist Pflicht, wie beim Postfach: was hier liegt, schreibt
+ * die App ohne Rückfrage in die Tage. Die Antwort nennt, was übernommen und
+ * was verworfen wurde. Der Kurzbefehl zeigt sie an, und ein Tippfehler in
+ * einem Schlüssel fällt damit beim ersten Lauf auf und nicht erst nach einer
+ * Woche ohne Schritte.
+ */
+async function gesundheitEinwerfen(anfrage: Request, env: Env, kopf: Record<string, string>): Promise<Response> {
+  if (!wortStimmt(anfrage, env)) {
+    return antwort({ fehler: "Dafür braucht es das Anmeldewort." }, 401, kopf);
+  }
+  const roh = (await anfrage.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!roh || typeof roh !== "object") {
+    return antwort({ fehler: "Erwartet wird JSON, im Kurzbefehl Anfragetext auf JSON stellen." }, 400, kopf);
+  }
+  const tag = tagPruefen(roh.tag, berlinZeit().tag);
+  if (!tag) {
+    return antwort({ fehler: "Der Tag muss JJJJ-MM-TT sein und darf höchstens zwei Tage zurückliegen." }, 400, kopf);
+  }
+  const { werte, verworfen, unbekannt } = werteLesen(roh);
+  if (Object.keys(werte).length === 0) {
+    return antwort({ fehler: "Kein einziger Wert war lesbar.", verworfen, unbekannt }, 400, kopf);
+  }
+  await gesundheitAblegen(env.ABOS, tag, werte);
+  return antwort({ ok: true, tag, uebernommen: werte, verworfen, unbekannt }, 200, kopf);
 }
 
 function wortStimmt(anfrage: Request, env: Env): boolean {

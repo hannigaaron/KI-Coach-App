@@ -55,10 +55,15 @@ export async function healthDateiLesen(datei, { aufFortschritt } = {}) {
   const sammler = healthSammler();
   let gelesen = 0;
 
-  const strom = await stromFuer(datei);
-  for await (const stueck of strom) {
-    sammler.fuettern(stueck);
-    gelesen += stueck.length;
+  // Über `getReader` und nicht `for await`: Safari kann einen Datenstrom
+  // nicht per Schleife durchlaufen und wirft "undefined is not a function".
+  // Chrome und Node können es, deshalb fiel das in keinem Test auf.
+  const leser = (await stromFuer(datei)).getReader();
+  while (true) {
+    const { done, value } = await leser.read();
+    if (done) break;
+    sammler.fuettern(value);
+    gelesen += value.length;
     aufFortschritt?.(gelesen);
   }
   return sammler.ergebnis();
@@ -98,7 +103,7 @@ async function stromFuer(datei) {
  * Waage synchronisiert, hätte sonst plötzlich zwei Wahrheiten, und die des
  * Nutzers verliert.
  */
-export function healthSchreiben(ergebnis, { store, heute = new Date().toISOString().slice(0, 10) }) {
+export function healthSchreiben(ergebnis, { store, heute = new Date().toISOString().slice(0, 10), stempel = "healthImport" }) {
   const grenze = new Date(Date.parse(`${heute}T00:00:00Z`) - MAX_TAGE * 86400000)
     .toISOString().slice(0, 10);
 
@@ -141,8 +146,26 @@ export function healthSchreiben(ergebnis, { store, heute = new Date().toISOStrin
     }
   }
 
-  store.setSettings({ ...store.getSettings(), healthImport: { at: new Date().toISOString(), tage: bericht.tage } });
+  // Export und Kurzbefehl stempeln getrennt. Wer beides benutzt, soll sehen,
+  // wie alt die grosse Kopie ist und wann zuletzt Tageswerte kamen.
+  store.setSettings({ ...store.getSettings(), [stempel]: { at: new Date().toISOString(), tage: bericht.tage } });
   return bericht;
+}
+
+/**
+ * Schreibt die Tage, die ein Kurzbefehl über den Worker geschickt hat.
+ *
+ * Derselbe Weg wie beim Export, damit beide Quellen nach denselben Regeln in
+ * die Tage gehen: Schritte überschreiben, ein selbst eingetragenes Gewicht
+ * bleibt stehen. `heute` kommt vom Aufrufer als Ortsdatum. Der Standard oben
+ * ist UTC, und kurz nach Mitternacht läge der heutige Tag aus Berlin dann
+ * in der Zukunft und würde verworfen.
+ */
+export function kurzbefehlSchreiben(tage, { store, heute }) {
+  const sauber = (Array.isArray(tage) ? tage : [])
+    .filter((t) => t && /^\d{4}-\d{2}-\d{2}$/.test(String(t.tag)));
+  if (sauber.length === 0) return null;
+  return healthSchreiben({ tage: sauber }, { store, heute, stempel: "healthKurzbefehl" });
 }
 
 /** Was geschrieben wurde, in Worten. Zahlen, nicht "erfolgreich". */

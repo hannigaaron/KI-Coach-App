@@ -17,7 +17,7 @@ import {
   antwortVerarbeiten, antwortenAbholen, lueckeAusSpeicher, lueckeMelden,
   schieflageAusSpeicher, schieflageMelden,
 } from "./luecke.js";
-import { healthDateiLesen, healthSchreiben, schreibBericht } from "./gesundheit.js";
+import { healthDateiLesen, healthSchreiben, kurzbefehlSchreiben, schreibBericht } from "./gesundheit.js";
 import {
   ablaufFuer, ask, aufgabeAnlegenEingestuft, aufgabeLoeschen, aufgabeUmstufen, aufgabenPlan,
   balanceFuer, balanceRat, briefing,
@@ -39,7 +39,7 @@ import { anhangAusDatei, grossInKb } from "./media.js";
 import { bereichFarbe, anteilsRing, kurzDauer, netzDiagramm, wertungsRing } from "./rings.js";
 import { Listener, alleStimmen, istDeutsch, speak, stimmenBereit, stopSpeaking, voiceSupport, waehlbareStimmen } from "./voice.js";
 import { SetupFlow } from "./setup-ui.js";
-import { postfachHolen, pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
+import { gesundheitHolen, postfachHolen, pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
 
 const $ = (id) => document.getElementById(id);
@@ -762,7 +762,9 @@ function showView(name) {
   if (name === "checkin") renderCheckins();
   if (name === "reflexion") renderMemories();
   if (name === "einkauf") renderEinkauf();
-  if (name === "kalender") renderKalender();
+  // Der Health Abschnitt steht auf der Kalenderseite. Ohne den Aufruf hier
+  // blieb sein Stand leer, solange man nicht vorher im Profil war.
+  if (name === "kalender") { renderKalender(); healthStandZeigen(); }
   if (name === "tag") {
     renderTag();
     // Erst den gespeicherten Stand zeigen, dann neu lesen. Andersherum bleibt
@@ -1160,11 +1162,64 @@ $("healthDatei").addEventListener("change", async (event) => {
 
 /** Wann zuletzt importiert wurde. Ohne das weiss niemand, wie alt die Kopie ist. */
 function healthStandZeigen() {
-  const stand = store.getSettings().healthImport;
+  const s = store.getSettings();
+  const stand = s.healthImport;
   $("healthStand").textContent = stand?.at
     ? `Zuletzt eingelesen am ${stand.at.slice(0, 10)}, ${stand.tage} Tage.`
     : "Noch nichts eingelesen.";
+  const kurz = s.healthKurzbefehl;
+  $("healthKurzStand").textContent = kurz?.at
+    ? `Zuletzt über den Kurzbefehl: ${new Date(kurz.at).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" })}.`
+    : "Über den Kurzbefehl ist noch nichts angekommen.";
+  $("e-healthUrl").value = workerAdresse("gesundheit");
 }
+
+/**
+ * Holt die Werte, die der Health Kurzbefehl auf dem Worker abgelegt hat.
+ *
+ * Läuft still bei jedem Öffnen, wie das Postfach. Schritte im Hintergrund
+ * nachzutragen ist kein Ereignis, das eine Meldung braucht. Laut nur, wenn
+ * der Nutzer selbst auf den Knopf drückt.
+ */
+let gesundheitLaeuft = false;
+async function gesundheitPruefen({ laut = false } = {}) {
+  const s = store.getSettings();
+  if (gesundheitLaeuft) return;
+  if (!s.pushWorker || !s.pushWort) {
+    if (laut) toast("Dafür brauchst du Adresse und Anmeldewort des Push Workers im Profil.");
+    return;
+  }
+  gesundheitLaeuft = true;
+  try {
+    const tage = await gesundheitHolen({ worker: s.pushWorker, wort: s.pushWort });
+    const bericht = kurzbefehlSchreiben(tage, { store, heute: todayIso() });
+    if (!bericht) {
+      if (laut) toast("Vom Kurzbefehl liegt nichts bereit.");
+      return;
+    }
+    if (laut) toast(`Health: ${bericht.tage} ${bericht.tage === 1 ? "Tag" : "Tage"} übernommen.`);
+    profile = store.getProfile();
+    refreshAll();
+    healthStandZeigen();
+  } catch (fehler) {
+    if (laut) toast(`Health: ${fehler.message}`);
+  } finally {
+    gesundheitLaeuft = false;
+  }
+}
+
+$("btnHealthAbholen").addEventListener("click", () => gesundheitPruefen({ laut: true }));
+$("btnHealthKopieren").addEventListener("click", async () => {
+  const text = workerAdresse("gesundheit");
+  if (!text.startsWith("http")) { toast(text); return; }
+  try {
+    await navigator.clipboard.writeText(text);
+    toast("Adresse kopiert");
+  } catch {
+    $("e-healthUrl").select?.();
+    toast("Kopieren ging nicht. Feld ist markiert, kopier von Hand.");
+  }
+});
 
 /* ---------- Bereitschaft und Belastung ---------- */
 
@@ -2321,6 +2376,7 @@ function startApp() {
     // die App später selbst öffnet, soll seinen Satz trotzdem bekommen.
     postfachPruefen();
   }
+  gesundheitPruefen();
 
   // Die Trainingslücke. Läuft still: wer trainiert hat, merkt nichts davon.
   lueckePruefen();
@@ -2460,6 +2516,7 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "visible") return;
   zwischenablageAnbieten();
   postfachPruefen();
+  gesundheitPruefen();
 });
 
 $("btnMic").addEventListener("click", startListening);
@@ -3647,9 +3704,14 @@ $("btnStimmenAlle").addEventListener("click", async () => {
  * erzeugt einen Kurzbefehl, der stumm nichts tut.
  */
 function siriAdresse() {
+  return workerAdresse("postfach");
+}
+
+/** Eine Adresse auf dem eigenen Push Worker, oder der Grund, warum es keine gibt. */
+function workerAdresse(pfad) {
   const roh = (store.getSettings().pushWorker || "").trim().replace(/\/+$/, "");
   if (!roh) return "Trag unten erst die Adresse deines Push Workers ein.";
-  return `${roh}/postfach`;
+  return `${roh}/${pfad}`;
 }
 
 function siriAdresseZeigen() {
