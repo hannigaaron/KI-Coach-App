@@ -786,6 +786,32 @@ try {
         Gewicht, höchstens für die letzten zwei Jahre. Ein Gewicht, das du selbst eingetragen hast, bleibt
         stehen. Das ist eine Kopie und kein Abo: was nach dem Export dazukommt, kennt daevo nicht.</p>
 
+      <!-- Nur für den Betreiber: der Kurzbefehl schickt an den eigenen
+           Worker und braucht dessen Anmeldewort. -->
+      <div data-betreiber>
+      <h2 class="abschnitt">Health täglich über Kurzbefehl</h2>
+      <p class="sub">Die Kurzbefehle App darf Health lesen, eine Web App nicht. Ein Kurzbefehl schickt
+        deine Tageswerte zu festen Uhrzeiten an deinen Push Worker, daevo holt sie beim Öffnen ab.</p>
+      <div class="field"><label for="e-healthUrl">Adresse für den Kurzbefehl</label>
+        <input id="e-healthUrl" type="text" readonly spellcheck="false">
+      </div>
+      <button id="btnHealthKopieren" class="ghost breit">Adresse kopieren</button>
+      <ol class="siri-schritte">
+        <li>Je Wert die Aktion <b>Health-Messungen suchen</b>, Startdatum <b>ist heute</b>.</li>
+        <li>Danach <b>Statistik berechnen</b>: Summe bei Schritten und aktiven Kalorien,
+          Durchschnitt bei Ruhepuls, Herzfrequenzvariabilität und Gewicht.</li>
+        <li><b>Inhalte von URL abrufen</b> mit dieser Adresse, Methode <b>POST</b>,
+          Anfragetext <b>JSON</b>.</li>
+        <li>Felder vom Typ Zahl: <b>schritte</b>, <b>aktivKcal</b>, <b>ruhepuls</b>, <b>hrv</b>, <b>gewicht</b>.</li>
+        <li>Header <b>x-daevo-wort</b> mit deinem Anmeldewort.</li>
+        <li>Unter Automation <b>Tageszeit</b>, dreimal am Tag, <b>Sofort ausführen</b>.</li>
+      </ol>
+      <p class="sub" id="healthKurzStand"></p>
+      <button id="btnHealthAbholen" class="ghost breit">Jetzt abholen</button>
+      <p class="feld-hilfe">Die Werte liegen höchstens drei Tage auf dem Worker und werden beim
+        Abholen gelöscht. Angenommen werden nur Zahlen in festen Bereichen, kein Text.</p>
+      </div>
+
       <h2 class="abschnitt">Kalender verbinden</h2>
       <p class="sub" id="kalQuellenSub">Beide Kalender geben eine .ics Datei aus. Die liest daevo direkt im Gerät, es geht nichts an einen Server.</p>
       <input id="kalDatei" type="file" accept=".ics,text/calendar" hidden>

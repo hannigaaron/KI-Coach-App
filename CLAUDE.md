@@ -161,7 +161,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 871 Tests
+npm test           # 883 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1562,6 +1562,51 @@ Speicher, und ohne ein Nachladen zeigte das Feld weiter den alten Wert, den der
 nächste Druck auf Speichern wieder zurückgeschrieben hätte. Auch das hat erst
 der Durchlauf im Browser gezeigt.
 
+## Apple Health, täglich über einen Kurzbefehl
+
+`workers/push/src/gesundheit.ts` nimmt an, `apps/pwa/js/gesundheit.js`
+schreibt, die Anleitung steht in `docs/HEALTH-KURZBEFEHL.md`.
+
+Der Export ist eine Kopie, und eine Kopie veraltet am selben Abend. Eine Web
+App kommt an HealthKit nicht heran, die Kurzbefehle App schon: die Aktion
+"Health-Messungen suchen" liest Schritte, Kalorien, Puls, HRV und Gewicht,
+und eine Automation zu festen Uhrzeiten läuft seit iOS 17 ohne Nachfrage.
+Der Kurzbefehl schickt die Zahlen an `/gesundheit`, die App holt sie beim
+Öffnen ab, wie beim Postfach. Live ist das nicht, sondern dreimal am Tag.
+Live geht erst nativ.
+
+Keine Mitteilung beim Eingang. Drei Mitteilungen am Tag über Schrittzahlen
+sind Lärm, und Lärm wird mitsamt den wichtigen Mitteilungen weggewischt.
+
+Angenommen werden nur Zahlen unter festen Namen, jeder mit gültigem Bereich.
+Was hier liegt, schreibt die App ohne Rückfrage in die Tage, und freier Text
+wäre ein Weg für fremde Inhalte. Ein Ruhepuls von 0 ist kein Messwert,
+sondern eine leere Suche, und wird verworfen. Die Zahlen kommen aus der
+Kurzbefehle App je nach Einstellung als Zahl, mit Komma, mit Tausenderpunkt
+oder mit Einheit, `zahlLesen` nimmt alle vier.
+
+Die Antwort nennt übernommene, verworfene und unbekannte Felder. Der
+Kurzbefehl zeigt sie beim Testen an, und ein Tippfehler in einem Schlüssel
+fällt beim ersten Lauf auf statt nach einer Woche ohne Schritte.
+
+Drei Tage auf dem Worker statt einer Stunde wie beim Postfach. Ein Satz
+gehört zu seinem Moment, eine Schrittzahl von gestern stimmt morgen noch.
+Länger nicht, Gesundheitswerte gehören auf das Gerät.
+
+Geschrieben wird über `healthSchreiben`, also nach denselben Regeln wie der
+Export: Schritte überschreiben, ein selbst eingetragenes Gewicht bleibt. Der
+Stempel ist getrennt, damit sichtbar bleibt, wie alt die grosse Kopie ist.
+`heute` kommt als Ortsdatum vom Aufrufer. Der Standard in `healthSchreiben`
+ist UTC, und kurz nach Mitternacht läge der Berliner Tag sonst in der Zukunft
+und würde verworfen.
+
+Schlaf fehlt noch. Die Schlafanalyse kommt als Abschnitte mit Zuständen, und
+deren Summe ist nicht die Schlafdauer. Der Worker nimmt `schlafMinuten`
+bereits an, der Kurzbefehl dafür wird am echten Gerät gebaut.
+
+Der Abschnitt steht auf der Kalenderseite, und dort wurde der Stand bisher
+nie gezeigt: `healthStandZeigen` lief nur beim Öffnen des Profils.
+
 ## Belastung und Bereitschaft
 
 `packages/core/src/belastung.ts` und `packages/core/src/bereitschaft.ts`,
@@ -2523,6 +2568,6 @@ gilt, eine winzige Nachricht danach zeigt, ob Guthaben da ist. Ein gültiger
 Schlüssel ohne Guthaben ist der häufigste Fall und sah vorher aus wie ein
 falscher.
 
-Offen: Apple Health und Wearables, Weckwort im Hintergrund, Anmeldung über
+Offen: Apple Health live und Wearables, Weckwort im Hintergrund, Anmeldung über
 Apple.
 Siehe `docs/ROADMAP.md`.

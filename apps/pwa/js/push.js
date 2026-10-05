@@ -124,6 +124,18 @@ export async function postfachHolen({ worker, wort }) {
   return Array.isArray(antwort?.posten) ? antwort.posten : [];
 }
 
+/**
+ * Holt die Health Werte, die ein Kurzbefehl abgelegt hat.
+ *
+ * Wie beim Postfach löscht der Worker beim Ausliefern. Siehe
+ * workers/push/src/gesundheit.ts für den Grund, warum es diesen Weg gibt.
+ */
+export async function gesundheitHolen({ worker, wort }) {
+  if (!worker || !wort) return [];
+  const antwort = await hole(`${adresse(worker)}/gesundheit`, { wort });
+  return Array.isArray(antwort?.tage) ? antwort.tage : [];
+}
+
 /** Das bestehende Abo als einfaches Objekt, oder null. */
 export async function pushAbo() {
   const objekt = await bestehendesAboObjekt();
