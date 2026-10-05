@@ -161,7 +161,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 870 Tests
+npm test           # 871 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1520,6 +1520,12 @@ Meldung ab, die nichts erklärt.
 ZIP64 wird erkannt und abgelehnt, mit dem Hinweis, das Archiv von Hand zu
 entpacken. Eine halbe Unterstützung, die bei grossen Archiven still falsch
 liest, wäre schlechter als eine klare Absage.
+
+Gelesen wird der Strom über `getReader()`, nicht über `for await`. Safari kann
+einen `ReadableStream` nicht per Schleife durchlaufen und meldet "undefined is
+not a function". Chrome und Node können es, deshalb liefen alle Tests grün,
+während der Import auf dem Mac in Safari scheiterte. Der Test entfernt den
+Iterator vorher, sonst prüft er nur Node.
 
 ### Was übernommen wird
 

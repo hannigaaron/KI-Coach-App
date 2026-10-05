@@ -196,3 +196,20 @@ async function zipBauen(name, inhalt) {
     new Uint8Array(z.buffer), nameBytes, new Uint8Array(ende.buffer),
   ]);
 }
+
+test("Safari: ein Datenstrom ohne asynchronen Iterator wird trotzdem gelesen", async () => {
+  // Safari kennt `for await` über einen ReadableStream nicht. Ohne den
+  // Iterator nachzustellen liefe dieser Test in Node immer grün.
+  const proto = ReadableStream.prototype;
+  const iterator = Object.getOwnPropertyDescriptor(proto, Symbol.asyncIterator);
+  const values = Object.getOwnPropertyDescriptor(proto, "values");
+  delete proto[Symbol.asyncIterator];
+  delete proto.values;
+  try {
+    const e = await healthDateiLesen(new Blob([xml(schritte("2026-09-28", 9000))]));
+    assert.equal(e.tage.length, 1);
+  } finally {
+    if (iterator) Object.defineProperty(proto, Symbol.asyncIterator, iterator);
+    if (values) Object.defineProperty(proto, "values", values);
+  }
+});

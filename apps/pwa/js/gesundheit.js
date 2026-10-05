@@ -55,10 +55,15 @@ export async function healthDateiLesen(datei, { aufFortschritt } = {}) {
   const sammler = healthSammler();
   let gelesen = 0;
 
-  const strom = await stromFuer(datei);
-  for await (const stueck of strom) {
-    sammler.fuettern(stueck);
-    gelesen += stueck.length;
+  // Über `getReader` und nicht `for await`: Safari kann einen Datenstrom
+  // nicht per Schleife durchlaufen und wirft "undefined is not a function".
+  // Chrome und Node können es, deshalb fiel das in keinem Test auf.
+  const leser = (await stromFuer(datei)).getReader();
+  while (true) {
+    const { done, value } = await leser.read();
+    if (done) break;
+    sammler.fuettern(value);
+    gelesen += value.length;
     aufFortschritt?.(gelesen);
   }
   return sammler.ergebnis();
