@@ -27,9 +27,17 @@ import { zipDateiText, zipNamen } from "./zip.js";
  */
 export const MAX_TAGE = 730;
 
-/** Der Name im Archiv. `export_cda.xml` liegt daneben und ist das Falsche. */
-function istExport(name) {
-  return name === "export.xml" || name.endsWith("/export.xml");
+/**
+ * Der Name im Archiv. `export_cda.xml` liegt daneben und ist das Falsche.
+ *
+ * Ohne Rücksicht auf Gross und Klein. Ein Export von einem deutschen iPhone
+ * heisst `Export.xml`, und die erste Fassung suchte nur nach `export.xml`.
+ * Der Nutzer bekam "keine export.xml im Archiv", während sie mit grossem E
+ * als erste Datei in der Liste stand.
+ */
+export function istExport(name) {
+  const klein = String(name).toLowerCase();
+  return klein === "export.xml" || klein.endsWith("/export.xml");
 }
 
 /**

@@ -14,7 +14,7 @@ class SpeicherAttrappe {
 globalThis.localStorage = new SpeicherAttrappe();
 
 const { store } = await import("./storage.js");
-const { MAX_TAGE, healthDateiLesen, healthSchreiben, schreibBericht } = await import("./gesundheit.js");
+const { MAX_TAGE, healthDateiLesen, healthSchreiben, istExport, schreibBericht } = await import("./gesundheit.js");
 
 const HEUTE = "2026-09-29";
 const PROFIL = {
@@ -138,6 +138,20 @@ test("Ein ZIP, wie es aus der Health App kommt, geht auch", async () => {
   const e = await healthDateiLesen(zip);
   healthSchreiben(e, { store, heute: HEUTE });
   assert.equal(store.getDay("2026-09-28").steps, 12345);
+});
+
+test("Export.xml mit grossem E wird gefunden, wie es ein deutsches iPhone liefert", async () => {
+  frisch();
+  const zip = await zipBauen("apple_health_export/Export.xml", xml(schritte("2026-09-28", 9876)));
+  const e = await healthDateiLesen(zip);
+  healthSchreiben(e, { store, heute: HEUTE });
+  assert.equal(store.getDay("2026-09-28").steps, 9876);
+});
+
+test("die CDA Datei daneben zählt weiterhin nicht als Export", () => {
+  assert.equal(istExport("apple_health_export/export_cda.xml"), false);
+  assert.equal(istExport("apple_health_export/Export_CDA.xml"), false);
+  assert.equal(istExport("apple_health_export/EXPORT.XML"), true);
 });
 
 test("Ein ZIP ohne export.xml sagt, was stattdessen drin liegt", async () => {

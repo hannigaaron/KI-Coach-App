@@ -161,7 +161,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 868 Tests
+npm test           # 870 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1522,6 +1522,11 @@ entpacken. Eine halbe Unterstützung, die bei grossen Archiven still falsch
 liest, wäre schlechter als eine klare Absage.
 
 ### Was übernommen wird
+
+Die Datei wird ohne Rücksicht auf Gross und Klein gesucht. Ein Export von
+einem deutschen iPhone heisst `Export.xml`, die erste Fassung suchte nur nach
+`export.xml` und meldete im Betrieb "keine export.xml im Archiv", während die
+Datei mit grossem E als erste in der Liste stand.
 
 Schritte und aktive Kalorien werden summiert, denn die Uhr schreibt sie in
 vielen kleinen Stücken über den Tag. Ruhepuls und HRV werden gemittelt: die
