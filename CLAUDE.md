@@ -62,7 +62,7 @@ Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
 
-Der Assistent hat einundvierzig Werkzeuge und verändert die App wirklich. Zahlen
+Der Assistent hat vierundvierzig Werkzeuge und verändert die App wirklich. Zahlen
 über den Nutzer kommen immer aus Werkzeugen, nie aus dem Modell. Allgemeines
 Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
@@ -161,7 +161,7 @@ für den Nutzer einsehbar und löschbar.
 
 ```bash
 npm install
-npm test           # 810 Tests
+npm test           # 868 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -540,6 +540,126 @@ morgen. Die freie Zeit kommt aus dem Kalender, über `restDesTages`.
 Zur Arbeitsgrenze von zehn Stunden: die App misst kein Cortisol und behauptet
 nicht, eine Grenze würde es senken. Sie ist eine Regel, damit ein Tag ein Ende
 hat. Was nicht belegt ist, wird auch nicht behauptet.
+
+## Der Tag mit Uhrzeiten, die Woche mit Fristen
+
+`packages/core/src/zeitplan.ts` und `packages/core/src/wochenplan.ts`.
+
+`priorisiere` sagt, was heute drankommt und was warten kann. Es sagt nicht,
+wann. "Erst das Angebot, dann die Steuer" hilft wenig, wenn dazwischen drei
+Kundentermine liegen und unklar ist, ob das Angebot vor zwölf überhaupt
+reinpasst. `zeitplan` legt die Reihenfolge aus `priorisiere` in die freien
+Blöcke des Kalenders: die wichtigste Aufgabe bekommt den frühesten Block, in
+den sie ganz passt. Eine Aufgabe wird nicht zerteilt, neunzig Minuten
+Konzentration in drei Stücken sind keine neunzig Minuten Konzentration. Was in
+keinen Block passt, steht gesondert da und nicht hineingequetscht.
+
+Zwischen zwei Aufgaben liegen zehn Minuten Luft. Regel, keine Messung: ohne
+Luft hält ein Plan bis zur ersten Aufgabe, die länger dauert als geschätzt.
+
+`lueckenOhne` nimmt aus den freien Blöcken, was der Kalender nicht kennt: das
+Training aus dem Profil und eine halbe Stunde je empfohlener Mahlzeit. Sonst
+legt der Plan das Angebot auf die Zeit des Krafttrainings, und ein solcher
+Plan wird nicht befolgt, sondern ignoriert.
+
+Der Wochenplan verteilt die offenen Aufgaben auf sieben Tage, mit derselben
+Rangfolge, `aufgabenRang` ist dafür exportiert. Zwei Rechnungen würden
+irgendwann verschieden sortieren. Verplant werden höchstens zwei Drittel der
+freien Zeit je Tag, `PLANUNGSQUOTE`. Freie Zeit im Kalender ist nicht leer,
+dort wird gegessen, gefahren und trainiert, und ein Wochenplan, der jede
+Minute füllt, ist am Dienstag überholt.
+
+Eine Aufgabe mit Frist landet nie hinter ihrer Frist. Passt sie davor nirgends
+hinein, steht sie in der ersten Zeile der Antwort. Das ist die wichtigste
+Aussage des ganzen Plans und gehört nicht an einen Tag, an dem es schon zu
+spät ist.
+
+Der Regelpfad für "was muss ich heute machen" und "Tagesplanung" steht vor dem
+Kalender Zweig. Vorher landete "Tagesplanung" über das Wort "tagesplan" bei
+der Kalenderübersicht, und die kennt nur Termine und keine Aufgaben.
+"Wochenplan" ging aus demselben Grund an den Kalender.
+
+Das Morgenbriefing benutzt jetzt den Plan mit Uhrzeiten.
+
+## Todoist
+
+`packages/coach/src/todoist.ts` ruft ab, `apps/pwa/js/assistant.js` führt
+zusammen, das Feld steht auf der Kalenderseite.
+
+Wer seine Aufgaben in Todoist führt, pflegt sie nicht zweimal. Eine zweite
+Liste neben der echten ist nach einer Woche veraltet, und dann plant der Coach
+mit dem falschen Stand. daevo liest deshalb dort, wo die Aufgaben stehen, und
+hakt sie dort ab.
+
+Todoist erlaubt Aufrufe direkt aus dem Browser. Gemessen am Vorabruf: die
+Antwort trägt `access-control-allow-origin` mit der anfragenden Adresse. Damit
+braucht es keinen Server, und der Token des Nutzers verlässt sein Gerät nicht.
+Angemeldet wird mit dem persönlichen Token, Schnittstelle v1.
+
+Gelesen wird vor jeder Planung, wenn der letzte Stand älter als fünf Minuten
+ist. Scheitert das, rechnet der Plan mit dem letzten Stand und sagt, von wann
+er ist. Ein abgelehnter Token wird beim Verbinden gar nicht erst gespeichert:
+sonst steht "verbunden" im Profil, und jede Planung scheitert still an
+derselben Stelle.
+
+Priorität: Todoist zählt 4 für P1. P1 und P2 werden wichtig, P3 und ohne
+Priorität normal. Ohne Priorität ist eine Aufgabe nicht nebensächlich, sondern
+nicht bewertet. Frist: `deadline` schlägt `due`. Dauer: nur Minuten, eine Dauer
+in Tagen sagt nichts über die Arbeitszeit. Fehlt sie, rechnet der Plan mit 30
+Minuten, setzt `dauerAngenommen` und sagt das in jeder Antwort dazu. Für die
+30 gibt es keine Quelle, deshalb wird sie nie stillschweigend benutzt.
+
+Abhaken geht erst an Todoist und dann an den lokalen Stand. Andersherum stünde
+eine Aufgabe bei einem Netzfehler hier als erledigt und dort offen, und beim
+nächsten Lesen käme sie zurück, ohne dass jemand weiss, warum.
+
+In der Liste auf "Dein Tag" tragen Todoist Aufgaben "aus Todoist", keinen
+Löschknopf und keine umschaltbare Einstufung. Löschen auf einen Tipp wäre ein
+Eingriff in eine fremde Liste. Eine umgestufte Priorität wäre beim nächsten
+Lesen wieder weg, und ein Knopf, dessen Wirkung verschwindet, ist schlimmer
+als keiner. Vorher hätte "Erledigt" bei einer Todoist Aufgabe still nichts
+getan und trotzdem "Abgehakt" gemeldet. Gefunden beim Lesen der Liste, bevor
+es live ging.
+
+Offen sind Microsoft To Do und Google Tasks. Beide brauchen eine eigene
+App Registrierung beim Anbieter und OAuth, das kann nur der Betreiber
+anlegen. Apple Erinnerungen hat keine Schnittstelle für Web Apps.
+
+## Training nach Tagesform
+
+`packages/core/src/trainingsanpassung.ts`, Werkzeug `training_anpassen`.
+
+Ein Plan wird geschrieben, wenn man ausgeschlafen ist. Trainiert wird an dem
+Tag, den man dann hat. Drei Signale zählen: Schlaf unter sechs Stunden oder
+Qualität bis 4 von 10, Stress ab 65 von 100, und die Bereitschaft auf
+"runterfahren". Die Bereitschaft zählt nur, wenn keines der anderen beiden
+schon zählt, sonst stünde derselbe schlechte Schlaf zweimal in der Rechnung.
+
+Ein Signal heisst reduziert: Sätze auf 75 Prozent, eine Wiederholung mehr in
+Reserve. Zwei heissen leicht: Sätze auf die Hälfte, zwei mehr in Reserve, und
+der Satz, dass eine Pause ebenfalls vertretbar ist. Gesteuert wird über
+Wiederholungen in Reserve, weil die App kein Gewicht vorschreiben kann, das sie
+nicht kennt.
+
+Die Quellen stützen die Richtung, nicht die genauen Zahlen, und das steht bei
+jeder Anpassung im Text. Schlaf: Craven und andere, Sports Medicine 2022,
+Meta-Analyse über 69 Arbeiten, Leistung sinkt nach höchstens sechs Stunden
+Schlaf. Stress: Stults-Kolehmainen und Bartholomew, Medicine and Science in
+Sports and Exercise 2012, langsamere Erholung nach Krafttraining. Reserve:
+Zourdos und andere 2016, Helms und andere 2016.
+
+Der volle Tag ist eine andere Achse. Er kürzt die Dauer, nicht die
+Intensität, mit fünfzehn Minuten für Weg und Umziehen. Unter zwanzig Minuten
+gibt es keine Einheit, sondern zehn Minuten Mobilität als Angebot.
+
+Was der Nutzer im Gespräch sagt, kommt als Ja oder Nein hinein, nicht als
+Zahl. "Schlecht geschlafen" ist keine 3 von 10, und eine erfundene Zahl stünde
+später im Verlauf wie eine Angabe. Die geplante Einheit kommt aus dem Profil:
+ein Kalendertermin sagt, wann trainiert wird, aber nicht was.
+
+Der Regelpfad steht vor dem Eintragen von Training und Mahlzeit. "Ich hatte
+eine kurze Nacht, soll ich heute trainieren" enthält "hatte" und landete sonst
+beim Erfassen einer Mahlzeit.
 
 ## Kopf leeren
 
@@ -959,7 +1079,7 @@ Tippfehler darf die Ziele nicht kippen.
 
 ## Der Regelweg ist die kostenlose Stufe
 
-34 der 41 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
+37 der 44 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
 Das ist keine Notlösung für den Ausfall, sondern das Produkt: ein Weg, der
 kein Modell anfragt, kostet nichts je Nutzer und skaliert ohne Rechnung.
 

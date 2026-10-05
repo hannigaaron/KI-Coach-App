@@ -19,7 +19,7 @@ import {
 } from "./luecke.js";
 import { healthDateiLesen, healthSchreiben, schreibBericht } from "./gesundheit.js";
 import {
-  ablaufFuer, ask, aufgabeAbhaken, aufgabeAnlegenEingestuft, aufgabeLoeschen, aufgabeUmstufen, aufgabenPlan,
+  ablaufFuer, ask, aufgabeAnlegenEingestuft, aufgabeLoeschen, aufgabeUmstufen, aufgabenPlan,
   balanceFuer, balanceRat, briefing,
   buildActions, dayNumbers, einkaufslisteText, ensureStandards, greeting, herausforderungSpeichern,
   aktuelleLage, aktivesGespraech, gegesseneArten, gespraechAnlegen, gespraechLoeschen, gespraechNachziehen,
@@ -31,6 +31,7 @@ import {
   kostenUebersicht, recommendations, standardsUebersicht, tagesErinnerungen, verlaufPunkte,
   berichtFuer,
   berichtZeitraeume,
+  aufgabeErledigen, todoistAktualisieren, todoistVerbunden,
 } from "./assistant.js";
 import { brain } from "./brain.js";
 import { Orb } from "./orb.js";
@@ -43,7 +44,7 @@ import { newId, nowTime, store, todayIso } from "./storage.js";
 
 const $ = (id) => document.getElementById(id);
 const WEEKDAYS = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
-const TYPE_LABEL = { strength: "Kraft", team_sport: "Mannschaftssport", cardio: "Ausdaür", mobility: "Mobility" };
+const TYPE_LABEL = { strength: "Kraft", team_sport: "Mannschaftssport", cardio: "Ausdauer", mobility: "Mobility" };
 const FEELINGS = ["voll da", "satt und gut", "müde", "aufgebläht", "noch hungrig"];
 const KIND_LABEL = {
   fakt: "Fakt", praeferenz: "Vorliebe", ziel: "Ziel",
@@ -762,7 +763,18 @@ function showView(name) {
   if (name === "reflexion") renderMemories();
   if (name === "einkauf") renderEinkauf();
   if (name === "kalender") renderKalender();
-  if (name === "tag") renderTag();
+  if (name === "tag") {
+    renderTag();
+    // Erst den gespeicherten Stand zeigen, dann neu lesen. Andersherum bleibt
+    // die Liste leer, bis Todoist geantwortet hat, und bei schlechtem Netz
+    // sieht das aus wie keine Aufgaben.
+    if (todoistVerbunden()) {
+      todoistAktualisieren().then((fehler) => {
+        if (document.querySelector('.view[data-view="tag"]:not([hidden])')) renderTag();
+        if (fehler) toast(fehler, 4200);
+      });
+    }
+  }
   if (name === "balance") renderBalance();
   if (name === "bereitschaft") renderBereitschaft();
   if (name === "bericht") { berichtZeitraumFuellen(); renderBericht(); }
@@ -2997,14 +3009,21 @@ function fuelleAufgaben(id, aufgaben, leerText) {
     const frist = a.faellig ? `, fällig ${a.faellig}` : "";
     const wichtig = ["nebensächlich", "normal", "wichtig"][a.wichtigkeit - 1] || "normal";
     const grund = a.warum ? ` (${a.warum})` : "";
+    const ausTodoist = a.quelle === "todoist";
+    const dauer = a.dauerAngenommen ? `etwa ${a.minuten} Minuten` : `${a.minuten} Minuten`;
     li.innerHTML =
       `<div class="li-main"><div class="li-title">${escapeHtml(a.text)}</div>` +
-      `<button class="stufe" data-stufe="${a.wichtigkeit}" type="button">` +
-      `${a.minuten} Minuten, ${wichtig}${escapeHtml(frist)}${escapeHtml(grund)}</button></div>`;
+      (ausTodoist
+        // Aus Todoist: Einstufung nur anzeigen. Eine Änderung hier wäre beim
+        // nächsten Lesen wieder weg, und ein Knopf, dessen Wirkung verschwindet,
+        // ist schlimmer als keiner. Die Priorität stellt man in Todoist um.
+        ? `<div class="li-sub">${dauer}, ${wichtig}${escapeHtml(frist)}, aus Todoist</div></div>`
+        : `<button class="stufe" data-stufe="${a.wichtigkeit}" type="button">` +
+          `${dauer}, ${wichtig}${escapeHtml(frist)}${escapeHtml(grund)}</button></div>`);
 
     // Ein Tipp auf die Einstufung schaltet sie weiter. Eine Einschätzung, die
     // man nicht korrigieren kann, ist eine Bevormundung.
-    li.querySelector(".stufe").addEventListener("click", () => {
+    li.querySelector(".stufe")?.addEventListener("click", () => {
       aufgabeUmstufen(a.id);
       renderTag();
       refreshAll();
@@ -3013,20 +3032,26 @@ function fuelleAufgaben(id, aufgaben, leerText) {
     const fertig = document.createElement("button");
     fertig.className = "ghost";
     fertig.textContent = "Erledigt";
-    fertig.addEventListener("click", () => {
-      aufgabeAbhaken(a.id);
+    fertig.addEventListener("click", async () => {
+      fertig.disabled = true;
+      const ergebnis = await aufgabeErledigen(a.id);
       renderTag();
-      toast("Abgehakt");
-    });
-    const weg = document.createElement("button");
-    weg.className = "ghost";
-    weg.textContent = "Weg";
-    weg.addEventListener("click", () => {
-      aufgabeLoeschen(a.id);
-      renderTag();
+      refreshAll();
+      toast(ergebnis.ok ? "Abgehakt" : ergebnis.text, ergebnis.ok ? 2600 : 4200);
     });
     knoepfe.appendChild(fertig);
-    knoepfe.appendChild(weg);
+    // Löschen nur bei eigenen Aufgaben. Eine Aufgabe in Todoist auf einen
+    // Tipp hin zu löschen, wäre ein Eingriff in eine fremde Liste.
+    if (!ausTodoist) {
+      const weg = document.createElement("button");
+      weg.className = "ghost";
+      weg.textContent = "Weg";
+      weg.addEventListener("click", () => {
+        aufgabeLoeschen(a.id);
+        renderTag();
+      });
+      knoepfe.appendChild(weg);
+    }
     li.appendChild(knoepfe);
     el.appendChild(li);
   }
@@ -3162,6 +3187,7 @@ const KALENDER_ANLEITUNG = [
 ].join(" ");
 
 function renderKalender() {
+  renderTodoist();
   $("kalTag").value = kalenderTag;
   $("kalAnleitung").textContent = KALENDER_ANLEITUNG;
 
@@ -3258,6 +3284,59 @@ $("kalTag").addEventListener("change", (event) => {
 });
 
 $("kalTage").addEventListener("change", renderKalender);
+
+/**
+ * Der Stand der Todoist Verbindung.
+ *
+ * Gezeigt wird, was gemessen ist: wie viele offene Aufgaben zuletzt gelesen
+ * wurden und wann. "Verbunden" ohne Zahl sagt nichts darüber, ob gerade
+ * irgendetwas ankommt.
+ */
+function renderTodoist() {
+  const verbunden = todoistVerbunden();
+  const stand = store.getTodoist();
+  $("btnTodoistTrennen").hidden = !verbunden;
+  $("btnTodoistVerbinden").textContent = verbunden ? "Neu einlesen" : "Verbinden und prüfen";
+  $("todoistToken").placeholder = verbunden ? "Token hinterlegt" : "In Todoist kopieren und hier einfügen";
+  if (verbunden && stand.abgerufen) {
+    const n = (stand.aufgaben || []).length;
+    const wann = new Date(stand.abgerufen).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" });
+    $("todoistStand").textContent = `Verbunden. ${n} offene ${n === 1 ? "Aufgabe" : "Aufgaben"}, zuletzt gelesen am ${wann}.`;
+  }
+}
+
+$("btnTodoistVerbinden").addEventListener("click", async () => {
+  const eingabe = $("todoistToken").value.trim();
+  const settings = store.getSettings();
+  if (!eingabe && !todoistVerbunden()) { toast("Füg zuerst deinen Token ein."); return; }
+  const vorher = settings.todoistToken || "";
+  if (eingabe) store.setSettings({ ...settings, todoistToken: eingabe });
+  const knopf = $("btnTodoistVerbinden");
+  knopf.disabled = true;
+  knopf.textContent = "Prüfe …";
+  const fehler = await todoistAktualisieren({ erzwingen: true });
+  knopf.disabled = false;
+  if (fehler) {
+    // Ein abgelehnter Token wird nicht gespeichert. Sonst steht im Profil
+    // "verbunden", und jede Planung scheitert still an derselben Stelle.
+    if (eingabe) store.setSettings({ ...store.getSettings(), todoistToken: vorher });
+    renderTodoist();
+    toast(fehler, 4200);
+    return;
+  }
+  $("todoistToken").value = "";
+  renderTodoist();
+  refreshAll();
+  toast(`${(store.getTodoist().aufgaben || []).length} Aufgaben aus Todoist gelesen`);
+});
+
+$("btnTodoistTrennen").addEventListener("click", () => {
+  store.setSettings({ ...store.getSettings(), todoistToken: "" });
+  store.setTodoist({ abgerufen: null, aufgaben: [] });
+  $("todoistStand").textContent = "Getrennt. In Todoist bleibt alles, wie es ist.";
+  renderTodoist();
+  refreshAll();
+});
 
 $("btnKalDatei").addEventListener("click", () => $("kalDatei").click());
 

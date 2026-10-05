@@ -31,3 +31,6 @@ export * from "./bereitschaft.js";
 export * from "./health.js";
 export * from "./bericht.js";
 export * from "./schieflage.js";
+export * from "./zeitplan.js";
+export * from "./wochenplan.js";
+export * from "./trainingsanpassung.js";

@@ -235,6 +235,21 @@ export const store = {
   },
 
   /**
+   * Der zuletzt gelesene Stand aus Todoist.
+   *
+   * Eine Kopie, kein Abgleich: die Wahrheit liegt in Todoist, und vor jeder
+   * Planung wird neu gelesen. Gespeichert wird trotzdem, damit ein Plan ohne
+   * Netz mit dem letzten Stand rechnen kann statt ganz ohne die Aufgaben. Nicht
+   * Teil der Sicherung, denn nach dem Einspielen liest die App ohnehin neu.
+   */
+  getTodoist() {
+    return read("todoist", { abgerufen: null, aufgaben: [] });
+  },
+  setTodoist(stand) {
+    write("todoist", stand);
+  },
+
+  /**
    * Zeit, die der Coach auf einen Lebensbereich gebucht hat.
    *
    * Der Kalender enthält bei diesem Nutzer fast nur Kundentermine. Ohne diese

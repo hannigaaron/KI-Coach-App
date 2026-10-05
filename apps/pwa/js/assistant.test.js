@@ -422,3 +422,106 @@ test("Der Bericht rundet auf Woche oder Monat, statt eine freie Zahl zu nehmen",
   const spanne = (t) => t.split("\n")[0];
   assert.notEqual(spanne(woche), spanne(monat));
 });
+
+/* ---------- Tagesplan, Wochenplan, Todoist, Trainingsanpassung ---------- */
+
+const planung = await import("./assistant.js");
+
+function antwortJson(status, json) {
+  return new Response(json === undefined ? null : JSON.stringify(json), {
+    status,
+    headers: json === undefined ? {} : { "content-type": "application/json" },
+  });
+}
+
+/** Heute um diese Ortszeit, als Millisekunden. */
+function heuteUm(hhmm) {
+  const [h, m] = hhmm.split(":").map(Number);
+  const d = new Date(`${todayIso()}T00:00:00`);
+  d.setHours(h, m, 0, 0);
+  return d.getTime();
+}
+
+test("Todoist Aufgaben kommen in den Plan, solange ein Token da ist", async () => {
+  frischerTag();
+  store.setSettings({ ...store.getSettings(), todoistToken: "abc" });
+  const fetchImpl = async () => antwortJson(200, { results: [{ id: "77", content: "Rechnung schreiben", priority: 4 }], next_cursor: null });
+  assert.equal(await planung.todoistAktualisieren({ erzwingen: true, fetchImpl }), "");
+  const texte = planung.alleAufgaben().map((a) => a.text);
+  assert.deepEqual(texte, ["Rechnung schreiben"]);
+
+  store.setSettings({ ...store.getSettings(), todoistToken: "" });
+  assert.deepEqual(planung.alleAufgaben(), []);
+});
+
+test("ein Fehler bei Todoist behält den letzten Stand und sagt das", async () => {
+  frischerTag();
+  store.setSettings({ ...store.getSettings(), todoistToken: "abc" });
+  store.setTodoist({ abgerufen: new Date(Date.now() - 3600000).toISOString(), aufgaben: [{ id: "todoist:1", text: "Alt", minuten: 30, wichtigkeit: 2, erledigt: false, erstellt: todayIso() }] });
+  const fetchImpl = async () => antwortJson(401, { error: "nein" });
+  const hinweis = await planung.todoistAktualisieren({ erzwingen: true, fetchImpl });
+  assert.match(hinweis, /Token abgelehnt/);
+  assert.match(hinweis, /Stand von \d\d:\d\d Uhr/);
+  assert.deepEqual(planung.alleAufgaben().map((a) => a.text), ["Alt"]);
+});
+
+test("Abhaken einer Todoist Aufgabe schliesst sie dort und erst dann hier", async () => {
+  frischerTag();
+  store.setSettings({ ...store.getSettings(), todoistToken: "abc" });
+  store.setTodoist({ abgerufen: new Date().toISOString(), aufgaben: [{ id: "todoist:9", text: "Angebot", minuten: 30, wichtigkeit: 2, erledigt: false, erstellt: todayIso(), quelle: "todoist" }] });
+
+  const fehlschlag = await planung.aufgabeErledigen("todoist:9", { fetchImpl: async () => antwortJson(500) });
+  assert.equal(fehlschlag.ok, false);
+  assert.equal(planung.alleAufgaben().length, 1, "bei einem Fehler bleibt sie offen");
+
+  let ziel = "";
+  const ok = await planung.aufgabeErledigen("todoist:9", { fetchImpl: async (url) => { ziel = url; return antwortJson(204); } });
+  assert.equal(ok.ok, true);
+  assert.match(ok.text, /auch in Todoist/);
+  assert.match(ziel, /tasks\/9\/close/);
+  assert.equal(planung.alleAufgaben().length, 0);
+});
+
+test("der Tagesplan legt keine Aufgabe auf das Training aus dem Profil", () => {
+  frischerTag();
+  const wochentag = new Date(`${todayIso()}T12:00:00`).getDay();
+  store.setProfile({ ...PROFIL, sessions: [{ type: "strength", minutes: 75, weekday: wochentag, startsAt: "07:00" }] });
+  store.setAufgaben([{ id: "a1", text: "Angebot", minuten: 60, wichtigkeit: 3, erledigt: false, erstellt: `${todayIso()}T06:00:00` }]);
+  const { zeiten } = planung.tagesplan(heuteUm("06:00"));
+  assert.equal(zeiten.bloecke.length, 1);
+  assert.ok(zeiten.bloecke[0].von >= heuteUm("08:15"), "beginnt erst nach dem Training");
+  assert.match(planung.tagesplanText(heuteUm("06:00")), /\d\d:\d\d bis \d\d:\d\d: Angebot \(wichtig\)/);
+});
+
+test("angenommene Dauern aus Todoist stehen im Plan dabei", () => {
+  frischerTag();
+  store.setSettings({ ...store.getSettings(), todoistToken: "abc" });
+  store.setTodoist({ abgerufen: new Date().toISOString(), aufgaben: [{ id: "todoist:5", text: "Mails", minuten: 30, wichtigkeit: 2, erledigt: false, erstellt: todayIso(), quelle: "todoist", dauerAngenommen: true }] });
+  assert.match(planung.tagesplanText(heuteUm("06:00")), /keine Dauer, gerechnet ist mit 30 Minuten/);
+});
+
+test("der Wochenplan sagt, wenn kein Kalender verbunden ist", () => {
+  frischerTag();
+  store.setAufgaben([{ id: "a1", text: "Steuer", minuten: 90, wichtigkeit: 3, erledigt: false, erstellt: `${todayIso()}T06:00:00` }]);
+  const text = planung.wochenplanTextFuer(heuteUm("06:00"));
+  assert.match(text, /Steuer \(90 min, wichtig\)/);
+  assert.match(text, /Kein Kalender verbunden/);
+});
+
+test("die Trainingsanpassung liest Schlaf aus dem Health Import und den Plan aus dem Profil", () => {
+  frischerTag();
+  const tag = todayIso();
+  const wochentag = new Date(`${tag}T12:00:00`).getDay();
+  store.setProfile({ ...PROFIL, sessions: [{ type: "strength", minutes: 75, weekday: wochentag, startsAt: "18:00" }] });
+  store.setDay(tag, { ...store.getDay(tag), gesundheit: { schlafMinuten: 310 } });
+  const text = planung.trainingsanpassungText({ gestresst: true });
+  assert.match(text, /^Heute deutlich leichter\./);
+  assert.match(text, /Krafttraining, 75 Minuten, aus deinem Trainingsplan, 18:00 Uhr/);
+  assert.match(text, /5 Stunden 10 Minuten Schlaf/);
+  assert.match(text, /Du hast gesagt, dass du gestresst bist/);
+});
+
+test("ohne Einheit im Profil sagt die Anpassung das dazu", () => {
+  frischerTag();
+  assert.match(planung.trainingsanpassungText(), /keine Einheit/);
+});

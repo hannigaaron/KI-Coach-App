@@ -295,6 +295,44 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     input_schema: { type: "object", properties: {} },
   },
   {
+    name: "tagesplan_erstellen",
+    description:
+      "Plant den heutigen Tag mit Uhrzeiten: die offenen Aufgaben, eigene und die aus Todoist, in die freien " +
+      "Blöcke des Kalenders, wichtigstes zuerst, mit Luft dazwischen. Training aus dem Profil und Essenszeiten " +
+      "sind schon ausgespart. " +
+      "Nehmen, wenn der Nutzer fragt, was er heute machen muss, nach einer Reihenfolge oder einer Tagesplanung, " +
+      "und morgens. Die Uhrzeiten aus der Antwort übernimmst du unverändert, du verschiebst nichts selbst. " +
+      "Danach darfst du coachen: was am Plan auffällt, wo es eng wird, was er streichen könnte.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "wochenplan_erstellen",
+    description:
+      "Verteilt die offenen Aufgaben, eigene und die aus Todoist, auf die nächsten sieben Tage, nach Frist, " +
+      "Wichtigkeit und freier Zeit im Kalender. Sagt zuerst, was vor seiner Frist nicht mehr hineinpasst. " +
+      "Nehmen, wenn der Nutzer seine Woche planen will oder fragt, ob seine Woche aufgeht. " +
+      "Die Verteilung übernimmst du. Was nicht passt, besprichst du mit ihm: Frist verschieben, Termin " +
+      "freiräumen oder etwas streichen.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "training_anpassen",
+    description:
+      "Passt das heutige Training aus dem Profil an Schlaf, Stress, Bereitschaft und freie Zeit im Kalender an: " +
+      "Sätze, Wiederholungen in Reserve, Dauer, oder eine leichtere Alternative. Jede Anpassung nennt ihren " +
+      "Grund und ihre Quelle. " +
+      "Nehmen, wenn der Nutzer fragt, ob oder wie er heute trainieren soll, und immer, wenn er von schlechtem " +
+      "Schlaf, viel Stress oder einem vollen Tag erzählt und heute ein Training ansteht. " +
+      "Sagt er es nur im Gespräch, setzt du die passenden Felder auf true. Du erfindest dafür keine Zahl.",
+    input_schema: {
+      type: "object",
+      properties: {
+        schlecht_geschlafen: { type: "boolean", description: "Der Nutzer hat gesagt, dass er schlecht oder zu kurz geschlafen hat." },
+        gestresst: { type: "boolean", description: "Der Nutzer hat gesagt, dass er gestresst ist." },
+      },
+    },
+  },
+  {
     name: "mittagscheck_speichern",
     description:
       "Hält den Mittags Check-in fest: Energie, Konzentration und Sättigung nach dem Essen, je 1 bis 10. " +

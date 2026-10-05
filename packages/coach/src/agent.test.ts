@@ -33,6 +33,12 @@ function stubActions(log: string[]): AgentActions {
     async aufgabeAnlegen(i) { log.push(`aufgabe:${i.text}`); return "Steht auf der Liste."; },
     async aufgabeAbhaken(i) { log.push(`abhaken:${i.text}`); return "Abgehakt."; },
     async aufgabenPriorisieren() { log.push("prio"); return "Heute noch: Angebot schreiben."; },
+    async tagesplanErstellen() { log.push("tagesplan"); return "09:00 bis 10:00: Angebot."; },
+    async wochenplanErstellen() { log.push("wochenplan"); return "Mo 5. Okt: Angebot."; },
+    async trainingAnpassen(i) {
+      log.push(`training-anpassen:${i.schlechtGeschlafen ? "schlaf" : ""}:${i.gestresst ? "stress" : ""}`);
+      return "Heute etwas zurücknehmen.";
+    },
     async kopfLeeren(i) { log.push(`kopf:${i.text.slice(0, 12)}`); return "Fang hiermit an: Angebot schreiben."; },
     async musterErkennen(i) { log.push(`muster:${i.tage ?? ""}`); return "Schlaf und Energie hängen zusammen."; },
     async belastungAbrufen() { log.push("belastung"); return "240 Minuten in 7 Tagen, dein Schnitt liegt bei 210."; },
@@ -575,4 +581,48 @@ test("eine Korrektur ohne Menge greift nicht", async () => {
   const log: string[] = [];
   await runOffline("Das war nur ein Rippchen, nicht die ganze Packung", stubActions(log));
   assert.equal(log.some((z) => z.startsWith("korrigieren:")), false);
+});
+
+test("die Frage nach dem heutigen Tag plant mit Aufgaben, nicht nur mit Terminen", async () => {
+  for (const satz of [
+    "Hey daevo, was muss ich heute alles machen?",
+    "Gib mir mal bitte eine sinnvolle Reihenfolge und Tagesplanung",
+    "Plan mir meinen Tag",
+  ]) {
+    const log: string[] = [];
+    await runOffline(satz, stubActions(log));
+    assert.deepEqual(log, ["tagesplan"], satz);
+  }
+});
+
+test("die Woche planen geht an den Wochenplan und nicht an den Kalender", async () => {
+  for (const satz of ["Erstell mir einen Wochenplan", "Plane meine Woche", "Was muss ich diese Woche alles erledigen"]) {
+    const log: string[] = [];
+    await runOffline(satz, stubActions(log));
+    assert.deepEqual(log, ["wochenplan"], satz);
+  }
+});
+
+test("Termine der Woche bleiben beim Kalender", async () => {
+  const log: string[] = [];
+  await runOffline("Welche Termine habe ich diese Woche?", stubActions(log));
+  assert.equal(log.includes("wochenplan"), false);
+});
+
+test("schlechter Schlaf und Training ergeben eine Anpassung, keine Mahlzeit", async () => {
+  const log: string[] = [];
+  await runOffline("Ich hatte eine kurze Nacht und hab kaum geschlafen, soll ich heute trainieren?", stubActions(log));
+  assert.deepEqual(log, ["training-anpassen:schlaf:"]);
+});
+
+test("Stress und Training werden als Aussage weitergegeben", async () => {
+  const log: string[] = [];
+  await runOffline("Bin total gestresst heute, wie soll ich heute trainieren?", stubActions(log));
+  assert.deepEqual(log, ["training-anpassen::stress"]);
+});
+
+test("ein eingetragenes Training bleibt ein Eintrag", async () => {
+  const log: string[] = [];
+  await runOffline("Hab heute 60 Minuten Krafttraining gemacht", stubActions(log));
+  assert.equal(log.some((l) => l.startsWith("training-anpassen")), false);
 });

@@ -26,8 +26,14 @@ export interface Aufgabe {
   erledigt: boolean;
   /** Wann angelegt, ISO. */
   erstellt: string;
-  /** Woher sie kommt: vom Nutzer, aus dem Gespräch, aus einem Abschluss. */
+  /** Woher sie kommt: vom Nutzer, aus dem Gespräch, aus einem Abschluss, aus Todoist. */
   quelle?: string;
+  /**
+   * Die Dauer stand nirgends und ist angenommen. Bei Aufgaben aus Todoist der
+   * Normalfall, denn dort trägt kaum jemand eine Dauer ein. Der Plan sagt dann
+   * dazu, mit welcher Zahl er rechnet.
+   */
+  dauerAngenommen?: boolean;
 }
 
 export interface Plan {
@@ -93,7 +99,7 @@ export function priorisiere(eingabe: PlanEingabe): Plan {
   }
 
   const bewertet = offen
-    .map((a) => ({ a, rang: rang(a, eingabe.tag) }))
+    .map((a) => ({ a, rang: aufgabenRang(a, eingabe.tag) }))
     .sort((x, y) => y.rang - x.rang || x.a.minuten - y.a.minuten);
 
   const heute: Aufgabe[] = [];
@@ -139,8 +145,12 @@ export function priorisiere(eingabe: PlanEingabe): Plan {
  * gegen jede Wichtigkeit, und unter gleichen Fristen entscheidet die
  * Wichtigkeit. Alte Aufgaben bekommen einen kleinen Zuschlag, damit nichts
  * ewig unten liegen bleibt.
+ *
+ * Exportiert, weil der Wochenplan dieselbe Rangfolge braucht. Eine zweite
+ * Rechnung dort würde irgendwann anders sortieren als der Tag, und dann steht
+ * im Wochenplan eine andere Reihenfolge als morgens im Tagesplan.
  */
-function rang(a: Aufgabe, tag: string): number {
+export function aufgabenRang(a: Aufgabe, tag: string): number {
   let punkte = Math.max(1, Math.min(3, a.wichtigkeit)) * 10;
   if (a.faellig) {
     const tage = tageZwischen(tag, a.faellig);
