@@ -7,6 +7,9 @@
  * `img/uebungen/<id>.jpg` und `img/uebungen/klein/<id>.jpg`. Es ist für daevo
  * erzeugt und gehört daevo.
  *
+ * `alternative` ist ein zweiter Aufbau derselben Übung mit eigenem Foto unter
+ * `img/uebungen/alternative/<id>.jpg`, zum Beispiel das Band von unten im Rack.
+ *
  * `video` verweist auf ein Erklärvideo auf YouTube. Die Videos gehören ihren
  * Kanälen. daevo verlinkt sie nur und bettet sie nicht ein. Jede Kennung wurde
  * beim Eintragen über YouTube abgerufen. Ein Video kann später gelöscht
@@ -1401,6 +1404,15 @@ export const UEBUNGEN = [
    "titel": "Die 2 BESTEN Mehoden | Klimmzüge mit einem Widerstandsband lernen",
    "kanal": "Marcus Mohs - Calisthenics & Fitness",
    "dauer": "4:45"
+  },
+  "alternative": {
+   "titel": "Alternative: Band von unten einspannen",
+   "steps": [
+    "Band in gleicher Höhe an beiden Rack-Pfosten befestigen, so tief, dass du hängend mit den Füßen darauf stehen kannst",
+    "Band auf beiden Seiten fest sichern und vor dem ersten Satz kräftig ziehen, es darf nicht rutschen",
+    "Beide Füße in die Mitte des Bands stellen, breiter Obergriff, dann hochziehen",
+    "Unten hilft das Band am meisten, oben am wenigsten. Danach ein dünneres Band wählen"
+   ]
   }
  },
  {
@@ -1432,6 +1444,15 @@ export const UEBUNGEN = [
    "titel": "Darauf solltest du achten, wenn du Klimmzüge mit Resistance Bändern trainierst!",
    "kanal": "Flex Calisthenics",
    "dauer": "6:45"
+  },
+  "alternative": {
+   "titel": "Alternative: Band von unten einspannen",
+   "steps": [
+    "Band in gleicher Höhe an beiden Rack-Pfosten befestigen, so tief, dass du hängend mit den Füßen darauf stehen kannst",
+    "Band auf beiden Seiten fest sichern und vor dem ersten Satz kräftig ziehen, es darf nicht rutschen",
+    "Beide Füße in die Mitte des Bands stellen, enger Griff, dann hochziehen",
+    "Unten hilft das Band am meisten, oben am wenigsten. Danach ein dünneres Band wählen"
+   ]
   }
  },
  {

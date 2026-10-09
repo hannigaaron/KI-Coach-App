@@ -201,6 +201,9 @@ Strichfiguren, keine Clip Art, keine Karten mit Rahmen um Text.
   dunkles Studio, Marineblau, kühles Licht. Ein neues Foto wird auf Technikfehler
   geprüft, bevor es eingecheckt wird: ein falsch gehaltenes Gewicht in einer
   Coaching App ist ein Fehler im Produkt.
+- Zweiter Aufbau: `alternative: { titel, steps }` mit Foto unter
+  `img/uebungen/alternative/<id>.jpg`. Bisher bei den Band Klimmzügen: das Band
+  quer im Rack einspannen und mit den Füßen daraufstehen.
 - Video: `video: { id, titel, kanal, dauer }` je Übung. daevo verlinkt nur und
   bettet nicht ein. Die Adresse wird aus der Kennung gebaut, nie gespeichert.
   Videos können gelöscht werden, die Links gehören deshalb in die Pflege.

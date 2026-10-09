@@ -95,6 +95,7 @@ const kommaListe = (felder) => felder.join(", ");
 /** Pfade der Fotos. Eines je Übung, dazu ein Hochformat Ausschnitt für das Raster. */
 export const fotoPfad = (u) => `./img/uebungen/${u.id}.jpg`;
 export const vorschauPfad = (u) => `./img/uebungen/kachel/${u.id}.jpg`;
+export const alternativPfad = (u) => `./img/uebungen/alternative/${u.id}.jpg`;
 
 /**
  * Der Link zum Video. Nur die Kennung ist gespeichert, die Adresse wird hier
@@ -137,6 +138,15 @@ export function metaHtml(u) {
     zelle(u.repRange, "Wdh."),
     zelle(GERAETE[u.equipment] ?? u.equipment, "Gerät"),
   ].join("");
+}
+
+/** Ein zweiter Aufbau derselben Übung, falls die Datenbank einen kennt. Leer, wenn nicht. */
+export function alternativeHtml(u) {
+  if (!u.alternative) return "";
+  const schritte = u.alternative.steps.map((s) => `<li>${esc(s)}</li>`).join("");
+  return `<h3 class="ue-abschnitt">${esc(u.alternative.titel)}</h3>
+    <div class="ue-alt-bild"><img src="${esc(alternativPfad(u))}" alt="${esc(u.name)}: zweiter Aufbau" width="960" height="720" loading="lazy" decoding="async"></div>
+    <ol class="ue-schritte">${schritte}</ol>`;
 }
 
 /** Der feste Knopf am unteren Rand: öffnet das Erklärvideo auf YouTube. */
@@ -194,6 +204,7 @@ export function uebungenStarten() {
     $("ueNeben").innerHTML = neben;
     $("ueMeta").innerHTML = metaHtml(u);
     $("ueSchritte").innerHTML = schritteHtml(u);
+    $("ueAlternative").innerHTML = alternativeHtml(u);
     $("ueVideo").innerHTML = videoHtml(u);
     $("ueDetail").hidden = false;
     $("ueDetail").querySelector(".scroll")?.scrollTo({ top: 0 });

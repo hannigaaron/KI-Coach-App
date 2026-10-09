@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { UEBUNGEN } from "./uebungen-daten.js";
 import {
-  ARTEN, GERAETE, GRUPPEN, NIVEAUS, fotoPfad, gruppenName, hauptmuskelnText, listeHtml, metaHtml, nebenmuskelnText,
+  ARTEN, GERAETE, GRUPPEN, NIVEAUS, alternativPfad, alternativeHtml, fotoPfad, gruppenName, hauptmuskelnText, listeHtml, metaHtml, nebenmuskelnText,
   schritteHtml, uebungNach, uebungenFiltern, videoHtml, videoLink, vorschauPfad,
 } from "./uebungen.js";
 
@@ -136,4 +136,28 @@ test("Die Kacheln zeigen Foto, Namen und Hauptmuskel, maskieren Zeichen und meld
   assert.match(html, /class="ue-karte-bild"/);
   assert.match(html, /<span>Brust<\/span>/);
   assert.match(listeHtml([]), /Keine Übung gefunden/);
+});
+
+test("Die Bandvarianten kennen den zweiten Aufbau mit Foto und vier Schritten", () => {
+  for (const id of ["klimmzug-breit-band", "klimmzug-eng-band"]) {
+    const u = uebungNach(id);
+    assert.ok(u.alternative, id);
+    assert.ok(u.alternative.steps.length >= 3 && u.alternative.steps.length <= 4);
+    const bild = imPfad(alternativPfad(u));
+    assert.ok(existsSync(bild), `Foto fehlt: ${id}`);
+    assert.ok(statSync(bild).size > 20_000 && statSync(bild).size < 400_000);
+    const html = alternativeHtml(u);
+    assert.match(html, /Band von unten einspannen/);
+    assert.match(html, /alternative\/klimmzug-(breit|eng)-band\.jpg/);
+    assert.equal((html.match(/<li>/g) ?? []).length, u.alternative.steps.length);
+  }
+  assert.equal(alternativeHtml(uebungNach("kreuzheben")), "");
+});
+
+test("Jede Übung mit zweitem Aufbau hat ihn vollständig", () => {
+  for (const u of UEBUNGEN.filter((x) => x.alternative)) {
+    assert.ok(u.alternative.titel && u.alternative.steps.length >= 3, u.id);
+    assert.ok(existsSync(imPfad(alternativPfad(u))), `${u.id}: Foto`);
+    assert.doesNotMatch([u.alternative.titel, ...u.alternative.steps].join(" "), /[–—]/);
+  }
 });
