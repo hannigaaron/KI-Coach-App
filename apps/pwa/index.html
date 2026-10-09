@@ -888,36 +888,45 @@ try {
     </div>
   </section>
 
-  <section class="view" data-view="uebungen" hidden>
+  <section class="view ue-view" data-view="uebungen" hidden>
     <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Übungen</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
-      <p class="sub" id="ueZaehler"></p>
-      <div class="field"><label for="ueSuche">Suche</label>
-        <input id="ueSuche" type="search" placeholder="Kniebeuge, Brust, Kurzhantel" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
-      <div class="pills ue-gruppen" id="ueGruppen"></div>
-      <div class="field"><label for="ueGeraet">Gerät</label>
-        <select id="ueGeraet"></select></div>
-      <ul class="list ue-liste" id="ueListe"></ul>
+      <div class="ue-suche">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="ueSuche" type="search" placeholder="Übung, Muskel oder Gerät" aria-label="Übungen suchen" autocomplete="off" autocapitalize="none" spellcheck="false">
+      </div>
+      <div class="ue-tabs" id="ueGruppen" role="tablist" aria-label="Muskelgruppe"></div>
+      <p class="ue-zaehler" id="ueZaehler"></p>
+      <ul class="ue-raster" id="ueListe"></ul>
     </div>
 
     <!-- Die Detailseite liegt über der Liste statt eine eigene Ansicht zu
          sein. So bleiben Suche und Filter stehen, und Zurück führt dorthin,
-         wo man herkam. -->
+         wo man herkam. Das Foto läuft bis an den Rand, der Titel steht darauf,
+         und der Videoknopf bleibt unten stehen, egal wie weit man scrollt. -->
     <div class="ue-detail" id="ueDetail" hidden role="dialog" aria-modal="true" aria-labelledby="ueTitel">
-      <header class="bar"><button id="ueDetailZu" class="icon-btn back" aria-label="Zurück zur Liste"><span class="chev"></span></button><h1 id="ueTitel"></h1><div class="bar-spacer"></div></header>
-      <div class="scroll">
-        <div class="ue-buehne"><img id="ueFoto" class="ue-foto" alt="" width="960" height="720" decoding="async"></div>
-        <p class="sub" id="ueEnglisch"></p>
-        <h2 class="abschnitt">Trainierte Muskeln</h2>
-        <div class="ue-muskeln" id="ueMuskeln"></div>
-        <p class="fineprint">Blau: Hauptmuskeln. Grau: unterstützende Muskeln.</p>
-        <h2 class="abschnitt">So geht es</h2>
-        <ol class="ue-schritte" id="ueSchritte"></ol>
-        <div class="ue-meta" id="ueMeta"></div>
-        <h2 class="abschnitt">Erklärvideo</h2>
-        <div id="ueVideo"></div>
-        <p class="fineprint">Das Video öffnet YouTube und stammt vom jeweiligen Kanal. Das Foto zeigt die Übung als Vorbild, die Wiederholungsbereiche sind Richtwerte. Wähle ein Gewicht, bei dem die Technik sauber bleibt.</p>
+      <button id="ueDetailZu" class="icon-btn ue-zurueck" aria-label="Zurück zur Liste"><span class="chev"></span></button>
+      <div class="scroll ue-scroll">
+        <div class="ue-hero">
+          <img id="ueFoto" class="ue-foto" alt="" width="960" height="720" decoding="async">
+          <div class="ue-hero-text">
+            <p class="ue-ueberzeile" id="ueGruppe"></p>
+            <h2 class="ue-titel" id="ueTitel"></h2>
+            <p class="ue-englisch" id="ueEnglisch"></p>
+          </div>
+        </div>
+        <div class="ue-koerper">
+          <dl class="ue-muskeln">
+            <div><dt>Trainiert</dt><dd class="haupt" id="ueHaupt"></dd></div>
+            <div id="ueNebenZeile"><dt>Unterstützt</dt><dd id="ueNeben"></dd></div>
+          </dl>
+          <div class="ue-meta" id="ueMeta"></div>
+          <h3 class="ue-abschnitt">So geht es</h3>
+          <ol class="ue-schritte" id="ueSchritte"></ol>
+          <p class="ue-fuss">Wiederholungsbereiche sind Richtwerte. Wähle ein Gewicht, bei dem die Technik sauber bleibt. Das Foto zeigt die Übung als Vorbild.</p>
+        </div>
       </div>
+      <div class="ue-cta" id="ueVideo"></div>
     </div>
   </section>
 

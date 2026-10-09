@@ -159,23 +159,30 @@ für den Nutzer einsehbar und löschbar.
 
 ## Übungen
 
-Die Ansicht "Übungen" (Menü, Gruppe Coaching) zeigt 74 verbreitete Übungen mit
-Suche, Gruppen- und Gerätefilter und einem Vorschaubild je Zeile. Ein Tipp
-öffnet die Detailseite: Foto, Haupt- und Hilfsmuskeln, drei bis vier Schritte,
-Gerät, Niveau, Wiederholungsbereich und ein Knopf zum Erklärvideo.
+Die Ansicht "Übungen" (Menü, Gruppe Coaching) ist ein Raster aus Foto Kacheln
+mit Suche und einer Zeile Gruppenfilter. Ein Tipp öffnet die Detailseite: das
+Foto bis an den Rand, darauf Gruppe und Name, darunter Haupt und Hilfsmuskeln,
+Niveau, Wiederholungen, Gerät, drei bis vier Schritte. Der Knopf zum
+Erklärvideo bleibt unten stehen.
+
+Gestaltung: Das Foto trägt die Seite. Kaum Rahmen, wenige Größen, viel Luft,
+Akzentfarbe nur für den Hauptmuskel, die Schrittnummern und den Videoknopf.
+Alles läuft über die vorhandenen Variablen, damit Hell und Dunkel ohne eigene
+Fassung stimmen. Neue Elemente in dieser Ansicht folgen dem: keine
+Strichfiguren, keine Clip Art, keine Karten mit Rahmen um Text.
 
 - Daten: `apps/pwa/js/uebungen-daten.js`. Eigenständig verfasst. Nichts aus der
   Datenbank einer anderen App übernehmen, weder Text noch Bild.
-- Fotos: `apps/pwa/img/uebungen/<id>.jpg` (960 x 720) und `klein/<id>.jpg` (176
-  x 132) für die Liste. Für daevo erzeugt. Bleiben im Stil: dunkles Studio,
-  Marineblau, kühles Licht. Keine Strichfiguren, keine Clip Art. Ein neues Foto
-  wird auf Technikfehler geprüft, bevor es eingecheckt wird: ein falsch
-  gehaltenes Gewicht in einer Coaching App ist ein Fehler im Produkt.
+- Fotos: `apps/pwa/img/uebungen/<id>.jpg` (960 x 720) und `kachel/<id>.jpg`
+  (400 x 500, Hochformat Ausschnitt) für das Raster. Für daevo erzeugt. Stil:
+  dunkles Studio, Marineblau, kühles Licht. Ein neues Foto wird auf Technikfehler
+  geprüft, bevor es eingecheckt wird: ein falsch gehaltenes Gewicht in einer
+  Coaching App ist ein Fehler im Produkt.
 - Video: `video: { id, titel, kanal, dauer }` je Übung. daevo verlinkt nur und
   bettet nicht ein. Die Adresse wird aus der Kennung gebaut, nie gespeichert.
   Videos können gelöscht werden, die Links gehören deshalb in die Pflege.
 - Ansicht: `apps/pwa/js/uebungen.js`. `uebungen.test.js` prüft, dass jede Übung
-  Muskeln, drei bis vier Schritte, Foto, Vorschau und eine gültige Videokennung
+  Muskeln, drei bis vier Schritte, Foto, Kachel und eine gültige Videokennung
   hat.
 - `pattern` ist das Bewegungsmuster. Ein Trainingsplan balanciert darüber
   Muskeln und Muster aus.

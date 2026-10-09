@@ -2438,65 +2438,145 @@ h1,
 
 /* ---------- Übungen ----------
  *
- * Foto oben, darunter Muskeln, Schritte und ein Knopf zum Video. Das Foto
- * steht in festem Seitenverhältnis, damit die Seite beim Laden nicht springt. */
-.ue-gruppen { margin-bottom: 14px; }
-.ue-item {
-  width: 100%; text-align: left; background: none; border: 0; padding: 0; margin: 0;
-  display: flex; align-items: center; gap: 12px;
-  color: inherit; font: inherit; cursor: pointer;
-}
-.ue-item .li-main { flex: 1; }
-.ue-item .chev-re { flex: none; width: 8px; height: 8px; border-right: 2px solid var(--muted); border-top: 2px solid var(--muted); transform: rotate(45deg); }
-.ue-liste li { padding: 0; overflow: hidden; }
-.ue-liste li .ue-item { padding: 8px 14px 8px 8px; }
-.ue-thumb {
-  flex: none; width: 88px; height: 66px; object-fit: cover; border-radius: 9px;
-  background: var(--panel-2); display: block;
-}
-.ue-leer { color: var(--muted); font-size: 14px; padding: 8px 2px; }
+ * Redaktionell statt Formular: Fotos tragen die Seite, Text steht auf ruhiger
+ * Fläche, es gibt kaum Rahmen. Wenige Größen, viel Luft, eine Akzentfarbe, die
+ * nur dort steht, wo man handeln kann oder wo es um den Hauptmuskel geht.
+ *
+ * Alles läuft über die vorhandenen Variablen, damit Hell und Dunkel ohne
+ * eigene Fassung stimmen. Der Verlauf unter dem Foto endet in `--bg`, nicht in
+ * Schwarz: so geht das Bild in jedem Modus in die Seite über. */
+.ue-view .scroll { padding-top: 6px; }
 
+/* Suche. Ein Feld, keine Beschriftung. Das Symbol sagt, was es ist. */
+.ue-suche { position: relative; margin: 2px 0 14px; color: var(--muted); }
+.ue-suche svg { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); pointer-events: none; }
+.ue-suche input {
+  width: 100%; height: 48px; padding: 0 16px 0 44px; margin: 0;
+  background: var(--panel); border: 1px solid var(--linie); border-radius: var(--r-pill);
+  color: var(--text); font-size: 16px; -webkit-appearance: none; appearance: none;
+}
+.ue-suche input::placeholder { color: var(--muted); opacity: 0.85; }
+.ue-suche input::-webkit-search-cancel-button { -webkit-appearance: none; }
+.ue-suche input:focus { border-color: color-mix(in srgb, var(--accent) 60%, transparent); outline: none; }
+
+/* Gruppen als eine Zeile zum Wischen. Aktiv ist die Fläche in Textfarbe: der
+   stärkste Kontrast der Seite, ohne eine zweite Farbe einzuführen. */
+.ue-tabs {
+  display: flex; gap: 8px; overflow-x: auto; margin: 0 -16px; padding: 2px 16px 14px;
+  scrollbar-width: none; -webkit-overflow-scrolling: touch; scroll-padding: 0 16px;
+}
+.ue-tabs::-webkit-scrollbar { display: none; }
+.ue-tab {
+  flex: none; white-space: nowrap;
+  background: transparent; color: var(--muted); border: 1px solid var(--linie);
+  border-radius: var(--r-pill); padding: 9px 16px; font-size: 14px; font-weight: 500; letter-spacing: 0.005em;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+.ue-tab.on { background: var(--text); color: var(--bg); border-color: var(--text); }
+.ue-zaehler { margin: 0 0 12px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+/* Das Raster. Zwei Spalten, Hochformat, der Name liegt auf dem Foto. */
+.ue-raster { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.ue-raster li { margin: 0; padding: 0; background: none; border: 0; display: block; }
+.ue-leer { grid-column: 1 / -1; color: var(--muted); font-size: 15px; line-height: 1.5; padding: 28px 4px; text-align: center; }
+.ue-karte {
+  position: relative; display: block; width: 100%; aspect-ratio: 4 / 5; padding: 0; margin: 0;
+  border: 0; border-radius: 20px; overflow: hidden; background: var(--panel-2); color: #fff;
+  text-align: left; cursor: pointer; transition: transform 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.ue-karte:active { transform: scale(0.975); }
+.ue-karte-bild { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.ue-karte::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(180deg, rgba(8, 10, 14, 0) 38%, rgba(8, 10, 14, 0.82) 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06); border-radius: inherit;
+}
+.ue-karte-text { position: absolute; z-index: 1; left: 14px; right: 14px; bottom: 13px; display: flex; flex-direction: column; gap: 3px; }
+.ue-karte-text b {
+  font-family: var(--schrift-display); font-size: 15px; font-weight: 600; line-height: 1.22; letter-spacing: -0.005em;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere;
+}
+.ue-karte-text span { font-size: 10.5px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 255, 255, 0.7); }
+
+/* Detail. Foto bis an den Rand, Titel darauf, Text darunter. */
 .ue-detail {
-  position: absolute; inset: 0; z-index: 5; background: var(--bg); padding-top: env(safe-area-inset-top);
+  position: absolute; inset: 0; z-index: 5; background: var(--bg);
   display: flex; flex-direction: column;
+  animation: ue-hoch 0.34s var(--kurve, cubic-bezier(0.2, 0.8, 0.2, 1)) both;
 }
 .ue-detail[hidden] { display: none; }
-.ue-buehne {
-  border-radius: var(--r-md); overflow: hidden; margin: 4px 0 14px;
-  background: var(--panel-2); border: 1px solid var(--border); aspect-ratio: 4 / 3;
+@keyframes ue-hoch { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: none; } }
+.ue-scroll { padding: 0 0 calc(132px + env(safe-area-inset-bottom)); }
+
+.ue-zurueck {
+  position: absolute; z-index: 3; left: 14px; top: calc(env(safe-area-inset-top) + 10px);
+  width: 42px; height: 42px; border-radius: 50%;
+  background: rgba(10, 12, 16, 0.42); border: 1px solid rgba(255, 255, 255, 0.14);
+  -webkit-backdrop-filter: blur(14px) saturate(140%); backdrop-filter: blur(14px) saturate(140%);
+  color: #fff;
 }
-.ue-foto { display: block; width: 100%; height: 100%; object-fit: cover; }
-.ue-muskeln { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 6px; }
-.ue-chip {
-  border-radius: var(--r-pill); padding: 6px 12px; font-size: 13.5px; font-weight: 600;
-  border: 1px solid var(--accent); color: var(--accent-text);
+.ue-zurueck .chev { border-color: #fff; }
+
+.ue-hero { position: relative; aspect-ratio: 20 / 17; max-height: 62vh; }
+.ue-foto { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; display: block; animation: ue-zoom 0.9s var(--kurve, cubic-bezier(0.2, 0.8, 0.2, 1)) both; }
+@keyframes ue-zoom { from { transform: scale(1.07); } to { transform: none; } }
+.ue-hero::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(8, 10, 14, 0.4) 0%, rgba(8, 10, 14, 0) 24%),
+    linear-gradient(180deg, transparent 40%, color-mix(in srgb, var(--bg) 78%, transparent) 74%, var(--bg) 100%);
 }
-.ue-chip.zweit { border-color: var(--border); color: var(--muted); font-weight: 500; }
-.ue-schritte { list-style: none; counter-reset: schritt; padding: 0; margin: 0 0 8px; }
+.ue-hero-text { position: absolute; z-index: 1; left: 20px; right: 20px; bottom: 6px; }
+.ue-ueberzeile { margin: 0 0 8px; font-size: 11.5px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent-text); }
+.ue-titel { margin: 0; font-family: var(--schrift-display); font-size: 30px; font-weight: 600; line-height: 1.12; letter-spacing: -0.018em; color: var(--text); overflow-wrap: anywhere; }
+.ue-englisch { margin: 6px 0 0; font-size: 14px; color: var(--muted); }
+
+.ue-koerper { padding: 22px 20px 0; }
+.ue-muskeln { margin: 0 0 26px; display: grid; gap: 16px; }
+.ue-muskeln div { margin: 0; }
+.ue-muskeln dt { font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin: 0 0 5px; }
+.ue-muskeln dd { margin: 0; font-size: 17px; line-height: 1.4; color: var(--muted); }
+.ue-muskeln dd.haupt { font-family: var(--schrift-display); font-size: 20px; font-weight: 500; color: var(--text); letter-spacing: -0.01em; }
+
+.ue-meta { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 0.9fr) minmax(0, 1.3fr); border-top: 1px solid var(--linie); border-bottom: 1px solid var(--linie); margin-bottom: 34px; }
+.ue-stat { padding: 16px 0 15px 14px; border-left: 1px solid var(--linie); display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.ue-stat:first-child { padding-left: 0; border-left: 0; }
+.ue-stat b { font-family: var(--schrift-display); font-size: 14px; font-weight: 600; line-height: 1.3; color: var(--text); overflow-wrap: break-word; }
+.ue-stat span { font-size: 10.5px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+
+.ue-abschnitt { margin: 0 0 6px; font-family: var(--schrift-display); font-size: 22px; font-weight: 600; letter-spacing: -0.012em; color: var(--text); }
+.ue-schritte { list-style: none; counter-reset: schritt; margin: 0; padding: 0; }
 .ue-schritte li {
-  counter-increment: schritt; position: relative; padding: 0 0 14px 40px;
-  font-size: 16px; line-height: 1.45;
+  counter-increment: schritt; display: grid; grid-template-columns: 42px minmax(0, 1fr); align-items: baseline;
+  padding: 17px 0; border-bottom: 1px solid var(--linie); font-size: 16.5px; line-height: 1.5; color: var(--text);
 }
+.ue-schritte li:last-child { border-bottom: 0; }
 .ue-schritte li::before {
-  content: counter(schritt); position: absolute; left: 0; top: -1px;
-  width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: var(--on-accent);
-  display: grid; place-items: center; font-weight: 700; font-size: 14px;
+  content: counter(schritt, decimal-leading-zero); font-family: var(--schrift-display); font-size: 13px; font-weight: 600;
+  letter-spacing: 0.06em; color: var(--accent-text); opacity: 0.9;
 }
-.ue-meta { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: 13.5px; margin: 8px 0 4px; }
-.ue-meta b { color: var(--text); font-weight: 600; }
-.ue-video {
-  display: flex; align-items: center; gap: 14px; text-decoration: none; color: inherit;
-  background: var(--panel); border: 1px solid var(--border); border-radius: var(--r-md); padding: 12px 14px;
+.ue-fuss { margin: 14px 0 0; font-size: 12.5px; line-height: 1.55; color: var(--muted); }
+
+/* Der Videoknopf bleibt unten stehen. Darunter läuft die Seite in `--bg` aus,
+   damit Text nicht scharf an der Kante des Knopfs abreißt. */
+.ue-cta {
+  position: absolute; z-index: 4; left: 0; right: 0; bottom: 0;
+  padding: 34px 16px calc(14px + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--bg) 88%, transparent) 38%, var(--bg) 70%);
 }
-.ue-video:active { border-color: var(--accent); }
-.ue-video .chev-re { flex: none; width: 8px; height: 8px; border-right: 2px solid var(--muted); border-top: 2px solid var(--muted); transform: rotate(45deg); }
-.ue-play {
-  flex: none; width: 44px; height: 44px; border-radius: 50%; background: var(--accent); position: relative;
+.ue-cta-knopf {
+  display: flex; align-items: center; justify-content: center; gap: 12px; height: 56px; border-radius: var(--r-pill);
+  background: var(--stark); color: var(--auf-stark); text-decoration: none;
+  font-family: var(--schrift-display); font-size: 16px; font-weight: 600; letter-spacing: 0.005em;
+  box-shadow: 0 10px 30px -10px color-mix(in srgb, var(--stark) 70%, transparent);
+  transition: transform 0.18s ease;
 }
-.ue-play::after {
-  content: ""; position: absolute; left: 17px; top: 13px;
-  border-left: 14px solid var(--on-accent); border-top: 9px solid transparent; border-bottom: 9px solid transparent;
+.ue-cta-knopf:active { transform: scale(0.98); }
+.ue-play { width: 0; height: 0; border-left: 11px solid currentColor; border-top: 7px solid transparent; border-bottom: 7px solid transparent; margin-left: 2px; }
+.ue-cta-fuss { margin: 10px 0 0; text-align: center; font-size: 12px; color: var(--muted); letter-spacing: 0.01em; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ue-detail, .ue-foto { animation: none; }
+  .ue-karte, .ue-cta-knopf { transition: none; }
 }
-.ue-video-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.ue-video-text b { font-size: 15.5px; font-weight: 650; }
-.ue-video-text span { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }

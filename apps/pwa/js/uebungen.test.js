@@ -5,8 +5,8 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { UEBUNGEN } from "./uebungen-daten.js";
 import {
-  ARTEN, GERAETE, GRUPPEN, NIVEAUS, fotoPfad, listeHtml, metaHtml, muskelnHtml, schritteHtml, uebungNach,
-  uebungenFiltern, untertitel, videoHtml, videoLink, vorschauPfad,
+  ARTEN, GERAETE, GRUPPEN, NIVEAUS, fotoPfad, gruppenName, hauptmuskelnText, listeHtml, metaHtml, nebenmuskelnText,
+  schritteHtml, uebungNach, uebungenFiltern, videoHtml, videoLink, vorschauPfad,
 } from "./uebungen.js";
 
 /**
@@ -46,7 +46,7 @@ test("Zu jeder Übung gibt es ein Foto und eine Vorschau, und beide sind klein g
     assert.ok(existsSync(gross), `Foto fehlt: ${u.id}`);
     assert.ok(existsSync(klein), `Vorschau fehlt: ${u.id}`);
     assert.ok(statSync(gross).size > 20_000 && statSync(gross).size < 400_000, `${u.id}: Foto ${statSync(gross).size} Byte`);
-    assert.ok(statSync(klein).size < 40_000, `${u.id}: Vorschau zu groß`);
+    assert.ok(statSync(klein).size > 8_000 && statSync(klein).size < 60_000, `${u.id}: Kachel ${statSync(klein).size} Byte`);
   }
 });
 
@@ -58,15 +58,15 @@ test("Jede Übung verweist auf ein Video mit gültiger Kennung", () => {
   }
 });
 
-test("Der Videoknopf öffnet YouTube in neuem Fenster und zeigt Kanal und Dauer", () => {
+test("Der Videoknopf öffnet YouTube in neuem Fenster und nennt Kanal und Dauer", () => {
   const u = uebungNach("kreuzheben");
   const html = videoHtml(u);
   assert.match(html, /href="https:\/\/www\.youtube\.com\/watch\?v=[A-Za-z0-9_-]{11}"/);
   assert.match(html, /target="_blank"/);
   assert.match(html, /rel="noopener noreferrer"/);
-  assert.match(html, new RegExp(u.video.kanal.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.ok(html.includes(u.video.kanal));
   assert.match(html, /Min\./);
-  // Ohne Dauer steht keine leere Klammer da.
+  // Ohne Dauer steht kein leeres Stück da.
   assert.doesNotMatch(videoHtml({ ...u, video: { ...u.video, dauer: "" } }), /Min\./);
 });
 
@@ -110,22 +110,30 @@ test("Jede Gruppe ist mit Übungen belegt", () => {
   }
 });
 
-test("Die Detailseite zeigt Muskeln, Schritte und Eckdaten", () => {
+test("Die Detailseite zeigt Gruppe, Muskeln, Schritte und drei Kennzahlen", () => {
   const u = uebungNach("bankdruecken");
   assert.ok(u);
-  assert.match(muskelnHtml(u), /ue-chip">Brust</);
-  assert.match(muskelnHtml(u), /ue-chip zweit">Trizeps</);
+  assert.equal(gruppenName(u), "Brust");
+  assert.equal(hauptmuskelnText(u), "Brust");
+  assert.match(nebenmuskelnText(u), /Trizeps/);
   assert.equal((schritteHtml(u).match(/<li>/g) ?? []).length, u.steps.length);
-  assert.match(metaHtml(u), /Langhantel/);
-  assert.match(untertitel(u), /Brust · Langhantel/);
+  const meta = metaHtml(u);
+  assert.equal((meta.match(/class="ue-stat"/g) ?? []).length, 3);
+  assert.match(meta, /Langhantel/);
+  assert.match(meta, /5-10/);
   assert.equal(uebungNach("gibtsnicht"), null);
 });
 
-test("Die Liste zeigt die Vorschau, maskiert Zeichen und meldet einen leeren Treffer", () => {
+test("Eine Übung ohne unterstützende Muskeln liefert einen leeren Text, damit die Zeile entfällt", () => {
+  assert.equal(nebenmuskelnText({ secondaryMuscles: [] }), "");
+});
+
+test("Die Kacheln zeigen Foto, Namen und Hauptmuskel, maskieren Zeichen und melden einen leeren Treffer", () => {
   const html = listeHtml([{ id: 'x"y', name: "<b>A&B</b>", primaryMuscles: ["Brust"], secondaryMuscles: [], equipment: "cable" }]);
-  assert.doesNotMatch(html, /<b>/);
+  assert.doesNotMatch(html, /<b>A/);
   assert.match(html, /&lt;b&gt;A&amp;B/);
   assert.match(html, /data-uebung="x&quot;y"/);
-  assert.match(html, /class="ue-thumb"/);
+  assert.match(html, /class="ue-karte-bild"/);
+  assert.match(html, /<span>Brust<\/span>/);
   assert.match(listeHtml([]), /Keine Übung gefunden/);
 });
