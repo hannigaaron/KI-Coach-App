@@ -173,6 +173,10 @@ $("anhangMenue").addEventListener("click", (event) => {
   $("anhangMenue").hidden = true;
   if (button.dataset.anhang === "kamera") $("kameraWahl").click();
   if (button.dataset.anhang === "datei") $("dateiWahl").click();
+  // Die beiden Betriebsarten haben ihre eigenen Knöpfe, die erst beim Laufen
+  // sichtbar werden. Das Menü stößt sie nur an.
+  if (button.dataset.anhang === "dump") $("btnDump").click();
+  if (button.dataset.anhang === "weckwort") $("btnWeckwort").click();
 });
 for (const id of ["dateiWahl", "kameraWahl"]) {
   $(id).addEventListener("change", async (event) => {
@@ -482,8 +486,8 @@ $("btnDump").addEventListener("click", () => {
     onState: (state) => {
       if (state === "listening") {
         orb.setState("listening");
-        setStatus("hört zu, tipp auf Kopf, wenn du fertig bist");
-        $("orbHint").textContent = "Red alles raus. Pausen sind in Ordnung. Tipp auf Kopf, wenn du fertig bist.";
+        setStatus("hört zu, tipp auf Fertig, wenn du durch bist");
+        $("orbHint").textContent = "Red alles raus. Pausen sind in Ordnung. Tipp unten auf Fertig, wenn du durch bist.";
       }
     },
   });

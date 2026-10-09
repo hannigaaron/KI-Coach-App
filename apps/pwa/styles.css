@@ -1023,7 +1023,6 @@ img.only-light { display: none; }
    sich schneller als eine Linienart, die sich ändert. */
 .icon-btn[aria-pressed="true"] .speaker-strich,
 .icon-btn[aria-pressed="false"] .speaker-welle { display: none; }
-}
 
 /* Bühne mit dem Kreis */
 .stage {
@@ -1162,28 +1161,7 @@ img.only-light { display: none; }
   font-size: 14px; line-height: 20px; font-weight: 700;
 }
 
-.icon-btn.clip { border-radius: 50%; background: none; border: none; }
-/* Büroklammer aus zwei Bögen. Eine Grafik dafür zu laden wäre Verschwendung. */
-.icon-btn.clip .clip-icon {
-  display: block; width: 9px; height: 17px;
-  border: 2px solid currentColor; border-radius: 9px;
-  transform: rotate(35deg);
-}
-.icon-btn.clip .clip-icon::after {
-  content: ""; position: absolute; left: 50%; top: 50%;
-  width: 2px; height: 8px; background: currentColor; border-radius: 1px;
-  transform: translate(-1px, -8px);
-}
-.icon-btn.clip[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
 
-.anhang-menue {
-  position: absolute; left: 12px; right: 12px;
-  bottom: calc(var(--composer) + env(safe-area-inset-bottom) + 10px);
-  z-index: 30; display: flex; flex-direction: column; gap: 8px;
-  background: var(--panel); border: 1px solid var(--border); border-radius: var(--r-md); padding: 10px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
-}
-.anhang-menue button { width: 100%; background: var(--panel-2); border: 1px solid var(--border); color: var(--text); }
 
 /* Bilder in einer Nachricht */
 .msg-bilder { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
@@ -1193,48 +1171,6 @@ img.only-light { display: none; }
 }
 .msg-dateien { font-size: 12.5px; opacity: 0.75; margin-bottom: 4px; }
 
-/*
- * Die Eingabe ist eine Pille, keine Zeile mit Knöpfen daneben.
- *
- * Alles sitzt in einem Element: Mikrofon, Klammer, Kopf, Feld und Pfeil. Das
- * spart eine Trennlinie über die ganze Breite und lässt den Verlauf bis nach
- * unten durchlaufen, statt ihn abzuschneiden.
- */
-.composer-bar {
-  flex: 0 0 auto; display: flex; align-items: center; gap: 2px;
-  margin: 6px 12px calc(10px + env(safe-area-inset-bottom));
-  padding: 5px 6px 5px 8px;
-  border-radius: 26px;
-  border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--panel) 82%, transparent);
-  backdrop-filter: blur(14px);
-}
-.composer-bar input {
-  flex: 1; min-width: 0;
-  border: none; background: none; border-radius: 0;
-  padding: 11px 8px; font-size: 15.5px;
-}
-.composer-bar input:focus { outline: none; box-shadow: none; }
-.icon-btn.mic, .icon-btn.send { border-radius: 50%; background: none; border: none; }
-.icon-btn.send { width: 34px; height: 34px; }
-.icon-btn.clip .clip-icon { position: relative; }
-.icon-btn.mic .mic-dot {
-  display: block; position: relative;
-  width: 11px; height: 15px; border-radius: 6px; background: currentColor;
-}
-.icon-btn.mic .mic-dot::after {
-  content: ""; position: absolute; left: 50%; bottom: -8px; transform: translateX(-50%);
-  width: 17px; height: 8px;
-  border: 2px solid currentColor; border-top: none;
-  border-radius: 0 0 10px 10px;
-}
-.icon-btn.mic[aria-pressed="true"] { background: var(--accent); border-color: transparent; color: var(--on-accent); }
-.icon-btn.send { background: var(--accent); border-color: transparent; color: var(--on-accent); }
-.icon-btn.send .arrow {
-  display: block; width: 10px; height: 10px;
-  border-top: 2px solid currentColor; border-right: 2px solid currentColor;
-  transform: rotate(-45deg); margin-left: -3px;
-}
 
 /* Bereiche mit eigenem Scrollbereich */
 .scroll > .sub:first-child { margin: 4px 0 18px; }
@@ -2194,37 +2130,6 @@ body.blatt-offen { overflow: hidden; }
 .foto-fuss .primary:disabled { opacity: 0.88; }
 
 
-/* ---------- Betriebsarten ----------
- *
- * Kopf leeren und das Weckwort sind Zustände, keine Eingabehilfen. Sie
- * standen in der Pille als zwei Wörter zwischen vier Symbolen und haben den
- * Platzhalter im Feld abgeschnitten. Jetzt stehen sie darüber, beschriftet,
- * mit einem Punkt, der den Zustand trägt.
- */
-.modi {
-  display: flex; gap: var(--s-2);
-  padding: 0 var(--s-4) var(--s-2);
-}
-.modus {
-  display: inline-flex; align-items: center; gap: var(--s-2);
-  padding: 7px var(--s-3); border-radius: var(--r-pill);
-  border: 1px solid var(--border); background: var(--panel-2);
-  color: var(--muted); font: inherit; font-size: var(--t-xs); font-weight: 600;
-  transition: color var(--schnell) var(--kurve), border-color var(--schnell) var(--kurve);
-}
-.modus:active { transform: scale(0.98); }
-.modus-punkt {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: currentColor; opacity: 0.45;
-  transition: opacity var(--schnell) var(--kurve), box-shadow var(--schnell) var(--kurve);
-}
-/* An heisst: Farbe, voller Punkt und ein Schimmer darum. Drei Signale, weil
-   ein offenes Mikrofon Akku zieht und niemand es übersehen darf. */
-.modus[aria-pressed="true"] { color: var(--accent-text); border-color: var(--accent); }
-.modus[aria-pressed="true"] .modus-punkt {
-  opacity: 1; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
-}
-@media (prefers-reduced-motion: reduce) { .modus, .modus-punkt { transition: none; } }
 
 /* ---------- Karten zum Durchwischen ----------
  *
@@ -2579,4 +2484,124 @@ h1,
 @media (prefers-reduced-motion: reduce) {
   .ue-detail, .ue-foto { animation: none; }
   .ue-karte, .ue-cta-knopf { transition: none; }
+}
+
+/* ---------- Eingabe ----------
+ *
+ * Eine Pille mit drei Dingen: links das Plus, in der Mitte das Feld, rechts
+ * genau ein Knopf. Ist das Feld leer, ist es das Mikrofon, steht Text darin,
+ * wird daraus Senden. Zwei Knöpfe für zwei Zustände, die sich ausschließen,
+ * nebeneinander zu zeigen war nie nötig.
+ *
+ * Welcher da ist, entscheidet `:placeholder-shown` und nicht ein Listener: der
+ * Text kommt auch aus der Spracherkennung, die den Wert ohne Ereignis setzt, und
+ * ein Listener sähe das nie. Symbole sind Linien mit einer Stärke und runden
+ * Enden, dieselbe Sprache wie die Marke. Kein Kasten, der eine Büroklammer aus
+ * zwei Rahmen zusammensetzt. */
+.composer-bar {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 2px;
+  margin: 6px 12px calc(12px + env(safe-area-inset-bottom));
+  padding: 6px;
+  border-radius: 30px;
+  border: 1px solid var(--linie);
+  background: color-mix(in srgb, var(--panel) 78%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(140%); backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: 0 10px 30px -14px rgba(0, 0, 0, 0.55);
+  transition: border-color 0.2s ease;
+}
+.composer-bar:focus-within { border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+.composer-bar input {
+  flex: 1; min-width: 0; margin: 0;
+  border: none; background: none; border-radius: 0; box-shadow: none;
+  padding: 12px 6px; font-size: 16px; color: var(--text);
+}
+.composer-bar input:focus { outline: none; box-shadow: none; }
+.composer-bar input::placeholder { color: var(--muted); opacity: 0.9; }
+
+.co-btn {
+  position: relative; flex: none; display: grid; place-items: center; width: 42px; height: 42px; padding: 0;
+  border: 0; border-radius: 50%; background: none; color: var(--muted);
+  transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.co-btn:active { transform: scale(0.92); }
+.co-plus:hover, .co-plus[aria-pressed="true"] { color: var(--accent-text); }
+
+/* Mikrofon: ruhig, bis es läuft. Dann Fläche in Markenfarbe und ein Ring, der
+   atmet. Der Ring ist das einzige, das sich bewegt, und er sagt: es ist offen. */
+.co-mic { background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text); }
+.co-mic[aria-pressed="true"] { background: var(--stark); color: var(--auf-stark); animation: co-atmen 1.8s ease-out infinite; }
+@keyframes co-atmen {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--stark) 50%, transparent); }
+  100% { box-shadow: 0 0 0 12px transparent; }
+}
+
+.co-send { display: none; background: var(--stark); color: var(--auf-stark); }
+.composer-bar:has(#chatInput:not(:placeholder-shown)) .co-send { display: grid; }
+.composer-bar:has(#chatInput:not(:placeholder-shown)) .co-mic:not([aria-pressed="true"]) { display: none; }
+
+/* Ein Punkt am Plus, solange eine Betriebsart läuft oder etwas anhängt. */
+#btnAnhang[aria-pressed="true"]::after,
+#assistant:has(.modus[aria-pressed="true"]) #btnAnhang::after {
+  content: ""; position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--stark); box-shadow: 0 0 0 2px var(--bg);
+}
+
+/* Das Menü hinter dem Plus. Zeilen mit Linie dazwischen, kein Kasten je Zeile. */
+.anhang-menue {
+  position: absolute; z-index: 30; left: 12px; width: min(330px, calc(100% - 24px));
+  bottom: calc(var(--composer, 64px) + env(safe-area-inset-bottom) + 22px);
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  -webkit-backdrop-filter: blur(22px) saturate(150%); backdrop-filter: blur(22px) saturate(150%);
+  border: 1px solid var(--linie); border-radius: 22px; padding: 6px;
+  box-shadow: 0 24px 60px -16px rgba(0, 0, 0, 0.6);
+  animation: menue-auf 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) both; transform-origin: bottom left;
+}
+.anhang-menue[hidden] { display: none; }
+@keyframes menue-auf { from { opacity: 0; transform: translateY(8px) scale(0.97); } to { opacity: 1; transform: none; } }
+.anhang-menue button {
+  width: 100%; display: flex; align-items: center; gap: 14px; text-align: left;
+  background: none; border: 0; border-radius: 16px; padding: 12px 14px; margin: 0;
+  color: var(--text); font: inherit;
+}
+.anhang-menue button:active { background: color-mix(in srgb, var(--text) 8%, transparent); }
+.anhang-menue svg { flex: none; width: 24px; height: 24px; color: var(--accent-text); }
+.anhang-menue button > span { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.anhang-menue b { font-size: 15.5px; font-weight: 600; }
+.anhang-menue button > span > span { font-size: 12.5px; line-height: 1.35; color: var(--muted); }
+.anhang-menue hr { border: 0; height: 1px; background: var(--linie); margin: 4px 14px; }
+.schalter {
+  flex: none; width: 40px; height: 24px; border-radius: 12px; position: relative;
+  background: color-mix(in srgb, var(--text) 16%, transparent); transition: background 0.2s ease;
+}
+.schalter::after {
+  content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35); transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+#assistant:has(#btnWeckwort[aria-pressed="true"]) .schalter { background: var(--stark); }
+#assistant:has(#btnWeckwort[aria-pressed="true"]) .schalter::after { transform: translateX(16px); }
+
+/* Läuft eine Betriebsart, steht ihr Beenden Knopf über der Eingabe. Sonst gibt
+   es die Zeile nicht: ein dauerhaft sichtbares "Hey daevo" sah aus wie ein
+   Knopf, den man drücken muss. */
+.modi { display: none; padding: 0 16px 4px; gap: 8px; }
+#assistant:has(.modus[aria-pressed="true"]) .modi { display: flex; }
+.modus {
+  display: none; align-items: center; gap: 10px;
+  padding: 9px 16px; border-radius: var(--r-pill);
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent-text); font: inherit; font-size: 13.5px; font-weight: 600;
+}
+.modus[aria-pressed="true"] { display: inline-flex; }
+.modus:active { transform: scale(0.98); }
+.modus-punkt {
+  width: 7px; height: 7px; border-radius: 50%; background: currentColor;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 24%, transparent);
+  animation: co-puls 1.6s ease-in-out infinite;
+}
+@keyframes co-puls { 50% { opacity: 0.4; } }
+@media (prefers-reduced-motion: reduce) {
+  .co-mic[aria-pressed="true"], .modus-punkt, .anhang-menue { animation: none; }
+  .co-btn, .schalter, .schalter::after { transition: none; }
 }

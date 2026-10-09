@@ -157,6 +157,29 @@ für den Nutzer einsehbar und löschbar.
   `document` noch `window` an, ein Ersatz für `localStorage` reicht. Wer dort
   etwas anfasst, das den Browser braucht, nimmt sich diese Tests weg.
 
+## Die Eingabe
+
+Eine Pille mit drei Dingen: links das Plus, in der Mitte das Feld, rechts genau
+ein Knopf. Ist das Feld leer, ist es das Mikrofon, steht Text darin, wird daraus
+Senden. Welcher da ist, entscheidet `:placeholder-shown` im Stylesheet und kein
+Listener: der Text kommt auch aus der Spracherkennung, die den Wert ohne
+Ereignis setzt.
+
+Hinter dem Plus liegt ein Menü: Foto aufnehmen, aus der Mediathek, Kopf leeren,
+Freihändig. Kopf leeren und das Weckwort sind Betriebsarten und keine
+Eingabehilfen. Ihre Knöpfe (`btnDump`, `btnWeckwort`) stehen nur über der Pille,
+solange die Betriebsart läuft, und sind dann der Knopf zum Beenden. Das Menü
+stößt sie nur an. Eine Zeile mit zwei Wörtern, die dauernd dastand, sah aus wie
+Knöpfe, die man drücken muss, und niemand wusste, was "Hey daevo" dort sollte.
+
+Ein Punkt am Plus zeigt, dass etwas läuft oder anhängt. Symbole sind Linien in
+einer Stärke mit runden Enden, keine zusammengesetzten Rahmen.
+
+Ein Fehler, der das Layout still zerlegt hat: eine überzählige `}` im
+Stylesheet ließ den Browser die nächste Regel verwerfen. Das war `.stage`, und
+ohne sie hing die Eingabe mitten auf dem Bildschirm statt unten. Kein Test sieht
+das. Wer im Stylesheet etwas einfügt, prüft die Klammerbilanz.
+
 ## Übungen
 
 Die Ansicht "Übungen" (Menü, Gruppe Coaching) ist ein Raster aus Foto Kacheln
