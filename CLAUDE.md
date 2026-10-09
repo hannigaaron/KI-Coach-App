@@ -157,11 +157,101 @@ für den Nutzer einsehbar und löschbar.
   `document` noch `window` an, ein Ersatz für `localStorage` reicht. Wer dort
   etwas anfasst, das den Browser braucht, nimmt sich diese Tests weg.
 
+## Die Eingabe
+
+Eine Pille mit drei Dingen: links das Plus, in der Mitte das Feld, rechts genau
+ein Knopf. Ist das Feld leer, ist es das Mikrofon, steht Text darin, wird daraus
+Senden. Welcher da ist, entscheidet `:placeholder-shown` im Stylesheet und kein
+Listener: der Text kommt auch aus der Spracherkennung, die den Wert ohne
+Ereignis setzt.
+
+Hinter dem Plus liegt ein Menü: Foto aufnehmen, aus der Mediathek, Kopf leeren,
+Freihändig. Kopf leeren und das Weckwort sind Betriebsarten und keine
+Eingabehilfen. Ihre Knöpfe (`btnDump`, `btnWeckwort`) stehen nur über der Pille,
+solange die Betriebsart läuft, und sind dann der Knopf zum Beenden. Das Menü
+stößt sie nur an. Eine Zeile mit zwei Wörtern, die dauernd dastand, sah aus wie
+Knöpfe, die man drücken muss, und niemand wusste, was "Hey daevo" dort sollte.
+
+Ein Punkt am Plus zeigt, dass etwas läuft oder anhängt. Symbole sind Linien in
+einer Stärke mit runden Enden, keine zusammengesetzten Rahmen.
+
+Ein Fehler, der das Layout still zerlegt hat: eine überzählige `}` im
+Stylesheet ließ den Browser die nächste Regel verwerfen. Das war `.stage`, und
+ohne sie hing die Eingabe mitten auf dem Bildschirm statt unten. Kein Test sieht
+das. Wer im Stylesheet etwas einfügt, prüft die Klammerbilanz.
+
+## Übungen
+
+Die Ansicht "Übungen" (Menü, Gruppe Coaching) hat zwei Reiter, Übungen und Trainingspläne. Die Übungen sind ein Raster aus Foto Kacheln
+mit Suche und einer Zeile Gruppenfilter. Ein Tipp öffnet die Detailseite: das
+Foto bis an den Rand, darauf Gruppe und Name, darunter Haupt und Hilfsmuskeln,
+Niveau, Wiederholungen, Gerät, drei bis vier Schritte. Der Knopf zum
+Erklärvideo bleibt unten stehen.
+
+Gestaltung: Das Foto trägt die Seite. Kaum Rahmen, wenige Größen, viel Luft,
+Akzentfarbe nur für den Hauptmuskel, die Schrittnummern und den Videoknopf.
+Alles läuft über die vorhandenen Variablen, damit Hell und Dunkel ohne eigene
+Fassung stimmen. Neue Elemente in dieser Ansicht folgen dem: keine
+Strichfiguren, keine Clip Art, keine Karten mit Rahmen um Text.
+
+- Daten: `apps/pwa/js/uebungen-daten.js`. Eigenständig verfasst. Nichts aus der
+  Datenbank einer anderen App übernehmen, weder Text noch Bild.
+- Fotos: `apps/pwa/img/uebungen/<id>.jpg` (960 x 720) und `kachel/<id>.jpg`
+  (400 x 500, Hochformat Ausschnitt) für das Raster. Für daevo erzeugt. Stil:
+  dunkles Studio, Marineblau, kühles Licht. Ein neues Foto wird auf Technikfehler
+  geprüft, bevor es eingecheckt wird: ein falsch gehaltenes Gewicht in einer
+  Coaching App ist ein Fehler im Produkt.
+- Zweiter Aufbau: `alternative: { titel, steps }` mit Foto unter
+  `img/uebungen/alternative/<id>.jpg`. Bisher bei den Band Klimmzügen: das Band
+  quer im Rack einspannen und mit den Füßen daraufstehen.
+- Video: `video: { id, titel, kanal, dauer }` je Übung. daevo verlinkt nur und
+  bettet nicht ein. Die Adresse wird aus der Kennung gebaut, nie gespeichert.
+  Videos können gelöscht werden, die Links gehören deshalb in die Pflege.
+- Ansicht: `apps/pwa/js/uebungen.js`. `uebungen.test.js` prüft, dass jede Übung
+  Muskeln, drei bis vier Schritte, Foto, Kachel und eine gültige Videokennung
+  hat.
+- `pattern` ist das Bewegungsmuster. Der Trainingsplan wählt darüber die Übung je
+  Platz.
+
+### Trainingspläne
+
+Reiter in derselben Ansicht, Menüpunkt "Trainingspläne". Der Plan wird gerechnet
+und nicht von einem Modell geschrieben: `packages/core/src/trainingsplan.ts`,
+Darstellung in `apps/pwa/js/plaene.js`. Er läuft ohne Schlüssel, ist bei
+gleicher Eingabe immer derselbe und jede Zahl hängt an einer Regel im Code.
+
+Eingaben: Tage pro Woche (2 bis 5), Minuten je Einheit, Erfahrung, Ziel,
+Entlastungswoche. Aufbau: zwei Tage Ganzkörper A und B, drei Tage Ganzkörper A,
+B und C, vier Tage Ober und Unterkörper zweimal, fünf Tage Push, Pull, Beine,
+Oberkörper, Unterkörper. Je Tag ein Hauptplatz für die Beine, ein Drücken, ein
+Ziehen, danach Zubehör. Mehr Beinplätze ließen die Beine auf das Doppelte der
+Brust kommen, und der Plan wäre beim Zählen der Sätze schief gewesen, obwohl
+jeder einzelne Tag vernünftig aussah.
+
+Die Übung je Platz kommt aus der Datenbank über `pattern`, `mechanics` und
+`gruppe`. Einsteiger bekommen nur Einsteigerübungen. Für das Ziehen von oben
+heißt das Latzug oder Klimmzug mit Unterstützung (Maschine). Wer in dieser Woche
+schon dran war, kommt später; danach zählt der Abstand zum eigenen Niveau, dann
+ein stabiler Streuwert. "Andere Übungen" erhöht die Variante.
+
+Gestützt ist, was die Quellen im Plan tragen: zwei Mal pro Woche je Muskelgruppe
+(Schoenfeld und andere 2016), Sätze pro Woche als Richtwert ab etwa zehn
+(Schoenfeld und andere 2017), Steuerung über Wiederholungen in Reserve (Zourdos
+2016, Helms 2016). Die Sätze je Gruppe stehen im Plan, damit man sieht, wo er
+unter dem Richtwert liegt, statt dass er sie verschweigt. Die Dauer ist eine
+Schätzung aus Sätzen, Pausen und Aufbau. Ein Plan, der Verletzungen oder
+Vorerkrankungen kennt, ist das nicht, und das steht auch im Ergebnis.
+
+Der gespeicherte Plan liegt in `settings.plan` und ist damit in der Sicherung.
+Er trägt die Positionen und nicht nur die Eingaben: ändert sich die Datenbank,
+bleibt der Plan, den jemand gespeichert hat, wie er war. Übungen, die es später
+nicht mehr gibt, fallen beim Laden heraus.
+
 ## Befehle
 
 ```bash
 npm install
-npm test           # 883 Tests
+npm test           # 925 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages

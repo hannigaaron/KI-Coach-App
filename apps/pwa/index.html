@@ -129,25 +129,32 @@ try {
     </button>
 
     <!--
-      Kopf leeren und das Weckwort sind Betriebsarten, keine Eingabehilfen.
-      In der Pille standen sie als zwei Wörter zwischen vier Symbolen, und der
-      Platzhalter im Feld war danach abgeschnitten: "Schreib oder spr". Sechs
-      Bedienelemente in einer Zeile auf 390 Pixeln gehen nicht auf.
+      Kopf leeren und das Weckwort sind Betriebsarten, keine Eingabehilfen. Sie
+      stehen im Menü hinter dem Plus und erscheinen hier nur, solange sie
+      laufen: dann ist es der Knopf zum Beenden. Eine Zeile mit zwei Wörtern, die
+      dauernd über der Eingabe stand, ließ offen, was sie tun, und wurde für
+      Bedienelemente gehalten, die man drücken muss.
     -->
     <div class="modi">
-      <button type="button" id="btnDump" class="modus" aria-label="Kopf leeren, alles rausreden">
-        <span class="modus-punkt" aria-hidden="true"></span>Kopf leeren
+      <button type="button" id="btnDump" class="modus" aria-pressed="false" aria-label="Kopf leeren beenden und sortieren">
+        <span class="modus-punkt" aria-hidden="true"></span><span class="modus-an">Fertig, jetzt sortieren</span>
       </button>
-      <button type="button" id="btnWeckwort" class="modus" aria-pressed="false" aria-label="Auf Hey daevo hören">
-        <span class="modus-punkt" aria-hidden="true"></span>Hey daevo
+      <button type="button" id="btnWeckwort" class="modus" aria-pressed="false" aria-label="Auf Hey daevo hören, tippen zum Beenden">
+        <span class="modus-punkt" aria-hidden="true"></span><span class="modus-an">Hey daevo hört zu · Aus</span>
       </button>
     </div>
 
     <form id="composer" class="composer-bar">
-      <button type="button" id="btnMic" class="icon-btn mic" aria-label="Diktieren"><span class="mic-dot"></span></button>
-      <button type="button" id="btnAnhang" class="icon-btn clip" aria-label="Foto oder Datei anhängen"><span class="clip-icon"></span></button>
-      <input id="chatInput" type="text" placeholder="Schreib oder sprich" autocomplete="off" enterkeyhint="send">
-      <button type="submit" id="btnSend" class="icon-btn send" aria-label="Senden"><span class="arrow"></span></button>
+      <button type="button" id="btnAnhang" class="co-btn co-plus" aria-label="Mehr: Foto, Kopf leeren, freihändig">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+      <input id="chatInput" type="text" placeholder="Schreib oder sprich" autocomplete="off" enterkeyhint="send" aria-label="Nachricht an daevo">
+      <button type="button" id="btnMic" class="co-btn co-mic" aria-label="Diktieren" aria-pressed="false">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11.2a6.5 6.5 0 0 0 13 0M12 17.7V21"/></svg>
+      </button>
+      <button type="submit" id="btnSend" class="co-btn co-send" aria-label="Senden">
+        <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg>
+      </button>
     </form>
 
     <!-- Zwei Eingaben: eine öffnet die Kamera, eine die Mediathek. Ohne capture
@@ -156,10 +163,26 @@ try {
     <input id="kameraWahl" type="file" accept="image/*" capture="environment" hidden>
   <input id="essenFoto" type="file" accept="image/*" capture="environment" hidden>
 
-    <div id="anhangMenue" class="anhang-menue" hidden>
-      <button type="button" data-anhang="kamera">Foto aufnehmen</button>
-      <button type="button" data-anhang="datei">Aus der Mediathek</button>
-      <button type="button" data-anhang="abbrechen" class="ghost">Abbrechen</button>
+    <!-- Ein Menü statt vier Knöpfen in der Pille. Tippen außerhalb schließt es. -->
+    <div id="anhangMenue" class="anhang-menue" hidden role="menu">
+      <button type="button" data-anhang="kamera" role="menuitem">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.5h3l1.6-2.3h6.8L17 8.5h3V19H4z"/><circle cx="12" cy="13.6" r="3.3"/></svg>
+        <span><b>Foto aufnehmen</b><span>Teller oder Etikett</span></span>
+      </button>
+      <button type="button" data-anhang="datei" role="menuitem">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2.5"/><circle cx="9.2" cy="10" r="1.5"/><path d="m4.5 17 4.7-4.3 3.3 3 2.7-2.4 4.3 3.7"/></svg>
+        <span><b>Aus der Mediathek</b><span>Bild, Video oder PDF</span></span>
+      </button>
+      <hr>
+      <button type="button" data-anhang="dump" role="menuitem">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h11M4 17h6"/></svg>
+        <span><b>Kopf leeren</b><span>Zu viele Ideen und To-Dos? daevo sortiert und plant</span></span>
+      </button>
+      <button type="button" data-anhang="weckwort" role="menuitem">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M6 10v4M10 7v10M14 4.5v15M18 9v6"/></svg>
+        <span><b>Freihändig</b><span>Hört auf „Hey daevo“, solange die App offen ist</span></span>
+        <i class="schalter" aria-hidden="true"></i>
+      </button>
     </div>
   </section>
 
@@ -888,6 +911,73 @@ try {
     </div>
   </section>
 
+  <section class="view ue-view" data-view="uebungen" hidden>
+    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Übungen</h1><div class="bar-spacer"></div></header>
+    <div class="scroll">
+      <div class="ue-modus" role="tablist" aria-label="Bereich">
+        <button type="button" id="ueModusUebungen" class="on" role="tab" aria-selected="true" data-modus="uebungen">Übungen</button>
+        <button type="button" id="ueModusPlaene" role="tab" aria-selected="false" data-modus="plaene">Trainingspläne</button>
+      </div>
+      <div id="ueBereichUebungen">
+      <div class="ue-suche">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="ueSuche" type="search" placeholder="Übung, Muskel oder Gerät" aria-label="Übungen suchen" autocomplete="off" autocapitalize="none" spellcheck="false">
+      </div>
+      <div class="ue-tabs" id="ueGruppen" role="tablist" aria-label="Muskelgruppe"></div>
+      <p class="ue-zaehler" id="ueZaehler"></p>
+      <ul class="ue-raster" id="ueListe"></ul>
+      </div>
+
+      <div id="ueBereichPlaene" hidden>
+        <p class="sub">Ein Plan aus den Übungen dieser App. Er wird gerechnet, nicht geschrieben, und folgt Regeln, die unten stehen.</p>
+        <div id="plSteuerung" class="pl-steuerung"></div>
+        <div id="plGeladen" class="pl-geladen" hidden><button type="button" class="ue-tab">Gespeicherten Plan laden</button></div>
+        <div id="plKopf" class="pl-kopf"></div>
+        <div id="plEinheiten"></div>
+        <div id="plSaetze"></div>
+        <div class="pl-aktionen">
+          <button type="button" id="plSpeichern" class="pl-knopf haupt">Als meinen Plan speichern</button>
+          <button type="button" id="plAndere" class="pl-knopf">Andere Übungen</button>
+          <button type="button" id="plTeilen" class="pl-knopf">Teilen</button>
+        </div>
+        <h3 class="ue-abschnitt">Gut zu wissen</h3>
+        <ul class="pl-hinweise" id="plHinweise"></ul>
+        <details class="pl-quellen"><summary>Quellen</summary><ul id="plQuellen"></ul>
+          <p>Das ist ein Gerüst und kein individuelles Coaching. Bei Verletzungen oder Vorerkrankungen sprich mit einem Arzt oder Trainer.</p></details>
+      </div>
+    </div>
+
+    <!-- Die Detailseite liegt über der Liste statt eine eigene Ansicht zu
+         sein. So bleiben Suche und Filter stehen, und Zurück führt dorthin,
+         wo man herkam. Das Foto läuft bis an den Rand, der Titel steht darauf,
+         und der Videoknopf bleibt unten stehen, egal wie weit man scrollt. -->
+    <div class="ue-detail" id="ueDetail" hidden role="dialog" aria-modal="true" aria-labelledby="ueTitel">
+      <button id="ueDetailZu" class="icon-btn ue-zurueck" aria-label="Zurück zur Liste"><span class="chev"></span></button>
+      <div class="scroll ue-scroll">
+        <div class="ue-hero">
+          <img id="ueFoto" class="ue-foto" alt="" width="960" height="720" decoding="async">
+          <div class="ue-hero-text">
+            <p class="ue-ueberzeile" id="ueGruppe"></p>
+            <h2 class="ue-titel" id="ueTitel"></h2>
+            <p class="ue-englisch" id="ueEnglisch"></p>
+          </div>
+        </div>
+        <div class="ue-koerper">
+          <dl class="ue-muskeln">
+            <div><dt>Trainiert</dt><dd class="haupt" id="ueHaupt"></dd></div>
+            <div id="ueNebenZeile"><dt>Unterstützt</dt><dd id="ueNeben"></dd></div>
+          </dl>
+          <div class="ue-meta" id="ueMeta"></div>
+          <h3 class="ue-abschnitt">So geht es</h3>
+          <ol class="ue-schritte" id="ueSchritte"></ol>
+          <div id="ueAlternative"></div>
+          <p class="ue-fuss">Wiederholungsbereiche sind Richtwerte. Wähle ein Gewicht, bei dem die Technik sauber bleibt. Das Foto zeigt die Übung als Vorbild.</p>
+        </div>
+      </div>
+      <div class="ue-cta" id="ueVideo"></div>
+    </div>
+  </section>
+
   <section class="view" data-view="profil" hidden>
     <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Profil</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
@@ -1168,6 +1258,8 @@ try {
     <div class="menu-gruppe" data-gruppe="coaching">
       <button class="menu-kopf" aria-expanded="false"><b>Coaching</b><span class="chev-ab"></span></button>
       <div class="menu-unter" hidden>
+        <button class="menu-item" data-go="uebungen"><b>Übungen</b><span>Foto, Muskeln, Erklärvideo</span></button>
+        <button class="menu-item" data-go="plaene"><b>Trainingspläne</b><span>Aus den Übungen, für dein Ziel</span></button>
         <button class="menu-item" data-go="checkin"><b>Check-in</b><span>Energie, Schlaf, Stimmung</span></button>
         <button class="menu-item" data-go="wochencheck"><b>Wochen Check-in</b><span>Mittwoch Bilanz, Sonntag Rückblick</span></button>
         <button class="menu-item" data-go="bericht"><b>Bericht</b><span>Woche und Monat, zum Weitergeben</span></button>
