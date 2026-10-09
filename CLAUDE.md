@@ -182,7 +182,7 @@ das. Wer im Stylesheet etwas einfügt, prüft die Klammerbilanz.
 
 ## Übungen
 
-Die Ansicht "Übungen" (Menü, Gruppe Coaching) ist ein Raster aus Foto Kacheln
+Die Ansicht "Übungen" (Menü, Gruppe Coaching) hat zwei Reiter, Übungen und Trainingspläne. Die Übungen sind ein Raster aus Foto Kacheln
 mit Suche und einer Zeile Gruppenfilter. Ein Tipp öffnet die Detailseite: das
 Foto bis an den Rand, darauf Gruppe und Name, darunter Haupt und Hilfsmuskeln,
 Niveau, Wiederholungen, Gerät, drei bis vier Schritte. Der Knopf zum
@@ -207,14 +207,48 @@ Strichfiguren, keine Clip Art, keine Karten mit Rahmen um Text.
 - Ansicht: `apps/pwa/js/uebungen.js`. `uebungen.test.js` prüft, dass jede Übung
   Muskeln, drei bis vier Schritte, Foto, Kachel und eine gültige Videokennung
   hat.
-- `pattern` ist das Bewegungsmuster. Ein Trainingsplan balanciert darüber
-  Muskeln und Muster aus.
+- `pattern` ist das Bewegungsmuster. Der Trainingsplan wählt darüber die Übung je
+  Platz.
+
+### Trainingspläne
+
+Reiter in derselben Ansicht, Menüpunkt "Trainingspläne". Der Plan wird gerechnet
+und nicht von einem Modell geschrieben: `packages/core/src/trainingsplan.ts`,
+Darstellung in `apps/pwa/js/plaene.js`. Er läuft ohne Schlüssel, ist bei
+gleicher Eingabe immer derselbe und jede Zahl hängt an einer Regel im Code.
+
+Eingaben: Tage pro Woche (2 bis 5), Minuten je Einheit, Erfahrung, Ziel,
+Entlastungswoche. Aufbau: zwei Tage Ganzkörper A und B, drei Tage Ganzkörper A,
+B und C, vier Tage Ober und Unterkörper zweimal, fünf Tage Push, Pull, Beine,
+Oberkörper, Unterkörper. Je Tag ein Hauptplatz für die Beine, ein Drücken, ein
+Ziehen, danach Zubehör. Mehr Beinplätze ließen die Beine auf das Doppelte der
+Brust kommen, und der Plan wäre beim Zählen der Sätze schief gewesen, obwohl
+jeder einzelne Tag vernünftig aussah.
+
+Die Übung je Platz kommt aus der Datenbank über `pattern`, `mechanics` und
+`gruppe`. Einsteiger bekommen nur Einsteigerübungen. Für das Ziehen von oben
+heißt das Latzug oder Klimmzug mit Unterstützung (Maschine). Wer in dieser Woche
+schon dran war, kommt später; danach zählt der Abstand zum eigenen Niveau, dann
+ein stabiler Streuwert. "Andere Übungen" erhöht die Variante.
+
+Gestützt ist, was die Quellen im Plan tragen: zwei Mal pro Woche je Muskelgruppe
+(Schoenfeld und andere 2016), Sätze pro Woche als Richtwert ab etwa zehn
+(Schoenfeld und andere 2017), Steuerung über Wiederholungen in Reserve (Zourdos
+2016, Helms 2016). Die Sätze je Gruppe stehen im Plan, damit man sieht, wo er
+unter dem Richtwert liegt, statt dass er sie verschweigt. Die Dauer ist eine
+Schätzung aus Sätzen, Pausen und Aufbau. Ein Plan, der Verletzungen oder
+Vorerkrankungen kennt, ist das nicht, und das steht auch im Ergebnis.
+
+Der gespeicherte Plan liegt in `settings.plan` und ist damit in der Sicherung.
+Er trägt die Positionen und nicht nur die Eingaben: ändert sich die Datenbank,
+bleibt der Plan, den jemand gespeichert hat, wie er war. Übungen, die es später
+nicht mehr gibt, fallen beim Laden heraus.
 
 ## Befehle
 
 ```bash
 npm install
-npm test           # 894 Tests
+npm test           # 925 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages

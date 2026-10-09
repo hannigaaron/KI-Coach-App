@@ -914,6 +914,11 @@ try {
   <section class="view ue-view" data-view="uebungen" hidden>
     <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Übungen</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
+      <div class="ue-modus" role="tablist" aria-label="Bereich">
+        <button type="button" id="ueModusUebungen" class="on" role="tab" aria-selected="true" data-modus="uebungen">Übungen</button>
+        <button type="button" id="ueModusPlaene" role="tab" aria-selected="false" data-modus="plaene">Trainingspläne</button>
+      </div>
+      <div id="ueBereichUebungen">
       <div class="ue-suche">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
         <input id="ueSuche" type="search" placeholder="Übung, Muskel oder Gerät" aria-label="Übungen suchen" autocomplete="off" autocapitalize="none" spellcheck="false">
@@ -921,6 +926,25 @@ try {
       <div class="ue-tabs" id="ueGruppen" role="tablist" aria-label="Muskelgruppe"></div>
       <p class="ue-zaehler" id="ueZaehler"></p>
       <ul class="ue-raster" id="ueListe"></ul>
+      </div>
+
+      <div id="ueBereichPlaene" hidden>
+        <p class="sub">Ein Plan aus den Übungen dieser App. Er wird gerechnet, nicht geschrieben, und folgt Regeln, die unten stehen.</p>
+        <div id="plSteuerung" class="pl-steuerung"></div>
+        <div id="plGeladen" class="pl-geladen" hidden><button type="button" class="ue-tab">Gespeicherten Plan laden</button></div>
+        <div id="plKopf" class="pl-kopf"></div>
+        <div id="plEinheiten"></div>
+        <div id="plSaetze"></div>
+        <div class="pl-aktionen">
+          <button type="button" id="plSpeichern" class="pl-knopf haupt">Als meinen Plan speichern</button>
+          <button type="button" id="plAndere" class="pl-knopf">Andere Übungen</button>
+          <button type="button" id="plTeilen" class="pl-knopf">Teilen</button>
+        </div>
+        <h3 class="ue-abschnitt">Gut zu wissen</h3>
+        <ul class="pl-hinweise" id="plHinweise"></ul>
+        <details class="pl-quellen"><summary>Quellen</summary><ul id="plQuellen"></ul>
+          <p>Das ist ein Gerüst und kein individuelles Coaching. Bei Verletzungen oder Vorerkrankungen sprich mit einem Arzt oder Trainer.</p></details>
+      </div>
     </div>
 
     <!-- Die Detailseite liegt über der Liste statt eine eigene Ansicht zu
@@ -1233,7 +1257,8 @@ try {
     <div class="menu-gruppe" data-gruppe="coaching">
       <button class="menu-kopf" aria-expanded="false"><b>Coaching</b><span class="chev-ab"></span></button>
       <div class="menu-unter" hidden>
-        <button class="menu-item" data-go="uebungen"><b>Übungen</b><span>Ausführung, Animation, Muskeln</span></button>
+        <button class="menu-item" data-go="uebungen"><b>Übungen</b><span>Foto, Muskeln, Erklärvideo</span></button>
+        <button class="menu-item" data-go="plaene"><b>Trainingspläne</b><span>Aus den Übungen, für dein Ziel</span></button>
         <button class="menu-item" data-go="checkin"><b>Check-in</b><span>Energie, Schlaf, Stimmung</span></button>
         <button class="menu-item" data-go="wochencheck"><b>Wochen Check-in</b><span>Mittwoch Bilanz, Sonntag Rückblick</span></button>
         <button class="menu-item" data-go="bericht"><b>Bericht</b><span>Woche und Monat, zum Weitergeben</span></button>

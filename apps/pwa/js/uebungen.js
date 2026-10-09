@@ -31,6 +31,7 @@ export const GERAETE = {
   bodyweight: "Körpergewicht",
   kettlebell: "Kettlebell",
   trap_bar: "Trap Bar",
+  resistance_band: "Widerstandsband",
   medicine_ball: "Medizinball",
   equipment: "Ab Wheel",
 };
@@ -181,10 +182,7 @@ export function uebungenStarten() {
   };
   $("ueDetailZu").addEventListener("click", schliessen);
 
-  $("ueListe").addEventListener("click", (event) => {
-    const knopf = event.target.closest("[data-uebung]");
-    const u = knopf && uebungNach(knopf.dataset.uebung);
-    if (!u) return;
+  const zeigeDetail = (u) => {
     $("ueFoto").src = fotoPfad(u);
     $("ueFoto").alt = `${u.name}: so sieht die Ausführung aus`;
     $("ueGruppe").textContent = gruppenName(u);
@@ -199,8 +197,28 @@ export function uebungenStarten() {
     $("ueVideo").innerHTML = videoHtml(u);
     $("ueDetail").hidden = false;
     $("ueDetail").querySelector(".scroll")?.scrollTo({ top: 0 });
+  };
+
+  $("ueListe").addEventListener("click", (event) => {
+    const knopf = event.target.closest("[data-uebung]");
+    const u = knopf && uebungNach(knopf.dataset.uebung);
+    if (u) zeigeDetail(u);
   });
 
+  /** Übungen oder Trainingspläne. Die Pläne werden erst beim ersten Öffnen aufgebaut. */
+  const modus = (name) => {
+    const plaene = name === "plaene";
+    $("ueBereichUebungen").hidden = plaene;
+    $("ueBereichPlaene").hidden = !plaene;
+    $("ueModusUebungen").classList.toggle("on", !plaene);
+    $("ueModusPlaene").classList.toggle("on", plaene);
+    $("ueModusUebungen").setAttribute("aria-selected", String(!plaene));
+    $("ueModusPlaene").setAttribute("aria-selected", String(plaene));
+  };
+  for (const knopf of [$("ueModusUebungen"), $("ueModusPlaene")]) {
+    knopf.addEventListener("click", () => modus(knopf.dataset.modus));
+  }
+
   zeichnen();
-  return { schliessen };
+  return { schliessen, modus, oeffne: (id) => { const u = uebungNach(id); if (u) zeigeDetail(u); } };
 }

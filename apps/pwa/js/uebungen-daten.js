@@ -1,7 +1,7 @@
 /**
  * Die Übungsdatenbank.
  *
- * 74 verbreitete Übungen, eigenständig verfasst. Namen und Abläufe sind
+ * 80 verbreitete Übungen, eigenständig verfasst. Namen und Abläufe sind
  * allgemeines Trainingswissen. Übernommen wurde nichts aus der Datenbank einer
  * anderen App, weder Text noch Bild. Das Foto je Übung liegt unter
  * `img/uebungen/<id>.jpg` und `img/uebungen/klein/<id>.jpg`. Es ist für daevo
@@ -1247,6 +1247,191 @@ export const UEBUNGEN = [
    "titel": "Tutorial: Klimmzüge für Anfänger - richtige Ausführung & Technik 💪",
    "kanal": "FIT FOR FUN",
    "dauer": "1:23"
+  }
+ },
+ {
+  "id": "klimmzug-breit",
+  "name": "Klimmzug breit",
+  "nameEn": "Wide-Grip Pull-Up",
+  "pattern": "vertical_pull",
+  "primaryMuscles": [
+   "Latissimus"
+  ],
+  "secondaryMuscles": [
+   "Rhomboiden",
+   "Bizeps",
+   "Trapez"
+  ],
+  "equipment": "bodyweight",
+  "level": "advanced",
+  "mechanics": "compound",
+  "repRange": "4-10",
+  "steps": [
+   "Obergriff deutlich breiter als schulterbreit, Daumen um die Stange",
+   "Schulterblätter zuerst nach unten ziehen, Rumpf anspannen",
+   "Brust zur Stange ziehen, Ellbogen zeigen nach unten",
+   "Kontrolliert bis zu gestreckten Armen absenken"
+  ],
+  "gruppe": "ruecken",
+  "video": {
+   "id": "ORrfqAMrv4Y",
+   "titel": "Welcher GRIFF beim KLIMMZUG für welchen MUSKEL?",
+   "kanal": "Coach Stef",
+   "dauer": "5:20"
+  }
+ },
+ {
+  "id": "klimmzug-eng",
+  "name": "Klimmzug eng",
+  "nameEn": "Close-Grip Pull-Up",
+  "pattern": "vertical_pull",
+  "primaryMuscles": [
+   "Latissimus",
+   "Bizeps"
+  ],
+  "secondaryMuscles": [
+   "Rhomboiden",
+   "Unterarme"
+  ],
+  "equipment": "bodyweight",
+  "level": "advanced",
+  "mechanics": "compound",
+  "repRange": "4-10",
+  "steps": [
+   "Enger Griff, die Hände etwa eine Handbreit auseinander, Handflächen zueinander",
+   "Schulterblätter nach unten ziehen, Rumpf anspannen",
+   "Ellbogen nah am Körper nach unten ziehen, bis das Kinn über den Händen ist",
+   "Langsam absenken"
+  ],
+  "gruppe": "ruecken",
+  "video": {
+   "id": "kzW0g9BsJt8",
+   "titel": "Klimmzug - enger Griff - neutral",
+   "kanal": "INandGo Personal Training",
+   "dauer": "0:17"
+  }
+ },
+ {
+  "id": "klimmzug-breit-maschine",
+  "name": "Klimmzug breit mit Unterstützung (Maschine)",
+  "nameEn": "Assisted Wide-Grip Pull-Up (Machine)",
+  "pattern": "vertical_pull",
+  "primaryMuscles": [
+   "Latissimus"
+  ],
+  "secondaryMuscles": [
+   "Rhomboiden",
+   "Bizeps"
+  ],
+  "equipment": "machine",
+  "level": "beginner",
+  "mechanics": "compound",
+  "repRange": "8-12",
+  "steps": [
+   "Gewicht so wählen, dass du acht saubere Wiederholungen schaffst",
+   "Knie auf die Plattform, breiter Obergriff",
+   "Schulterblätter nach unten, Brust zu den Griffen ziehen",
+   "Kontrolliert strecken, ohne in die Schultern zu hängen"
+  ],
+  "gruppe": "ruecken",
+  "video": {
+   "id": "2xWqH_nmcCo",
+   "titel": "Übungspool A: Rücken Klimmzug am Gravitron mit breitem Griff",
+   "kanal": "Jörg Jensen",
+   "dauer": "3:55"
+  }
+ },
+ {
+  "id": "klimmzug-eng-maschine",
+  "name": "Klimmzug eng mit Unterstützung (Maschine)",
+  "nameEn": "Assisted Close-Grip Pull-Up (Machine)",
+  "pattern": "vertical_pull",
+  "primaryMuscles": [
+   "Latissimus",
+   "Bizeps"
+  ],
+  "secondaryMuscles": [
+   "Rhomboiden",
+   "Unterarme"
+  ],
+  "equipment": "machine",
+  "level": "beginner",
+  "mechanics": "compound",
+  "repRange": "8-12",
+  "steps": [
+   "Gewicht so wählen, dass du acht saubere Wiederholungen schaffst",
+   "Knie auf die Plattform, enger Griff an den schmalen Griffen",
+   "Ellbogen nah am Körper nach unten ziehen",
+   "Kontrolliert strecken, ohne in die Schultern zu hängen"
+  ],
+  "gruppe": "ruecken",
+  "video": {
+   "id": "gx0RWT7WbmA",
+   "titel": "How To PROPERLY Use The Assisted Pull Up Machine (DO MORE PULL UPS)",
+   "kanal": "Colossus Fitness",
+   "dauer": "2:54"
+  }
+ },
+ {
+  "id": "klimmzug-breit-band",
+  "name": "Klimmzug breit mit Unterstützung (Band)",
+  "nameEn": "Band-Assisted Wide-Grip Pull-Up",
+  "pattern": "vertical_pull",
+  "primaryMuscles": [
+   "Latissimus"
+  ],
+  "secondaryMuscles": [
+   "Rhomboiden",
+   "Bizeps",
+   "Trapez"
+  ],
+  "equipment": "resistance_band",
+  "level": "intermediate",
+  "mechanics": "compound",
+  "repRange": "6-10",
+  "steps": [
+   "Band fest um die Stange schlingen, Fuß in die Schlaufe stellen",
+   "Breiter Obergriff, Schulterblätter nach unten ziehen",
+   "Brust zur Stange ziehen, Ellbogen nach unten",
+   "Kontrolliert absenken, nicht im Band abfedern"
+  ],
+  "gruppe": "ruecken",
+  "video": {
+   "id": "nbqmasmjBNU",
+   "titel": "Die 2 BESTEN Mehoden | Klimmzüge mit einem Widerstandsband lernen",
+   "kanal": "Marcus Mohs - Calisthenics & Fitness",
+   "dauer": "4:45"
+  }
+ },
+ {
+  "id": "klimmzug-eng-band",
+  "name": "Klimmzug eng mit Unterstützung (Band)",
+  "nameEn": "Band-Assisted Close-Grip Pull-Up",
+  "pattern": "vertical_pull",
+  "primaryMuscles": [
+   "Latissimus",
+   "Bizeps"
+  ],
+  "secondaryMuscles": [
+   "Rhomboiden",
+   "Unterarme"
+  ],
+  "equipment": "resistance_band",
+  "level": "intermediate",
+  "mechanics": "compound",
+  "repRange": "6-10",
+  "steps": [
+   "Band fest um die Stange schlingen, Knie in die Schlaufe stellen",
+   "Enger Griff, Schulterblätter nach unten ziehen",
+   "Ellbogen nah am Körper nach unten ziehen",
+   "Kontrolliert absenken, nicht im Band abfedern"
+  ],
+  "gruppe": "ruecken",
+  "video": {
+   "id": "0W0tKv6HaiY",
+   "titel": "Darauf solltest du achten, wenn du Klimmzüge mit Resistance Bändern trainierst!",
+   "kanal": "Flex Calisthenics",
+   "dauer": "6:45"
   }
  },
  {

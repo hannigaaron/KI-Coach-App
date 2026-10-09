@@ -14,6 +14,7 @@ import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, produktPerBarcode, produkteS
 import { Coach, AnthropicProvider } from "@daevo/coach";
 import { KONFIG, istDemo } from "./konfig.js";
 import { uebungenStarten } from "./uebungen.js";
+import { plaeneStarten } from "./plaene.js";
 import {
   antwortVerarbeiten, antwortenAbholen, lueckeAusSpeicher, lueckeMelden,
   schieflageAusSpeicher, schieflageMelden,
@@ -744,6 +745,9 @@ let letzteAnsicht = "assistant";
 let uebungen = null;
 
 function showView(name) {
+  // "Trainingspläne" ist ein Reiter der Übungsansicht und hat keine eigene.
+  const aufPlaene = name === "plaene";
+  if (aufPlaene) name = "uebungen";
   const von = ANSICHT_TIEFE.indexOf(letzteAnsicht);
   const nach = ANSICHT_TIEFE.indexOf(name);
   // -1 heisst "nicht in der Liste", also hinten. Zwei unbekannte Ansichten
@@ -767,6 +771,7 @@ function showView(name) {
   $("menu").hidden = true;
   // Eine offene Detailseite samt Animation endet mit dem Verlassen der Ansicht.
   if (name !== "uebungen") uebungen?.schliessen();
+  if (name === "uebungen") uebungen?.modus(aufPlaene ? "plaene" : "uebungen");
   if (name === "heute") renderToday();
   if (name === "essen") { $("fridgeInput").value = store.getFridge().join(", "); renderMeals("mealList2"); renderRestDesTages(); }
   if (name === "checkin") renderCheckins();
@@ -2561,6 +2566,14 @@ $("menu").addEventListener("click", (event) => {
   }
 });
 uebungen = uebungenStarten();
+plaeneStarten({
+  speicher: {
+    lesen: () => store.getSettings().plan ?? null,
+    schreiben: (plan) => store.setSettings({ ...store.getSettings(), plan }),
+  },
+  oeffne: (id) => uebungen.oeffne(id),
+  melde: (text) => toast(text),
+});
 
 for (const button of document.querySelectorAll("[data-back]")) {
   button.addEventListener("click", () => showView("assistant"));
