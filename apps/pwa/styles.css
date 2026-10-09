@@ -2438,18 +2438,22 @@ h1,
 
 /* ---------- Übungen ----------
  *
- * Die Figur nutzt dieselben Farben wie der Rest: Linien in Textfarbe, das
- * Gewicht in der Markenfarbe. Das ferne Bein ist blasser, damit man zwei
- * Beine liest und nicht ein dickes. */
+ * Foto oben, darunter Muskeln, Schritte und ein Knopf zum Video. Das Foto
+ * steht in festem Seitenverhältnis, damit die Seite beim Laden nicht springt. */
 .ue-gruppen { margin-bottom: 14px; }
 .ue-item {
   width: 100%; text-align: left; background: none; border: 0; padding: 0; margin: 0;
-  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  display: flex; align-items: center; gap: 12px;
   color: inherit; font: inherit; cursor: pointer;
 }
+.ue-item .li-main { flex: 1; }
 .ue-item .chev-re { flex: none; width: 8px; height: 8px; border-right: 2px solid var(--muted); border-top: 2px solid var(--muted); transform: rotate(45deg); }
-.ue-liste li { padding: 0; }
-.ue-liste li .ue-item { padding: 13px 14px; }
+.ue-liste li { padding: 0; overflow: hidden; }
+.ue-liste li .ue-item { padding: 8px 14px 8px 8px; }
+.ue-thumb {
+  flex: none; width: 88px; height: 66px; object-fit: cover; border-radius: 9px;
+  background: var(--panel-2); display: block;
+}
 .ue-leer { color: var(--muted); font-size: 14px; padding: 8px 2px; }
 
 .ue-detail {
@@ -2458,18 +2462,10 @@ h1,
 }
 .ue-detail[hidden] { display: none; }
 .ue-buehne {
-  background: var(--panel); border: 1px solid var(--border); border-radius: var(--r-md);
-  margin: 4px 0 16px; padding: 6px;
+  border-radius: var(--r-md); overflow: hidden; margin: 4px 0 14px;
+  background: var(--panel-2); border: 1px solid var(--border); aspect-ratio: 4 / 3;
 }
-.ue-svg { display: block; width: 100%; height: auto; max-height: 270px; color: var(--text); }
-.ue-glied { fill: none; stroke: currentColor; stroke-width: 4.2; stroke-linecap: round; stroke-linejoin: round; }
-.ue-rumpf { stroke-width: 5.4; }
-.ue-fern { opacity: 0.38; }
-.ue-kopf { fill: none; stroke: currentColor; stroke-width: 3.6; }
-.ue-szene { stroke: var(--muted); stroke-width: 2; stroke-linecap: round; opacity: 0.8; }
-.ue-szene.ue-fuell { fill: color-mix(in srgb, var(--muted) 35%, transparent); }
-.ue-seil { stroke-dasharray: 3 3; opacity: 0.6; }
-.ue-gewicht { fill: var(--accent); stroke: none; }
+.ue-foto { display: block; width: 100%; height: 100%; object-fit: cover; }
 .ue-muskeln { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 6px; }
 .ue-chip {
   border-radius: var(--r-pill); padding: 6px 12px; font-size: 13.5px; font-weight: 600;
@@ -2488,3 +2484,19 @@ h1,
 }
 .ue-meta { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: 13.5px; margin: 8px 0 4px; }
 .ue-meta b { color: var(--text); font-weight: 600; }
+.ue-video {
+  display: flex; align-items: center; gap: 14px; text-decoration: none; color: inherit;
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--r-md); padding: 12px 14px;
+}
+.ue-video:active { border-color: var(--accent); }
+.ue-video .chev-re { flex: none; width: 8px; height: 8px; border-right: 2px solid var(--muted); border-top: 2px solid var(--muted); transform: rotate(45deg); }
+.ue-play {
+  flex: none; width: 44px; height: 44px; border-radius: 50%; background: var(--accent); position: relative;
+}
+.ue-play::after {
+  content: ""; position: absolute; left: 17px; top: 13px;
+  border-left: 14px solid var(--on-accent); border-top: 9px solid transparent; border-bottom: 9px solid transparent;
+}
+.ue-video-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ue-video-text b { font-size: 15.5px; font-weight: 650; }
+.ue-video-text span { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }

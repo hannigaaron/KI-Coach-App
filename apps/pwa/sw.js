@@ -31,7 +31,6 @@ const ASSETS = [
   "./js/zip.js",
   "./js/uebungen.js",
   "./js/uebungen-daten.js",
-  "./js/uebungen-anim.js",
   "./lib/core/index.js",
   "./lib/coach/index.js",
   "./icons/icon-192.png",

@@ -3,10 +3,16 @@
  *
  * 74 verbreitete Übungen, eigenständig verfasst. Namen und Abläufe sind
  * allgemeines Trainingswissen. Übernommen wurde nichts aus der Datenbank einer
- * anderen App, weder Text noch Bild. Die Animationen zeichnet
- * `uebungen-anim.js` selbst.
+ * anderen App, weder Text noch Bild. Das Foto je Übung liegt unter
+ * `img/uebungen/<id>.jpg` und `img/uebungen/klein/<id>.jpg`. Es ist für daevo
+ * erzeugt und gehört daevo.
  *
- * Bezeichner (`id`, `pattern`, `gruppe`, `anim`, `equipment`, `level`) bleiben
+ * `video` verweist auf ein Erklärvideo auf YouTube. Die Videos gehören ihren
+ * Kanälen. daevo verlinkt sie nur und bettet sie nicht ein. Jede Kennung wurde
+ * beim Eintragen über YouTube abgerufen. Ein Video kann später gelöscht
+ * werden, deshalb gehört die Prüfung der Links in die Pflege.
+ *
+ * Bezeichner (`id`, `pattern`, `gruppe`, `equipment`, `level`) bleiben
  * ASCII, weil sie gespeichert und verglichen werden. Alles, was der Nutzer
  * liest, steht mit echten Umlauten da.
  *
@@ -39,7 +45,12 @@ export const UEBUNGEN = [
    "Mit den Füßen den Boden wegdrücken und aufrichten"
   ],
   "gruppe": "beine",
-  "anim": "squat"
+  "video": {
+   "id": "qyN9AdPFYzc",
+   "titel": "Das beste KNIEBEUGE TUTORIAL | Richtige Ausführung & Technik mit der Langhantel und Bodyweight",
+   "kanal": "Coach Stef",
+   "dauer": "9:26"
+  }
  },
  {
   "id": "frontkniebeuge",
@@ -64,7 +75,12 @@ export const UEBUNGEN = [
    "Aus den Fersen und Mittelfuß aufstehen"
   ],
   "gruppe": "beine",
-  "anim": "squat"
+  "video": {
+   "id": "UrfBaI0J2xA",
+   "titel": "FRONTKNIEBEUGE Anleitung - Technik, Tipps und warum eigentlich?",
+   "kanal": "Fitolution",
+   "dauer": "6:47"
+  }
  },
  {
   "id": "goblet-kniebeuge",
@@ -89,7 +105,12 @@ export const UEBUNGEN = [
    "Aufrecht hochdrücken"
   ],
   "gruppe": "beine",
-  "anim": "squat"
+  "video": {
+   "id": "FQiMMHcWLLM",
+   "titel": "Goblet Squat Ausführung | Technik, Form & Typische Fehler",
+   "kanal": "Myprotein Deutschland",
+   "dauer": "5:43"
+  }
  },
  {
   "id": "beinpresse",
@@ -114,7 +135,12 @@ export const UEBUNGEN = [
    "Drücken, Knie oben nicht durchstrecken"
   ],
   "gruppe": "beine",
-  "anim": "legpress"
+  "video": {
+   "id": "1ve7AAEPMnw",
+   "titel": "Die richtige Ausführung der Beinpresse - Technikcheck",
+   "kanal": "Power & Fitness",
+   "dauer": "1:17"
+  }
  },
  {
   "id": "bulgarian-split-squat",
@@ -139,7 +165,12 @@ export const UEBUNGEN = [
    "Mit dem vorderen Bein hochdrücken"
   ],
   "gruppe": "beine",
-  "anim": "split"
+  "video": {
+   "id": "oZINNA7ljvc",
+   "titel": "Bulgarien Split Squats - Darauf solltest DU achten !",
+   "kanal": "Quantum Leap Fitness",
+   "dauer": "4:09"
+  }
  },
  {
   "id": "ausfallschritt",
@@ -164,7 +195,12 @@ export const UEBUNGEN = [
    "Mit dem vorderen Bein zurückdrücken"
   ],
   "gruppe": "beine",
-  "anim": "lunge"
+  "video": {
+   "id": "oqfoPtRkock",
+   "titel": "Ausfallschritte lernen (Technik Tutorial) | Richtige Ausführung mit Langhantel und Co.",
+   "kanal": "Coach Stef",
+   "dauer": "7:40"
+  }
  },
  {
   "id": "step-up",
@@ -187,7 +223,12 @@ export const UEBUNGEN = [
    "Kontrolliert absteigen"
   ],
   "gruppe": "beine",
-  "anim": "lunge"
+  "video": {
+   "id": "WCFCdxzFBa4",
+   "titel": "How to do the STEP UP: technique and common mistakes",
+   "kanal": "Get Exercise Confident",
+   "dauer": "2:52"
+  }
  },
  {
   "id": "hackenschmidt-kniebeuge",
@@ -211,7 +252,12 @@ export const UEBUNGEN = [
    "Hochdrücken ohne Knie durchzustrecken"
   ],
   "gruppe": "beine",
-  "anim": "squat"
+  "video": {
+   "id": "qPGHemCz1JM",
+   "titel": "Die Königin der Beinübungen! Hackenschmidt!",
+   "kanal": "Stefan Kienzl",
+   "dauer": "9:18"
+  }
  },
  {
   "id": "beinstrecker",
@@ -233,7 +279,12 @@ export const UEBUNGEN = [
    "Langsam absenken"
   ],
   "gruppe": "beine",
-  "anim": "legext"
+  "video": {
+   "id": "ytxKnuWmCdo",
+   "titel": "Beinstrecker: Dos & Don'ts – Anleitung für effektives Beintraining 🏋️‍♀️",
+   "kanal": "FIT FOR FUN",
+   "dauer": "2:55"
+  }
  },
  {
   "id": "kreuzheben",
@@ -261,7 +312,12 @@ export const UEBUNGEN = [
    "Oben Hüfte und Knie strecken, kontrolliert ablegen"
   ],
   "gruppe": "beine",
-  "anim": "deadlift"
+  "video": {
+   "id": "RzDwYJWVOmY",
+   "titel": "Kreuzheben lernen (Technik Tutorial) | Richtige Ausführung und Tipps",
+   "kanal": "Coach Stef",
+   "dauer": "4:31"
+  }
  },
  {
   "id": "rumaenisches-kreuzheben",
@@ -286,7 +342,12 @@ export const UEBUNGEN = [
    "Hüfte nach vorn schieben und aufrichten"
   ],
   "gruppe": "beine",
-  "anim": "hinge"
+  "video": {
+   "id": "J3AsbKDVfpo",
+   "titel": "Technik Tutorial! Wie geht Rumänisches Kreuzheben? - Die beste Übung für den Po 🍑",
+   "kanal": "HERO Workout",
+   "dauer": "1:26"
+  }
  },
  {
   "id": "sumo-kreuzheben",
@@ -312,7 +373,12 @@ export const UEBUNGEN = [
    "Hüfte nach vorn und aufrichten"
   ],
   "gruppe": "beine",
-  "anim": "deadlift"
+  "video": {
+   "id": "_lexc7LnIQc",
+   "titel": "SUMO KREUZHEBEN ANLEITUNG - Technik & Tipps | SHERRYPOWER.DE",
+   "kanal": "Fitolution",
+   "dauer": "5:24"
+  }
  },
  {
   "id": "trap-bar-kreuzheben",
@@ -338,7 +404,12 @@ export const UEBUNGEN = [
    "Oben aufrecht stehen, kontrolliert absetzen"
   ],
   "gruppe": "beine",
-  "anim": "deadlift"
+  "video": {
+   "id": "iHnfRkZPLMk",
+   "titel": "Trap Bar Deadlift: Richtige Ausführung & Technik erklärt",
+   "kanal": "Muscle Man Fitness by Shaun",
+   "dauer": "2:19"
+  }
  },
  {
   "id": "hip-thrust",
@@ -362,7 +433,12 @@ export const UEBUNGEN = [
    "Oben Gesäß 1 Sekunde anspannen"
   ],
   "gruppe": "beine",
-  "anim": "bridge"
+  "video": {
+   "id": "Y0bmWyhsLXQ",
+   "titel": "HIP THRUST - Mit der richtigen Technik deinen PO aufbauen (Technik Tutorial und Ausführung)",
+   "kanal": "Coach Stef",
+   "dauer": "5:38"
+  }
  },
  {
   "id": "glute-bridge",
@@ -386,7 +462,12 @@ export const UEBUNGEN = [
    "Gesäß oben anspannen"
   ],
   "gruppe": "beine",
-  "anim": "bridge"
+  "video": {
+   "id": "3S7Y7htTdRU",
+   "titel": "Hip Thrust & Glute Bridges RICHTIG ausführen - TUTORIAL",
+   "kanal": "Salome",
+   "dauer": "4:49"
+  }
  },
  {
   "id": "good-morning",
@@ -411,7 +492,12 @@ export const UEBUNGEN = [
    "Mit der Hüfte aufrichten"
   ],
   "gruppe": "beine",
-  "anim": "goodmorning"
+  "video": {
+   "id": "dFl7RwTArTs",
+   "titel": "Good Mornings Ausführung - Unteren Rücken richtig trainieren",
+   "kanal": "Fitness Einfach Erklärt",
+   "dauer": "1:09"
+  }
  },
  {
   "id": "liegendes-beinbeugen",
@@ -433,7 +519,12 @@ export const UEBUNGEN = [
    "Langsam zurück"
   ],
   "gruppe": "beine",
-  "anim": "legcurl"
+  "video": {
+   "id": "3sUv_uzVZDE",
+   "titel": "Beinbeuger Maschine im Liegen - Ausführung",
+   "kanal": "Crimefood",
+   "dauer": "0:51"
+  }
  },
  {
   "id": "sitzendes-beinbeugen",
@@ -455,7 +546,12 @@ export const UEBUNGEN = [
    "Langsam zurück in die Dehnung"
   ],
   "gruppe": "beine",
-  "anim": "legcurl"
+  "video": {
+   "id": "-it_EmIE-KY",
+   "titel": "Beinbeuger Maschine sitzend - Einstellen und Ausführungen",
+   "kanal": "Crimefood",
+   "dauer": "0:50"
+  }
  },
  {
   "id": "nordic-curl",
@@ -479,7 +575,12 @@ export const UEBUNGEN = [
    "Mit den Händen abfangen und hochdrücken"
   ],
   "gruppe": "beine",
-  "anim": "nordic"
+  "video": {
+   "id": "o7jQAybwOkI",
+   "titel": "Wie du endlich einen NORDIC HAMSTRING CURL schaffst 🦵",
+   "kanal": "AthletenFundament",
+   "dauer": "2:28"
+  }
  },
  {
   "id": "wadenheben-stehend",
@@ -503,7 +604,12 @@ export const UEBUNGEN = [
    "Unten tief dehnen"
   ],
   "gruppe": "beine",
-  "anim": "calf"
+  "video": {
+   "id": "_wsvpUWe9VA",
+   "titel": "Wadenheben stehend richtig ausführen / Waden trainieren | Doc.Mischa",
+   "kanal": "Doc.Mischa",
+   "dauer": "3:17"
+  }
  },
  {
   "id": "wadenheben-sitzend",
@@ -527,7 +633,12 @@ export const UEBUNGEN = [
    "Langsam zurück"
   ],
   "gruppe": "beine",
-  "anim": "calf"
+  "video": {
+   "id": "Tu8b-g6GBdU",
+   "titel": "Sitzendes Wadenheben - Hammer Strength Seated Calf Raise",
+   "kanal": "Power & Fitness",
+   "dauer": "1:27"
+  }
  },
  {
   "id": "adduktorenmaschine",
@@ -549,7 +660,12 @@ export const UEBUNGEN = [
    "Langsam öffnen"
   ],
   "gruppe": "beine",
-  "anim": "legclose"
+  "video": {
+   "id": "Vx8xOogv-og",
+   "titel": "Tutorial Adduktoren Maschine",
+   "kanal": "Trainingslab",
+   "dauer": "0:56"
+  }
  },
  {
   "id": "abduktorenmaschine",
@@ -571,7 +687,12 @@ export const UEBUNGEN = [
    "Langsam zurückführen"
   ],
   "gruppe": "beine",
-  "anim": "legspread"
+  "video": {
+   "id": "POS16oxNSGY",
+   "titel": "Nautilus Hip-Abduction - How to use - Hüft-Abduktion an der Maschine",
+   "kanal": "adam&eve Fitness",
+   "dauer": "1:23"
+  }
  },
  {
   "id": "bankdruecken",
@@ -596,7 +717,12 @@ export const UEBUNGEN = [
    "Kraftvoll nach oben drücken"
   ],
   "gruppe": "brust",
-  "anim": "bench"
+  "video": {
+   "id": "2qOOGrcxuTE",
+   "titel": "BANKDRÜCKEN | Richtige Ausführung mit Lang- und Kurzhanteln | Technik Tutorial und Fehlerquellen",
+   "kanal": "Coach Stef",
+   "dauer": "7:55"
+  }
  },
  {
   "id": "schraegbankdruecken",
@@ -621,7 +747,12 @@ export const UEBUNGEN = [
    "Nach oben drücken"
   ],
   "gruppe": "brust",
-  "anim": "incline"
+  "video": {
+   "id": "SzLK0Rr1P4w",
+   "titel": "Positives Bankdrücken (Technik Tutorial) | Schrägbank mit Kurzhantel und Langhantel | Obere Brust",
+   "kanal": "Coach Stef",
+   "dauer": "8:20"
+  }
  },
  {
   "id": "kurzhantel-bankdruecken",
@@ -646,7 +777,12 @@ export const UEBUNGEN = [
    "Nach oben drücken"
   ],
   "gruppe": "brust",
-  "anim": "bench"
+  "video": {
+   "id": "m_lhdbLuU1w",
+   "titel": "Kurzhantel-Bankdrücken – Ausführung und Technik",
+   "kanal": "Crimefood",
+   "dauer": "1:12"
+  }
  },
  {
   "id": "kurzhantel-schraegbankdruecken",
@@ -671,7 +807,12 @@ export const UEBUNGEN = [
    "Zur Mitte hochdrücken"
   ],
   "gruppe": "brust",
-  "anim": "incline"
+  "video": {
+   "id": "fw9VGqMXBmg",
+   "titel": "Kurzhantel Schrägbankdrücken - die richtige Ausführung",
+   "kanal": "Crimefood",
+   "dauer": "0:57"
+  }
  },
  {
   "id": "brustpresse",
@@ -695,7 +836,12 @@ export const UEBUNGEN = [
    "Kontrolliert zurückführen"
   ],
   "gruppe": "brust",
-  "anim": "bench"
+  "video": {
+   "id": "lzStaoQuFG8",
+   "titel": "Brustpresse - Einstellung und Ausführung",
+   "kanal": "Crimefood",
+   "dauer": "0:58"
+  }
  },
  {
   "id": "liegestuetz",
@@ -721,7 +867,12 @@ export const UEBUNGEN = [
    "Wegdrücken"
   ],
   "gruppe": "brust",
-  "anim": "pushup"
+  "video": {
+   "id": "H6Pq6i7xAv4",
+   "titel": "Liegestütz richtige Ausführung – Lernen für Anfänger",
+   "kanal": "Kraftschule.TV",
+   "dauer": "2:57"
+  }
  },
  {
   "id": "dips",
@@ -746,7 +897,12 @@ export const UEBUNGEN = [
    "Hochdrücken"
   ],
   "gruppe": "brust",
-  "anim": "dips"
+  "video": {
+   "id": "G7UrORTh_FA",
+   "titel": "DIPS für Brust oder Trizeps - Welche Variante? Korrekte Ausführung und Technik Tutorial",
+   "kanal": "Coach Stef",
+   "dauer": "5:13"
+  }
  },
  {
   "id": "fliegende-kurzhantel",
@@ -768,7 +924,12 @@ export const UEBUNGEN = [
    "Bogen zurück zusammenführen"
   ],
   "gruppe": "brust",
-  "anim": "benchfly"
+  "video": {
+   "id": "Hj7PUaz6YAc",
+   "titel": "Fliegende mit der Kurzhantel: Ausführung - richtige Technik und Übungsausführung",
+   "kanal": "Fitshop ",
+   "dauer": "1:05"
+  }
  },
  {
   "id": "cable-crossover",
@@ -790,7 +951,12 @@ export const UEBUNGEN = [
    "Kontrolliert öffnen"
   ],
   "gruppe": "brust",
-  "anim": "flycable"
+  "video": {
+   "id": "0jI4CH6taEs",
+   "titel": "CABLE CROSS richtige Ausführung (Technik Tutorial) | So triffst du deine BRUST richtig!",
+   "kanal": "Coach Stef",
+   "dauer": "5:35"
+  }
  },
  {
   "id": "butterfly-maschine",
@@ -812,7 +978,12 @@ export const UEBUNGEN = [
    "Langsam öffnen"
   ],
   "gruppe": "brust",
-  "anim": "flycable"
+  "video": {
+   "id": "y5Z4V_cBDoE",
+   "titel": "Die richtige Haltung bei Butterfly (Fly) an der Maschine - Technikcheck",
+   "kanal": "Power & Fitness",
+   "dauer": "1:00"
+  }
  },
  {
   "id": "schulterdruecken-langhantel",
@@ -838,7 +1009,12 @@ export const UEBUNGEN = [
    "Kontrolliert zurück"
   ],
   "gruppe": "schultern",
-  "anim": "ohp"
+  "video": {
+   "id": "uaHATAcsd6k",
+   "titel": "Schulterdrücken | Überkopfdrücken | Military Press - richtige Ausführung & Technik!",
+   "kanal": "BroSep",
+   "dauer": "8:41"
+  }
  },
  {
   "id": "schulterdruecken-kurzhantel",
@@ -863,7 +1039,12 @@ export const UEBUNGEN = [
    "Kontrolliert absenken"
   ],
   "gruppe": "schultern",
-  "anim": "ohp"
+  "video": {
+   "id": "rvPefutmJ4g",
+   "titel": "Schulterdrücken mit Kurzhanteln - Ausführung im Sitzen",
+   "kanal": "Crimefood",
+   "dauer": "1:26"
+  }
  },
  {
   "id": "arnold-press",
@@ -887,7 +1068,12 @@ export const UEBUNGEN = [
    "Rückwärts drehen und absenken"
   ],
   "gruppe": "schultern",
-  "anim": "ohp"
+  "video": {
+   "id": "NHxcbTp6fWA",
+   "titel": "Arnold Press - richtige Technik",
+   "kanal": "BODY IP by Simon Teichmann",
+   "dauer": "5:58"
+  }
  },
  {
   "id": "seitheben",
@@ -909,7 +1095,12 @@ export const UEBUNGEN = [
    "Langsam absenken"
   ],
   "gruppe": "schultern",
-  "anim": "lateral"
+  "video": {
+   "id": "iT--Sq-G06M",
+   "titel": "Seitheben (Technik Tutorial) | Richtige Ausführung und Fehlerquellen | Seitliche Schulter trainieren",
+   "kanal": "Coach Stef",
+   "dauer": "7:07"
+  }
  },
  {
   "id": "seitheben-kabel",
@@ -931,7 +1122,12 @@ export const UEBUNGEN = [
    "Langsam zurück"
   ],
   "gruppe": "schultern",
-  "anim": "lateral"
+  "video": {
+   "id": "pwMrkJwjevw",
+   "titel": "Einarmiges Seitheben am Kabelzug - Ausführung",
+   "kanal": "Crimefood",
+   "dauer": "0:55"
+  }
  },
  {
   "id": "reverse-fly",
@@ -956,7 +1152,12 @@ export const UEBUNGEN = [
    "Schulterblätter zusammen, langsam zurück"
   ],
   "gruppe": "schultern",
-  "anim": "lateral"
+  "video": {
+   "id": "uXFjLXgIcYc",
+   "titel": "Butterfly Reverse (Technik Tutorial) | Hintere Schulter trainieren | Richtige Ausführung",
+   "kanal": "Coach Stef",
+   "dauer": "3:25"
+  }
  },
  {
   "id": "face-pull",
@@ -981,7 +1182,12 @@ export const UEBUNGEN = [
    "Kontrolliert zurück"
   ],
   "gruppe": "ruecken",
-  "anim": "facepull"
+  "video": {
+   "id": "_7SE2TTXmvQ",
+   "titel": "How-To: Face Pulls am Kabelzug  I #6",
+   "kanal": "Fitness First Germany",
+   "dauer": "1:35"
+  }
  },
  {
   "id": "klimmzug",
@@ -1006,7 +1212,12 @@ export const UEBUNGEN = [
    "Kontrolliert absenken"
   ],
   "gruppe": "ruecken",
-  "anim": "pullup"
+  "video": {
+   "id": "Fo93XyyqGhQ",
+   "titel": "Klimmzug Technik – Klimmzüge richtig machen – Lernen für Anfänger",
+   "kanal": "Kraftschule.TV",
+   "dauer": "4:30"
+  }
  },
  {
   "id": "klimmzug-untergriff",
@@ -1031,7 +1242,12 @@ export const UEBUNGEN = [
    "Langsam absenken"
   ],
   "gruppe": "ruecken",
-  "anim": "pullup"
+  "video": {
+   "id": "eACIyl9jTK8",
+   "titel": "Tutorial: Klimmzüge für Anfänger - richtige Ausführung & Technik 💪",
+   "kanal": "FIT FOR FUN",
+   "dauer": "1:23"
+  }
  },
  {
   "id": "latzug",
@@ -1056,7 +1272,12 @@ export const UEBUNGEN = [
    "Kontrolliert zurück"
   ],
   "gruppe": "ruecken",
-  "anim": "pulldown"
+  "video": {
+   "id": "JUruRn5Y6Zc",
+   "titel": "Latzug (Technik Tutorial) | Richtige Ausführung | Häufige Fehler | Oberen Rücken trainieren",
+   "kanal": "Coach Stef",
+   "dauer": "3:57"
+  }
  },
  {
   "id": "latzug-enger-griff",
@@ -1080,7 +1301,12 @@ export const UEBUNGEN = [
    "Langsam zurück"
   ],
   "gruppe": "ruecken",
-  "anim": "pulldown"
+  "video": {
+   "id": "cVm1lvIalxA",
+   "titel": "Latzug enger Griff! Die richtige Ausführung? Breiter Rücken mit diesem Latzug Tutorial",
+   "kanal": "HERO Workout",
+   "dauer": "0:48"
+  }
  },
  {
   "id": "rudern-langhantel",
@@ -1107,7 +1333,12 @@ export const UEBUNGEN = [
    "Kontrolliert absenken"
   ],
   "gruppe": "ruecken",
-  "anim": "row"
+  "video": {
+   "id": "uBbrwcr92Hw",
+   "titel": "Langhantel Rudern (Technik Tutorial) | Verschiedene Griffe und häufige Fehler",
+   "kanal": "Coach Stef",
+   "dauer": "4:53"
+  }
  },
  {
   "id": "rudern-kurzhantel",
@@ -1132,7 +1363,12 @@ export const UEBUNGEN = [
    "Langsam absenken"
   ],
   "gruppe": "ruecken",
-  "anim": "row"
+  "video": {
+   "id": "Ccs4xNjkxdA",
+   "titel": "Einarmiges Kurzhantel Rudern (Technik Tutorial) | Richtige Ausführung und häufige Fehler",
+   "kanal": "Coach Stef",
+   "dauer": "3:11"
+  }
  },
  {
   "id": "rudern-kabel",
@@ -1157,7 +1393,12 @@ export const UEBUNGEN = [
    "Arme langsam strecken"
   ],
   "gruppe": "ruecken",
-  "anim": "seatedrow"
+  "video": {
+   "id": "bq0Siy5s5WY",
+   "titel": "Ruderzug (Technik Tutorial) | Am Kabelzug mit engem Griff | Oberen Rücken trainieren | Rudern",
+   "kanal": "Coach Stef",
+   "dauer": "2:48"
+  }
  },
  {
   "id": "t-bar-rudern",
@@ -1183,7 +1424,12 @@ export const UEBUNGEN = [
    "Kontrolliert zurück"
   ],
   "gruppe": "ruecken",
-  "anim": "row"
+  "video": {
+   "id": "I9fjj29fLWQ",
+   "titel": "T-Bar Rudern aufgelegt für einen starken Rücken! | Ausführung & Technik | Doc.Mischa",
+   "kanal": "Doc.Mischa",
+   "dauer": "6:59"
+  }
  },
  {
   "id": "brustgestuetztes-rudern",
@@ -1208,7 +1454,12 @@ export const UEBUNGEN = [
    "Langsam strecken"
   ],
   "gruppe": "ruecken",
-  "anim": "seatedrow"
+  "video": {
+   "id": "qPiF6y_HOBs",
+   "titel": "Rudermaschine, richtige Ausführung und Technik (Tutorial) Muskel richtig treffen und ansteuern",
+   "kanal": "Muscle Man Fitness by Shaun",
+   "dauer": "1:31"
+  }
  },
  {
   "id": "straight-arm-pulldown",
@@ -1230,7 +1481,12 @@ export const UEBUNGEN = [
    "Langsam zurück"
   ],
   "gruppe": "ruecken",
-  "anim": "straightarm"
+  "video": {
+   "id": "G9uNaXGTJ4w",
+   "titel": "Straight Arm Pulldown",
+   "kanal": "Renaissance Periodization",
+   "dauer": "0:12"
+  }
  },
  {
   "id": "kurzhantel-shrug",
@@ -1252,7 +1508,12 @@ export const UEBUNGEN = [
    "Langsam absenken"
   ],
   "gruppe": "schultern",
-  "anim": "shrug"
+  "video": {
+   "id": "A-Xfh_JzB9s",
+   "titel": "Kurzhantel Shrugs richtig ausführen | Form & Technik",
+   "kanal": "Myprotein Deutschland",
+   "dauer": "4:04"
+  }
  },
  {
   "id": "langhantel-curl",
@@ -1276,7 +1537,12 @@ export const UEBUNGEN = [
    "Langsam absenken"
   ],
   "gruppe": "arme",
-  "anim": "curl"
+  "video": {
+   "id": "NFk2iaEW0JI",
+   "titel": "Langhantel Curls - Diese Fehler solltest du vermeiden!",
+   "kanal": "Flavio Simonetti",
+   "dauer": "3:42"
+  }
  },
  {
   "id": "kurzhantel-curl",
@@ -1300,7 +1566,12 @@ export const UEBUNGEN = [
    "Langsam absenken"
   ],
   "gruppe": "arme",
-  "anim": "curl"
+  "video": {
+   "id": "UyYWfZ5ifKg",
+   "titel": "Bizeps Curls richtig machen (Technik Tutorial) | Häufige Fehler vermeiden",
+   "kanal": "Coach Stef",
+   "dauer": "7:20"
+  }
  },
  {
   "id": "hammer-curl",
@@ -1325,7 +1596,12 @@ export const UEBUNGEN = [
    "Kontrolliert absenken"
   ],
   "gruppe": "arme",
-  "anim": "curl"
+  "video": {
+   "id": "1Nl_iBxPxbo",
+   "titel": "Hammer Curls - Anleitung durch Personal Trainer #bizeps",
+   "kanal": "Elite Body",
+   "dauer": "0:39"
+  }
  },
  {
   "id": "incline-curl",
@@ -1347,7 +1623,12 @@ export const UEBUNGEN = [
    "Langsam absenken"
   ],
   "gruppe": "arme",
-  "anim": "curl"
+  "video": {
+   "id": "BNSVMkI5m6Y",
+   "titel": "Bizeps Curls auf der Schrägbank, richtige Ausführung und Technik (Tutorial)",
+   "kanal": "Muscle Man Fitness by Shaun",
+   "dauer": "1:14"
+  }
  },
  {
   "id": "preacher-curl",
@@ -1369,7 +1650,12 @@ export const UEBUNGEN = [
    "Langsam fast strecken"
   ],
   "gruppe": "arme",
-  "anim": "curl"
+  "video": {
+   "id": "U_4PDmcGZQs",
+   "titel": "Für einen massiven Bizeps | Preacher Curls",
+   "kanal": "Jan Saffe",
+   "dauer": "4:42"
+  }
  },
  {
   "id": "trizeps-druecken-kabel",
@@ -1391,7 +1677,12 @@ export const UEBUNGEN = [
    "Kontrolliert zurück"
   ],
   "gruppe": "arme",
-  "anim": "tripush"
+  "video": {
+   "id": "yk6VdVwww5k",
+   "titel": "Trizepsdrücken am Kabel (Technik Tutorial) | Mit dem Seil | Überkopf | Hinteren Trizeps trainieren",
+   "kanal": "Coach Stef",
+   "dauer": "3:00"
+  }
  },
  {
   "id": "french-press",
@@ -1413,7 +1704,12 @@ export const UEBUNGEN = [
    "Strecken"
   ],
   "gruppe": "arme",
-  "anim": "tripush"
+  "video": {
+   "id": "8sHAThzVJhA",
+   "titel": "French Press mit SZ-Stange - Ausführung",
+   "kanal": "Crimefood",
+   "dauer": "0:55"
+  }
  },
  {
   "id": "overhead-trizeps",
@@ -1435,7 +1731,12 @@ export const UEBUNGEN = [
    "Kontrolliert zurück"
   ],
   "gruppe": "arme",
-  "anim": "triover"
+  "video": {
+   "id": "uapI6ZiE4Sg",
+   "titel": "Überkopf-Trizepsdrücken mit dem Seil richtige Ausführung am Kabelzug",
+   "kanal": "Peter Burianek",
+   "dauer": "1:03"
+  }
  },
  {
   "id": "enges-bankdruecken",
@@ -1460,7 +1761,12 @@ export const UEBUNGEN = [
    "Hochdrücken"
   ],
   "gruppe": "arme",
-  "anim": "bench"
+  "video": {
+   "id": "NSdt0lWEhKM",
+   "titel": "Enges Bankdrücken richtig ausführen / Engbankdrücken lernen | Doc.Mischa",
+   "kanal": "Doc.Mischa",
+   "dauer": "6:57"
+  }
  },
  {
   "id": "plank",
@@ -1485,7 +1791,12 @@ export const UEBUNGEN = [
    "Atmen und halten"
   ],
   "gruppe": "rumpf",
-  "anim": "plank"
+  "video": {
+   "id": "HjzrTRYfOtc",
+   "titel": "Tutorial: So geht Plank richtig | InForm by SWR Sport",
+   "kanal": "SWR Sport",
+   "dauer": "1:01"
+  }
  },
  {
   "id": "side-plank",
@@ -1509,7 +1820,12 @@ export const UEBUNGEN = [
    "Atmen und halten"
   ],
   "gruppe": "rumpf",
-  "anim": "plank"
+  "video": {
+   "id": "ZRYKTCGI7BY",
+   "titel": "Side Plank: Seitstütz richtig ausführen | Core-Workout für zuhause | AOK",
+   "kanal": "AOK - Der Gesundheitskanal",
+   "dauer": "0:46"
+  }
  },
  {
   "id": "dead-bug",
@@ -1533,7 +1849,12 @@ export const UEBUNGEN = [
    "Zurück, Seite wechseln"
   ],
   "gruppe": "rumpf",
-  "anim": "deadbug"
+  "video": {
+   "id": "6BUVunRfJig",
+   "titel": "Der Käfer / Dead Bug für das Training Deiner Bauchmuskeln",
+   "kanal": "Matthias von HNL Physiotherapie",
+   "dauer": "2:04"
+  }
  },
  {
   "id": "ab-wheel",
@@ -1558,7 +1879,12 @@ export const UEBUNGEN = [
    "Mit dem Bauch zurückziehen"
   ],
   "gruppe": "rumpf",
-  "anim": "abwheel"
+  "video": {
+   "id": "DlJhhW_rKCk",
+   "titel": "Ab Wheel Rollouts | Richtige Ausführung & Häufige Fehler | Core (Antistreckung)",
+   "kanal": "greengymberlin",
+   "dauer": "4:35"
+  }
  },
  {
   "id": "haengendes-beinheben",
@@ -1583,7 +1909,12 @@ export const UEBUNGEN = [
    "Langsam absenken"
   ],
   "gruppe": "rumpf",
-  "anim": "legraise"
+  "video": {
+   "id": "UNTdIGM_EJI",
+   "titel": "Hängendes Beinheben - Hanging Leg Raises - Korrigiere deine Technik",
+   "kanal": "Machbar Training",
+   "dauer": "3:08"
+  }
  },
  {
   "id": "cable-crunch",
@@ -1605,7 +1936,12 @@ export const UEBUNGEN = [
    "Langsam zurück"
   ],
   "gruppe": "rumpf",
-  "anim": "crunch"
+  "video": {
+   "id": "HhJjrqdcyVE",
+   "titel": "⚡ Maximaler Core-Effekt – Crunches am Kabelzug kniend",
+   "kanal": "LuFit Coaching",
+   "dauer": "2:22"
+  }
  },
  {
   "id": "pallof-press",
@@ -1629,7 +1965,12 @@ export const UEBUNGEN = [
    "Gegen den Zug stabil bleiben, zurück"
   ],
   "gruppe": "rumpf",
-  "anim": "pallof"
+  "video": {
+   "id": "TyknsCFvJNQ",
+   "titel": "PALLOF PRESS - Ausführung und Anatomie",
+   "kanal": "Fitness Einfach Erklärt",
+   "dauer": "6:21"
+  }
  },
  {
   "id": "farmers-walk",
@@ -1655,7 +1996,12 @@ export const UEBUNGEN = [
    "Rumpf angespannt halten"
   ],
   "gruppe": "ganzkoerper",
-  "anim": "carry"
+  "video": {
+   "id": "NH7Xv-7NQNQ",
+   "titel": "How To Perform Farmer Walks Exercise Tutorial",
+   "kanal": "Buff Dudes Workouts",
+   "dauer": "1:30"
+  }
  },
  {
   "id": "kettlebell-swing",
@@ -1681,7 +2027,12 @@ export const UEBUNGEN = [
    "Arme nur halten, Gewicht schwingt bis Brusthöhe"
   ],
   "gruppe": "beine",
-  "anim": "swing"
+  "video": {
+   "id": "HlMCVnPoG9k",
+   "titel": "Kettlebell Swing Tutorial | Richtige Ausführung, Technik und Fehlerquellen (deutsch)",
+   "kanal": "Coach Stef",
+   "dauer": "4:53"
+  }
  },
  {
   "id": "box-jump",
@@ -1706,7 +2057,12 @@ export const UEBUNGEN = [
    "Weich landen und aufrichten"
   ],
   "gruppe": "ganzkoerper",
-  "anim": "jump"
+  "video": {
+   "id": "OHU8goUTjh4",
+   "titel": "Box Jumps - Anleitung durch Personal Trainer #boxjumps",
+   "kanal": "Elite Body",
+   "dauer": "1:08"
+  }
  },
  {
   "id": "medizinball-wurf",
@@ -1731,7 +2087,12 @@ export const UEBUNGEN = [
    "Kontrolliert auffangen"
   ],
   "gruppe": "ganzkoerper",
-  "anim": "throw"
+  "video": {
+   "id": "MX-vq60zAk8",
+   "titel": "Allgemeines Kraft- und Wurftraining mit dem Medizinball",
+   "kanal": "Dominic Ullrich - Athletics and more",
+   "dauer": "4:06"
+  }
  },
  {
   "id": "hanging-hold",
@@ -1755,7 +2116,12 @@ export const UEBUNGEN = [
    "Kontrolliert absetzen"
   ],
   "gruppe": "ganzkoerper",
-  "anim": "hang"
+  "video": {
+   "id": "lWsXawaX4U0",
+   "titel": "Aushängen an der Klimmzugstange - Dein Rücken wird es Dir danken | Ausführung und Technik!",
+   "kanal": "TOLYMP - Outdoor-Fitnessgeräte",
+   "dauer": "1:32"
+  }
  },
  {
   "id": "rueckenstrecker-hyperextension",
@@ -1780,7 +2146,12 @@ export const UEBUNGEN = [
    "Bis zur Neutralstellung aufrichten"
   ],
   "gruppe": "ruecken",
-  "anim": "hyper"
+  "video": {
+   "id": "qHocwF43NbY",
+   "titel": "Backextensions/Hyperextensions - Die richtige Technik beim Rückenstrecker |  Tutorial | Kernfit",
+   "kanal": "Kern-Fit",
+   "dauer": "4:04"
+  }
  },
  {
   "id": "rotator-aussenrotation",
@@ -1802,6 +2173,11 @@ export const UEBUNGEN = [
    "Langsam zurück"
   ],
   "gruppe": "schultern",
-  "anim": "rotation"
+  "video": {
+   "id": "UjEl8lb8sbU",
+   "titel": "Außenrotation am Kabelzug (horizontal)",
+   "kanal": "Nico Airone",
+   "dauer": "0:48"
+  }
  }
 ];

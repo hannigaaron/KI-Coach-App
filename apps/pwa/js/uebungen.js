@@ -1,9 +1,9 @@
 /**
  * Die Übungsansicht: Liste, Filter und Detailseite.
  *
- * Ein Tipp auf eine Übung öffnet die Detailseite mit der Animation, den
- * trainierten Muskeln und drei bis vier Schritten zur Ausführung. Die Daten
- * stehen in `uebungen-daten.js`, die Figuren zeichnet `uebungen-anim.js`.
+ * Ein Tipp auf eine Übung öffnet die Detailseite mit Foto, trainierten Muskeln,
+ * drei bis vier Schritten zur Ausführung und dem Link zu einem Erklärvideo. Die
+ * Daten stehen in `uebungen-daten.js`.
  *
  * Alles, was Suche und Filter entscheidet, ist ohne Browser getestet. Nur
  * `uebungenStarten` fasst `document` an und wird deshalb erst beim Aufruf
@@ -11,7 +11,6 @@
  */
 import { foldUmlauts } from "@daevo/core";
 import { UEBUNGEN } from "./uebungen-daten.js";
-import { abspielen } from "./uebungen-anim.js";
 
 export const GRUPPEN = [
   { id: "alle", name: "Alle" },
@@ -92,6 +91,16 @@ export function uebungNach(id, liste = UEBUNGEN) {
 
 const kommaListe = (felder) => felder.join(", ");
 
+/** Pfade der Fotos. Eines je Übung, dazu eine kleine Fassung für die Liste. */
+export const fotoPfad = (u) => `./img/uebungen/${u.id}.jpg`;
+export const vorschauPfad = (u) => `./img/uebungen/klein/${u.id}.jpg`;
+
+/**
+ * Der Link zum Video. Nur die Kennung ist gespeichert, die Adresse wird hier
+ * gebaut: so kann kein Eintrag auf eine andere Seite zeigen als YouTube.
+ */
+export const videoLink = (u) => `https://www.youtube.com/watch?v=${u.video.id}`;
+
 /** Die Zeile in der Liste: Muskeln und Gerät, mehr nicht. */
 export function untertitel(u) {
   return `${kommaListe(u.primaryMuscles)} · ${GERAETE[u.equipment] ?? u.equipment}`;
@@ -103,6 +112,7 @@ export function listeHtml(treffer) {
   if (!treffer.length) return '<li class="ue-leer">Keine Übung gefunden. Versuch es mit einem Muskel oder einem Gerät.</li>';
   return treffer
     .map((u) => `<li><button class="ue-item" type="button" data-uebung="${esc(u.id)}">
+      <img class="ue-thumb" src="${esc(vorschauPfad(u))}" alt="" width="88" height="66" loading="lazy" decoding="async">
       <span class="li-main"><span class="li-title">${esc(u.name)}</span><span class="li-sub" style="display:block">${esc(untertitel(u))}</span></span>
       <span class="chev-re" aria-hidden="true"></span></button></li>`)
     .join("");
@@ -127,17 +137,21 @@ export function metaHtml(u) {
   ].join("");
 }
 
+/** Der Block unter den Schritten: ein Knopf, der das Video auf YouTube öffnet. */
+export function videoHtml(u) {
+  const dauer = u.video.dauer ? ` · ${esc(u.video.dauer)} Min.` : "";
+  return `<a class="ue-video" href="${esc(videoLink(u))}" target="_blank" rel="noopener noreferrer">
+    <span class="ue-play" aria-hidden="true"></span>
+    <span class="ue-video-text"><b>Video ansehen</b><span>${esc(u.video.kanal)}${dauer}</span></span>
+    <span class="chev-re" aria-hidden="true"></span></a>`;
+}
+
 const $ = (id) => document.getElementById(id);
 
-let stopp = () => {};
-
 /**
- * Hängt die Ansicht ein. Wird einmal beim Start gerufen. Die Animation läuft
- * nur, solange die Detailseite offen ist: ein Bildlauf, der im Hintergrund
- * weiterzeichnet, kostet Akku und bringt niemandem etwas.
+ * Hängt die Ansicht ein. Wird einmal beim Start gerufen.
  */
 export function uebungenStarten() {
-  const reduziert = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
   const zustand = { text: "", gruppe: "alle", geraet: "alle" };
 
   $("ueGruppen").innerHTML = GRUPPEN.map((g) => `<button type="button" class="pill${g.id === "alle" ? " on" : ""}" data-gruppe="${g.id}">${g.name}</button>`).join("");
@@ -161,8 +175,6 @@ export function uebungenStarten() {
   });
 
   const schliessen = () => {
-    stopp();
-    stopp = () => {};
     $("ueDetail").hidden = true;
   };
   $("ueDetailZu").addEventListener("click", schliessen);
@@ -172,14 +184,15 @@ export function uebungenStarten() {
     const u = knopf && uebungNach(knopf.dataset.uebung);
     if (!u) return;
     $("ueTitel").textContent = u.name;
+    $("ueFoto").src = fotoPfad(u);
+    $("ueFoto").alt = `${u.name}: so sieht die Ausführung aus`;
     $("ueEnglisch").textContent = u.nameEn;
     $("ueMuskeln").innerHTML = muskelnHtml(u);
     $("ueSchritte").innerHTML = schritteHtml(u);
     $("ueMeta").innerHTML = metaHtml(u);
+    $("ueVideo").innerHTML = videoHtml(u);
     $("ueDetail").hidden = false;
     $("ueDetail").querySelector(".scroll")?.scrollTo({ top: 0 });
-    stopp();
-    stopp = abspielen($("ueFigur"), u.anim, { reduziert });
   });
 
   zeichnen();

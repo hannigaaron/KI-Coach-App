@@ -1,18 +1,24 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { existsSync, statSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 import { UEBUNGEN } from "./uebungen-daten.js";
-import { ANIMATIONEN, ANIM_SCHLUESSEL, bild, gelenke, verlauf } from "./uebungen-anim.js";
 import {
-  ARTEN, GERAETE, GRUPPEN, NIVEAUS, listeHtml, metaHtml, muskelnHtml, schritteHtml, uebungNach, uebungenFiltern, untertitel,
+  ARTEN, GERAETE, GRUPPEN, NIVEAUS, fotoPfad, listeHtml, metaHtml, muskelnHtml, schritteHtml, uebungNach,
+  uebungenFiltern, untertitel, videoHtml, videoLink, vorschauPfad,
 } from "./uebungen.js";
 
 /**
  * Die Übungsdatenbank und ihre Ansicht.
  *
  * Geprüft wird, was die Detailseite voraussetzt: jede Übung hat Muskeln, drei
- * bis vier Schritte und eine Animation, die es gibt. Fehlt eines davon, bleibt
- * beim Antippen eine leere Seite stehen, und das sieht man erst im Browser.
+ * bis vier Schritte, ein Foto und einen Videolink. Fehlt eines davon, bleibt
+ * beim Antippen eine leere Stelle stehen, und das sieht man erst im Browser.
  */
+
+const pwa = join(dirname(fileURLToPath(import.meta.url)), "..");
+const imPfad = (relativ) => join(pwa, relativ.replace(/^\.\//, ""));
 
 test("Jede Übung hat die Angaben, die die Detailseite zeigt", () => {
   assert.ok(UEBUNGEN.length >= 70);
@@ -29,64 +35,47 @@ test("Jede Übung hat die Angaben, die die Detailseite zeigt", () => {
     assert.ok(u.equipment in GERAETE, `${u.id}: Gerät ${u.equipment}`);
     assert.ok(u.level in NIVEAUS, `${u.id}: Niveau ${u.level}`);
     assert.ok(u.mechanics in ARTEN, `${u.id}: Art ${u.mechanics}`);
-    assert.ok(u.anim in ANIMATIONEN, `${u.id}: Animation ${u.anim} fehlt`);
     assert.ok(u.repRange, u.id);
   }
 });
 
-test("Jede gezeichnete Bewegung wird von mindestens einer Übung gebraucht", () => {
-  const benutzt = new Set(UEBUNGEN.map((u) => u.anim));
-  for (const schluessel of ANIM_SCHLUESSEL) assert.ok(benutzt.has(schluessel), `${schluessel} ist verwaist`);
+test("Zu jeder Übung gibt es ein Foto und eine Vorschau, und beide sind klein genug", () => {
+  for (const u of UEBUNGEN) {
+    const gross = imPfad(fotoPfad(u));
+    const klein = imPfad(vorschauPfad(u));
+    assert.ok(existsSync(gross), `Foto fehlt: ${u.id}`);
+    assert.ok(existsSync(klein), `Vorschau fehlt: ${u.id}`);
+    assert.ok(statSync(gross).size > 20_000 && statSync(gross).size < 400_000, `${u.id}: Foto ${statSync(gross).size} Byte`);
+    assert.ok(statSync(klein).size < 40_000, `${u.id}: Vorschau zu groß`);
+  }
 });
 
-test("Die Texte tragen echte Umlaute statt Umschreibungen", () => {
+test("Jede Übung verweist auf ein Video mit gültiger Kennung", () => {
+  for (const u of UEBUNGEN) {
+    assert.match(u.video.id, /^[A-Za-z0-9_-]{11}$/, `${u.id}: Videokennung`);
+    assert.ok(u.video.titel && u.video.kanal, `${u.id}: Titel oder Kanal fehlt`);
+    assert.equal(videoLink(u), `https://www.youtube.com/watch?v=${u.video.id}`);
+  }
+});
+
+test("Der Videoknopf öffnet YouTube in neuem Fenster und zeigt Kanal und Dauer", () => {
+  const u = uebungNach("kreuzheben");
+  const html = videoHtml(u);
+  assert.match(html, /href="https:\/\/www\.youtube\.com\/watch\?v=[A-Za-z0-9_-]{11}"/);
+  assert.match(html, /target="_blank"/);
+  assert.match(html, /rel="noopener noreferrer"/);
+  assert.match(html, new RegExp(u.video.kanal.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(html, /Min\./);
+  // Ohne Dauer steht keine leere Klammer da.
+  assert.doesNotMatch(videoHtml({ ...u, video: { ...u.video, dauer: "" } }), /Min\./);
+});
+
+test("Die Texte tragen echte Umlaute statt Umschreibungen und keine Gedankenstriche", () => {
   for (const u of UEBUNGEN) {
     const text = [u.name, ...u.primaryMuscles, ...u.secondaryMuscles, ...u.steps].join(" ");
     assert.doesNotMatch(text, /\b\w*(Gesaess|Rueck|Schluessel|Koerper|fuer|ueber)\w*\b/i, `${u.id}: Umschreibung`);
     assert.doesNotMatch(text, /[–—]/, `${u.id}: Gedankenstrich`);
   }
-});
-
-test("Die Figur ist an jeder Stelle der Bewegung endlich und ohne Fehlwerte", () => {
-  for (const schluessel of ANIM_SCHLUESSEL) {
-    for (const k of [0, 0.25, 0.5, 0.75, 1]) {
-      const svg = bild(schluessel, k);
-      assert.ok(svg.length > 50, `${schluessel} bei ${k} leer`);
-      assert.doesNotMatch(svg, /NaN|undefined|Infinity/, `${schluessel} bei ${k}`);
-      const g = gelenke(schluessel, k);
-      if (!g) continue;
-      for (const [name, p] of Object.entries(g)) {
-        assert.ok(Number.isFinite(p.x) && Number.isFinite(p.y), `${schluessel}.${name}`);
-        // Alles muss im Bild bleiben, sonst ist ein Körperteil abgeschnitten.
-        assert.ok(p.x > 12 && p.x < 228 && p.y > 10 && p.y < 188, `${schluessel}.${name} liegt außerhalb: ${p.x}, ${p.y}`);
-      }
-    }
-  }
-});
-
-test("Das Ankergelenk bleibt in jedem Bild an seinem Platz", () => {
-  for (const schluessel of ANIM_SCHLUESSEL) {
-    const anim = ANIMATIONEN[schluessel];
-    if (anim.ansicht === "front") continue;
-    for (const k of [0, 0.5, 1]) {
-      const g = gelenke(schluessel, k);
-      const fest = g[anim.anker.gelenk];
-      const dy = anim.B.dy ?? 0;
-      assert.ok(Math.abs(fest.x - anim.anker.x) < 0.01, `${schluessel}: x`);
-      // Nur der Sprung darf den Anker vom Boden lösen.
-      if (!dy && !anim.A.dy) assert.ok(Math.abs(fest.y - anim.anker.y) < 0.01, `${schluessel}: y`);
-    }
-  }
-});
-
-test("Der Verlauf hält an beiden Enden und bleibt zwischen 0 und 1", () => {
-  assert.equal(verlauf(0), 0);
-  assert.ok(Math.abs(verlauf(0.5) - 1) < 1e-9);
-  for (let t = 0; t <= 2; t += 0.01) {
-    const k = verlauf(t);
-    assert.ok(k >= 0 && k <= 1);
-  }
-  assert.ok(verlauf(0.05) < 0.05, "kurze Pause am Anfang");
 });
 
 test("Die Suche findet nach Name, Muskel und Gerät", () => {
@@ -132,10 +121,11 @@ test("Die Detailseite zeigt Muskeln, Schritte und Eckdaten", () => {
   assert.equal(uebungNach("gibtsnicht"), null);
 });
 
-test("Die Liste maskiert Zeichen und meldet einen leeren Treffer", () => {
+test("Die Liste zeigt die Vorschau, maskiert Zeichen und meldet einen leeren Treffer", () => {
   const html = listeHtml([{ id: 'x"y', name: "<b>A&B</b>", primaryMuscles: ["Brust"], secondaryMuscles: [], equipment: "cable" }]);
   assert.doesNotMatch(html, /<b>/);
   assert.match(html, /&lt;b&gt;A&amp;B/);
   assert.match(html, /data-uebung="x&quot;y"/);
+  assert.match(html, /class="ue-thumb"/);
   assert.match(listeHtml([]), /Keine Übung gefunden/);
 });

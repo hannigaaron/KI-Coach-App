@@ -160,18 +160,23 @@ für den Nutzer einsehbar und löschbar.
 ## Übungen
 
 Die Ansicht "Übungen" (Menü, Gruppe Coaching) zeigt 74 verbreitete Übungen mit
-Suche, Gruppen- und Gerätefilter. Ein Tipp öffnet die Detailseite: Animation,
-Haupt- und Hilfsmuskeln, drei bis vier Schritte, Gerät, Niveau und
-Wiederholungsbereich.
+Suche, Gruppen- und Gerätefilter und einem Vorschaubild je Zeile. Ein Tipp
+öffnet die Detailseite: Foto, Haupt- und Hilfsmuskeln, drei bis vier Schritte,
+Gerät, Niveau, Wiederholungsbereich und ein Knopf zum Erklärvideo.
 
 - Daten: `apps/pwa/js/uebungen-daten.js`. Eigenständig verfasst. Nichts aus der
   Datenbank einer anderen App übernehmen, weder Text noch Bild.
-- Animation: `apps/pwa/js/uebungen-anim.js`. Strichfigur aus Gelenkwinkeln, je
-  Bewegung zwei Posen. Eine neue Übung nimmt eine vorhandene Bewegung über das
-  Feld `anim`. Eine neue Bewegung braucht Anfangs und Endpose und einen Anker.
+- Fotos: `apps/pwa/img/uebungen/<id>.jpg` (960 x 720) und `klein/<id>.jpg` (176
+  x 132) für die Liste. Für daevo erzeugt. Bleiben im Stil: dunkles Studio,
+  Marineblau, kühles Licht. Keine Strichfiguren, keine Clip Art. Ein neues Foto
+  wird auf Technikfehler geprüft, bevor es eingecheckt wird: ein falsch
+  gehaltenes Gewicht in einer Coaching App ist ein Fehler im Produkt.
+- Video: `video: { id, titel, kanal, dauer }` je Übung. daevo verlinkt nur und
+  bettet nicht ein. Die Adresse wird aus der Kennung gebaut, nie gespeichert.
+  Videos können gelöscht werden, die Links gehören deshalb in die Pflege.
 - Ansicht: `apps/pwa/js/uebungen.js`. `uebungen.test.js` prüft, dass jede Übung
-  Muskeln, drei bis vier Schritte und eine vorhandene Animation hat und dass
-  keine Figur aus dem Bild läuft.
+  Muskeln, drei bis vier Schritte, Foto, Vorschau und eine gültige Videokennung
+  hat.
 - `pattern` ist das Bewegungsmuster. Ein Trainingsplan balanciert darüber
   Muskeln und Muster aus.
 
@@ -179,7 +184,7 @@ Wiederholungsbereich.
 
 ```bash
 npm install
-npm test           # 895 Tests
+npm test           # 894 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
