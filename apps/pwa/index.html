@@ -888,6 +888,37 @@ try {
     </div>
   </section>
 
+  <section class="view" data-view="uebungen" hidden>
+    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Übungen</h1><div class="bar-spacer"></div></header>
+    <div class="scroll">
+      <p class="sub" id="ueZaehler"></p>
+      <div class="field"><label for="ueSuche">Suche</label>
+        <input id="ueSuche" type="search" placeholder="Kniebeuge, Brust, Kurzhantel" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
+      <div class="pills ue-gruppen" id="ueGruppen"></div>
+      <div class="field"><label for="ueGeraet">Gerät</label>
+        <select id="ueGeraet"></select></div>
+      <ul class="list ue-liste" id="ueListe"></ul>
+    </div>
+
+    <!-- Die Detailseite liegt über der Liste statt eine eigene Ansicht zu
+         sein. So bleiben Suche und Filter stehen, und Zurück führt dorthin,
+         wo man herkam. -->
+    <div class="ue-detail" id="ueDetail" hidden role="dialog" aria-modal="true" aria-labelledby="ueTitel">
+      <header class="bar"><button id="ueDetailZu" class="icon-btn back" aria-label="Zurück zur Liste"><span class="chev"></span></button><h1 id="ueTitel"></h1><div class="bar-spacer"></div></header>
+      <div class="scroll">
+        <div class="ue-buehne"><svg id="ueFigur" class="ue-svg" viewBox="16 14 208 176" role="img" aria-label="Animation der Übung"></svg></div>
+        <p class="sub" id="ueEnglisch"></p>
+        <h2 class="abschnitt">Trainierte Muskeln</h2>
+        <div class="ue-muskeln" id="ueMuskeln"></div>
+        <p class="fineprint">Blau: Hauptmuskeln. Grau: unterstützende Muskeln.</p>
+        <h2 class="abschnitt">So geht es</h2>
+        <ol class="ue-schritte" id="ueSchritte"></ol>
+        <div class="ue-meta" id="ueMeta"></div>
+        <p class="fineprint">Die Figur zeigt die Grundbewegung von der Seite. Wiederholungsbereiche sind Richtwerte. Wähle ein Gewicht, bei dem die Technik sauber bleibt.</p>
+      </div>
+    </div>
+  </section>
+
   <section class="view" data-view="profil" hidden>
     <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Profil</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
@@ -1168,6 +1199,7 @@ try {
     <div class="menu-gruppe" data-gruppe="coaching">
       <button class="menu-kopf" aria-expanded="false"><b>Coaching</b><span class="chev-ab"></span></button>
       <div class="menu-unter" hidden>
+        <button class="menu-item" data-go="uebungen"><b>Übungen</b><span>Ausführung, Animation, Muskeln</span></button>
         <button class="menu-item" data-go="checkin"><b>Check-in</b><span>Energie, Schlaf, Stimmung</span></button>
         <button class="menu-item" data-go="wochencheck"><b>Wochen Check-in</b><span>Mittwoch Bilanz, Sonntag Rückblick</span></button>
         <button class="menu-item" data-go="bericht"><b>Bericht</b><span>Woche und Monat, zum Weitergeben</span></button>

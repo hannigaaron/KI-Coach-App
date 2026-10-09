@@ -157,11 +157,29 @@ für den Nutzer einsehbar und löschbar.
   `document` noch `window` an, ein Ersatz für `localStorage` reicht. Wer dort
   etwas anfasst, das den Browser braucht, nimmt sich diese Tests weg.
 
+## Übungen
+
+Die Ansicht "Übungen" (Menü, Gruppe Coaching) zeigt 74 verbreitete Übungen mit
+Suche, Gruppen- und Gerätefilter. Ein Tipp öffnet die Detailseite: Animation,
+Haupt- und Hilfsmuskeln, drei bis vier Schritte, Gerät, Niveau und
+Wiederholungsbereich.
+
+- Daten: `apps/pwa/js/uebungen-daten.js`. Eigenständig verfasst. Nichts aus der
+  Datenbank einer anderen App übernehmen, weder Text noch Bild.
+- Animation: `apps/pwa/js/uebungen-anim.js`. Strichfigur aus Gelenkwinkeln, je
+  Bewegung zwei Posen. Eine neue Übung nimmt eine vorhandene Bewegung über das
+  Feld `anim`. Eine neue Bewegung braucht Anfangs und Endpose und einen Anker.
+- Ansicht: `apps/pwa/js/uebungen.js`. `uebungen.test.js` prüft, dass jede Übung
+  Muskeln, drei bis vier Schritte und eine vorhandene Animation hat und dass
+  keine Figur aus dem Bild läuft.
+- `pattern` ist das Bewegungsmuster. Ein Trainingsplan balanciert darüber
+  Muskeln und Muster aus.
+
 ## Befehle
 
 ```bash
 npm install
-npm test           # 883 Tests
+npm test           # 895 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages

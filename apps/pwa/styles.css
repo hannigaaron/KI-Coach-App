@@ -2435,3 +2435,56 @@ h1,
   opacity: 0.85;
 }
 .funke circle { fill: var(--ton, var(--brand)); }
+
+/* ---------- Übungen ----------
+ *
+ * Die Figur nutzt dieselben Farben wie der Rest: Linien in Textfarbe, das
+ * Gewicht in der Markenfarbe. Das ferne Bein ist blasser, damit man zwei
+ * Beine liest und nicht ein dickes. */
+.ue-gruppen { margin-bottom: 14px; }
+.ue-item {
+  width: 100%; text-align: left; background: none; border: 0; padding: 0; margin: 0;
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  color: inherit; font: inherit; cursor: pointer;
+}
+.ue-item .chev-re { flex: none; width: 8px; height: 8px; border-right: 2px solid var(--muted); border-top: 2px solid var(--muted); transform: rotate(45deg); }
+.ue-liste li { padding: 0; }
+.ue-liste li .ue-item { padding: 13px 14px; }
+.ue-leer { color: var(--muted); font-size: 14px; padding: 8px 2px; }
+
+.ue-detail {
+  position: absolute; inset: 0; z-index: 5; background: var(--bg); padding-top: env(safe-area-inset-top);
+  display: flex; flex-direction: column;
+}
+.ue-detail[hidden] { display: none; }
+.ue-buehne {
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--r-md);
+  margin: 4px 0 16px; padding: 6px;
+}
+.ue-svg { display: block; width: 100%; height: auto; max-height: 270px; color: var(--text); }
+.ue-glied { fill: none; stroke: currentColor; stroke-width: 4.2; stroke-linecap: round; stroke-linejoin: round; }
+.ue-rumpf { stroke-width: 5.4; }
+.ue-fern { opacity: 0.38; }
+.ue-kopf { fill: none; stroke: currentColor; stroke-width: 3.6; }
+.ue-szene { stroke: var(--muted); stroke-width: 2; stroke-linecap: round; opacity: 0.8; }
+.ue-szene.ue-fuell { fill: color-mix(in srgb, var(--muted) 35%, transparent); }
+.ue-seil { stroke-dasharray: 3 3; opacity: 0.6; }
+.ue-gewicht { fill: var(--accent); stroke: none; }
+.ue-muskeln { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 6px; }
+.ue-chip {
+  border-radius: var(--r-pill); padding: 6px 12px; font-size: 13.5px; font-weight: 600;
+  border: 1px solid var(--accent); color: var(--accent-text);
+}
+.ue-chip.zweit { border-color: var(--border); color: var(--muted); font-weight: 500; }
+.ue-schritte { list-style: none; counter-reset: schritt; padding: 0; margin: 0 0 8px; }
+.ue-schritte li {
+  counter-increment: schritt; position: relative; padding: 0 0 14px 40px;
+  font-size: 16px; line-height: 1.45;
+}
+.ue-schritte li::before {
+  content: counter(schritt); position: absolute; left: 0; top: -1px;
+  width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: var(--on-accent);
+  display: grid; place-items: center; font-weight: 700; font-size: 14px;
+}
+.ue-meta { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: 13.5px; margin: 8px 0 4px; }
+.ue-meta b { color: var(--text); font-weight: 600; }

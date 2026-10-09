@@ -13,6 +13,7 @@ import {
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, produktPerBarcode, produkteSuchen } from "@daevo/coach";
 import { Coach, AnthropicProvider } from "@daevo/coach";
 import { KONFIG, istDemo } from "./konfig.js";
+import { uebungenStarten } from "./uebungen.js";
 import {
   antwortVerarbeiten, antwortenAbholen, lueckeAusSpeicher, lueckeMelden,
   schieflageAusSpeicher, schieflageMelden,
@@ -735,6 +736,9 @@ const ANSICHT_TIEFE = ["assistant", "gespraeche", "heute", "essen", "tag", "bala
 
 let letzteAnsicht = "assistant";
 
+/** Die Übungsansicht. Sie wird nach dem Aufbau der Seite gestartet, siehe unten. */
+let uebungen = null;
+
 function showView(name) {
   const von = ANSICHT_TIEFE.indexOf(letzteAnsicht);
   const nach = ANSICHT_TIEFE.indexOf(name);
@@ -757,6 +761,8 @@ function showView(name) {
     offen.querySelector(".scroll")?.scrollTo({ top: 0 });
   }
   $("menu").hidden = true;
+  // Eine offene Detailseite samt Animation endet mit dem Verlassen der Ansicht.
+  if (name !== "uebungen") uebungen?.schliessen();
   if (name === "heute") renderToday();
   if (name === "essen") { $("fridgeInput").value = store.getFridge().join(", "); renderMeals("mealList2"); renderRestDesTages(); }
   if (name === "checkin") renderCheckins();
@@ -2550,6 +2556,8 @@ $("menu").addEventListener("click", (event) => {
     kopf.parentElement.querySelector(".menu-unter").hidden = false;
   }
 });
+uebungen = uebungenStarten();
+
 for (const button of document.querySelectorAll("[data-back]")) {
   button.addEventListener("click", () => showView("assistant"));
 }
