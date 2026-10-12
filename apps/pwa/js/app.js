@@ -9,6 +9,8 @@ import {
   bereitschaftText,
   berichtText,
   spanneKurz,
+  addonGueltig,
+  preisText,
 } from "@daevo/core";
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, produktPerBarcode, produkteSuchen } from "@daevo/coach";
 import { Coach, AnthropicProvider } from "@daevo/coach";
@@ -1905,6 +1907,9 @@ function renderAngebot() {
   $("a-text").value = a.buchungText || "";
   $("a-mail").value = a.email || "";
   $("a-aus").checked = Boolean(a.aus);
+  $("a-addonUrl").value = a.addon?.url || "";
+  $("a-addonPreis").value = a.addon?.preis ?? "";
+  $("a-addonStreich").value = a.addon?.streichpreis ?? "";
 
   // Sagt sofort, ob aus dem eingefügten Link etwas Brauchbares wird. Ein
   // Buchungslink, der erst beim Nutzer auffällt, fällt gar nicht auf.
@@ -1947,6 +1952,25 @@ function renderAngebot() {
     || '<p class="feld-hilfe">Noch keine Vorlage. Trag deine Pläne ein, dann schlägt daevo den passenden vor.</p>';
 }
 
+/**
+ * Das Kaufangebot aus den drei Feldern. Name und Text sind fest: es ist das Paket
+ * mit den 2x30 Plänen, und drei Felder sind genug Hürde für den, der es einträgt.
+ * Ohne Link und Preis gibt es keins, dann steht auch nichts im Speicher.
+ */
+function addonLesen() {
+  const url = saubereUrl($("a-addonUrl").value) || "";
+  const preis = Number($("a-addonPreis").value);
+  const streich = Number($("a-addonStreich").value);
+  if (!url || !(preis > 0)) return undefined;
+  return {
+    name: "2x30 Trainingspläne",
+    text: "Zwei Einheiten pro Woche zu je 30 Minuten, aufgebaut in Phasen mit Power, Deload und Endspurt.",
+    preis,
+    ...(streich > preis ? { streichpreis: streich } : {}),
+    url,
+  };
+}
+
 function angebotLesen() {
   const plaene = [...$("a-plaene").querySelectorAll("[data-plan]")].map((zeile, i) => {
     const holen = (f) => zeile.querySelector(`[data-feld="${f}"]`)?.value ?? "";
@@ -1969,6 +1993,7 @@ function angebotLesen() {
     // der Tracker beim nächsten Öffnen wieder da.
     buchungUrl: saubereUrl($("a-buchung").value) || "",
     buchungText: $("a-text").value.trim(),
+    addon: addonLesen(),
     plaene: plaene.map((p) => ({ ...p, url: saubereUrl(p.url) || p.url })),
     aus: $("a-aus").checked,
   };
@@ -2087,6 +2112,16 @@ function angebotBlock() {
       <span>${escapeHtml(zeile)}</span>
       ${grund}
       <a class="angebot-knopf" href="${escapeHtml(saubereUrl(plan.url))}" target="_blank" rel="noopener">Plan ansehen</a>
+    </div>`;
+  }
+
+  const kauf = addonGueltig(a);
+  if (kauf) {
+    const streich = kauf.streichpreis ? ` statt ${escapeHtml(preisText(kauf.streichpreis))}` : "";
+    box.innerHTML += `<div class="angebot-teil">
+      <b>${escapeHtml(kauf.name)}</b>
+      <span>${escapeHtml(preisText(kauf.preis))} einmalig${streich}, nur für App-Nutzer</span>
+      <a class="angebot-knopf" href="${escapeHtml(kauf.url)}" target="_blank" rel="noopener noreferrer">Pläne holen</a>
     </div>`;
   }
 
@@ -2573,6 +2608,7 @@ plaeneStarten({
   },
   oeffne: (id) => uebungen.oeffne(id),
   melde: (text) => toast(text),
+  angebot: () => store.getAngebot(),
 });
 
 for (const button of document.querySelectorAll("[data-back]")) {

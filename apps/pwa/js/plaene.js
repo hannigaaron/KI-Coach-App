@@ -9,7 +9,7 @@
  * Alles, was entscheidet, ist ohne Browser getestet. Nur `plaeneStarten`
  * fasst `document` an.
  */
-import { uebungsplanBauen, uebungsplanText } from "@daevo/core";
+import { addonGueltig, preisText, uebungsplanBauen, uebungsplanText } from "@daevo/core";
 import { UEBUNGEN } from "./uebungen-daten.js";
 import { GRUPPEN, vorschauPfad } from "./uebungen.js";
 
@@ -17,7 +17,7 @@ export const STANDARD_WUNSCH = { tage: 3, minuten: 45, niveau: "intermediate", z
 
 export const FELDER = [
   { feld: "tage", name: "Tage pro Woche", werte: [2, 3, 4, 5].map((w) => ({ wert: w, text: String(w) })) },
-  { feld: "minuten", name: "Minuten pro Einheit", werte: [30, 45, 60, 75].map((w) => ({ wert: w, text: String(w) })) },
+  { feld: "minuten", name: "Minuten pro Einheit", werte: [30, 45, 60, 75, 90].map((w) => ({ wert: w, text: String(w) })) },
   {
     feld: "niveau", name: "Erfahrung",
     werte: [{ wert: "beginner", text: "Einsteiger" }, { wert: "intermediate", text: "Fortgeschritten" }, { wert: "advanced", text: "Erfahren" }],
@@ -97,6 +97,22 @@ export function saetzeHtml(wochensaetze) {
   return `<h3 class="ue-abschnitt">Sätze pro Woche</h3><div class="pl-saetze">${zeilen.join("")}</div><p class="pl-legende">Der Strich markiert zehn Sätze, einen üblichen Richtwert für Muskelaufbau.</p>`;
 }
 
+/**
+ * Die Karte mit dem Kaufangebot, falls der Betreiber eines eingetragen hat. Der
+ * Preis steht groß, der durchgestrichene daneben, und darunter steht, für wen
+ * er gilt. Der Kauf läuft auf der Seite des Betreibers.
+ */
+export function addonHtml(angebot) {
+  const a = addonGueltig(angebot);
+  if (!a) return "";
+  const streich = a.streichpreis ? `<s>${esc(preisText(a.streichpreis))}</s>` : "";
+  const text = a.text ? `<p>${esc(a.text)}</p>` : "";
+  return `<section class="pl-addon"><p class="pl-addon-ueber">Add-on für App-Nutzer</p>
+    <h3>${esc(a.name)}</h3>${text}
+    <p class="pl-addon-preis"><b>${esc(preisText(a.preis))}</b>${streich}<span>einmalig</span></p>
+    <a class="pl-knopf haupt" href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">Pläne holen</a></section>`;
+}
+
 export const hinweiseHtml = (hinweise) => hinweise.map((h) => `<li>${esc(h)}</li>`).join("");
 export const quellenHtml = (quellen) => quellen.map((q) => `<li>${esc(q)}</li>`).join("");
 
@@ -112,7 +128,7 @@ const $ = (id) => document.getElementById(id);
  * eine kurze Rückmeldung. Alle drei kommen von außen, damit diese Datei weder
  * den Speicher noch die Oberfläche der App kennen muss.
  */
-export function plaeneStarten({ speicher, oeffne, melde }) {
+export function plaeneStarten({ speicher, oeffne, melde, angebot = () => null }) {
   let gespeichert = gespeicherterPlan(speicher.lesen());
   let wunsch = wunschPruefen(gespeichert?.wunsch);
   let plan = gespeichert ?? planFuer(wunsch);
@@ -126,6 +142,7 @@ export function plaeneStarten({ speicher, oeffne, melde }) {
     $("plEinheiten").innerHTML = plan.einheiten.map(einheitHtml).join("");
     $("plSaetze").innerHTML = saetzeHtml(plan.wochensaetze ?? {});
     $("plHinweise").innerHTML = hinweiseHtml(plan.hinweise ?? []);
+    $("plAddon").innerHTML = addonHtml(angebot());
     $("plQuellen").innerHTML = quellenHtml(plan.quellen ?? []);
     $("plSpeichern").textContent = istGespeichert ? "Gespeichert" : "Als meinen Plan speichern";
     $("plSpeichern").disabled = istGespeichert;

@@ -33,6 +33,24 @@ export interface Trainingsplan {
   zeitsparend?: boolean;
 }
 
+/**
+ * Ein Paket, das jemand einmal kauft, zum Beispiel die 2x30 Trainingspläne des
+ * Coaches. Der Kauf läuft nicht in der App, sondern auf der Seite des Betreibers:
+ * die App zeigt das Angebot und öffnet den Link. Ein Bezahlweg in der App wäre
+ * ein eigenes Produkt mit eigenen Regeln der Stores.
+ */
+export interface Addon {
+  name: string;
+  /** Ein bis zwei Sätze, was drin ist. */
+  text: string;
+  /** Preis für Nutzer der App, in Euro. */
+  preis: number;
+  /** Der Preis ohne App, durchgestrichen daneben. Ohne Angabe wird nichts durchgestrichen. */
+  streichpreis?: number;
+  /** Wohin der Kauf führt. Ohne gültige https Adresse gibt es kein Angebot. */
+  url: string;
+}
+
 export interface Angebot {
   /** Der Name, unter dem der Coach auftritt. */
   coachName: string;
@@ -43,6 +61,8 @@ export interface Angebot {
   /** Was beim Erstgespräch passiert. Ein bis zwei Sätze. */
   buchungText: string;
   plaene: Trainingsplan[];
+  /** Das Kaufangebot, zum Beispiel die 2x30 Pläne. Optional. */
+  addon?: Addon;
   /** Aus. Für den Betreiber selbst, der sein eigenes Angebot nicht braucht. */
   aus?: boolean;
 }
@@ -137,10 +157,32 @@ export function braucheZeitsparend(lage: Lage): { ja: boolean; gruende: string[]
   return { ja: gruende.length >= 2, gruende };
 }
 
+/**
+ * Das Kaufangebot, wenn es etwas anzuzeigen gibt. Ein Preis ohne Link oder ein
+ * Link ohne Preis ist keine Anzeige wert: der Nutzer tippt darauf und landet
+ * nirgends, oder sieht eine Zahl, hinter der nichts steht. Ein Streichpreis, der
+ * nicht über dem Preis liegt, wird weggelassen, denn ein durchgestrichener
+ * niedrigerer Preis wäre eine falsche Aussage.
+ */
+export function addonGueltig(a: Angebot | null | undefined): (Addon & { url: string }) | null {
+  const x = a?.addon;
+  if (!a || a.aus || !x) return null;
+  const url = saubereUrl(x.url ?? "");
+  if (!url || !x.name?.trim()) return null;
+  if (typeof x.preis !== "number" || !Number.isFinite(x.preis) || x.preis <= 0) return null;
+  const streich = typeof x.streichpreis === "number" && Number.isFinite(x.streichpreis) && x.streichpreis > x.preis ? x.streichpreis : undefined;
+  return { name: x.name.trim(), text: (x.text ?? "").trim(), preis: x.preis, ...(streich ? { streichpreis: streich } : {}), url };
+}
+
+/** 49.99 wird "49,99 €". Immer zwei Stellen: "50 €" neben "129,99 €" liest sich ungleich. */
+export function preisText(euro: number): string {
+  return `${euro.toFixed(2).replace(".", ",")} €`;
+}
+
 /** Ob überhaupt etwas anzuzeigen ist. */
 export function hatAngebot(a: Angebot | null | undefined): boolean {
   if (!a || a.aus) return false;
-  return Boolean(saubereUrl(a.buchungUrl)) || a.plaene.some((p) => saubereUrl(p.url));
+  return Boolean(saubereUrl(a.buchungUrl)) || a.plaene.some((p) => saubereUrl(p.url)) || addonGueltig(a) !== null;
 }
 
 /**

@@ -66,8 +66,54 @@ test("Kürzere Einheiten haben nicht mehr Übungen als längere", () => {
   assert.ok(kurz <= lang);
 });
 
+test("Bei 30, 45 und 60 Minuten gibt es immer zwei Sätze, nie drei", () => {
+  for (const minuten of [30, 45, 60]) for (const ziel of ["muskel", "kraft", "fitness"] as const) for (const niveau of ["beginner", "intermediate", "advanced"] as const) {
+    for (const tage of [2, 3, 4, 5] as const) {
+      for (const e of uebungsplanBauen(w({ minuten, ziel, niveau, tage }), LIB).einheiten) {
+        for (const p of e.positionen) assert.equal(p.saetze, 2, `${p.id} bei ${minuten} Min., ${ziel}, ${niveau}`);
+      }
+    }
+  }
+});
+
+test("Ab 75 Minuten gibt es drei Sätze, auch bei 90", () => {
+  for (const minuten of [75, 90]) for (const ziel of ["muskel", "kraft", "fitness"] as const) {
+    for (const e of uebungsplanBauen(w({ minuten, ziel, niveau: "advanced", tage: 4 }), LIB).einheiten) {
+      for (const p of e.positionen) assert.equal(p.saetze, 3, `${p.id} bei ${minuten} Min., ${ziel}`);
+    }
+  }
+});
+
+test("Auch die Zeitnot streicht keinen Satz, sondern eine Übung", () => {
+  const eng = uebungsplanBauen(w({ minuten: 30, tage: 2 }), LIB);
+  for (const e of eng.einheiten) for (const p of e.positionen) assert.equal(p.saetze, 2);
+});
+
+test("Zwei Sätze sind hart: die Reserve ist niedrig, bei Einsteigern etwas höher", () => {
+  const profi = uebungsplanBauen(w({ minuten: 45, niveau: "advanced", ziel: "muskel" }), LIB).einheiten.flatMap((e) => e.positionen);
+  assert.ok(profi.every((p) => p.reserve <= 1), JSON.stringify(profi.map((p) => p.reserve)));
+  const anfaenger = uebungsplanBauen(w({ minuten: 45, niveau: "beginner", ziel: "muskel" }), LIB).einheiten.flatMap((e) => e.positionen);
+  assert.ok(anfaenger.every((p) => p.reserve >= 1 && p.reserve <= 2));
+  const lang = uebungsplanBauen(w({ minuten: 75, niveau: "advanced", ziel: "muskel" }), LIB).einheiten.flatMap((e) => e.positionen);
+  assert.ok(Math.max(...lang.map((p) => p.reserve)) >= 2, "bei drei Sätzen darf die Reserve höher sein");
+});
+
+test("In 30 Minuten sind die Pausen kürzer, damit mindestens vier Übungen passen", () => {
+  const plan = uebungsplanBauen(w({ minuten: 30, tage: 3, niveau: "advanced", ziel: "kraft" }), LIB);
+  for (const e of plan.einheiten) {
+    assert.ok(e.positionen.length >= 4, `${e.titel}: ${e.positionen.length}`);
+    for (const p of e.positionen) assert.ok(p.pauseSek <= 90);
+  }
+  assert.match(plan.hinweise.join(" "), /Pausen kurz/);
+});
+
+test("Der Hinweis nennt die Zwei Sätze Regel nur bei kurzen Einheiten", () => {
+  assert.match(uebungsplanBauen(w({ minuten: 45 }), LIB).hinweise.join(" "), /Zwei intensive Sätze/);
+  assert.doesNotMatch(uebungsplanBauen(w({ minuten: 90 }), LIB).hinweise.join(" "), /Zwei intensive Sätze/);
+});
+
 test("Die geschätzte Dauer bleibt bei normaler Länge in der gewünschten Zeit", () => {
-  for (const minuten of [45, 60, 75]) {
+  for (const minuten of [45, 60, 75, 90]) {
     for (const e of uebungsplanBauen(w({ minuten }), LIB).einheiten) assert.ok(e.dauerMin <= minuten, `${e.titel}: ${e.dauerMin} > ${minuten}`);
   }
 });

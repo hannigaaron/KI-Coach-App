@@ -940,6 +940,7 @@ try {
           <button type="button" id="plAndere" class="pl-knopf">Andere Übungen</button>
           <button type="button" id="plTeilen" class="pl-knopf">Teilen</button>
         </div>
+        <div id="plAddon"></div>
         <h3 class="ue-abschnitt">Gut zu wissen</h3>
         <ul class="pl-hinweise" id="plHinweise"></ul>
         <details class="pl-quellen"><summary>Quellen</summary><ul id="plQuellen"></ul>
@@ -1108,6 +1109,17 @@ try {
         <input id="a-mail" type="email" inputmode="email" autocomplete="off" placeholder="coach@example.de"></div>
       <div class="field"><label for="a-text">Was beim Erstgespräch passiert</label>
         <textarea id="a-text" rows="2" placeholder="30 Minuten, kostenlos. Wir schauen, wo du stehst."></textarea></div>
+
+      <label class="feld-label">Kaufangebot, zum Beispiel die 2x30 Pläne</label>
+      <div class="field"><label for="a-addonUrl">Link zum Kauf</label>
+        <input id="a-addonUrl" type="url" inputmode="url" autocomplete="off" placeholder="https://..."></div>
+      <div class="field-row">
+        <div class="field"><label for="a-addonPreis">Preis für App-Nutzer</label>
+          <input id="a-addonPreis" type="number" inputmode="decimal" step="0.01" min="0" placeholder="49,99"></div>
+        <div class="field"><label for="a-addonStreich">Preis sonst</label>
+          <input id="a-addonStreich" type="number" inputmode="decimal" step="0.01" min="0" placeholder="129,99"></div>
+      </div>
+      <p class="feld-hilfe">Ohne Link und Preis zeigt die App kein Kaufangebot.</p>
 
       <label class="feld-label">Deine Trainingsplan Vorlagen</label>
       <div id="a-plaene"></div>

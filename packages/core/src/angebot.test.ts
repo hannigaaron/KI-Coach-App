@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { braucheZeitsparend, hatAngebot, LEERES_ANGEBOT, passenderPlan, planFuer, saubereUrl, undListe } from "./angebot.js";
+import { addonGueltig, braucheZeitsparend, hatAngebot, LEERES_ANGEBOT, passenderPlan, planFuer, preisText, saubereUrl, undListe } from "./angebot.js";
 import type { Trainingsplan } from "./angebot.js";
 
 test("entfernt Werbetracker aus einer Adresse", () => {
@@ -164,4 +164,47 @@ test("die Aufzaehlung setzt und vor das letzte Glied", () => {
 
 test("ohne Angaben kommt trotzdem ein Plan", () => {
   assert.ok(planFuer(VIER, {})?.plan);
+});
+
+const addonAngebot = (addon: object, rest: object = {}) => ({ ...LEERES_ANGEBOT, ...rest, addon } as typeof LEERES_ANGEBOT);
+
+test("Das Kaufangebot braucht Namen, Preis und eine https Adresse", () => {
+  const gut = { name: "2x30 Pläne", text: "Zwei Einheiten pro Woche", preis: 49.99, streichpreis: 129.99, url: "https://example.com/kaufen" };
+  assert.deepEqual(addonGueltig(addonAngebot(gut)), gut);
+  assert.equal(addonGueltig(addonAngebot({ ...gut, url: "" })), null);
+  assert.equal(addonGueltig(addonAngebot({ ...gut, url: "http://example.com" })), null);
+  assert.equal(addonGueltig(addonAngebot({ ...gut, preis: 0 })), null);
+  assert.equal(addonGueltig(addonAngebot({ ...gut, preis: Number.NaN })), null);
+  assert.equal(addonGueltig(addonAngebot({ ...gut, name: " " })), null);
+  assert.equal(addonGueltig(LEERES_ANGEBOT), null);
+  assert.equal(addonGueltig(null), null);
+});
+
+test("Ein Streichpreis, der nicht über dem Preis liegt, wird weggelassen", () => {
+  const basis = { name: "A", text: "", preis: 49.99, url: "https://example.com/k" };
+  assert.equal(addonGueltig(addonAngebot({ ...basis, streichpreis: 29.99 }))?.streichpreis, undefined);
+  assert.equal(addonGueltig(addonAngebot({ ...basis, streichpreis: 49.99 }))?.streichpreis, undefined);
+  assert.equal(addonGueltig(addonAngebot({ ...basis, streichpreis: 129.99 }))?.streichpreis, 129.99);
+});
+
+test("Trackingparameter am Kauflink werden entfernt", () => {
+  const a = addonGueltig(addonAngebot({ name: "A", text: "", preis: 10, url: "https://example.com/k?utm_source=x&fbclid=1&plan=2" }));
+  assert.equal(a?.url, "https://example.com/k?plan=2");
+});
+
+test("Wer sein Angebot ausgeblendet hat, sieht auch das Kaufangebot nicht", () => {
+  const gut = { name: "A", text: "", preis: 10, url: "https://example.com/k" };
+  assert.equal(addonGueltig(addonAngebot(gut, { aus: true })), null);
+  assert.equal(hatAngebot(addonAngebot(gut, { aus: true })), false);
+});
+
+test("Ein gültiges Kaufangebot allein reicht, damit es ein Angebot gibt", () => {
+  assert.equal(hatAngebot(addonAngebot({ name: "A", text: "", preis: 10, url: "https://example.com/k" })), true);
+  assert.equal(hatAngebot(addonAngebot({ name: "A", text: "", preis: 10, url: "" })), false);
+});
+
+test("Preise stehen mit zwei Stellen und Komma", () => {
+  assert.equal(preisText(49.99), "49,99 €");
+  assert.equal(preisText(129.99), "129,99 €");
+  assert.equal(preisText(50), "50,00 €");
 });

@@ -147,7 +147,7 @@ test("Die Bandvarianten kennen den zweiten Aufbau mit Foto und vier Schritten", 
     assert.ok(existsSync(bild), `Foto fehlt: ${id}`);
     assert.ok(statSync(bild).size > 20_000 && statSync(bild).size < 400_000);
     const html = alternativeHtml(u);
-    assert.match(html, /Band von unten einspannen/);
+    assert.match(html, /Band auf Brusthöhe einspannen/);
     assert.match(html, /alternative\/klimmzug-(breit|eng)-band\.jpg/);
     assert.equal((html.match(/<li>/g) ?? []).length, u.alternative.steps.length);
   }

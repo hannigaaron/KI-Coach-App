@@ -22,6 +22,11 @@
  * - Die Anstrengung wird über Wiederholungen in Reserve gesteuert, weil die App
  *   kein Gewicht vorschreiben kann, das sie nicht kennt. Quellen: Zourdos und
  *   andere 2016, Helms und andere 2016.
+ * - Bei 30, 45 und 60 Minuten gibt es zwei intensive Sätze pro Übung, nie drei. Ab
+ *   75 Minuten sind es drei. Das ist die Regel des Betreibers und keine
+ *   Folgerung aus den Quellen oben: sie liegt mit zwei Sätzen unter dem
+ *   Richtwert von zehn Sätzen pro Gruppe, und das Ergebnis sagt das auch. Damit
+ *   zwei Sätze genug Reiz setzen, liegt die Reserve niedrig.
  * - Die Dauer ist eine Schätzung aus Sätzen, Pausen und Aufbau, keine Messung.
  *
  * Nicht Teil davon: Verletzungen, Vorerkrankungen, Geräte, die ein Studio nicht
@@ -150,24 +155,38 @@ function streu(text: string, variante: number): number {
 
 interface Dosis { saetze: number; wdh: string; pauseSek: number; reserve: number }
 
+/** Ab dieser Länge gibt es drei Sätze, darunter zwei. */
+export const DREI_SAETZE_AB_MIN = 75;
+
 function dosis(e: PlanUebung, platz: Platz, w: PlanWunsch): Dosis {
   const iso = ISOLATION.has(platz);
   const einsteiger = w.niveau === "beginner";
+  const kurz = w.minuten < DREI_SAETZE_AB_MIN;
+  const saetze = kurz ? 2 : 3;
   let d: Dosis;
   if (e.mechanics === "isometric") {
-    d = { saetze: 2, wdh: e.repRange, pauseSek: 45, reserve: 2 };
+    d = { saetze, wdh: e.repRange, pauseSek: 45, reserve: 2 };
   } else if (w.ziel === "kraft") {
     d = iso
-      ? { saetze: 2, wdh: "8-12", pauseSek: 90, reserve: 1 }
-      : { saetze: einsteiger ? 3 : 4, wdh: einsteiger ? "5-8" : "3-6", pauseSek: 180, reserve: 2 };
+      ? { saetze, wdh: "8-12", pauseSek: 90, reserve: 1 }
+      : { saetze, wdh: einsteiger ? "5-8" : "3-6", pauseSek: 180, reserve: 2 };
   } else if (w.ziel === "fitness") {
     d = iso
-      ? { saetze: 2, wdh: "12-15", pauseSek: 45, reserve: 3 }
-      : { saetze: einsteiger ? 2 : 3, wdh: "10-15", pauseSek: 60, reserve: 3 };
+      ? { saetze, wdh: "12-15", pauseSek: 45, reserve: 3 }
+      : { saetze, wdh: "10-15", pauseSek: 60, reserve: 3 };
   } else {
     d = iso
-      ? { saetze: 2, wdh: "10-15", pauseSek: 75, reserve: 1 }
-      : { saetze: 3, wdh: einsteiger ? "8-12" : "6-10", pauseSek: 120, reserve: einsteiger ? 3 : 2 };
+      ? { saetze, wdh: "10-15", pauseSek: 75, reserve: 1 }
+      : { saetze, wdh: einsteiger ? "8-12" : "6-10", pauseSek: 120, reserve: einsteiger ? 3 : 2 };
+  }
+  // Zwei Sätze müssen hart sein. Ein Einsteiger bleibt bei freien Übungen etwas
+  // weiter weg vom Versagen: dort leidet sonst die Technik, bevor der Muskel müde ist.
+  if (kurz && w.ziel !== "fitness") {
+    d = { ...d, reserve: iso ? (einsteiger ? 1 : 0) : (einsteiger ? 2 : 1) };
+  }
+  // In 30 Minuten bleibt für lange Pausen keine Zeit. Sonst passen nur drei Übungen hinein.
+  if (w.minuten <= 30) {
+    d = { ...d, pauseSek: Math.min(d.pauseSek, iso ? 60 : 90) };
   }
   if (w.deload) {
     d = { ...d, saetze: Math.max(1, Math.ceil(d.saetze / 2)), reserve: d.reserve + 2 };
@@ -209,19 +228,16 @@ export function uebungsplanBauen(wunsch: PlanWunsch, uebungen: PlanUebung[]): Ue
     }
 
     // Von hinten kürzen, bis die Einheit in die Zeit passt, aber nie unter drei Übungen.
-    const baue = (anzahl: number, saetzeMinus: number): PlanPosition[] =>
+    // Die Sätze bleiben, wie die Regel sie vorgibt: ein Plan, der bei Zeitnot einen
+    // Satz streicht, hielte die Zusage von zwei oder drei Sätzen nicht.
+    const baue = (anzahl: number): PlanPosition[] =>
       gewaehlt.slice(0, anzahl).map(({ e, platz }) => {
         const d = dosis(e, platz, wunsch);
-        return { id: e.id, name: e.name, saetze: Math.max(1, d.saetze - saetzeMinus), wdh: d.wdh, pauseSek: d.pauseSek, reserve: d.reserve };
+        return { id: e.id, name: e.name, saetze: d.saetze, wdh: d.wdh, pauseSek: d.pauseSek, reserve: d.reserve };
       });
-    let positionen: PlanPosition[] = [];
-    // Erst mit vollen Sätzen, dann mit je einem Satz weniger, wenn sonst unter vier Übungen bleiben.
-    for (const minus of [0, 1]) {
-      let anzahl = gewaehlt.length;
-      while (anzahl > 3 && dauerMin(baue(anzahl, minus)) > wunsch.minuten) anzahl--;
-      positionen = baue(anzahl, minus);
-      if (positionen.length >= 4 || minus === 1 || gewaehlt.length < 4) break;
-    }
+    let anzahl = gewaehlt.length;
+    while (anzahl > 3 && dauerMin(baue(anzahl)) > wunsch.minuten) anzahl--;
+    const positionen = baue(anzahl);
     for (const p of positionen) imPlan.set(p.id, (imPlan.get(p.id) ?? 0) + 1);
     einheiten.push({ titel: vorlage.titel, fokus: vorlage.fokus, positionen, dauerMin: dauerMin(positionen) });
   }
@@ -251,9 +267,17 @@ export const QUELLEN = [
 
 function hinweise(w: PlanWunsch, einheiten: PlanEinheit[], saetze: Record<string, number>): string[] {
   const aus: string[] = [];
-  const reserve = w.niveau === "beginner" ? "drei" : "ein bis drei";
-  aus.push(`Wähle das Gewicht so, dass am Ende jedes Satzes noch ${reserve} Wiederholungen gegangen wären.`);
+  const kurz = w.minuten < DREI_SAETZE_AB_MIN;
+  if (kurz) {
+    aus.push(
+      "Zwei intensive Sätze pro Übung. Der zweite zählt genauso wie der erste: geh bei Maschinen und Einzelgelenk-Übungen bis kurz vor das Versagen, bei freien Mehrgelenk-Übungen bleibt eine Wiederholung in Reserve. Ab 75 Minuten sind es drei Sätze.",
+    );
+  } else {
+    const reserve = w.niveau === "beginner" ? "drei" : "ein bis drei";
+    aus.push(`Wähle das Gewicht so, dass am Ende jedes Satzes noch ${reserve} Wiederholungen gegangen wären.`);
+  }
   aus.push("Steigere zuerst die Wiederholungen. Schaffst du in allen Sätzen das obere Ende des Bereichs sauber, nimm etwas mehr Gewicht.");
+  if (w.minuten <= 30) aus.push("In 30 Minuten sind die Pausen kurz, damit vier Übungen hineinpassen. Wenn du mehr Pause brauchst, nimm eine Übung weniger.");
   if (w.deload) aus.push("Entlastung: halbe Satzzahl und mehr Reserve. Das Ziel ist Erholung, nicht ein neuer Bestwert.");
 
   // Nur Gruppen nennen, die der Plan wirklich direkt trainiert und die groß genug sind, um zu zählen.

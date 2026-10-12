@@ -1406,12 +1406,12 @@ export const UEBUNGEN = [
    "dauer": "4:45"
   },
   "alternative": {
-   "titel": "Alternative: Band von unten einspannen",
+   "titel": "Alternative: Band auf Brusthöhe einspannen",
    "steps": [
-    "Band in gleicher Höhe an beiden Rack-Pfosten befestigen, so tief, dass du hängend mit den Füßen darauf stehen kannst",
-    "Band auf beiden Seiten fest sichern und vor dem ersten Satz kräftig ziehen, es darf nicht rutschen",
-    "Beide Füße in die Mitte des Bands stellen, breiter Obergriff, dann hochziehen",
-    "Unten hilft das Band am meisten, oben am wenigsten. Danach ein dünneres Band wählen"
+    "Band auf beiden Seiten etwa auf Brusthöhe an den Rack-Pfosten befestigen. Nur so stützt es dich bis ganz nach oben",
+    "Band fest sichern und vor dem ersten Satz kräftig ziehen, es darf nicht rutschen",
+    "An der Stange hängen, breiter Obergriff, Knie anwinkeln und beide Füße in die Mitte des Bands stellen",
+    "Hochziehen. Mit einem dünneren Band wird es schwerer"
    ]
   }
  },
@@ -1446,12 +1446,12 @@ export const UEBUNGEN = [
    "dauer": "6:45"
   },
   "alternative": {
-   "titel": "Alternative: Band von unten einspannen",
+   "titel": "Alternative: Band auf Brusthöhe einspannen",
    "steps": [
-    "Band in gleicher Höhe an beiden Rack-Pfosten befestigen, so tief, dass du hängend mit den Füßen darauf stehen kannst",
-    "Band auf beiden Seiten fest sichern und vor dem ersten Satz kräftig ziehen, es darf nicht rutschen",
-    "Beide Füße in die Mitte des Bands stellen, enger Griff, dann hochziehen",
-    "Unten hilft das Band am meisten, oben am wenigsten. Danach ein dünneres Band wählen"
+    "Band auf beiden Seiten etwa auf Brusthöhe an den Rack-Pfosten befestigen. Nur so stützt es dich bis ganz nach oben",
+    "Band fest sichern und vor dem ersten Satz kräftig ziehen, es darf nicht rutschen",
+    "An der Stange hängen, enger Griff, Knie anwinkeln und beide Füße in die Mitte des Bands stellen",
+    "Hochziehen. Mit einem dünneren Band wird es schwerer"
    ]
   }
  },

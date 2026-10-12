@@ -234,6 +234,15 @@ heißt das Latzug oder Klimmzug mit Unterstützung (Maschine). Wer in dieser Woc
 schon dran war, kommt später; danach zählt der Abstand zum eigenen Niveau, dann
 ein stabiler Streuwert. "Andere Übungen" erhöht die Variante.
 
+Sätze: unter 75 Minuten je Einheit immer zwei intensive Sätze pro Übung, nie
+drei. Erst bei 75 und 90 Minuten kommen drei. Gekürzt wird bei knapper Zeit über
+die Zahl der Übungen, nie über die Sätze. Die Zahl steht als `DREI_SAETZE_AB_MIN`
+im Code.
+
+Add-on: Die 2x30 Pläne sind als einmaliger Kauf für 49,99 € statt 129,99 €
+vorgesehen, Konfiguration unter `angebot.addon` (`demo.config.json`, Profil).
+Ohne Kauflink bleibt die Karte unsichtbar.
+
 Gestützt ist, was die Quellen im Plan tragen: zwei Mal pro Woche je Muskelgruppe
 (Schoenfeld und andere 2016), Sätze pro Woche als Richtwert ab etwa zehn
 (Schoenfeld und andere 2017), Steuerung über Wiederholungen in Reserve (Zourdos
@@ -251,7 +260,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 925 Tests
+npm test           # 939 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages

@@ -7,6 +7,13 @@
     "buchungUrl": "",
     "mail": "personalcoach.aaron@gmail.com",
     "buchungText": "ca. 30 min, kostenlos zum Kennenlernen und Besprechen deiner Ziele und bisherigen Herausforderungen",
-    "plaene": []
+    "plaene": [],
+    "addon": {
+      "name": "2x30 Trainingspläne",
+      "text": "Zwei Einheiten pro Woche zu je 30 Minuten, aufgebaut in Phasen mit Power, Deload und Endspurt.",
+      "preis": 49.99,
+      "streichpreis": 129.99,
+      "url": ""
+    }
   }
 }
