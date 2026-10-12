@@ -175,16 +175,63 @@ test("es gibt vier Stufen je Geschlecht, aufsteigend im Prozentwert", () => {
   }
 });
 
-test("die Zahl im Begrüssungstext stimmt mit der Anzahl der Schritte überein", () => {
-  // Der Text nannte neun Schritte, während dreizehn kamen. So etwas fällt
-  // keinem Test auf, der Werte prüft, und dem Nutzer sofort.
-  const zahlwoerter = {
-    neun: 9, zehn: 10, elf: 11, zwölf: 12, dreizehn: 13, vierzehn: 14, fünfzehn: 15,
-  };
+test("der Begrüssungstext nennt keine feste Zahl an Schritten", () => {
+  // Der Text nannte einmal neun Schritte, während dreizehn kamen. Die Zahl
+  // steht jetzt oben im Kopf und wird gezählt, also gehört sie nicht in den
+  // Text, wo sie beim nächsten Umbau wieder falsch wäre.
   const text = SCHRITTE[0].text || "";
-  // Auf Wortgrenzen suchen: "zehn" steckt in "dreizehn", und ohne Grenze
-  // gewinnt das kürzere Wort.
-  const treffer = Object.keys(zahlwoerter).find((w) => new RegExp(`\\b${w}\\b`, "i").test(text));
-  assert.ok(treffer, `im Begrüssungstext steht kein Zahlwort: ${text}`);
-  assert.equal(zahlwoerter[treffer], SCHRITTE.length);
+  assert.doesNotMatch(text, /\b(neun|zehn|elf|zwölf|dreizehn|vierzehn|fünfzehn|\d+) (kurze )?Schritte/i);
+});
+
+test("jede Seite hat einen Abschnitt für den Kopf", () => {
+  for (const s of SCHRITTE) assert.ok(s.abschnitt, `${s.id} ohne Abschnitt`);
+});
+
+test("jedes Symbol in den Optionen gibt es wirklich", async () => {
+  const { SYMBOLNAMEN } = await import("./symbole.js");
+  for (const s of SCHRITTE) {
+    if (s.tipp) assert.ok(SYMBOLNAMEN.includes(s.tipp.symbol), `${s.id}: ${s.tipp.symbol}`);
+    for (const f of s.felder) {
+      for (const o of f.optionen || []) {
+        if (o.symbol) assert.ok(SYMBOLNAMEN.includes(o.symbol), `${s.id}: ${o.symbol}`);
+      }
+    }
+  }
+});
+
+test("Ernährung landet als Listen im Profil, damit ein Filter sie prüfen kann", () => {
+  const { profile, notizen, vorrat } = auswerten({
+    ...basis, ernaehrungsform: "vegetarisch", allergien: ["Soja", "Krebstiere"],
+    unvertraeglichkeiten: ["Laktose"], ausschluesse: ["Kein Alkohol"], vorrat: ["Skyr", "Eier"],
+  });
+  assert.equal(profile.ernaehrung.form, "vegetarisch");
+  assert.deepEqual(profile.ernaehrung.allergien, ["Soja", "Krebstiere"]);
+  assert.deepEqual(profile.ernaehrung.unvertraeglichkeiten, ["Laktose"]);
+  assert.deepEqual(profile.ernaehrung.ausschluesse, ["Kein Alkohol"]);
+  assert.deepEqual(vorrat, ["Skyr", "Eier"]);
+  const texte = notizen.map((n) => n.text).join(" ");
+  assert.match(texte, /Allergie, nie vorschlagen: Soja, Krebstiere/);
+  assert.doesNotMatch(texte, /Verträgt kein Krebstiere/);
+});
+
+test("die Korrektur am Tagesziel geht ins Profil, null und Unsinn fallen weg", () => {
+  assert.deepEqual(auswerten({ ...basis, zielKorrektur: { kcal: 150, proteinG: 0, fatG: "x" } }).profile.zielKorrektur, { kcal: 150 });
+  assert.equal(auswerten({ ...basis, zielKorrektur: { kcal: 0 } }).profile.zielKorrektur, null);
+  assert.equal(auswerten(basis).profile.zielKorrektur, null);
+});
+
+test("die EU Allergenliste hat genau vierzehn Einträge", async () => {
+  const { ALLERGENE_EU } = await import("./anamnese.js");
+  assert.equal(ALLERGENE_EU.length, 14);
+  assert.equal(new Set(ALLERGENE_EU).size, 14);
+});
+
+test("eine Seite mit Leer Knopf hat kein Pflichtfeld", () => {
+  // Sonst steht "Hab ich nicht, weiter" auf einem gesperrten Knopf. Genau das
+  // ist beim ersten Durchlauf im Browser passiert.
+  for (const s of SCHRITTE.filter((x) => x.knopfLeer)) {
+    for (const f of s.felder) {
+      assert.ok(["chips", "chipwahl"].includes(f.art) || f.optional, `${s.id}: ${f.id} ist Pflicht`);
+    }
+  }
 });

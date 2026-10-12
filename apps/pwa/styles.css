@@ -452,6 +452,139 @@ body { padding-top: env(safe-area-inset-top); }
 @media (min-width: 560px) {
   .figuren { grid-template-columns: repeat(4, 1fr); }
 }
+/*
+  Der Bogen, eine Frage pro Seite.
+
+  Aufbau nach dem Vorbild der guten Fragebögen am Markt: Pfeil zurück,
+  Abschnitt und Zähler über einem dicken Fortschrittsbalken, eine grosse Frage,
+  Karten mit Symbol, ein Hinweis am Ende und ein breiter Knopf unten. Die
+  Farben sind die eigenen: Markenblau statt Grün, getönt über color-mix, damit
+  hell und dunkel aus denselben Tokens kommen.
+*/
+.setup-flow { background: var(--bg); }
+.setup-head {
+  display: grid; grid-template-columns: 44px 1fr; gap: var(--s-3); align-items: center;
+  padding: calc(14px + env(safe-area-inset-top)) 18px 6px;
+}
+.setup-zurueck, .setup-zurueck-platz { width: 44px; height: 44px; }
+.setup-zurueck {
+  display: grid; place-items: center; padding: 0; border-radius: 50%;
+  background: var(--erhoben); border: 1px solid var(--linie); color: var(--text);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+}
+.setup-kopf-zeile { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s-2); }
+.setup-abschnitt { color: var(--accent-text); font-weight: 600; font-size: var(--t-md); }
+.setup-zaehler { margin: 0; font-size: var(--t-sm); color: var(--muted); white-space: nowrap; }
+.setup-fortschritt { height: 7px; border-radius: var(--r-pill); background: var(--spur); margin-top: 7px; }
+.setup-fortschritt i { border-radius: var(--r-pill); transition: width 0.35s var(--kurve); }
+
+.setup-body { padding: 14px 18px 18px; }
+.setup-frage {
+  font-family: var(--schrift-display); font-weight: 600;
+  font-size: 28px; line-height: 1.2; letter-spacing: -0.02em; margin: 6px 0 10px;
+}
+.setup-body .lead { font-size: var(--t-lg); line-height: 1.5; margin-bottom: 24px; }
+.setup-body .field > label, .feld-titel {
+  display: block; font-size: var(--t-md); font-weight: 600; color: var(--text); margin: 4px 0 10px;
+}
+
+/* Seitenwechsel wie ein Karussell: vor kommt von rechts, zurück von links. */
+.setup-body.rein-vor { animation: setup-vor var(--normal) var(--kurve); }
+.setup-body.rein-zurueck { animation: setup-zurueck var(--normal) var(--kurve); }
+@keyframes setup-vor { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
+@keyframes setup-zurueck { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .setup-body.rein-vor, .setup-body.rein-zurueck { animation: none; }
+}
+
+/* Karten: Symbol links in einem getönten Kreis, Haken rechts, nur wenn gewählt. */
+.setup .opts { gap: 12px; }
+.setup .opt {
+  flex-direction: row; align-items: center; gap: 14px;
+  background: var(--erhoben); border: 1px solid var(--linie); border-radius: var(--r-lg);
+  padding: 16px; min-height: 72px; box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+.opt-text { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.setup .opt b { font-size: var(--t-lg); }
+.setup .opt .opt-text span { font-size: var(--t-md); color: var(--muted); line-height: 1.35; }
+.opt-symbol {
+  flex: none; width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center;
+  color: var(--accent-text); background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+.opt-haken {
+  flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--accent); color: var(--on-accent); opacity: 0; transform: scale(0.6);
+  transition: opacity var(--schnell) var(--kurve), transform var(--schnell) var(--kurve);
+}
+.setup .opt.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent), 0 2px 12px rgba(0, 0, 0, 0.06); }
+.setup .opt.on .opt-haken { opacity: 1; transform: none; }
+
+.setup .pills { gap: 10px; }
+.setup .pill { padding: 11px 18px; font-size: var(--t-md); background: var(--erhoben); border-color: var(--linie); }
+.setup .pill.on { background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--accent-text); border-color: var(--accent); }
+.setup .field { margin-bottom: 22px; }
+
+/* Zahl mit Einheit im Feld. */
+.zahlfeld { position: relative; }
+.zahlfeld input {
+  width: 100%; height: 58px; border-radius: var(--r-pill); padding: 0 76px 0 22px;
+  font-size: var(--t-xl); background: var(--erhoben); border: 1px solid var(--linie);
+}
+/* Die Pfeile zum Hochzählen sind auf dem Handy ohnehin weg und stehen auf
+   dem Rechner mitten auf der Einheit. Getippt wird die Zahl. */
+.zahlfeld input::-webkit-outer-spin-button, .zahlfeld input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.zahlfeld input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+.zahlfeld-einheit {
+  position: absolute; right: 22px; top: 50%; transform: translateY(-50%);
+  color: var(--muted); font-size: var(--t-lg); pointer-events: none;
+}
+
+.setup-tipp {
+  display: flex; gap: 12px; align-items: flex-start; margin-top: 8px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-radius: var(--r-lg); padding: 16px 18px; color: var(--accent-text);
+}
+.setup-tipp .sym { flex: none; margin-top: 2px; }
+.setup-tipp p { margin: 0; color: var(--text); opacity: 0.8; font-size: var(--t-md); line-height: 1.5; }
+
+.setup-fuss {
+  position: sticky; bottom: 0; z-index: 2;
+  flex-direction: column; gap: 6px; border-top: 0;
+  padding: 10px 18px calc(16px + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--bg) 70%, transparent);
+}
+.setup-knopf {
+  width: 100%; height: 58px; border-radius: var(--r-pill); border: 0;
+  background: var(--stark); color: var(--auf-stark); font-size: var(--t-lg); font-weight: 600;
+}
+.setup-knopf:disabled { opacity: 0.4; }
+.setup-link {
+  background: none; border: 0; color: var(--muted); font-size: var(--t-md); padding: 10px; width: 100%;
+}
+
+/* Das Tagesziel: Kalorien gross in der Mitte, Makros mit Plus und Minus. */
+.budget {
+  background: var(--erhoben); border: 1px solid var(--linie); border-radius: var(--r-xl);
+  padding: 20px 18px 22px; box-shadow: 0 2px 14px rgba(0, 0, 0, 0.07);
+}
+.budget-kcal { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.budget-kcal div { text-align: center; }
+.budget-kcal b { display: block; font-family: var(--schrift-display); font-size: 40px; font-weight: 600; letter-spacing: -0.02em; }
+.budget-kcal span { color: var(--muted); font-size: var(--t-md); }
+.budget-pm {
+  width: 40px; height: 40px; border-radius: 50%; padding: 0; display: grid; place-items: center;
+  background: var(--bg); border: 1px solid var(--linie); color: var(--text); font-size: 22px; line-height: 1;
+}
+.budget-pm.gross { width: 52px; height: 52px; font-size: 26px; }
+.budget-makro { margin-top: 14px; }
+.budget-makro-kopf { display: flex; align-items: center; gap: 10px; }
+.budget-punkt { width: 9px; height: 9px; border-radius: 50%; background: var(--ton); flex: none; }
+.budget-name { flex: 1; font-size: var(--t-lg); }
+.budget-wert { min-width: 64px; text-align: center; font-size: var(--t-lg); font-weight: 600; }
+.budget-rest { width: 40px; text-align: center; font-size: var(--t-xs); color: var(--muted); }
+.budget-spur { height: 8px; border-radius: var(--r-pill); background: var(--spur); margin-top: 10px; overflow: hidden; }
+.budget-spur i { display: block; height: 100%; border-radius: var(--r-pill); background: var(--ton); transition: width var(--normal) var(--kurve); }
+
 .brand-lockup { margin: 0 0 26px; }
 .brand-lockup img { height: auto; max-width: 62vw; }
 .head-mark { height: 17px; width: auto; margin-bottom: 9px; opacity: 0.95; }
@@ -2697,3 +2830,37 @@ h1,
 #ueAlternative .ue-abschnitt { margin-top: 30px; }
 .ue-alt-bild { margin: 14px 0 6px; border-radius: var(--r-md); overflow: hidden; aspect-ratio: 4 / 3; background: var(--panel-2); border: 1px solid var(--border); }
 .ue-alt-bild img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+/*
+  Die Einführung.
+
+  Der Lichtkreis ist ein leerer Kasten mit einem riesigen Schatten. Alles
+  ausserhalb liegt damit im Dunkeln, das Element darunter bleibt in seiner
+  echten Farbe sichtbar, ohne dass es kopiert oder neu gezeichnet wird.
+*/
+.ef-ebene { position: fixed; inset: 0; z-index: 1000; cursor: pointer; }
+.ef-licht {
+  position: fixed; pointer-events: none;
+  box-shadow: 0 0 0 9999px rgba(6, 9, 14, 0.72), 0 0 0 3px color-mix(in srgb, var(--brand) 70%, transparent);
+  transition: all 0.32s var(--kurve);
+}
+.ef-text {
+  position: fixed; left: 16px; right: 16px; text-align: center; opacity: 0;
+  padding: 16px 18px; border-radius: var(--r-lg);
+  /* Ein eigener dunkler Grund unter dem Satz. Ohne ihn liegt der Text auf
+     Zahlen und Balken der Seite und ist dort kaum zu lesen. */
+  background: rgba(6, 9, 14, 0.78); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  transition: opacity var(--normal) var(--kurve);
+}
+.ef-ebene.an .ef-text { opacity: 1; }
+.ef-text p {
+  margin: 0; color: #ffffff; font-family: var(--schrift-display); font-weight: 600;
+  font-size: 22px; line-height: 1.35; letter-spacing: -0.01em; text-shadow: 0 1px 12px rgba(0, 0, 0, 0.5);
+}
+.ef-zaehler { display: block; margin-top: 10px; color: rgba(255, 255, 255, 0.65); font-size: var(--t-sm); }
+.ef-schliessen {
+  position: fixed; top: calc(14px + env(safe-area-inset-top)); right: 16px;
+  width: 44px; height: 44px; border-radius: 50%; padding: 0; display: grid; place-items: center;
+  background: rgba(255, 255, 255, 0.16); border: 1px solid rgba(255, 255, 255, 0.22); color: #ffffff;
+}
+@media (prefers-reduced-motion: reduce) { .ef-licht, .ef-text { transition: none; } }

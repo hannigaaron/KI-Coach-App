@@ -251,7 +251,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 925 Tests
+npm test           # 938 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -337,8 +337,40 @@ Kontext kosten mehr Token als die eigentliche Frage.
 
 ## Der Anamnesebogen
 
-Dreizehn Schritte, die letzten vier sind der Unterschied zwischen einem Rechner
-und einem Coach: Essverhalten, Vorgeschichte, Umfeld, Antrieb.
+Eine Frage pro Seite, 23 Seiten in acht Abschnitten. Die letzten Abschnitte
+sind der Unterschied zwischen einem Rechner und einem Coach: Essverhalten,
+Vorgeschichte, Umfeld, Antrieb.
+
+Der Aufbau folgt den guten Fragebögen am Markt, die Farben sind die eigenen:
+Pfeil zurück, Abschnitt und Zähler über einem Fortschrittsbalken, eine grosse
+Frage, Karten mit Symbol, ein Hinweis darunter, unten ein breiter Knopf. Eine
+Seite mit vier Feldern liest man quer, eine mit einer Frage beantwortet man.
+
+Eine Seite, deren einziges Feld eine Auswahl ist, geht nach dem Antippen von
+selbst weiter, nach 280 Millisekunden: lang genug, um den Haken zu sehen.
+Zurück findet jede Antwort so vor, wie sie gegeben wurde, denn ausgewertet
+wird erst am Ende. Seiten mit freiwilligen Listen tragen "Hab ich nicht,
+weiter", solange nichts gewählt ist. Ein Textfeld auf so einer Seite ist
+`optional`: im ersten Durchlauf im Browser stand der Knopf gesperrt da.
+
+Die Seite "Das ist dein Tagesziel" rechnet mit `macroTargets` aus dem Kern,
+nicht mit einer eigenen Näherung. Plus und Minus speichern `zielKorrektur`
+im Profil, als Abstand zum Vorschlag und nicht als festen Wert: ändert sich
+das Gewicht oder misst `trend.ts` den echten Verbrauch, wandert der Vorschlag
+mit und die Korrektur bleibt. Kohlenhydrate haben keine Knöpfe, sie füllen den
+Rest, damit `kcal = Protein*4 + Fett*9 + Kohlenhydrate*4` immer aufgeht. Die
+Grenzen stehen in `KORREKTUR_GRENZE`.
+
+Ernährungsform, Allergien, Unverträglichkeiten und Ausschlüsse gehen als
+Listen in `profile.ernaehrung` und zusätzlich als Notiz ins Gedächtnis. Ein
+Rezeptfilter muss prüfen können, ob Soja drin ist, und das geht gegen eine
+Liste zuverlässig und gegen einen Satz nicht. Die Allergene sind die 14 mit
+Kennzeichnungspflicht nach Verordnung (EU) Nr. 1169/2011, Anhang II. Was als
+Vorrat angetippt wird, landet im Vorrat der App.
+
+Ein Geschlecht "divers" fehlt bewusst. Die Formel nach Mifflin-St Jeor kennt
+zwei Werte, und ein dritter müsste einen davon raten. Der Hinweis auf der
+Seite sagt das.
 
 Alles davor sind Zahlen. Gewicht, Grösse, Schritte, Trainingstage. Damit lässt
 sich ein Kalorienziel ausrechnen und sonst nichts. Was darüber entscheidet, ob
@@ -368,6 +400,29 @@ wieder bricht.
 Die Frage nach dem Tonfall ist eine Anweisung, keine Vorliebe. Wer sagt, dass er
 sich selbst genug Druck macht, bekommt keine Ansage, auch wenn eine Ansage
 wirksamer wäre.
+
+## Die Einführung
+
+`apps/pwa/js/einfuehrung.js`. Nach dem Fragebogen dunkelt die App ab, ein
+Lichtkreis liegt auf einem Bedienelement, darunter steht ein Satz. Ein Tipp
+führt weiter, das Kreuz beendet. 15 Schritte über Assistent, Heute, Übungen,
+Dein Tag, Balance, Bericht und Profil. Wer nur den Assistenten erklärt
+bekommt, findet den Rest Tage später oder nie.
+
+Der Lichtkreis ist ein leerer Kasten mit einem Schatten von 9999 Pixeln. Das
+Element darunter bleibt in seiner echten Farbe sichtbar, ohne kopiert zu
+werden. Ein Bereich höher als der halbe Bildschirm wird durch sein erstes
+Kind vertreten: die Übungsliste ganz anzuleuchten hiess, nichts abzudunkeln,
+und der Text stand ausserhalb des Bildschirms. Der Satz hat einen eigenen
+dunklen Grund, sonst liegt er auf den Zahlen der Seite.
+
+Fehlt ein Ziel oder hat es keine Grösse, fällt der Schritt weg. Ein Test
+prüft, dass jedes Ziel im HTML steht, sonst verschluckt ein Umbau still die
+halbe Einführung.
+
+Sie kommt einmal, gesteuert über `settings.einfuehrungGesehen`: nach dem Bogen,
+beim ersten Öffnen der Demo und einmal bei allen, die die App schon vorher
+hatten. Danach steht sie im Profil.
 
 ## Die zwei Check-ins der Woche
 

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { bmrMifflinStJeor, activityFactor, energyBreakdown, macroTargets, waterTargetMl } from "./energy.js";
+import { KORREKTUR_GRENZE, bmrMifflinStJeor, activityFactor, energyBreakdown, macroTargets, waterTargetMl } from "./energy.js";
 import type { UserProfile } from "./types.js";
 
 const aaron: UserProfile = {
@@ -98,4 +98,30 @@ test("Trinkmenge steigt mit Trainingsdauer", () => {
   const base = waterTargetMl(aaron, 0);
   const withTraining = waterTargetMl(aaron, 120);
   assert.equal(withTraining - base, 1200);
+});
+
+test("die Korrektur verschiebt Kalorien, Protein und Fett, Kohlenhydrate füllen den Rest", () => {
+  const basis: UserProfile = {
+    sex: "male", ageYears: 23, heightCm: 184, weightKg: 87, goal: "maintain",
+    dailySteps: 12000, wakeTime: "07:00", sleepTime: "23:00", sessions: [],
+  };
+  const vorher = macroTargets(basis);
+  const nachher = macroTargets({ ...basis, zielKorrektur: { kcal: 200, proteinG: 20, fatG: -10 } });
+  assert.equal(nachher.kcal, vorher.kcal + 200);
+  assert.equal(nachher.proteinG, vorher.proteinG + 20);
+  assert.equal(nachher.fatG, vorher.fatG - 10);
+  // Die Summe der Makros trifft das Ziel bis auf Rundung.
+  const summe = nachher.proteinG * 4 + nachher.fatG * 9 + nachher.carbsG * 4;
+  assert.ok(Math.abs(summe - nachher.kcal) <= 4, `${summe} gegen ${nachher.kcal}`);
+});
+
+test("eine Korrektur ausserhalb der Grenzen wird gedeckelt", () => {
+  const basis: UserProfile = {
+    sex: "male", ageYears: 23, heightCm: 184, weightKg: 87, goal: "maintain",
+    dailySteps: 12000, wakeTime: "07:00", sleepTime: "23:00", sessions: [],
+  };
+  const vorher = energyBreakdown(basis).targetKcal;
+  assert.equal(energyBreakdown({ ...basis, zielKorrektur: { kcal: 9000 } }).targetKcal, vorher + KORREKTUR_GRENZE.kcal);
+  assert.equal(energyBreakdown({ ...basis, zielKorrektur: { kcal: Number.NaN } }).targetKcal, vorher);
+  assert.equal(energyBreakdown({ ...basis, zielKorrektur: null }).targetKcal, vorher);
 });
