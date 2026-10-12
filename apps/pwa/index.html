@@ -631,6 +631,27 @@ try {
     </div>
   </section>
 
+  <section class="view" data-view="rezepte" hidden>
+    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Empfehlungen</h1><div class="bar-spacer"></div></header>
+    <div class="scroll">
+      <div class="rz-rest" id="rzRest"></div>
+      <div class="pills rz-arten" id="rzArten"></div>
+      <p class="sub" id="rzFuerMorgen" hidden>Diese Mahlzeit ist für heute vorbei. Gerechnet wird mit deinem vollen Tagesziel, also für morgen.</p>
+      <article class="rz-karte" id="rzKarte"></article>
+      <div class="rz-aktionen" id="rzAktionen">
+        <button type="button" id="rzWeiter" class="rz-rund rz-nein" aria-label="Anderes Rezept zeigen">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+        <span class="rz-zeit" id="rzZeit"></span>
+        <button type="button" id="rzEintragen" class="rz-rund rz-ja" aria-label="Diese Mahlzeit eintragen">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+      </div>
+      <div id="rzDetail"></div>
+      <p class="fineprint" id="rzHinweis"></p>
+    </div>
+  </section>
+
   <section class="view" data-view="einkauf" hidden>
     <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Einkaufen</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
@@ -1255,6 +1276,7 @@ try {
       <div class="menu-unter" hidden>
         <button class="menu-item" data-go="heute"><b>Heute</b><span>Kalorien, Makros, Wasser</span></button>
         <button class="menu-item" data-go="essen"><b>Essen erfassen</b><span>Tippen, sprechen, fotografieren</span></button>
+        <button class="menu-item" data-go="rezepte"><b>Empfehlungen</b><span>Rezepte, die in deinen Rest passen</span></button>
         <button class="menu-item" data-go="einkauf"><b>Einkaufen</b><span>Liste aus deinen Zielen</span></button>
       </div>
     </div>

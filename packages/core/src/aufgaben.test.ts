@@ -104,3 +104,22 @@ test("der Text trennt heute von morgen", () => {
 test("ohne Aufgaben sagt der Text das auch", () => {
   assert.equal(planText(priorisiere({ ...BASIS, aufgaben: [] })), "Keine offenen Aufgaben.");
 });
+
+test("eine verschobene Aufgabe steht heute nicht im Plan, auch wenn Zeit wäre", () => {
+  const plan = priorisiere({
+    ...BASIS,
+    aufgaben: [
+      a({ text: "Morgen", wichtigkeit: 3, ab: "2026-09-08" }),
+      a({ text: "Nächste Woche", wichtigkeit: 3, ab: "2026-09-14" }),
+      a({ text: "Heute" }),
+    ],
+  });
+  assert.deepEqual(plan.heute.map((x) => x.text), ["Heute"]);
+  assert.deepEqual(plan.morgen.map((x) => x.text), ["Morgen"]);
+  assert.deepEqual(plan.spaeter.map((x) => x.text), ["Nächste Woche"]);
+});
+
+test("ab heute zählt wieder normal", () => {
+  const plan = priorisiere({ ...BASIS, aufgaben: [a({ text: "Wieder da", ab: HEUTE })] });
+  assert.deepEqual(plan.heute.map((x) => x.text), ["Wieder da"]);
+});

@@ -2864,3 +2864,98 @@ h1,
   background: rgba(255, 255, 255, 0.16); border: 1px solid rgba(255, 255, 255, 0.22); color: #ffffff;
 }
 @media (prefers-reduced-motion: reduce) { .ef-licht, .ef-text { transition: none; } }
+
+/*
+  Empfehlungen.
+
+  Eine Karte, ein Rezept. Unten links der Name auf einem Verlauf, oben links
+  die Passung. Das Kreuz zeigt das nächste, das Plus trägt ein. Solange es
+  keine Fotos gibt, trägt die Karte eine Fläche in einer Makrofarbe mit
+  Symbol: ein leerer Bildrahmen oder ein Platzhalterfoto wäre schlechter als
+  eine ehrliche Fläche.
+*/
+.rz-rest {
+  display: flex; align-items: baseline; gap: var(--s-2); flex-wrap: wrap;
+  background: var(--erhoben); border: 1px solid var(--linie); border-radius: var(--r-pill);
+  padding: 14px 20px; margin: var(--s-2) 0 var(--s-4); font-size: var(--t-md); color: var(--muted);
+}
+.rz-rest b { font-family: var(--schrift-display); font-size: 26px; color: var(--text); font-weight: 600; }
+.rz-status { margin-left: auto; font-size: var(--t-md); color: var(--text); display: inline-flex; align-items: center; gap: 8px; }
+.rz-status::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--good); }
+.rz-status.drueber::before { background: var(--bad); }
+.rz-arten { margin-bottom: var(--s-4); }
+.rz-arten .pill { padding: 9px 16px; }
+.rz-arten .pill.on { background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--accent-text); border-color: var(--accent); }
+
+.rz-karte {
+  position: relative; border-radius: var(--r-xl); overflow: hidden; aspect-ratio: 4 / 5;
+  background: var(--erhoben); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+}
+.rz-bild {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  background:
+    radial-gradient(120% 80% at 30% 20%, color-mix(in srgb, var(--ton) 55%, transparent), transparent 70%),
+    linear-gradient(160deg, color-mix(in srgb, var(--ton) 30%, var(--bg)), var(--bg));
+  color: color-mix(in srgb, var(--ton) 80%, var(--text));
+}
+.rz-symbol { opacity: 0.55; transform: translateY(-14%); }
+.rz-passung {
+  position: absolute; top: 16px; left: 16px; padding: 8px 14px; border-radius: var(--r-pill);
+  background: var(--stark); color: var(--auf-stark); font-weight: 600; font-size: var(--t-md);
+}
+.rz-titel {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 60px 20px 52px;
+  background: linear-gradient(to top, rgba(6, 9, 14, 0.85), transparent); color: #ffffff;
+}
+.rz-titel span { font-size: var(--t-md); opacity: 0.85; }
+.rz-titel h2 {
+  margin: 4px 0 0; font-family: var(--schrift-display); font-weight: 600;
+  font-size: 26px; line-height: 1.2; letter-spacing: -0.01em; color: #ffffff;
+}
+.rz-leer { padding: 40px 24px; color: var(--muted); text-align: center; line-height: 1.5; }
+.rz-karte:has(.rz-leer) { aspect-ratio: auto; }
+
+.rz-aktionen {
+  display: flex; align-items: center; justify-content: space-between;
+  margin: -28px 12px var(--s-5); position: relative; z-index: 1;
+}
+.rz-rund {
+  width: 64px; height: 64px; border-radius: 50%; padding: 0; display: grid; place-items: center;
+  border: 1px solid var(--linie); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+.rz-nein { background: var(--erhoben); color: var(--bad); }
+.rz-ja { background: var(--stark); color: var(--auf-stark); border-color: transparent; }
+.rz-zeit {
+  background: var(--erhoben); border: 1px solid var(--linie); border-radius: var(--r-pill);
+  padding: 10px 22px; color: var(--muted); font-size: var(--t-md);
+}
+.rz-zeit b { color: var(--text); font-size: var(--t-xl); font-family: var(--schrift-display); }
+
+.rz-werte .kv { display: grid; grid-template-columns: 1fr auto auto; gap: var(--s-3); align-items: baseline; }
+.rz-soll { color: var(--muted); font-size: var(--t-sm); min-width: 64px; text-align: right; }
+.rz-zutaten, .rz-schritte { margin: 0 0 var(--s-5); padding: 0; }
+.rz-zutaten li {
+  list-style: none; display: flex; gap: var(--s-2); align-items: baseline;
+  padding: 11px 0; border-bottom: 1px solid var(--linie);
+}
+.rz-zutaten li span { flex: 1; }
+.rz-vorrat { font-style: normal; font-size: var(--t-xs); color: var(--accent-text); }
+.rz-schritte { padding-left: 1.3em; }
+.rz-schritte li { margin: 0 0 10px; line-height: 1.5; }
+
+/* Aufgaben auf "Dein Tag": drei Zeichen statt drei Wörter. Die Zeile zum
+   Verschieben bricht unter den Eintrag um, deshalb darf das li umbrechen. */
+.list li.aufgabe { flex-wrap: wrap; }
+.list li.aufgabe .li-main { flex: 1 1 0; }
+.aufgabe-knoepfe { display: flex; gap: var(--s-1); flex-shrink: 0; }
+.aufgabe-knopf {
+  width: 36px; height: 36px; padding: 0; border-radius: 50%;
+  display: grid; place-items: center;
+  background: transparent; border: 1px solid var(--border); color: var(--muted);
+}
+.aufgabe-knopf:first-child { color: var(--accent); }
+.aufgabe-knopf[aria-expanded="true"] { color: var(--accent); border-color: var(--accent); }
+.verschieben { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+.verschieben .pill { display: inline-flex; align-items: center; line-height: 1.2; margin: 0; }
+.verschieben-datum { position: relative; overflow: hidden; cursor: pointer; }
+.verschieben-datum input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }

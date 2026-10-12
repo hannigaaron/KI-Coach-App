@@ -221,7 +221,31 @@ Darstellung in `apps/pwa/js/plaene.js`. Er läuft ohne Schlüssel, ist bei
 gleicher Eingabe immer derselbe und jede Zahl hängt an einer Regel im Code.
 
 Eingaben: Tage pro Woche (2 bis 5), Minuten je Einheit, Erfahrung, Ziel,
-Entlastungswoche. Aufbau: zwei Tage Ganzkörper A und B, drei Tage Ganzkörper A,
+Entlastungswoche.
+
+Bis 45 Minuten gibt es keine Isolation. Jede Einheit hat genau fünf
+Bewegungen: Knie (Kniebeuge oder Einbein), Hüfte, Drücken, Ziehen und eine
+Rumpfübung, in vier Varianten A bis D, die zwischen waagerecht und senkrecht
+wechseln. Seitheben in einer halben Stunde Ganzkörper heisst, dass dafür eine
+Grundbewegung fehlt. Passt die Zeit nicht, kürzt der Plan erst die Pausen,
+dann die Sätze, nie eine Bewegung und nie unter zwei Sätze. Das ist eine Regel
+der App, keine Studie, und so steht es auch im Hinweis.
+
+Einsteiger bekommen für die Grundübungen geführte Geräte, wo die Datenbank
+welche kennt: Beinpresse, Brustpresse, Rudern an Maschine oder Kabel, Latzug,
+Hyperextension. Stufen: Maschine und Kabel, dann Körpergewicht, dann freie
+Gewichte. Für Schulterdrücken gibt es keine Maschine, deshalb wird daraus bei
+Einsteigern Drücken waagerecht, und Einbein wird Kniebeuge. Bleibt für einen
+Platz nur ein freies Gewicht, obwohl die Datenbank Geführtes kennt, fällt der
+Platz weg. Lieber eine Übung weniger als Kurzhanteln über dem Gesicht eines
+Einsteigers. Isolation ist davon ausgenommen, ein Kurzhantelcurl ist kein
+Risiko.
+
+Die schwerste Übung kommt zuerst, über `SCHWERE`: Beine und Hüfte, dann
+Einbein, dann Drücken und Ziehen, Isolation, Rumpf zuletzt. Eine Hüftübung
+ohne Last von aussen rückt hinter die Beinpresse.
+
+Ab 60 Minuten gilt der Aufbau: zwei Tage Ganzkörper A und B, drei Tage Ganzkörper A,
 B und C, vier Tage Ober und Unterkörper zweimal, fünf Tage Push, Pull, Beine,
 Oberkörper, Unterkörper. Je Tag ein Hauptplatz für die Beine, ein Drücken, ein
 Ziehen, danach Zubehör. Mehr Beinplätze ließen die Beine auf das Doppelte der
@@ -251,7 +275,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 938 Tests
+npm test           # 965 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -725,6 +749,28 @@ der Kalenderübersicht, und die kennt nur Termine und keine Aufgaben.
 "Wochenplan" ging aus demselben Grund an den Kalender.
 
 Das Morgenbriefing benutzt jetzt den Plan mit Uhrzeiten.
+
+## Aufgaben verschieben
+
+Auf "Dein Tag" trägt jede eigene Aufgabe drei Zeichen statt drei Wörter:
+Haken für erledigt, Kalender für verschieben, Kreuz für streichen. Drei Wörter
+nebeneinander nehmen dem Titel auf dem Handy die halbe Breite. Der Name steht
+im aria-label und im Tooltip.
+
+Verschieben setzt `ab` und nicht die Frist. Eine Frist sagt, bis wann etwas
+fertig sein muss, `ab` sagt, ab wann es wieder auftaucht. `priorisiere` legt
+eine Aufgabe mit `ab` nach heute auf morgen oder später, auch wenn heute Zeit
+wäre: eine bewusst verschobene Aufgabe, die wieder oben steht, macht den Knopf
+zur Lüge. Der Wochenplan legt sie nicht vor diesen Tag. Liegt eine Frist vor
+dem neuen Tag, wandert sie mit, sonst wäre sie im Wochenplan für immer
+gerissen.
+
+Die Auswahl, Morgen, Übermorgen oder Tag wählen, steht als Zeile im Eintrag
+und nicht als schwebendes Menü. Ein Menü über einer Liste deckt die nächste
+Aufgabe zu und hängt am unteren Rand halb aus dem Bildschirm.
+
+Todoist Aufgaben haben nur den Haken. Verschieben gehört dort nach Todoist,
+ein hier gesetzter Tag wäre beim nächsten Lesen weg.
 
 ## Todoist
 
@@ -1260,6 +1306,34 @@ Offen bleiben sieben. Die beiden Fotowerkzeuge brauchen ein Modell, daran
 `gespraech_einordnen` brauchen eine Kennung aus dem Zusammenhang, die ein
 Wortmuster nicht kennt. `profil_aendern` und `einkaufsliste_abhaken` sind
 machbar und stehen aus.
+
+## Empfehlungen
+
+`packages/core/src/rezepte.ts` rechnet, `rezepte-daten.ts` trägt die Rezepte,
+`apps/pwa/js/rezepte-ui.js` zeigt. Menü, Ernährung, Empfehlungen.
+
+Eine Karte auf einmal: Passung in Prozent, Name, Minuten, ein Kreuz für das
+nächste Rezept und ein Plus zum Eintragen. Eine Liste mit zwanzig Rezepten
+liest man quer und entscheidet sich für keines.
+
+Das Ziel je Mahlzeit kommt aus `verteileRest`, also aus derselben Aufteilung
+wie der Rest des Tages. Ist die gewählte Mahlzeit heute schon vorbei, wird
+für morgen geplant, mit dem vollen Tagesziel, und auch für morgen
+eingetragen. Im heutigen Tag stünde es als gegessen.
+
+Allergene hängen an der Zutat, nicht am Rezept. Ein Rezept kann damit nicht
+falsch beschriftet sein: wer Sojasauce hineinschreibt, hat Soja und Gluten
+drin, ohne daran denken zu müssen. Gefiltert wird hart nach Allergien,
+Unverträglichkeiten, Ernährungsform, Ausschlüssen, Freitext aus dem
+Fragebogen (`meiden`) und Geräten. Ausgeblendetes steht mit Grund unter der
+Karte.
+
+Die Portion wird zwischen 0,6 und 1,8 skaliert, Gramm auf 5 gerundet, Stücke
+wie Eier ganz. Die Nährwerte werden aus den gerundeten Mengen neu gerechnet:
+was angezeigt wird, ist das, was eingetragen wird. Die Passung ist eine Regel:
+Kalorien und Protein je 35 Prozent, Fett und Kohlenhydrate je 15.
+
+Fotos fehlen noch, die Karte trägt bis dahin ein Zeichen auf einem Verlauf.
 
 ## Nährwerte von Markenprodukten
 

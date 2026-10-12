@@ -525,3 +525,53 @@ test("ohne Einheit im Profil sagt die Anpassung das dazu", () => {
   frischerTag();
   assert.match(planung.trainingsanpassungText(), /keine Einheit/);
 });
+
+/* ---------- Rezepte ---------- */
+
+test("Rezepte: eine Sojaallergie aus dem Fragebogen sperrt jedes Sojagericht", async () => {
+  const { rezeptVorschlaege } = await import("./assistant.js");
+  const { ZUTATEN } = await import("@daevo/core");
+  frischerTag();
+  store.setProfile({ ...PROFIL, ernaehrung: { allergien: ["Soja"] } });
+  for (const art of ["fruehstueck", "mittagessen", "abendessen", "snack"]) {
+    const r = rezeptVorschlaege({ art, jetzt: new Date(2026, 9, 12, 7, 0) });
+    assert.ok(r.empfehlungen.length > 0, art);
+    for (const e of r.empfehlungen) {
+      for (const { z } of e.rezept.zutaten) {
+        assert.ok(!(ZUTATEN[z].allergene || []).includes("Soja"), `${e.rezept.id} enthält Soja`);
+      }
+    }
+  }
+});
+
+test("Rezepte: eintragen schreibt Posten, deren Summe die angezeigte Summe ist", async () => {
+  const { rezeptVorschlaege, rezeptEintragen } = await import("./assistant.js");
+  const tag = frischerTag();
+  const r = rezeptVorschlaege({ art: "mittagessen", jetzt: new Date(2026, 9, 12, 12, 0) });
+  const e = r.empfehlungen[0];
+  rezeptEintragen(e, { day: tag });
+  assert.equal(store.getDay(tag).meals.at(-1).text, e.rezept.name);
+  assert.ok(Math.abs(kcalVon(tag) - e.summe.kcal) <= 2, `${kcalVon(tag)} gegen ${e.summe.kcal}`);
+});
+
+test("Rezepte: eine vorbeigegangene Mahlzeit rechnet mit dem vollen Tag, für morgen", async () => {
+  const { rezeptVorschlaege } = await import("./assistant.js");
+  frischerTag();
+  const r = rezeptVorschlaege({ art: "fruehstueck", jetzt: new Date(2026, 9, 12, 21, 0) });
+  assert.equal(r.morgen, true);
+  assert.ok(r.ziel.kcal > 400, String(r.ziel.kcal));
+});
+
+test("Verschieben setzt den Tag, nimmt die Aufgabe aus heute und zieht eine frühere Frist mit", () => {
+  frischerTag();
+  const morgen = new Date(`${todayIso()}T12:00:00`);
+  morgen.setDate(morgen.getDate() + 2);
+  const tag = morgen.toISOString().slice(0, 10);
+  store.setAufgaben([{ id: "a1", text: "Angebot", minuten: 30, wichtigkeit: 3, erledigt: false, faellig: todayIso(), erstellt: `${todayIso()}T06:00:00` }]);
+  const a = planung.aufgabeVerschieben("a1", tag);
+  assert.equal(a.ab, tag);
+  assert.equal(a.faellig, tag);
+  assert.equal(planung.aufgabenPlan().heute.length, 0);
+  assert.equal(planung.aufgabeVerschieben("a1", "morgen"), null);
+  assert.equal(planung.aufgabeVerschieben("fehlt", tag), null);
+});

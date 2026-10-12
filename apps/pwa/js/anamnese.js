@@ -555,6 +555,11 @@ export function auswerten(antworten) {
       allergien: [...(antworten.allergien || [])],
       unvertraeglichkeiten: [...(antworten.unvertraeglichkeiten || [])],
       ausschluesse: [...(antworten.ausschluesse || [])],
+      // Freie Angaben, an Komma oder "und" getrennt. Ein Rezeptfilter prüft sie
+      // gegen die Zutatennamen, deshalb einzeln und nicht als ein Satz.
+      meiden: [antworten.allergienFrei, antworten.ausschluesseFrei]
+        .flatMap((t) => String(t || "").split(/,|\bund\b/)).map((t) => t.trim()).filter((t) => t.length >= 3),
+      geraete: [...(antworten.geraete || [])],
     },
     sessions,
   };

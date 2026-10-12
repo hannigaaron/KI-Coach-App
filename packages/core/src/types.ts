@@ -77,6 +77,10 @@ export interface UserProfile {
     allergien?: string[];
     unvertraeglichkeiten?: string[];
     ausschluesse?: string[];
+    /** Freie Angaben wie "Pilze, Koriander", gegen Zutatennamen geprüft. */
+    meiden?: string[];
+    /** Was in der Küche steht. Leer heisst unbekannt. */
+    geraete?: string[];
   };
   /** Wie der Arbeitstag aussieht. Ohne Angabe wird sitzend angenommen. */
   occupation?: Occupation;

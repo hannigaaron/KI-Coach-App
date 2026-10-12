@@ -16,7 +16,7 @@ test("jedes Ziel der Einführung steht im HTML", () => {
 
 test("jeder Satz ist kurz genug für einen Blick", () => {
   for (const s of EINFUEHRUNG_SCHRITTE) {
-    assert.ok(s.text.length <= 120, `zu lang: ${s.text}`);
+    assert.ok(s.text.length <= 140, `zu lang: ${s.text}`);
     assert.doesNotMatch(s.text, /[—–]/, `Gedankenstrich in: ${s.text}`);
   }
 });

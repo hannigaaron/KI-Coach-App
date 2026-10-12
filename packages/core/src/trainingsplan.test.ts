@@ -138,3 +138,96 @@ test("Der Text zum Weitergeben nennt jede Einheit und jede Übung", () => {
   for (const e of plan.einheiten) for (const p of e.positionen) assert.ok(text.includes(p.name));
   assert.doesNotMatch(text, /[–—]/);
 });
+
+const mitGeraet = (e: PlanUebung, equipment: string): PlanUebung => ({ ...e, equipment });
+/** LIB plus freie Gewichte für Einsteiger, damit die Wahl zwischen geführt und frei sichtbar wird. */
+const LIB_FREI: PlanUebung[] = [
+  ...LIB,
+  mitGeraet(u("kh-schraeg", "incline_push", "brust", "beginner"), "dumbbell"),
+  mitGeraet(u("kh-bank", "horizontal_push", "brust", "beginner"), "dumbbell"),
+  mitGeraet(u("kh-schulter", "vertical_push", "schultern", "beginner"), "dumbbell"),
+  mitGeraet(u("kh-rudern", "horizontal_pull", "ruecken", "beginner"), "dumbbell"),
+  mitGeraet(u("goblet", "knee_dominant", "beine", "beginner"), "dumbbell"),
+];
+const nach = new Map(LIB_FREI.map((e) => [e.id, e]));
+const gruppeVon = (id: string) => nach.get(id)!;
+
+test("Bis 45 Minuten steht keine Isolationsübung im Plan, nur die Rumpfübung", () => {
+  for (const minuten of [30, 45]) {
+    for (const tage of [2, 3, 4, 5] as const) {
+      for (const niveau of ["beginner", "intermediate", "advanced"] as const) {
+        for (const e of uebungsplanBauen(w({ tage, minuten, niveau }), LIB_FREI).einheiten) {
+          for (const p of e.positionen) {
+            const x = gruppeVon(p.id);
+            assert.ok(x.mechanics === "compound" || x.pattern.startsWith("core_"), `${minuten} min ${e.titel}: ${p.id}`);
+          }
+        }
+      }
+    }
+  }
+});
+
+test("Jede kurze Einheit hat Knie, Hüfte, Drücken, Ziehen und Rumpf, die Rumpfübung zuletzt", () => {
+  for (const tage of [2, 3, 4, 5] as const) {
+    for (const ziel of ["muskel", "kraft", "fitness"] as const) {
+      for (const e of uebungsplanBauen(w({ tage, minuten: 30, ziel }), LIB_FREI).einheiten) {
+        const muster = e.positionen.map((p) => gruppeVon(p.id).pattern);
+        assert.ok(muster.some((m) => m === "knee_dominant" || m === "unilateral_legs"), `${e.titel}: Knie fehlt`);
+        assert.ok(muster.includes("hip_dominant"), `${e.titel}: Hüfte fehlt`);
+        assert.ok(muster.some((m) => /_push$/.test(m)), `${e.titel}: Drücken fehlt`);
+        assert.ok(muster.some((m) => /_pull$/.test(m)), `${e.titel}: Ziehen fehlt`);
+        assert.ok(muster.at(-1)!.startsWith("core_"), `${e.titel}: Rumpf nicht zuletzt`);
+      }
+    }
+  }
+});
+
+test("Kurze Einheiten kürzen Sätze und Pausen statt Bewegungen und bleiben in der Zeit", () => {
+  for (const minuten of [30, 45]) {
+    for (const ziel of ["muskel", "kraft", "fitness"] as const) {
+      for (const e of uebungsplanBauen(w({ minuten, ziel }), LIB_FREI).einheiten) {
+        assert.equal(e.positionen.length, 5, e.titel);
+        assert.ok(e.dauerMin <= minuten, `${e.titel}: ${e.dauerMin} > ${minuten}`);
+        for (const p of e.positionen) assert.ok(p.saetze >= 2, `${p.id} nur ${p.saetze} Satz`);
+      }
+    }
+  }
+});
+
+test("Die Beinübung steht vor Drücken und Ziehen", () => {
+  for (const minuten of [30, 45, 60, 75]) {
+    for (const e of uebungsplanBauen(w({ tage: 3, minuten }), LIB_FREI).einheiten) {
+      const muster = e.positionen.map((p) => gruppeVon(p.id).pattern);
+      const bein = muster.findIndex((m) => ["knee_dominant", "unilateral_legs", "hip_dominant"].includes(m));
+      const ober = muster.findIndex((m) => /_(push|pull)$/.test(m));
+      if (bein >= 0 && ober >= 0) assert.ok(bein < ober, `${minuten} min ${e.titel}`);
+    }
+  }
+});
+
+test("Einsteiger drücken, ziehen und beugen an geführten Geräten statt mit freien Gewichten", () => {
+  for (const minuten of [30, 45, 60, 75]) {
+    for (const tage of [2, 3, 4, 5] as const) {
+      for (const e of uebungsplanBauen(w({ tage, minuten, niveau: "beginner" }), LIB_FREI).einheiten) {
+        for (const p of e.positionen) assert.ok(!p.id.startsWith("kh-") && p.id !== "goblet", `${tage} Tage ${minuten} min ${e.titel}: ${p.id}`);
+      }
+    }
+  }
+});
+
+test("Ohne geführte Alternative bekommen Einsteiger trotzdem eine Übung", () => {
+  const nurFrei = LIB_FREI.filter((e) => e.pattern !== "horizontal_push" && e.pattern !== "incline_push" || e.id.startsWith("kh-"));
+  const plan = uebungsplanBauen(w({ niveau: "beginner", minuten: 30 }), nurFrei);
+  assert.ok(plan.einheiten[0]!.positionen.some((p) => p.id === "kh-bank" || p.id === "kh-schraeg"));
+});
+
+test("Fortgeschrittene behalten freie Gewichte", () => {
+  const plan = uebungsplanBauen(w({ tage: 5, minuten: 75, niveau: "intermediate" }), LIB_FREI);
+  const ids = plan.einheiten.flatMap((e) => e.positionen.map((p) => p.id));
+  assert.ok(ids.some((id) => id.startsWith("kh-") || id === "goblet"));
+});
+
+test("Kurze Pläne sagen, warum keine Isolation drin ist", () => {
+  assert.match(uebungsplanBauen(w({ minuten: 30 }), LIB).hinweise.join(" "), /nur Grundübungen/);
+  assert.doesNotMatch(uebungsplanBauen(w({ minuten: 60 }), LIB).hinweise.join(" "), /nur Grundübungen/);
+});
