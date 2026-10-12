@@ -34,3 +34,4 @@ export * from "./schieflage.js";
 export * from "./zeitplan.js";
 export * from "./wochenplan.js";
 export * from "./trainingsanpassung.js";
+export * from "./trainingsplan.js";

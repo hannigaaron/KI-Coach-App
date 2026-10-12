@@ -13,6 +13,8 @@ import {
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, produktPerBarcode, produkteSuchen } from "@daevo/coach";
 import { Coach, AnthropicProvider } from "@daevo/coach";
 import { KONFIG, istDemo } from "./konfig.js";
+import { uebungenStarten } from "./uebungen.js";
+import { plaeneStarten } from "./plaene.js";
 import {
   antwortVerarbeiten, antwortenAbholen, lueckeAusSpeicher, lueckeMelden,
   schieflageAusSpeicher, schieflageMelden,
@@ -39,6 +41,7 @@ import { anhangAusDatei, grossInKb } from "./media.js";
 import { bereichFarbe, anteilsRing, kurzDauer, netzDiagramm, wertungsRing } from "./rings.js";
 import { Listener, alleStimmen, istDeutsch, speak, stimmenBereit, stopSpeaking, voiceSupport, waehlbareStimmen } from "./voice.js";
 import { SetupFlow } from "./setup-ui.js";
+import { einfuehrungStarten } from "./einfuehrung.js";
 import { gesundheitHolen, postfachHolen, pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
 
@@ -172,6 +175,10 @@ $("anhangMenue").addEventListener("click", (event) => {
   $("anhangMenue").hidden = true;
   if (button.dataset.anhang === "kamera") $("kameraWahl").click();
   if (button.dataset.anhang === "datei") $("dateiWahl").click();
+  // Die beiden Betriebsarten haben ihre eigenen Knöpfe, die erst beim Laufen
+  // sichtbar werden. Das Menü stößt sie nur an.
+  if (button.dataset.anhang === "dump") $("btnDump").click();
+  if (button.dataset.anhang === "weckwort") $("btnWeckwort").click();
 });
 for (const id of ["dateiWahl", "kameraWahl"]) {
   $(id).addEventListener("change", async (event) => {
@@ -481,8 +488,8 @@ $("btnDump").addEventListener("click", () => {
     onState: (state) => {
       if (state === "listening") {
         orb.setState("listening");
-        setStatus("hört zu, tipp auf Kopf, wenn du fertig bist");
-        $("orbHint").textContent = "Red alles raus. Pausen sind in Ordnung. Tipp auf Kopf, wenn du fertig bist.";
+        setStatus("hört zu, tipp auf Fertig, wenn du durch bist");
+        $("orbHint").textContent = "Red alles raus. Pausen sind in Ordnung. Tipp unten auf Fertig, wenn du durch bist.";
       }
     },
   });
@@ -735,7 +742,13 @@ const ANSICHT_TIEFE = ["assistant", "gespraeche", "heute", "essen", "tag", "bala
 
 let letzteAnsicht = "assistant";
 
+/** Die Übungsansicht. Sie wird nach dem Aufbau der Seite gestartet, siehe unten. */
+let uebungen = null;
+
 function showView(name) {
+  // "Trainingspläne" ist ein Reiter der Übungsansicht und hat keine eigene.
+  const aufPlaene = name === "plaene";
+  if (aufPlaene) name = "uebungen";
   const von = ANSICHT_TIEFE.indexOf(letzteAnsicht);
   const nach = ANSICHT_TIEFE.indexOf(name);
   // -1 heisst "nicht in der Liste", also hinten. Zwei unbekannte Ansichten
@@ -757,6 +770,9 @@ function showView(name) {
     offen.querySelector(".scroll")?.scrollTo({ top: 0 });
   }
   $("menu").hidden = true;
+  // Eine offene Detailseite samt Animation endet mit dem Verlassen der Ansicht.
+  if (name !== "uebungen") uebungen?.schliessen();
+  if (name === "uebungen") uebungen?.modus(aufPlaene ? "plaene" : "uebungen");
   if (name === "heute") renderToday();
   if (name === "essen") { $("fridgeInput").value = store.getFridge().join(", "); renderMeals("mealList2"); renderRestDesTages(); }
   if (name === "checkin") renderCheckins();
@@ -2313,6 +2329,12 @@ function anamneseFertig(ergebnis) {
     text: `Trainingsvorschlag zum Start: ${ergebnis.kraft.titel}.`,
     art: "hinweis", wichtigkeit: 3, schlagworte: ["training"],
   });
+  // Was im Bogen als Vorrat angetippt wurde, ist ab sofort der Vorrat. Ohne
+  // das müsste der Nutzer dieselbe Liste in der App ein zweites Mal tippen.
+  if (ergebnis.vorrat?.length) {
+    const vorhanden = store.getFridge();
+    store.setFridge([...vorhanden, ...ergebnis.vorrat.filter((v) => !vorhanden.includes(v))]);
+  }
   startApp();
 }
 
@@ -2327,6 +2349,14 @@ function anamneseFertig(ergebnis) {
  * Was der Nutzer selbst gesetzt hat, bleibt unangetastet: Stimme, Tonfall,
  * Aussehen, seine Zahlen. Nur was dem Betreiber gehört, wird überschrieben.
  */
+function einfuehrungGesehen() {
+  store.setSettings({ ...store.getSettings(), einfuehrungGesehen: true });
+}
+
+$("btnEinfuehrung").addEventListener("click", () => {
+  einfuehrungStarten({ zeigeAnsicht: showView, beiEnde: einfuehrungGesehen });
+});
+
 function konfigAnwenden() {
   if (!istDemo()) return;
 
@@ -2346,6 +2376,12 @@ function startApp() {
   $("setup").hidden = true;
   $("app").hidden = false;
   konfigAnwenden();
+  // Die Einführung kommt einmal: nach dem Bogen, beim ersten Öffnen der Demo,
+  // und einmal bei allen, die die App schon vorher benutzt haben. Danach steht
+  // sie im Profil. Wer sie bei jedem Start sieht, tippt sie weg, ohne zu lesen.
+  if (!store.getSettings().einfuehrungGesehen) {
+    setTimeout(() => einfuehrungStarten({ zeigeAnsicht: showView, beiEnde: einfuehrungGesehen }), 900);
+  }
   options = { ...options, ...(store.getSettings().voice || {}) };
   renderFeelings();
   ensureStandards();
@@ -2550,6 +2586,16 @@ $("menu").addEventListener("click", (event) => {
     kopf.parentElement.querySelector(".menu-unter").hidden = false;
   }
 });
+uebungen = uebungenStarten();
+plaeneStarten({
+  speicher: {
+    lesen: () => store.getSettings().plan ?? null,
+    schreiben: (plan) => store.setSettings({ ...store.getSettings(), plan }),
+  },
+  oeffne: (id) => uebungen.oeffne(id),
+  melde: (text) => toast(text),
+});
+
 for (const button of document.querySelectorAll("[data-back]")) {
   button.addEventListener("click", () => showView("assistant"));
 }

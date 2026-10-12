@@ -59,6 +59,25 @@ export interface UserProfile {
   tagesausnahmen?: Record<string, { wakeTime: string; sleepTime: string; handyAus?: string; handyMorgens?: string }>;
   /** Optionaler manueller Überschreibwert für den Kalorienbedarf. */
   tdeeOverrideKcal?: number | null;
+  /**
+   * Was der Nutzer am Vorschlag nachgestellt hat, als Abstand und nicht als
+   * fester Wert. Ein fester Wert bliebe stehen, wenn sich das Gewicht ändert
+   * oder der gemessene Verbrauch die Formel ablöst. Ein Abstand wandert mit:
+   * wer 200 kcal mehr wollte, bekommt auch nach der Messung 200 mehr.
+   */
+  zielKorrektur?: { kcal?: number; proteinG?: number; fatG?: number } | null;
+  /**
+   * Was nie vorgeschlagen werden darf und wie sich jemand ernährt. Als Listen
+   * und nicht nur als Notiz im Gedächtnis: ein Rezeptfilter muss prüfen
+   * können, ob Soja drin ist, und das geht gegen eine Liste zuverlässig und
+   * gegen einen Satz nicht.
+   */
+  ernaehrung?: {
+    form?: "omnivor" | "flexitarisch" | "vegetarisch" | "pescetarisch" | "vegan";
+    allergien?: string[];
+    unvertraeglichkeiten?: string[];
+    ausschluesse?: string[];
+  };
   /** Wie der Arbeitstag aussieht. Ohne Angabe wird sitzend angenommen. */
   occupation?: Occupation;
   /** Wie die Freizeit aussieht. Ohne Angabe wird gemischt angenommen. */

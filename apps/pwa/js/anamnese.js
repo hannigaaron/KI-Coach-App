@@ -3,7 +3,7 @@ import { BODY_FAT_LEVELS, figurBild, skala } from "./silhouette.js";
 /**
  * Der Anamnesebogen beim ersten Start.
  *
- * Ein Schritt pro Bildschirm. Das ist auf dem Handy angenehmer als ein langes
+ * Eine Frage pro Bildschirm. Das ist auf dem Handy angenehmer als ein langes
  * Formular und erlaubt es, jede Antwort sofort zu prüfen. Die Fragen sind so
  * gestellt, dass jede Antwort später wirklich benutzt wird: entweder in der
  * Rechnung, im Erinnerungsplan oder im Gedächtnis des Assistenten. Fragen ohne
@@ -11,110 +11,256 @@ import { BODY_FAT_LEVELS, figurBild, skala } from "./silhouette.js";
  */
 
 export const BEREICHE = [
-  { id: "ernaehrung", titel: "Ernährung", text: "Was ich esse, Kalorien, Makros" },
-  { id: "kraft", titel: "Krafttraining", text: "Struktur, Fortschritt, dranbleiben" },
-  { id: "ausdauer", titel: "Ausdauer", text: "Kondition, Schritte, Bewegung im Alltag" },
-  { id: "schlaf", titel: "Schlaf", text: "Früher ins Bett, besser durchschlafen" },
-  { id: "stress", titel: "Stress und Kopf", text: "Runterkommen, Grübeln, Druck rausnehmen" },
-  { id: "trinken", titel: "Trinken", text: "Genug Wasser über den Tag" },
-  { id: "routine", titel: "Routinen", text: "Morgens und abends verlässliche Abläufe" },
-  { id: "gewicht", titel: "Gewicht", text: "Auf- oder abnehmen, ohne Jojo" },
+  { id: "ernaehrung", symbol: "apfel", titel: "Ernährung", text: "Was ich esse, Kalorien, Makros" },
+  { id: "kraft", symbol: "hantel", titel: "Krafttraining", text: "Struktur, Fortschritt, dranbleiben" },
+  { id: "ausdauer", symbol: "laufen", titel: "Ausdauer", text: "Kondition, Schritte, Bewegung im Alltag" },
+  { id: "schlaf", symbol: "mond", titel: "Schlaf", text: "Früher ins Bett, besser durchschlafen" },
+  { id: "stress", symbol: "welle", titel: "Stress und Kopf", text: "Runterkommen, Grübeln, Druck rausnehmen" },
+  { id: "trinken", symbol: "tropfen", titel: "Trinken", text: "Genug Wasser über den Tag" },
+  { id: "routine", symbol: "sonne", titel: "Routinen", text: "Morgens und abends verlässliche Abläufe" },
+  { id: "gewicht", symbol: "waage", titel: "Gewicht", text: "Auf- oder abnehmen, ohne Jojo" },
 ];
 
-const ALLERGIE_VORSCHLAEGE = [
-  "Laktose", "Gluten", "Nüsse", "Erdnüsse", "Soja", "Eier", "Fisch",
-  "Meeresfrüchte", "Histamin", "Fruktose",
+/**
+ * Die 14 Hauptallergene nach Verordnung (EU) Nr. 1169/2011, Anhang II. Mit
+ * Kennzeichnungspflicht, deshalb verlässlich auf jeder Packung zu finden.
+ */
+export const ALLERGENE_EU = [
+  "Gluten", "Krebstiere", "Eier", "Fisch", "Erdnüsse", "Soja", "Milch",
+  "Schalenfrüchte", "Sellerie", "Senf", "Sesam", "Sulfite", "Lupinen", "Weichtiere",
 ];
 
-/** Alle Schritte. `id` ist der Schlüssel in den Antworten. */
+const UNVERTRAEGLICHKEITEN = ["Laktose", "Histamin", "Fruktose", "Sorbit"];
+
+const AUSSCHLUESSE = [
+  "Kein Schweinefleisch", "Kein Rindfleisch", "Kein Alkohol", "Keine Gelatine",
+  "Keine Meeresfrüchte", "Keine Innereien",
+];
+
+const GERAETE = [
+  "Herd", "Backofen", "Mikrowelle", "Airfryer", "Mixer", "Thermomix", "Grill",
+  "Toaster", "Reiskocher", "Sandwichmaker",
+];
+
+/**
+ * Was oft im Kühlschrank liegt. Die Auswahl landet im Vorrat der App und ist
+ * damit sofort die Grundlage für "was kann ich daraus machen".
+ */
+const VORRAT = [
+  "Magerquark", "Skyr", "Griechischer Joghurt", "Whey", "Eier", "Haferflocken",
+  "Reis", "Nudeln", "Kartoffeln", "Hähnchenbrust", "Thunfisch", "Tiefkühlgemüse",
+  "Banane", "Apfel", "Beeren", "Vollkornbrot", "Reiswaffeln", "Erdnussbutter",
+  "Käse", "Olivenöl",
+];
+
+/**
+ * Alle Seiten. `id` ist der Schlüssel in den Antworten.
+ *
+ * Eine Frage pro Seite. Eine Seite mit vier Feldern liest man quer, eine mit
+ * einer Frage beantwortet man. `abschnitt` steht über dem Fortschrittsbalken
+ * und sagt, wo im Bogen man gerade ist. `tipp` ist der Kasten unten: ein Satz,
+ * der sagt, wozu die Antwort gebraucht wird. Wer weiss, wofür, antwortet
+ * ehrlicher.
+ *
+ * Eine Seite, deren einziges Feld eine Auswahl ist, geht nach dem Antippen von
+ * selbst weiter. Ein Weiter Knopf unter einer einzigen Auswahl ist ein
+ * zweiter Tipp für dieselbe Entscheidung.
+ */
 export const SCHRITTE = [
   {
     id: "start",
-    titel: "Hallo",
-    text: "Ich bin daevo. Damit ich dir wirklich helfen kann, brauche ich ein Bild von dir. Dreizehn kurze Schritte, die letzten vier kannst du überspringen. Schon mal dabei gewesen? Ganz unten spielst du deine Sicherung ein.",
-    felder: [{ art: "text", id: "name", label: "Wie heißt du", platzhalter: "Aaron" }],
+    abschnitt: "Willkommen",
+    titel: "Hallo, ich bin daevo",
+    text: "Damit ich dir wirklich helfen kann, brauche ich ein Bild von dir. Jede Frage hat ihre eigene Seite, die meisten sind mit einem Tipp erledigt.",
+    felder: [{ art: "text", id: "name", label: "Wie heißt du", platzhalter: "Dein Vorname" }],
+    tipp: { symbol: "schild", text: "Schon mal dabei gewesen? Ganz unten spielst du deine Sicherung ein." },
   },
   {
-    id: "bereiche",
-    titel: "Wobei soll ich dich unterstützen",
-    text: "Wähle bis zu drei Bereiche. Danach richte ich meine Erinnerungen daran aus.",
-    felder: [{ art: "mehrfach", id: "bereiche", optionen: BEREICHE, max: 3 }],
+    id: "geschlecht",
+    abschnitt: "Über dich",
+    titel: "Was ist dein Geschlecht?",
+    text: "Damit dein Tagesziel zu deinem Körper passt und nicht zu einem Durchschnitt.",
+    felder: [{ art: "auswahl", id: "sex", optionen: [
+      { id: "male", titel: "Männlich", symbol: "maennlich" },
+      { id: "female", titel: "Weiblich", symbol: "weiblich" },
+    ] }],
+    tipp: { symbol: "idee", text: "Die Formel für den Grundumsatz rechnet bei Männern und Frauen verschieden. Mehr als diese zwei Werte kennt sie nicht." },
   },
   {
     id: "koerper",
-    titel: "Deine Körperdaten",
-    text: "Daraus rechne ich deinen Bedarf. Ohne diese vier Werte ist jede Kalorienangabe geraten.",
+    abschnitt: "Über dich",
+    titel: "Wie groß bist du, und wie viel wiegst du?",
+    text: "Daraus rechne ich, wie viel dein Körper am Tag braucht.",
     felder: [
-      { art: "auswahl", id: "sex", label: "Geschlecht", optionen: [
-        { id: "male", titel: "männlich" }, { id: "female", titel: "weiblich" }] },
-      { art: "zahl", id: "ageYears", label: "Alter", min: 14, max: 100, standard: 25 },
-      { art: "zahl", id: "heightCm", label: "Größe in cm", min: 120, max: 230, standard: 178 },
-      { art: "zahl", id: "weightKg", label: "Gewicht in kg", min: 35, max: 300, standard: 80, schritt: 0.1 },
+      { art: "zahl", id: "heightCm", label: "Größe", einheit: "cm", platzhalter: "z. B. 178", min: 120, max: 230 },
+      { art: "zahl", id: "weightKg", label: "Gewicht", einheit: "kg", platzhalter: "z. B. 80", min: 35, max: 300, schritt: 0.1 },
+      { art: "zahl", id: "ageYears", label: "Alter", einheit: "Jahre", platzhalter: "z. B. 28", min: 14, max: 100 },
     ],
-  },
-  {
-    id: "ziel",
-    titel: "Was willst du erreichen",
-    text: "Das entscheidet, ob ich dich über oder unter deinen Bedarf steuere.",
-    felder: [{ art: "auswahl", id: "goal", optionen: [
-      { id: "fat_loss", titel: "Fett verlieren", text: "Etwa 18 Prozent unter deinem Bedarf" },
-      { id: "maintain", titel: "Gewicht halten", text: "Auf deinem Bedarf" },
-      { id: "lean_bulk", titel: "Muskeln aufbauen", text: "Etwa 10 Prozent über deinem Bedarf" },
-    ] }],
-  },
-  {
-    id: "alltag",
-    titel: "Dein Alltag",
-    text: "Schritte allein sagen nicht alles. Stehen, Tragen und Treppen zählen auch.",
-    felder: [
-      { art: "zahl", id: "dailySteps", label: "Schritte pro Tag im Schnitt", min: 0, max: 40000, standard: 8000, schritt: 500 },
-      { art: "auswahl", id: "occupation", label: "Auf der Arbeit bist du", optionen: [
-        { id: "sitzend", titel: "fast nur am Sitzen" },
-        { id: "gemischt", titel: "mal sitzend, mal auf den Beinen" },
-        { id: "stehend", titel: "überwiegend auf den Beinen" },
-        { id: "koerperlich", titel: "körperlich am Arbeiten" },
-      ] },
-      { art: "auswahl", id: "leisure", label: "In der Freizeit bist du", optionen: [
-        { id: "ruhig", titel: "eher ruhig" },
-        { id: "gemischt", titel: "gemischt" },
-        { id: "aktiv", titel: "viel unterwegs" },
-      ] },
-    ],
-  },
-  {
-    id: "sport",
-    titel: "Sport und Training",
-    text: "Danach richtet sich, wie fordernd dein Plan wird.",
-    felder: [
-      { art: "auswahl", id: "kraftErfahrung", label: "Erfahrung im Krafttraining", optionen: [
-        { id: "keine", titel: "keine" },
-        { id: "unter1", titel: "unter einem Jahr" },
-        { id: "1bis3", titel: "ein bis drei Jahre" },
-        { id: "ueber3", titel: "über drei Jahre" },
-      ] },
-      { art: "zahl", id: "sportProWoche", label: "Sporteinheiten pro Woche", min: 0, max: 14, standard: 3 },
-    ],
+    tipp: { symbol: "flamme", text: "Das ist nur der Startpunkt. Später reicht ein Satz im Chat, um dein Gewicht nachzutragen." },
   },
   {
     id: "koerperfett",
+    abschnitt: "Über dich",
     titel: "Schätz deinen Körperfettanteil",
-    text: "Such die Figur, die dir am nächsten kommt. Eine Schätzung nach Augenmaß liegt gut fünf Prozentpunkte daneben, das reicht mir. Bist du schlanker als die erste Figur oder kennst du deinen Wert aus einer Messung, trag ihn unten ein. Du kannst den Schritt auch überspringen.",
+    text: "Such die Figur, die dir am nächsten kommt. Eine Schätzung nach Augenmaß liegt gut fünf Prozentpunkte daneben, das reicht. Bist du schlanker als die erste Figur oder kennst du deinen Wert aus einer Messung, trag ihn unten ein.",
     felder: [
       { art: "silhouette", id: "koerperfett" },
-      { art: "zahl", id: "koerperfettWert", label: "Oder dein Wert in Prozent, falls du ihn kennst", min: 3, max: 60, schritt: 0.5 },
+      { art: "zahl", id: "koerperfettWert", label: "Oder dein Wert, falls du ihn kennst", einheit: "%", min: 3, max: 60, schritt: 0.5 },
+    ],
+    ueberspringbar: true,
+    tipp: { symbol: "idee", text: "Mit diesem Wert rechne ich Protein auf deine fettfreie Masse statt auf dein ganzes Gewicht." },
+  },
+  {
+    id: "bereiche",
+    abschnitt: "Dein Ziel",
+    titel: "Wobei soll ich dich unterstützen?",
+    text: "Wähle bis zu drei Bereiche. Danach richte ich meine Erinnerungen aus.",
+    felder: [{ art: "mehrfach", id: "bereiche", optionen: BEREICHE, max: 3 }],
+  },
+  {
+    id: "ziel",
+    abschnitt: "Dein Ziel",
+    titel: "Was willst du erreichen?",
+    text: "Das entscheidet, ob ich dich über oder unter deinen Bedarf steuere.",
+    felder: [{ art: "auswahl", id: "goal", optionen: [
+      { id: "fat_loss", titel: "Fett verlieren", text: "Etwa 18 Prozent unter deinem Bedarf", symbol: "flamme" },
+      { id: "maintain", titel: "Gewicht halten", text: "Auf deinem Bedarf", symbol: "waage" },
+      { id: "lean_bulk", titel: "Muskeln aufbauen", text: "Etwa 10 Prozent über deinem Bedarf", symbol: "hantel" },
+    ] }],
+    tipp: { symbol: "regler", text: "Dein Ziel kannst du jederzeit im Profil ändern. Ich rechne dann neu." },
+  },
+  {
+    id: "arbeit",
+    abschnitt: "Dein Alltag",
+    titel: "Wie sieht dein Arbeitstag aus?",
+    text: "Schritte allein sagen nicht alles. Stehen, Tragen und Treppen zählen auch.",
+    felder: [{ art: "auswahl", id: "occupation", optionen: [
+      { id: "sitzend", titel: "Fast nur im Sitzen", text: "Büro, Homeoffice, Auto", symbol: "stuhl" },
+      { id: "gemischt", titel: "Gemischt", text: "Mal sitzend, mal auf den Beinen", symbol: "gehen" },
+      { id: "stehend", titel: "Überwiegend auf den Beinen", text: "Verkauf, Pflege, Training", symbol: "stehen" },
+      { id: "koerperlich", titel: "Körperlich am Arbeiten", text: "Bau, Lager, Handwerk", symbol: "kiste" },
+    ] }],
+  },
+  {
+    id: "freizeit",
+    abschnitt: "Dein Alltag",
+    titel: "Und in deiner Freizeit?",
+    text: "Sport kommt gleich. Hier geht es um den Rest.",
+    felder: [{ art: "auswahl", id: "leisure", optionen: [
+      { id: "ruhig", titel: "Eher ruhig", text: "Sofa, Lesen, Serien", symbol: "sofa" },
+      { id: "gemischt", titel: "Gemischt", text: "Mal draußen, mal zu Hause", symbol: "gehen" },
+      { id: "aktiv", titel: "Viel unterwegs", text: "Spazieren, Rad, Ausflüge", symbol: "laufen" },
+    ] }],
+  },
+  {
+    id: "schritte",
+    abschnitt: "Dein Alltag",
+    titel: "Wie viele Schritte machst du am Tag?",
+    text: "Ein Schnitt reicht. Genau muss es nicht sein.",
+    felder: [{ art: "zahl", id: "dailySteps", label: "Schritte pro Tag", einheit: "Schritte", platzhalter: "z. B. 8000", min: 0, max: 40000, schritt: 500 }],
+    tipp: { symbol: "idee", text: "Die Health App zeigt deinen Schnitt unter Schritte, Ansicht Monat." },
+  },
+  {
+    id: "erfahrung",
+    abschnitt: "Dein Training",
+    titel: "Wie lange machst du schon Krafttraining?",
+    text: "Danach richtet sich, wie fordernd dein Plan wird.",
+    felder: [{ art: "auswahl", id: "kraftErfahrung", optionen: [
+      { id: "keine", titel: "Noch gar nicht", symbol: "keim" },
+      { id: "unter1", titel: "Unter einem Jahr", symbol: "hantel" },
+      { id: "1bis3", titel: "Ein bis drei Jahre", symbol: "hantel" },
+      { id: "ueber3", titel: "Über drei Jahre", symbol: "hantel" },
+    ] }],
+  },
+  {
+    id: "einheiten",
+    abschnitt: "Dein Training",
+    titel: "Wie oft trainierst du pro Woche?",
+    text: "Alles zählt: Kraft, Ausdauer, Mannschaftssport.",
+    felder: [{ art: "zahl", id: "sportProWoche", label: "Einheiten pro Woche", einheit: "pro Woche", platzhalter: "z. B. 3", min: 0, max: 14 }],
+    tipp: { symbol: "kalender", text: "Ich lege die Einheiten als Vorschlag in deine Woche. Die Tage verschiebst du später im Profil." },
+  },
+  {
+    id: "budget",
+    abschnitt: "Dein Plan",
+    titel: "Das ist dein Tagesziel",
+    text: "Aus deinen Angaben gerechnet, nicht aus einer Tabelle.",
+    felder: [{ art: "budget", id: "zielKorrektur" }],
+    knopf: "Klingt gut",
+    tipp: { symbol: "regler", text: "Dein Ziel ist kein Gesetz. Sobald genug Wiegungen da sind, misst daevo deinen echten Verbrauch und rechnet nach." },
+  },
+  {
+    id: "ernaehrungsform",
+    abschnitt: "Dein Geschmack",
+    titel: "Wie ernährst du dich?",
+    text: "Vorschläge und Rezepte halten sich daran.",
+    felder: [{ art: "auswahl", id: "ernaehrungsform", optionen: [
+      { id: "omnivor", titel: "Ich esse alles", symbol: "keule" },
+      { id: "flexitarisch", titel: "Flexitarisch", text: "Meist pflanzlich, ab und zu Fleisch", symbol: "apfel" },
+      { id: "vegetarisch", titel: "Vegetarisch", text: "Kein Fleisch und kein Fisch", symbol: "blatt" },
+      { id: "pescetarisch", titel: "Pescetarisch", text: "Fisch, aber kein Fleisch", symbol: "fisch" },
+      { id: "vegan", titel: "Vegan", text: "Rein pflanzlich", symbol: "keim" },
+    ] }],
+    tipp: { symbol: "regler", text: "Das lässt sich jederzeit im Chat ändern, ein Satz reicht." },
+  },
+  {
+    id: "allergien",
+    abschnitt: "Dein Geschmack",
+    titel: "Allergien oder Unverträglichkeiten?",
+    text: "Was davon betroffen ist, schlage ich dir nicht vor.",
+    felder: [
+      { art: "chips", id: "allergien", label: "Allergene mit Kennzeichnungspflicht in der EU", optionen: ALLERGENE_EU },
+      { art: "chips", id: "unvertraeglichkeiten", label: "Unverträglichkeiten", optionen: UNVERTRAEGLICHKEITEN },
+      { art: "text", id: "allergienFrei", label: "Noch etwas, das du nicht verträgst", platzhalter: "Rohe Zwiebeln, Paprika", optional: true },
+    ],
+    knopfLeer: "Hab ich nicht, weiter",
+  },
+  {
+    id: "ausschluesse",
+    abschnitt: "Dein Geschmack",
+    titel: "Gibt es etwas, das du grundsätzlich nicht isst?",
+    text: "Freiwillig. Was du ausschließt, schlage ich dir nicht vor.",
+    felder: [
+      { art: "chips", id: "ausschluesse", optionen: AUSSCHLUESSE },
+      { art: "text", id: "ausschluesseFrei", label: "Sonst noch etwas", platzhalter: "Pilze, Koriander", optional: true },
+    ],
+    knopfLeer: "Nichts davon, weiter",
+  },
+  {
+    id: "geschmack",
+    abschnitt: "Dein Geschmack",
+    titel: "Was schmeckt dir?",
+    text: "Damit Vorschläge treffen und nicht nur in die Zahlen passen.",
+    felder: [
+      { art: "chipwahl", id: "fruehstueck", label: "Frühstück", optionen: ["Süß", "Herzhaft", "Beides", "Ich frühstücke nicht"] },
+      { art: "chipwahl", id: "mittag", label: "Mittagessen", optionen: ["Leicht", "Herzhaft", "Gemischt"] },
+      { art: "chipwahl", id: "abend", label: "Abendessen", optionen: ["Leicht", "Herzhaft", "Deftig", "Gemischt"] },
+      { art: "chipwahl", id: "schaerfe", label: "Schärfe", optionen: ["Mild", "Mittel", "Scharf"] },
     ],
     ueberspringbar: true,
   },
   {
-    id: "gesundheit",
-    titel: "Gibt es etwas zu beachten",
-    text: "Alles hier landet in meinem Gedächtnis und fließt in jeden Vorschlag ein.",
+    id: "kueche",
+    abschnitt: "Dein Geschmack",
+    titel: "Was hast du in der Küche?",
+    text: "Ein Rezept für den Backofen hilft niemandem, der keinen hat.",
     felder: [
-      { art: "chips", id: "allergien", label: "Unverträglichkeiten und Allergien", optionen: ALLERGIE_VORSCHLAEGE },
-      { art: "text", id: "allergienFrei", label: "Noch etwas, das du nicht verträgst", platzhalter: "Rohe Zwiebeln, Paprika" },
-      { art: "textarea", id: "krankheiten", label: "Krankheiten, Verletzungen, Medikamente", platzhalter: "Bandscheibenvorfall 2024, seitdem kein schweres Kreuzheben" },
+      { art: "chips", id: "geraete", label: "Küchengeräte", optionen: GERAETE },
+      { art: "chips", id: "vorrat", label: "Was hast du normalerweise zu Hause", optionen: VORRAT },
     ],
     ueberspringbar: true,
+    tipp: { symbol: "idee", text: "Die Lebensmittel landen in deinem Vorrat. Daraus schlage ich dir Mahlzeiten vor, die du ohne Einkauf machen kannst." },
+  },
+  {
+    id: "gesundheit",
+    abschnitt: "Deine Gesundheit",
+    titel: "Gibt es etwas zu beachten?",
+    text: "Krankheiten, Verletzungen, Medikamente. Alles hier fließt in jeden Vorschlag ein.",
+    felder: [
+      { art: "textarea", id: "krankheiten", label: "Was ich wissen sollte", platzhalter: "Bandscheibenvorfall 2024, seitdem kein schweres Kreuzheben" },
+    ],
+    ueberspringbar: true,
+    tipp: { symbol: "schild", text: "Ich bin kein Arzt und stelle keine Diagnosen. Ich passe nur meine Vorschläge an." },
   },
   /*
    * Die vier Schritte hier sind der Unterschied zwischen einem Rechner und
@@ -132,6 +278,7 @@ export const SCHRITTE = [
    */
   {
     id: "essverhalten",
+    abschnitt: "Was dich ausmacht",
     titel: "Wie du wirklich isst",
     text: "Nicht was auf dem Plan steht, sondern was passiert. Je ehrlicher hier, desto brauchbarer alles danach.",
     felder: [
@@ -179,6 +326,7 @@ export const SCHRITTE = [
   },
   {
     id: "vorgeschichte",
+    abschnitt: "Was dich ausmacht",
     titel: "Was du schon versucht hast",
     text: "Was bisher gescheitert ist, sagt mehr über den richtigen Weg als jedes Ziel.",
     felder: [
@@ -216,6 +364,7 @@ export const SCHRITTE = [
   },
   {
     id: "umfeld",
+    abschnitt: "Was dich ausmacht",
     titel: "Dein Umfeld",
     text: "Wer mitisst, mitkocht und mitredet, entscheidet mit. Das gehört zur Planung.",
     felder: [
@@ -264,6 +413,7 @@ export const SCHRITTE = [
   },
   {
     id: "antrieb",
+    abschnitt: "Was dich ausmacht",
     titel: "Was dich antreibt und was dich stoppt",
     text: "Der Teil, den die meisten Apps auslassen, und genau der entscheidet nach der dritten Woche.",
     felder: [
@@ -310,6 +460,7 @@ export const SCHRITTE = [
   },
   {
     id: "routine",
+    abschnitt: "Dein Rhythmus",
     titel: "Deine Tagesränder",
     text: "Morgens und abends entscheidet sich der Rest. Daraus baue ich deinen Erinnerungsplan.",
     felder: [
@@ -398,6 +549,13 @@ export function auswerten(antworten) {
     wechselndeZeiten: antworten.randModus === "wechselnd",
     wochenraender: antworten.randModus === "wochentag" ? (antworten.wochenraender || {}) : undefined,
     tdeeOverrideKcal: null,
+    zielKorrektur: korrekturLesen(antworten.zielKorrektur),
+    ernaehrung: {
+      form: antworten.ernaehrungsform || undefined,
+      allergien: [...(antworten.allergien || [])],
+      unvertraeglichkeiten: [...(antworten.unvertraeglichkeiten || [])],
+      ausschluesse: [...(antworten.ausschluesse || [])],
+    },
     sessions,
   };
 
@@ -414,11 +572,37 @@ export function auswerten(antworten) {
     add(`Will vor allem Unterstützung bei: ${titel.join(", ")}.`, "ziel", 5, ["fokus"]);
   }
 
-  for (const allergie of antworten.allergien || []) {
-    add(`Verträgt kein ${allergie}.`, "fakt", 5, ["ernährung", "unverträglichkeit"]);
+  // Eine Notiz für alle Allergene statt einer je Allergen. "Verträgt kein
+  // Krebstiere" war kein Deutsch, und vierzehn einzelne Notizen verdrängen
+  // bei der Suche alles andere.
+  if ((antworten.allergien || []).length) {
+    add(`Allergie, nie vorschlagen: ${antworten.allergien.join(", ")}.`, "fakt", 5, ["ernährung", "allergie"]);
+  }
+  if ((antworten.unvertraeglichkeiten || []).length) {
+    add(`Unverträglichkeit, meiden: ${antworten.unvertraeglichkeiten.join(", ")}.`, "fakt", 5, ["ernährung", "unverträglichkeit"]);
   }
   if ((antworten.allergienFrei || "").trim()) {
     add(`Verträgt nicht: ${antworten.allergienFrei.trim()}.`, "fakt", 5, ["ernährung", "unverträglichkeit"]);
+  }
+  const FORM = {
+    omnivor: "isst alles", flexitarisch: "isst meist pflanzlich, ab und zu Fleisch",
+    vegetarisch: "isst vegetarisch, kein Fleisch und kein Fisch",
+    pescetarisch: "isst pescetarisch, Fisch ja, Fleisch nein", vegan: "isst vegan",
+  };
+  if (FORM[antworten.ernaehrungsform]) {
+    add(`Ernährungsform: ${FORM[antworten.ernaehrungsform]}.`, "praeferenz", 5, ["ernährung"]);
+  }
+  const ausschluss = [...(antworten.ausschluesse || [])];
+  if ((antworten.ausschluesseFrei || "").trim()) ausschluss.push(antworten.ausschluesseFrei.trim());
+  if (ausschluss.length) add(`Isst grundsätzlich nicht: ${ausschluss.join(", ")}.`, "praeferenz", 5, ["ernährung"]);
+
+  const geschmack = [
+    ["Frühstück", antworten.fruehstueck], ["Mittag", antworten.mittag],
+    ["Abend", antworten.abend], ["Schärfe", antworten.schaerfe],
+  ].filter(([, w]) => w).map(([k, w]) => `${k} ${w.toLowerCase()}`);
+  if (geschmack.length) add(`Geschmack: ${geschmack.join(", ")}.`, "praeferenz", 4, ["ernährung", "geschmack"]);
+  if ((antworten.geraete || []).length) {
+    add(`Küchengeräte: ${antworten.geraete.join(", ")}.`, "fakt", 3, ["ernährung", "küche"]);
   }
   if ((antworten.krankheiten || "").trim()) {
     add(`Gesundheit beachten: ${antworten.krankheiten.trim()}.`, "fakt", 5, ["gesundheit"]);
@@ -532,7 +716,18 @@ export function auswerten(antworten) {
     add(`Schätzt den eigenen Körperfettanteil auf etwa ${profile.bodyFatPercent} Prozent.`, "fakt", 3, ["körper"]);
   }
 
-  return { profile, notizen, kraft, sessions, bereiche };
+  return { profile, notizen, kraft, sessions, bereiche, vorrat: [...(antworten.vorrat || [])] };
+}
+
+/** Nur Zahlen, alles andere fällt weg. Ohne jede Abweichung gibt es keine Korrektur. */
+function korrekturLesen(k) {
+  if (!k || typeof k !== "object") return null;
+  const raus = {};
+  for (const feld of ["kcal", "proteinG", "fatG"]) {
+    const z = Number(k[feld]);
+    if (Number.isFinite(z) && z !== 0) raus[feld] = Math.round(z);
+  }
+  return Object.keys(raus).length ? raus : null;
 }
 
 /** Nimmt einen selbst eingetragenen Körperfettanteil nur in sinnvollen Grenzen an. */

@@ -92,7 +92,7 @@ export function energyBreakdown(profile: UserProfile): EnergyBreakdown {
     activityFactor: factor,
     tdeeKcal: tdee,
     goalAdjustmentKcal: adjustment,
-    targetKcal: round(tdee + adjustment),
+    targetKcal: round(tdee + adjustment + korrektur(profile, "kcal", KORREKTUR_GRENZE.kcal)),
   };
 }
 
@@ -112,8 +112,8 @@ export function energyBreakdown(profile: UserProfile): EnergyBreakdown {
  */
 export function macroTargets(profile: UserProfile): MacroTargets {
   const energy = energyBreakdown(profile);
-  const proteinG = proteinTarget(profile);
-  const fatG = round(profile.weightKg * 0.8);
+  const proteinG = Math.max(0, proteinTarget(profile) + korrektur(profile, "proteinG", KORREKTUR_GRENZE.proteinG));
+  const fatG = Math.max(0, round(profile.weightKg * 0.8) + korrektur(profile, "fatG", KORREKTUR_GRENZE.fatG));
   const remainingKcal = energy.targetKcal - proteinG * 4 - fatG * 9;
   const carbsG = Math.max(0, round(remainingKcal / 4));
   return {
@@ -123,6 +123,22 @@ export function macroTargets(profile: UserProfile): MacroTargets {
     carbsG,
     waterMl: waterTargetMl(profile),
   };
+}
+
+/**
+ * Wie weit der Nutzer vom Vorschlag abweichen darf.
+ *
+ * Die Grenzen sind eine Regel und keine Messung. Sie fangen einen Tippfehler
+ * oder ein festgeklemmtes Plus ab, bevor daraus ein Tagesziel von 6000 kcal
+ * wird. Kohlenhydrate haben keine eigene Korrektur: sie füllen den Rest, damit
+ * kcal = Protein*4 + Fett*9 + Kohlenhydrate*4 immer aufgeht.
+ */
+export const KORREKTUR_GRENZE = { kcal: 1000, proteinG: 100, fatG: 60 } as const;
+
+function korrektur(profile: UserProfile, feld: "kcal" | "proteinG" | "fatG", grenze: number): number {
+  const wert = profile.zielKorrektur?.[feld];
+  if (wert === null || wert === undefined || !Number.isFinite(wert)) return 0;
+  return Math.max(-grenze, Math.min(grenze, Math.round(wert)));
 }
 
 /**
