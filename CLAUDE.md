@@ -31,6 +31,14 @@ Die Logodateien liegen in `apps/pwa/brand/` und tragen die Schrift als Pfade.
 Nie durch neu gesetzten Text ersetzen. Vollständige Richtlinie in
 `docs/BRAND.md`.
 
+## PDFs nie direkt lesen
+
+Der Nutzer will Token sparen. Ein PDF, das er schickt, wird zuerst mit
+`scripts/pdf-zu-md.py` in Markdown umgewandelt, und gelesen wird nur das
+Markdown. Ein PDF als Datei zu öffnen schickt jede Seite als Bild mit und
+kostet ein Vielfaches. Nur Seiten, die als Text leer herauskommen, werden
+einzeln angesehen, und nur wenn es für die Aufgabe nötig ist.
+
 ## Was das Projekt ist
 
 Ein digitaler Ernährungs- und Fitnesscoach. Er erfasst Mahlzeiten per Sprache
@@ -1332,6 +1340,11 @@ Die Portion wird zwischen 0,6 und 1,8 skaliert, Gramm auf 5 gerundet, Stücke
 wie Eier ganz. Die Nährwerte werden aus den gerundeten Mengen neu gerechnet:
 was angezeigt wird, ist das, was eingetragen wird. Die Passung ist eine Regel:
 Kalorien und Protein je 35 Prozent, Fett und Kohlenhydrate je 15.
+
+55 Rezepte, davon 24 aus den Guides von Personal Coach Aaron. Deren Kalorien
+werden nicht übernommen: sie stehen dort als "ca." und liegen bei mehreren
+Gerichten unter dem, was die Zutaten ergeben. Gerechnet wird wie überall aus
+der Zutatentabelle.
 
 Fotos fehlen noch, die Karte trägt bis dahin ein Zeichen auf einem Verlauf.
 

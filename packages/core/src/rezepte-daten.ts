@@ -97,6 +97,23 @@ export const ZUTATEN = {
   avocado: { name: "Avocado", per100: { kcal: 160, proteinG: 2, fatG: 15, carbsG: 9 } },
   olivenoel: { name: "Olivenöl", per100: { kcal: 884, proteinG: 0, fatG: 100, carbsG: 0 } },
   sojasauce: { name: "Sojasauce", per100: { kcal: 53, proteinG: 8, fatG: 0.6, carbsG: 4.9 }, allergene: ["Soja", "Gluten"] },
+  // Für die Rezepte aus den Guides von Personal Coach Aaron.
+  kiwi: { name: "Kiwi", per100: { kcal: 61, proteinG: 1.1, fatG: 0.5, carbsG: 14.7 }, unvertraeglich: ["Histamin"], stueckG: 75, stueckName: ["Kiwi", "Kiwis"] },
+  mozzarella: { name: "Mozzarella light", per100: { kcal: 165, proteinG: 19, fatG: 9.5, carbsG: 1 }, allergene: ["Milch"], unvertraeglich: ["Laktose"], herkunft: "milch" },
+  gouda: { name: "Gouda light, gerieben", per100: { kcal: 270, proteinG: 30, fatG: 16.5, carbsG: 0 }, allergene: ["Milch"], unvertraeglich: ["Histamin"], herkunft: "milch" },
+  kochsahne: { name: "Kochsahne 15 %", per100: { kcal: 160, proteinG: 2.8, fatG: 15, carbsG: 3.5 }, allergene: ["Milch"], unvertraeglich: ["Laktose"], herkunft: "milch" },
+  dinkelnudeln: { name: "Dinkelnudeln, roh", per100: { kcal: 350, proteinG: 13, fatG: 2, carbsG: 68 }, allergene: ["Gluten"] },
+  dinkelmehl: { name: "Dinkelmehl", per100: { kcal: 340, proteinG: 12, fatG: 1.8, carbsG: 68 }, allergene: ["Gluten"] },
+  quinoa: { name: "Quinoa, roh", per100: { kcal: 368, proteinG: 14, fatG: 6, carbsG: 64 } },
+  roteLinsen: { name: "Rote Linsen, roh", per100: { kcal: 340, proteinG: 24, fatG: 1.5, carbsG: 52 } },
+  mais: { name: "Mais aus der Dose", per100: { kcal: 80, proteinG: 2.9, fatG: 1.2, carbsG: 15 } },
+  kabeljau: { name: "Kabeljau", per100: { kcal: 82, proteinG: 18, fatG: 0.7, carbsG: 0 }, allergene: ["Fisch"], herkunft: "fisch" },
+  raeucherlachs: { name: "Räucherlachs", per100: { kcal: 180, proteinG: 21, fatG: 11, carbsG: 0 }, allergene: ["Fisch"], unvertraeglich: ["Histamin"], herkunft: "fisch" },
+  kochschinken: { name: "Kochschinken", per100: { kcal: 110, proteinG: 20, fatG: 3, carbsG: 1 }, herkunft: "fleisch", sorte: "schwein" },
+  aubergine: { name: "Aubergine", per100: { kcal: 25, proteinG: 1, fatG: 0.2, carbsG: 5.9 } },
+  radieschen: { name: "Radieschen", per100: { kcal: 16, proteinG: 1, fatG: 0.1, carbsG: 3.4 } },
+  karotte: { name: "Karotte", per100: { kcal: 39, proteinG: 0.9, fatG: 0.2, carbsG: 8 } },
+  champignons: { name: "Champignons", per100: { kcal: 22, proteinG: 3.1, fatG: 0.3, carbsG: 3.3 } },
 } satisfies Record<string, Zutat>;
 
 export type ZutatKey = keyof typeof ZUTATEN;
@@ -275,5 +292,130 @@ export const REZEPTE: Rezept[] = [
     id: "eier-brot", name: "Gekochte Eier mit Brot und Gurke", art: "snack", minuten: 10, geraete: ["Herd"],
     zutaten: [{ z: "ei", g: 116 }, { z: "vollkornbrot", g: 45 }, { z: "gurke", g: 100 }],
     schritte: ["Eier acht bis neun Minuten kochen und abschrecken.", "Mit Brot und Gurke essen."],
+  },
+  // Aus den Guides von Personal Coach Aaron: Top 10 Lieblingsrezepte, 5 Meal
+  // Prep Rezepte, High Protein Low Calorie, Käse und Gemüse, Muskelaufbau. Die
+  // Mengen der Meal Prep Rezepte sind auf eine Portion geteilt. Die Kalorien
+  // aus den Guides werden nicht übernommen: sie stehen dort als "ca." und
+  // kommen hier wie überall aus der Zutatentabelle.
+  {
+    id: "aarons-overnight-oats", name: "Aarons High Protein Overnight Oats", art: "fruehstueck", minuten: 5, geraete: [],
+    zutaten: [{ z: "haferflocken", g: 80 }, { z: "milch", g: 200 }, { z: "whey", g: 30 }, { z: "beeren", g: 50 }, { z: "erdnussbutter", g: 10 }],
+    schritte: ["Whey in der Milch auflösen und über die Haferflocken geben, gut verrühren.", "Beeren darauf geben und über Nacht in den Kühlschrank stellen.", "Morgens mit Zimt oder einem Löffel Erdnussbutter essen."],
+  },
+  {
+    id: "skyr-overnight-oats", name: "Overnight Oats mit Skyr und Beeren", art: "fruehstueck", minuten: 8, geraete: [],
+    zutaten: [{ z: "haferflocken", g: 80 }, { z: "skyr", g: 150 }, { z: "milch", g: 100 }, { z: "beeren", g: 50 }, { z: "honig", g: 8 }],
+    schritte: ["Haferflocken, Skyr, Milch, Honig und Zimt verrühren.", "In ein verschliessbares Glas füllen, Beeren obenauf.", "Mindestens vier Stunden kalt stellen. Hält drei bis vier Tage, gut zum Vorbereiten am Sonntag."],
+  },
+  {
+    id: "spiegelei-paprika-kiwi", name: "Spiegeleier mit Paprika und Kiwi", art: "fruehstueck", minuten: 10, geraete: ["Herd"],
+    zutaten: [{ z: "ei", g: 232 }, { z: "paprika", g: 150 }, { z: "olivenoel", g: 5 }, { z: "kiwi", g: 75 }],
+    schritte: ["Paprika in Streifen schneiden und in der Pfanne anbraten.", "Eier daneben aufschlagen, salzen und pfeffern.", "Deckel auflegen, Hitze runter, drei bis vier Minuten stocken lassen.", "Mit der Kiwi servieren."],
+  },
+  {
+    id: "whey-quark-bowl", name: "Quark Bowl mit Whey, Beeren und Mandeln", art: "fruehstueck", minuten: 5, geraete: [],
+    zutaten: [{ z: "magerquark", g: 250 }, { z: "whey", g: 30 }, { z: "beeren", g: 50 }, { z: "mandeln", g: 10 }],
+    schritte: ["Quark mit dem Whey glatt rühren, bei Bedarf mit einem Schluck Wasser.", "Beeren und Mandeln darauf geben.", "Mit Zimt abrunden."],
+  },
+  {
+    id: "huettenkaese-gurke", name: "Hüttenkäse Bowl mit Gurke und Radieschen", art: "fruehstueck", minuten: 5, geraete: [],
+    zutaten: [{ z: "huettenkaese", g: 200 }, { z: "gurke", g: 150 }, { z: "tomate", g: 100 }, { z: "radieschen", g: 50 }, { z: "olivenoel", g: 5 }],
+    schritte: ["Gurke würfeln, Tomaten halbieren, Radieschen in Scheiben schneiden.", "Hüttenkäse in eine Schale, Gemüse darauf.", "Mit Öl, Salz, Pfeffer und Kräutern abschmecken."],
+  },
+  {
+    id: "shakshuka", name: "Shakshuka", art: "hauptmahlzeit", minuten: 20, geraete: ["Herd"],
+    zutaten: [{ z: "ei", g: 290 }, { z: "tomate", g: 300 }, { z: "paprika", g: 80 }, { z: "zwiebel", g: 50 }, { z: "olivenoel", g: 5 }],
+    schritte: ["Tomaten in Stücke schneiden und in Öl köcheln lassen.", "Paprika, Zwiebel und Knoblauch klein geschnitten dazugeben.", "Mulden in die Sauce drücken und die Eier hineinschlagen.", "Deckel auf, Hitze runter, drei bis vier Minuten ziehen lassen."],
+  },
+  {
+    id: "haehnchen-mozzarella-airfryer", name: "Hähnchen mit Mozzarella und Tomate aus dem Airfryer", art: "hauptmahlzeit", minuten: 25, geraete: ["Airfryer", "Backofen"],
+    zutaten: [{ z: "haehnchen", g: 200 }, { z: "mozzarella", g: 50 }, { z: "tomate", g: 100 }, { z: "salat", g: 80 }],
+    schritte: ["Hähnchenbrust der Länge nach einschneiden, salzen und pfeffern.", "Tomatenscheiben und Mozzarella in die Tasche legen.", "Im Airfryer bei 190 Grad etwa 18 Minuten garen, bis das Fleisch innen durch ist.", "Mit dem Salat servieren."],
+  },
+  {
+    id: "pute-mediterran-reis", name: "Putenbrust mit mediterranem Gemüse und Reis", art: "hauptmahlzeit", minuten: 25, geraete: ["Herd"],
+    zutaten: [{ z: "pute", g: 200 }, { z: "gemuese", g: 150 }, { z: "reis", g: 80 }, { z: "olivenoel", g: 5 }],
+    schritte: ["Reis nach Packung kochen.", "Pute würzen und in Öl anbraten.", "Das Gemüse dazugeben und mitbraten, bis es weich ist.", "Alles zusammen anrichten."],
+  },
+  {
+    id: "mexican-beef-bowl", name: "Mexican Beef Bowl", art: "hauptmahlzeit", minuten: 25, geraete: ["Herd"],
+    zutaten: [{ z: "reis", g: 80 }, { z: "rinderhack", g: 200 }, { z: "kidneybohnen", g: 100 }, { z: "mais", g: 50 }, { z: "tomate", g: 100 }, { z: "paprika", g: 100 }, { z: "zwiebel", g: 50 }],
+    schritte: ["Reis kochen.", "Hack mit der Zwiebel krümelig anbraten, mit Kreuzkümmel, Paprika und Chili würzen.", "Paprika, Tomate, Bohnen und Mais dazugeben und warm werden lassen.", "In eine Schale geben, Sauce nach Wahl darüber."],
+  },
+  {
+    id: "mexikanische-haehnchen-bowl", name: "Mexikanische Protein Bowl mit Hähnchen", art: "hauptmahlzeit", minuten: 25, geraete: ["Herd"],
+    zutaten: [{ z: "haehnchen", g: 200 }, { z: "reis", g: 70 }, { z: "kidneybohnen", g: 100 }, { z: "mais", g: 50 }, { z: "tomate", g: 100 }, { z: "paprika", g: 100 }, { z: "olivenoel", g: 5 }],
+    schritte: ["Reis kochen.", "Hähnchen in Würfeln mit Öl anbraten, mit Paprika, Kreuzkümmel und Chili würzen.", "Bohnen und Mais kurz mit in die Pfanne geben.", "Alles in eine Schale, mit Paprika, Tomaten und etwas Limette toppen."],
+  },
+  {
+    id: "lachs-zitronen-pasta", name: "Lachs Zitronen Pasta mit Dinkelnudeln", art: "hauptmahlzeit", minuten: 20, geraete: ["Herd"],
+    zutaten: [{ z: "lachs", g: 150 }, { z: "dinkelnudeln", g: 100 }, { z: "kochsahne", g: 80 }, { z: "spinat", g: 50 }],
+    schritte: ["Nudeln kochen.", "Lachs in Würfeln von allen Seiten anbraten.", "Kochsahne mit dem Saft einer halben Zitrone erhitzen, Spinat darin zusammenfallen lassen.", "Nudeln und Lachs unterheben, mit Knoblauch, Oregano und Basilikum würzen."],
+  },
+  {
+    id: "high-protein-pizza", name: "High Protein Pizza", art: "hauptmahlzeit", minuten: 30, geraete: ["Backofen"],
+    zutaten: [{ z: "dinkelmehl", g: 100 }, { z: "ei", g: 116 }, { z: "passata", g: 100 }, { z: "tomate", g: 100 }, { z: "mozzarella", g: 60 }, { z: "olivenoel", g: 5 }],
+    schritte: ["Mehl, Eier, einen Schuss Wasser und Salz zu einem Teig kneten.", "Dünn auf dem Blech ausrollen.", "Mit Passata, Tomatenstücken, Knoblauch und Öl belegen, Mozzarella darauf.", "Bei 220 Grad 14 bis 20 Minuten backen."],
+  },
+  {
+    id: "zucchini-mozzarella-ei", name: "Zucchini Pfanne mit Ei und Mozzarella", art: "hauptmahlzeit", minuten: 15, geraete: ["Herd"],
+    zutaten: [{ z: "ei", g: 116 }, { z: "mozzarella", g: 125 }, { z: "zucchini", g: 150 }, { z: "tomate", g: 100 }, { z: "olivenoel", g: 5 }],
+    schritte: ["Zucchini in Scheiben schneiden und in Öl drei bis vier Minuten anbraten.", "Eier verquirlen, darüber giessen und stocken lassen.", "Tomaten halbiert und Mozzarella in Stücken darauf, Deckel auf, bis der Käse schmilzt.", "Mit Basilikum, Salz und Pfeffer servieren."],
+  },
+  {
+    id: "caprese-haehnchen", name: "Caprese Salat mit Hähnchen", art: "hauptmahlzeit", minuten: 10, geraete: [],
+    zutaten: [{ z: "haehnchen", g: 150 }, { z: "mozzarella", g: 125 }, { z: "tomate", g: 150 }, { z: "salat", g: 60 }, { z: "olivenoel", g: 5 }],
+    schritte: ["Gegartes Hähnchen in Streifen schneiden, Reste vom Vortag passen.", "Tomaten und Mozzarella in Scheiben abwechselnd auf den Salat legen.", "Hähnchen darüber, mit Balsamico, Öl, Salz und Pfeffer anmachen."],
+  },
+  {
+    id: "huettenkaese-gemuesepfanne", name: "Warme Gemüsepfanne mit Hüttenkäse", art: "hauptmahlzeit", minuten: 15, geraete: ["Herd"],
+    zutaten: [{ z: "huettenkaese", g: 200 }, { z: "paprika", g: 150 }, { z: "zucchini", g: 150 }, { z: "spinat", g: 80 }, { z: "parmesan", g: 30 }],
+    schritte: ["Paprika, Zucchini und Knoblauch klein schneiden und fünf Minuten anbraten.", "Spinat dazugeben und zwei Minuten zusammenfallen lassen.", "Hüttenkäse einrühren und kurz warm werden lassen, er wird dabei cremig.", "Mit Parmesan bestreuen und abschmecken."],
+  },
+  {
+    id: "auberginen-pizza", name: "Auberginen Pizza mit Schinken und Mozzarella", art: "hauptmahlzeit", minuten: 30, geraete: ["Backofen"],
+    zutaten: [{ z: "aubergine", g: 300 }, { z: "passata", g: 150 }, { z: "kochschinken", g: 50 }, { z: "mozzarella", g: 125 }],
+    schritte: ["Aubergine in zentimeterdicke Scheiben schneiden, salzen, fünf Minuten ziehen lassen und abtupfen.", "Bei 200 Grad zehn Minuten vorbacken.", "Passata mit Knoblauch darauf streichen, Schinken und Mozzarella darüber.", "Weitere acht bis zehn Minuten backen, bis der Käse Farbe hat."],
+  },
+  {
+    id: "suesskartoffel-pommes-dip", name: "Süßkartoffel Pommes mit Quark Dip", art: "hauptmahlzeit", minuten: 35, geraete: ["Backofen", "Airfryer"],
+    zutaten: [{ z: "suesskartoffel", g: 300 }, { z: "olivenoel", g: 5 }, { z: "magerquark", g: 150 }],
+    schritte: ["Süßkartoffeln schälen und in Stifte schneiden.", "Mit Öl, Paprika und Salz mischen und bei 220 Grad 25 bis 30 Minuten backen, nach der Hälfte wenden.", "Quark mit Knoblauch, Salz, Pfeffer und Schnittlauch verrühren und dazu servieren."],
+  },
+  {
+    id: "rinderhack-paprika", name: "Rinderhack Paprika Pfanne", art: "hauptmahlzeit", minuten: 20, geraete: ["Herd"],
+    zutaten: [{ z: "rinderhack", g: 200 }, { z: "paprika", g: 300 }, { z: "tomate", g: 400 }, { z: "olivenoel", g: 5 }],
+    schritte: ["Hack in Öl krümelig anbraten, bis es Farbe hat.", "Paprika in Streifen und Knoblauch dazu, fünf Minuten mitbraten.", "Gehackte Tomaten aus der Dose dazu, mit Kreuzkümmel und Paprika würzen und zehn Minuten köcheln."],
+  },
+  {
+    id: "kabeljau-ofenkartoffeln", name: "Kabeljau mit Ofenkartoffeln und Tomaten", art: "hauptmahlzeit", minuten: 30, geraete: ["Backofen"],
+    zutaten: [{ z: "kabeljau", g: 200 }, { z: "kartoffeln", g: 200 }, { z: "tomate", g: 150 }, { z: "olivenoel", g: 5 }],
+    schritte: ["Kartoffeln würfeln und mit Öl und Rosmarin bei 200 Grad 15 Minuten vorbacken.", "Fisch mit Zitronensaft, Salz und Pfeffer würzen.", "Tomaten aufs Blech, Fisch darauf legen und 12 bis 15 Minuten fertig backen."],
+  },
+  {
+    id: "hack-zucchini-auflauf", name: "Hack Zucchini Auflauf", art: "hauptmahlzeit", minuten: 35, geraete: ["Backofen"],
+    zutaten: [{ z: "rinderhack", g: 200 }, { z: "zucchini", g: 300 }, { z: "passata", g: 150 }, { z: "gouda", g: 50 }],
+    schritte: ["Hack mit Knoblauch krümelig anbraten, mit Passata und Oregano fünf Minuten köcheln.", "Zucchinischeiben und Hack abwechselnd in eine Form schichten.", "Mit Käse bestreuen und bei 180 Grad etwa 20 Minuten backen."],
+  },
+  {
+    id: "kartoffeln-quark-lachs", name: "Pellkartoffeln mit Quark und Räucherlachs", art: "hauptmahlzeit", minuten: 25, geraete: ["Herd"],
+    zutaten: [{ z: "kartoffeln", g: 200 }, { z: "magerquark", g: 150 }, { z: "raeucherlachs", g: 80 }, { z: "gurke", g: 50 }],
+    schritte: ["Kartoffeln in Salzwasser etwa 20 Minuten garen.", "Quark mit Dill, fein gewürfelter Gurke, Salz, Pfeffer und Zitrone verrühren.", "Kartoffeln aufschneiden, Quark darauf, Lachs dazu legen."],
+  },
+  {
+    id: "linsen-bolognese", name: "Linsen Bolognese mit Vollkornnudeln", art: "hauptmahlzeit", minuten: 30, geraete: ["Herd"],
+    zutaten: [{ z: "roteLinsen", g: 60 }, { z: "nudeln", g: 80 }, { z: "passata", g: 175 }, { z: "karotte", g: 60 }, { z: "zwiebel", g: 40 }, { z: "olivenoel", g: 5 }],
+    schritte: ["Zwiebel, Karotte und Knoblauch fein würfeln und in Öl andünsten.", "Etwas Tomatenmark mitrösten, Linsen, Passata und einen Schluck Wasser dazu.", "Würzen und 18 bis 20 Minuten köcheln, bis die Linsen weich sind.", "Nudeln getrennt kochen. Die Sauce lässt sich gut einfrieren."],
+  },
+  {
+    id: "putengeschnetzeltes-suesskartoffel", name: "Putengeschnetzeltes mit Ofensüßkartoffeln", art: "hauptmahlzeit", minuten: 30, geraete: ["Backofen"],
+    zutaten: [{ z: "pute", g: 150 }, { z: "suesskartoffel", g: 200 }, { z: "champignons", g: 50 }, { z: "zwiebel", g: 30 }, { z: "olivenoel", g: 7 }],
+    schritte: ["Süßkartoffeln würfeln, mit Öl, Salz und Paprika bei 200 Grad 20 bis 25 Minuten backen.", "Pute in Streifen scharf anbraten und herausnehmen.", "Zwiebel und Champignons andünsten, mit Gemüsebrühe ablöschen.", "Pute zurück in die Pfanne, kurz ziehen lassen und mit den Süßkartoffeln anrichten."],
+  },
+  {
+    id: "thunfisch-quinoa-feta", name: "Thunfisch Quinoa Salat mit Feta", art: "hauptmahlzeit", minuten: 20, geraete: ["Herd"],
+    zutaten: [{ z: "quinoa", g: 60 }, { z: "thunfisch", g: 120 }, { z: "feta", g: 35 }, { z: "gurke", g: 100 }, { z: "tomate", g: 60 }, { z: "olivenoel", g: 7 }],
+    schritte: ["Quinoa nach Packung kochen und abkühlen lassen.", "Gurke, Tomaten und etwas rote Zwiebel klein schneiden.", "Thunfisch abtropfen und mit Quinoa und Gemüse mischen.", "Feta darüber bröckeln, mit Öl, Zitrone, Salz und Pfeffer anmachen. Kalt essbar, gut fürs Büro."],
   },
 ];
