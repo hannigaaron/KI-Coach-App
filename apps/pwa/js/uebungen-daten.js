@@ -2123,6 +2123,35 @@ export const UEBUNGEN = [
   }
  },
  {
+  "id": "reverse-crunch-schraegbank",
+  "name": "Reverse Crunches an der Schrägbank",
+  "nameEn": "Decline Reverse Crunch",
+  "pattern": "core_flexion",
+  "primaryMuscles": [
+   "Bauch"
+  ],
+  "secondaryMuscles": [
+   "Hüftbeuger"
+  ],
+  "equipment": "bodyweight",
+  "level": "intermediate",
+  "mechanics": "isolation",
+  "repRange": "10-15",
+  "steps": [
+   "Rücklings auf die Schrägbank, Kopf am oberen Ende, Griff hinter dem Kopf fassen",
+   "Knie gebeugt anheben, bis die Oberschenkel senkrecht stehen",
+   "Becken einrollen und vom Polster lösen, Knie Richtung Brust",
+   "Langsam abrollen, ohne die Beine fallen zu lassen"
+  ],
+  "gruppe": "rumpf",
+  "video": {
+   "id": "YcMj0EEadQo",
+   "titel": "Decline Reverse Crunch - Ab Exercise",
+   "kanal": "Bodybuilding.com",
+   "dauer": ""
+  }
+ },
+ {
   "id": "cable-crunch",
   "name": "Cable Crunch",
   "nameEn": "Cable Crunch",

@@ -218,6 +218,9 @@ Strichfiguren, keine Clip Art, keine Karten mit Rahmen um Text.
 - Ansicht: `apps/pwa/js/uebungen.js`. `uebungen.test.js` prüft, dass jede Übung
   Muskeln, drei bis vier Schritte, Foto, Kachel und eine gültige Videokennung
   hat.
+- Unter den Gruppen steht eine zweite Filterzeile für das Gerät, `#ueGeraete`.
+  Wer zu Hause ohne Rack trainiert, sucht nicht nach Muskeln, sondern nach dem,
+  was er hat.
 - `pattern` ist das Bewegungsmuster. Der Trainingsplan wählt darüber die Übung je
   Platz.
 
@@ -283,7 +286,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 965 Tests
+npm test           # 967 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1346,7 +1349,12 @@ werden nicht übernommen: sie stehen dort als "ca." und liegen bei mehreren
 Gerichten unter dem, was die Zutaten ergeben. Gerechnet wird wie überall aus
 der Zutatentabelle.
 
-Fotos fehlen noch, die Karte trägt bis dahin ein Zeichen auf einem Verlauf.
+Fotos: `foto: true` am Rezept, Datei unter `apps/pwa/img/rezepte/<id>.jpg`
+(800 x 600), Stil wie bei den Übungen. Ein Test prüft, dass jede Kennzeichnung
+eine Datei hat. Bisher fünf Testbilder. Ohne Foto trägt die Karte ein Zeichen
+auf einem Verlauf. Die Karte steht im Verhältnis 4 zu 3 und ist auf breiten
+Bildschirmen gedeckelt, vorher füllte sie auf dem Laptop den halben
+Bildschirm.
 
 ## Nährwerte von Markenprodukten
 
@@ -2060,17 +2068,22 @@ dass es jemand merkt.
 
 ## Das Menü
 
-Ganz oben der Assistent, darunter vier Gruppen, unten das Profil. Jede Gruppe
-beantwortet eine Frage und hat höchstens vier Punkte:
+Ganz oben der Assistent, darunter vier Kacheln mit Symbol, unten das Profil.
+Jede Kachel öffnet eine eigene Seite mit höchstens vier Zeilen und einem Pfeil
+zurück. Jede Gruppe beantwortet eine Frage:
 
-- Ernährung, was esse ich: Heute, Essen erfassen, Rezepte, Einkaufen.
+- Ernährung, was esse ich: Heute, Mahlzeiten, Rezepte, Einkaufen.
 - Training, wie trainiere ich: Trainingspläne, Übungen, Bereitschaft.
 - Alltag, wie läuft mein Tag: Dein Tag, Kalender, Balance, Mindeststandards.
 - Fortschritt, wie entwickle ich mich: Check-ins, Bericht, Auswertung.
 
 Vorher hatte Coaching neun Punkte und mischte Training, Rückblick und
-Persönliches. Neun gleich aussehende Zeilen sind die lange Liste, die das Menü
-loswerden sollte. Aufgeklappt wird immer nur eine Gruppe.
+Persönliches. Danach kamen aufklappbare Gruppen untereinander, und die lasen
+sich weiter wie eine lange Liste mit Überschriften. Vier Kacheln sind eine
+Wahl, eine Seite mit vier Zeilen ist eine zweite. Gesteuert über
+`data-menu-gruppe`, `data-seite` und `data-menu-zurueck`, `menuSeite()` in
+`app.js`. Die Symbole kommen aus `symbole.js` über `data-sym` und sind dieselbe
+Familie wie im Bericht.
 
 Zwei Seiten hiessen "Empfehlungen": die Rezepte und die Muster und
 Widersprüche. Zwei Ziele mit demselben Namen nimmt niemand als zwei wahr.
@@ -2087,6 +2100,11 @@ die App über mich" gehört zu den eigenen Angaben.
 Wer einen Menüpunkt umbenennt, sucht auch in den Antworten des Coaches nach
 dem alten Weg. Sätze wie "im Menü unter Kalender" stehen in `assistant.js`
 und `agent.ts`.
+
+Das Erfassen Blatt zeigt die vier Wege als Raster aus zwei mal zwei, mit
+runden Symbolen von 56 Pixeln in der Mitte. Ab 700 Pixeln Breite läuft die
+App in einer mittigen Spalte, sonst zieht sich jede Zeile über den ganzen
+Laptop.
 
 Die Kennzahlen oben auf Heute sind antippbar und führen in die Ansicht dahinter.
 Eine Zahl, auf die man tippen kann, spart den Umweg über das Menü.
@@ -2656,6 +2674,17 @@ Ein Tag ohne Eintrag ist dabei. Niemand trackt vierzehn Tage am Stück, die App
 kommt mit Lücken zurecht, und das zu zeigen ist mehr wert als eine glatte
 Reihe. Heute dagegen ist bewusst ein guter Tag: eine Demo öffnet in einem
 Zustand, der zeigt, was die App kann.
+
+Die Demo muss in sich stimmen, sonst glaubt man ihr nichts. Der Chat nennt
+vier Termine, also stehen heute Termine im Kalender. Die Mahlzeiten treffen
+das Ziel, der Mittags Check-in trägt Energie, Konzentration und Sättigung und
+nicht die Felder des Morgens, zwei Aufgaben sind heute erledigt und der Vorrat
+ist gefüllt. Jede dieser Lücken stand vorher sichtbar in einer Ansicht.
+
+Die Tagesnutzung zählte gehaltene Standards über das Feld `erfuellt`, das es
+in `StandardStatus` nie gab. Ergebnis: immer "0 von 3 gehalten", auch im
+echten Betrieb und nicht nur in der Demo. Das Feld heisst `aktuell`, ein Test
+hält es fest.
 
 ## Die fünf Bereiche haben eine Farbfamilie
 

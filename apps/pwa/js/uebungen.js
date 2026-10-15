@@ -167,6 +167,22 @@ export function uebungenStarten() {
 
   $("ueGruppen").innerHTML = GRUPPEN.map((g) => `<button type="button" class="ue-tab${g.id === "alle" ? " on" : ""}" data-gruppe="${g.id}" role="tab" aria-selected="${g.id === "alle"}">${g.name}</button>`).join("");
 
+  // Das Gerät als zweite Zeile, kleiner als die Muskelgruppe. Wer im Studio
+  // an der Maschine steht oder zu Hause nur Kurzhanteln hat, sucht genau so.
+  const GERAETE_WAHL = [["alle", "Alle Geräte"], ["machine", "Maschine"], ["cable", "Kabel"], ["dumbbell", "Kurzhantel"], ["barbell", "Langhantel"], ["bodyweight", "Körpergewicht"]];
+  $("ueGeraete").innerHTML = GERAETE_WAHL.map(([id, name]) => `<button type="button" class="ue-tab${id === "alle" ? " on" : ""}" data-geraet="${id}" role="tab" aria-selected="${id === "alle"}">${name}</button>`).join("");
+  $("ueGeraete").addEventListener("click", (event) => {
+    const knopf = event.target.closest("[data-geraet]");
+    if (!knopf) return;
+    zustand.geraet = knopf.dataset.geraet;
+    for (const k of $("ueGeraete").children) {
+      k.classList.toggle("on", k === knopf);
+      k.setAttribute("aria-selected", String(k === knopf));
+    }
+    knopf.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+    zeichnen();
+  });
+
   const zeichnen = () => {
     const treffer = uebungenFiltern(zustand);
     $("ueListe").innerHTML = listeHtml(treffer);

@@ -16,6 +16,9 @@ const escapeHtml = (text) =>
   String(text).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 const ART_SYMBOL = { fruehstueck: "sonne", hauptmahlzeit: "flamme", snack: "apfel" };
+// Kurze Namen, damit die vier Mahlzeiten in eine Zeile passen. In zwei
+// Zeilen stand der Snack allein unter den drei anderen.
+const KURZNAME = { fruehstueck: "Frühstück", mittagessen: "Mittag", abendessen: "Abend", snack: "Snack" };
 const ART_NAME = { fruehstueck: "Frühstück", hauptmahlzeit: "Hauptmahlzeit", snack: "Snack" };
 
 /**
@@ -48,7 +51,7 @@ export function rezepteAnsicht({ wurzel, toast, beiEintrag }) {
     el("rzArten").innerHTML = ["fruehstueck", "mittagessen", "abendessen", "snack"]
       .map((art) => MAHLZEITEN.find((m) => m.art === art))
       .map((m) => `<button type="button" class="pill${m.art === r.art ? " on" : ""}" data-rz-art="${m.art}"
-        aria-pressed="${m.art === r.art}">${escapeHtml(m.name)}</button>`).join("");
+        aria-pressed="${m.art === r.art}">${escapeHtml(KURZNAME[m.art] || m.name)}</button>`).join("");
 
     el("rzFuerMorgen").hidden = !r.morgen;
     if (!r.ziel) {
@@ -70,9 +73,11 @@ export function rezepteAnsicht({ wurzel, toast, beiEintrag }) {
 
     el("rzAktionen").hidden = false;
     el("rzKarte").innerHTML = `
-      <div class="rz-bild" style="--ton: var(--makro-${e.rezept.art === "snack" ? "protein" : e.rezept.art === "fruehstueck" ? "kohlenhydrate" : "fett"})">
-        ${symbol(ART_SYMBOL[e.rezept.art] || "apfel", { groesse: 72, klasse: "rz-symbol" })}
-      </div>
+      ${e.rezept.foto
+        ? `<img class="rz-foto" src="./img/rezepte/${encodeURIComponent(e.rezept.id)}.jpg" alt="" width="800" height="600" decoding="async">`
+        : `<div class="rz-bild" style="--ton: var(--makro-${e.rezept.art === "snack" ? "protein" : e.rezept.art === "fruehstueck" ? "kohlenhydrate" : "fett"})">
+        ${symbol(ART_SYMBOL[e.rezept.art] || "apfel", { groesse: 64, klasse: "rz-symbol" })}
+      </div>`}
       <span class="rz-passung">${e.passung} % passend</span>
       <div class="rz-titel">
         <span>${escapeHtml(ART_NAME[e.rezept.art])}</span>

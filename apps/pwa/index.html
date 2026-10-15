@@ -280,7 +280,7 @@ try {
   </section>
 
   <section class="view" data-view="essen" hidden>
-    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Essen</h1><div class="bar-spacer"></div></header>
+    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Mahlzeiten</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
       <!--
         Ein Weg hinein statt vier nebeneinander. Vorher standen Diktieren,
@@ -351,36 +351,32 @@ try {
       <div class="blatt-scroll">
         <div class="wege">
           <button type="button" class="weg" data-weg="foto">
-            <span class="weg-zeichen weg-foto" aria-hidden="true"></span>
+            <span class="weg-zeichen" data-sym="kamera" aria-hidden="true"></span>
             <span class="weg-text">
-              <span class="weg-titel">Per Foto schätzen lassen</span>
-              <span class="weg-sub">Teller fotografieren, Mengen werden an Bezugsgrössen geschätzt</span>
+              <span class="weg-titel">Foto</span>
+              <span class="weg-sub">Teller fotografieren</span>
             </span>
-            <span class="weg-chev" aria-hidden="true"></span>
           </button>
           <button type="button" class="weg" data-weg="sprache">
-            <span class="weg-zeichen weg-sprache" aria-hidden="true"></span>
+            <span class="weg-zeichen" data-sym="mikrofon" aria-hidden="true"></span>
             <span class="weg-text">
-              <span class="weg-titel">Per Sprache aufzählen</span>
-              <span class="weg-sub">Sprich, was du gegessen hast, mit Mengen</span>
+              <span class="weg-titel">Sprechen</span>
+              <span class="weg-sub">Sagen, was und wie viel</span>
             </span>
-            <span class="weg-chev" aria-hidden="true"></span>
           </button>
           <button type="button" class="weg" data-weg="barcode">
-            <span class="weg-zeichen weg-barcode" aria-hidden="true"></span>
+            <span class="weg-zeichen" data-sym="barcode" aria-hidden="true"></span>
             <span class="weg-text">
-              <span class="weg-titel">Barcode scannen</span>
-              <span class="weg-sub">Trifft genau, für alles mit Etikett</span>
+              <span class="weg-titel">Barcode</span>
+              <span class="weg-sub">Packung scannen</span>
             </span>
-            <span class="weg-chev" aria-hidden="true"></span>
           </button>
           <button type="button" class="weg" data-weg="suche">
-            <span class="weg-zeichen weg-suche" aria-hidden="true"></span>
+            <span class="weg-zeichen" data-sym="lupe" aria-hidden="true"></span>
             <span class="weg-text">
-              <span class="weg-titel">Lebensmittel suchen</span>
-              <span class="weg-sub">Nach Namen, aus der Datenbank</span>
+              <span class="weg-titel">Suchen</span>
+              <span class="weg-sub">Nach Namen finden</span>
             </span>
-            <span class="weg-chev" aria-hidden="true"></span>
           </button>
         </div>
         <button type="button" id="ebTippen" class="ghost breit">Lieber tippen</button>
@@ -733,15 +729,22 @@ try {
     <div class="scroll">
       <p class="sub">Morgens der Plan, mittags die Kontrolle, abends der Abschluss. Alles gerechnet aus deinen Zahlen.</p>
 
-      <h2 class="abschnitt">Kopf leeren</h2>
-      <p class="sub">Sag oder schreib alles, was dir gerade im Kopf herumgeht. Ungeordnet, mitten im Satz, egal. daevo trennt daraus Aufgaben, Entscheidungen und Sorgen und sagt dir, womit du anfängst.</p>
-      <div class="field"><label for="kopfText">Alles raus</label>
-        <textarea id="kopfText" rows="5" placeholder="Ich muss noch das Angebot schreiben und eigentlich die Reels schneiden und ich weiss nicht ob ich zuerst..."></textarea></div>
-      <div class="quick">
-        <button id="btnKopfDiktat" class="chip">Diktieren</button>
-        <button id="btnKopf" class="chip">Sortieren</button>
-      </div>
-      <pre class="pre" id="kopfErgebnis" hidden style="margin-top:14px"></pre>
+      <!-- Die Aufgaben stehen oben: das ist der Grund, warum jemand diese Seite
+           öffnet. Kopf leeren ist ein Werkzeug für einen bestimmten Moment und
+           steht deshalb unten. -->
+      <h2 class="abschnitt">Aufgaben</h2>
+      <h2 class="section-title">Heute noch</h2>
+      <ul class="list" id="aufgabenHeute"></ul>
+      <h2 class="section-title">Kann bis morgen warten</h2>
+      <ul class="list" id="aufgabenMorgen"></ul>
+      <p class="fineprint" id="aufgabenGrund"></p>
+
+      <p class="sub">Schreib nur hin, was zu tun ist. Aufwand, Wichtigkeit und eine Frist im Text erkennt daevo selbst. Tipp auf die Einstufung, wenn sie danebenliegt.</p>
+      <div class="field"><label for="aufgabeText">Was ist zu tun</label>
+        <input id="aufgabeText" type="text" placeholder="Angebot für Anna schreiben, bis Freitag"></div>
+      <button id="btnAufgabe" class="primary">Aufgabe anlegen</button>
+      <p class="fineprint" id="aufgabeEcho"></p>
+
 
       <h2 class="abschnitt">Briefings</h2>
       <div class="quick">
@@ -773,18 +776,15 @@ try {
       <button id="btnHeraus" class="ghost">Antwort holen</button>
       <p class="fineprint" id="herausHinweis"></p>
 
-      <h2 class="abschnitt">Aufgaben</h2>
-      <p class="sub">Schreib nur hin, was zu tun ist. Aufwand, Wichtigkeit und eine Frist im Text erkennt daevo selbst. Tipp auf die Einstufung, wenn sie danebenliegt.</p>
-      <div class="field"><label for="aufgabeText">Was ist zu tun</label>
-        <input id="aufgabeText" type="text" placeholder="Angebot für Anna schreiben, bis Freitag"></div>
-      <button id="btnAufgabe" class="primary">Aufgabe anlegen</button>
-      <p class="fineprint" id="aufgabeEcho"></p>
-
-      <h2 class="section-title">Heute noch</h2>
-      <ul class="list" id="aufgabenHeute"></ul>
-      <h2 class="section-title">Kann bis morgen warten</h2>
-      <ul class="list" id="aufgabenMorgen"></ul>
-      <p class="fineprint" id="aufgabenGrund"></p>
+      <h2 class="abschnitt">Kopf leeren</h2>
+      <p class="sub">Sag oder schreib alles, was dir gerade im Kopf herumgeht. Ungeordnet, mitten im Satz, egal. daevo trennt daraus Aufgaben, Entscheidungen und Sorgen und sagt dir, womit du anfängst.</p>
+      <div class="field"><label for="kopfText">Alles raus</label>
+        <textarea id="kopfText" rows="5" placeholder="Ich muss noch das Angebot schreiben und eigentlich die Reels schneiden und ich weiss nicht ob ich zuerst..."></textarea></div>
+      <div class="quick">
+        <button id="btnKopfDiktat" class="chip">Diktieren</button>
+        <button id="btnKopf" class="chip">Sortieren</button>
+      </div>
+      <pre class="pre" id="kopfErgebnis" hidden style="margin-top:14px"></pre>
     </div>
   </section>
 
@@ -941,7 +941,7 @@ try {
   </section>
 
   <section class="view ue-view" data-view="uebungen" hidden>
-    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Übungen</h1><div class="bar-spacer"></div></header>
+    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Training</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
       <div class="ue-modus" role="tablist" aria-label="Bereich">
         <button type="button" id="ueModusUebungen" class="on" role="tab" aria-selected="true" data-modus="uebungen">Übungen</button>
@@ -953,6 +953,7 @@ try {
         <input id="ueSuche" type="search" placeholder="Übung, Muskel oder Gerät" aria-label="Übungen suchen" autocomplete="off" autocapitalize="none" spellcheck="false">
       </div>
       <div class="ue-tabs" id="ueGruppen" role="tablist" aria-label="Muskelgruppe"></div>
+      <div class="ue-tabs ue-geraete" id="ueGeraete" role="tablist" aria-label="Gerät"></div>
       <p class="ue-zaehler" id="ueZaehler"></p>
       <ul class="ue-raster" id="ueListe"></ul>
       </div>
@@ -1279,59 +1280,61 @@ try {
       <img class="only-dark" src="./brand/daevo-wordmark.svg" alt="daevo" width="88">
       <button id="btnMenuClose" class="icon-btn" aria-label="Menü schließen"><span class="close"></span></button>
     </div>
-    <button class="menu-item gross" data-go="assistant"><b>Assistent</b><span>Reden, fragen, erfassen</span></button>
-
-    <!-- Vier Gruppen mit je höchstens vier Punkten. Eine Gruppe mit neun Zeilen
-         ist wieder die lange Liste, die das Menü loswerden sollte. Jede Gruppe
-         beantwortet eine Frage: was esse ich, wie trainiere ich, wie läuft mein
-         Tag, wie entwickle ich mich. Die Gespräche stehen nur als Knopf oben im
-         Assistenten, dort sucht man sie. Aufgeklappt wird immer nur eine. -->
-    <div class="menu-gruppe" data-gruppe="ernaehrung">
-      <button class="menu-kopf" aria-expanded="false"><b>Ernährung</b><span class="chev-ab"></span></button>
-      <div class="menu-unter" hidden>
-        <button class="menu-item" data-go="heute"><b>Heute</b><span>Kalorien, Makros, Wasser</span></button>
-        <button class="menu-item" data-go="essen"><b>Essen erfassen</b><span>Tippen, sprechen, fotografieren</span></button>
-        <button class="menu-item" data-go="rezepte"><b>Rezepte</b><span>Passend zu deinem Rest und deinen Angaben</span></button>
-        <button class="menu-item" data-go="einkauf"><b>Einkaufen</b><span>Liste aus deinen Zielen</span></button>
+    <!-- Eine Startseite mit vier Kacheln, jede Kachel öffnet eine eigene Seite.
+         Eine aufklappende Liste aus Textzeilen las sich wie ein Formular. Vier
+         Flächen mit Zeichen erkennt man im Vorbeigehen, und die Unterseite
+         zeigt nur das, wonach man gerade sucht. Die Zeichen kommen aus
+         symbole.js, dieselben Linien wie im Fragebogen. -->
+    <div class="menu-start" data-seite="start">
+      <button class="menu-assistent" data-go="assistant"><span class="menu-sym" data-sym="sprechblase"></span><span><b>Assistent</b><small>Reden, fragen, erfassen</small></span></button>
+      <div class="menu-kacheln">
+        <button type="button" class="menu-kachel" data-menu-gruppe="ernaehrung"><span class="menu-sym gross" data-sym="apfel"></span><b>Ernährung</b><small>Heute, Rezepte, Einkauf</small></button>
+        <button type="button" class="menu-kachel" data-menu-gruppe="training"><span class="menu-sym gross" data-sym="hantel"></span><b>Training</b><small>Pläne, Übungen</small></button>
+        <button type="button" class="menu-kachel" data-menu-gruppe="alltag"><span class="menu-sym gross" data-sym="kalender"></span><b>Alltag</b><small>Tag, Kalender, Balance</small></button>
+        <button type="button" class="menu-kachel" data-menu-gruppe="fortschritt"><span class="menu-sym gross" data-sym="verlauf"></span><b>Fortschritt</b><small>Check-ins, Bericht</small></button>
       </div>
+      <button class="menu-zeile leise" data-go="profil"><span class="menu-sym" data-sym="person"></span><span><b>Profil</b>
+        <small data-betreiber>Ziele, Gedächtnis, Schlüssel, Kosten</small>
+        <small data-nutzer hidden>Ziele, Gedächtnis, Stimme, Erinnerungen</small></span></button>
     </div>
-
-    <div class="menu-gruppe" data-gruppe="training">
-      <button class="menu-kopf" aria-expanded="false"><b>Training</b><span class="chev-ab"></span></button>
-      <div class="menu-unter" hidden>
-        <button class="menu-item" data-go="plaene"><b>Trainingspläne</b><span>Für dein Ziel und deine Zeit</span></button>
-        <button class="menu-item" data-go="uebungen"><b>Übungen</b><span>Foto, Muskeln, Erklärvideo</span></button>
-        <button class="menu-item" data-go="bereitschaft"><b>Bereitschaft</b><span>Tagesform und Belastung</span></button>
-      </div>
-    </div>
-
-    <div class="menu-gruppe" data-gruppe="alltag">
-      <button class="menu-kopf" aria-expanded="false"><b>Alltag</b><span class="chev-ab"></span></button>
-      <div class="menu-unter" hidden>
-        <button class="menu-item" data-go="tag"><b>Dein Tag</b><span>Briefing, Mittagscheck, Aufgaben</span></button>
-        <button class="menu-item" data-go="kalender"><b>Kalender</b><span>Termine, Lücken, Mahlzeiten</span></button>
-        <button class="menu-item" data-go="balance"><b>Balance</b><span>Wo deine Zeit hingeht</span></button>
-        <button class="menu-item" data-go="standards"><b>Mindeststandards</b><span>Deine Untergrenze, jede Woche</span></button>
-      </div>
-    </div>
-
-    <div class="menu-gruppe" data-gruppe="fortschritt">
-      <button class="menu-kopf" aria-expanded="false"><b>Fortschritt</b><span class="chev-ab"></span></button>
-      <div class="menu-unter" hidden>
-        <button class="menu-item" data-go="checkin"><b>Check-ins</b><span>Täglich und zweimal die Woche</span></button>
-        <button class="menu-item" data-go="bericht"><b>Bericht</b><span>Woche und Monat, zum Weitergeben</span></button>
-        <button class="menu-item" data-go="empfehlungen"><b>Auswertung</b><span>Muster und Widersprüche</span></button>
-      </div>
-    </div>
-
-    <!-- Zwei Untertitel, weil im Profil zwei verschiedene Dinge stehen.
-         Schlüssel und Kosten gibt es in der Fassung für Nutzer nicht, und ein
-         Menü, das auf etwas hinweist, das die Seite nicht enthält, schickt den
-         Leser suchen. -->
-    <button class="menu-item leise" data-go="profil"><b>Profil</b>
-      <span data-betreiber>Ziele, Gedächtnis, Schlüssel, Kosten</span>
-      <span data-nutzer hidden>Ziele, Gedächtnis, Stimme, Erinnerungen</span>
-    </button>
+      <section class="menu-seite" data-seite="ernaehrung" hidden>
+        <button type="button" class="menu-zurueck" data-menu-zurueck><span class="chev"></span>Menü</button>
+        <h2 class="menu-seitentitel">Ernährung</h2>
+        <div class="menu-liste">
+          <button class="menu-zeile" data-go="heute"><span class="menu-sym" data-sym="ring"></span><span><b>Heute</b><small>Kalorien, Makros, Wasser</small></span></button>
+          <button class="menu-zeile" data-go="essen"><span class="menu-sym" data-sym="liste"></span><span><b>Mahlzeiten</b><small>Verlauf, Rest aufteilen, Gefühl danach</small></span></button>
+          <button class="menu-zeile" data-go="rezepte"><span class="menu-sym" data-sym="loeffel"></span><span><b>Rezepte</b><small>Passend zu deinem Rest und deinen Angaben</small></span></button>
+          <button class="menu-zeile" data-go="einkauf"><span class="menu-sym" data-sym="tasche"></span><span><b>Einkaufen</b><small>Liste aus deinen Zielen</small></span></button>
+        </div>
+      </section>
+      <section class="menu-seite" data-seite="training" hidden>
+        <button type="button" class="menu-zurueck" data-menu-zurueck><span class="chev"></span>Menü</button>
+        <h2 class="menu-seitentitel">Training</h2>
+        <div class="menu-liste">
+          <button class="menu-zeile" data-go="plaene"><span class="menu-sym" data-sym="liste"></span><span><b>Trainingspläne</b><small>Für dein Ziel und deine Zeit</small></span></button>
+          <button class="menu-zeile" data-go="uebungen"><span class="menu-sym" data-sym="hantel"></span><span><b>Übungen</b><small>Foto, Muskeln, Erklärvideo</small></span></button>
+          <button class="menu-zeile" data-go="bereitschaft"><span class="menu-sym" data-sym="puls"></span><span><b>Bereitschaft</b><small>Tagesform und Belastung</small></span></button>
+        </div>
+      </section>
+      <section class="menu-seite" data-seite="alltag" hidden>
+        <button type="button" class="menu-zurueck" data-menu-zurueck><span class="chev"></span>Menü</button>
+        <h2 class="menu-seitentitel">Alltag</h2>
+        <div class="menu-liste">
+          <button class="menu-zeile" data-go="tag"><span class="menu-sym" data-sym="sonne"></span><span><b>Dein Tag</b><small>Briefing, Mittagscheck, Aufgaben</small></span></button>
+          <button class="menu-zeile" data-go="kalender"><span class="menu-sym" data-sym="kalender"></span><span><b>Kalender</b><small>Termine, Lücken, Mahlzeiten</small></span></button>
+          <button class="menu-zeile" data-go="balance"><span class="menu-sym" data-sym="waage"></span><span><b>Balance</b><small>Wo deine Zeit hingeht</small></span></button>
+          <button class="menu-zeile" data-go="standards"><span class="menu-sym" data-sym="schild"></span><span><b>Mindeststandards</b><small>Deine Untergrenze, jede Woche</small></span></button>
+        </div>
+      </section>
+      <section class="menu-seite" data-seite="fortschritt" hidden>
+        <button type="button" class="menu-zurueck" data-menu-zurueck><span class="chev"></span>Menü</button>
+        <h2 class="menu-seitentitel">Fortschritt</h2>
+        <div class="menu-liste">
+          <button class="menu-zeile" data-go="checkin"><span class="menu-sym" data-sym="haken"></span><span><b>Check-ins</b><small>Täglich und zweimal die Woche</small></span></button>
+          <button class="menu-zeile" data-go="bericht"><span class="menu-sym" data-sym="dokument"></span><span><b>Bericht</b><small>Woche und Monat, zum Weitergeben</small></span></button>
+          <button class="menu-zeile" data-go="empfehlungen"><span class="menu-sym" data-sym="idee"></span><span><b>Auswertung</b><small>Muster und Widersprüche</small></span></button>
+        </div>
+      </section>
   </nav>
 </main>
 

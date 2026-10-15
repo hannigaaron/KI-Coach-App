@@ -575,3 +575,18 @@ test("Verschieben setzt den Tag, nimmt die Aufgabe aus heute und zieht eine frü
   assert.equal(planung.aufgabeVerschieben("a1", "morgen"), null);
   assert.equal(planung.aufgabeVerschieben("fehlt", tag), null);
 });
+
+test("Tagesnutzung zählt einen heute bestätigten Standard als gehalten", async () => {
+  const tag = frischerTag();
+  const { tagesnutzungFuer } = await import("./assistant.js");
+  store.setStandards([
+    { id: "s1", kind: "frei", text: "Handy ab 22 Uhr weg", kadenz: "taeglich", ziel: 1, aktiv: true, seit: tag },
+    { id: "s2", kind: "frei", text: "Zehn Minuten lesen", kadenz: "taeglich", ziel: 1, aktiv: true, seit: tag },
+  ]);
+  const data = store.getDay(tag);
+  data.standards = { s1: true };
+  store.setDay(tag, data);
+  const teil = tagesnutzungFuer(tag).teile.find((t) => t.name === "Standards");
+  // Vorher las die Zählung ein Feld, das es nicht gibt, und meldete immer null.
+  assert.equal(teil.erklaerung, "1 von 2 Standards gehalten.");
+});

@@ -1487,7 +1487,7 @@ export function briefing(art = "morgen") {
     // Morgens mit Uhrzeiten. "Erst das Angebot" hilft wenig, wenn unklar
     // ist, ob es zwischen die Termine überhaupt passt.
     aufgaben: tagesplanText(),
-    standards: status.filter((s) => !s.erfuellt).map((s) => s.satz),
+    standards: status.filter((s) => !s.aktuell).map((s) => s.satz),
     trend: trend.belastbar
       ? `Gewicht: ${trend.aktuellKg} kg geglättet, ${trend.kgProWoche > 0 ? "plus" : "minus"} ${Math.abs(trend.kgProWoche).toFixed(2)} kg je Woche.`
       : undefined,
@@ -1861,7 +1861,7 @@ export function tagesnutzungFuer(tagIso = todayIso()) {
     balance: balanceFuer(1, tagIso),
     aufgabenErledigt: erledigt,
     aufgabenGeplant: erledigt + plan.heute.length,
-    standardsGehalten: status.filter((s) => s.erfuellt).length,
+    standardsGehalten: status.filter((s) => s.aktuell).length,
     standardsGesamt: status.length,
     ernaehrung: scoreDay(n.totals, n.targets).total,
   });
@@ -2990,7 +2990,7 @@ export function recommendations() {
     const abweichung = Math.round(schnitt - n.targets.kcal);
     if (Math.abs(abweichung) > 250) {
       out.push({
-        titel: abweichung > 0 ? "Du liegst über deinem Schnitt" : "Du liegst unter deinem Schnitt",
+        titel: abweichung > 0 ? "Du liegst über deinem Ziel" : "Du liegst unter deinem Ziel",
         text:
           abweichung > 0
             ? `Im Schnitt ${abweichung} kcal über dem Ziel. Bei Gewicht halten wandert das nach oben.`

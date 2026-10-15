@@ -2084,93 +2084,32 @@ body.blatt-offen { overflow: hidden; }
 .erfassen-sub { font-size: var(--t-sm); font-weight: 500; color: currentColor; opacity: 0.82; }
 
 /*
- * Die vier Wege im Blatt.
+ * Die vier Wege im Blatt, als Raster aus zwei mal zwei.
  *
- * Keine Kacheln mit Rahmen, sondern Zeilen mit Trennlinien. Vier gerahmte
- * Flächen untereinander lesen sich als Liste von Behältern, nicht als Wahl.
- * Was die Zeilen zusammenhält, ist die Linie, nicht der Kasten.
+ * Vorher Zeilen mit einem kleinen Zeichen links und langem Text rechts. Das
+ * las sich wie eine Einstellungsseite. Jetzt trägt das Zeichen die Kachel,
+ * mittig im Kreis, darunter ein Wort und eine kurze Zeile. Wer erfasst, will
+ * wählen und nicht lesen. Die Reihenfolge bleibt nach Aufwand: Foto zuerst.
  */
-.wege {
-  display: flex; flex-direction: column;
-  background: var(--panel); border: 1px solid var(--border);
-  border-radius: var(--r-md); overflow: hidden; margin-bottom: var(--s-4);
-}
+.wege { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); margin-bottom: var(--s-4); }
 .weg {
-  display: flex; align-items: center; gap: var(--s-3);
-  padding: var(--s-4); background: none; border: none;
-  border-bottom: 1px solid var(--linie);
-  color: var(--text); text-align: left; cursor: pointer; width: 100%;
-  transition: background var(--schnell) var(--kurve);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--s-2);
+  padding: var(--s-5, 20px) var(--s-3); min-height: 132px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--r-lg);
+  color: var(--text); text-align: center; cursor: pointer; width: 100%;
+  transition: transform var(--schnell) var(--kurve), border-color var(--schnell) var(--kurve);
 }
-.weg:last-child { border-bottom: none; }
-.weg:active { background: var(--erhoben); }
-.weg:hover { background: var(--erhoben); }
-
-.weg-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-.weg-titel { font-size: var(--t-md); font-weight: 600; letter-spacing: -0.01em; }
-/* Die Zeile darf umbrechen. Auf 390 Pixeln passt "Mengen werden an
-   Bezugsgrössen geschätzt" nicht in eine Zeile, und abgeschnittener Text
-   erklärt nichts. */
-.weg-sub { font-size: var(--t-xs); color: var(--muted); line-height: 1.4; }
-
-/* Die Zeichen sind gezeichnet, nicht getippt. Emoji sehen auf jedem Gerät
-   anders aus und tragen eine fremde Farbigkeit in die Palette. */
+.weg:active { transform: scale(0.97); }
+.weg:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
 .weg-zeichen {
-  position: relative; flex: 0 0 auto;
-  width: 36px; height: 36px; border-radius: var(--r-sm);
-  background: var(--erhoben); border: 1px solid var(--border);
+  width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center;
+  color: var(--accent); background: color-mix(in srgb, var(--accent) 13%, transparent);
+  margin-bottom: var(--s-1);
 }
-.weg-zeichen::before, .weg-zeichen::after { content: ""; position: absolute; }
-
-/* Foto: Gehäuse mit Linse. */
-.weg-foto::before {
-  left: 8px; top: 12px; width: 20px; height: 14px;
-  border: 1.6px solid var(--accent); border-radius: 3px;
-}
-.weg-foto::after {
-  left: 15px; top: 16px; width: 6px; height: 6px;
-  border: 1.6px solid var(--accent); border-radius: var(--r-pill);
-}
-
-/* Sprache: Kapsel mit Fuss. */
-.weg-sprache::before {
-  left: 15px; top: 9px; width: 6px; height: 11px;
-  background: var(--accent); border-radius: var(--r-pill);
-}
-.weg-sprache::after {
-  left: 11px; top: 19px; width: 14px; height: 8px;
-  border: 1.6px solid var(--accent); border-top: none;
-  border-radius: 0 0 8px 8px;
-}
-
-/* Barcode: Striche in ungleichen Abständen, wie auf einer Packung. */
-.weg-barcode::before {
-  left: 9px; top: 10px; width: 18px; height: 16px;
-  background:
-    linear-gradient(var(--accent), var(--accent)) 0 0 / 2px 100% no-repeat,
-    linear-gradient(var(--accent), var(--accent)) 4px 0 / 1px 100% no-repeat,
-    linear-gradient(var(--accent), var(--accent)) 8px 0 / 2px 100% no-repeat,
-    linear-gradient(var(--accent), var(--accent)) 13px 0 / 1px 100% no-repeat,
-    linear-gradient(var(--accent), var(--accent)) 16px 0 / 2px 100% no-repeat;
-}
-
-/* Suche: Lupe. */
-.weg-suche::before {
-  left: 9px; top: 9px; width: 13px; height: 13px;
-  border: 1.6px solid var(--accent); border-radius: var(--r-pill);
-}
-.weg-suche::after {
-  left: 21px; top: 21px; width: 7px; height: 1.8px;
-  background: var(--accent); border-radius: var(--r-pill);
-  transform: rotate(45deg); transform-origin: left center;
-}
-
-/* Der Pfeil rechts sagt, dass es weitergeht und nicht sofort passiert. */
-.weg-chev {
-  flex: 0 0 auto; width: 7px; height: 7px;
-  border-right: 1.6px solid var(--muted); border-top: 1.6px solid var(--muted);
-  transform: rotate(45deg);
-}
+.weg-zeichen svg { width: 26px; height: 26px; }
+.weg-text { display: flex; flex-direction: column; gap: 2px; align-items: center; }
+.weg-titel { font-family: var(--schrift-display); font-size: var(--t-md); font-weight: 600; }
+.weg-sub { font-size: var(--t-xs); color: var(--muted); line-height: 1.35; }
 
 /* ---------- Das Foto, bevor es rausgeht ----------
  *
@@ -2883,12 +2822,12 @@ h1,
 .rz-status { margin-left: auto; font-size: var(--t-md); color: var(--text); display: inline-flex; align-items: center; gap: 8px; }
 .rz-status::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--good); }
 .rz-status.drueber::before { background: var(--bad); }
-.rz-arten { margin-bottom: var(--s-4); }
-.rz-arten .pill { padding: 9px 16px; }
+.rz-arten { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s-2); margin-bottom: var(--s-4); }
+.rz-arten .pill { padding: 9px 4px; text-align: center; margin: 0; }
 .rz-arten .pill.on { background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--accent-text); border-color: var(--accent); }
 
 .rz-karte {
-  position: relative; border-radius: var(--r-xl); overflow: hidden; aspect-ratio: 4 / 5;
+  position: relative; border-radius: var(--r-xl); overflow: hidden; aspect-ratio: 4 / 3;
   background: var(--erhoben); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
 }
 .rz-bild {
@@ -2910,7 +2849,7 @@ h1,
 .rz-titel span { font-size: var(--t-md); opacity: 0.85; }
 .rz-titel h2 {
   margin: 4px 0 0; font-family: var(--schrift-display); font-weight: 600;
-  font-size: 26px; line-height: 1.2; letter-spacing: -0.01em; color: #ffffff;
+  font-size: 22px; line-height: 1.2; letter-spacing: -0.01em; color: #ffffff;
 }
 .rz-leer { padding: 40px 24px; color: var(--muted); text-align: center; line-height: 1.5; }
 .rz-karte:has(.rz-leer) { aspect-ratio: auto; }
@@ -2923,7 +2862,7 @@ h1,
   width: 64px; height: 64px; border-radius: 50%; padding: 0; display: grid; place-items: center;
   border: 1px solid var(--linie); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
-.rz-nein { background: var(--erhoben); color: var(--bad); }
+.rz-nein { background: var(--erhoben); color: var(--muted); }
 .rz-ja { background: var(--stark); color: var(--auf-stark); border-color: transparent; }
 .rz-zeit {
   background: var(--erhoben); border: 1px solid var(--linie); border-radius: var(--r-pill);
@@ -2973,3 +2912,78 @@ h1,
 .profil-link .chev-re { flex-shrink: 0; width: 8px; height: 8px; border-right: 2px solid var(--muted); border-top: 2px solid var(--muted); transform: rotate(45deg); }
 /* Reiter über einem Check-in: derselbe Umschalter wie bei Übungen und Plänen. */
 [data-view="checkin"] .ue-modus, [data-view="wochencheck"] .ue-modus { margin-bottom: var(--s-4); }
+
+
+/* ---------- Das Menü als Startseite mit Kacheln ----------
+   Die Kacheln tragen ein Zeichen im Kreis, Name und drei Stichworte. Die
+   Unterseiten sind Zeilen mit demselben Zeichen links, ohne Rahmen um jede
+   Zeile: was eine Liste zusammenhält, ist die Linie dazwischen. */
+.menu-start, .menu-seite { display: flex; flex-direction: column; gap: var(--s-3); }
+.menu-start[hidden], .menu-seite[hidden] { display: none; }
+.menu-sym {
+  flex: 0 0 auto; width: 40px; height: 40px; border-radius: 50%;
+  display: grid; place-items: center; color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.menu-sym.gross { width: 48px; height: 48px; }
+.menu-sym svg { width: 22px; height: 22px; }
+.menu-sym.gross svg { width: 24px; height: 24px; }
+.menu-assistent, .menu-zeile {
+  display: flex; align-items: center; gap: var(--s-3); width: 100%; text-align: left;
+  color: var(--text); background: var(--panel); border: 1px solid var(--border);
+  border-radius: var(--r-md); padding: var(--s-3) var(--s-4);
+}
+.menu-assistent b, .menu-zeile b { display: block; font-size: var(--t-md); font-weight: 600; }
+.menu-assistent small, .menu-zeile small, .menu-kachel small {
+  display: block; color: var(--muted); font-size: var(--t-xs); font-weight: 400; margin-top: 2px; line-height: 1.35;
+}
+.menu-assistent { padding: var(--s-4); }
+.menu-kacheln { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); }
+.menu-kachel {
+  display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-2);
+  text-align: left; color: var(--text); background: var(--panel); border: 1px solid var(--border);
+  border-radius: var(--r-lg, 20px); padding: var(--s-4); min-height: 148px;
+  transition: transform var(--schnell) var(--kurve), border-color var(--schnell) var(--kurve);
+}
+.menu-kachel b { font-family: var(--schrift-display); font-size: var(--t-lg); font-weight: 600; margin-top: auto; }
+.menu-kachel:active { transform: scale(0.98); }
+.menu-kachel:hover, .menu-zeile:hover, .menu-assistent:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
+.menu-zeile.leise { margin-top: var(--s-2); }
+.menu-zurueck {
+  display: inline-flex; align-items: center; gap: var(--s-2); align-self: flex-start;
+  background: none; border: 0; color: var(--muted); font-size: var(--t-sm); padding: var(--s-1) 0;
+}
+.menu-zurueck .chev {
+  width: 9px; height: 9px; border-left: 2px solid currentColor; border-bottom: 2px solid currentColor;
+  transform: rotate(45deg); display: inline-block;
+}
+.menu-seitentitel { font-family: var(--schrift-display); font-size: var(--t-2xl); margin: 0 0 var(--s-2); }
+.menu-liste {
+  display: flex; flex-direction: column; background: var(--panel);
+  border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden;
+}
+.menu-liste .menu-zeile { border: 0; border-radius: 0; border-bottom: 1px solid var(--linie); background: none; padding: var(--s-4); }
+.menu-liste .menu-zeile:last-child { border-bottom: 0; }
+
+/* ---------- Breite Bildschirme ----------
+   Die App ist für das Handy gebaut. Auf dem Laptop lief jede Ansicht über die
+   volle Breite, eine Rezeptkarte im Hochformat wurde damit höher als der
+   Bildschirm. Der Inhalt steht jetzt in einer Spalte von höchstens 640 Pixeln,
+   der Hintergrund läuft weiter über die ganze Breite. */
+@media (min-width: 700px) {
+  .scroll, .menu { padding-left: calc((100% - 640px) / 2); padding-right: calc((100% - 640px) / 2); }
+  .view > .bar { padding-left: calc((100% - 640px) / 2 + 4px); padding-right: calc((100% - 640px) / 2 + 4px); }
+  /* Ein Foto über die volle Spalte ist auf dem Laptop eine halbe
+     Bildschirmhöhe. Die Karte bleibt so gross wie auf einem grossen Handy. */
+  .rz-karte { max-width: 460px; margin-left: auto; margin-right: auto; }
+  .rz-aktionen { max-width: 436px; margin-left: auto; margin-right: auto; }
+}
+
+/* Das Rezeptfoto füllt die Karte wie das Übungsfoto seine Seite. */
+.rz-foto { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
+/* Die Gerätezeile ist die zweite Ebene des Filters: kleiner und beim
+   Auswählen nur umrandet, damit sie nicht mit der Muskelgruppe konkurriert. */
+.ue-geraete { margin-top: -6px; }
+.ue-geraete .ue-tab { padding: 6px 12px; font-size: 13px; }
+.ue-geraete .ue-tab.on { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent-text, var(--accent)); border-color: var(--accent); }

@@ -9,6 +9,7 @@ import {
   bereitschaftText,
   berichtText,
   spanneKurz,
+  restText,
 } from "@daevo/core";
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, produktPerBarcode, produkteSuchen } from "@daevo/coach";
 import { Coach, AnthropicProvider } from "@daevo/coach";
@@ -43,6 +44,7 @@ import { Listener, alleStimmen, istDeutsch, speak, stimmenBereit, stopSpeaking, 
 import { SetupFlow } from "./setup-ui.js";
 import { einfuehrungStarten } from "./einfuehrung.js";
 import { rezepteAnsicht } from "./rezepte-ui.js";
+import { symbol } from "./symbole.js";
 import { gesundheitHolen, postfachHolen, pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
 
@@ -1041,11 +1043,14 @@ function berichtZeitraumFuellen() {
   feld.innerHTML = liste
     .map((z) => `<option value="${escapeHtml(z.wert)}">${escapeHtml(z.name)}</option>`)
     .join("");
-  feld.value = liste.some((z) => z.wert === vorher) ? vorher : "28";
+  // Sieben Tage als Voreinstellung. Über vier Wochen fehlt bei jemandem, der
+  // die App erst seit zwei Wochen nutzt, jeder Vergleich, und auf jeder Karte
+  // stand "kein Vergleich".
+  feld.value = liste.some((z) => z.wert === vorher) ? vorher : "7";
 }
 
 function renderBericht() {
-  const b = berichtFuer($("berichtZeitraum").value || "28");
+  const b = berichtFuer($("berichtZeitraum").value || "7");
   $("berichtKopf").textContent =
     `${spanneKurz(b.von, b.bis)}, ${b.tageMitDaten} von ${b.tageGesamt} Tagen mit Eintrag.`;
 
@@ -1331,11 +1336,12 @@ function renderHeuteBalance() {
     }));
   }
 
-  const nutzung = tagesnutzungFuer(day);
+  // Die Tagesnutzung steht schon als eigene Leiste darüber. Hier noch einmal
+  // dieselbe Zahl zu nennen wäre eine Zeile ohne neue Auskunft.
   const leer = b.bereiche.filter((x) => x.minuten === 0).map((x) => x.name);
   $("heuteBalanceHinweis").textContent = b.gesamtMinuten === 0
     ? "Heute ist noch keine Minute gemessen. Kalender, eingetragene Zeit oder erledigte Aufgabe füllen die Balken."
-    : `Tagesnutzung ${nutzung.wert} von 100.${leer.length ? ` Noch nichts in: ${leer.join(", ")}.` : ""}`;
+    : leer.length ? `Noch nichts in: ${leer.join(", ")}.` : "";
 }
 
 function renderToday() {
@@ -1352,10 +1358,10 @@ function renderToday() {
   // eine abgeleitete Zahl und steht jetzt bei den anderen abgeleiteten Zahlen
   // weiter unten. Der Ring trägt nur, was direkt gemessen ist.
 
-  setBar("p", n.totals.proteinG, n.targets.proteinG, "g");
+  setBar("p", n.totals.proteinG, n.targets.proteinG, "g", { obergrenze: false });
   setBar("f", n.totals.fatG, n.targets.fatG, "g");
   setBar("c", n.totals.carbsG, n.targets.carbsG, "g");
-  setBar("w", n.totals.waterMl, n.targets.waterMl, "ml");
+  setBar("w", n.totals.waterMl, n.targets.waterMl, "ml", { obergrenze: false });
 
   const reminders = tagesErinnerungen(day);
   const time = nowTime();
@@ -1402,10 +1408,13 @@ function renderWeight() {
     `über ${trend.spanneTage} Tage aus ${trend.messungen} Wiegungen. Frag mich nach deinem Verlauf, dann rechne ich dein Ziel nach.`;
 }
 
-function setBar(prefix, actual, target, unit) {
+function setBar(prefix, actual, target, unit, { obergrenze = true } = {}) {
   const pct = target > 0 ? Math.min(100, Math.round((actual / target) * 100)) : 0;
   $(`${prefix}Bar`).style.width = `${pct}%`;
-  $(`${prefix}Bar`).classList.toggle("over", target > 0 && actual > target * 1.1);
+  // Rot nur, wo das Ziel eine Obergrenze ist. Protein und Wasser über dem
+  // Ziel sind kein Fehler, und ein roter Balken für 166 von 150 g Protein las
+  // sich in der Demo wie ein Alarm an einem guten Tag.
+  $(`${prefix}Bar`).classList.toggle("over", obergrenze && target > 0 && actual > target * 1.1);
   $(`${prefix}Txt`).textContent = `${actual} / ${target} ${unit}`;
 }
 
@@ -1433,10 +1442,18 @@ function renderMeals(targetId) {
 function renderCheckins() {
   const checkins = store.getDay(day).checkins;
   $("checkinList").innerHTML = checkins.length
-    ? checkins.slice().reverse().map((c) =>
-        `<li><div class="li-main"><div class="li-title">${escapeHtml(c.note || "Check-in")}</div>` +
-        `<div class="li-sub">${c.at} Uhr, Schlaf ${c.sleepQuality ?? "-"}, Stimmung ${c.mood ?? "-"}</div></div>` +
-        `<div class="li-side"><b>${c.energy ?? "-"}</b>Energie</div></li>`).join("")
+    ? checkins.slice().reverse().map((c) => {
+        // Der Mittags Check-in fragt andere Zahlen ab als der Morgen. Mit
+        // demselben Text stand dort "Schlaf -, Stimmung -".
+        const teile = c.kind === "midday"
+          ? [["Konzentration", c.concentration], ["Sättigung", c.satiety]]
+          : [["Schlaf", c.sleepQuality], ["Stimmung", c.mood]];
+        const titel = c.note || (c.kind === "midday" ? "Mittags Check-in" : c.kind === "morning" ? "Morgen Check-in" : "Check-in");
+        const zahlen = teile.filter(([, w]) => w != null).map(([n, w]) => `${n} ${w}`).join(", ");
+        return `<li><div class="li-main"><div class="li-title">${escapeHtml(titel)}</div>` +
+          `<div class="li-sub">${c.at} Uhr${zahlen ? `, ${zahlen}` : ""}</div></div>` +
+          (c.energy != null ? `<div class="li-side"><b>${c.energy}</b>Energie</div>` : "") + "</li>";
+      }).join("")
     : `<li><div class="li-main"><div class="li-sub">Heute noch kein Check-in.</div></div></li>`;
 }
 
@@ -1448,8 +1465,8 @@ function renderMemories() {
     ? entries.map((e) =>
         `<li><div class="li-main"><span class="mem-kind">${KIND_LABEL[e.kind] ?? e.kind}</span>` +
         `<div class="li-title">${escapeHtml(e.text)}</div>` +
-        `<div class="li-sub">${e.at.slice(0, 10)}, Wichtigkeit ${e.weight}${e.tags.length ? ", " + escapeHtml(e.tags.join(", ")) : ""}</div></div>` +
-        `<div class="li-side"><button class="ghost" data-mem-del="${e.id}">Weg</button></div></li>`).join("")
+        `<div class="li-sub">${new Date(e.at).toLocaleDateString("de-DE", { day: "numeric", month: "short" })}, Wichtigkeit ${e.weight} von 5</div></div>` +
+        `<div class="li-side"><button class="aufgabe-knopf" data-mem-del="${e.id}" title="Löschen" aria-label="Notiz löschen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg></button></div></li>`).join("")
     : `<li><div class="li-main"><div class="li-sub">${query ? "Nichts gefunden." : "Noch nichts gemerkt. Erzähl dem Assistenten etwas über dich."}</div></div></li>`;
 }
 
@@ -1465,6 +1482,13 @@ function renderEinkauf() {
   const liste = store.getShoppingList();
   const el = $("einkaufList");
   if (!liste || liste.items.length === 0) {
+    // Die Liste ist reine Rechnung aus den Zielen, ohne Modell. Wer die Seite
+    // zum ersten Mal öffnet, bekommt sie deshalb gleich, statt vor einem
+    // leeren Kasten mit einer Aufforderung zu stehen.
+    if (!renderEinkauf.versucht) {
+      renderEinkauf.versucht = true;
+      buildActions({ onChange: refreshAll }).einkaufslisteErstellen({ tage: 7 }).then(renderEinkauf).catch(() => {});
+    }
     el.innerHTML = `<li><div class="li-main"><div class="li-sub">Noch keine Liste. Tipp auf Liste rechnen.</div></div></li>`;
     $("einkaufHinweis").textContent = "";
     $("einkaufSub").textContent = "Gerechnet aus deinen Tageszielen.";
@@ -1517,7 +1541,7 @@ function renderStandards() {
       </div>
       <div class="li-side ek-knoepfe">
         ${messbar ? "" : `<button class="ghost" data-std-ok="${s.standard.id}">${s.aktuell ? "Gehalten" : "Heute ok"}</button>`}
-        <button class="ghost" data-std-del="${s.standard.id}">Weg</button>
+        <button class="aufgabe-knopf" data-std-del="${s.standard.id}" title="Entfernen" aria-label="Standard entfernen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg></button>
       </div>
     </li>`;
   }).join("");
@@ -1659,9 +1683,7 @@ function renderRestDesTages() {
   const satz = $("restSatz");
   if (!satz) return;
 
-  satz.textContent = n.rest.kcal > 0
-    ? `Offen sind noch ${n.rest.kcal} kcal und ${Math.max(0, n.rest.proteinG)} g Protein.`
-    : `Dein Tagesziel ist erreicht, ${Math.abs(n.rest.kcal)} kcal darüber.`;
+  satz.textContent = restText(n.rest);
 
   const gegessen = gegesseneArten(n.data.meals);
   const vorgabe = offeneMahlzeiten(new Date().getHours(), gegessen);
@@ -2577,25 +2599,25 @@ $("chips").addEventListener("click", (event) => {
   if (button) send(button.dataset.say);
 });
 
-$("btnMenu").addEventListener("click", () => { $("menu").hidden = false; });
+// Die Zeichen im Menü kommen aus symbole.js und nicht aus dem HTML, damit
+// eine Linie nur an einer Stelle gepflegt wird.
+for (const el of document.querySelectorAll("[data-sym]")) el.innerHTML = symbol(el.dataset.sym, { groesse: 22, klasse: "sym" });
+
+/** Zeigt eine Seite des Menüs: "start" oder eine Gruppe. */
+function menuSeite(name) {
+  for (const seite of $("menu").querySelectorAll("[data-seite]")) seite.hidden = seite.dataset.seite !== name;
+  $("menu").scrollTo({ top: 0 });
+}
+// Das Menü öffnet immer auf der Startseite. Wer es zuletzt in einer Gruppe
+// verlassen hat, sucht beim nächsten Mal sonst den Weg zurück.
+$("btnMenu").addEventListener("click", () => { menuSeite("start"); $("menu").hidden = false; });
 $("btnMenuClose").addEventListener("click", () => { $("menu").hidden = true; });
 $("menu").addEventListener("click", (event) => {
   const item = event.target.closest("[data-go]");
   if (item) { showView(item.dataset.go); return; }
-
-  // Immer nur eine Gruppe offen. Zwei offene Gruppen sind wieder eine lange
-  // Liste, und genau die sollte weg.
-  const kopf = event.target.closest(".menu-kopf");
-  if (!kopf) return;
-  const offen = kopf.getAttribute("aria-expanded") === "true";
-  for (const anderer of document.querySelectorAll(".menu-kopf")) {
-    anderer.setAttribute("aria-expanded", "false");
-    anderer.parentElement.querySelector(".menu-unter").hidden = true;
-  }
-  if (!offen) {
-    kopf.setAttribute("aria-expanded", "true");
-    kopf.parentElement.querySelector(".menu-unter").hidden = false;
-  }
+  const gruppe = event.target.closest("[data-menu-gruppe]");
+  if (gruppe) { menuSeite(gruppe.dataset.menuGruppe); return; }
+  if (event.target.closest("[data-menu-zurueck]")) menuSeite("start");
 });
 uebungen = uebungenStarten();
 plaeneStarten({
@@ -3408,10 +3430,12 @@ function renderKalender() {
   }
 
   const a = ablaufFuer(kalenderTag);
-  $("kalBelegt").textContent = `${a.belegtMinuten} Minuten`;
+  // Als Dauer gesagt, nicht als Minutenzahl: "975 Minuten" rechnet jeder
+  // Leser selbst um.
+  $("kalBelegt").textContent = kurzDauer(a.belegtMinuten);
   $("kalQuote").textContent = `${Math.round(a.auslastung * 100)} %`;
   $("kalFokus").textContent = a.fokusblock
-    ? `${uhrzeit(a.fokusblock.von)} bis ${uhrzeit(a.fokusblock.bis)}, ${a.fokusblock.minuten} Minuten`
+    ? `${uhrzeit(a.fokusblock.von)} bis ${uhrzeit(a.fokusblock.bis)}, ${kurzDauer(a.fokusblock.minuten)}`
     : "keiner";
 
   fuelleListe("kalListe", [...a.ganztags, ...a.termine].map((t) => ({

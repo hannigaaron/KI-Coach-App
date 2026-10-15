@@ -110,3 +110,12 @@ test("Vorrat entscheidet nur bei fast gleicher Passung", () => {
   assert.ok(mit[0]!.passung >= ohne[0]!.passung - 3);
   assert.ok(mit.some((e) => e.imVorrat.includes("Hähnchenbrust")));
 });
+
+test("jedes Rezept mit Foto hat eine Datei dazu", async () => {
+  const { existsSync } = await import("node:fs");
+  const { fileURLToPath } = await import("node:url");
+  for (const r of REZEPTE.filter((x) => x.foto)) {
+    const pfad = fileURLToPath(new URL(`../../../apps/pwa/img/rezepte/${r.id}.jpg`, import.meta.url));
+    assert.ok(existsSync(pfad), `${r.id}: ${pfad}`);
+  }
+});
