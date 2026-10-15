@@ -794,7 +794,7 @@ export function kalenderEntfernen(name) {
 export function kalenderStandText() {
   const st = kalenderStand();
   if (st.anzahl === 0) {
-    return "Es ist kein Kalender verbunden. Im Menue unter Kalender lädst du eine ICS Datei hoch "
+    return "Es ist kein Kalender verbunden. Im Menü unter Alltag, Kalender lädst du eine ICS Datei hoch "
       + "oder trägst die Adresse deines Google Kalenders ein. Ohne Kalender schätze ich deine "
       + "freie Zeit aus deinen Schlafenszeiten, statt sie zu messen.";
   }
@@ -817,7 +817,7 @@ export function kalenderStandText() {
   // ist eine Kopie, kein Abo. Was du seitdem eingetragen hast, fehlt hier.
   if (tageHer !== null && tageHer >= 2) {
     teile.push(`Das heisst: alles, was du in den letzten ${tageHer} Tagen im Kalender geändert hast, `
-      + "kenne ich nicht. Der Import ist eine Kopie und kein Abo. Lad ihn im Menue unter Kalender neu.");
+      + "kenne ich nicht. Der Import ist eine Kopie und kein Abo. Lad ihn im Menü unter Alltag, Kalender neu.");
   } else {
     teile.push("Der Import ist eine Kopie und kein Abo. Nach jeder Änderung in deinem Kalender "
       + "musst du ihn hier einmal neu laden, sonst rechne ich mit dem alten Stand.");
@@ -874,7 +874,7 @@ export function tagesablaufUebersicht(tagIso = todayIso()) {
 /** Die nächsten Tage in je einer Zeile. */
 export function kalenderUebersicht(tage = 7) {
   if ((store.getKalender().termine || []).length === 0) {
-    return "Kein Kalender verbunden. Im Menue unter Kalender lässt sich einer hinzufügen.";
+    return "Kein Kalender verbunden. Im Menü unter Alltag, Kalender lässt sich einer hinzufügen.";
   }
   const heute = todayIso();
   const ablaeufe = [];
@@ -1581,7 +1581,7 @@ export function rezeptVorschlagText({ art } = {}) {
   return [
     `Für dein ${name} sind ${r.ziel.kcal} kcal und ${r.ziel.proteinG} g Protein vorgesehen. Am besten passen:`,
     ...r.empfehlungen.slice(0, 3).map((e, i) => `${i + 1}. ${empfehlungText(e)}`),
-    "Mit Foto und zum Eintragen unter Ernährung, Empfehlungen.",
+    "Zum Eintragen unter Ernährung, Rezepte.",
   ].join("\n");
 }
 

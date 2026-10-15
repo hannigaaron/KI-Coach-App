@@ -509,8 +509,12 @@ try {
   </div>
 
   <section class="view" data-view="checkin" hidden>
-    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Check-in</h1><div class="bar-spacer"></div></header>
+    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Check-ins</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
+      <div class="ue-modus" role="tablist" aria-label="Check-in">
+        <button type="button" class="on" role="tab" aria-selected="true" data-ci-reiter="checkin">Täglich</button>
+        <button type="button" class="" role="tab" aria-selected="false" data-ci-reiter="wochencheck">Wochenbogen</button>
+      </div>
       <p class="sub">Kurz festhalten, wie es dir geht. Daraus erkennt der Coach Muster, die dir selbst entgehen.</p>
       <div class="field-row">
         <div class="field"><label for="energy">Energie</label><input id="energy" type="number" inputmode="numeric" min="1" max="10" value="7"></div>
@@ -547,7 +551,7 @@ try {
   </section>
 
   <section class="view" data-view="empfehlungen" hidden>
-    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Empfehlungen</h1><div class="bar-spacer"></div></header>
+    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Auswertung</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
       <p class="sub">Abgeleitet aus deinen eigenen Zahlen. Jede Empfehlung nennt den Wert, auf dem sie beruht.</p>
       <div id="recoList"></div>
@@ -632,7 +636,7 @@ try {
   </section>
 
   <section class="view" data-view="rezepte" hidden>
-    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Empfehlungen</h1><div class="bar-spacer"></div></header>
+    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Rezepte</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
       <div class="rz-rest" id="rzRest"></div>
       <div class="pills rz-arten" id="rzArten"></div>
@@ -918,8 +922,12 @@ try {
   </section>
 
   <section id="wochencheck" class="view" data-view="wochencheck" hidden>
-    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1 id="wcTitel">Check-in</h1><div class="bar-spacer"></div></header>
+    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1 id="wcTitel">Check-ins</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
+      <div class="ue-modus" role="tablist" aria-label="Check-in">
+        <button type="button" class="" role="tab" aria-selected="false" data-ci-reiter="checkin">Täglich</button>
+        <button type="button" class="on" role="tab" aria-selected="true" data-ci-reiter="wochencheck">Wochenbogen</button>
+      </div>
       <p class="sub" id="wcEinleitung"></p>
       <div id="wcWahl" class="wc-wahl"></div>
       <div id="wcFragen"></div>
@@ -1008,6 +1016,11 @@ try {
         <div class="kv"><span>Gesamtbedarf</span><b id="pTdee"></b></div>
         <div class="kv"><span>Zielkalorien</span><b id="pTarget"></b></div>
       </div>
+      <!-- Das Gedächtnis steht hier und nicht im Menü: "was weiss die App über
+           mich" sucht man bei den eigenen Angaben, nicht beim Coaching. -->
+      <button type="button" class="profil-link" data-go-ansicht="reflexion">
+        <span><b>Gedächtnis</b><small>Was daevo über dich weiß, einsehen und löschen</small></span><span class="chev-re" aria-hidden="true"></span>
+      </button>
 
       <h2 class="abschnitt">Körper und Ziel</h2>
       <div class="field-row">
@@ -1267,41 +1280,47 @@ try {
       <button id="btnMenuClose" class="icon-btn" aria-label="Menü schließen"><span class="close"></span></button>
     </div>
     <button class="menu-item gross" data-go="assistant"><b>Assistent</b><span>Reden, fragen, erfassen</span></button>
-    <button class="menu-item gross" data-go="gespraeche"><b>Gespräche</b><span>Nach Themen sortiert, durchsuchbar</span></button>
 
-    <!-- Drei Gruppen statt zwölf Zeilen. Wer zwölf gleichwertige Punkte sieht,
-         sucht jedes Mal neu. Aufgeklappt wird immer nur eine. -->
+    <!-- Vier Gruppen mit je höchstens vier Punkten. Eine Gruppe mit neun Zeilen
+         ist wieder die lange Liste, die das Menü loswerden sollte. Jede Gruppe
+         beantwortet eine Frage: was esse ich, wie trainiere ich, wie läuft mein
+         Tag, wie entwickle ich mich. Die Gespräche stehen nur als Knopf oben im
+         Assistenten, dort sucht man sie. Aufgeklappt wird immer nur eine. -->
     <div class="menu-gruppe" data-gruppe="ernaehrung">
       <button class="menu-kopf" aria-expanded="false"><b>Ernährung</b><span class="chev-ab"></span></button>
       <div class="menu-unter" hidden>
         <button class="menu-item" data-go="heute"><b>Heute</b><span>Kalorien, Makros, Wasser</span></button>
         <button class="menu-item" data-go="essen"><b>Essen erfassen</b><span>Tippen, sprechen, fotografieren</span></button>
-        <button class="menu-item" data-go="rezepte"><b>Empfehlungen</b><span>Rezepte, die in deinen Rest passen</span></button>
+        <button class="menu-item" data-go="rezepte"><b>Rezepte</b><span>Passend zu deinem Rest und deinen Angaben</span></button>
         <button class="menu-item" data-go="einkauf"><b>Einkaufen</b><span>Liste aus deinen Zielen</span></button>
       </div>
     </div>
 
-    <div class="menu-gruppe" data-gruppe="coaching">
-      <button class="menu-kopf" aria-expanded="false"><b>Coaching</b><span class="chev-ab"></span></button>
+    <div class="menu-gruppe" data-gruppe="training">
+      <button class="menu-kopf" aria-expanded="false"><b>Training</b><span class="chev-ab"></span></button>
       <div class="menu-unter" hidden>
+        <button class="menu-item" data-go="plaene"><b>Trainingspläne</b><span>Für dein Ziel und deine Zeit</span></button>
         <button class="menu-item" data-go="uebungen"><b>Übungen</b><span>Foto, Muskeln, Erklärvideo</span></button>
-        <button class="menu-item" data-go="plaene"><b>Trainingspläne</b><span>Aus den Übungen, für dein Ziel</span></button>
-        <button class="menu-item" data-go="checkin"><b>Check-in</b><span>Energie, Schlaf, Stimmung</span></button>
-        <button class="menu-item" data-go="wochencheck"><b>Wochen Check-in</b><span>Mittwoch Bilanz, Sonntag Rückblick</span></button>
-        <button class="menu-item" data-go="bericht"><b>Bericht</b><span>Woche und Monat, zum Weitergeben</span></button>
-        <button class="menu-item" data-go="bereitschaft"><b>Bereitschaft</b><span>Tagesform und Belastung aus deinen Daten</span></button>
-        <button class="menu-item" data-go="standards"><b>Mindeststandards</b><span>Deine Untergrenze, jede Woche</span></button>
-        <button class="menu-item" data-go="empfehlungen"><b>Empfehlungen</b><span>Muster und Widersprüche</span></button>
-        <button class="menu-item" data-go="reflexion"><b>Gedächtnis</b><span>Was daevo über dich weiß</span></button>
+        <button class="menu-item" data-go="bereitschaft"><b>Bereitschaft</b><span>Tagesform und Belastung</span></button>
       </div>
     </div>
 
-    <div class="menu-gruppe" data-gruppe="planung">
-      <button class="menu-kopf" aria-expanded="false"><b>Planung und Struktur</b><span class="chev-ab"></span></button>
+    <div class="menu-gruppe" data-gruppe="alltag">
+      <button class="menu-kopf" aria-expanded="false"><b>Alltag</b><span class="chev-ab"></span></button>
       <div class="menu-unter" hidden>
         <button class="menu-item" data-go="tag"><b>Dein Tag</b><span>Briefing, Mittagscheck, Aufgaben</span></button>
-        <button class="menu-item" data-go="balance"><b>Balance</b><span>Wo deine Zeit hingeht</span></button>
         <button class="menu-item" data-go="kalender"><b>Kalender</b><span>Termine, Lücken, Mahlzeiten</span></button>
+        <button class="menu-item" data-go="balance"><b>Balance</b><span>Wo deine Zeit hingeht</span></button>
+        <button class="menu-item" data-go="standards"><b>Mindeststandards</b><span>Deine Untergrenze, jede Woche</span></button>
+      </div>
+    </div>
+
+    <div class="menu-gruppe" data-gruppe="fortschritt">
+      <button class="menu-kopf" aria-expanded="false"><b>Fortschritt</b><span class="chev-ab"></span></button>
+      <div class="menu-unter" hidden>
+        <button class="menu-item" data-go="checkin"><b>Check-ins</b><span>Täglich und zweimal die Woche</span></button>
+        <button class="menu-item" data-go="bericht"><b>Bericht</b><span>Woche und Monat, zum Weitergeben</span></button>
+        <button class="menu-item" data-go="empfehlungen"><b>Auswertung</b><span>Muster und Widersprüche</span></button>
       </div>
     </div>
 
@@ -1310,8 +1329,8 @@ try {
          Menü, das auf etwas hinweist, das die Seite nicht enthält, schickt den
          Leser suchen. -->
     <button class="menu-item leise" data-go="profil"><b>Profil</b>
-      <span data-betreiber>Ziele, Training, Schlüssel, Kosten</span>
-      <span data-nutzer hidden>Ziele, Training, Stimme, Erinnerungen</span>
+      <span data-betreiber>Ziele, Gedächtnis, Schlüssel, Kosten</span>
+      <span data-nutzer hidden>Ziele, Gedächtnis, Stimme, Erinnerungen</span>
     </button>
   </nav>
 </main>

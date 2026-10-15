@@ -1,5 +1,5 @@
 /**
- * Die Ansicht "Empfehlungen".
+ * Die Ansicht "Rezepte".
  *
  * Eine Karte auf einmal, nicht eine Liste. Eine Liste mit zwanzig Rezepten
  * liest man quer und entscheidet sich für keines. Eine Karte stellt eine Frage:

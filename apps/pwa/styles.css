@@ -2959,3 +2959,17 @@ h1,
 .verschieben .pill { display: inline-flex; align-items: center; line-height: 1.2; margin: 0; }
 .verschieben-datum { position: relative; overflow: hidden; cursor: pointer; }
 .verschieben-datum input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+/* Der Weg vom Profil zum Gedächtnis. Eine Zeile mit Winkel wie die Zeilen im
+   Trainingsplan, kein Knopf mit Füllung: sie führt woandershin und ist keine
+   Handlung auf dieser Seite. */
+.profil-link {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s-3);
+  width: 100%; text-align: left; margin: 0 0 var(--s-4); padding: var(--s-3) var(--s-4);
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text);
+}
+.profil-link b { display: block; font-size: 15px; }
+.profil-link small { display: block; color: var(--muted); font-size: 13px; font-weight: 400; margin-top: 2px; }
+.profil-link .chev-re { flex-shrink: 0; width: 8px; height: 8px; border-right: 2px solid var(--muted); border-top: 2px solid var(--muted); transform: rotate(45deg); }
+/* Reiter über einem Check-in: derselbe Umschalter wie bei Übungen und Plänen. */
+[data-view="checkin"] .ue-modus, [data-view="wochencheck"] .ue-modus { margin-bottom: var(--s-4); }

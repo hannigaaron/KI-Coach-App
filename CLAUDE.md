@@ -190,7 +190,7 @@ das. Wer im Stylesheet etwas einfügt, prüft die Klammerbilanz.
 
 ## Übungen
 
-Die Ansicht "Übungen" (Menü, Gruppe Coaching) hat zwei Reiter, Übungen und Trainingspläne. Die Übungen sind ein Raster aus Foto Kacheln
+Die Ansicht "Übungen" (Menü, Gruppe Training) hat zwei Reiter, Übungen und Trainingspläne. Die Übungen sind ein Raster aus Foto Kacheln
 mit Suche und einer Zeile Gruppenfilter. Ein Tipp öffnet die Detailseite: das
 Foto bis an den Rand, darauf Gruppe und Name, darunter Haupt und Hilfsmuskeln,
 Niveau, Wiederholungen, Gerät, drei bis vier Schritte. Der Knopf zum
@@ -1315,10 +1315,10 @@ Offen bleiben sieben. Die beiden Fotowerkzeuge brauchen ein Modell, daran
 Wortmuster nicht kennt. `profil_aendern` und `einkaufsliste_abhaken` sind
 machbar und stehen aus.
 
-## Empfehlungen
+## Rezepte
 
 `packages/core/src/rezepte.ts` rechnet, `rezepte-daten.ts` trägt die Rezepte,
-`apps/pwa/js/rezepte-ui.js` zeigt. Menü, Ernährung, Empfehlungen.
+`apps/pwa/js/rezepte-ui.js` zeigt. Menü, Ernährung, Rezepte.
 
 Eine Karte auf einmal: Passung in Prozent, Name, Minuten, ein Kreuz für das
 nächste Rezept und ein Plus zum Eintragen. Eine Liste mit zwanzig Rezepten
@@ -1537,7 +1537,7 @@ deshalb stehen die häufigsten Gründe vorn.
 
 ## Der Bericht
 
-`packages/core/src/bericht.ts`, Ansicht unter Coaching.
+`packages/core/src/bericht.ts`, Ansicht unter Fortschritt.
 
 Die zwei Check-ins fragen ab, wie eine Woche sich angefühlt hat. Was fehlte,
 ist der Blick auf das, was wirklich passiert ist, über mehrere Wochen und auf
@@ -1842,7 +1842,7 @@ nie gezeigt: `healthStandZeigen` lief nur beim Öffnen des Profils.
 ## Belastung und Bereitschaft
 
 `packages/core/src/belastung.ts` und `packages/core/src/bereitschaft.ts`,
-Ansicht unter Coaching.
+Ansicht unter Training.
 
 Die Trainingslücke beantwortet eine grobe Frage: steht da seit vier Tagen
 nichts. Sie sieht den umgekehrten Fall nicht. Wer jeden Tag trainiert und dabei
@@ -2058,16 +2058,38 @@ eine Sicherung aus einer älteren Fassung eingespielt wird.
 Speicher. Laufen beide auseinander, fehlten sonst Tage in der Sicherung, ohne
 dass es jemand merkt.
 
-## Das Menue
+## Das Menü
 
-Fünf Einträge statt vierzehn: Assistent, Ernährung, Coaching, Planung und
-Struktur, Profil. Die drei mittleren klappen ihre Unterpunkte auf, immer nur
-eine Gruppe. Eine Liste aus vierzehn gleich aussehenden Zeilen zwingt dazu,
-jedes Mal alle zu lesen.
+Ganz oben der Assistent, darunter vier Gruppen, unten das Profil. Jede Gruppe
+beantwortet eine Frage und hat höchstens vier Punkte:
+
+- Ernährung, was esse ich: Heute, Essen erfassen, Rezepte, Einkaufen.
+- Training, wie trainiere ich: Trainingspläne, Übungen, Bereitschaft.
+- Alltag, wie läuft mein Tag: Dein Tag, Kalender, Balance, Mindeststandards.
+- Fortschritt, wie entwickle ich mich: Check-ins, Bericht, Auswertung.
+
+Vorher hatte Coaching neun Punkte und mischte Training, Rückblick und
+Persönliches. Neun gleich aussehende Zeilen sind die lange Liste, die das Menü
+loswerden sollte. Aufgeklappt wird immer nur eine Gruppe.
+
+Zwei Seiten hiessen "Empfehlungen": die Rezepte und die Muster und
+Widersprüche. Zwei Ziele mit demselben Namen nimmt niemand als zwei wahr.
+Jetzt "Rezepte" und "Auswertung".
+
+Täglicher Check-in und Wochenbogen sind ein Menüpunkt mit zwei Reitern,
+`data-ci-reiter`. Die Kopfzeile bleibt in beiden "Check-ins", sonst sieht der
+Wechsel des Reiters aus wie ein Wechsel der Seite.
+
+Die Gespräche stehen nur noch als Knopf oben im Assistenten, dort sucht man
+sie. Das Gedächtnis steht im Profil, direkt unter den Kennzahlen: "was weiss
+die App über mich" gehört zu den eigenen Angaben.
+
+Wer einen Menüpunkt umbenennt, sucht auch in den Antworten des Coaches nach
+dem alten Weg. Sätze wie "im Menü unter Kalender" stehen in `assistant.js`
+und `agent.ts`.
 
 Die Kennzahlen oben auf Heute sind antippbar und führen in die Ansicht dahinter.
-Ernährung führt auf den Essen Reiter, dort steht der Fotoknopf direkt neben der
-Texteingabe. Eine Zahl, auf die man tippen kann, spart den Umweg über das Menue.
+Eine Zahl, auf die man tippen kann, spart den Umweg über das Menü.
 
 ## Zwei Fassungen aus einer Quelle
 

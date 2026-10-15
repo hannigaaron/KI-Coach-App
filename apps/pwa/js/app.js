@@ -739,7 +739,7 @@ function setupAssistant() {
  * jemand später hinzufügt, bekommt damit einen vernünftigen Übergang, ohne
  * dass er daran denken muss.
  */
-const ANSICHT_TIEFE = ["assistant", "gespraeche", "heute", "essen", "rezepte", "tag", "balance", "bereitschaft", "bericht"];
+const ANSICHT_TIEFE = ["assistant", "gespraeche", "heute", "essen", "rezepte", "tag", "balance", "bereitschaft", "checkin", "wochencheck", "bericht", "profil", "reflexion"];
 
 let letzteAnsicht = "assistant";
 
@@ -1813,7 +1813,9 @@ function wcStart(id) {
 function renderWochencheck() {
   if (!wcBogen) return wcStart();
   const bogen = wcBogen;
-  $("wcTitel").textContent = bogen.titel;
+  // Die Kopfzeile bleibt "Check-ins". Welcher Bogen offen ist, zeigt die
+  // Auswahl darunter, und eine Überschrift, die mit dem Reiter wechselt, sieht
+  // aus wie eine andere Seite.
   $("wcEinleitung").textContent = bogen.einleitung;
 
   const heute = new Date().getDay();
@@ -2604,6 +2606,16 @@ plaeneStarten({
   oeffne: (id) => uebungen.oeffne(id),
   melde: (text) => toast(text),
 });
+
+// Täglicher Check-in und Wochenbogen sind zwei Ansichten, aber ein Menüpunkt.
+// Zwei Einträge für dieselbe Handlung zwingen dazu, jedes Mal zu überlegen,
+// welcher gemeint ist. Der Reiter wechselt die Ansicht, statt sie umzubauen.
+for (const knopf of document.querySelectorAll("[data-ci-reiter]")) {
+  knopf.addEventListener("click", () => showView(knopf.dataset.ciReiter));
+}
+for (const knopf of document.querySelectorAll("[data-go-ansicht]")) {
+  knopf.addEventListener("click", () => showView(knopf.dataset.goAnsicht));
+}
 
 for (const button of document.querySelectorAll("[data-back]")) {
   button.addEventListener("click", () => showView("assistant"));

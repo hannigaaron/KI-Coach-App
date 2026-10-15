@@ -1014,7 +1014,7 @@ export async function runOffline(
     return {
       text:
         "Das Bild kann ich ohne KI Schlüssel nicht ansehen. Bilder auswerten geht nur mit Modell. " +
-        "Trag deinen Schlüssel im Menue unter Profil ein, dann lese ich Teller und Kühlschrank. " +
+        "Trag deinen Schlüssel im Menü unter Profil ein, dann lese ich Teller und Kühlschrank. " +
         "Bis dahin: schreib mir, was drauf ist, dann rechne ich es aus.",
       ausgeführt,
       source: "offline",
