@@ -34,6 +34,12 @@ export interface Aufgabe {
    * dazu, mit welcher Zahl er rechnet.
    */
   dauerAngenommen?: boolean;
+  /**
+   * Nicht vor diesem Tag, JJJJ-MM-TT. Gesetzt, wenn der Nutzer eine Aufgabe
+   * verschiebt. Das ist keine Frist: eine Frist sagt, bis wann etwas fertig
+   * sein muss, dieses Feld sagt, ab wann es wieder auftaucht.
+   */
+  ab?: string | null;
 }
 
 export interface Plan {
@@ -108,6 +114,12 @@ export function priorisiere(eingabe: PlanEingabe): Plan {
   let belegt = 0;
 
   for (const { a } of bewertet) {
+    // Verschoben heisst verschoben. Eine Aufgabe, die heute wieder oben steht,
+    // obwohl man sie bewusst auf morgen gelegt hat, macht den Knopf zur Lüge.
+    if (a.ab && a.ab > eingabe.tag) {
+      (a.ab <= naechsterTag(eingabe.tag) ? morgen : spaeter).push(a);
+      continue;
+    }
     const ueberfaellig = a.faellig ? a.faellig <= eingabe.tag : false;
     if (belegt + a.minuten <= budget) {
       heute.push(a);

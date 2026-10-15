@@ -5,6 +5,9 @@ import {
   todoistAbhaken, todoistAufgaben, todoistIdVon,
 } from "@daevo/coach";
 import {
+  MAHLZEITEN,
+  empfehlungText,
+  rezeptEmpfehlungen,
   abendAbschluss,
   balance,
   balanceEmpfehlung,
@@ -791,7 +794,7 @@ export function kalenderEntfernen(name) {
 export function kalenderStandText() {
   const st = kalenderStand();
   if (st.anzahl === 0) {
-    return "Es ist kein Kalender verbunden. Im Menue unter Kalender lädst du eine ICS Datei hoch "
+    return "Es ist kein Kalender verbunden. Im Menü unter Alltag, Kalender lädst du eine ICS Datei hoch "
       + "oder trägst die Adresse deines Google Kalenders ein. Ohne Kalender schätze ich deine "
       + "freie Zeit aus deinen Schlafenszeiten, statt sie zu messen.";
   }
@@ -814,7 +817,7 @@ export function kalenderStandText() {
   // ist eine Kopie, kein Abo. Was du seitdem eingetragen hast, fehlt hier.
   if (tageHer !== null && tageHer >= 2) {
     teile.push(`Das heisst: alles, was du in den letzten ${tageHer} Tagen im Kalender geändert hast, `
-      + "kenne ich nicht. Der Import ist eine Kopie und kein Abo. Lad ihn im Menue unter Kalender neu.");
+      + "kenne ich nicht. Der Import ist eine Kopie und kein Abo. Lad ihn im Menü unter Alltag, Kalender neu.");
   } else {
     teile.push("Der Import ist eine Kopie und kein Abo. Nach jeder Änderung in deinem Kalender "
       + "musst du ihn hier einmal neu laden, sonst rechne ich mit dem alten Stand.");
@@ -871,7 +874,7 @@ export function tagesablaufUebersicht(tagIso = todayIso()) {
 /** Die nächsten Tage in je einer Zeile. */
 export function kalenderUebersicht(tage = 7) {
   if ((store.getKalender().termine || []).length === 0) {
-    return "Kein Kalender verbunden. Im Menue unter Kalender lässt sich einer hinzufügen.";
+    return "Kein Kalender verbunden. Im Menü unter Alltag, Kalender lässt sich einer hinzufügen.";
   }
   const heute = todayIso();
   const ablaeufe = [];
@@ -1231,6 +1234,26 @@ export function aufgabeUmstufen(id) {
   return a;
 }
 
+/**
+ * Legt eine eigene Aufgabe auf einen späteren Tag.
+ *
+ * Gesetzt wird `ab`, nicht die Frist. Liegt eine Frist vor dem neuen Tag,
+ * wandert sie mit: wer bewusst auf Donnerstag schiebt, weiss, dass Mittwoch
+ * nicht mehr klappt, und eine Frist vor dem Starttag wäre im Wochenplan für
+ * immer gerissen. Aufgaben aus Todoist werden dort verschoben, nicht hier: das
+ * nächste Lesen würde jede Änderung hier überschreiben.
+ */
+export function aufgabeVerschieben(id, tag) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(tag || ""))) return null;
+  const aufgaben = store.getAufgaben();
+  const a = aufgaben.find((x) => x.id === id);
+  if (!a) return null;
+  a.ab = tag;
+  if (a.faellig && a.faellig < tag) a.faellig = tag;
+  store.setAufgaben(aufgaben);
+  return a;
+}
+
 export function aufgabeLoeschen(id) {
   store.setAufgaben(store.getAufgaben().filter((a) => a.id !== id));
 }
@@ -1491,6 +1514,77 @@ export async function schluesselPruefen() {
  * Eintrag im selben Fenster gilt als dieselbe Mahlzeit: wer nachlegt, isst
  * nicht zweimal zu Mittag.
  */
+/**
+ * Rezeptvorschläge für eine Mahlzeit, gerechnet gegen den Rest des Tages.
+ *
+ * Das Ziel der Mahlzeit kommt aus `verteileRest` über alle Mahlzeiten, die
+ * heute noch offen sind, nicht aus dem ganzen Rest. Wer um 13 Uhr fragt,
+ * bekommt ein Mittagessen und kein Gericht über das Budget von Mittag und
+ * Abend zusammen. Ist die gewünschte Art schon vorbei, zählt sie trotzdem mit:
+ * wer um 21 Uhr ein Frühstück für morgen sucht, soll eines bekommen.
+ */
+export function rezeptVorschlaege({ art, jetzt = new Date() } = {}) {
+  const n = dayNumbers();
+  const offen = offeneMahlzeiten(jetzt.getHours(), gegesseneArten(n.data.meals));
+  const gewaehlt = art || offen[0] || "snack";
+  const profil = store.getProfile() || {};
+  // Eine Mahlzeit, die heute schon vorbei ist, plant jemand für morgen. Dann
+  // zählt das volle Tagesziel mit dem üblichen Anteil dieser Mahlzeit, nicht
+  // der Rest von heute. Sonst bekäme um 21 Uhr niemand ein Frühstück.
+  const morgen = !offen.includes(gewaehlt);
+  let anteil;
+  let hinweis = "";
+  if (morgen) {
+    const v = verteileRest({ ...n.targets }, MAHLZEITEN.map((m) => m.art));
+    anteil = v.anteile.find((a) => a.art === gewaehlt);
+  } else {
+    const rest = { kcal: n.rest.kcal, proteinG: Math.max(0, n.rest.proteinG), fatG: Math.max(0, n.rest.fatG), carbsG: Math.max(0, n.rest.carbsG) };
+    const v = verteileRest(rest, offen);
+    anteil = v.anteile.find((a) => a.art === gewaehlt);
+    hinweis = v.hinweise.join(" ");
+  }
+  if (!anteil) {
+    return { art: gewaehlt, offen, morgen, rest: n.rest, ziel: null, empfehlungen: [], ausgeblendet: [], hinweis };
+  }
+  const ziel = { kcal: anteil.kcal, proteinG: anteil.proteinG, fatG: anteil.fatG, carbsG: anteil.carbsG };
+  const { empfehlungen, ausgeblendet } = rezeptEmpfehlungen({
+    ziel, art: gewaehlt, ernaehrung: profil.ernaehrung || {}, vorrat: store.getFridge(),
+  });
+  return { art: gewaehlt, offen, morgen, rest: n.rest, ziel, empfehlungen, ausgeblendet, hinweis };
+}
+
+/**
+ * Trägt eine Rezeptempfehlung als Mahlzeit ein, Posten für Posten.
+ *
+ * Als einzelne Posten und nicht als eine Zeile "Chili, 750 kcal": nur so lässt
+ * sich danach im Editor die Reismenge ändern, wenn es doch weniger war.
+ */
+export function rezeptEintragen(empfehlung, { day = todayIso(), jetzt = Date.now() } = {}) {
+  const entries = empfehlung.posten.map((p) => ({
+    name: p.name, quantity: p.menge,
+    kcal: Math.round(p.kcal), proteinG: Math.round(p.proteinG * 10) / 10,
+    fatG: Math.round(p.fatG * 10) / 10, carbsG: Math.round(p.carbsG * 10) / 10,
+  }));
+  store.addMeal(day, { id: newId(), text: empfehlung.rezept.name, at: jetzt, source: "rezept", entries, feeling: null });
+  return entries;
+}
+
+/** Text für den Coach: die drei besten Rezepte für die nächste Mahlzeit. */
+export function rezeptVorschlagText({ art } = {}) {
+  const r = rezeptVorschlaege({ art });
+  if (!r.ziel) return r.hinweis || "Für heute ist nichts mehr offen, was ein Rezept füllen könnte.";
+  if (r.empfehlungen.length === 0) {
+    return "Zu deinen Angaben passt gerade keines meiner Rezepte. "
+      + (r.ausgeblendet.length ? `Ausgeblendet: ${r.ausgeblendet.slice(0, 3).map((a) => `${a.name} (${a.grund})`).join(", ")}.` : "");
+  }
+  const name = MAHLZEITEN.find((m) => m.art === r.art)?.name || "Mahlzeit";
+  return [
+    `Für dein ${name} sind ${r.ziel.kcal} kcal und ${r.ziel.proteinG} g Protein vorgesehen. Am besten passen:`,
+    ...r.empfehlungen.slice(0, 3).map((e, i) => `${i + 1}. ${empfehlungText(e)}`),
+    "Zum Eintragen unter Ernährung, Rezepte.",
+  ].join("\n");
+}
+
 export function gegesseneArten(mahlzeiten = []) {
   const arten = new Set();
   for (const m of mahlzeiten) {
@@ -2266,6 +2360,11 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
     },
 
     async mahlzeitVorschlagen(wunsch) {
+      // Erst die eigenen Rezepte: deren Zahlen kommen aus dem Rechenkern und
+      // halten Allergien und Ausschlüsse aus dem Fragebogen sicher ein. Der
+      // freie Vorschlag aus dem Vorrat kommt nur, wenn kein Rezept passt.
+      const rezepte = rezeptVorschlaege();
+      if (rezepte.empfehlungen.length) return rezeptVorschlagText();
       const n = dayNumbers();
       const suggestion = await coach.suggestMeal({
         fridge: store.getFridge(),

@@ -21,7 +21,7 @@ import {
 } from "./luecke.js";
 import { healthDateiLesen, healthSchreiben, kurzbefehlSchreiben, schreibBericht } from "./gesundheit.js";
 import {
-  ablaufFuer, ask, aufgabeAnlegenEingestuft, aufgabeLoeschen, aufgabeUmstufen, aufgabenPlan,
+  ablaufFuer, ask, aufgabeAnlegenEingestuft, aufgabeLoeschen, aufgabeUmstufen, aufgabeVerschieben, aufgabenPlan,
   balanceFuer, balanceRat, briefing,
   buildActions, dayNumbers, einkaufslisteText, ensureStandards, greeting, herausforderungSpeichern,
   aktuelleLage, aktivesGespraech, gegesseneArten, gespraechAnlegen, gespraechLoeschen, gespraechNachziehen,
@@ -42,6 +42,7 @@ import { bereichFarbe, anteilsRing, kurzDauer, netzDiagramm, wertungsRing } from
 import { Listener, alleStimmen, istDeutsch, speak, stimmenBereit, stopSpeaking, voiceSupport, waehlbareStimmen } from "./voice.js";
 import { SetupFlow } from "./setup-ui.js";
 import { einfuehrungStarten } from "./einfuehrung.js";
+import { rezepteAnsicht } from "./rezepte-ui.js";
 import { gesundheitHolen, postfachHolen, pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
 
@@ -738,7 +739,7 @@ function setupAssistant() {
  * jemand später hinzufügt, bekommt damit einen vernünftigen Übergang, ohne
  * dass er daran denken muss.
  */
-const ANSICHT_TIEFE = ["assistant", "gespraeche", "heute", "essen", "tag", "balance", "bereitschaft", "bericht"];
+const ANSICHT_TIEFE = ["assistant", "gespraeche", "heute", "essen", "rezepte", "tag", "balance", "bereitschaft", "checkin", "wochencheck", "bericht", "profil", "reflexion"];
 
 let letzteAnsicht = "assistant";
 
@@ -778,6 +779,7 @@ function showView(name) {
   if (name === "checkin") renderCheckins();
   if (name === "reflexion") renderMemories();
   if (name === "einkauf") renderEinkauf();
+  if (name === "rezepte") rezepte.zeichnen();
   // Der Health Abschnitt steht auf der Kalenderseite. Ohne den Aufruf hier
   // blieb sein Stand leer, solange man nicht vorher im Profil war.
   if (name === "kalender") { renderKalender(); healthStandZeigen(); }
@@ -1811,7 +1813,9 @@ function wcStart(id) {
 function renderWochencheck() {
   if (!wcBogen) return wcStart();
   const bogen = wcBogen;
-  $("wcTitel").textContent = bogen.titel;
+  // Die Kopfzeile bleibt "Check-ins". Welcher Bogen offen ist, zeigt die
+  // Auswahl darunter, und eine Überschrift, die mit dem Reiter wechselt, sieht
+  // aus wie eine andere Seite.
   $("wcEinleitung").textContent = bogen.einleitung;
 
   const heute = new Date().getDay();
@@ -2349,6 +2353,13 @@ function anamneseFertig(ergebnis) {
  * Was der Nutzer selbst gesetzt hat, bleibt unangetastet: Stimme, Tonfall,
  * Aussehen, seine Zahlen. Nur was dem Betreiber gehört, wird überschrieben.
  */
+/** Die Empfehlungen. Gerechnet wird in assistant.js, hier wird nur verbunden. */
+const rezepte = rezepteAnsicht({
+  wurzel: document.querySelector('[data-view="rezepte"]'),
+  toast,
+  beiEintrag: () => refreshAll(),
+});
+
 function einfuehrungGesehen() {
   store.setSettings({ ...store.getSettings(), einfuehrungGesehen: true });
 }
@@ -2595,6 +2606,16 @@ plaeneStarten({
   oeffne: (id) => uebungen.oeffne(id),
   melde: (text) => toast(text),
 });
+
+// Täglicher Check-in und Wochenbogen sind zwei Ansichten, aber ein Menüpunkt.
+// Zwei Einträge für dieselbe Handlung zwingen dazu, jedes Mal zu überlegen,
+// welcher gemeint ist. Der Reiter wechselt die Ansicht, statt sie umzubauen.
+for (const knopf of document.querySelectorAll("[data-ci-reiter]")) {
+  knopf.addEventListener("click", () => showView(knopf.dataset.ciReiter));
+}
+for (const knopf of document.querySelectorAll("[data-go-ansicht]")) {
+  knopf.addEventListener("click", () => showView(knopf.dataset.goAnsicht));
+}
 
 for (const button of document.querySelectorAll("[data-back]")) {
   button.addEventListener("click", () => showView("assistant"));
@@ -3100,6 +3121,56 @@ function renderTag() {
     : "Die Antwort geht an den Coach, der darauf eingeht.";
 }
 
+const AUFGABE_ZEICHEN = {
+  haken: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  kreuz: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg>',
+  kalender: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>',
+};
+
+/** JJJJ-MM-TT in Ortszeit, `tage` nach heute. */
+function tagIn(tage) {
+  const d = new Date();
+  d.setDate(d.getDate() + tage);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function tagGesagt(iso) {
+  if (iso === tagIn(1)) return "morgen";
+  if (iso === tagIn(2)) return "übermorgen";
+  return new Date(`${iso}T12:00:00`).toLocaleDateString("de-DE", { weekday: "short", day: "numeric", month: "short" });
+}
+
+/**
+ * Die Zeile unter einer Aufgabe, die nach dem Tag fragt. Im Listeneintrag und
+ * nicht als schwebendes Menü: ein Menü über einer Liste deckt die nächste
+ * Aufgabe zu und sitzt am unteren Rand halb ausserhalb des Bildschirms.
+ */
+function verschiebenZeile(a) {
+  const zeile = document.createElement("div");
+  zeile.className = "verschieben";
+  zeile.innerHTML =
+    `<button type="button" class="pill" data-tag="${tagIn(1)}">Morgen</button>` +
+    `<button type="button" class="pill" data-tag="${tagIn(2)}">Übermorgen</button>` +
+    `<label class="pill verschieben-datum">Tag wählen<input type="date" min="${tagIn(1)}" aria-label="Tag wählen"></label>`;
+  const setzen = (tag) => {
+    if (!tag || tag <= todayIso()) { toast("Wähl einen Tag nach heute."); return; }
+    aufgabeVerschieben(a.id, tag);
+    renderTag();
+    toast(`Verschoben auf ${tagGesagt(tag)}: ${a.text}`);
+  };
+  zeile.addEventListener("click", (event) => {
+    const b = event.target.closest("[data-tag]");
+    if (b) setzen(b.dataset.tag);
+  });
+  const feld = zeile.querySelector("input");
+  feld.addEventListener("change", () => setzen(feld.value));
+  // Auf dem Rechner öffnet ein Tipp aufs Etikett den Kalender sonst nicht.
+  zeile.querySelector(".verschieben-datum").addEventListener("click", () => {
+    try { feld.showPicker?.(); } catch { /* ohne Nutzergeste oder alter Browser: das Feld bleibt bedienbar */ }
+  });
+  return zeile;
+}
+
 function fuelleAufgaben(id, aufgaben, leerText) {
   const el = $(id);
   el.innerHTML = "";
@@ -3109,7 +3180,7 @@ function fuelleAufgaben(id, aufgaben, leerText) {
   }
   for (const a of aufgaben) {
     const li = document.createElement("li");
-    const frist = a.faellig ? `, fällig ${a.faellig}` : "";
+    const frist = (a.faellig ? `, fällig ${a.faellig === todayIso() ? "heute" : tagGesagt(a.faellig)}` : "") + (a.ab && a.ab > todayIso() ? `, ab ${tagGesagt(a.ab)}` : "");
     const wichtig = ["nebensächlich", "normal", "wichtig"][a.wichtigkeit - 1] || "normal";
     const grund = a.warum ? ` (${a.warum})` : "";
     const ausTodoist = a.quelle === "todoist";
@@ -3131,29 +3202,46 @@ function fuelleAufgaben(id, aufgaben, leerText) {
       renderTag();
       refreshAll();
     });
+    // Drei Handlungen als Zeichen statt als Wörter. "Erledigt", "Streichen" und
+    // "Verschieben" nebeneinander nehmen dem Titel auf dem Handy die halbe
+    // Breite. Der Name steht im aria-label und im Tooltip.
+    li.classList.add("aufgabe");
     const knoepfe = document.createElement("div");
-    const fertig = document.createElement("button");
-    fertig.className = "ghost";
-    fertig.textContent = "Erledigt";
-    fertig.addEventListener("click", async () => {
+    knoepfe.className = "aufgabe-knoepfe";
+    const knopf = (name, zeichen, klick) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "aufgabe-knopf";
+      b.title = name;
+      b.setAttribute("aria-label", `${name}: ${a.text}`);
+      b.innerHTML = AUFGABE_ZEICHEN[zeichen];
+      b.addEventListener("click", klick);
+      knoepfe.appendChild(b);
+      return b;
+    };
+    const fertig = knopf("Erledigt", "haken", async () => {
       fertig.disabled = true;
       const ergebnis = await aufgabeErledigen(a.id);
       renderTag();
       refreshAll();
       toast(ergebnis.ok ? "Abgehakt" : ergebnis.text, ergebnis.ok ? 2600 : 4200);
     });
-    knoepfe.appendChild(fertig);
-    // Löschen nur bei eigenen Aufgaben. Eine Aufgabe in Todoist auf einen
-    // Tipp hin zu löschen, wäre ein Eingriff in eine fremde Liste.
+    // Streichen und Verschieben nur bei eigenen Aufgaben. Eine Aufgabe in
+    // Todoist auf einen Tipp hin zu löschen wäre ein Eingriff in eine fremde
+    // Liste, und ein hier gesetzter Tag wäre beim nächsten Lesen wieder weg.
     if (!ausTodoist) {
-      const weg = document.createElement("button");
-      weg.className = "ghost";
-      weg.textContent = "Weg";
-      weg.addEventListener("click", () => {
+      const schieben = knopf("Verschieben", "kalender", () => {
+        const offen = li.querySelector(".verschieben");
+        if (offen) { offen.remove(); schieben.setAttribute("aria-expanded", "false"); return; }
+        schieben.setAttribute("aria-expanded", "true");
+        li.appendChild(verschiebenZeile(a));
+      });
+      schieben.setAttribute("aria-expanded", "false");
+      knopf("Streichen", "kreuz", () => {
         aufgabeLoeschen(a.id);
         renderTag();
+        toast(`Gestrichen: ${a.text}`);
       });
-      knoepfe.appendChild(weg);
     }
     li.appendChild(knoepfe);
     el.appendChild(li);

@@ -87,7 +87,7 @@ export function wochenplan(e: WochenplanEingabe): Wochenplan {
   const naechsteWoche: Aufgabe[] = [];
 
   for (const a of offen) {
-    const kandidaten = tage.filter((t) => !a.faellig || t.tag <= a.faellig);
+    const kandidaten = tage.filter((t) => (!a.faellig || t.tag <= a.faellig) && (!a.ab || t.tag >= a.ab));
     const tag = kandidaten.find((t) => t.budgetMinuten - t.geplantMinuten >= a.minuten);
     if (tag) {
       tag.aufgaben.push(a);

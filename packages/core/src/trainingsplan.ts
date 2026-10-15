@@ -24,6 +24,18 @@
  *   andere 2016, Helms und andere 2016.
  * - Die Dauer ist eine Schätzung aus Sätzen, Pausen und Aufbau, keine Messung.
  *
+ * Regeln der App, keine Studienergebnisse, und als solche benannt:
+ *
+ * - Bis 45 Minuten gibt es keine Isolation. Jede Einheit bewegt Knie, Hüfte,
+ *   drückt, zieht und hat eine Rumpfübung. Seitheben in einer halben Stunde
+ *   Ganzkörper heisst, dass dafür eine Grundbewegung fehlt. Passt die Zeit
+ *   nicht, werden Sätze und Pausen gekürzt, nie eine Bewegung.
+ * - Einsteiger bekommen für die Grundübungen geführte Geräte, wo es welche
+ *   gibt. Die Bahn ist vorgegeben, und an der Brustpresse kann niemand die
+ *   Kurzhanteln über dem Gesicht verlieren.
+ * - Die schwerste Übung kommt zuerst. Wer müde in die Beinpresse geht, macht
+ *   dort die Fehler.
+ *
  * Nicht Teil davon: Verletzungen, Vorerkrankungen, Geräte, die ein Studio nicht
  * hat. Das ist ein Gerüst und kein individuelles Coaching.
  */
@@ -98,7 +110,9 @@ type Platz =
 const PASST: Record<Platz, (e: PlanUebung) => boolean> = {
   kniebeuge: (e) => e.pattern === "knee_dominant" && e.mechanics === "compound",
   einbein: (e) => e.pattern === "unilateral_legs",
-  huefte: (e) => e.pattern === "hip_dominant" && e.mechanics === "compound" && e.id !== "kettlebell-swing",
+  // Die Hyperextension ist in der Datenbank Isolation, als Bewegung aber eine
+  // Hüftstreckung auf einem Gerät. Für Einsteiger ist sie die geführte Hüftübung.
+  huefte: (e) => e.pattern === "hip_dominant" && (e.mechanics === "compound" || e.id === "rueckenstrecker-hyperextension") && e.id !== "kettlebell-swing",
   beinbeuger: (e) => e.pattern === "knee_flexion",
   waden: (e) => e.pattern === "calves",
   druecken_h: (e) => (e.pattern === "horizontal_push" || e.pattern === "incline_push") && e.mechanics === "compound" && e.gruppe === "brust",
@@ -115,7 +129,56 @@ const PASST: Record<Platz, (e: PlanUebung) => boolean> = {
 /** Mehrgelenkige Plätze zuerst, Isolation hinten. Die Reihenfolge der Liste ist die Rangfolge beim Kürzen. */
 const ISOLATION: ReadonlySet<Platz> = new Set<Platz>(["beinbeuger", "waden", "schulter", "brust_iso", "bizeps", "trizeps", "rumpf"]);
 
+/**
+ * Wie viel eine Übung auf diesem Platz dem Körper abverlangt, kleiner heisst
+ * schwerer. Beine und Hüfte bewegen die meiste Masse, danach Drücken und
+ * Ziehen über den Oberkörper, Isolation und Rumpf zuletzt. Die Rumpfübung
+ * steht ganz hinten, weil ein müder Rumpf jede Grundübung danach unsicherer
+ * macht.
+ */
+const SCHWERE: Record<Platz, number> = {
+  kniebeuge: 0, huefte: 0, einbein: 1, druecken_h: 2, ziehen_h: 2, ziehen_v: 2, druecken_v: 3,
+  beinbeuger: 4, waden: 4, schulter: 4, brust_iso: 4, bizeps: 4, trizeps: 4, rumpf: 5,
+};
+
+/** Bis zu dieser Länge enthält ein Plan nur Grundübungen und eine Rumpfübung. */
+export const KURZ_BIS_MIN = 45;
+
+/** Die Grundübungen, bei denen ein Einsteiger an ein geführtes Gerät gehört. */
+const GRUNDPLATZ: ReadonlySet<Platz> = new Set<Platz>(["kniebeuge", "einbein", "huefte", "druecken_h", "druecken_v", "ziehen_h", "ziehen_v"]);
+
+/**
+ * Was ein Einsteiger statt eines Platzes bekommt, der nur freie Gewichte kennt.
+ * Für Schulterdrücken gibt es in der Datenbank keine Maschine, Ausfallschritte
+ * gehen nur mit Kurzhanteln.
+ */
+const EINSTEIGER_ERSATZ: Partial<Record<Platz, Platz>> = { druecken_v: "druecken_h", einbein: "kniebeuge" };
+
+/** 0 geführt, 1 eigenes Körpergewicht, 2 freie Gewichte. */
+function fuehrung(e: PlanUebung): number {
+  if (e.equipment === "machine" || e.equipment === "cable") return 0;
+  if (e.equipment === "bodyweight") return 1;
+  return 2;
+}
+
 interface Tagesvorlage { titel: string; fokus: string; plaetze: Platz[] }
+
+// Kurze Einheiten: fünf Bewegungen, keine Isolation. Die Varianten wechseln
+// zwischen Kniebeuge und Einbein, waagerecht und senkrecht, damit über die Woche
+// alles vorkommt, ohne dass eine Einheit länger wird.
+const KURZ_FOKUS = "Knie, Hüfte, Drücken, Ziehen, Rumpf";
+const K_A: Tagesvorlage = { titel: "Ganzkörper A", fokus: KURZ_FOKUS, plaetze: ["kniebeuge", "huefte", "druecken_h", "ziehen_h", "rumpf"] };
+const K_B: Tagesvorlage = { titel: "Ganzkörper B", fokus: KURZ_FOKUS, plaetze: ["huefte", "einbein", "druecken_v", "ziehen_v", "rumpf"] };
+const K_C: Tagesvorlage = { titel: "Ganzkörper C", fokus: KURZ_FOKUS, plaetze: ["kniebeuge", "huefte", "druecken_h", "ziehen_v", "rumpf"] };
+const K_D: Tagesvorlage = { titel: "Ganzkörper D", fokus: KURZ_FOKUS, plaetze: ["huefte", "einbein", "druecken_v", "ziehen_h", "rumpf"] };
+const K_E: Tagesvorlage = { ...K_A, titel: "Ganzkörper E" };
+
+const KURZ_VORLAGEN: Record<PlanTage, Tagesvorlage[]> = {
+  2: [K_A, K_B],
+  3: [K_A, K_B, K_C],
+  4: [K_A, K_B, K_C, K_D],
+  5: [K_A, K_B, K_C, K_D, K_E],
+};
 
 // Pro Tag ein Hauptplatz für die Beine, ein Drücken, ein Ziehen, danach Zubehör. Mehr
 // Beinplätze ließen die Beine auf das Doppelte der Brust kommen, und der Plan wäre
@@ -190,12 +253,35 @@ export function uebungsplanBauen(wunsch: PlanWunsch, uebungen: PlanUebung[]): Ue
   const imPlan = new Map<string, number>();
   const einheiten: PlanEinheit[] = [];
 
-  for (const vorlage of VORLAGEN[wunsch.tage]) {
+  const kurz = wunsch.minuten <= KURZ_BIS_MIN;
+  const einsteiger = wunsch.niveau === "beginner";
+
+  for (const vorlage of (kurz ? KURZ_VORLAGEN : VORLAGEN)[wunsch.tage]) {
     const gewaehlt: Array<{ e: PlanUebung; platz: Platz }> = [];
     const benutzt = new Set<string>();
 
-    for (const platz of vorlage.plaetze) {
-      const kandidaten = erlaubt.filter((e) => PASST[platz](e) && !benutzt.has(e.id));
+    const kandidatenFuer = (platz: Platz): PlanUebung[] => {
+      const alle = erlaubt.filter((e) => PASST[platz](e) && !benutzt.has(e.id));
+      if (!einsteiger || !GRUNDPLATZ.has(platz) || !alle.length) return alle;
+      // Einsteiger: nur die am stärksten geführte Stufe, die es für diesen Platz gibt.
+      const beste = Math.min(...alle.map(fuehrung));
+      return alle.filter((e) => fuehrung(e) === beste);
+    };
+
+    for (const vorlagePlatz of vorlage.plaetze) {
+      let platz = vorlagePlatz;
+      let kandidaten = kandidatenFuer(platz);
+      const ersatz = EINSTEIGER_ERSATZ[platz];
+      if (einsteiger && ersatz && (!kandidaten.length || kandidaten.every((e) => fuehrung(e) === 2))) {
+        platz = ersatz;
+        kandidaten = kandidatenFuer(platz);
+      }
+      if (einsteiger && GRUNDPLATZ.has(platz) && kandidaten.every((e) => fuehrung(e) === 2)) {
+        // Eher eine Übung weniger als Kurzhanteln über dem Gesicht eines Einsteigers.
+        // Gilt nur, wenn die Datenbank für diesen Platz überhaupt Geführtes kennt.
+        const gefuehrtBekannt = erlaubt.some((e) => PASST[platz](e) && fuehrung(e) < 2);
+        if (gefuehrtBekannt) continue;
+      }
       if (!kandidaten.length) continue;
       // Wer schon in dieser Woche dran war, kommt später. Danach zählt der Abstand
       // zum eigenen Niveau, dann ein stabiler Streuwert für Abwechslung.
@@ -207,20 +293,41 @@ export function uebungsplanBauen(wunsch: PlanWunsch, uebungen: PlanUebung[]): Ue
       gewaehlt.push({ e: treffer, platz });
       benutzt.add(treffer.id);
     }
+    // Stabil sortiert: bei gleicher Schwere bleibt die Reihenfolge der Vorlage.
+    // Eine Hüftübung ohne Last von aussen, Hyperextension oder Glute Bridge,
+    // ist leichter als die Beinpresse und rückt hinter sie.
+    const schwere = ({ e, platz }: { e: PlanUebung; platz: Platz }) =>
+      SCHWERE[platz] + (platz === "huefte" && (e.mechanics !== "compound" || e.equipment === "bodyweight") ? 1.5 : 0);
+    gewaehlt.sort((a, b) => schwere(a) - schwere(b));
 
-    // Von hinten kürzen, bis die Einheit in die Zeit passt, aber nie unter drei Übungen.
-    const baue = (anzahl: number, saetzeMinus: number): PlanPosition[] =>
+    const baue = (anzahl: number, saetzeMinus: number, pauseMax = Infinity): PlanPosition[] =>
       gewaehlt.slice(0, anzahl).map(({ e, platz }) => {
         const d = dosis(e, platz, wunsch);
-        return { id: e.id, name: e.name, saetze: Math.max(1, d.saetze - saetzeMinus), wdh: d.wdh, pauseSek: d.pauseSek, reserve: d.reserve };
+        return {
+          // Gekürzt wird nicht unter zwei Sätze, ausser die Übung hatte nie mehr.
+          id: e.id, name: e.name, saetze: Math.max(Math.min(2, d.saetze), d.saetze - saetzeMinus), wdh: d.wdh,
+          pauseSek: Math.min(d.pauseSek, pauseMax), reserve: d.reserve,
+        };
       });
     let positionen: PlanPosition[] = [];
-    // Erst mit vollen Sätzen, dann mit je einem Satz weniger, wenn sonst unter vier Übungen bleiben.
-    for (const minus of [0, 1]) {
-      let anzahl = gewaehlt.length;
-      while (anzahl > 3 && dauerMin(baue(anzahl, minus)) > wunsch.minuten) anzahl--;
-      positionen = baue(anzahl, minus);
-      if (positionen.length >= 4 || minus === 1 || gewaehlt.length < 4) break;
+    if (kurz) {
+      // Kurz heisst: alle fünf Bewegungen bleiben. Gekürzt werden erst die
+      // Pausen, dann die Sätze, bis die Einheit passt. Unter zwei Sätze geht es
+      // nur, wenn sonst gar nichts mehr passt.
+      const stufen: Array<[number, number]> = [[0, Infinity], [0, 120], [0, 90], [1, 120], [1, 90], [1, 75], [1, 60], [2, 60]];
+      for (const [minus, pause] of stufen) {
+        positionen = baue(gewaehlt.length, minus, pause);
+        if (dauerMin(positionen) <= wunsch.minuten) break;
+      }
+    } else {
+      // Von hinten kürzen, bis die Einheit in die Zeit passt, aber nie unter drei Übungen.
+      // Erst mit vollen Sätzen, dann mit je einem Satz weniger, wenn sonst unter vier Übungen bleiben.
+      for (const minus of [0, 1]) {
+        let anzahl = gewaehlt.length;
+        while (anzahl > 3 && dauerMin(baue(anzahl, minus)) > wunsch.minuten) anzahl--;
+        positionen = baue(anzahl, minus);
+        if (positionen.length >= 4 || minus === 1 || gewaehlt.length < 4) break;
+      }
     }
     for (const p of positionen) imPlan.set(p.id, (imPlan.get(p.id) ?? 0) + 1);
     einheiten.push({ titel: vorlage.titel, fokus: vorlage.fokus, positionen, dauerMin: dauerMin(positionen) });
@@ -267,7 +374,13 @@ function hinweise(w: PlanWunsch, einheiten: PlanEinheit[], saetze: Record<string
   }
   const zuLang = einheiten.filter((e) => e.dauerMin > w.minuten);
   if (zuLang.length) aus.push(`${zuLang.map((e) => e.titel).join(", ")} dauert voraussichtlich etwas länger als ${w.minuten} Minuten. Die Dauer ist eine Schätzung aus Sätzen und Pausen.`);
-  if (w.tage === 2) aus.push("Bei zwei Tagen trainierst du jede Muskelgruppe einmal pro Woche mit Schwerpunkt. Ab drei Tagen wird jede Gruppe zweimal getroffen.");
+  if (w.minuten <= KURZ_BIS_MIN) {
+    aus.push(`Bis ${KURZ_BIS_MIN} Minuten enthält jede Einheit nur Grundübungen: Knie, Hüfte, Drücken, Ziehen und eine Rumpfübung. Die schwerste Übung kommt zuerst. Isolation ginge in dieser Zeit auf Kosten einer Grundbewegung.`);
+  }
+  if (w.niveau === "beginner") {
+    aus.push("Als Einsteiger bekommst du für Beine, Drücken und Ziehen geführte Geräte, wo es welche gibt. Die Bahn ist vorgegeben, die Technik kann weniger schiefgehen.");
+  }
+  if (w.tage === 2 && w.minuten > KURZ_BIS_MIN) aus.push("Bei zwei Tagen trainierst du jede Muskelgruppe einmal pro Woche mit Schwerpunkt. Ab drei Tagen wird jede Gruppe zweimal getroffen.");
   return aus;
 }
 

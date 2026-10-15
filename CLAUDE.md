@@ -31,6 +31,14 @@ Die Logodateien liegen in `apps/pwa/brand/` und tragen die Schrift als Pfade.
 Nie durch neu gesetzten Text ersetzen. Vollständige Richtlinie in
 `docs/BRAND.md`.
 
+## PDFs nie direkt lesen
+
+Der Nutzer will Token sparen. Ein PDF, das er schickt, wird zuerst mit
+`scripts/pdf-zu-md.py` in Markdown umgewandelt, und gelesen wird nur das
+Markdown. Ein PDF als Datei zu öffnen schickt jede Seite als Bild mit und
+kostet ein Vielfaches. Nur Seiten, die als Text leer herauskommen, werden
+einzeln angesehen, und nur wenn es für die Aufgabe nötig ist.
+
 ## Was das Projekt ist
 
 Ein digitaler Ernährungs- und Fitnesscoach. Er erfasst Mahlzeiten per Sprache
@@ -182,7 +190,7 @@ das. Wer im Stylesheet etwas einfügt, prüft die Klammerbilanz.
 
 ## Übungen
 
-Die Ansicht "Übungen" (Menü, Gruppe Coaching) hat zwei Reiter, Übungen und Trainingspläne. Die Übungen sind ein Raster aus Foto Kacheln
+Die Ansicht "Übungen" (Menü, Gruppe Training) hat zwei Reiter, Übungen und Trainingspläne. Die Übungen sind ein Raster aus Foto Kacheln
 mit Suche und einer Zeile Gruppenfilter. Ein Tipp öffnet die Detailseite: das
 Foto bis an den Rand, darauf Gruppe und Name, darunter Haupt und Hilfsmuskeln,
 Niveau, Wiederholungen, Gerät, drei bis vier Schritte. Der Knopf zum
@@ -221,7 +229,31 @@ Darstellung in `apps/pwa/js/plaene.js`. Er läuft ohne Schlüssel, ist bei
 gleicher Eingabe immer derselbe und jede Zahl hängt an einer Regel im Code.
 
 Eingaben: Tage pro Woche (2 bis 5), Minuten je Einheit, Erfahrung, Ziel,
-Entlastungswoche. Aufbau: zwei Tage Ganzkörper A und B, drei Tage Ganzkörper A,
+Entlastungswoche.
+
+Bis 45 Minuten gibt es keine Isolation. Jede Einheit hat genau fünf
+Bewegungen: Knie (Kniebeuge oder Einbein), Hüfte, Drücken, Ziehen und eine
+Rumpfübung, in vier Varianten A bis D, die zwischen waagerecht und senkrecht
+wechseln. Seitheben in einer halben Stunde Ganzkörper heisst, dass dafür eine
+Grundbewegung fehlt. Passt die Zeit nicht, kürzt der Plan erst die Pausen,
+dann die Sätze, nie eine Bewegung und nie unter zwei Sätze. Das ist eine Regel
+der App, keine Studie, und so steht es auch im Hinweis.
+
+Einsteiger bekommen für die Grundübungen geführte Geräte, wo die Datenbank
+welche kennt: Beinpresse, Brustpresse, Rudern an Maschine oder Kabel, Latzug,
+Hyperextension. Stufen: Maschine und Kabel, dann Körpergewicht, dann freie
+Gewichte. Für Schulterdrücken gibt es keine Maschine, deshalb wird daraus bei
+Einsteigern Drücken waagerecht, und Einbein wird Kniebeuge. Bleibt für einen
+Platz nur ein freies Gewicht, obwohl die Datenbank Geführtes kennt, fällt der
+Platz weg. Lieber eine Übung weniger als Kurzhanteln über dem Gesicht eines
+Einsteigers. Isolation ist davon ausgenommen, ein Kurzhantelcurl ist kein
+Risiko.
+
+Die schwerste Übung kommt zuerst, über `SCHWERE`: Beine und Hüfte, dann
+Einbein, dann Drücken und Ziehen, Isolation, Rumpf zuletzt. Eine Hüftübung
+ohne Last von aussen rückt hinter die Beinpresse.
+
+Ab 60 Minuten gilt der Aufbau: zwei Tage Ganzkörper A und B, drei Tage Ganzkörper A,
 B und C, vier Tage Ober und Unterkörper zweimal, fünf Tage Push, Pull, Beine,
 Oberkörper, Unterkörper. Je Tag ein Hauptplatz für die Beine, ein Drücken, ein
 Ziehen, danach Zubehör. Mehr Beinplätze ließen die Beine auf das Doppelte der
@@ -251,7 +283,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 938 Tests
+npm test           # 965 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -725,6 +757,28 @@ der Kalenderübersicht, und die kennt nur Termine und keine Aufgaben.
 "Wochenplan" ging aus demselben Grund an den Kalender.
 
 Das Morgenbriefing benutzt jetzt den Plan mit Uhrzeiten.
+
+## Aufgaben verschieben
+
+Auf "Dein Tag" trägt jede eigene Aufgabe drei Zeichen statt drei Wörter:
+Haken für erledigt, Kalender für verschieben, Kreuz für streichen. Drei Wörter
+nebeneinander nehmen dem Titel auf dem Handy die halbe Breite. Der Name steht
+im aria-label und im Tooltip.
+
+Verschieben setzt `ab` und nicht die Frist. Eine Frist sagt, bis wann etwas
+fertig sein muss, `ab` sagt, ab wann es wieder auftaucht. `priorisiere` legt
+eine Aufgabe mit `ab` nach heute auf morgen oder später, auch wenn heute Zeit
+wäre: eine bewusst verschobene Aufgabe, die wieder oben steht, macht den Knopf
+zur Lüge. Der Wochenplan legt sie nicht vor diesen Tag. Liegt eine Frist vor
+dem neuen Tag, wandert sie mit, sonst wäre sie im Wochenplan für immer
+gerissen.
+
+Die Auswahl, Morgen, Übermorgen oder Tag wählen, steht als Zeile im Eintrag
+und nicht als schwebendes Menü. Ein Menü über einer Liste deckt die nächste
+Aufgabe zu und hängt am unteren Rand halb aus dem Bildschirm.
+
+Todoist Aufgaben haben nur den Haken. Verschieben gehört dort nach Todoist,
+ein hier gesetzter Tag wäre beim nächsten Lesen weg.
 
 ## Todoist
 
@@ -1261,6 +1315,39 @@ Offen bleiben sieben. Die beiden Fotowerkzeuge brauchen ein Modell, daran
 Wortmuster nicht kennt. `profil_aendern` und `einkaufsliste_abhaken` sind
 machbar und stehen aus.
 
+## Rezepte
+
+`packages/core/src/rezepte.ts` rechnet, `rezepte-daten.ts` trägt die Rezepte,
+`apps/pwa/js/rezepte-ui.js` zeigt. Menü, Ernährung, Rezepte.
+
+Eine Karte auf einmal: Passung in Prozent, Name, Minuten, ein Kreuz für das
+nächste Rezept und ein Plus zum Eintragen. Eine Liste mit zwanzig Rezepten
+liest man quer und entscheidet sich für keines.
+
+Das Ziel je Mahlzeit kommt aus `verteileRest`, also aus derselben Aufteilung
+wie der Rest des Tages. Ist die gewählte Mahlzeit heute schon vorbei, wird
+für morgen geplant, mit dem vollen Tagesziel, und auch für morgen
+eingetragen. Im heutigen Tag stünde es als gegessen.
+
+Allergene hängen an der Zutat, nicht am Rezept. Ein Rezept kann damit nicht
+falsch beschriftet sein: wer Sojasauce hineinschreibt, hat Soja und Gluten
+drin, ohne daran denken zu müssen. Gefiltert wird hart nach Allergien,
+Unverträglichkeiten, Ernährungsform, Ausschlüssen, Freitext aus dem
+Fragebogen (`meiden`) und Geräten. Ausgeblendetes steht mit Grund unter der
+Karte.
+
+Die Portion wird zwischen 0,6 und 1,8 skaliert, Gramm auf 5 gerundet, Stücke
+wie Eier ganz. Die Nährwerte werden aus den gerundeten Mengen neu gerechnet:
+was angezeigt wird, ist das, was eingetragen wird. Die Passung ist eine Regel:
+Kalorien und Protein je 35 Prozent, Fett und Kohlenhydrate je 15.
+
+55 Rezepte, davon 24 aus den Guides von Personal Coach Aaron. Deren Kalorien
+werden nicht übernommen: sie stehen dort als "ca." und liegen bei mehreren
+Gerichten unter dem, was die Zutaten ergeben. Gerechnet wird wie überall aus
+der Zutatentabelle.
+
+Fotos fehlen noch, die Karte trägt bis dahin ein Zeichen auf einem Verlauf.
+
 ## Nährwerte von Markenprodukten
 
 `packages/core/src/produkt.ts` rechnet und prüft, `packages/coach/src/off.ts`
@@ -1450,7 +1537,7 @@ deshalb stehen die häufigsten Gründe vorn.
 
 ## Der Bericht
 
-`packages/core/src/bericht.ts`, Ansicht unter Coaching.
+`packages/core/src/bericht.ts`, Ansicht unter Fortschritt.
 
 Die zwei Check-ins fragen ab, wie eine Woche sich angefühlt hat. Was fehlte,
 ist der Blick auf das, was wirklich passiert ist, über mehrere Wochen und auf
@@ -1755,7 +1842,7 @@ nie gezeigt: `healthStandZeigen` lief nur beim Öffnen des Profils.
 ## Belastung und Bereitschaft
 
 `packages/core/src/belastung.ts` und `packages/core/src/bereitschaft.ts`,
-Ansicht unter Coaching.
+Ansicht unter Training.
 
 Die Trainingslücke beantwortet eine grobe Frage: steht da seit vier Tagen
 nichts. Sie sieht den umgekehrten Fall nicht. Wer jeden Tag trainiert und dabei
@@ -1971,16 +2058,38 @@ eine Sicherung aus einer älteren Fassung eingespielt wird.
 Speicher. Laufen beide auseinander, fehlten sonst Tage in der Sicherung, ohne
 dass es jemand merkt.
 
-## Das Menue
+## Das Menü
 
-Fünf Einträge statt vierzehn: Assistent, Ernährung, Coaching, Planung und
-Struktur, Profil. Die drei mittleren klappen ihre Unterpunkte auf, immer nur
-eine Gruppe. Eine Liste aus vierzehn gleich aussehenden Zeilen zwingt dazu,
-jedes Mal alle zu lesen.
+Ganz oben der Assistent, darunter vier Gruppen, unten das Profil. Jede Gruppe
+beantwortet eine Frage und hat höchstens vier Punkte:
+
+- Ernährung, was esse ich: Heute, Essen erfassen, Rezepte, Einkaufen.
+- Training, wie trainiere ich: Trainingspläne, Übungen, Bereitschaft.
+- Alltag, wie läuft mein Tag: Dein Tag, Kalender, Balance, Mindeststandards.
+- Fortschritt, wie entwickle ich mich: Check-ins, Bericht, Auswertung.
+
+Vorher hatte Coaching neun Punkte und mischte Training, Rückblick und
+Persönliches. Neun gleich aussehende Zeilen sind die lange Liste, die das Menü
+loswerden sollte. Aufgeklappt wird immer nur eine Gruppe.
+
+Zwei Seiten hiessen "Empfehlungen": die Rezepte und die Muster und
+Widersprüche. Zwei Ziele mit demselben Namen nimmt niemand als zwei wahr.
+Jetzt "Rezepte" und "Auswertung".
+
+Täglicher Check-in und Wochenbogen sind ein Menüpunkt mit zwei Reitern,
+`data-ci-reiter`. Die Kopfzeile bleibt in beiden "Check-ins", sonst sieht der
+Wechsel des Reiters aus wie ein Wechsel der Seite.
+
+Die Gespräche stehen nur noch als Knopf oben im Assistenten, dort sucht man
+sie. Das Gedächtnis steht im Profil, direkt unter den Kennzahlen: "was weiss
+die App über mich" gehört zu den eigenen Angaben.
+
+Wer einen Menüpunkt umbenennt, sucht auch in den Antworten des Coaches nach
+dem alten Weg. Sätze wie "im Menü unter Kalender" stehen in `assistant.js`
+und `agent.ts`.
 
 Die Kennzahlen oben auf Heute sind antippbar und führen in die Ansicht dahinter.
-Ernährung führt auf den Essen Reiter, dort steht der Fotoknopf direkt neben der
-Texteingabe. Eine Zahl, auf die man tippen kann, spart den Umweg über das Menue.
+Eine Zahl, auf die man tippen kann, spart den Umweg über das Menü.
 
 ## Zwei Fassungen aus einer Quelle
 
