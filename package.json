@@ -21,7 +21,7 @@
     "build:pwa": "npm run build && node scripts/build-pwa.mjs",
     "serve:pwa": "npm run build:pwa && node scripts/serve-pages.mjs",
     "build:demo": "npm run build && node scripts/build-pwa.mjs --demo",
-    "deploy:demo": "npm run build:demo && npx wrangler pages deploy dist-demo --project-name daevo",
+    "deploy:demo": "npm run build:demo && npx wrangler pages deploy dist-demo --project-name daevo --branch main",
     "ios": "npm --prefix apps/ios install && npm --prefix apps/ios run sync && npm --prefix apps/ios run open"
   },
   "devDependencies": {
