@@ -13,7 +13,7 @@ import {
 } from "@daevo/core";
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, produktPerBarcode, produkteSuchen } from "@daevo/coach";
 import { Coach, AnthropicProvider } from "@daevo/coach";
-import { KONFIG, istDemo } from "./konfig.js";
+import { KONFIG, istDemo, istNativ } from "./konfig.js";
 import { uebungenStarten } from "./uebungen.js";
 import { plaeneStarten } from "./plaene.js";
 import {
@@ -45,7 +45,7 @@ import { SetupFlow } from "./setup-ui.js";
 import { einfuehrungStarten } from "./einfuehrung.js";
 import { rezepteAnsicht } from "./rezepte-ui.js";
 import { symbol } from "./symbole.js";
-import { gesundheitHolen, postfachHolen, pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
+import { NATIV_PUSH, gesundheitHolen, postfachHolen, pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
 
 const $ = (id) => document.getElementById(id);
@@ -537,6 +537,9 @@ const WECKWORT_AUS_NACH_MS = 10 * 60 * 1000;
  */
 function weckwortHindernis() {
   if (!listener?.supported) {
+    if (istNativ()) {
+      return "Die iPhone App hat noch keine Spracherkennung. Bis sie kommt, tippst du oder nutzt die Diktiertaste der Tastatur.";
+    }
     const standalone = globalThis.matchMedia?.("(display-mode: standalone)")?.matches
       || globalThis.navigator?.standalone;
     if (standalone) {
@@ -4322,7 +4325,9 @@ async function renderPush() {
   const abo = await pushAbo().catch(() => null);
 
   const zeilen = [];
-  if (!lage.unterstuetzt) {
+  if (lage.nativ) {
+    zeilen.push(NATIV_PUSH);
+  } else if (!lage.unterstuetzt) {
     zeilen.push("Dieser Browser kann kein Web Push.");
   } else if (lage.apple && !lage.installiert) {
     zeilen.push("Auf dem iPhone geht Push nur aus der installierten App. Teilen, Zum Home Bildschirm, dann von dort starten.");

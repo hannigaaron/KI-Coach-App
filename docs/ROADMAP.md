@@ -311,13 +311,18 @@ Termine schreiben statt nur lesen. Erst sinnvoll mit OAuth oder EventKit.
 
 ## Milestone 10: Native App
 
-Nötig für die zwei Dinge, die eine Web App auf dem iPhone nicht kann.
+Nötig für die Dinge, die eine Web App auf dem iPhone nicht kann.
 
-- Expo Projekt mit React Native, Ziel iOS zuerst
+Der erste Schritt steht: `apps/ios` ist eine Capacitor Hülle um dieselbe Web
+App, siehe docs/IOS.md. Ein Neubau mit React Native war der ursprüngliche
+Plan und ist es nicht geworden: er hätte rund vierzig Ansichten neu verlangt,
+bevor die App wieder so viel kann wie heute, und danach jede Änderung
+zweimal. Die Punkte unten kommen als native Plugins in dieselbe Hülle.
+
 - Push Benachrichtigungen über APNs. Web Push läuft seit dem Cron in GitHub
   Actions, siehe docs/ARCHITEKTUR.md. APNs braucht es erst, wenn die Abos
   nicht mehr von Hand gepflegt werden sollen.
-- HealthKit Anbindung für Schritte, Schlaf, Gewicht, Herzfreqünz
+- HealthKit Anbindung für Schritte, Schlaf, Gewicht, Herzfrequenz
 - Apple Fitness und Apple Watch, später Whoop und Oura über deren APIs
 - Wortaktivierung im Hintergrund. Bei geöffneter App läuft Hey daevo seit
   `packages/core/src/weckwort.ts`. Bei gesperrtem Bildschirm gibt das Web einer
@@ -329,7 +334,7 @@ Nötig für die zwei Dinge, die eine Web App auf dem iPhone nicht kann.
 
 Erst mit HealthKit sinnvoll, deshalb hier und nicht früher:
 
-- Ruhepuls und Herzfreqünzvariabilität lesen. Liegt der Ruhepuls deutlich über
+- Ruhepuls und Herzfrequenzvariabilität lesen. Liegt der Ruhepuls deutlich über
   dem eigenen Schnitt, fragt daevo nach und bietet zwei Minuten Atmung an,
   4-7-8 oder Box Breathing mit vier Zählzeiten je Phase.
 - Schlaf aus HealthKit. Nach einer kurzen oder unruhigen Nacht schlägt daevo

@@ -1,0 +1,10 @@
+{
+  "appId": "de.daevo.app",
+  "appName": "daevo",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#0e1116",
+    "scrollEnabled": false
+  }
+}

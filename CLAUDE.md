@@ -2177,6 +2177,28 @@ Adresse gehört in `HERKUNFT` im Worker, sonst weist er die Demo ab.
 
 Vollständig in `docs/DEMO.md`.
 
+## Die iPhone App
+
+`apps/ios`, Anleitung in `docs/IOS.md`. Eine Capacitor Hülle um dieselbe Web
+App, kein Neubau. Ein zweiter Code für iOS hiesse jede Änderung zweimal, und
+nach drei Wochen laufen beide auseinander. Native Fähigkeiten kommen als
+Plugins in dieselbe Hülle.
+
+Capacitor liegt mit eigenem `package.json` in `apps/ios` und nicht in der
+Wurzel: die Web App bleibt ohne Laufzeitabhängigkeit. `npm run ios` in der
+Wurzel installiert, baut, kopiert und öffnet Xcode. Standard ist die
+Entwicklerfassung, `--nutzer` nimmt die Fassung für Nutzer.
+
+`istNativ()` in `konfig.js` erkennt die Hülle über `window.Capacitor`. Dort
+gibt es kein Web Push und keinen Homebildschirm, und jeder Hinweis darauf
+wäre falsch. Die Herkunft `capacitor://localhost` steht in `HERKUNFT` im
+Worker.
+
+`build:demo` ersetzt in `konfig.js` nur das Objekt `KONFIG` und behält den
+Rest der Datei. Vorher schrieb es die Hilfsfunktionen von Hand nach, und
+`istNativ` wäre in der Fassung für Nutzer gefehlt. Deren Import bricht dann
+das ganze Modul, und die App bleibt schwarz.
+
 ## Das Coaching Angebot
 
 `packages/core/src/angebot.ts`. Die App ist ein Coach, aber sie ersetzt keinen

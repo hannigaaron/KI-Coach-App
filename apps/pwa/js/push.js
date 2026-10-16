@@ -16,7 +16,16 @@
  * 16. Februar 2023.
  */
 
+/**
+ * In der iPhone App gibt es kein Web Push, dort braucht es Apple Push. Bis das
+ * steht, sagt die App das, statt auf einen Homebildschirm zu verweisen, auf
+ * dem sie schon liegt.
+ */
+export const NATIV_PUSH = "In der iPhone App kommen Mitteilungen erst mit Apple Push. Bis dahin laufen sie über die Web App vom Homebildschirm.";
+
 /** Der Zustand, den die Oberflaeche anzeigt. */
+import { istNativ } from "./konfig.js";
+
 export function pushLage() {
   const unterstuetzt = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
   // display-mode standalone heisst: von einem Symbol gestartet, nicht im
@@ -27,6 +36,7 @@ export function pushLage() {
   return {
     unterstuetzt,
     installiert,
+    nativ: istNativ(),
     apple,
     erlaubnis: unterstuetzt ? Notification.permission : "unsupported",
   };
@@ -42,6 +52,7 @@ export function pushLage() {
  */
 export async function pushAnmelden({ worker, wort = "" }) {
   const lage = pushLage();
+  if (lage.nativ) throw new Error(NATIV_PUSH);
   if (!lage.unterstuetzt) throw new Error("Dieser Browser kann kein Web Push.");
   if (lage.apple && !lage.installiert) {
     throw new Error(

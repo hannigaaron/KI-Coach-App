@@ -23,8 +23,9 @@ id = "HIER_DIE_KENNUNG_EINTRAGEN"
 # Pages, die Fassung für Nutzer auf Cloudflare Pages. Getrennte Adressen sind
 # Absicht und nicht Zufall, siehe docs/DEMO.md: der localStorage hängt an der
 # Adresse und nicht am Pfad, zwei Fassungen auf einer Adresse teilen also
-# ihre Daten.
-HERKUNFT = "https://hannigaaron.github.io,https://daevo.pages.dev,http://localhost:8080"
+# ihre Daten. capacitor://localhost ist die iPhone App aus apps/ios, siehe
+# docs/IOS.md. Eine fremde Webseite kann diese Herkunft nicht tragen.
+HERKUNFT = "https://hannigaaron.github.io,https://daevo.pages.dev,http://localhost:8080,capacitor://localhost"
 PUSH_KONTAKT = "mailto:hannigaaron@gmail.com"
 
 # VAPID_PUBLIC, VAPID_PRIVATE und ANMELDE_WORT sind Geheimnisse und stehen
