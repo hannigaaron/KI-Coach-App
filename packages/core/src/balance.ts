@@ -353,7 +353,7 @@ export function tagesnutzung(e: TagesnutzungEingabe): Tagesnutzung {
     // Der Satz nennt die Zahl einmal und dann nur noch, was sie erklärt.
     // Zweimal dieselbe Zahl in einem Satz liest sich wie ein Fehler.
     satz: wert >= 80
-      ? `${wert} von 100. Der Tag lief rund. Am schwächsten war ${schwaechster.name}.`
+      ? `${wert} von 100. Der Tag lief rund. Am schwächsten: ${schwaechster.name}.`
       : wert >= 50
         ? `${wert} von 100. Schwächster Teil ist ${schwaechster.name}. ${schwaechster.erklaerung}`
         : `${wert} von 100. ${schwaechster.name} zieht den Tag nach unten. ${schwaechster.erklaerung}`,

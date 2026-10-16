@@ -112,10 +112,17 @@ const esc = (text) => String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 
 export function listeHtml(treffer) {
   if (!treffer.length) return '<li class="ue-leer">Keine Übung gefunden.<br>Versuch einen Muskel oder ein Gerät.</li>';
+  // Eine Zeile je Übung statt einer Kachel. Zwei Kacheln je Bildschirmbreite
+  // hiessen vier Übungen je Bildschirm, und wer die Kniebeuge sucht, scrollt
+  // durch zwanzig Fotos. Als Zeile passen neun hinein, und Gerät und Muskel
+  // stehen lesbar daneben statt klein auf dem Foto.
   return treffer
-    .map((u) => `<li><button class="ue-karte" type="button" data-uebung="${esc(u.id)}">
+    .map((u) => `<li><button class="ue-zeile" type="button" data-uebung="${esc(u.id)}">
       <img class="ue-karte-bild" src="${esc(vorschauPfad(u))}" alt="" width="400" height="500" loading="lazy" decoding="async">
-      <span class="ue-karte-text"><b>${esc(u.name)}</b><span>${esc(u.primaryMuscles[0])}</span></span></button></li>`)
+      <span class="ue-zeile-text"><b>${esc(u.name)}</b>`
+      + `<span class="ue-zeile-meta"><span class="ue-zeile-geraet">${esc(GERAETE[u.equipment] ?? u.equipment ?? "")}</span>`
+      + `<span>${esc(u.primaryMuscles.join(", "))}</span></span></span>
+      <span class="ue-zeile-pfeil" aria-hidden="true"></span></button></li>`)
     .join("");
 }
 
@@ -166,6 +173,22 @@ export function uebungenStarten() {
   const zustand = { text: "", gruppe: "alle", geraet: "alle" };
 
   $("ueGruppen").innerHTML = GRUPPEN.map((g) => `<button type="button" class="ue-tab${g.id === "alle" ? " on" : ""}" data-gruppe="${g.id}" role="tab" aria-selected="${g.id === "alle"}">${g.name}</button>`).join("");
+
+  // Das Gerät als zweite Zeile, kleiner als die Muskelgruppe. Wer im Studio
+  // an der Maschine steht oder zu Hause nur Kurzhanteln hat, sucht genau so.
+  const GERAETE_WAHL = [["alle", "Alle Geräte"], ["machine", "Maschine"], ["cable", "Kabel"], ["dumbbell", "Kurzhantel"], ["barbell", "Langhantel"], ["bodyweight", "Körpergewicht"]];
+  $("ueGeraete").innerHTML = GERAETE_WAHL.map(([id, name]) => `<button type="button" class="ue-tab${id === "alle" ? " on" : ""}" data-geraet="${id}" role="tab" aria-selected="${id === "alle"}">${name}</button>`).join("");
+  $("ueGeraete").addEventListener("click", (event) => {
+    const knopf = event.target.closest("[data-geraet]");
+    if (!knopf) return;
+    zustand.geraet = knopf.dataset.geraet;
+    for (const k of $("ueGeraete").children) {
+      k.classList.toggle("on", k === knopf);
+      k.setAttribute("aria-selected", String(k === knopf));
+    }
+    knopf.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+    zeichnen();
+  });
 
   const zeichnen = () => {
     const treffer = uebungenFiltern(zustand);

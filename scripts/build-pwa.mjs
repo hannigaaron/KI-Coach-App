@@ -141,11 +141,16 @@ if (demo) {
   }
   const ziel = join(outDir, "js/konfig.js");
   const quelle = await readFile(join(root, "apps/pwa/js/konfig.js"), "utf8");
-  const kopf = quelle.slice(0, quelle.indexOf("export const KONFIG"));
+  // Ersetzt wird nur das Objekt. Was dahinter steht, bleibt: eine Kopie der
+  // Hilfsfunktionen an dieser Stelle hätte jede neue Funktion in der Quelle
+  // still aus der Fassung für Nutzer geworfen, und deren Import bricht dann
+  // das ganze Modul.
+  const anfang = quelle.indexOf("export const KONFIG");
+  const ende = quelle.indexOf("\n};", anfang) + 3;
+  if (anfang < 0 || ende < 3) throw new Error("KONFIG in apps/pwa/js/konfig.js nicht gefunden.");
   await writeFile(ziel,
-    `${kopf}export const KONFIG = ${JSON.stringify({ DEMO: true, ...konfig, _: undefined }, null, 2)};\n\n`
-    + "/** Kurz und lesbar an den Stellen, die sich danach richten. */\n"
-    + "export const istDemo = () => KONFIG.DEMO === true;\n");
+    `${quelle.slice(0, anfang)}export const KONFIG = ${JSON.stringify({ DEMO: true, ...konfig, _: undefined }, null, 2)};`
+    + quelle.slice(ende));
   console.log("Konfiguration eingebaut, Fassung für Nutzer.");
 }
 

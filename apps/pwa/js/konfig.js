@@ -37,5 +37,12 @@ export const KONFIG = {
   angebot: null,
 };
 
+/**
+ * Wahr in der iPhone App aus `apps/ios`. Capacitor setzt `window.Capacitor`
+ * selbst, bevor das erste Skript läuft. Dort gibt es kein Web Push und keinen
+ * Homebildschirm, und jeder Hinweis darauf wäre falsch.
+ */
+export const istNativ = () => globalThis.Capacitor?.isNativePlatform?.() === true;
+
 /** Kurz und lesbar an den Stellen, die sich danach richten. */
 export const istDemo = () => KONFIG.DEMO === true;

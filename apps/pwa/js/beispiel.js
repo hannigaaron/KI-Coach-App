@@ -68,7 +68,7 @@ export const DEMO_PROFIL = {
   sessions: [
     { weekday: 1, startsAt: "18:00", type: "strength", minutes: 75 },
     { weekday: 3, startsAt: "18:00", type: "strength", minutes: 75 },
-    { weekday: 6, startsAt: "10:00", type: "strength", minutes: 90 },
+    { weekday: 6, startsAt: "18:00", type: "strength", minutes: 90 },
   ],
 };
 
@@ -108,6 +108,12 @@ const BAUSTEINE = {
     [{ name: "Proteinriegel", quantity: "60 g", kcal: 214, proteinG: 20, fatG: 7.2, carbsG: 18 }],
     [{ name: "Apfel", quantity: "180 g", kcal: 94, proteinG: 0.5, fatG: 0.4, carbsG: 21 }],
   ],
+  // Der Abend. Ohne ihn lag die erfundene Person jeden Tag 600 kcal unter
+  // ihrem Ziel, und die Auswertung riet in der Demo zuerst zum Mehressen.
+  spaet: [
+    [{ name: "Magerquark mit Beeren", quantity: "300 g", kcal: 245, proteinG: 34, fatG: 1, carbsG: 22 }],
+    [{ name: "Vollkornbrot mit Hüttenkäse", quantity: "2 Scheiben", kcal: 290, proteinG: 22, fatG: 6, carbsG: 36 }],
+  ],
 };
 
 const MAHLZEITEN = [
@@ -115,6 +121,7 @@ const MAHLZEITEN = [
   ["mittag", "12:30", "mittag"],
   ["snack", "16:00", "snack"],
   ["abend", "19:30", "abendessen"],
+  ["spaet", "21:00", "spaet"],
 ];
 
 /**
@@ -138,7 +145,7 @@ function tageBauen(heute) {
       for (const [art, zeit, kennung] of MAHLZEITEN) {
         // Der Snack fällt an manchen Tagen aus. Ein Tag, an dem alles nach
         // Plan lief, ist die Ausnahme und nicht die Regel.
-        if (art === "snack" && abstand > 0 && rnd() < 0.3) continue;
+        if ((art === "snack" || art === "spaet") && abstand > 0 && rnd() < 0.3) continue;
         const auswahl = BAUSTEINE[art];
         const posten = auswahl[Math.floor(rnd() * auswahl.length)];
         meals.push({
@@ -168,14 +175,14 @@ function tageBauen(heute) {
     const checkins = [];
     // Der Morgen Check-in. Ohne ihn bleibt die Bereitschaft leer, und genau
     // die Ansicht, die zeigt was die App kann, zeigt dann nichts.
-    if (!luecke && rnd() < 0.8) {
+    if (!luecke && (abstand === 0 || rnd() < 0.8)) {
       checkins.push({
         kind: "morning",
         at: "07:20",
         note: "",
-        energy: 5 + Math.floor(rnd() * 5),
-        sleepQuality: 5 + Math.floor(rnd() * 5),
-        mood: 5 + Math.floor(rnd() * 5),
+        energy: abstand === 0 ? 8 : 5 + Math.floor(rnd() * 5),
+        sleepQuality: abstand === 0 ? 8 : 5 + Math.floor(rnd() * 5),
+        mood: abstand === 0 ? 8 : 5 + Math.floor(rnd() * 5),
       });
     }
 
@@ -183,19 +190,22 @@ function tageBauen(heute) {
     // bleibt die Schlafkarte im Bericht leer, und genau die Ansicht, die
     // zeigen soll was die App kann, zeigt eine Lücke.
     const gesundheit = luecke ? null : {
-      schlafMinuten: 360 + Math.floor(rnd() * 110),
+      schlafMinuten: abstand === 0 ? 452 : 360 + Math.floor(rnd() * 110),
       ruhepuls: 48 + Math.floor(rnd() * 8),
       hrv: 55 + Math.floor(rnd() * 30),
     };
-    if (!luecke && rnd() < 0.7) {
+    // In derselben Form, die `mittagsCheckin` schreibt. Die erste Fassung
+    // trug eigene Feldnamen, und in der Liste stand "Schlaf -, Stimmung -".
+    if (!luecke && (abstand === 0 || rnd() < 0.7)) {
       checkins.push({
-        id: `c${abstand}`,
+        kind: "midday",
         at: "14:00",
-        art: "mittag",
-        energie: 5 + Math.floor(rnd() * 5),
-        konzentration: 5 + Math.floor(rnd() * 5),
-        saettigung: 4 + Math.floor(rnd() * 6),
-        notiz: "",
+        note: "",
+        energy: abstand === 0 ? 8 : 5 + Math.floor(rnd() * 5),
+        concentration: abstand === 0 ? 7 : 5 + Math.floor(rnd() * 5),
+        satiety: abstand === 0 ? 6 : 4 + Math.floor(rnd() * 6),
+        sleepQuality: null,
+        mood: null,
       });
     }
 
@@ -246,6 +256,9 @@ function zeitenBauen(heute) {
       // leere Kacheln zeigt, wirbt gegen sich selbst. An allen anderen Tagen
       // dürfen Lücken bleiben, denn so sieht ein echter Verlauf aus.
       if (abstand > 0 && rnd() < 0.35) continue;
+      // Heute steht die Arbeit im Kalender. Zweimal gezählt wäre der Tag
+      // dreizehn Stunden Karriere lang.
+      if (abstand === 0 && bereich === "karriere") continue;
       eintraege.push({
         tag, bereich, was,
         minuten: Math.round(minuten * (0.8 + rnd() * 0.4)),
@@ -256,6 +269,50 @@ function zeitenBauen(heute) {
   return eintraege;
 }
 
+/**
+ * Die Antwort auf "Wie sieht mein Tag aus" passend zu Kalender, Profil und
+ * Aufgaben der Demo. Ein fester Satz stimmte nur an Tagen, an denen auch
+ * trainiert wird, und nannte vier Termine, wo drei im Kalender stehen.
+ */
+function tagesAntwort(heute) {
+  const wochentag = new Date(`${tagVor(0, heute)}T12:00:00`).getDay();
+  const training = DEMO_PROFIL.sessions.find((s) => s.weekday === wochentag);
+  let abend = "Heute ist kein Training geplant, der Abend gehört dir.";
+  if (training) {
+    const [h, m] = training.startsAt.split(":").map(Number);
+    const essen = h * 60 + m - 90;
+    const uhr = `${String(Math.floor(essen / 60)).padStart(2, "0")}:${String(essen % 60).padStart(2, "0")}`;
+    abend = `Training steht um ${training.startsAt}, iss deshalb gegen ${uhr} und nicht erst danach.`;
+  }
+  return "Drei Termine, zusammen fünf Stunden, der letzte endet um 15:45. Danach ist der Tag frei. "
+    + `${abend} Auf der Liste stehen drei offene Aufgaben, zwei davon mit Frist, der Wocheneinkauf schon morgen.`;
+}
+
+/**
+ * Eine Woche Kalender ab heute. Ohne Termine stand auf der Kalenderseite
+ * "Keine Termine" und ein freier Block über den ganzen Tag, während der
+ * Assistent im Gespräch daneben von vier Terminen sprach.
+ */
+function kalenderBauen(heute) {
+  const termine = [];
+  const zeit = (tag, hhmm) => new Date(`${tag}T${hhmm}:00`).getTime();
+  for (let abstand = 0; abstand >= -6; abstand--) {
+    const tag = tagVor(abstand, heute);
+    const wochentag = new Date(`${tag}T12:00:00`).getDay();
+    const neu = (titel, von, bis) => termine.push({ uid: `demo-${tag}-${von}`, titel, ort: "", von: zeit(tag, von), bis: zeit(tag, bis), ganztags: false, quelle: "Kalender" });
+    // Heute ist immer ein Arbeitstag. Die Demo wird am Tag des Besuchs gebaut,
+    // und an einem Samstag stand sonst ein leerer Kalender neben einem
+    // Gespräch über drei Termine.
+    if (abstand === 0 || (wochentag >= 1 && wochentag <= 5)) {
+      neu("Projektarbeit im Büro", "08:30", "12:00");
+      neu("Teammeeting", "13:00", "13:45");
+      neu(wochentag === 2 ? "Beratung Neukunde" : "Kundencall", "15:00", "15:45");
+    }
+    if (wochentag === 0) neu("Essen mit Familie", "12:30", "14:30");
+  }
+  return { quellen: [{ name: "Kalender", anzahl: termine.length, stand: new Date(heute).toISOString() }], termine, stand: new Date(heute).toISOString() };
+}
+
 function aufgabenBauen(heute) {
   const jetzt = (abstand) => iso(tagVor(abstand, heute), "09:00");
   return [
@@ -264,6 +321,10 @@ function aufgabenBauen(heute) {
     { id: "a3", text: "Termin beim Physio machen", minuten: 10, wichtigkeit: 2, faellig: null, erledigt: false, erstellt: jetzt(3), quelle: "nutzer" },
     { id: "a4", text: "Meal Prep für Montag und Dienstag", minuten: 90, wichtigkeit: 2, faellig: null, erledigt: true, erstellt: jetzt(5), quelle: "coach" },
     { id: "a5", text: "Waage kalibrieren", minuten: 5, wichtigkeit: 1, faellig: null, erledigt: true, erstellt: jetzt(7), quelle: "nutzer" },
+    // Heute schon erledigt. Ohne sie stand auf Heute "0 von 2 Aufgaben
+    // erledigt", und die Tagesnutzung zeigte einen schlechten Tag.
+    { id: "a6", text: "Angebot an neue Kundin schicken", minuten: 30, wichtigkeit: 3, faellig: tagVor(0, heute), erledigt: true, erledigtAm: iso(tagVor(0, heute), "10:15"), erstellt: jetzt(1), quelle: "nutzer" },
+    { id: "a7", text: "Rechnung Oktober schreiben", minuten: 20, wichtigkeit: 2, faellig: null, erledigt: true, erledigtAm: iso(tagVor(0, heute), "16:40"), erstellt: jetzt(2), quelle: "nutzer" },
   ];
 }
 
@@ -317,11 +378,11 @@ function gespraecheBauen(heute) {
       ],
     },
     {
-      id: "g3", ordner: "planung", erstellt: at(1, "07:05"), zuletzt: at(1, "07:09"),
+      id: "g3", ordner: "planung", erstellt: at(0, "07:05"), zuletzt: at(0, "07:07"),
       titel: "Wie sieht mein Tag aus",
       nachrichten: [
-        { role: "user", text: "Wie sieht mein Tag aus?", at: at(1, "07:05") },
-        { role: "assistant", text: "Vier Termine, zusammen fünf Stunden, der längste freie Block liegt von 14:00 bis 16:30. Training steht um 18:00, iss deshalb gegen 16:30 statt erst danach. Auf der Liste stehen drei offene Aufgaben, der Trainingsplan ist die einzige mit Frist.", at: at(1, "07:07") },
+        { role: "user", text: "Wie sieht mein Tag aus?", at: at(0, "07:05") },
+        { role: "assistant", text: tagesAntwort(heute), at: at(0, "07:07") },
       ],
     },
   ];
@@ -345,10 +406,13 @@ export function beispieldaten(heute = new Date()) {
     aufgaben: aufgabenBauen(heute),
     memories: gedaechtnisBauen(heute),
     gespraeche: gespraecheBauen(heute),
-    fridge: "Magerquark, Skyr, Eier, Hähnchenbrust, Reis, Haferflocken, Brokkoli, Süsskartoffeln, Mandeln",
+    // Eine Liste, kein Satz: `importAll` nimmt den Vorrat nur als Liste an,
+    // und als Satz kam er in der Demo nie an.
+    fridge: ["Magerquark", "Skyr", "Eier", "Hähnchenbrust", "Reis", "Haferflocken", "Brokkoli", "Süßkartoffeln", "Mandeln"],
+    kalender: kalenderBauen(heute),
     standards: [
       { id: "s1", kind: "schritte", text: "Ich gehe jeden Tag mindestens 8000 Schritte.", kadenz: "taeglich", ziel: 8000, aktiv: true, seit: tagVor(12, heute) },
-      { id: "s2", kind: "protein", text: "Ich komme jeden Tag auf mein Proteinziel.", kadenz: "taeglich", ziel: 1, aktiv: true, seit: tagVor(12, heute) },
+      { id: "s2", kind: "protein", text: "Ich komme jeden Tag auf mindestens 150 g Protein.", kadenz: "taeglich", ziel: 150, aktiv: true, seit: tagVor(12, heute) },
       { id: "s3", kind: "frei", text: "Ich lege das Handy ab 22:00 weg.", kadenz: "taeglich", ziel: 1, aktiv: true, seit: tagVor(9, heute) },
     ],
   };

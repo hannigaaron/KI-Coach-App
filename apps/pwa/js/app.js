@@ -1,7 +1,7 @@
 import {
   BEREICHE, BEREICH_NAME, CHECKIN_BOEGEN, CHECKIN_MITTE, STANDARD_ZIELE, WOCHENTAGE,
   MAHLZEITEN, bogenAmTag, bogenFuer, eintragAus100g, energyBreakdown, hatAngebot, mengeLesen,
-  mengeSetzen, nachOrdnern, naehrwerteFuer, offeneMahlzeiten, portionsVorschlag, skalierbar,
+  ORDNER, mengeSetzen, nachOrdnern, naehrwerteFuer, offeneMahlzeiten, portionsVorschlag, skalierbar,
   impulseFuerTag, planFuer, saubereUrl, uhrzeit, undListe, weckwortGehoert, weightTrend,
   belastung,
   belastungText,
@@ -9,10 +9,11 @@ import {
   bereitschaftText,
   berichtText,
   spanneKurz,
+  restText,
 } from "@daevo/core";
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, produktPerBarcode, produkteSuchen } from "@daevo/coach";
 import { Coach, AnthropicProvider } from "@daevo/coach";
-import { KONFIG, istDemo } from "./konfig.js";
+import { KONFIG, istDemo, istNativ } from "./konfig.js";
 import { uebungenStarten } from "./uebungen.js";
 import { plaeneStarten } from "./plaene.js";
 import {
@@ -23,8 +24,8 @@ import { healthDateiLesen, healthSchreiben, kurzbefehlSchreiben, schreibBericht 
 import {
   ablaufFuer, ask, aufgabeAnlegenEingestuft, aufgabeLoeschen, aufgabeUmstufen, aufgabeVerschieben, aufgabenPlan,
   balanceFuer, balanceRat, briefing,
-  buildActions, dayNumbers, einkaufslisteText, ensureStandards, greeting, herausforderungSpeichern,
-  aktuelleLage, aktivesGespraech, gegesseneArten, gespraechAnlegen, gespraechLoeschen, gespraechNachziehen,
+  buildActions, begruessung, dayNumbers, einkaufslisteText, ensureStandards, herausforderungSpeichern,
+  aktuelleLage, frischesGespraech, gegesseneArten, gespraechBegonnen, gespraecheMitInhalt, gespraechLoeschen, gespraechNachziehen,
   gespraechOeffnen, gespraecheSuchen,
   aufgabenPlanText, energieCheck, kopfSortieren, mittagscheck, mittagscheckText, musterUebersicht,
   schluesselPruefen, tagesnutzungFuer,
@@ -43,7 +44,8 @@ import { Listener, alleStimmen, istDeutsch, speak, stimmenBereit, stopSpeaking, 
 import { SetupFlow } from "./setup-ui.js";
 import { einfuehrungStarten } from "./einfuehrung.js";
 import { rezepteAnsicht } from "./rezepte-ui.js";
-import { gesundheitHolen, postfachHolen, pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
+import { symbol } from "./symbole.js";
+import { NATIV_PUSH, gesundheitHolen, postfachHolen, pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
 
 const $ = (id) => document.getElementById(id);
@@ -535,6 +537,9 @@ const WECKWORT_AUS_NACH_MS = 10 * 60 * 1000;
  */
 function weckwortHindernis() {
   if (!listener?.supported) {
+    if (istNativ()) {
+      return "Die iPhone App hat noch keine Spracherkennung. Bis sie kommt, tippst du oder nutzt die Diktiertaste der Tastatur.";
+    }
     const standalone = globalThis.matchMedia?.("(display-mode: standalone)")?.matches
       || globalThis.navigator?.standalone;
     if (standalone) {
@@ -703,27 +708,56 @@ function setupAssistant() {
         if (weckwortLaeuft) weckwortStoppen("");
         orb.setState("idle"); setStatus("bereit");
         $("btnMic").classList.remove("hoert");
-        $("orbHint").textContent = "Tipp auf den Kreis und sprich";
+        begruessungZeigen();
       }
       else {
         $("btnMic").classList.remove("hoert");
         if (weckwortLaeuft) return;
-        $("orbHint").textContent = "Tipp auf den Kreis und sprich";
+        begruessungZeigen();
         if (!busy) { orb.setState("idle"); setStatus("bereit"); }
       }
     },
   });
 
-  // Sorgt dafür, dass ein Gespräch offen ist. Ohne das schreibt setChat ins
-  // Leere, und die erste Nachricht des Tages wäre weg.
-  aktivesGespraech();
-  if (store.getChat().length === 0) {
-    const text = greeting();
-    store.setChat([{ role: "assistant", text, at: new Date().toISOString() }]);
-  }
+  // Jeder Start beginnt mit einem leeren Gespräch, wie bei Claude. Das
+  // Gespräch von gestern steht in der Liste und nicht mehr im Weg. Ohne ein
+  // offenes Gespräch schriebe setChat ausserdem ins Leere.
+  frischesGespraech();
+  begruessungZeigen();
   renderTranscript();
   setStatus("bereit");
 }
+
+/**
+ * Gruss und Lage unter dem grossen Kreis.
+ *
+ * Die Begrüssung stand vorher als erste Nachricht im Verlauf. Damit begann
+ * jedes Gespräch mit einem Satz der App, und die Liste füllte sich mit
+ * Gesprächen, in denen niemand etwas gesagt hatte.
+ */
+function begruessungZeigen() {
+  const { gruss, lage } = begruessung();
+  $("orbGruss").textContent = gruss;
+  $("orbHint").textContent = lage;
+}
+
+/*
+ * Nach einer halben Stunde im Hintergrund beginnt ebenfalls ein neues
+ * Gespräch. Eine installierte App wird auf dem iPhone selten neu geladen,
+ * sondern nur wieder nach vorn geholt, und ohne das stünde dort tagelang
+ * dasselbe Gespräch. Ein Gespräch, in dem gerade geantwortet wird, bleibt.
+ */
+const NEU_NACH_MS = 30 * 60 * 1000;
+let verstecktSeit = 0;
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) { verstecktSeit = Date.now(); return; }
+  if (!verstecktSeit || Date.now() - verstecktSeit < NEU_NACH_MS) return;
+  verstecktSeit = 0;
+  if (busy || !gespraechBegonnen()) { begruessungZeigen(); return; }
+  frischesGespraech();
+  begruessungZeigen();
+  renderTranscript();
+});
 
 /* ---------- Bereiche ---------- */
 
@@ -1041,11 +1075,14 @@ function berichtZeitraumFuellen() {
   feld.innerHTML = liste
     .map((z) => `<option value="${escapeHtml(z.wert)}">${escapeHtml(z.name)}</option>`)
     .join("");
-  feld.value = liste.some((z) => z.wert === vorher) ? vorher : "28";
+  // Sieben Tage als Voreinstellung. Über vier Wochen fehlt bei jemandem, der
+  // die App erst seit zwei Wochen nutzt, jeder Vergleich, und auf jeder Karte
+  // stand "kein Vergleich".
+  feld.value = liste.some((z) => z.wert === vorher) ? vorher : "7";
 }
 
 function renderBericht() {
-  const b = berichtFuer($("berichtZeitraum").value || "28");
+  const b = berichtFuer($("berichtZeitraum").value || "7");
   $("berichtKopf").textContent =
     `${spanneKurz(b.von, b.bis)}, ${b.tageMitDaten} von ${b.tageGesamt} Tagen mit Eintrag.`;
 
@@ -1331,11 +1368,12 @@ function renderHeuteBalance() {
     }));
   }
 
-  const nutzung = tagesnutzungFuer(day);
+  // Die Tagesnutzung steht schon als eigene Leiste darüber. Hier noch einmal
+  // dieselbe Zahl zu nennen wäre eine Zeile ohne neue Auskunft.
   const leer = b.bereiche.filter((x) => x.minuten === 0).map((x) => x.name);
   $("heuteBalanceHinweis").textContent = b.gesamtMinuten === 0
     ? "Heute ist noch keine Minute gemessen. Kalender, eingetragene Zeit oder erledigte Aufgabe füllen die Balken."
-    : `Tagesnutzung ${nutzung.wert} von 100.${leer.length ? ` Noch nichts in: ${leer.join(", ")}.` : ""}`;
+    : leer.length ? `Noch nichts in: ${leer.join(", ")}.` : "";
 }
 
 function renderToday() {
@@ -1352,10 +1390,10 @@ function renderToday() {
   // eine abgeleitete Zahl und steht jetzt bei den anderen abgeleiteten Zahlen
   // weiter unten. Der Ring trägt nur, was direkt gemessen ist.
 
-  setBar("p", n.totals.proteinG, n.targets.proteinG, "g");
+  setBar("p", n.totals.proteinG, n.targets.proteinG, "g", { obergrenze: false });
   setBar("f", n.totals.fatG, n.targets.fatG, "g");
   setBar("c", n.totals.carbsG, n.targets.carbsG, "g");
-  setBar("w", n.totals.waterMl, n.targets.waterMl, "ml");
+  setBar("w", n.totals.waterMl, n.targets.waterMl, "ml", { obergrenze: false });
 
   const reminders = tagesErinnerungen(day);
   const time = nowTime();
@@ -1402,10 +1440,13 @@ function renderWeight() {
     `über ${trend.spanneTage} Tage aus ${trend.messungen} Wiegungen. Frag mich nach deinem Verlauf, dann rechne ich dein Ziel nach.`;
 }
 
-function setBar(prefix, actual, target, unit) {
+function setBar(prefix, actual, target, unit, { obergrenze = true } = {}) {
   const pct = target > 0 ? Math.min(100, Math.round((actual / target) * 100)) : 0;
   $(`${prefix}Bar`).style.width = `${pct}%`;
-  $(`${prefix}Bar`).classList.toggle("over", target > 0 && actual > target * 1.1);
+  // Rot nur, wo das Ziel eine Obergrenze ist. Protein und Wasser über dem
+  // Ziel sind kein Fehler, und ein roter Balken für 166 von 150 g Protein las
+  // sich in der Demo wie ein Alarm an einem guten Tag.
+  $(`${prefix}Bar`).classList.toggle("over", obergrenze && target > 0 && actual > target * 1.1);
   $(`${prefix}Txt`).textContent = `${actual} / ${target} ${unit}`;
 }
 
@@ -1433,10 +1474,18 @@ function renderMeals(targetId) {
 function renderCheckins() {
   const checkins = store.getDay(day).checkins;
   $("checkinList").innerHTML = checkins.length
-    ? checkins.slice().reverse().map((c) =>
-        `<li><div class="li-main"><div class="li-title">${escapeHtml(c.note || "Check-in")}</div>` +
-        `<div class="li-sub">${c.at} Uhr, Schlaf ${c.sleepQuality ?? "-"}, Stimmung ${c.mood ?? "-"}</div></div>` +
-        `<div class="li-side"><b>${c.energy ?? "-"}</b>Energie</div></li>`).join("")
+    ? checkins.slice().reverse().map((c) => {
+        // Der Mittags Check-in fragt andere Zahlen ab als der Morgen. Mit
+        // demselben Text stand dort "Schlaf -, Stimmung -".
+        const teile = c.kind === "midday"
+          ? [["Konzentration", c.concentration], ["Sättigung", c.satiety]]
+          : [["Schlaf", c.sleepQuality], ["Stimmung", c.mood]];
+        const titel = c.note || (c.kind === "midday" ? "Mittags Check-in" : c.kind === "morning" ? "Morgen Check-in" : "Check-in");
+        const zahlen = teile.filter(([, w]) => w != null).map(([n, w]) => `${n} ${w}`).join(", ");
+        return `<li><div class="li-main"><div class="li-title">${escapeHtml(titel)}</div>` +
+          `<div class="li-sub">${c.at} Uhr${zahlen ? `, ${zahlen}` : ""}</div></div>` +
+          (c.energy != null ? `<div class="li-side"><b>${c.energy}</b>Energie</div>` : "") + "</li>";
+      }).join("")
     : `<li><div class="li-main"><div class="li-sub">Heute noch kein Check-in.</div></div></li>`;
 }
 
@@ -1448,8 +1497,8 @@ function renderMemories() {
     ? entries.map((e) =>
         `<li><div class="li-main"><span class="mem-kind">${KIND_LABEL[e.kind] ?? e.kind}</span>` +
         `<div class="li-title">${escapeHtml(e.text)}</div>` +
-        `<div class="li-sub">${e.at.slice(0, 10)}, Wichtigkeit ${e.weight}${e.tags.length ? ", " + escapeHtml(e.tags.join(", ")) : ""}</div></div>` +
-        `<div class="li-side"><button class="ghost" data-mem-del="${e.id}">Weg</button></div></li>`).join("")
+        `<div class="li-sub">${new Date(e.at).toLocaleDateString("de-DE", { day: "numeric", month: "short" })}, Wichtigkeit ${e.weight} von 5</div></div>` +
+        `<div class="li-side"><button class="aufgabe-knopf" data-mem-del="${e.id}" title="Löschen" aria-label="Notiz löschen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg></button></div></li>`).join("")
     : `<li><div class="li-main"><div class="li-sub">${query ? "Nichts gefunden." : "Noch nichts gemerkt. Erzähl dem Assistenten etwas über dich."}</div></div></li>`;
 }
 
@@ -1465,6 +1514,13 @@ function renderEinkauf() {
   const liste = store.getShoppingList();
   const el = $("einkaufList");
   if (!liste || liste.items.length === 0) {
+    // Die Liste ist reine Rechnung aus den Zielen, ohne Modell. Wer die Seite
+    // zum ersten Mal öffnet, bekommt sie deshalb gleich, statt vor einem
+    // leeren Kasten mit einer Aufforderung zu stehen.
+    if (!renderEinkauf.versucht) {
+      renderEinkauf.versucht = true;
+      buildActions({ onChange: refreshAll }).einkaufslisteErstellen({ tage: 7 }).then(renderEinkauf).catch(() => {});
+    }
     el.innerHTML = `<li><div class="li-main"><div class="li-sub">Noch keine Liste. Tipp auf Liste rechnen.</div></div></li>`;
     $("einkaufHinweis").textContent = "";
     $("einkaufSub").textContent = "Gerechnet aus deinen Tageszielen.";
@@ -1517,7 +1573,7 @@ function renderStandards() {
       </div>
       <div class="li-side ek-knoepfe">
         ${messbar ? "" : `<button class="ghost" data-std-ok="${s.standard.id}">${s.aktuell ? "Gehalten" : "Heute ok"}</button>`}
-        <button class="ghost" data-std-del="${s.standard.id}">Weg</button>
+        <button class="aufgabe-knopf" data-std-del="${s.standard.id}" title="Entfernen" aria-label="Standard entfernen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg></button>
       </div>
     </li>`;
   }).join("");
@@ -1659,9 +1715,7 @@ function renderRestDesTages() {
   const satz = $("restSatz");
   if (!satz) return;
 
-  satz.textContent = n.rest.kcal > 0
-    ? `Offen sind noch ${n.rest.kcal} kcal und ${Math.max(0, n.rest.proteinG)} g Protein.`
-    : `Dein Tagesziel ist erreicht, ${Math.abs(n.rest.kcal)} kcal darüber.`;
+  satz.textContent = restText(n.rest);
 
   const gegessen = gegesseneArten(n.data.meals);
   const vorgabe = offeneMahlzeiten(new Date().getHours(), gegessen);
@@ -1712,10 +1766,11 @@ let gsFilter = null;
 function renderGespraeche() {
   const frage = $("gsSuche").value.trim();
   const aktiv = store.getAktivesGespraech();
+  const mitInhalt = gespraecheMitInhalt();
 
   // Der Filter zeigt nur Ordner, in denen wirklich etwas liegt. Sechs leere
   // Kacheln sagen nichts und kosten eine Bildschirmhöhe.
-  const belegt = nachOrdnern(store.getGespraeche());
+  const belegt = nachOrdnern(mitInhalt);
   $("gsOrdnerFilter").innerHTML = belegt.length > 1
     ? `<button class="pill${gsFilter === null ? " on" : ""}" data-filter="">Alle</button>`
       + belegt.map((x) =>
@@ -1724,37 +1779,59 @@ function renderGespraeche() {
     : "";
 
   if (frage.length >= 2) {
-    const funde = gespraecheSuchen(frage);
+    const funde = gespraecheSuchen(frage).filter((f) => f.gespraech.nachrichten.some((m) => m.role === "user"));
     $("gsListe").innerHTML = funde.length === 0
       ? `<p class="gs-leer">Nichts gefunden zu "${escapeHtml(frage)}".</p>`
       : funde.map((f) => eintragHtml(f.gespraech, aktiv, f.stelle)).join("");
     return;
   }
 
-  const gruppen = belegt.filter((x) => !gsFilter || x.ordner.id === gsFilter);
-  if (gruppen.length === 0) {
-    $("gsListe").innerHTML = '<p class="gs-leer">Noch keine Gespräche. Fang oben eins an, '
-      + 'daevo sortiert es selbst ein, sobald das Thema klar ist.</p>';
+  const liste = mitInhalt
+    .filter((g) => !gsFilter || g.ordner === gsFilter)
+    .sort((x, y) => y.zuletzt.localeCompare(x.zuletzt));
+  if (liste.length === 0) {
+    $("gsListe").innerHTML = '<p class="gs-leer">Noch keine Gespräche. Sag im Assistenten etwas, '
+      + "dann steht es hier und lässt sich später durchsuchen.</p>";
     return;
   }
 
-  $("gsListe").innerHTML = gruppen.map((x) => `
-    <div class="gs-ordner">
-      <span class="punkt" style="background:${x.ordner.farbe}"></span>
-      <b>${escapeHtml(x.ordner.name)}</b>
-      <span class="anzahl">${x.gespraeche.length}</span>
-    </div>
-    ${x.gespraeche.map((g) => eintragHtml(g, aktiv)).join("")}`).join("");
+  // Nach Zeit statt nach Ordner, wie bei Claude. Gesucht wird ein Gespräch
+  // fast immer über "das war vorgestern", selten über das Thema, und für das
+  // Thema gibt es den Filter darüber.
+  const gruppen = new Map();
+  for (const g of liste) {
+    const name = zeitGruppe(g.zuletzt);
+    if (!gruppen.has(name)) gruppen.set(name, []);
+    gruppen.get(name).push(g);
+  }
+  $("gsListe").innerHTML = [...gruppen].map(([name, gs]) => `
+    <div class="gs-gruppe">${escapeHtml(name)}</div>
+    ${gs.map((g) => eintragHtml(g, aktiv)).join("")}`).join("");
+}
+
+/** Heute, Gestern, Letzte 7 Tage, Letzte 30 Tage, dann der Monat. */
+function zeitGruppe(iso) {
+  const tag = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x.getTime(); };
+  const tage = Math.round((tag(Date.now()) - tag(iso)) / 86400000);
+  if (tage <= 0) return "Heute";
+  if (tage === 1) return "Gestern";
+  if (tage < 7) return "Letzte 7 Tage";
+  if (tage < 30) return "Letzte 30 Tage";
+  return new Date(iso).toLocaleDateString("de-DE", { month: "long", year: "numeric" });
 }
 
 function eintragHtml(g, aktiv, stelle = "") {
-  const wann = new Date(g.zuletzt).toLocaleDateString("de-DE", { day: "numeric", month: "short" });
-  const anzahl = g.nachrichten.length;
+  const datum = new Date(g.zuletzt);
+  const heute = zeitGruppe(g.zuletzt) === "Heute";
+  const wann = heute
+    ? datum.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })
+    : datum.toLocaleDateString("de-DE", { day: "numeric", month: "short" });
+  const ordner = ORDNER.find((o) => o.id === g.ordner) ?? ORDNER[ORDNER.length - 1];
   return `<div class="gs-eintrag${g.id === aktiv ? " on" : ""}">
     <div class="gs-text" data-oeffnen="${g.id}" role="button" tabindex="0">
       <b>${escapeHtml(g.titel)}</b>
-      <span class="gs-meta">${wann} · ${anzahl} ${anzahl === 1 ? "Nachricht" : "Nachrichten"}`
-      + `${g.ordnerFest ? " · von dir einsortiert" : ""}</span>
+      <span class="gs-meta"><span class="punkt" style="background:${ordner.farbe}"></span>`
+      + `${escapeHtml(ordner.name)} · ${wann}</span>
       ${stelle ? `<span class="gs-stelle">${escapeHtml(stelle)}</span>` : ""}
     </div>
     <button class="gs-weg" data-loeschen="${g.id}" aria-label="Gespräch löschen">&times;</button>
@@ -1785,7 +1862,8 @@ $("gespraeche").addEventListener("click", (event) => {
 $("btnGespraeche").addEventListener("click", () => showView("gespraeche"));
 
 function neuesGespraech() {
-  gespraechAnlegen();
+  frischesGespraech();
+  begruessungZeigen();
   showView("assistant");
   renderTranscript();
   $("chatInput")?.focus();
@@ -2577,25 +2655,25 @@ $("chips").addEventListener("click", (event) => {
   if (button) send(button.dataset.say);
 });
 
-$("btnMenu").addEventListener("click", () => { $("menu").hidden = false; });
+// Die Zeichen im Menü kommen aus symbole.js und nicht aus dem HTML, damit
+// eine Linie nur an einer Stelle gepflegt wird.
+for (const el of document.querySelectorAll("[data-sym]")) el.innerHTML = symbol(el.dataset.sym, { groesse: 22, klasse: "sym" });
+
+/** Zeigt eine Seite des Menüs: "start" oder eine Gruppe. */
+function menuSeite(name) {
+  for (const seite of $("menu").querySelectorAll("[data-seite]")) seite.hidden = seite.dataset.seite !== name;
+  $("menu").scrollTo({ top: 0 });
+}
+// Das Menü öffnet immer auf der Startseite. Wer es zuletzt in einer Gruppe
+// verlassen hat, sucht beim nächsten Mal sonst den Weg zurück.
+$("btnMenu").addEventListener("click", () => { menuSeite("start"); $("menu").hidden = false; });
 $("btnMenuClose").addEventListener("click", () => { $("menu").hidden = true; });
 $("menu").addEventListener("click", (event) => {
   const item = event.target.closest("[data-go]");
   if (item) { showView(item.dataset.go); return; }
-
-  // Immer nur eine Gruppe offen. Zwei offene Gruppen sind wieder eine lange
-  // Liste, und genau die sollte weg.
-  const kopf = event.target.closest(".menu-kopf");
-  if (!kopf) return;
-  const offen = kopf.getAttribute("aria-expanded") === "true";
-  for (const anderer of document.querySelectorAll(".menu-kopf")) {
-    anderer.setAttribute("aria-expanded", "false");
-    anderer.parentElement.querySelector(".menu-unter").hidden = true;
-  }
-  if (!offen) {
-    kopf.setAttribute("aria-expanded", "true");
-    kopf.parentElement.querySelector(".menu-unter").hidden = false;
-  }
+  const gruppe = event.target.closest("[data-menu-gruppe]");
+  if (gruppe) { menuSeite(gruppe.dataset.menuGruppe); return; }
+  if (event.target.closest("[data-menu-zurueck]")) menuSeite("start");
 });
 uebungen = uebungenStarten();
 plaeneStarten({
@@ -3408,10 +3486,12 @@ function renderKalender() {
   }
 
   const a = ablaufFuer(kalenderTag);
-  $("kalBelegt").textContent = `${a.belegtMinuten} Minuten`;
+  // Als Dauer gesagt, nicht als Minutenzahl: "975 Minuten" rechnet jeder
+  // Leser selbst um.
+  $("kalBelegt").textContent = kurzDauer(a.belegtMinuten);
   $("kalQuote").textContent = `${Math.round(a.auslastung * 100)} %`;
   $("kalFokus").textContent = a.fokusblock
-    ? `${uhrzeit(a.fokusblock.von)} bis ${uhrzeit(a.fokusblock.bis)}, ${a.fokusblock.minuten} Minuten`
+    ? `${uhrzeit(a.fokusblock.von)} bis ${uhrzeit(a.fokusblock.bis)}, ${kurzDauer(a.fokusblock.minuten)}`
     : "keiner";
 
   fuelleListe("kalListe", [...a.ganztags, ...a.termine].map((t) => ({
@@ -4298,7 +4378,9 @@ async function renderPush() {
   const abo = await pushAbo().catch(() => null);
 
   const zeilen = [];
-  if (!lage.unterstuetzt) {
+  if (lage.nativ) {
+    zeilen.push(NATIV_PUSH);
+  } else if (!lage.unterstuetzt) {
     zeilen.push("Dieser Browser kann kein Web Push.");
   } else if (lage.apple && !lage.installiert) {
     zeilen.push("Auf dem iPhone geht Push nur aus der installierten App. Teilen, Zum Home Bildschirm, dann von dort starten.");

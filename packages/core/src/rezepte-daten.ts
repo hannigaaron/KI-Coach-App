@@ -130,12 +130,14 @@ export interface Rezept {
   schritte: string[];
   /** Mindestens eines davon muss da sein. Leer heisst: geht ohne Gerät. */
   geraete: string[];
+  /** Es gibt ein Foto unter `img/rezepte/<id>.jpg`. Ohne Foto trägt die Karte ein Zeichen. */
+  foto?: boolean;
 }
 
 export const REZEPTE: Rezept[] = [
   // Frühstück
   {
-    id: "protein-porridge", name: "Protein Porridge mit Beeren", art: "fruehstueck", minuten: 10, geraete: ["Herd", "Mikrowelle"],
+    id: "protein-porridge", foto: true, name: "Protein Porridge mit Beeren", art: "fruehstueck", minuten: 10, geraete: ["Herd", "Mikrowelle"],
     zutaten: [{ z: "haferflocken", g: 60 }, { z: "milch", g: 250 }, { z: "whey", g: 30 }, { z: "beeren", g: 100 }],
     schritte: ["Haferflocken mit der Milch aufkochen und vier Minuten quellen lassen.", "Vom Herd nehmen und das Whey einrühren, sonst klumpt es.", "Beeren darauf geben."],
   },
@@ -177,7 +179,7 @@ export const REZEPTE: Rezept[] = [
 
   // Hauptmahlzeiten
   {
-    id: "haehnchen-reis-brokkoli", name: "Hähnchen mit Reis und Brokkoli", art: "hauptmahlzeit", minuten: 25, geraete: ["Herd"],
+    id: "haehnchen-reis-brokkoli", foto: true, name: "Hähnchen mit Reis und Brokkoli", art: "hauptmahlzeit", minuten: 25, geraete: ["Herd"],
     zutaten: [{ z: "haehnchen", g: 180 }, { z: "reis", g: 80 }, { z: "brokkoli", g: 200 }, { z: "olivenoel", g: 10 }, { z: "sojasauce", g: 15 }],
     schritte: ["Reis nach Packung kochen.", "Hähnchen in Streifen schneiden und in Öl rundum anbraten.", "Brokkoli in Röschen dazugeben und fünf Minuten mitgaren.", "Mit Sojasauce ablöschen und mit dem Reis servieren."],
   },
@@ -259,7 +261,7 @@ export const REZEPTE: Rezept[] = [
 
   // Snacks
   {
-    id: "quark-beeren", name: "Magerquark mit Beeren", art: "snack", minuten: 3, geraete: [],
+    id: "quark-beeren", foto: true, name: "Magerquark mit Beeren", art: "snack", minuten: 3, geraete: [],
     zutaten: [{ z: "magerquark", g: 250 }, { z: "beeren", g: 100 }],
     schritte: ["Quark glatt rühren.", "Beeren darauf geben."],
   },
@@ -324,7 +326,7 @@ export const REZEPTE: Rezept[] = [
     schritte: ["Gurke würfeln, Tomaten halbieren, Radieschen in Scheiben schneiden.", "Hüttenkäse in eine Schale, Gemüse darauf.", "Mit Öl, Salz, Pfeffer und Kräutern abschmecken."],
   },
   {
-    id: "shakshuka", name: "Shakshuka", art: "hauptmahlzeit", minuten: 20, geraete: ["Herd"],
+    id: "shakshuka", foto: true, name: "Shakshuka", art: "hauptmahlzeit", minuten: 20, geraete: ["Herd"],
     zutaten: [{ z: "ei", g: 290 }, { z: "tomate", g: 300 }, { z: "paprika", g: 80 }, { z: "zwiebel", g: 50 }, { z: "olivenoel", g: 5 }],
     schritte: ["Tomaten in Stücke schneiden und in Öl köcheln lassen.", "Paprika, Zwiebel und Knoblauch klein geschnitten dazugeben.", "Mulden in die Sauce drücken und die Eier hineinschlagen.", "Deckel auf, Hitze runter, drei bis vier Minuten ziehen lassen."],
   },
@@ -349,7 +351,7 @@ export const REZEPTE: Rezept[] = [
     schritte: ["Reis kochen.", "Hähnchen in Würfeln mit Öl anbraten, mit Paprika, Kreuzkümmel und Chili würzen.", "Bohnen und Mais kurz mit in die Pfanne geben.", "Alles in eine Schale, mit Paprika, Tomaten und etwas Limette toppen."],
   },
   {
-    id: "lachs-zitronen-pasta", name: "Lachs Zitronen Pasta mit Dinkelnudeln", art: "hauptmahlzeit", minuten: 20, geraete: ["Herd"],
+    id: "lachs-zitronen-pasta", foto: true, name: "Lachs Zitronen Pasta mit Dinkelnudeln", art: "hauptmahlzeit", minuten: 20, geraete: ["Herd"],
     zutaten: [{ z: "lachs", g: 150 }, { z: "dinkelnudeln", g: 100 }, { z: "kochsahne", g: 80 }, { z: "spinat", g: 50 }],
     schritte: ["Nudeln kochen.", "Lachs in Würfeln von allen Seiten anbraten.", "Kochsahne mit dem Saft einer halben Zitrone erhitzen, Spinat darin zusammenfallen lassen.", "Nudeln und Lachs unterheben, mit Knoblauch, Oregano und Basilikum würzen."],
   },

@@ -44,6 +44,22 @@ const PFADE = {
   welle: '<path d="M3 12c2-3 4-3 6 0s4 3 6 0 4-3 6 0"/><path d="M3 17c2-3 4-3 6 0s4 3 6 0 4-3 6 0"/><path d="M3 7c2-3 4-3 6 0s4 3 6 0 4-3 6 0"/>',
   tropfen: '<path d="M12 3c3 4 6 7.5 6 11a6 6 0 0 1-12 0c0-3.5 3-7 6-11z"/>',
   sonne: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2"/><path d="M12 19.5v2"/><path d="M2.5 12h2"/><path d="M19.5 12h2"/><path d="M5.3 5.3l1.4 1.4"/><path d="M17.3 17.3l1.4 1.4"/><path d="M5.3 18.7l1.4-1.4"/><path d="M17.3 6.7l1.4-1.4"/>',
+  // Menü und Erfassen. Dieselbe Strichstärke und dieselben runden Enden wie
+  // alle anderen, damit Menü, Fragebogen und Blätter eine Familie bleiben.
+  sprechblase: '<path d="M4.5 6.5a2.5 2.5 0 0 1 2.5-2.5h10a2.5 2.5 0 0 1 2.5 2.5v7a2.5 2.5 0 0 1-2.5 2.5H11l-4.5 3.5V16h0a2 2 0 0 1-2-2z"/>',
+  ring: '<path d="M12 4a8 8 0 1 1-7.4 5"/><path d="M12 8.5a3.5 3.5 0 1 1-3.3 2.3"/>',
+  plus: '<path d="M12 5v14"/><path d="M5 12h14"/>',
+  loeffel: '<path d="M8 3v7a2.5 2.5 0 0 0 5 0V3"/><path d="M10.5 3v18"/><path d="M17 3c-1.7 1.2-2.5 3.2-2.5 6 0 1.4.9 2.3 2.5 2.5V21"/>',
+  tasche: '<path d="M5.5 8h13l-1 12h-11z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/>',
+  liste: '<path d="M9 6.5h10"/><path d="M9 12h10"/><path d="M9 17.5h10"/><path d="M5 6.5h.01"/><path d="M5 12h.01"/><path d="M5 17.5h.01"/>',
+  puls: '<path d="M3 12h4l2.5-6 4 12 2.5-6H21"/>',
+  verlauf: '<path d="M4 19h16"/><path d="M5 15l4.5-4.5 3.5 3L19.5 7"/><path d="M15.5 7h4v4"/>',
+  dokument: '<path d="M6.5 3.5h7l4 4V20a.5.5 0 0 1-.5.5h-10.5a.5.5 0 0 1-.5-.5V4a.5.5 0 0 1 .5-.5z"/><path d="M13.5 3.5V8h4"/><path d="M9 13h6"/><path d="M9 16.5h4"/>',
+  person: '<circle cx="12" cy="8" r="3.5"/><path d="M5 20c.6-3.6 3.4-5.5 7-5.5s6.4 1.9 7 5.5"/>',
+  kamera: '<path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2.2l1.4-2h5.8l1.4 2h2.2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"/><circle cx="12" cy="13" r="3.5"/>',
+  mikrofon: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21"/>',
+  barcode: '<path d="M4 7V5h3"/><path d="M17 5h3v2"/><path d="M20 17v2h-3"/><path d="M7 19H4v-2"/><path d="M8 9v6"/><path d="M11 9v6"/><path d="M13.5 9v6"/><path d="M16 9v6"/>',
+  lupe: '<circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/>',
 };
 
 /**

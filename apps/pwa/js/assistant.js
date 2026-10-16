@@ -1487,7 +1487,7 @@ export function briefing(art = "morgen") {
     // Morgens mit Uhrzeiten. "Erst das Angebot" hilft wenig, wenn unklar
     // ist, ob es zwischen die Termine überhaupt passt.
     aufgaben: tagesplanText(),
-    standards: status.filter((s) => !s.erfuellt).map((s) => s.satz),
+    standards: status.filter((s) => !s.aktuell).map((s) => s.satz),
     trend: trend.belastbar
       ? `Gewicht: ${trend.aktuellKg} kg geglättet, ${trend.kgProWoche > 0 ? "plus" : "minus"} ${Math.abs(trend.kgProWoche).toFixed(2)} kg je Woche.`
       : undefined,
@@ -1679,6 +1679,50 @@ export function gespraechAnlegen() {
   return g;
 }
 
+/** Hat der Nutzer in diesem Gespräch schon etwas gesagt. */
+function hatGesprochen(g) {
+  return (g?.nachrichten || []).some((m) => m.role === "user");
+}
+
+/**
+ * Ein leeres Gespräch zum Start, wie bei Claude.
+ *
+ * Wer die App öffnet, will meist etwas Neues sagen und nicht im Gespräch von
+ * gestern weiterschreiben. Das alte steht in der Liste und ist dort über die
+ * Suche zu finden.
+ *
+ * Leere Gespräche werden dabei weggeräumt, bis auf das eine, das offen ist.
+ * Die Liste fasst vierzig Gespräche, sortiert nach dem letzten Stand. Legte
+ * jedes Öffnen ein neues an, schöben vierzig Starts ohne ein Wort jedes echte
+ * Gespräch aus dem Speicher.
+ */
+export function frischesGespraech() {
+  const alle = store.getGespraeche();
+  const leer = alle.filter((g) => !hatGesprochen(g));
+  const behalten = leer.find((g) => g.id === store.getAktivesGespraech()) ?? leer[0];
+  if (!behalten) return gespraechAnlegen();
+
+  const rest = alle.filter((g) => hatGesprochen(g) || g.id === behalten.id);
+  behalten.nachrichten = [];
+  behalten.titel = "Neues Gespräch";
+  behalten.ordner = "sonstiges";
+  delete behalten.ordnerFest;
+  behalten.erstellt = behalten.zuletzt = new Date().toISOString();
+  store.setGespraeche(rest);
+  store.setAktivesGespraech(behalten.id);
+  return behalten;
+}
+
+/** Ob das offene Gespräch schon etwas enthält, das der Nutzer gesagt hat. */
+export function gespraechBegonnen() {
+  return hatGesprochen(store.getGespraeche().find((g) => g.id === store.getAktivesGespraech()));
+}
+
+/** Gespräche für die Liste: nur solche, in denen der Nutzer etwas gesagt hat. */
+export function gespraecheMitInhalt() {
+  return store.getGespraeche().filter(hatGesprochen);
+}
+
 export function gespraechOeffnen(id) {
   if (store.getGespraeche().some((g) => g.id === id)) store.setAktivesGespraech(id);
 }
@@ -1861,7 +1905,7 @@ export function tagesnutzungFuer(tagIso = todayIso()) {
     balance: balanceFuer(1, tagIso),
     aufgabenErledigt: erledigt,
     aufgabenGeplant: erledigt + plan.heute.length,
-    standardsGehalten: status.filter((s) => s.erfuellt).length,
+    standardsGehalten: status.filter((s) => s.aktuell).length,
     standardsGesamt: status.length,
     ernaehrung: scoreDay(n.totals, n.targets).total,
   });
@@ -2910,18 +2954,29 @@ export async function ask(nachricht, { onChange, anhaenge = [], onStrom } = {}) 
  * nicht auf eine Antwort warten, die Geld kostet.
  */
 export function greeting() {
+  const { gruss, lage } = begruessung();
+  return `${gruss}. ${lage}`;
+}
+
+/**
+ * Gruss und Lage getrennt. Unter dem grossen Kreis steht der Gruss gross und
+ * die Lage klein darunter, im Chat stünden beide in einem Satz.
+ */
+export function begruessung() {
   const n = dayNumbers();
   const hour = new Date().getHours();
   const name = n.profile.name ? `, ${n.profile.name}` : "";
   const gruss = hour < 11 ? `Guten Morgen${name}` : hour < 18 ? `Hallo${name}` : `Guten Abend${name}`;
 
   if (n.data.meals.length === 0) {
-    return `${gruss}. Noch nichts eingetragen heute. Sag mir, was du gegessen hast, oder frag mich was.`;
+    return { gruss, lage: "Noch nichts eingetragen heute. Sag mir, was du gegessen hast, oder frag mich was." };
   }
   if (n.rest.kcal < 0) {
-    return `${gruss}. Du bist ${Math.abs(n.rest.kcal)} kcal über deinem Ziel. Kein Drama, aber gut zu wissen.`;
+    return { gruss, lage: `Du bist ${Math.abs(n.rest.kcal)} kcal über deinem Ziel. Kein Drama, aber gut zu wissen.` };
   }
-  return `${gruss}. Du hast noch ${n.rest.kcal} kcal und ${Math.max(0, n.rest.proteinG)} g Protein offen.`;
+  // "0 g Protein offen" ist kein Satz, den jemand sagen würde.
+  if (n.rest.proteinG <= 0) return { gruss, lage: `Noch ${n.rest.kcal} kcal offen, dein Protein hast du schon.` };
+  return { gruss, lage: `Noch ${n.rest.kcal} kcal und ${n.rest.proteinG} g Protein offen.` };
 }
 
 /**
@@ -2990,7 +3045,7 @@ export function recommendations() {
     const abweichung = Math.round(schnitt - n.targets.kcal);
     if (Math.abs(abweichung) > 250) {
       out.push({
-        titel: abweichung > 0 ? "Du liegst über deinem Schnitt" : "Du liegst unter deinem Schnitt",
+        titel: abweichung > 0 ? "Du liegst über deinem Ziel" : "Du liegst unter deinem Ziel",
         text:
           abweichung > 0
             ? `Im Schnitt ${abweichung} kcal über dem Ziel. Bei Gewicht halten wandert das nach oben.`
