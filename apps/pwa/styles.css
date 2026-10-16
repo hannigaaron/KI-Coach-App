@@ -951,8 +951,10 @@ button.messwert:active { opacity: 0.65; }
 .feedback.ok { background: rgba(63, 185, 80, 0.1); border-color: rgba(63, 185, 80, 0.4); }
 
 .feelings { display: flex; gap: 9px; flex-wrap: wrap; }
+/* Natürliche Breite statt Strecken: mit Strecken zog sich die letzte Zeile,
+   "noch hungrig", allein über die ganze Breite und sah aus wie ein Hauptknopf. */
 .feelings button {
-  flex: 1 1 auto; background: var(--panel); border: 1px solid var(--border);
+  flex: 0 0 auto; background: var(--panel); border: 1px solid var(--border);
   color: var(--text); font-size: 14px; font-weight: 500; padding: 10px 12px;
 }
 .feelings button.on { border-color: var(--accent); color: var(--accent); }

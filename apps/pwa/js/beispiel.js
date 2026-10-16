@@ -68,7 +68,7 @@ export const DEMO_PROFIL = {
   sessions: [
     { weekday: 1, startsAt: "18:00", type: "strength", minutes: 75 },
     { weekday: 3, startsAt: "18:00", type: "strength", minutes: 75 },
-    { weekday: 6, startsAt: "10:00", type: "strength", minutes: 90 },
+    { weekday: 6, startsAt: "18:00", type: "strength", minutes: 90 },
   ],
 };
 
@@ -270,6 +270,25 @@ function zeitenBauen(heute) {
 }
 
 /**
+ * Die Antwort auf "Wie sieht mein Tag aus" passend zu Kalender, Profil und
+ * Aufgaben der Demo. Ein fester Satz stimmte nur an Tagen, an denen auch
+ * trainiert wird, und nannte vier Termine, wo drei im Kalender stehen.
+ */
+function tagesAntwort(heute) {
+  const wochentag = new Date(`${tagVor(0, heute)}T12:00:00`).getDay();
+  const training = DEMO_PROFIL.sessions.find((s) => s.weekday === wochentag);
+  let abend = "Heute ist kein Training geplant, der Abend gehört dir.";
+  if (training) {
+    const [h, m] = training.startsAt.split(":").map(Number);
+    const essen = h * 60 + m - 90;
+    const uhr = `${String(Math.floor(essen / 60)).padStart(2, "0")}:${String(essen % 60).padStart(2, "0")}`;
+    abend = `Training steht um ${training.startsAt}, iss deshalb gegen ${uhr} und nicht erst danach.`;
+  }
+  return "Drei Termine, zusammen fünf Stunden, der letzte endet um 15:45. Danach ist der Tag frei. "
+    + `${abend} Auf der Liste stehen drei offene Aufgaben, zwei davon mit Frist, der Wocheneinkauf schon morgen.`;
+}
+
+/**
  * Eine Woche Kalender ab heute. Ohne Termine stand auf der Kalenderseite
  * "Keine Termine" und ein freier Block über den ganzen Tag, während der
  * Assistent im Gespräch daneben von vier Terminen sprach.
@@ -281,7 +300,10 @@ function kalenderBauen(heute) {
     const tag = tagVor(abstand, heute);
     const wochentag = new Date(`${tag}T12:00:00`).getDay();
     const neu = (titel, von, bis) => termine.push({ uid: `demo-${tag}-${von}`, titel, ort: "", von: zeit(tag, von), bis: zeit(tag, bis), ganztags: false, quelle: "Kalender" });
-    if (wochentag >= 1 && wochentag <= 5) {
+    // Heute ist immer ein Arbeitstag. Die Demo wird am Tag des Besuchs gebaut,
+    // und an einem Samstag stand sonst ein leerer Kalender neben einem
+    // Gespräch über drei Termine.
+    if (abstand === 0 || (wochentag >= 1 && wochentag <= 5)) {
       neu("Projektarbeit im Büro", "08:30", "12:00");
       neu("Teammeeting", "13:00", "13:45");
       neu(wochentag === 2 ? "Beratung Neukunde" : "Kundencall", "15:00", "15:45");
@@ -356,11 +378,11 @@ function gespraecheBauen(heute) {
       ],
     },
     {
-      id: "g3", ordner: "planung", erstellt: at(1, "07:05"), zuletzt: at(1, "07:09"),
+      id: "g3", ordner: "planung", erstellt: at(0, "07:05"), zuletzt: at(0, "07:07"),
       titel: "Wie sieht mein Tag aus",
       nachrichten: [
-        { role: "user", text: "Wie sieht mein Tag aus?", at: at(1, "07:05") },
-        { role: "assistant", text: "Vier Termine, zusammen fünf Stunden, der längste freie Block liegt von 14:00 bis 16:30. Training steht um 18:00, iss deshalb gegen 16:30 statt erst danach. Auf der Liste stehen drei offene Aufgaben, der Trainingsplan ist die einzige mit Frist.", at: at(1, "07:07") },
+        { role: "user", text: "Wie sieht mein Tag aus?", at: at(0, "07:05") },
+        { role: "assistant", text: tagesAntwort(heute), at: at(0, "07:07") },
       ],
     },
   ];
