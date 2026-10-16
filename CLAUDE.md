@@ -190,8 +190,11 @@ das. Wer im Stylesheet etwas einfügt, prüft die Klammerbilanz.
 
 ## Übungen
 
-Die Ansicht "Übungen" (Menü, Gruppe Training) hat zwei Reiter, Übungen und Trainingspläne. Die Übungen sind ein Raster aus Foto Kacheln
-mit Suche und einer Zeile Gruppenfilter. Ein Tipp öffnet die Detailseite: das
+Die Ansicht "Übungen" (Menü, Gruppe Training) hat zwei Reiter, Übungen und Trainingspläne. Die Übungen sind eine Liste wie in den
+guten Trainings Apps: kleines Foto links, Name, darunter Gerät in der
+Akzentfarbe und Muskeln in Grau, mit Suche und Filterzeilen darüber. Vorher
+ein Raster aus grossen Foto Kacheln: vier Übungen je Bildschirm statt neun,
+und Gerät und Muskel standen klein auf dem Foto. Ein Tipp öffnet die Detailseite: das
 Foto bis an den Rand, darauf Gruppe und Name, darunter Haupt und Hilfsmuskeln,
 Niveau, Wiederholungen, Gerät, drei bis vier Schritte. Der Knopf zum
 Erklärvideo bleibt unten stehen.
@@ -286,7 +289,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 967 Tests
+npm test           # 968 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -325,6 +328,32 @@ Offen: die geheime Adresse direkt abrufen statt eine Datei zu wählen. Das
 scheitert im Browser an CORS, dafür braucht es `apps/api` als Zwischenstelle.
 OAuth für Google und EventKit für Apple gehören in die native App, siehe
 `docs/ROADMAP.md`.
+
+## Jeder Start ist ein leeres Gespräch
+
+Wie bei Claude. Wer die App öffnet, sieht das grosse d, darunter Gruss und
+Lage des Tages, unten die Eingabe. Das Gespräch von gestern steht in der
+Liste und nicht mehr im Weg. `frischesGespraech()` in `assistant.js`.
+
+Die Begrüssung ist keine Nachricht mehr, sondern steht unter dem Kreis,
+`begruessung()` liefert Gruss und Lage getrennt. Vorher begann jedes Gespräch
+mit einem Satz der App, und die Liste füllte sich mit Gesprächen, in denen
+niemand etwas gesagt hatte.
+
+Leere Gespräche werden beim Start weggeräumt, bis auf eines. Die Liste fasst
+vierzig, sortiert nach dem letzten Stand: legte jedes Öffnen ein neues an,
+schöben vierzig Starts ohne ein Wort jedes echte Gespräch aus dem Speicher.
+Ein Test hält das fest.
+
+Nach einer halben Stunde im Hintergrund beginnt ebenfalls ein neues
+Gespräch. Eine installierte App wird auf dem iPhone selten neu geladen,
+sondern nur wieder nach vorn geholt. Ein Gespräch, in dem gerade geantwortet
+wird, bleibt.
+
+Die Liste der Gespräche ist nach Zeit gruppiert, Heute, Gestern, Letzte 7
+Tage, Letzte 30 Tage, dann je Monat. Gesucht wird ein Gespräch fast immer über
+"das war vorgestern", für das Thema gibt es den Ordnerfilter darüber. Die
+Suche geht über den Inhalt aller Nachrichten und zeigt die Stelle.
 
 ## Gespräche statt eines Verlaufs
 

@@ -590,3 +590,19 @@ test("Tagesnutzung zählt einen heute bestätigten Standard als gehalten", async
   // Vorher las die Zählung ein Feld, das es nicht gibt, und meldete immer null.
   assert.equal(teil.erklaerung, "1 von 2 Standards gehalten.");
 });
+
+test("Ein frischer Start legt kein zweites leeres Gespräch an und behält das alte", async () => {
+  frischerTag();
+  const { frischesGespraech, gespraecheMitInhalt } = await import("./assistant.js");
+  const erstes = frischesGespraech();
+  store.setChat([{ role: "user", text: "Wie viel Protein brauche ich?", at: new Date().toISOString() }]);
+  const zweites = frischesGespraech();
+  const drittes = frischesGespraech();
+  assert.notEqual(zweites.id, erstes.id);
+  // Zwei Starts ohne ein Wort dazwischen dürfen kein zweites leeres Gespräch erzeugen,
+  // sonst schieben leere Starts die echten aus der Liste mit vierzig Plätzen.
+  assert.equal(drittes.id, zweites.id);
+  assert.equal(store.getGespraeche().length, 2);
+  assert.deepEqual(gespraecheMitInhalt().map((g) => g.id), [erstes.id]);
+  assert.equal(store.getChat().length, 0);
+});

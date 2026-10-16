@@ -112,10 +112,17 @@ const esc = (text) => String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 
 export function listeHtml(treffer) {
   if (!treffer.length) return '<li class="ue-leer">Keine Übung gefunden.<br>Versuch einen Muskel oder ein Gerät.</li>';
+  // Eine Zeile je Übung statt einer Kachel. Zwei Kacheln je Bildschirmbreite
+  // hiessen vier Übungen je Bildschirm, und wer die Kniebeuge sucht, scrollt
+  // durch zwanzig Fotos. Als Zeile passen neun hinein, und Gerät und Muskel
+  // stehen lesbar daneben statt klein auf dem Foto.
   return treffer
-    .map((u) => `<li><button class="ue-karte" type="button" data-uebung="${esc(u.id)}">
+    .map((u) => `<li><button class="ue-zeile" type="button" data-uebung="${esc(u.id)}">
       <img class="ue-karte-bild" src="${esc(vorschauPfad(u))}" alt="" width="400" height="500" loading="lazy" decoding="async">
-      <span class="ue-karte-text"><b>${esc(u.name)}</b><span>${esc(u.primaryMuscles[0])}</span></span></button></li>`)
+      <span class="ue-zeile-text"><b>${esc(u.name)}</b>`
+      + `<span class="ue-zeile-meta"><span class="ue-zeile-geraet">${esc(GERAETE[u.equipment] ?? u.equipment ?? "")}</span>`
+      + `<span>${esc(u.primaryMuscles.join(", "))}</span></span></span>
+      <span class="ue-zeile-pfeil" aria-hidden="true"></span></button></li>`)
     .join("");
 }
 

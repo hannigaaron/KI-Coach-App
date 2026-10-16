@@ -1,7 +1,7 @@
 import {
   BEREICHE, BEREICH_NAME, CHECKIN_BOEGEN, CHECKIN_MITTE, STANDARD_ZIELE, WOCHENTAGE,
   MAHLZEITEN, bogenAmTag, bogenFuer, eintragAus100g, energyBreakdown, hatAngebot, mengeLesen,
-  mengeSetzen, nachOrdnern, naehrwerteFuer, offeneMahlzeiten, portionsVorschlag, skalierbar,
+  ORDNER, mengeSetzen, nachOrdnern, naehrwerteFuer, offeneMahlzeiten, portionsVorschlag, skalierbar,
   impulseFuerTag, planFuer, saubereUrl, uhrzeit, undListe, weckwortGehoert, weightTrend,
   belastung,
   belastungText,
@@ -24,8 +24,8 @@ import { healthDateiLesen, healthSchreiben, kurzbefehlSchreiben, schreibBericht 
 import {
   ablaufFuer, ask, aufgabeAnlegenEingestuft, aufgabeLoeschen, aufgabeUmstufen, aufgabeVerschieben, aufgabenPlan,
   balanceFuer, balanceRat, briefing,
-  buildActions, dayNumbers, einkaufslisteText, ensureStandards, greeting, herausforderungSpeichern,
-  aktuelleLage, aktivesGespraech, gegesseneArten, gespraechAnlegen, gespraechLoeschen, gespraechNachziehen,
+  buildActions, begruessung, dayNumbers, einkaufslisteText, ensureStandards, herausforderungSpeichern,
+  aktuelleLage, frischesGespraech, gegesseneArten, gespraechBegonnen, gespraecheMitInhalt, gespraechLoeschen, gespraechNachziehen,
   gespraechOeffnen, gespraecheSuchen,
   aufgabenPlanText, energieCheck, kopfSortieren, mittagscheck, mittagscheckText, musterUebersicht,
   schluesselPruefen, tagesnutzungFuer,
@@ -708,27 +708,56 @@ function setupAssistant() {
         if (weckwortLaeuft) weckwortStoppen("");
         orb.setState("idle"); setStatus("bereit");
         $("btnMic").classList.remove("hoert");
-        $("orbHint").textContent = "Tipp auf den Kreis und sprich";
+        begruessungZeigen();
       }
       else {
         $("btnMic").classList.remove("hoert");
         if (weckwortLaeuft) return;
-        $("orbHint").textContent = "Tipp auf den Kreis und sprich";
+        begruessungZeigen();
         if (!busy) { orb.setState("idle"); setStatus("bereit"); }
       }
     },
   });
 
-  // Sorgt dafür, dass ein Gespräch offen ist. Ohne das schreibt setChat ins
-  // Leere, und die erste Nachricht des Tages wäre weg.
-  aktivesGespraech();
-  if (store.getChat().length === 0) {
-    const text = greeting();
-    store.setChat([{ role: "assistant", text, at: new Date().toISOString() }]);
-  }
+  // Jeder Start beginnt mit einem leeren Gespräch, wie bei Claude. Das
+  // Gespräch von gestern steht in der Liste und nicht mehr im Weg. Ohne ein
+  // offenes Gespräch schriebe setChat ausserdem ins Leere.
+  frischesGespraech();
+  begruessungZeigen();
   renderTranscript();
   setStatus("bereit");
 }
+
+/**
+ * Gruss und Lage unter dem grossen Kreis.
+ *
+ * Die Begrüssung stand vorher als erste Nachricht im Verlauf. Damit begann
+ * jedes Gespräch mit einem Satz der App, und die Liste füllte sich mit
+ * Gesprächen, in denen niemand etwas gesagt hatte.
+ */
+function begruessungZeigen() {
+  const { gruss, lage } = begruessung();
+  $("orbGruss").textContent = gruss;
+  $("orbHint").textContent = lage;
+}
+
+/*
+ * Nach einer halben Stunde im Hintergrund beginnt ebenfalls ein neues
+ * Gespräch. Eine installierte App wird auf dem iPhone selten neu geladen,
+ * sondern nur wieder nach vorn geholt, und ohne das stünde dort tagelang
+ * dasselbe Gespräch. Ein Gespräch, in dem gerade geantwortet wird, bleibt.
+ */
+const NEU_NACH_MS = 30 * 60 * 1000;
+let verstecktSeit = 0;
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) { verstecktSeit = Date.now(); return; }
+  if (!verstecktSeit || Date.now() - verstecktSeit < NEU_NACH_MS) return;
+  verstecktSeit = 0;
+  if (busy || !gespraechBegonnen()) { begruessungZeigen(); return; }
+  frischesGespraech();
+  begruessungZeigen();
+  renderTranscript();
+});
 
 /* ---------- Bereiche ---------- */
 
@@ -1737,10 +1766,11 @@ let gsFilter = null;
 function renderGespraeche() {
   const frage = $("gsSuche").value.trim();
   const aktiv = store.getAktivesGespraech();
+  const mitInhalt = gespraecheMitInhalt();
 
   // Der Filter zeigt nur Ordner, in denen wirklich etwas liegt. Sechs leere
   // Kacheln sagen nichts und kosten eine Bildschirmhöhe.
-  const belegt = nachOrdnern(store.getGespraeche());
+  const belegt = nachOrdnern(mitInhalt);
   $("gsOrdnerFilter").innerHTML = belegt.length > 1
     ? `<button class="pill${gsFilter === null ? " on" : ""}" data-filter="">Alle</button>`
       + belegt.map((x) =>
@@ -1749,37 +1779,59 @@ function renderGespraeche() {
     : "";
 
   if (frage.length >= 2) {
-    const funde = gespraecheSuchen(frage);
+    const funde = gespraecheSuchen(frage).filter((f) => f.gespraech.nachrichten.some((m) => m.role === "user"));
     $("gsListe").innerHTML = funde.length === 0
       ? `<p class="gs-leer">Nichts gefunden zu "${escapeHtml(frage)}".</p>`
       : funde.map((f) => eintragHtml(f.gespraech, aktiv, f.stelle)).join("");
     return;
   }
 
-  const gruppen = belegt.filter((x) => !gsFilter || x.ordner.id === gsFilter);
-  if (gruppen.length === 0) {
-    $("gsListe").innerHTML = '<p class="gs-leer">Noch keine Gespräche. Fang oben eins an, '
-      + 'daevo sortiert es selbst ein, sobald das Thema klar ist.</p>';
+  const liste = mitInhalt
+    .filter((g) => !gsFilter || g.ordner === gsFilter)
+    .sort((x, y) => y.zuletzt.localeCompare(x.zuletzt));
+  if (liste.length === 0) {
+    $("gsListe").innerHTML = '<p class="gs-leer">Noch keine Gespräche. Sag im Assistenten etwas, '
+      + "dann steht es hier und lässt sich später durchsuchen.</p>";
     return;
   }
 
-  $("gsListe").innerHTML = gruppen.map((x) => `
-    <div class="gs-ordner">
-      <span class="punkt" style="background:${x.ordner.farbe}"></span>
-      <b>${escapeHtml(x.ordner.name)}</b>
-      <span class="anzahl">${x.gespraeche.length}</span>
-    </div>
-    ${x.gespraeche.map((g) => eintragHtml(g, aktiv)).join("")}`).join("");
+  // Nach Zeit statt nach Ordner, wie bei Claude. Gesucht wird ein Gespräch
+  // fast immer über "das war vorgestern", selten über das Thema, und für das
+  // Thema gibt es den Filter darüber.
+  const gruppen = new Map();
+  for (const g of liste) {
+    const name = zeitGruppe(g.zuletzt);
+    if (!gruppen.has(name)) gruppen.set(name, []);
+    gruppen.get(name).push(g);
+  }
+  $("gsListe").innerHTML = [...gruppen].map(([name, gs]) => `
+    <div class="gs-gruppe">${escapeHtml(name)}</div>
+    ${gs.map((g) => eintragHtml(g, aktiv)).join("")}`).join("");
+}
+
+/** Heute, Gestern, Letzte 7 Tage, Letzte 30 Tage, dann der Monat. */
+function zeitGruppe(iso) {
+  const tag = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x.getTime(); };
+  const tage = Math.round((tag(Date.now()) - tag(iso)) / 86400000);
+  if (tage <= 0) return "Heute";
+  if (tage === 1) return "Gestern";
+  if (tage < 7) return "Letzte 7 Tage";
+  if (tage < 30) return "Letzte 30 Tage";
+  return new Date(iso).toLocaleDateString("de-DE", { month: "long", year: "numeric" });
 }
 
 function eintragHtml(g, aktiv, stelle = "") {
-  const wann = new Date(g.zuletzt).toLocaleDateString("de-DE", { day: "numeric", month: "short" });
-  const anzahl = g.nachrichten.length;
+  const datum = new Date(g.zuletzt);
+  const heute = zeitGruppe(g.zuletzt) === "Heute";
+  const wann = heute
+    ? datum.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })
+    : datum.toLocaleDateString("de-DE", { day: "numeric", month: "short" });
+  const ordner = ORDNER.find((o) => o.id === g.ordner) ?? ORDNER[ORDNER.length - 1];
   return `<div class="gs-eintrag${g.id === aktiv ? " on" : ""}">
     <div class="gs-text" data-oeffnen="${g.id}" role="button" tabindex="0">
       <b>${escapeHtml(g.titel)}</b>
-      <span class="gs-meta">${wann} · ${anzahl} ${anzahl === 1 ? "Nachricht" : "Nachrichten"}`
-      + `${g.ordnerFest ? " · von dir einsortiert" : ""}</span>
+      <span class="gs-meta"><span class="punkt" style="background:${ordner.farbe}"></span>`
+      + `${escapeHtml(ordner.name)} · ${wann}</span>
       ${stelle ? `<span class="gs-stelle">${escapeHtml(stelle)}</span>` : ""}
     </div>
     <button class="gs-weg" data-loeschen="${g.id}" aria-label="Gespräch löschen">&times;</button>
@@ -1810,7 +1862,8 @@ $("gespraeche").addEventListener("click", (event) => {
 $("btnGespraeche").addEventListener("click", () => showView("gespraeche"));
 
 function neuesGespraech() {
-  gespraechAnlegen();
+  frischesGespraech();
+  begruessungZeigen();
   showView("assistant");
   renderTranscript();
   $("chatInput")?.focus();
