@@ -67,6 +67,12 @@ Der Befehl baut nach `dist-demo` und lädt es hoch. Beim ersten Mal legt
 Wrangler das Projekt `daevo` an und fragt nach dem Produktionszweig. Danach
 liegt die App auf `https://daevo.pages.dev`.
 
+Der Befehl trägt `--branch main`. Ohne die Angabe nimmt Wrangler den Namen
+des Git Zweigs, auf dem der Rechner gerade steht. Steht er nicht auf `main`,
+landet der Upload als Vorschau unter einer eigenen Adresse, und
+`daevo.pages.dev` bleibt still auf dem alten Stand. Genau das ist passiert:
+der Befehl lief ohne Fehler, und online stand weiter die alte Fassung.
+
 Diese Adresse steht in `HERKUNFT` in `workers/push/wrangler.toml`. Ohne sie
 weist der Worker jede Anfrage der Demo ab, und der Chat antwortet nicht.
 
