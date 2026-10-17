@@ -43,8 +43,15 @@ Geviert, damit das d exakt auf denselben Linien sitzt wie a, e, v und o:
 | Aussendurchmesser der Bowl | 570 | Breite des o |
 | Mittellinie des Rings | Radius 215 | 285 minus halbe Strichstärke |
 | Mittelpunkt | 325 / 277 | Mittellinie des Rings trifft die des Stamms bei x 540 |
-| Oberkante des Stamms | 740 | Aufstrichhöhe |
+| Oberkante des Stamms | 800 | Aufstrichhöhe 740 plus 60 |
 | Vorschub | 678 | Vorschub des d |
+
+Der Stamm ist das einzige Maß, das bewusst von der Schrift abweicht. Bei 740
+wirkte er neben dem Ring gestaucht, das d sah aus wie ein Ring mit einem
+Stummel. 60 Einheiten mehr strecken ihn, ohne dass er gegen eine andere Linie
+läuft: in daevo hat kein anderer Buchstabe einen Aufstrich. Der Kreis auf dem
+Assistenten in `apps/pwa/js/orb.js` und die Marke neben jeder Antwort in
+`app.js` folgen demselben Wert.
 
 Der Ring beginnt oben auf zwölf Uhr und läuft im Uhrzeigersinn über
 280 Grad, also 78 Prozent. Die restlichen 80 Grad bleiben offen, die Lücke

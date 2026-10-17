@@ -30,7 +30,7 @@ SHOW_TRACK = False     # Hauptvariante ist der offene Ring ohne Spur
 
 REST = run([("ae", P600), ("vo", P300)], SIZE, tracking=TRACKING, kern=0.5)
 CLAIM_RUN = run([(CLAIM, P400)], 15, tracking=2.6)
-ASC_TOP = -74.0
+ASC_TOP = -80.0       # Oberkante des Stamms, ASC in ringd.py mal SIZE
 
 def parts(color, sweep=SWEEP, show_track=SHOW_TRACK):
     body, adv = ring_d(SIZE, color, sweep=sweep, show_track=show_track, track_opacity=TRACK_OPACITY)

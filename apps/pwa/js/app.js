@@ -219,9 +219,9 @@ $("chips").addEventListener("click", (event) => {
  * Haltung.
  */
 function markeSvg() {
-  return `<svg class="marke" viewBox="-6 -80 73 87" aria-hidden="true">` +
+  return `<svg class="marke" viewBox="-6 -86 73 93" aria-hidden="true">` +
     `<path d="M 32.50 -49.20 A 21.50 21.50 0 1 1 11.33 -31.43" fill="none" stroke="currentColor" stroke-width="14" stroke-linecap="round"/>` +
-    `<path d="M 54 -67 L 54 -27.7" fill="none" stroke="currentColor" stroke-width="14" stroke-linecap="round"/></svg>`;
+    `<path d="M 54 -73 L 54 -27.7" fill="none" stroke="currentColor" stroke-width="14" stroke-linecap="round"/></svg>`;
 }
 
 function renderTranscript() {
