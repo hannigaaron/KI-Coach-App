@@ -11,8 +11,14 @@
  *
  * Die Geometrie ist dieselbe wie im Logo, gemessen aus Poppins SemiBold bei
  * 1000 Einheiten je Geviert und in einen Entwurfsraum von 800 gelegt:
- *   Grundlinie 760, Ringmitte 318 / 483, Radius 215, Strichstärke 140
- *   Stamm x 470 bis 610, von y 20 bis zur Grundlinie
+ *   Grundlinie 760, Ringmitte 325 / 483, Radius 215, Strichstärke 140
+ *   Ring 280 Grad ab oben im Uhrzeigersinn, 80 Grad bleiben offen
+ *   Stamm x 470 bis 610, von y 20 bis auf Höhe der Ringmitte
+ *
+ * Der Stamm endet nicht an der Grundlinie, sondern läuft in den Ring hinein.
+ * Seine Mittellinie liegt bei x 540, genau auf der Mittellinie des Rings an
+ * dessen rechter Seite. Dort gehen beide Schläuche ineinander über, und das d
+ * ist ein Zug statt zwei Teilen nebeneinander.
  *
  * Zustände:
  *   idle       ruhiges Wogen, ein dünner Innenring zeigt den Tagesfortschritt
@@ -22,16 +28,16 @@
  */
 
 const BASE = 760;
-const CX = 318;
+const CX = 325;            // CX + R = 540, die Mittellinie des Stamms
 const CY = BASE - 277;
 const R = 215;
 const TUBE = 70;              // halbe Strichstärke
-const SWEEP = 300;            // offener Ring wie im Logo
+const SWEEP = 280;            // offener Ring wie im Logo
 const STEM_X = 470;
 const STEM_W = 140;
 const STEM_TOP = BASE - 740;
 const DESIGN = 800;           // Kantenlänge des Entwurfsraums
-const ORIGIN_X = -78.5;       // Verschiebung, damit das d mittig sitzt
+const ORIGIN_X = -75;         // Verschiebung, damit das d mittig sitzt
 const ORIGIN_Y = -6;
 
 /**
@@ -40,18 +46,17 @@ const ORIGIN_Y = -6;
  * entstehen die sichtbaren Stränge statt eines gleichmäßigen Rauschens.
  */
 const STRANDS = 30;
-const PER_STRAND = 108;
+const PER_STRAND = 101;       // 108 bei 300 Grad, auf 280 umgerechnet
 const RING_PARTICLES = STRANDS * PER_STRAND;
 /*
  * Die Punktzahl des Stamms folgt seiner Fläche, nicht dem Gefühl.
  *
- * Der Ring trägt 3240 Punkte auf einem Band von rund 157500 Quadrateinheiten,
- * also 0,0206 je Einheit. Der Stamm misst 140 mal 740, also 103600 Einheiten,
- * und braucht bei gleicher Dichte rund 2130. Mit den vorherigen 1500 lag er
- * bei zwei Dritteln davon: der Ring wirkte dicht, der Stamm ausgefranst, und
- * das d las sich als zerrissener Buchstabe statt als Wortmarke.
+ * Der Ring trägt rund 0,0206 Punkte je Quadrateinheit. Der Stamm misst 140
+ * mal 463 (von y 20 bis zur Ringmitte), also 64820 Einheiten, und braucht bei
+ * gleicher Dichte rund 1335. Mit zu wenig Punkten wirkte der Ring dicht, der
+ * Stamm ausgefranst, und das d las sich als zerrissener Buchstabe.
  */
-const STEM_PARTICLES = 2130;
+const STEM_PARTICLES = 1335;
 const ALPHA_STEPS = 12;
 
 /**
@@ -138,14 +143,15 @@ export class Orb {
     // einem Buchstaben, und der Stamm wirkte wie ein aufgeklebter Balken.
     //
     // Statt zu verwerfen wird jetzt gerechnet. Zu jeder Hoehe steht fest, wie
-    // weit der Schlauch dort reicht: in der Mitte der volle Radius, an den
-    // Enden der halbe Kreis. Der Punkt sitzt auf seinem Faden bei cos(b) mal
+    // weit der Schlauch dort reicht: in der Mitte der volle Radius, am oberen
+    // Ende der halbe Kreis. Der Punkt sitzt auf seinem Faden bei cos(b) mal
     // dieser Weite und liegt damit immer drin. Die runden Enden entstehen
     // dabei von selbst, weil die Faeden dort zusammenlaufen.
     const stemCx = STEM_X + STEM_W / 2;
     const capR = STEM_W / 2;
     const yTopCap = STEM_TOP + capR;
-    const yBotCap = BASE - capR;
+    // Unten kein rundes Ende: der Stamm endet auf Höhe der Ringmitte im Ring.
+    const yUnten = CY;
     const PRO_STAMM_FADEN = Math.round(STEM_PARTICLES / STRANDS);
     this.stemCount = STRANDS * PRO_STAMM_FADEN;
     this.stem = new Float32Array(this.stemCount * 5); // b, y, weite, seed, size
@@ -155,10 +161,10 @@ export class Orb {
       const rScale = 0.55 + Math.random() * 0.45;
       const seed = Math.random() * Math.PI * 2;
       for (let j = 0; j < PRO_STAMM_FADEN; j++) {
-        const y = STEM_TOP + Math.random() * (BASE - STEM_TOP);
+        const y = STEM_TOP + Math.random() * (yUnten - STEM_TOP);
         let weite = capR;
-        if (y < yTopCap || y > yBotCap) {
-          const dy = y < yTopCap ? y - yTopCap : y - yBotCap;
+        if (y < yTopCap) {
+          const dy = y - yTopCap;
           // Die halbe Sehne des Kreises auf dieser Hoehe. Hier einmal beim
           // Bauen gerechnet, damit im Bild pro Punkt keine Wurzel anfaellt.
           weite = Math.sqrt(Math.max(0, capR * capR - dy * dy));
@@ -302,7 +308,7 @@ export class Orb {
       const weite = this.stem[p + 2];
       const seed = this.stem[p + 3];
       const size = this.stem[p + 4];
-      const v = (y - STEM_TOP) / (BASE - STEM_TOP);
+      const v = (y - STEM_TOP) / (CY - STEM_TOP);
       const wobble = Math.sin(v * 9 + t * 1.2 + seed) * m.amp * 0.22;
       // Dieselbe Tiefenformel wie beim Ring, damit beide gleich hell wirken.
       const depth = 0.42 + 0.58 * (0.5 + 0.5 * Math.sin(bAng));

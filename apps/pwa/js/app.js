@@ -217,8 +217,8 @@ $("chips").addEventListener("click", (event) => {
  */
 function markeSvg() {
   return `<svg class="marke" viewBox="-6 -80 73 87" aria-hidden="true">` +
-    `<path d="M 31.80 -49.20 A 21.50 21.50 0 1 1 13.18 -38.45" fill="none" stroke="currentColor" stroke-width="14" stroke-linecap="round"/>` +
-    `<rect x="47" y="-74" width="14" height="74" rx="7" fill="currentColor"/></svg>`;
+    `<path d="M 32.50 -49.20 A 21.50 21.50 0 1 1 11.33 -31.43" fill="none" stroke="currentColor" stroke-width="14" stroke-linecap="round"/>` +
+    `<path d="M 54 -67 L 54 -27.7" fill="none" stroke="currentColor" stroke-width="14" stroke-linecap="round"/></svg>`;
 }
 
 function renderTranscript() {
@@ -2590,56 +2590,10 @@ async function postfachPruefen({ laut = false } = {}) {
   }
 }
 
-/**
- * Der Weg aus einem Siri Kurzbefehl in die installierte App.
- *
- * Auf dem iPhone öffnet eine Adresse immer Safari, nie die App vom
- * Homebildschirm. Beide haben getrennte Speicher, und die Daten des Nutzers
- * liegen in der App. Ein Kurzbefehl, der eine Adresse öffnet, landet also in
- * einer leeren daevo. Das ist eine Grenze von iOS, keine Einstellung.
- *
- * Deshalb legt der Kurzbefehl den Satz in die Zwischenablage und öffnet die
- * App. Gelesen wird erst auf Tippen: iOS gibt die Zwischenablage nur nach
- * einer Geste frei, und ein stilles Mitlesen wäre auch das Falsche.
- */
-function zwischenablageAnbieten() {
-  const knopf = $("btnZwischenablage");
-  if (!knopf || !navigator.clipboard?.readText) return;
-  // Wer einen Push Worker eingerichtet hat, bekommt seine Sätze über das
-  // Postfach und die Mitteilung. Dann ist dieser Knopf ein zweiter Weg zum
-  // selben Ziel, und ein zweiter Weg, der bei jedem Öffnen der App über der
-  // Eingabe auftaucht, ist kein Angebot mehr, sondern Störung.
-  const s = store.getSettings();
-  if (s.pushWorker && s.pushWort) { knopf.hidden = true; return; }
-  // Nur anbieten, wenn das Eingabefeld leer ist. Wer schon tippt, wird nicht
-  // mit einem zweiten Weg unterbrochen.
-  if ($("chatInput").value.trim()) return;
-  knopf.hidden = false;
-  clearTimeout(zwischenablageTimer);
-  // Nach zwei Minuten verschwindet der Knopf wieder. Ein Angebot, das immer
-  // dasteht, ist ein Bedienelement, und dieses hier ist keins.
-  zwischenablageTimer = setTimeout(() => { knopf.hidden = true; }, 120000);
-}
-let zwischenablageTimer = 0;
-
-$("btnZwischenablage").addEventListener("click", async () => {
-  $("btnZwischenablage").hidden = true;
-  try {
-    const text = (await navigator.clipboard.readText()).trim();
-    if (!text) { toast("Die Zwischenablage ist leer."); return; }
-    // Wer über einen Kurzbefehl kommt, schaut nicht auf den Schirm.
-    options.speak = true;
-    send(text.slice(0, 2000));
-  } catch {
-    toast("iOS hat das Lesen der Zwischenablage abgelehnt. Tipp lange ins Eingabefeld und wähl Einsetzen.");
-  }
-});
-
-// Beim Zurückkommen aus dem Kurzbefehl wird die App wieder sichtbar. Genau
-// dann liegt der Satz in der Zwischenablage.
+// Beim Zurückkommen aus dem Kurzbefehl wird die App wieder sichtbar. Dann
+// liegt der Satz im Postfach.
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "visible") return;
-  zwischenablageAnbieten();
   postfachPruefen();
   gesundheitPruefen();
 });

@@ -13,9 +13,11 @@ Poppins Light 300. Der Gewichtssprung ist das Erkennungsmerkmal und darf nie
 wegfallen.
 
 Das d ist kein Schriftzeichen, sondern gebaut. Die Bowl ist ein Aktivitätsring
-wie bei der Apple Watch: Start oben, 300 Grad im Uhrzeigersinn, runde Enden,
-die restlichen 60 Grad bleiben offen. Auch der Stamm hat runde Enden, oben
-wie unten ein Halbkreis. Für kleine Grössen gibt es die
+wie bei der Apple Watch: Start oben, 280 Grad im Uhrzeigersinn, runde Enden,
+die restlichen 80 Grad bleiben offen. Der Stamm hat oben ein rundes Ende und
+läuft unten in den Ring hinein: seine Mittellinie trifft die des Rings auf
+drei Uhr, dort endet er. Stamm und Bogen sind ein Zug, kein Balken neben
+einem Kreis. Für kleine Grössen gibt es die
 Varianten mit gefüllter Spur, sonst fällt der Buchstabe auseinander. Der
 Bauplan steht in `docs/BRAND.md`, der Generator in `tools/brand/`.
 
@@ -63,9 +65,11 @@ Nicht mit Zahlen. Der Kreis aus dem Logo ist die Oberfläche, darunter das
 Gespräch, unten die Eingabe.
 
 Der Kreis liegt in `apps/pwa/js/orb.js` und läuft auf Canvas. Er besteht aus
-rund 5400 Partikeln auf 30 Fäden um einen gedachten Schlauch, im Bogen wie im
-Stamm. Die Geometrie
-ist dieselbe wie im Logo. Canvas statt SVG, weil ein paar tausend Punkte pro
+rund 4400 Partikeln auf 30 Fäden um einen gedachten Schlauch, im Bogen wie im
+Stamm. Die Geometrie ist dieselbe wie im Logo: Bogen über 280 Grad, der Stamm
+endet auf Höhe der Ringmitte im Ring und hat nur oben ein rundes Ende. Weniger
+Punkte als vorher, weil Bogen und Stamm kürzer sind, die Dichte je Fläche ist
+gleich geblieben. Canvas statt SVG, weil ein paar tausend Punkte pro
 Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
@@ -659,11 +663,11 @@ Die Mitteilung trägt den Satz selbst und nicht nur "du hast etwas gesagt".
 Damit sieht der Nutzer auf dem Sperrbildschirm, ob die Erkennung ihn
 verstanden hat, bevor er die App öffnet.
 
-Der Knopf "Aus Zwischenablage senden" bleibt aus dem zweiten Versuch, aber nur
-für den Fall ohne Worker. Steht Adresse und Anmeldewort im Profil, kommt der
-Satz über das Postfach, und dann bleibt der Knopf aus: ein zweiter Weg zum
-selben Ziel, der bei jedem Öffnen über der Eingabe auftaucht, ist kein Angebot
-mehr, sondern Störung.
+Der Knopf "Aus Zwischenablage senden" aus dem zweiten Versuch ist ganz
+entfernt. Er sollte nur ohne Worker erscheinen, stand im Betrieb aber auch in
+der Demo über der Eingabe, und niemand wusste, wozu. Ein Bedienelement, das
+nur nach einem Kurzbefehl Sinn ergibt und sonst verwirrt, gehört nicht auf
+den Startbildschirm. Der Weg aus Siri läuft über das Postfach.
 
 `?sag=` bleibt ebenfalls, in Safari und auf dem Rechner funktioniert es.
 
@@ -2323,6 +2327,22 @@ davon sah jede aus wie die nächste.
 **Bewegung.** Eine Kurve für alles, `--kurve`, plus zwei Dauern. Knöpfe gehen
 beim Tippen auf 98 Prozent: zu wenig, um es bewusst zu sehen, genug, um es zu
 spüren. Lineare Übergänge wirken maschinell.
+
+**Flächen statt Rahmen.** Der Eindruck "Baukasten" kam aus einer Quelle:
+fast jedes Bedienelement trug denselben grauen Rahmen von einem Pixel.
+Knöpfe, Chips, Felder, Karten und Menüzeilen sahen dadurch gleich aus. Die
+Ebene "Feinschliff" am Ende von `styles.css` trennt über Ton und Licht:
+Tonflächen (`--flaeche`), eine Haarlinie als Schatten innen (`--haarlinie`),
+im dunklen Modus eine helle Kante oben (`--glanz`), Karten mit Tiefe
+(`--tief-karte`). Knöpfe und Chips sind Pillen, Karten haben 22 Pixel
+Radius. Der Hauptknopf ist eine Markenfläche mit Schein in der eigenen
+Farbe, der zweite Knopf eine Tonfläche ohne Rahmen. Ausgewählte Chips sind
+in Textfarbe gefüllt, der Umschalter oben ist eine Mulde mit erhobenem
+Reiter. Neue Elemente nehmen diese Tokens und keinen Rahmen.
+
+Die Regel für Felder trägt drei Ausnahmen und ist damit spezifischer als
+eine Klasse. Das Feld in der Eingabepille wird deshalb über seine Kennung
+zurückgesetzt, sonst steckt dort ein zweites Feld in der Pille.
 
 **Prüfung.** Layout wird gerendert geprüft, nicht gelesen. Das Skript im
 Scratchpad öffnet jede Ansicht in beiden Farbmodi und meldet zwei Dinge:
