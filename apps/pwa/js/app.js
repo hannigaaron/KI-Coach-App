@@ -10,6 +10,7 @@ import {
   berichtText,
   spanneKurz,
   restText,
+  makroHerkunft,
 } from "@daevo/core";
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, produktPerBarcode, produkteSuchen } from "@daevo/coach";
 import { Coach, AnthropicProvider } from "@daevo/coach";
@@ -2890,6 +2891,115 @@ $("fbAuswerten").addEventListener("click", async () => {
   } finally {
     fotoSchritt(null);
   }
+});
+
+/* ---------- Woher kommt das ---------- */
+
+/**
+ * Ein Tipp auf den Kalorienring oder einen Makrobalken zerlegt den Tag:
+ * oben je Mahlzeit, darunter je Lebensmittel. Der Balken sagt, ob das Ziel
+ * erreicht ist, das Blatt sagt, woran es lag. Gerechnet wird in
+ * `makroHerkunft` im Kern, hier wird nur gezeigt.
+ */
+const HERKUNFT = {
+  kcal: { name: "Kalorien", einheit: "kcal", ziel: "kcal", ton: "var(--accent)", frage: "Woher kommen deine Kalorien" },
+  proteinG: { name: "Protein", einheit: "g", ziel: "proteinG", ton: "var(--makro-protein)", frage: "Woher kommt dein Protein" },
+  fatG: { name: "Fett", einheit: "g", ziel: "fatG", ton: "var(--makro-fett)", frage: "Woher kommt dein Fett" },
+  carbsG: { name: "Kohlenhydrate", einheit: "g", ziel: "carbsG", ton: "var(--makro-kohlenhydrate)", frage: "Woher kommen deine Kohlenhydrate" },
+};
+const ART_NAME = Object.fromEntries(MAHLZEITEN.map((m) => [m.art, m.name]));
+let herkunftMakro = "proteinG";
+let herkunftAusloeser = null;
+
+function herkunftZeigen() {
+  const info = HERKUNFT[herkunftMakro];
+  const n = dayNumbers(day);
+  const h = makroHerkunft(n.data.meals, herkunftMakro);
+  const zahl = (v) => Math.round(v);
+  const prozent = (a) => `${Math.round(a * 100)} %`;
+
+  $("hkTitel").textContent = info.frage;
+  for (const knopf of $("hkWahl").querySelectorAll("[data-makro]")) {
+    const an = knopf.dataset.makro === herkunftMakro;
+    knopf.classList.toggle("on", an);
+    knopf.setAttribute("aria-selected", String(an));
+  }
+  $("herkunftBlatt").style.setProperty("--hk-ton", info.ton);
+  $("hkSumme").innerHTML = `<b>${zahl(h.gesamt)} ${info.einheit}</b>von ${zahl(n.targets[info.ziel])} ${info.einheit} Ziel`;
+
+  if (n.data.meals.length === 0) {
+    const leer = `<li class="hk-leer">Heute ist noch nichts eingetragen.</li>`;
+    $("hkMahlzeiten").innerHTML = leer;
+    $("hkLebensmittel").innerHTML = "";
+    return;
+  }
+
+  // Je Mahlzeit stehen alle vier Werte, der gewählte vorn und gross. Wer auf
+  // Protein getippt hat, will wissen, wie viel das Frühstück hatte, und im
+  // selben Blick, was es an Kalorien gekostet hat.
+  $("hkMahlzeiten").innerHTML = h.mahlzeiten.map((m) => {
+    const art = m.art ? ART_NAME[m.art] : "Mahlzeit";
+    const wert = m[herkunftMakro];
+    return `<li>
+      <div class="hk-zeile">
+        <span class="hk-name">${escapeHtml(art)}<span class="hk-zeit">${escapeHtml(m.at)} Uhr</span></span>
+        <span class="hk-wert">${zahl(wert)} ${info.einheit}</span>
+        <span class="hk-anteil">${prozent(m.anteil)}</span>
+      </div>
+      <div class="hk-sub">${escapeHtml(m.titel)}</div>
+      <div class="hk-makros"><b>${zahl(m.kcal)}</b> kcal · Protein <b>${zahl(m.proteinG)}</b> g · Fett <b>${zahl(m.fatG)}</b> g · KH <b>${zahl(m.carbsG)}</b> g</div>
+      <div class="hk-spur"><i style="width:${(m.anteil * 100).toFixed(1)}%"></i></div>
+    </li>`;
+  }).join("");
+
+  const zeilen = h.lebensmittel.map((l) => `<li>
+      <div class="hk-zeile">
+        <span class="hk-name">${escapeHtml(l.name)}${l.mal > 1 ? `<span class="hk-zeit">${l.mal} mal</span>` : ""}</span>
+        <span class="hk-wert">${zahl(l.wert)} ${info.einheit}</span>
+        <span class="hk-anteil">${prozent(l.anteil)}</span>
+      </div>
+      <div class="hk-spur"><i style="width:${(l.anteil * 100).toFixed(1)}%"></i></div>
+    </li>`);
+  if (h.rest) {
+    zeilen.push(`<li><div class="hk-zeile"><span class="hk-name">${h.rest.anzahl} weitere</span>` +
+      `<span class="hk-wert">${zahl(h.rest.wert)} ${info.einheit}</span><span class="hk-anteil">${prozent(h.rest.anteil)}</span></div></li>`);
+  }
+  $("hkLebensmittel").innerHTML = zeilen.length ? zeilen.join("") : `<li class="hk-leer">Kein Lebensmittel heute mit ${info.name}.</li>`;
+}
+
+function herkunftOeffnen(makro, ausloeser) {
+  herkunftMakro = HERKUNFT[makro] ? makro : "proteinG";
+  herkunftAusloeser = ausloeser || null;
+  herkunftZeigen();
+  $("herkunftBlatt").hidden = false;
+  document.body.classList.add("blatt-offen");
+  $("herkunftBlatt").querySelector(".blatt-scroll").scrollTop = 0;
+}
+
+function herkunftSchliessen() {
+  $("herkunftBlatt").hidden = true;
+  document.body.classList.remove("blatt-offen");
+  herkunftAusloeser?.focus?.();
+}
+
+for (const el of document.querySelectorAll("[data-herkunft]")) {
+  el.addEventListener("click", () => herkunftOeffnen(el.dataset.herkunft, el));
+  // Der Ring ist kein echter Knopf, also braucht er die Tasten selbst.
+  if (el.tagName !== "BUTTON") {
+    el.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); herkunftOeffnen(el.dataset.herkunft, el); }
+    });
+  }
+}
+$("hkWahl").addEventListener("click", (event) => {
+  const knopf = event.target.closest("[data-makro]");
+  if (!knopf) return;
+  herkunftMakro = knopf.dataset.makro;
+  herkunftZeigen();
+});
+$("hkSchliessen").addEventListener("click", herkunftSchliessen);
+$("herkunftBlatt").addEventListener("click", (event) => {
+  if (event.target === $("herkunftBlatt")) herkunftSchliessen();
 });
 
 /* ---------- Barcode ---------- */

@@ -6,6 +6,7 @@ import {
 } from "@daevo/coach";
 import {
   MAHLZEITEN,
+  artZurUhrzeit,
   empfehlungText,
   rezeptEmpfehlungen,
   abendAbschluss,
@@ -1588,13 +1589,12 @@ export function rezeptVorschlagText({ art } = {}) {
 
 export function gegesseneArten(mahlzeiten = []) {
   const arten = new Set();
+  // Die Fenster stehen in artZurUhrzeit im Kern. Die Aufschlüsselung der
+  // Makros benutzt dieselben, sonst hiesse dieselbe Mahlzeit dort Snack und
+  // hier Mittagessen.
   for (const m of mahlzeiten) {
-    const stunde = Number(String(m.at || "").slice(0, 2));
-    if (!Number.isFinite(stunde)) continue;
-    if (stunde < 11) arten.add("fruehstueck");
-    else if (stunde < 15) arten.add("mittagessen");
-    else if (stunde < 17) arten.add("snack");
-    else arten.add("abendessen");
+    const art = artZurUhrzeit(m.at);
+    if (art) arten.add(art);
   }
   return [...arten];
 }

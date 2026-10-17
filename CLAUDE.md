@@ -298,7 +298,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 986 Tests
+npm test           # 992 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1389,7 +1389,7 @@ der Zutatentabelle.
 
 Fotos: `foto: true` am Rezept, Datei unter `apps/pwa/img/rezepte/<id>.jpg`
 (800 x 600), Stil wie bei den Übungen. Ein Test prüft, dass jede Kennzeichnung
-eine Datei hat. Bisher fünf Testbilder. Ohne Foto trägt die Karte ein Zeichen
+eine Datei hat. Alle 55 Rezepte haben ein Foto. Ohne Foto trägt die Karte ein Zeichen
 auf einem Verlauf. Die Karte steht im Verhältnis 4 zu 3 und ist auf breiten
 Bildschirmen gedeckelt, vorher füllte sie auf dem Laptop den halben
 Bildschirm.
@@ -2016,6 +2016,27 @@ sie, bleibt der Weg derselbe, nur ohne Vorbelegung.
 `nachtragZeit` in `assistant.js` prüft dasselbe noch einmal, bevor
 geschrieben wird. Ein Nachtrag wird in den Tag einsortiert und nicht
 angehängt, sonst steht das Mittagessen unter dem Abendessen.
+
+## Woher kommt das
+
+`packages/core/src/herkunft.ts` rechnet, das Blatt `#herkunftBlatt` zeigt.
+Ein Tipp auf den Kalorienring oder einen Makrobalken auf Heute öffnet es auf
+genau diesem Wert, oben lässt sich zwischen Kalorien, Protein, Fett und
+Kohlenhydraten wechseln.
+
+Ein Balken mit 184 von 150 Gramm sagt, dass das Ziel erreicht ist, nicht
+woran es lag. Das Blatt zerlegt den Tag zweimal. Je Mahlzeit, in der
+Reihenfolge des Tages, mit allen vier Werten und dem gewählten vorn: wer auf
+Protein tippt, will im selben Blick sehen, was das Frühstück an Kalorien
+gekostet hat. Darunter je Lebensmittel, nach Beitrag sortiert, gleiche Namen
+zusammengefasst. Ab dem neunten steht der Rest als eine Zeile da.
+
+Die Art der Mahlzeit kommt aus der Uhrzeit, über `artZurUhrzeit` im Kern.
+`gegesseneArten` in `assistant.js` benutzt dieselbe Funktion, sonst hiesse
+dieselbe Mahlzeit beim Aufteilen des Rests Snack und hier Mittagessen.
+
+Gerundet wird erst beim Anzeigen. Die Summe der Zeilen trifft damit die Zahl
+im Balken, und ein Test hält das für alle vier Werte fest.
 
 ## Die Gewichtskurve
 

@@ -191,7 +191,7 @@ try {
         ein Versprechen: sie sagt, das hier ist das Wichtigste. Wenn das nicht
         stimmt, glaubt der Nutzer der Seite beim nächsten Mal weniger.
       -->
-      <div class="held">
+      <div class="held tippbar" data-herkunft="kcal" role="button" tabindex="0" aria-haspopup="dialog" aria-label="Woher kommen die Kalorien">
         <div class="held-ring">
           <svg viewBox="0 0 120 120" class="ring" aria-hidden="true">
             <circle class="ring-bg" cx="60" cy="60" r="52"></circle>
@@ -208,9 +208,9 @@ try {
       </div>
 
       <div class="balken-gruppe" id="makroGruppe">
-        <div class="balken-zeile"><div class="balken-kopf"><span>Protein</span><span id="pTxt"></span></div><div class="balken"><i id="pBar" class="protein"></i></div></div>
-        <div class="balken-zeile"><div class="balken-kopf"><span>Fett</span><span id="fTxt"></span></div><div class="balken"><i id="fBar" class="fett"></i></div></div>
-        <div class="balken-zeile"><div class="balken-kopf"><span>Kohlenhydrate</span><span id="cTxt"></span></div><div class="balken"><i id="cBar" class="kohlenhydrate"></i></div></div>
+        <button type="button" class="balken-zeile tippbar" data-herkunft="proteinG" aria-haspopup="dialog"><div class="balken-kopf"><span>Protein</span><span id="pTxt"></span></div><div class="balken"><i id="pBar" class="protein"></i></div></button>
+        <button type="button" class="balken-zeile tippbar" data-herkunft="fatG" aria-haspopup="dialog"><div class="balken-kopf"><span>Fett</span><span id="fTxt"></span></div><div class="balken"><i id="fBar" class="fett"></i></div></button>
+        <button type="button" class="balken-zeile tippbar" data-herkunft="carbsG" aria-haspopup="dialog"><div class="balken-kopf"><span>Kohlenhydrate</span><span id="cTxt"></span></div><div class="balken"><i id="cBar" class="kohlenhydrate"></i></div></button>
         <div class="balken-zeile"><div class="balken-kopf"><span>Wasser</span><span id="wTxt"></span></div><div class="balken"><i id="wBar" class="wasser"></i></div></div>
       </div>
 
@@ -398,6 +398,32 @@ try {
     Standbild ohne jede Bewegung sieht nach der Hälfte davon aus wie eine
     hängende App.
   -->
+  <!--
+    Woher die Zahlen des Tages kommen. Ein Tipp auf den Kalorienring oder
+    einen Makrobalken öffnet es auf genau diesem Wert.
+  -->
+  <div id="herkunftBlatt" class="blatt" hidden>
+    <div class="blatt-innen" role="dialog" aria-modal="true" aria-labelledby="hkTitel">
+      <header class="blatt-kopf">
+        <h2 id="hkTitel">Woher kommt das</h2>
+        <button id="hkSchliessen" class="icon-btn" aria-label="Schliessen"><span class="kreuz"></span></button>
+      </header>
+      <div class="blatt-scroll">
+        <div class="ue-modus hk-wahl" id="hkWahl" role="tablist">
+          <button type="button" data-makro="kcal">Kalorien</button>
+          <button type="button" data-makro="proteinG">Protein</button>
+          <button type="button" data-makro="fatG">Fett</button>
+          <button type="button" data-makro="carbsG">KH</button>
+        </div>
+        <p id="hkSumme" class="hk-summe"></p>
+        <h3 class="hk-abschnitt">Nach Mahlzeit</h3>
+        <ul id="hkMahlzeiten" class="hk-liste"></ul>
+        <h3 class="hk-abschnitt">Nach Lebensmittel</h3>
+        <ul id="hkLebensmittel" class="hk-liste"></ul>
+      </div>
+    </div>
+  </div>
+
   <div id="fotoBlatt" class="blatt" hidden>
     <div class="blatt-innen" role="dialog" aria-modal="true" aria-labelledby="fbTitel">
       <header class="blatt-kopf">

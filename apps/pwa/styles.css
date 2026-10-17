@@ -3183,3 +3183,45 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 .gk-trend { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 4 4; opacity: 0.8; }
 .gk-punkt { fill: var(--bg); stroke: var(--accent); stroke-width: 2; }
 .gk-letzter { fill: var(--accent); }
+
+/* ---------- Woher kommt das ----------
+ * Die Makrobalken sind Knöpfe, sehen aber aus wie vorher. Ein Knopfrahmen um
+ * jeden Balken machte aus der ruhigsten Stelle der Seite eine Knopfleiste.
+ * Dass man tippen kann, zeigt der Druckzustand und der Winkel am Wert.
+ */
+#makroGruppe button.balken-zeile {
+  display: block; width: 100%; margin: 0 0 var(--s-3); padding: 0;
+  background: none; border: 0; box-shadow: none; color: inherit; font: inherit; text-align: left;
+  border-radius: var(--r-sm); cursor: pointer;
+}
+#makroGruppe button.balken-zeile .balken-kopf span:last-child::after {
+  content: ""; display: inline-block; width: 6px; height: 6px; margin-left: 8px;
+  border-right: 1.6px solid currentColor; border-bottom: 1.6px solid currentColor;
+  transform: translateY(-2px) rotate(-45deg); opacity: 0.6;
+}
+#makroGruppe button.balken-zeile:active { opacity: 0.7; }
+.held.tippbar { cursor: pointer; }
+.held.tippbar:active { transform: scale(0.99); }
+
+.hk-wahl { display: flex; margin-bottom: var(--s-4); }
+.hk-wahl button { flex: 1; }
+.hk-summe { margin: 0 0 var(--s-5); color: var(--muted); }
+.hk-summe b { font-family: Poppins, system-ui; font-size: var(--t-2xl, 24px); font-weight: 600; color: var(--text); margin-right: 6px; }
+.hk-abschnitt {
+  margin: var(--s-5) 0 var(--s-2); font-size: var(--t-xs, 12px); font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);
+}
+.hk-liste { list-style: none; margin: 0; padding: 0; }
+.hk-liste li { padding: var(--s-3) 0; border-bottom: 1px solid var(--linie, var(--border)); }
+.hk-liste li:last-child { border-bottom: 0; }
+.hk-zeile { display: flex; align-items: baseline; gap: var(--s-3); }
+.hk-name { flex: 1; min-width: 0; font-weight: 600; }
+.hk-zeit { color: var(--muted); font-weight: 500; font-size: var(--t-sm); margin-left: 6px; }
+.hk-wert { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.hk-anteil { color: var(--muted); font-size: var(--t-sm); width: 3.2em; text-align: right; font-variant-numeric: tabular-nums; }
+.hk-sub { color: var(--muted); font-size: var(--t-sm); margin-top: 2px; overflow-wrap: anywhere; }
+.hk-makros { color: var(--muted); font-size: var(--t-sm); margin-top: 4px; font-variant-numeric: tabular-nums; }
+.hk-makros b { color: var(--text); font-weight: 600; }
+.hk-spur { height: 4px; border-radius: 2px; background: var(--spur, var(--flaeche)); margin-top: var(--s-2); overflow: hidden; }
+.hk-spur > i { display: block; height: 100%; border-radius: 2px; background: var(--hk-ton, var(--accent)); }
+.hk-leer { color: var(--muted); padding: var(--s-3) 0; }
