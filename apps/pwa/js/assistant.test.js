@@ -35,7 +35,7 @@ class SpeicherAttrappe {
 globalThis.localStorage = new SpeicherAttrappe();
 
 const { store, todayIso } = await import("./storage.js");
-const { buildActions, dayNumbers, kalenderStandText, plausibelHinweis, trifftPosten } = await import("./assistant.js");
+const { buildActions, dayNumbers, kalenderStandText, plausibelHinweis, trifftPosten, nachtragZeit } = await import("./assistant.js");
 
 const PROFIL = {
   name: "Aaron", sex: "male", ageYears: 23, heightCm: 184, weightKg: 87,
@@ -605,4 +605,15 @@ test("Ein frischer Start legt kein zweites leeres Gespräch an und behält das a
   assert.equal(store.getGespraeche().length, 2);
   assert.deepEqual(gespraecheMitInhalt().map((g) => g.id), [erstes.id]);
   assert.equal(store.getChat().length, 0);
+});
+
+test("Nachtrag aus der Mediathek: Tag und Uhrzeit nur im erlaubten Rahmen", () => {
+  const jetzt = new Date(2026, 9, 17, 21, 10);
+  assert.deepEqual(nachtragZeit("2026-10-16", "13:05", jetzt), { day: "2026-10-16", at: "13:05" });
+  assert.deepEqual(nachtragZeit("2026-10-15", "08:00", jetzt), { day: "2026-10-15", at: "08:00" });
+  // Drei Tage zurück bietet das Blatt nicht an, also gilt jetzt.
+  assert.deepEqual(nachtragZeit("2026-10-14", "08:00", jetzt), { day: "2026-10-17", at: "21:10" });
+  // Heute später als jetzt ist noch nicht gegessen.
+  assert.deepEqual(nachtragZeit("2026-10-17", "22:30", jetzt), { day: "2026-10-17", at: "21:10" });
+  assert.deepEqual(nachtragZeit(undefined, "25:00", jetzt), { day: "2026-10-17", at: "21:10" });
 });

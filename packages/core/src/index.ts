@@ -37,3 +37,4 @@ export * from "./trainingsanpassung.js";
 export * from "./trainingsplan.js";
 export * from "./rezepte.js";
 export * from "./rezepte-daten.js";
+export * from "./herkunft.js";

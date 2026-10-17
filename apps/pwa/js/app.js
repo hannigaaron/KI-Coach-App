@@ -10,6 +10,7 @@ import {
   berichtText,
   spanneKurz,
   restText,
+  makroHerkunft,
 } from "@daevo/core";
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, produktPerBarcode, produkteSuchen } from "@daevo/coach";
 import { Coach, AnthropicProvider } from "@daevo/coach";
@@ -39,6 +40,8 @@ import {
 import { brain } from "./brain.js";
 import { Orb } from "./orb.js";
 import { anhangAusDatei, grossInKb } from "./media.js";
+import { EXIF_LESEN_BYTES, aufnahmezeit, tagVor, tageZurueck, zeitVorschlag } from "./exif.js";
+import { gewichtsKurve, gewichtsSpanne } from "./gewichtkurve.js";
 import { bereichFarbe, anteilsRing, kurzDauer, netzDiagramm, wertungsRing } from "./rings.js";
 import { Listener, alleStimmen, istDeutsch, speak, stimmenBereit, stopSpeaking, voiceSupport, waehlbareStimmen } from "./voice.js";
 import { SetupFlow } from "./setup-ui.js";
@@ -1419,19 +1422,40 @@ function renderToday() {
  * Vergleich zweier Tage. Das Gewicht schwankt je nach Salz, Kohlenhydraten
  * und Darminhalt um ein bis zwei Kilo, zwei einzelne Tage sagen deshalb nichts.
  */
+/** Zeitraum der Gewichtskurve in Tagen. */
+let gewichtTage = 90;
+
 function renderWeight() {
   const heute = store.getDay(day).weightKg;
   const feld = $("weightInput");
   if (document.activeElement !== feld) feld.value = heute ?? "";
+  for (const knopf of document.querySelectorAll("#gewichtZeitraum .seg-btn")) {
+    knopf.classList.toggle("is-on", Number(knopf.dataset.tage) === gewichtTage);
+  }
+  // Ein Jahr einmal lesen und daraus schneiden, statt den Speicher je
+  // Zeitraum neu zu durchlaufen. renderWeight läuft bei jeder Änderung.
+  const jahr = verlaufPunkte(365);
+  const kurvenPunkte = jahr.slice(-gewichtTage);
+  const spanne = gewichtsSpanne(kurvenPunkte);
+  const kurve = gewichtsKurve(kurvenPunkte, weightTrend(kurvenPunkte));
+  $("gewichtKurve").innerHTML = kurve && spanne
+    ? `<p class="gk-kopf"><b>${spanne.kg}</b> <span>${spanne.zusatz}</span></p>${kurve}`
+    : kurve;
+  // Die Zeitraumwahl steht nur da, wenn es überhaupt eine Kurve gibt.
+  $("gewichtZeitraum").hidden = !jahr.some((p) => p.weightKg !== null);
   const trend = weightTrend(verlaufPunkte(56));
   if (trend.messungen === 0) {
     $("weightTrend").textContent = "Noch keine Wiegung. Wieg dich am besten morgens nach dem Klo, dann schwankt es am wenigsten.";
     return;
   }
   if (!trend.belastbar) {
-    $("weightTrend").textContent =
-      `${trend.messungen} ${trend.messungen === 1 ? "Wiegung" : "Wiegungen"} bisher. ` +
-      "Ab vier Wiegungen über zwei Wochen kann ich eine Richtung sagen.";
+    // Mit vier und mehr Wiegungen fehlt nur noch Zeit, nicht die Zahl. Der
+    // Satz sagt dann das, sonst liest man "8 Wiegungen, ab vier" als Fehler.
+    $("weightTrend").textContent = trend.messungen >= 4
+      ? `${trend.messungen} Wiegungen über ${trend.spanneTage} ${trend.spanneTage === 1 ? "Tag" : "Tage"}. ` +
+        "Ab zwei Wochen Abstand zwischen erster und letzter Wiegung kann ich eine Richtung sagen."
+      : `${trend.messungen} ${trend.messungen === 1 ? "Wiegung" : "Wiegungen"} bisher. ` +
+        "Ab vier Wiegungen über zwei Wochen kann ich eine Richtung sagen.";
     return;
   }
   const richtung = trend.kgProWoche > 0 ? "plus" : "minus";
@@ -2750,6 +2774,8 @@ const FOTO_SCHRITTE = ["Bild vorbereiten", "Mengen schätzen", "Nährwerte prüf
 /** Das gewählte Bild, bis es ausgewertet oder verworfen ist. */
 let fotoDatei = null;
 let fotoUrl = null;
+/** Tag der Mahlzeit, als JJJJ-MM-TT. Die Uhrzeit steht im Feld. */
+let fotoTag = todayIso();
 
 async function fotoBlattOeffnen(datei) {
   fotoDatei = datei;
@@ -2759,9 +2785,42 @@ async function fotoBlattOeffnen(datei) {
   $("fbDetails").value = "";
   $("fbFeedback").hidden = true;
   fotoSchritt(null);
+
+  // Die Zeit wird gelesen, bevor das Blatt aufgeht, nicht danach. Sonst
+  // springt die Uhrzeit unter dem Finger um, während jemand schon tippt.
+  let exif = null;
+  try {
+    exif = aufnahmezeit(await datei.slice(0, EXIF_LESEN_BYTES).arrayBuffer());
+  } catch { exif = null; }
+  const vorschlag = zeitVorschlag(exif);
+  fotoTag = vorschlag.tag;
+  $("fbUhrzeit").value = vorschlag.uhrzeit;
+  fotoTagZeigen();
+  $("fbZeitHinweis").textContent = vorschlag.ausFoto
+    ? "Zeit aus dem Foto übernommen."
+    : "";
+
   $("fotoBlatt").hidden = false;
   document.body.classList.add("blatt-offen");
 }
+
+function fotoTagZeigen() {
+  const zurueck = tageZurueck(fotoTag, todayIso());
+  for (const knopf of $("fbTag").querySelectorAll("[data-tage]")) {
+    const an = Number(knopf.dataset.tage) === zurueck;
+    knopf.classList.toggle("on", an);
+    knopf.setAttribute("aria-pressed", String(an));
+  }
+}
+
+$("fbTag").addEventListener("click", (event) => {
+  const knopf = event.target.closest("[data-tage]");
+  if (!knopf) return;
+  fotoTag = tagVor(todayIso(), Number(knopf.dataset.tage));
+  fotoTagZeigen();
+  $("fbZeitHinweis").textContent = "";
+});
+$("fbUhrzeit").addEventListener("input", () => { $("fbZeitHinweis").textContent = ""; });
 
 function fotoBlattSchliessen() {
   $("fotoBlatt").hidden = true;
@@ -2814,7 +2873,8 @@ $("fbAuswerten").addEventListener("click", async () => {
 
     fotoSchritt(1);
     const aktionen = buildActions({ onChange: refreshAll, anhaenge: [anhang] });
-    const text = await aktionen.fotoAlsMahlzeit(hinweis ? { hinweis } : {});
+    const uhrzeit = /^\d{2}:\d{2}$/.test($("fbUhrzeit").value) ? $("fbUhrzeit").value : undefined;
+    const text = await aktionen.fotoAlsMahlzeit({ ...(hinweis ? { hinweis } : {}), tag: fotoTag, uhrzeit });
 
     // Der dritte Schritt ist die Prüfung gegen die Makroformel, und die läuft
     // in fotoAlsMahlzeit schon mit. Er wird hier nur noch angezeigt, damit
@@ -2831,6 +2891,115 @@ $("fbAuswerten").addEventListener("click", async () => {
   } finally {
     fotoSchritt(null);
   }
+});
+
+/* ---------- Woher kommt das ---------- */
+
+/**
+ * Ein Tipp auf den Kalorienring oder einen Makrobalken zerlegt den Tag:
+ * oben je Mahlzeit, darunter je Lebensmittel. Der Balken sagt, ob das Ziel
+ * erreicht ist, das Blatt sagt, woran es lag. Gerechnet wird in
+ * `makroHerkunft` im Kern, hier wird nur gezeigt.
+ */
+const HERKUNFT = {
+  kcal: { name: "Kalorien", einheit: "kcal", ziel: "kcal", ton: "var(--accent)", frage: "Woher kommen deine Kalorien" },
+  proteinG: { name: "Protein", einheit: "g", ziel: "proteinG", ton: "var(--makro-protein)", frage: "Woher kommt dein Protein" },
+  fatG: { name: "Fett", einheit: "g", ziel: "fatG", ton: "var(--makro-fett)", frage: "Woher kommt dein Fett" },
+  carbsG: { name: "Kohlenhydrate", einheit: "g", ziel: "carbsG", ton: "var(--makro-kohlenhydrate)", frage: "Woher kommen deine Kohlenhydrate" },
+};
+const ART_NAME = Object.fromEntries(MAHLZEITEN.map((m) => [m.art, m.name]));
+let herkunftMakro = "proteinG";
+let herkunftAusloeser = null;
+
+function herkunftZeigen() {
+  const info = HERKUNFT[herkunftMakro];
+  const n = dayNumbers(day);
+  const h = makroHerkunft(n.data.meals, herkunftMakro);
+  const zahl = (v) => Math.round(v);
+  const prozent = (a) => `${Math.round(a * 100)} %`;
+
+  $("hkTitel").textContent = info.frage;
+  for (const knopf of $("hkWahl").querySelectorAll("[data-makro]")) {
+    const an = knopf.dataset.makro === herkunftMakro;
+    knopf.classList.toggle("on", an);
+    knopf.setAttribute("aria-selected", String(an));
+  }
+  $("herkunftBlatt").style.setProperty("--hk-ton", info.ton);
+  $("hkSumme").innerHTML = `<b>${zahl(h.gesamt)} ${info.einheit}</b>von ${zahl(n.targets[info.ziel])} ${info.einheit} Ziel`;
+
+  if (n.data.meals.length === 0) {
+    const leer = `<li class="hk-leer">Heute ist noch nichts eingetragen.</li>`;
+    $("hkMahlzeiten").innerHTML = leer;
+    $("hkLebensmittel").innerHTML = "";
+    return;
+  }
+
+  // Je Mahlzeit stehen alle vier Werte, der gewählte vorn und gross. Wer auf
+  // Protein getippt hat, will wissen, wie viel das Frühstück hatte, und im
+  // selben Blick, was es an Kalorien gekostet hat.
+  $("hkMahlzeiten").innerHTML = h.mahlzeiten.map((m) => {
+    const art = m.art ? ART_NAME[m.art] : "Mahlzeit";
+    const wert = m[herkunftMakro];
+    return `<li>
+      <div class="hk-zeile">
+        <span class="hk-name">${escapeHtml(art)}<span class="hk-zeit">${escapeHtml(m.at)} Uhr</span></span>
+        <span class="hk-wert">${zahl(wert)} ${info.einheit}</span>
+        <span class="hk-anteil">${prozent(m.anteil)}</span>
+      </div>
+      <div class="hk-sub">${escapeHtml(m.titel)}</div>
+      <div class="hk-makros"><b>${zahl(m.kcal)}</b> kcal · Protein <b>${zahl(m.proteinG)}</b> g · Fett <b>${zahl(m.fatG)}</b> g · KH <b>${zahl(m.carbsG)}</b> g</div>
+      <div class="hk-spur"><i style="width:${(m.anteil * 100).toFixed(1)}%"></i></div>
+    </li>`;
+  }).join("");
+
+  const zeilen = h.lebensmittel.map((l) => `<li>
+      <div class="hk-zeile">
+        <span class="hk-name">${escapeHtml(l.name)}${l.mal > 1 ? `<span class="hk-zeit">${l.mal} mal</span>` : ""}</span>
+        <span class="hk-wert">${zahl(l.wert)} ${info.einheit}</span>
+        <span class="hk-anteil">${prozent(l.anteil)}</span>
+      </div>
+      <div class="hk-spur"><i style="width:${(l.anteil * 100).toFixed(1)}%"></i></div>
+    </li>`);
+  if (h.rest) {
+    zeilen.push(`<li><div class="hk-zeile"><span class="hk-name">${h.rest.anzahl} weitere</span>` +
+      `<span class="hk-wert">${zahl(h.rest.wert)} ${info.einheit}</span><span class="hk-anteil">${prozent(h.rest.anteil)}</span></div></li>`);
+  }
+  $("hkLebensmittel").innerHTML = zeilen.length ? zeilen.join("") : `<li class="hk-leer">Kein Lebensmittel heute mit ${info.name}.</li>`;
+}
+
+function herkunftOeffnen(makro, ausloeser) {
+  herkunftMakro = HERKUNFT[makro] ? makro : "proteinG";
+  herkunftAusloeser = ausloeser || null;
+  herkunftZeigen();
+  $("herkunftBlatt").hidden = false;
+  document.body.classList.add("blatt-offen");
+  $("herkunftBlatt").querySelector(".blatt-scroll").scrollTop = 0;
+}
+
+function herkunftSchliessen() {
+  $("herkunftBlatt").hidden = true;
+  document.body.classList.remove("blatt-offen");
+  herkunftAusloeser?.focus?.();
+}
+
+for (const el of document.querySelectorAll("[data-herkunft]")) {
+  el.addEventListener("click", () => herkunftOeffnen(el.dataset.herkunft, el));
+  // Der Ring ist kein echter Knopf, also braucht er die Tasten selbst.
+  if (el.tagName !== "BUTTON") {
+    el.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); herkunftOeffnen(el.dataset.herkunft, el); }
+    });
+  }
+}
+$("hkWahl").addEventListener("click", (event) => {
+  const knopf = event.target.closest("[data-makro]");
+  if (!knopf) return;
+  herkunftMakro = knopf.dataset.makro;
+  herkunftZeigen();
+});
+$("hkSchliessen").addEventListener("click", herkunftSchliessen);
+$("herkunftBlatt").addEventListener("click", (event) => {
+  if (event.target === $("herkunftBlatt")) herkunftSchliessen();
 });
 
 /* ---------- Barcode ---------- */
@@ -2976,6 +3145,13 @@ $("btnCheckin").addEventListener("click", async () => {
   $("checkNote").value = "";
   renderCheckins();
   toast("Check-in gespeichert");
+});
+
+$("gewichtZeitraum").addEventListener("click", (event) => {
+  const knopf = event.target.closest("[data-tage]");
+  if (!knopf) return;
+  gewichtTage = Number(knopf.dataset.tage);
+  renderWeight();
 });
 
 $("btnWeight").addEventListener("click", async () => {

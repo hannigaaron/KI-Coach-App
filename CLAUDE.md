@@ -69,7 +69,12 @@ rund 4400 Partikeln auf 30 Fäden um einen gedachten Schlauch, im Bogen wie im
 Stamm. Die Geometrie ist dieselbe wie im Logo: Bogen über 280 Grad, der Stamm
 endet auf Höhe der Ringmitte im Ring und hat nur oben ein rundes Ende. Weniger
 Punkte als vorher, weil Bogen und Stamm kürzer sind, die Dichte je Fläche ist
-gleich geblieben. Canvas statt SVG, weil ein paar tausend Punkte pro
+gleich geblieben. Wo Stamm und Ring übereinanderliegen, zeichnet nur der
+Stamm, mit weicher Grenze: beide zusammen ergaben dort die doppelte Dichte,
+und die Naht stand als dunkler Fleck im Buchstaben. Der Stamm wogt mit der
+Welle des Rings, als liefe der Bogen von drei Uhr geradeaus weiter, und beide
+teilen sich je Faden Radius und Phase. Die Ringenden laufen in Halbkreise aus
+wie im Logo. Canvas statt SVG, weil ein paar tausend Punkte pro
 Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
@@ -293,7 +298,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 968 Tests
+npm test           # 992 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1384,7 +1389,7 @@ der Zutatentabelle.
 
 Fotos: `foto: true` am Rezept, Datei unter `apps/pwa/img/rezepte/<id>.jpg`
 (800 x 600), Stil wie bei den Übungen. Ein Test prüft, dass jede Kennzeichnung
-eine Datei hat. Bisher fünf Testbilder. Ohne Foto trägt die Karte ein Zeichen
+eine Datei hat. Alle 55 Rezepte haben ein Foto. Ohne Foto trägt die Karte ein Zeichen
 auf einem Verlauf. Die Karte steht im Verhältnis 4 zu 3 und ist auf breiten
 Bildschirmen gedeckelt, vorher füllte sie auf dem Laptop den halben
 Bildschirm.
@@ -1986,6 +1991,66 @@ Fortschritt, den man kaum lesen kann, ist keiner.
 Beim Schliessen wird die Adresse des Bildes freigegeben. Ohne das hält der
 Browser jedes Foto der Sitzung im Speicher, und bei zehn Tellern am Tag
 summiert sich das auf einem Handy.
+
+## Nachtragen aus der Mediathek
+
+Wer beim Essen schnell ein Foto macht, trägt meist erst Stunden später ein.
+Das Eingabefeld für das Foto in "Essen erfassen" hat deshalb kein `capture`
+mehr: iOS bietet dann Foto aufnehmen und die Mediathek an, ohne eigene
+Zwischenfrage der App. Eine Berechtigung für die ganze Mediathek braucht das
+nicht, die Auswahl gibt nur das eine Bild heraus.
+
+Das Fotoblatt trägt eine Zeile "Gegessen" mit Heute, Gestern, Vorgestern und
+der Uhrzeit. Vorbelegt wird sie aus der Aufnahmezeit im Exif Block,
+`apps/pwa/js/exif.js`, ohne Bibliothek. Ohne die Zeit landet das Mittagessen
+um 21 Uhr im Tag, und alles, was an der Uhrzeit hängt, rechnet falsch:
+welche Mahlzeit gegessen ist, der Energiecheck, die Aufteilung des Rests.
+
+Übernommen wird die Aufnahmezeit nur aus den letzten zwei Tagen und nie aus
+der Zukunft. Weiter zurück ist ein Foto fast nie ein Nachtrag. Trägt das Bild
+keine Zeit, etwa ein Screenshot, steht dort die aktuelle Zeit: die sieht man
+und kann sie ändern, eine geratene nicht. Ob iOS beim Weitergeben aus der
+Mediathek die Aufnahmezeit mitschickt, ist am echten Gerät zu prüfen. Fehlt
+sie, bleibt der Weg derselbe, nur ohne Vorbelegung.
+
+`nachtragZeit` in `assistant.js` prüft dasselbe noch einmal, bevor
+geschrieben wird. Ein Nachtrag wird in den Tag einsortiert und nicht
+angehängt, sonst steht das Mittagessen unter dem Abendessen.
+
+## Woher kommt das
+
+`packages/core/src/herkunft.ts` rechnet, das Blatt `#herkunftBlatt` zeigt.
+Ein Tipp auf den Kalorienring oder einen Makrobalken auf Heute öffnet es auf
+genau diesem Wert, oben lässt sich zwischen Kalorien, Protein, Fett und
+Kohlenhydraten wechseln.
+
+Ein Balken mit 184 von 150 Gramm sagt, dass das Ziel erreicht ist, nicht
+woran es lag. Das Blatt zerlegt den Tag zweimal. Je Mahlzeit, in der
+Reihenfolge des Tages, mit allen vier Werten und dem gewählten vorn: wer auf
+Protein tippt, will im selben Blick sehen, was das Frühstück an Kalorien
+gekostet hat. Darunter je Lebensmittel, nach Beitrag sortiert, gleiche Namen
+zusammengefasst. Ab dem neunten steht der Rest als eine Zeile da.
+
+Die Art der Mahlzeit kommt aus der Uhrzeit, über `artZurUhrzeit` im Kern.
+`gegesseneArten` in `assistant.js` benutzt dieselbe Funktion, sonst hiesse
+dieselbe Mahlzeit beim Aufteilen des Rests Snack und hier Mittagessen.
+
+Gerundet wird erst beim Anzeigen. Die Summe der Zeilen trifft damit die Zahl
+im Balken, und ein Test hält das für alle vier Werte fest.
+
+## Die Gewichtskurve
+
+`apps/pwa/js/gewichtkurve.js`, auf Heute unter Gewicht. Jede Wiegung ist ein
+Punkt, verbunden in zeitlicher Folge, die Abstände sind echte Tage. Anders
+als im Bericht wird über Lücken verbunden: ein Tag ohne Wiegung ist kein Tag
+ohne Gewicht. Die gestrichelte Gerade ist `weightTrend` aus dem Kern und steht
+erst da, wo der Kern sie belastbar nennt.
+
+Die Zeitachse beginnt bei der ersten Wiegung im Zeitraum, nicht am Anfang des
+Zeitraums. Sonst stehen bei drei Monaten und zwei Wochen Daten alle Punkte
+übereinander am rechten Rand. Mindestens zwei Kilo Höhe, sonst sieht eine
+Schwankung von 300 Gramm aus wie ein Absturz. Darüber steht der letzte Wert
+und die Strecke seit der ersten Wiegung, kein Schnitt.
 
 ## Denkblöcke im Verlauf
 
