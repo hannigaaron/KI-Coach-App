@@ -39,6 +39,8 @@ import {
 import { brain } from "./brain.js";
 import { Orb } from "./orb.js";
 import { anhangAusDatei, grossInKb } from "./media.js";
+import { EXIF_LESEN_BYTES, aufnahmezeit, tagVor, tageZurueck, zeitVorschlag } from "./exif.js";
+import { gewichtsKurve, gewichtsSpanne } from "./gewichtkurve.js";
 import { bereichFarbe, anteilsRing, kurzDauer, netzDiagramm, wertungsRing } from "./rings.js";
 import { Listener, alleStimmen, istDeutsch, speak, stimmenBereit, stopSpeaking, voiceSupport, waehlbareStimmen } from "./voice.js";
 import { SetupFlow } from "./setup-ui.js";
@@ -1419,19 +1421,40 @@ function renderToday() {
  * Vergleich zweier Tage. Das Gewicht schwankt je nach Salz, Kohlenhydraten
  * und Darminhalt um ein bis zwei Kilo, zwei einzelne Tage sagen deshalb nichts.
  */
+/** Zeitraum der Gewichtskurve in Tagen. */
+let gewichtTage = 90;
+
 function renderWeight() {
   const heute = store.getDay(day).weightKg;
   const feld = $("weightInput");
   if (document.activeElement !== feld) feld.value = heute ?? "";
+  for (const knopf of document.querySelectorAll("#gewichtZeitraum .seg-btn")) {
+    knopf.classList.toggle("is-on", Number(knopf.dataset.tage) === gewichtTage);
+  }
+  // Ein Jahr einmal lesen und daraus schneiden, statt den Speicher je
+  // Zeitraum neu zu durchlaufen. renderWeight läuft bei jeder Änderung.
+  const jahr = verlaufPunkte(365);
+  const kurvenPunkte = jahr.slice(-gewichtTage);
+  const spanne = gewichtsSpanne(kurvenPunkte);
+  const kurve = gewichtsKurve(kurvenPunkte, weightTrend(kurvenPunkte));
+  $("gewichtKurve").innerHTML = kurve && spanne
+    ? `<p class="gk-kopf"><b>${spanne.kg}</b> <span>${spanne.zusatz}</span></p>${kurve}`
+    : kurve;
+  // Die Zeitraumwahl steht nur da, wenn es überhaupt eine Kurve gibt.
+  $("gewichtZeitraum").hidden = !jahr.some((p) => p.weightKg !== null);
   const trend = weightTrend(verlaufPunkte(56));
   if (trend.messungen === 0) {
     $("weightTrend").textContent = "Noch keine Wiegung. Wieg dich am besten morgens nach dem Klo, dann schwankt es am wenigsten.";
     return;
   }
   if (!trend.belastbar) {
-    $("weightTrend").textContent =
-      `${trend.messungen} ${trend.messungen === 1 ? "Wiegung" : "Wiegungen"} bisher. ` +
-      "Ab vier Wiegungen über zwei Wochen kann ich eine Richtung sagen.";
+    // Mit vier und mehr Wiegungen fehlt nur noch Zeit, nicht die Zahl. Der
+    // Satz sagt dann das, sonst liest man "8 Wiegungen, ab vier" als Fehler.
+    $("weightTrend").textContent = trend.messungen >= 4
+      ? `${trend.messungen} Wiegungen über ${trend.spanneTage} ${trend.spanneTage === 1 ? "Tag" : "Tage"}. ` +
+        "Ab zwei Wochen Abstand zwischen erster und letzter Wiegung kann ich eine Richtung sagen."
+      : `${trend.messungen} ${trend.messungen === 1 ? "Wiegung" : "Wiegungen"} bisher. ` +
+        "Ab vier Wiegungen über zwei Wochen kann ich eine Richtung sagen.";
     return;
   }
   const richtung = trend.kgProWoche > 0 ? "plus" : "minus";
@@ -2750,6 +2773,8 @@ const FOTO_SCHRITTE = ["Bild vorbereiten", "Mengen schätzen", "Nährwerte prüf
 /** Das gewählte Bild, bis es ausgewertet oder verworfen ist. */
 let fotoDatei = null;
 let fotoUrl = null;
+/** Tag der Mahlzeit, als JJJJ-MM-TT. Die Uhrzeit steht im Feld. */
+let fotoTag = todayIso();
 
 async function fotoBlattOeffnen(datei) {
   fotoDatei = datei;
@@ -2759,9 +2784,42 @@ async function fotoBlattOeffnen(datei) {
   $("fbDetails").value = "";
   $("fbFeedback").hidden = true;
   fotoSchritt(null);
+
+  // Die Zeit wird gelesen, bevor das Blatt aufgeht, nicht danach. Sonst
+  // springt die Uhrzeit unter dem Finger um, während jemand schon tippt.
+  let exif = null;
+  try {
+    exif = aufnahmezeit(await datei.slice(0, EXIF_LESEN_BYTES).arrayBuffer());
+  } catch { exif = null; }
+  const vorschlag = zeitVorschlag(exif);
+  fotoTag = vorschlag.tag;
+  $("fbUhrzeit").value = vorschlag.uhrzeit;
+  fotoTagZeigen();
+  $("fbZeitHinweis").textContent = vorschlag.ausFoto
+    ? "Zeit aus dem Foto übernommen."
+    : "";
+
   $("fotoBlatt").hidden = false;
   document.body.classList.add("blatt-offen");
 }
+
+function fotoTagZeigen() {
+  const zurueck = tageZurueck(fotoTag, todayIso());
+  for (const knopf of $("fbTag").querySelectorAll("[data-tage]")) {
+    const an = Number(knopf.dataset.tage) === zurueck;
+    knopf.classList.toggle("on", an);
+    knopf.setAttribute("aria-pressed", String(an));
+  }
+}
+
+$("fbTag").addEventListener("click", (event) => {
+  const knopf = event.target.closest("[data-tage]");
+  if (!knopf) return;
+  fotoTag = tagVor(todayIso(), Number(knopf.dataset.tage));
+  fotoTagZeigen();
+  $("fbZeitHinweis").textContent = "";
+});
+$("fbUhrzeit").addEventListener("input", () => { $("fbZeitHinweis").textContent = ""; });
 
 function fotoBlattSchliessen() {
   $("fotoBlatt").hidden = true;
@@ -2814,7 +2872,8 @@ $("fbAuswerten").addEventListener("click", async () => {
 
     fotoSchritt(1);
     const aktionen = buildActions({ onChange: refreshAll, anhaenge: [anhang] });
-    const text = await aktionen.fotoAlsMahlzeit(hinweis ? { hinweis } : {});
+    const uhrzeit = /^\d{2}:\d{2}$/.test($("fbUhrzeit").value) ? $("fbUhrzeit").value : undefined;
+    const text = await aktionen.fotoAlsMahlzeit({ ...(hinweis ? { hinweis } : {}), tag: fotoTag, uhrzeit });
 
     // Der dritte Schritt ist die Prüfung gegen die Makroformel, und die läuft
     // in fotoAlsMahlzeit schon mit. Er wird hier nur noch angezeigt, damit
@@ -2976,6 +3035,13 @@ $("btnCheckin").addEventListener("click", async () => {
   $("checkNote").value = "";
   renderCheckins();
   toast("Check-in gespeichert");
+});
+
+$("gewichtZeitraum").addEventListener("click", (event) => {
+  const knopf = event.target.closest("[data-tage]");
+  if (!knopf) return;
+  gewichtTage = Number(knopf.dataset.tage);
+  renderWeight();
 });
 
 $("btnWeight").addEventListener("click", async () => {

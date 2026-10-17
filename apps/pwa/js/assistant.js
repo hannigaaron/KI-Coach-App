@@ -85,6 +85,7 @@ import {
 } from "@daevo/core";
 import { brain } from "./brain.js";
 import { KONFIG } from "./konfig.js";
+import { NACHTRAG_TAGE, tageZurueck } from "./exif.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
 
 const WEEKDAYS = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
@@ -2037,6 +2038,27 @@ export function trainingsplanUebernehmen() {
 
 /* ---------- Was der Assistent tun darf ---------- */
 
+/**
+ * Tag und Uhrzeit für eine nachgetragene Mahlzeit.
+ *
+ * Angenommen wird nur, was das Fotoblatt anbietet: heute, gestern,
+ * vorgestern und eine echte Uhrzeit. Alles andere fällt auf jetzt zurück,
+ * und eine Uhrzeit von heute, die noch nicht war, ebenfalls: gegessen ist,
+ * was schon passiert ist.
+ */
+export function nachtragZeit(tag, uhrzeit, jetzt = new Date()) {
+  const heute = todayIso(jetzt);
+  const jetztZeit = nowTime(jetzt);
+  const tagGilt = tag === undefined || (typeof tag === "string" && NACHTRAG_TAGE.includes(tageZurueck(tag, heute)));
+  // Ein ungültiger Tag nimmt die Uhrzeit mit: 8 Uhr an einem Tag, den es so
+  // nicht gibt, ist auf heute verschoben keine Angabe mehr, sondern geraten.
+  if (!tagGilt) return { day: heute, at: jetztZeit };
+  const day = tag ?? heute;
+  let at = typeof uhrzeit === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(uhrzeit) ? uhrzeit : jetztZeit;
+  if (day === heute && at > jetztZeit) at = jetztZeit;
+  return { day, at };
+}
+
 export function buildActions({ onChange, anhaenge = [] } = {}) {
   const changed = () => onChange?.();
   const anbieter = provider();
@@ -2673,35 +2695,48 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
       return tagesablaufUebersicht(tag || todayIso());
     },
 
-    async fotoAlsMahlzeit({ hinweis } = {}) {
+    async fotoAlsMahlzeit({ hinweis, tag, uhrzeit } = {}) {
       if (bilder.length === 0) return "Zu dieser Nachricht ist kein Bild dabei.";
+      const { day, at } = nachtragZeit(tag, uhrzeit);
       const modell = modellFuerBilder(store.getSettings().modellWahl || "auto");
       const ergebnis = await mahlzeitAusFoto(anbieter, bilder.slice(0, 3), hinweis || "", modell.id);
       if (ergebnis.entries.length === 0) {
         return `Auf dem Bild sehe ich kein Essen. ${ergebnis.beschreibung}`;
       }
-      const day = todayIso();
       store.addMeal(day, {
         id: newId(),
         text: ergebnis.beschreibung || "Foto",
-        at: nowTime(),
+        at,
         source: "foto",
         entries: ergebnis.entries,
         feeling: null,
         sicherheit: ergebnis.sicherheit,
         annahme: ergebnis.annahme,
       });
+      // Ein Nachtrag gehört an seine Stelle im Tag und nicht ans Ende. Die
+      // Liste liest man von oben nach unten als Ablauf, und ein Mittagessen
+      // unter dem Abendessen sieht aus wie ein zweites Abendessen.
+      const daten = store.getDay(day);
+      daten.meals.sort((a, b) => String(a.at).localeCompare(String(b.at)));
+      store.setDay(day, daten);
       changed();
       const kcal = Math.round(ergebnis.entries.reduce((s, e) => s + e.kcal, 0));
       const protein = Math.round(ergebnis.entries.reduce((s, e) => s + e.proteinG, 0));
       const posten = ergebnis.entries.map((e) => `${e.quantity} ${e.name}`).join(", ");
-      const n = dayNumbers();
+      const zurueck = tageZurueck(day, todayIso());
+      const n = dayNumbers(day);
+      // Für einen vergangenen Tag gibt es keinen Rest mehr, der offen wäre.
+      // Dort zählt, wo der Tag damit gelandet ist.
+      const stand = zurueck === 0
+        ? restText(n.rest)
+        : `${zurueck === 1 ? "Gestern" : "Vorgestern"} liegst du damit bei ${Math.round(n.totals.kcal)} von ${n.targets.kcal} kcal.`;
       const teile = [
+        zurueck === 0 && at === nowTime() ? "" : `Eingetragen für ${zurueck === 0 ? "heute" : zurueck === 1 ? "gestern" : "vorgestern"}, ${at} Uhr.`,
         `Erkannt: ${posten}.`,
         `Zusammen ${kcal} kcal und ${protein} g Protein.`,
         `Sicherheit der Mengenschätzung: ${ergebnis.sicherheit}.`,
         ergebnis.annahme ? `Angenommen: ${ergebnis.annahme}` : "",
-        `${restText(n.rest)}`,
+        stand,
         ergebnis.warnings.length ? ergebnis.warnings.join(" ") : "",
         ergebnis.rueckfrage,
       ];

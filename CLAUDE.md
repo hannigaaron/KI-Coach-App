@@ -293,7 +293,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 968 Tests
+npm test           # 986 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1986,6 +1986,45 @@ Fortschritt, den man kaum lesen kann, ist keiner.
 Beim Schliessen wird die Adresse des Bildes freigegeben. Ohne das hält der
 Browser jedes Foto der Sitzung im Speicher, und bei zehn Tellern am Tag
 summiert sich das auf einem Handy.
+
+## Nachtragen aus der Mediathek
+
+Wer beim Essen schnell ein Foto macht, trägt meist erst Stunden später ein.
+Das Eingabefeld für das Foto in "Essen erfassen" hat deshalb kein `capture`
+mehr: iOS bietet dann Foto aufnehmen und die Mediathek an, ohne eigene
+Zwischenfrage der App. Eine Berechtigung für die ganze Mediathek braucht das
+nicht, die Auswahl gibt nur das eine Bild heraus.
+
+Das Fotoblatt trägt eine Zeile "Gegessen" mit Heute, Gestern, Vorgestern und
+der Uhrzeit. Vorbelegt wird sie aus der Aufnahmezeit im Exif Block,
+`apps/pwa/js/exif.js`, ohne Bibliothek. Ohne die Zeit landet das Mittagessen
+um 21 Uhr im Tag, und alles, was an der Uhrzeit hängt, rechnet falsch:
+welche Mahlzeit gegessen ist, der Energiecheck, die Aufteilung des Rests.
+
+Übernommen wird die Aufnahmezeit nur aus den letzten zwei Tagen und nie aus
+der Zukunft. Weiter zurück ist ein Foto fast nie ein Nachtrag. Trägt das Bild
+keine Zeit, etwa ein Screenshot, steht dort die aktuelle Zeit: die sieht man
+und kann sie ändern, eine geratene nicht. Ob iOS beim Weitergeben aus der
+Mediathek die Aufnahmezeit mitschickt, ist am echten Gerät zu prüfen. Fehlt
+sie, bleibt der Weg derselbe, nur ohne Vorbelegung.
+
+`nachtragZeit` in `assistant.js` prüft dasselbe noch einmal, bevor
+geschrieben wird. Ein Nachtrag wird in den Tag einsortiert und nicht
+angehängt, sonst steht das Mittagessen unter dem Abendessen.
+
+## Die Gewichtskurve
+
+`apps/pwa/js/gewichtkurve.js`, auf Heute unter Gewicht. Jede Wiegung ist ein
+Punkt, verbunden in zeitlicher Folge, die Abstände sind echte Tage. Anders
+als im Bericht wird über Lücken verbunden: ein Tag ohne Wiegung ist kein Tag
+ohne Gewicht. Die gestrichelte Gerade ist `weightTrend` aus dem Kern und steht
+erst da, wo der Kern sie belastbar nennt.
+
+Die Zeitachse beginnt bei der ersten Wiegung im Zeitraum, nicht am Anfang des
+Zeitraums. Sonst stehen bei drei Monaten und zwei Wochen Daten alle Punkte
+übereinander am rechten Rand. Mindestens zwei Kilo Höhe, sonst sieht eine
+Schwankung von 300 Gramm aus wie ein Absturz. Darüber steht der letzte Wert
+und die Strecke seit der ersten Wiegung, kein Schnitt.
 
 ## Denkblöcke im Verlauf
 

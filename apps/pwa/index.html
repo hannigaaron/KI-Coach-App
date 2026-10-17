@@ -153,7 +153,9 @@ try {
          zeigt iOS beides zur Auswahl, mit capture geht die Kamera direkt auf. -->
     <input id="dateiWahl" type="file" accept="image/*,video/*,application/pdf" multiple hidden>
     <input id="kameraWahl" type="file" accept="image/*" capture="environment" hidden>
-  <input id="essenFoto" type="file" accept="image/*" capture="environment" hidden>
+  <!-- Ohne capture: iOS bietet Foto aufnehmen und die Mediathek an. Wer beim
+       Essen nur schnell fotografiert, trägt später aus der Mediathek nach. -->
+  <input id="essenFoto" type="file" accept="image/*" hidden>
 
     <!-- Ein Menü statt vier Knöpfen in der Pille. Tippen außerhalb schließt es. -->
     <div id="anhangMenue" class="anhang-menue" hidden role="menu">
@@ -254,6 +256,12 @@ try {
 
       <h2 class="abschnitt">Gewicht</h2>
       <div class="card">
+        <div class="seg gk-zeitraum" id="gewichtZeitraum">
+          <button class="seg-btn" data-tage="30">30 Tage</button>
+          <button class="seg-btn is-on" data-tage="90">3 Monate</button>
+          <button class="seg-btn" data-tage="365">1 Jahr</button>
+        </div>
+        <div id="gewichtKurve" class="gk-flaeche"></div>
         <div class="field-row">
           <div class="field"><label for="weightInput">Heute gewogen, in kg</label>
             <input id="weightInput" type="number" inputmode="decimal" step="0.1" min="30" max="300" placeholder="87,0"></div>
@@ -346,7 +354,7 @@ try {
             <span class="weg-zeichen" data-sym="kamera" aria-hidden="true"></span>
             <span class="weg-text">
               <span class="weg-titel">Foto</span>
-              <span class="weg-sub">Teller fotografieren</span>
+              <span class="weg-sub">Kamera oder Mediathek</span>
             </span>
           </button>
           <button type="button" class="weg" data-weg="sprache">
@@ -407,6 +415,19 @@ try {
             <i style="--x: 88%; --y: 61%; --v: 2.1s"></i>
             <i style="--x: 57%; --y: 41%; --v: 2.8s"></i>
           </span>
+        </div>
+
+        <div class="foto-wann">
+          <span class="feld-label">Gegessen</span>
+          <div class="foto-wann-zeile">
+            <div id="fbTag" class="foto-tage" role="group" aria-label="Tag">
+              <button type="button" class="pill" data-tage="0">Heute</button>
+              <button type="button" class="pill" data-tage="1">Gestern</button>
+              <button type="button" class="pill" data-tage="2">Vorgestern</button>
+            </div>
+            <input id="fbUhrzeit" type="time" class="foto-uhrzeit" aria-label="Uhrzeit">
+          </div>
+          <p id="fbZeitHinweis" class="sub"></p>
         </div>
 
         <label class="feld-label" for="fbDetails">Details (optional)</label>
