@@ -69,7 +69,12 @@ rund 4400 Partikeln auf 30 Fäden um einen gedachten Schlauch, im Bogen wie im
 Stamm. Die Geometrie ist dieselbe wie im Logo: Bogen über 280 Grad, der Stamm
 endet auf Höhe der Ringmitte im Ring und hat nur oben ein rundes Ende. Weniger
 Punkte als vorher, weil Bogen und Stamm kürzer sind, die Dichte je Fläche ist
-gleich geblieben. Canvas statt SVG, weil ein paar tausend Punkte pro
+gleich geblieben. Wo Stamm und Ring übereinanderliegen, zeichnet nur der
+Stamm, mit weicher Grenze: beide zusammen ergaben dort die doppelte Dichte,
+und die Naht stand als dunkler Fleck im Buchstaben. Der Stamm wogt mit der
+Welle des Rings, als liefe der Bogen von drei Uhr geradeaus weiter, und beide
+teilen sich je Faden Radius und Phase. Die Ringenden laufen in Halbkreise aus
+wie im Logo. Canvas statt SVG, weil ein paar tausend Punkte pro
 Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.

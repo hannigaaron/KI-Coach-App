@@ -47,6 +47,14 @@ const ORIGIN_Y = -6;
  */
 const STRANDS = 30;
 const PER_STRAND = 101;       // 108 bei 300 Grad, auf 280 umgerechnet
+/*
+ * Runde Enden am Ring. Im Logo endet der Bogen mit einem Halbkreis, im Kreis
+ * war er gerade abgeschnitten, und die Schnittkante las sich als Kante. Der
+ * Bogen läuft dafür an beiden Enden um den Winkel weiter, der einem halben
+ * Strich entspricht, und wird dort zum Halbkreis verjüngt.
+ */
+const KAPPE = TUBE / R;
+// Ohne Kappen. Mit Kappen werden es mehr, siehe buildParticles.
 const RING_PARTICLES = STRANDS * PER_STRAND;
 /*
  * Die Punktzahl des Stamms folgt seiner Fläche, nicht dem Gefühl.
@@ -118,21 +126,48 @@ export class Orb {
    */
   buildParticles() {
     const sweepRad = (SWEEP * Math.PI) / 180;
-    this.ring = new Float32Array(RING_PARTICLES * 5); // a, b, r, seed, size
-    let k = 0;
+    // Jeder Faden trägt Radius und Phase für Ring und Stamm gemeinsam. An der
+    // Naht läuft so derselbe Faden weiter, statt dass zwei fremde Fäden
+    // aneinanderstossen.
+    this.fadenR = new Float32Array(STRANDS);
+    this.fadenSeed = new Float32Array(STRANDS);
+    for (let strand = 0; strand < STRANDS; strand++) {
+      this.fadenR[strand] = 0.55 + Math.random() * 0.45;
+      this.fadenSeed[strand] = Math.random() * Math.PI * 2;
+    }
+
+    // Die Kappen verlängern jeden Faden. Damit die Dichte je Fläche gleich
+    // bleibt, wächst die Zahl der Punkte im selben Verhältnis wie die Länge.
+    const proFaden = Math.round(PER_STRAND * (sweepRad + 2 * KAPPE) / sweepRad);
+    const ring = [];
     for (let strand = 0; strand < STRANDS; strand++) {
       const b0 = (strand / STRANDS) * Math.PI * 2;
-      const rScale = 0.55 + Math.random() * 0.45;
-      const seed = Math.random() * Math.PI * 2;
-      for (let j = 0; j < PER_STRAND; j++) {
-        const t = (j + Math.random() * 0.6) / PER_STRAND;
-        this.ring[k++] = t * sweepRad;
-        this.ring[k++] = b0 + (Math.random() - 0.5) * 0.18;
-        this.ring[k++] = rScale * (0.9 + Math.random() * 0.2);
-        this.ring[k++] = seed;
-        this.ring[k++] = 2.1 + Math.random() * 1.8;
+      const rScale = this.fadenR[strand];
+      const seed = this.fadenSeed[strand];
+      for (let j = 0; j < proFaden; j++) {
+        const t = (j + Math.random() * 0.6) / proFaden;
+        const a = -KAPPE + t * (sweepRad + 2 * KAPPE);
+        // In der Kappe wird der Schlauch zum Halbkreis. Ein Punkt bleibt dort
+        // nur mit der Wahrscheinlichkeit der verbleibenden Breite, sonst
+        // drängen sich alle Punkte eines Fadens in der Spitze, und die Enden
+        // leuchten heller als der Bogen.
+        const ueber = a < 0 ? -a : a > sweepRad ? a - sweepRad : 0;
+        const kappe = ueber > 0 ? Math.sqrt(Math.max(0, 1 - (ueber / KAPPE) ** 2)) : 1;
+        if (kappe < 1 && Math.random() > kappe) continue;
+        ring.push(
+          a,
+          b0 + (Math.random() - 0.5) * 0.18,
+          rScale * kappe * (0.9 + Math.random() * 0.2),
+          seed,
+          2.1 + Math.random() * 1.8,
+        );
       }
     }
+    this.ring = Float32Array.from(ring); // a, b, r, seed, size
+    this.ringCount = ring.length / 5;
+    // Eine feste Zufallszahl je Punkt für den weichen Übergang am Stamm.
+    this.ringLos = new Float32Array(this.ringCount).map(() => Math.random());
+    let k = 0;
     // Der Stamm ist dieselbe Form wie der Ring, nur gerade: ein Schlauch mit
     // runden Enden. Also bekommt er auch dieselbe Struktur, 30 Faeden um den
     // Schlauch herum.
@@ -158,16 +193,22 @@ export class Orb {
     k = 0;
     for (let strand = 0; strand < STRANDS; strand++) {
       const b0 = (strand / STRANDS) * Math.PI * 2;
-      const rScale = 0.55 + Math.random() * 0.45;
-      const seed = Math.random() * Math.PI * 2;
+      const rScale = this.fadenR[strand];
+      const seed = this.fadenSeed[strand];
       for (let j = 0; j < PRO_STAMM_FADEN; j++) {
-        const y = STEM_TOP + Math.random() * (yUnten - STEM_TOP);
+        let y = STEM_TOP + Math.random() * (yUnten - STEM_TOP);
         let weite = capR;
-        if (y < yTopCap) {
+        // Dieselbe Verjüngung wie an den Ringenden: in der Kappe bleibt ein
+        // Punkt nur mit der Wahrscheinlichkeit der Breite, sonst wird neu
+        // gezogen. Sonst leuchtet die Spitze heller als der Stamm.
+        while (y < yTopCap) {
           const dy = y - yTopCap;
           // Die halbe Sehne des Kreises auf dieser Hoehe. Hier einmal beim
           // Bauen gerechnet, damit im Bild pro Punkt keine Wurzel anfaellt.
           weite = Math.sqrt(Math.max(0, capR * capR - dy * dy));
+          if (Math.random() <= weite / capR) break;
+          y = STEM_TOP + Math.random() * (yUnten - STEM_TOP);
+          weite = capR;
         }
         this.stem[k++] = b0 + (Math.random() - 0.5) * 0.18;
         this.stem[k++] = y;
@@ -184,7 +225,7 @@ export class Orb {
     // ist, entstehen mehr Punkte als die Konstante sagt. Der Puffer waere dann
     // zu klein, und Float32Array schreibt still nicht weiter: der Stamm haette
     // ein Stueck weniger, ohne Fehlermeldung.
-    this.out = new Float32Array((RING_PARTICLES + this.stemCount) * 4);
+    this.out = new Float32Array((this.ringCount + this.stemCount) * 4);
   }
 
   /**
@@ -277,7 +318,20 @@ export class Orb {
     const out = this.out;
     let o = 0;
 
-    for (let i = 0; i < RING_PARTICLES; i++) {
+    // Wo Stamm und Ring übereinanderliegen, zeichnet nur der Stamm. Beide
+    // zusammen ergäben dort die doppelte Dichte, und die Naht stünde als
+    // dunklerer Fleck im Buchstaben. Geprüft wird die aktuelle Lage und
+    // nicht die Ruhelage, denn die Punkte wandern mit der Drehung durch den
+    // Schlauch.
+    //
+    // Die Grenze ist weich. Ein harter Schnitt am Rand des Stamms liess dort
+    // eine helle Fuge stehen, weil der Stamm an seinem Rand dünner besetzt
+    // ist als in der Mitte: nicht jeder Faden reicht bis ganz aussen. Im
+    // Übergang bleibt ein Ringpunkt mit wachsender Wahrscheinlichkeit
+    // stehen, gewählt über eine feste Zahl je Punkt, damit nichts flackert.
+    const innen = TUBE * 0.7;
+    const aussen = TUBE * 1.15;
+    for (let i = 0; i < this.ringCount; i++) {
       const p = i * 5;
       const a = this.ring[p];
       const bAng = this.ring[p + 1] + t * 0.45;
@@ -293,8 +347,18 @@ export class Orb {
       const angle = a - Math.PI / 2;
       const depth = 0.42 + 0.58 * (0.5 + 0.5 * Math.sin(bAng));
 
-      out[o++] = CX + Math.cos(angle) * radial;
-      out[o++] = CY + Math.sin(angle) * radial;
+      const px = CX + Math.cos(angle) * radial;
+      const py = CY + Math.sin(angle) * radial;
+      if (py < CY) {
+        const dx = Math.abs(px - this.stemCx);
+        if (dx < aussen) {
+          const u = Math.max(0, (dx - innen) / (aussen - innen));
+          const behalten = u * u * (3 - 2 * u);
+          if (this.ringLos[i] >= behalten) continue;
+        }
+      }
+      out[o++] = px;
+      out[o++] = py;
       out[o++] = size * (0.6 + depth * 0.7);
       out[o++] = depth * m.bright;
     }
@@ -308,8 +372,17 @@ export class Orb {
       const weite = this.stem[p + 2];
       const seed = this.stem[p + 3];
       const size = this.stem[p + 4];
-      const v = (y - STEM_TOP) / (CY - STEM_TOP);
-      const wobble = Math.sin(v * 9 + t * 1.2 + seed) * m.amp * 0.22;
+      // Der Stamm wogt mit derselben Welle wie der Ring, als liefe der Bogen
+      // von drei Uhr aus geradeaus nach oben weiter. An der Naht haben beide
+      // damit denselben Wert und dieselbe Steigung, und es entsteht kein
+      // Knick. Vorher hatte der Stamm eine eigene, schwächere Welle, und die
+      // Naht stand als Kante im Buchstaben.
+      const a = Math.PI / 2 - (CY - y) / R;
+      const wobble = (
+        Math.sin(a * 3 + t * 1.1 + seed) * 0.6 +
+        Math.sin(a * 5 - t * 0.7 + seed * 1.7) * 0.3 +
+        Math.sin(a * 8 + t * 1.9) * 0.2
+      ) * m.amp;
       // Dieselbe Tiefenformel wie beim Ring, damit beide gleich hell wirken.
       const depth = 0.42 + 0.58 * (0.5 + 0.5 * Math.sin(bAng));
 
@@ -319,7 +392,7 @@ export class Orb {
       out[o++] = Math.min(1, depth * m.bright * 1.1);
     }
 
-    const total = RING_PARTICLES + this.stemCount;
+    const total = o / 4;
     for (let step = 0; step < ALPHA_STEPS; step++) {
       // Auf hellem Grund sind kleine Punkte mit wenig Deckkraft kaum zu sehen.
       // Deshalb dort ein Sockel, statt linear bei null zu beginnen.
