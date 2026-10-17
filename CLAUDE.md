@@ -659,11 +659,11 @@ Die Mitteilung trägt den Satz selbst und nicht nur "du hast etwas gesagt".
 Damit sieht der Nutzer auf dem Sperrbildschirm, ob die Erkennung ihn
 verstanden hat, bevor er die App öffnet.
 
-Der Knopf "Aus Zwischenablage senden" bleibt aus dem zweiten Versuch, aber nur
-für den Fall ohne Worker. Steht Adresse und Anmeldewort im Profil, kommt der
-Satz über das Postfach, und dann bleibt der Knopf aus: ein zweiter Weg zum
-selben Ziel, der bei jedem Öffnen über der Eingabe auftaucht, ist kein Angebot
-mehr, sondern Störung.
+Der Knopf "Aus Zwischenablage senden" aus dem zweiten Versuch ist ganz
+entfernt. Er sollte nur ohne Worker erscheinen, stand im Betrieb aber auch in
+der Demo über der Eingabe, und niemand wusste, wozu. Ein Bedienelement, das
+nur nach einem Kurzbefehl Sinn ergibt und sonst verwirrt, gehört nicht auf
+den Startbildschirm. Der Weg aus Siri läuft über das Postfach.
 
 `?sag=` bleibt ebenfalls, in Safari und auf dem Rechner funktioniert es.
 
@@ -2323,6 +2323,22 @@ davon sah jede aus wie die nächste.
 **Bewegung.** Eine Kurve für alles, `--kurve`, plus zwei Dauern. Knöpfe gehen
 beim Tippen auf 98 Prozent: zu wenig, um es bewusst zu sehen, genug, um es zu
 spüren. Lineare Übergänge wirken maschinell.
+
+**Flächen statt Rahmen.** Der Eindruck "Baukasten" kam aus einer Quelle:
+fast jedes Bedienelement trug denselben grauen Rahmen von einem Pixel.
+Knöpfe, Chips, Felder, Karten und Menüzeilen sahen dadurch gleich aus. Die
+Ebene "Feinschliff" am Ende von `styles.css` trennt über Ton und Licht:
+Tonflächen (`--flaeche`), eine Haarlinie als Schatten innen (`--haarlinie`),
+im dunklen Modus eine helle Kante oben (`--glanz`), Karten mit Tiefe
+(`--tief-karte`). Knöpfe und Chips sind Pillen, Karten haben 22 Pixel
+Radius. Der Hauptknopf ist eine Markenfläche mit Schein in der eigenen
+Farbe, der zweite Knopf eine Tonfläche ohne Rahmen. Ausgewählte Chips sind
+in Textfarbe gefüllt, der Umschalter oben ist eine Mulde mit erhobenem
+Reiter. Neue Elemente nehmen diese Tokens und keinen Rahmen.
+
+Die Regel für Felder trägt drei Ausnahmen und ist damit spezifischer als
+eine Klasse. Das Feld in der Eingabepille wird deshalb über seine Kennung
+zurückgesetzt, sonst steckt dort ein zweites Feld in der Pille.
 
 **Prüfung.** Layout wird gerendert geprüft, nicht gelesen. Das Skript im
 Scratchpad öffnet jede Ansicht in beiden Farbmodi und meldet zwei Dinge:

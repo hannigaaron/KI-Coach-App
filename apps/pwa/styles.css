@@ -1393,17 +1393,6 @@ img.only-light { display: none; }
 /* Die Schritte für den Siri Kurzbefehl. Eine nummerierte Liste, weil die
    Reihenfolge hier wirklich zählt: wer die Variable vor der Adresse einsetzt,
    bekommt einen Kurzbefehl, der nichts tut. */
-/* Das Angebot aus der Zwischenablage. Es sitzt über der Eingabe und sieht
-   bewusst nach Angebot aus, nicht nach Bedienelement: es ist nur nach einem
-   Kurzbefehl sinnvoll und verschwindet nach zwei Minuten von selbst. */
-.zwischenablage {
-  display: block; width: calc(100% - var(--s-8)); margin: 0 var(--s-4) var(--s-2);
-  padding: var(--s-3) var(--s-4); border-radius: var(--r-pill);
-  border: 1px solid var(--brand); background: color-mix(in srgb, var(--brand) 14%, transparent);
-  color: var(--text); font-size: var(--t-sm); font-weight: 600; text-align: center;
-  transition: transform var(--schnell) var(--kurve);
-}
-.zwischenablage:active { transform: scale(0.98); }
 
 /* Die Rohliste der Stimmen. Monospace, weil Name, Kürzel und Herkunft
    untereinander stehen sollen, und scrollbar, weil manche Geräte über
@@ -3018,3 +3007,147 @@ h1,
 .ue-geraete { margin-top: -6px; }
 .ue-geraete .ue-tab { padding: 6px 12px; font-size: 13px; }
 .ue-geraete .ue-tab.on { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent-text, var(--accent)); border-color: var(--accent); }
+
+/* ==========================================================================
+   Feinschliff: Flächen statt Rahmen
+
+   Der Eindruck "Baukasten" kam aus einer Quelle: fast jedes Bedienelement
+   trug einen sichtbaren Rahmen von einem Pixel in derselben grauen Farbe.
+   Knöpfe, Chips, Felder, Karten und Menüzeilen sahen dadurch gleich aus,
+   und eine Oberfläche, in der alles gleich aussieht, wirkt zusammengesteckt.
+
+   Hochwertige Oberflächen trennen über Ton und Licht, nicht über Linien.
+   Drei Bausteine tragen das:
+
+   - Tonflächen. Ein Knopf ist eine Fläche, die sich im Ton vom Grund
+     abhebt, nicht ein Kasten mit Linie.
+   - Haarlinie. Wo eine Kante gebraucht wird, liegt sie innen als Schatten
+     mit sehr geringer Deckkraft. Sie wird gespürt, nicht gesehen.
+   - Licht von oben. Im dunklen Modus trägt jede erhobene Fläche eine helle
+     Kante oben. Ein Schatten auf Schwarz ist unsichtbar, Licht nicht.
+
+   Formen: Knöpfe und Chips sind Pillen, Karten haben 22 Pixel Radius. Zwei
+   Formen, die man auseinanderhalten kann, statt fünf ähnlicher Radien.
+   ========================================================================== */
+:root {
+  --flaeche: rgba(255, 255, 255, 0.055);
+  --flaeche-druck: rgba(255, 255, 255, 0.09);
+  --haarlinie: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+  --glanz: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  --karte: #121822;
+  --tief-karte: 0 1px 0 rgba(255, 255, 255, 0.03), 0 18px 40px -24px rgba(0, 0, 0, 0.8);
+  --r-karte: 22px;
+  --knopf-hoehe: 50px;
+}
+:root[data-theme="light"] {
+  --flaeche: rgba(16, 24, 40, 0.05);
+  --flaeche-druck: rgba(16, 24, 40, 0.09);
+  --haarlinie: inset 0 0 0 1px rgba(16, 24, 40, 0.07);
+  --glanz: inset 0 0 0 0 transparent;
+  --karte: #ffffff;
+  --tief-karte: 0 1px 2px rgba(16, 24, 40, 0.04), 0 12px 32px -18px rgba(16, 24, 40, 0.18);
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --flaeche: rgba(16, 24, 40, 0.05);
+    --flaeche-druck: rgba(16, 24, 40, 0.09);
+    --haarlinie: inset 0 0 0 1px rgba(16, 24, 40, 0.07);
+    --glanz: inset 0 0 0 0 transparent;
+    --karte: #ffffff;
+    --tief-karte: 0 1px 2px rgba(16, 24, 40, 0.04), 0 12px 32px -18px rgba(16, 24, 40, 0.18);
+  }
+}
+
+/* Hauptknopf. Pille, Markenfläche mit leichtem Verlauf und einem Schein in
+   der eigenen Farbe darunter. Der Verlauf ist schwach genug, um nicht als
+   Verlauf gelesen zu werden, nur als Wölbung. */
+button.primary {
+  min-height: var(--knopf-hoehe); border: 0; border-radius: var(--r-pill);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--stark) 100%, #ffffff 10%), var(--stark));
+  color: var(--auf-stark); letter-spacing: 0.005em;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28),
+              0 10px 24px -12px color-mix(in srgb, var(--stark) 70%, transparent);
+}
+button.primary:active { transform: scale(0.97); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2); }
+
+/* Zweiter Knopf. Tonfläche ohne Rahmen. Vorher eine graue Linie um nichts,
+   die genauso aussah wie jedes Eingabefeld darüber. */
+button.ghost {
+  min-height: var(--knopf-hoehe); border: 0; border-radius: var(--r-pill);
+  background: var(--flaeche); color: var(--text); box-shadow: var(--glanz);
+}
+button.ghost:active { background: var(--flaeche-druck); }
+button.danger, .ghost.gefahr {
+  border: 0; border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--bad) 12%, transparent); color: var(--bad);
+}
+
+/* Chips und Filter. Dieselbe Tonfläche, kleiner. Ausgewählt heisst gefüllt
+   in Textfarbe, wie ein Schalter in iOS: eindeutig, ohne eine weitere Farbe. */
+.pill, .chip, .chips button, .ue-tab, .feelings button, .li-side button {
+  border: 0 !important; border-radius: var(--r-pill);
+  background: var(--flaeche); color: var(--text); box-shadow: var(--glanz);
+}
+.pill:active, .chip:active, .chips button:active, .ue-tab:active, .feelings button:active { background: var(--flaeche-druck); }
+.ue-tab { color: var(--muted); }
+.pill.on, .ue-tab.on, .feelings button.on {
+  background: var(--text); color: var(--bg); box-shadow: none;
+}
+.ue-geraete .ue-tab.on { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent-text); }
+
+/* Auf dem Assistenten liegen die Vorschläge über dem Verlauf. Dort hilft
+   eine leichte Unschärfe hinter der Fläche, damit sie nicht wie ein
+   aufgeklebtes Etikett wirkt. */
+#assistant .chips button {
+  background: color-mix(in srgb, var(--panel) 55%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(140%); backdrop-filter: blur(14px) saturate(140%);
+  box-shadow: var(--haarlinie), var(--glanz);
+  font-weight: 550; padding: 10px 16px;
+}
+
+/* Felder. Tonfläche statt Kasten, beim Fokus ein weicher Ring in der
+   Markenfarbe. Ein Feld ist eine Mulde, kein Rahmen. */
+input:not([type="range"]):not([type="checkbox"]):not([type="radio"]), select, textarea {
+  border: 0; background: var(--flaeche); border-radius: 14px; box-shadow: var(--haarlinie);
+}
+input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, select:focus, textarea:focus {
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 70%, transparent),
+              0 0 0 4px color-mix(in srgb, var(--accent) 14%, transparent);
+}
+/* Über die Kennung, weil die Regel für Felder darüber mit ihren drei
+   Ausnahmen spezifischer ist als eine Klasse. Ohne das steckte in der Pille
+   ein zweites Feld. */
+#chatInput, #chatInput:focus { background: none; box-shadow: none; border-radius: 0; }
+
+/* Karten. Eine Fläche mit Tiefe statt einem Rahmen. */
+.card, .list > li, .ring-card, .opt, .menu-kachel, .menu-assistent, .menu-liste, .gs-eintrag,
+.std-karte, .composer {
+  border: 0 !important; background: var(--karte); border-radius: var(--r-karte);
+  box-shadow: var(--haarlinie), var(--glanz), var(--tief-karte);
+}
+.menu-zeile { border-radius: var(--r-karte); }
+.menu-liste .menu-zeile { background: none; box-shadow: none; border-bottom: 1px solid var(--linie) !important; }
+.menu-liste .menu-zeile:last-child { border-bottom: 0 !important; }
+.menu-liste .menu-zeile:active { background: var(--flaeche); }
+.menu-kachel:active, .menu-assistent:active, .opt:active { transform: scale(0.98); }
+.opt.on, .gs-eintrag.on {
+  box-shadow: inset 0 0 0 2px var(--accent), var(--tief-karte);
+}
+
+/* Umschalter oben in Training und Check-ins. Eine Mulde mit einem erhobenen
+   Reiter darin, wie der Segmentschalter in iOS. Vorher war der aktive Reiter
+   schwarz auf weiss und schrie lauter als der Inhalt darunter. */
+.ue-modus { border: 0; background: var(--flaeche); box-shadow: none; padding: 4px; }
+.ue-modus button { color: var(--muted); font-weight: 600; }
+.ue-modus button.on {
+  background: var(--karte); color: var(--text);
+  box-shadow: var(--haarlinie), 0 4px 12px -6px rgba(0, 0, 0, 0.45);
+}
+
+/* Knöpfe in der Kopfzeile. Kein Rahmen, beim Tippen eine runde Tonfläche. */
+.icon-btn { border-radius: 50%; transition: background var(--schnell) var(--kurve); }
+.icon-btn:active { background: var(--flaeche-druck); }
+
+/* Die Eingabe. Dieselbe Sprache wie die Vorschläge darüber. */
+.composer-bar { border: 0; box-shadow: var(--haarlinie), var(--glanz), 0 14px 34px -18px rgba(0, 0, 0, 0.6); }
+.composer-bar:focus-within { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 55%, transparent), 0 14px 34px -18px rgba(0, 0, 0, 0.6); }
