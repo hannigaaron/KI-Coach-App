@@ -13,9 +13,11 @@ Poppins Light 300. Der Gewichtssprung ist das Erkennungsmerkmal und darf nie
 wegfallen.
 
 Das d ist kein Schriftzeichen, sondern gebaut. Die Bowl ist ein Aktivitätsring
-wie bei der Apple Watch: Start oben, 300 Grad im Uhrzeigersinn, runde Enden,
-die restlichen 60 Grad bleiben offen. Auch der Stamm hat runde Enden, oben
-wie unten ein Halbkreis. Für kleine Grössen gibt es die
+wie bei der Apple Watch: Start oben, 280 Grad im Uhrzeigersinn, runde Enden,
+die restlichen 80 Grad bleiben offen. Der Stamm hat oben ein rundes Ende und
+läuft unten in den Ring hinein: seine Mittellinie trifft die des Rings auf
+drei Uhr, dort endet er. Stamm und Bogen sind ein Zug, kein Balken neben
+einem Kreis. Für kleine Grössen gibt es die
 Varianten mit gefüllter Spur, sonst fällt der Buchstabe auseinander. Der
 Bauplan steht in `docs/BRAND.md`, der Generator in `tools/brand/`.
 
@@ -63,9 +65,11 @@ Nicht mit Zahlen. Der Kreis aus dem Logo ist die Oberfläche, darunter das
 Gespräch, unten die Eingabe.
 
 Der Kreis liegt in `apps/pwa/js/orb.js` und läuft auf Canvas. Er besteht aus
-rund 5400 Partikeln auf 30 Fäden um einen gedachten Schlauch, im Bogen wie im
-Stamm. Die Geometrie
-ist dieselbe wie im Logo. Canvas statt SVG, weil ein paar tausend Punkte pro
+rund 4400 Partikeln auf 30 Fäden um einen gedachten Schlauch, im Bogen wie im
+Stamm. Die Geometrie ist dieselbe wie im Logo: Bogen über 280 Grad, der Stamm
+endet auf Höhe der Ringmitte im Ring und hat nur oben ein rundes Ende. Weniger
+Punkte als vorher, weil Bogen und Stamm kürzer sind, die Dichte je Fläche ist
+gleich geblieben. Canvas statt SVG, weil ein paar tausend Punkte pro
 Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.

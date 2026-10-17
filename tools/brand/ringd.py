@@ -16,9 +16,13 @@ ASC = 740.0           # Oberkante des Stamms
 STEM_X1 = 610.0       # rechte Kante des Stamms
 ADV = 678.0           # Vorschub
 
-CX = BOWL_X0 + BOWL_D / 2
 CY = (BOWL_Y0 + BOWL_Y1) / 2
 R = BOWL_D / 2 - STEM / 2          # Mittellinie des Rings
+# Der Ring sitzt so, dass seine rechte Mittellinie genau auf der Mittellinie
+# des Stamms liegt. Nur so geht der Stamm ohne Absatz in den Ring über. Das
+# verschiebt die Bowl um 7 Einheiten nach rechts gegen die Messung am o, was
+# bei keiner Grösse sichtbar ist.
+CX = STEM_X1 - STEM / 2 - R
 
 def _pt(deg, radius):
     """0 Grad ist oben, positive Werte laufen im Uhrzeigersinn."""
@@ -81,11 +85,13 @@ def ring_d(size, color, track_opacity=0.28, sweep=290.0, start=0.0,
             f'<path d="{scaled(arc(start, inner_ring, ir))}" fill="none" stroke="{color}" '
             f'stroke-width="{stroke * 0.62:.2f}" stroke-linecap="round"/>'
         )
-    # Stamm mit runden Enden, passend zu den runden Enden des Rings.
-    # rx entspricht der halben Strichstärke, damit oben und unten je ein
-    # Halbkreis entsteht.
+    # Der Stamm läuft von oben bis zur Mitte des Rings und geht dort in ihn
+    # über. Vorher reichte er als eigener Balken bis zur Grundlinie, und unten
+    # rechts stand ein Stück unter dem Ring heraus. Oben ein runder Abschluss,
+    # unten liegt das Ende im Ring und ist nicht zu sehen.
+    sx = (STEM_X1 - STEM / 2) * s
     parts.append(
-        f'<rect x="{(STEM_X1 - STEM) * s:.2f}" y="{-ASC * s:.2f}" '
-        f'width="{stroke:.2f}" height="{ASC * s:.2f}" rx="{stroke / 2:.2f}" fill="{color}"/>'
+        f'<path d="M {sx:.2f} {-(ASC - STEM / 2) * s:.2f} L {sx:.2f} {-CY * s:.2f}" fill="none" '
+        f'stroke="{color}" stroke-width="{stroke:.2f}" stroke-linecap="round"/>'
     )
     return "\n    ".join(parts), ADV * s

@@ -217,8 +217,8 @@ $("chips").addEventListener("click", (event) => {
  */
 function markeSvg() {
   return `<svg class="marke" viewBox="-6 -80 73 87" aria-hidden="true">` +
-    `<path d="M 31.80 -49.20 A 21.50 21.50 0 1 1 13.18 -38.45" fill="none" stroke="currentColor" stroke-width="14" stroke-linecap="round"/>` +
-    `<rect x="47" y="-74" width="14" height="74" rx="7" fill="currentColor"/></svg>`;
+    `<path d="M 32.50 -49.20 A 21.50 21.50 0 1 1 11.33 -31.43" fill="none" stroke="currentColor" stroke-width="14" stroke-linecap="round"/>` +
+    `<path d="M 54 -67 L 54 -27.7" fill="none" stroke="currentColor" stroke-width="14" stroke-linecap="round"/></svg>`;
 }
 
 function renderTranscript() {

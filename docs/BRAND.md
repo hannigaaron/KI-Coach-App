@@ -24,10 +24,14 @@ halber Punkt zusätzlicher Abstand an der Bruchstelle zwischen e und v.
 ### Das d ist ein Aktivitätsring
 
 Das d stammt nicht aus der Schrift, es ist gebaut. Die Bowl ist ein offener
-Ring wie die Ringe der Apple Watch. Der Stamm ist ein gerader Balken mit
-runden Enden, oben und unten je ein Halbkreis mit dem Radius der halben
-Strichstärke, also 70 Einheiten. Runde Enden am Stamm und am Ring gehören
-zusammen, ein eckiger Stamm bricht die Form.
+Ring wie die Ringe der Apple Watch. Der Stamm ist ein gerader Strich mit
+rundem Ende oben, einem Halbkreis mit dem Radius der halben Strichstärke,
+also 70 Einheiten. Unten hat er kein Ende: er läuft in den Ring hinein.
+Seine Mittellinie liegt genau auf der Mittellinie des Rings an dessen
+rechter Seite, und er endet auf Höhe der Ringmitte. Damit gehen Stamm und
+Bogen fliessend ineinander über, und unter dem Ring steht nichts heraus.
+Vorher stand der Stamm als eigener Balken neben dem Ring, bis zur
+Grundlinie. Das d las sich als zwei Teile.
 Damit trägt der Name die Funktion der App: ein Tag, der sich füllt.
 
 Alle Masse stammen aus Poppins SemiBold, gemessen bei 1000 Einheiten je
@@ -38,13 +42,15 @@ Geviert, damit das d exakt auf denselben Linien sitzt wie a, e, v und o:
 | Strichstärke | 140 | Breite des l |
 | Aussendurchmesser der Bowl | 570 | Breite des o |
 | Mittellinie des Rings | Radius 215 | 285 minus halbe Strichstärke |
-| Mittelpunkt | 318 / 277 | Mitte der Bowl |
+| Mittelpunkt | 325 / 277 | Mittellinie des Rings trifft die des Stamms bei x 540 |
 | Oberkante des Stamms | 740 | Aufstrichhöhe |
 | Vorschub | 678 | Vorschub des d |
 
 Der Ring beginnt oben auf zwölf Uhr und läuft im Uhrzeigersinn über
-300 Grad, also 83 Prozent. Die restlichen 60 Grad bleiben offen. Die Enden
-sind rund, am Ring wie am Stamm.
+280 Grad, also 78 Prozent. Die restlichen 80 Grad bleiben offen, die Lücke
+liegt oben links. Die Enden sind rund, am Ring wie oben am Stamm. Der
+Mittelpunkt ist gegenüber der Bowl aus der Schrift um 7 Einheiten nach rechts
+gerückt, damit der Ring den Stamm genau auf dessen Mittellinie trifft.
 
 Der offene Ring ist die Hauptvariante. Er zeigt den Fortschrittsgedanken am
 deutlichsten. Der Preis dafür: an der Lücke fehlt dem Buchstaben ein Stück.
@@ -128,7 +134,8 @@ anfühlt und ohne Nachladen startet. Poppins steckt nur im Logo, und dort als
 Pfad. Es wird keine Schrift von einem fremden Server geladen.
 
 Der Kreis auf dem Startbildschirm der App ist dasselbe d, aufgelöst in
-Partikel. Er behält Radius, Strichstärke und den offenen Bogen bei 300 Grad.
+Partikel. Er behält Radius, Strichstärke, den offenen Bogen bei 280 Grad
+und den Stamm, der in den Ring läuft.
 Die Marke bleibt erkennbar, auch wenn sie sich bewegt.
 
 Der Kalorienring in der App nutzt dieselbe Form wie der Ring im Logo: gleiche

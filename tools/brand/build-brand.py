@@ -24,7 +24,7 @@ TRACKING = -1.6
 CLAIM = "Evolve your daily life"
 GAP = 28.0
 PAD = 6.0
-SWEEP = 300.0          # gefüllter Anteil des Rings, entspricht 83 Prozent
+SWEEP = 280.0          # gefüllter Anteil des Rings, entspricht 78 Prozent
 TRACK_OPACITY = 0.28
 SHOW_TRACK = False     # Hauptvariante ist der offene Ring ohne Spur
 
