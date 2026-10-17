@@ -35,10 +35,10 @@ const TUBE = 70;              // halbe Strichstärke
 const SWEEP = 280;            // offener Ring wie im Logo
 const STEM_X = 470;
 const STEM_W = 140;
-const STEM_TOP = BASE - 740;
-const DESIGN = 800;           // Kantenlänge des Entwurfsraums
-const ORIGIN_X = -75;         // Verschiebung, damit das d mittig sitzt
-const ORIGIN_Y = -6;
+const STEM_TOP = BASE - 800;   // wie ASC im Bauplan, 60 über dem Aufstrich der Schrift
+const DESIGN = 860;           // Kantenlänge des Entwurfsraums, trägt den höheren Stamm mit Rand
+const ORIGIN_X = -105;        // Verschiebung, damit das d mittig sitzt
+const ORIGIN_Y = -66;
 
 /**
  * Die Punkte liegen auf Fäden. Ein Faden ist ein Ring bei festem Winkel um
@@ -60,11 +60,11 @@ const RING_PARTICLES = STRANDS * PER_STRAND;
  * Die Punktzahl des Stamms folgt seiner Fläche, nicht dem Gefühl.
  *
  * Der Ring trägt rund 0,0206 Punkte je Quadrateinheit. Der Stamm misst 140
- * mal 463 (von y 20 bis zur Ringmitte), also 64820 Einheiten, und braucht bei
- * gleicher Dichte rund 1335. Mit zu wenig Punkten wirkte der Ring dicht, der
+ * mal 523 (von y -40 bis zur Ringmitte), also 73220 Einheiten, und braucht bei
+ * gleicher Dichte rund 1508. Mit zu wenig Punkten wirkte der Ring dicht, der
  * Stamm ausgefranst, und das d las sich als zerrissener Buchstabe.
  */
-const STEM_PARTICLES = 1335;
+const STEM_PARTICLES = 1508;
 const ALPHA_STEPS = 12;
 
 /**

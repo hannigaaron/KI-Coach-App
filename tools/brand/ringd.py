@@ -2,6 +2,7 @@
 
 Alle Masse stammen aus der Schrift selbst, gemessen bei 1000 Einheiten je Geviert:
 Stammbreite 140, x-Höhe 572, Bowl Durchmesser 570, Aufstrich 740, Vorschub 678.
+Der Stamm steht bewusst höher als der Aufstrich, siehe ASC.
 Damit sitzt das eigene d exakt auf denselben Linien wie a, e, v und o.
 """
 import math
@@ -12,7 +13,10 @@ BOWL_D = 570.0        # Aussendurchmesser der Bowl, aus dem o gemessen
 BOWL_X0 = 33.0        # linke Kante der Bowl
 BOWL_Y0 = -9.0        # Unterkante mit Ueberschwung
 BOWL_Y1 = 563.0       # Oberkante mit Ueberschwung
-ASC = 740.0           # Oberkante des Stamms
+# Oberkante des Stamms. Poppins setzt den Aufstrich auf 740. Der Stamm steht
+# 60 Einheiten höher: neben einem Ring als Bowl wirkte er bei 740 gestaucht,
+# und im d ist er der einzige Aufstrich, also trifft er keine andere Linie.
+ASC = 800.0
 STEM_X1 = 610.0       # rechte Kante des Stamms
 ADV = 678.0           # Vorschub
 
