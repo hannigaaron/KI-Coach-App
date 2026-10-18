@@ -58,3 +58,12 @@ test("Keine Deutung endet mit dem alten Satz ohne Ursache", () => {
     assert.ok(d.text.length > 30, `${f.message} ergibt einen zu knappen Satz`);
   }
 });
+
+test("Ein aufgebrauchtes Kontingent sagt, dass der Rest der App weiterläuft", () => {
+  const d = fehlerErklaerung(new Error('Anthropic API 402: {"error":{"type":"kontingent","message":"Kontingent aufgebraucht"}}'));
+  assert.equal(d.art, "kontingent");
+  assert.equal(d.nochmal, false);
+  assert.match(d.text, /ohne KI funktioniert weiter/);
+  // Die Tagesgrenze der Demo ist ein 429 und bleibt eine Wartezeit, kein Monatskontingent.
+  assert.equal(fehlerErklaerung(new Error("Anthropic API 429: Das Tageskontingent der Demo ist aufgebraucht.")).art, "limit");
+});

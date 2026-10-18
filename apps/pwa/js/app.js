@@ -50,6 +50,7 @@ import { rezepteAnsicht } from "./rezepte-ui.js";
 import { symbol } from "./symbole.js";
 import { NATIV_PUSH, gesundheitHolen, postfachHolen, pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
+import { kontoSicherstellen, kontoStand, kontoText } from "./konto.js";
 
 const $ = (id) => document.getElementById(id);
 const WEEKDAYS = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
@@ -2238,6 +2239,7 @@ function renderProfile() {
   siriAdresseZeigen();
   renderAngebot();
   renderPush();
+  renderKonto();
   $("e-tempo").value = store.getSettings().sprechtempo ?? 0.96;
 
   const settings = store.getSettings();
@@ -2489,6 +2491,9 @@ function startApp() {
   $("setup").hidden = true;
   $("app").hidden = false;
   konfigAnwenden();
+  // Im Hintergrund, damit die erste Nachricht schon zählt. Scheitert es, redet
+  // die App ohne Konto weiter.
+  kontoSicherstellen();
   // Die Einführung kommt einmal: nach dem Bogen, beim ersten Öffnen der Demo,
   // und einmal bei allen, die die App schon vorher benutzt haben. Danach steht
   // sie im Profil. Wer sie bei jedem Start sieht, tippt sie weg, ohne zu lesen.
@@ -4500,6 +4505,14 @@ $("meScan").addEventListener("click", meScanStarten);
  * Bildschirm, und die Erlaubnis steht. Auf dem iPhone scheitert es fast immer
  * am zweiten Punkt, und das sieht man dem Fehler sonst nicht an.
  */
+/** Stufe und Verbrauch im Profil. Nur über den eigenen Server, sonst gibt es kein Konto. */
+async function renderKonto() {
+  if (!KONFIG.chatUrl) return;
+  const stand = await kontoStand();
+  $("kontoStand").textContent = kontoText(stand);
+  $("kontoId").textContent = stand?.id || store.getSettings().kontoId || "-";
+}
+
 async function renderPush() {
   const settings = store.getSettings();
   $("e-pushWorker").value = settings.pushWorker || "";

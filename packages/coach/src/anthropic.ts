@@ -34,6 +34,13 @@ export interface AnthropicOptions {
    * genau das soll der Weg verhindern.
    */
   baseUrl?: string;
+  /**
+   * Der Kontoschlüssel für den eigenen Server. Geht als Bearer mit, damit der
+   * Server je Konto zählt und begrenzt. Als Funktion, weil die App das Konto
+   * erst nach dem ersten Start bekommt und der Anbieter dann schon besteht.
+   * Auf dem direkten Weg zu Anthropic geht er nie mit.
+   */
+  kontoToken?: () => string | undefined;
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
   /**
@@ -84,7 +91,8 @@ export class AnthropicProvider implements CoachProvider {
     // Über den eigenen Server geht kein Schlüssel und kein Browserzugriff
     // raus. Beides gehört dorthin, wo der Schlüssel liegt.
     if (this.options.baseUrl) {
-      return { "content-type": "application/json" };
+      const token = this.options.kontoToken?.();
+      return { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) };
     }
     return {
       "content-type": "application/json",

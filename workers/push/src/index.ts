@@ -12,7 +12,17 @@ import {
   type Abo,
 } from "./abos.js";
 import { auftragAblegen, auftragsMitteilung, faelligeAuftraege } from "./auftrag.js";
-import { chatWeiterreichen } from "./chat.js";
+import { chatWeiterreichen, geraeteKennung, zaehlen } from "./chat.js";
+import {
+  geltendeStufe,
+  kontoAnlegen,
+  kontoAusAnfrage,
+  monatVon,
+  NEUE_KONTEN_JE_TAG,
+  STUFEN,
+  stufeSetzen,
+  verbrauchLesen,
+} from "./konto.js";
 import { gesundheitAbholen, gesundheitAblegen, tagPruefen, werteLesen } from "./gesundheit.js";
 import { postAblegen, postAbholen, postMitteilung } from "./postfach.js";
 import type { Env, ScheduledEvent } from "./umgebung.js";
@@ -39,7 +49,7 @@ export default {
     ctx.waitUntil(Promise.all([versendeFaellige(env), versendeAuftraege(env)]).then(() => undefined));
   },
 
-  async fetch(anfrage: Request, env: Env): Promise<Response> {
+  async fetch(anfrage: Request, env: Env, ctx?: { waitUntil(p: Promise<unknown>): void }): Promise<Response> {
     const url = new URL(anfrage.url);
     const kopf = corsKopf(env, anfrage);
 
@@ -95,9 +105,50 @@ export default {
       if (url.pathname === "/chat" && anfrage.method === "POST") {
         // Der Schlüssel liegt hier, nicht im Browser. Warum das der einzige
         // Weg für eine öffentliche App ist, steht in chat.ts.
-        const weiter = await chatWeiterreichen(anfrage, env);
+        const weiter = await chatWeiterreichen(anfrage, env, fetch, ctx ? (p) => ctx.waitUntil(p) : undefined);
         for (const [k, v] of Object.entries(kopf)) weiter.headers.set(k, v);
         return weiter;
+      }
+
+      if (url.pathname === "/konto" && anfrage.method === "POST") {
+        // Ohne Anmeldung, deshalb je Adresse und Tag begrenzt. Wer ein
+        // kostenloses Konto nach dem anderen anlegt, läuft hier auf.
+        const neu = await zaehlen(env.ABOS, `konto.neu.${new Date().toISOString().slice(0, 10)}.${geraeteKennung(anfrage)}`, NEUE_KONTEN_JE_TAG, 60 * 60 * 26);
+        if (!neu.erlaubt) return antwort({ fehler: "Von dieser Adresse wurden heute schon genug Konten angelegt." }, 429, kopf);
+        const { token, konto } = await kontoAnlegen(env.ABOS);
+        return antwort({ ok: true, token, id: konto.id, stufe: konto.stufe }, 200, kopf);
+      }
+
+      if (url.pathname === "/konto" && anfrage.method === "GET") {
+        const gefunden = await kontoAusAnfrage(env.ABOS, anfrage);
+        if (!gefunden) return antwort({ fehler: "Dieses Konto kennt der Server nicht." }, 404, kopf);
+        const stufe = geltendeStufe(gefunden.konto);
+        const s = STUFEN[stufe]!;
+        const monat = monatVon();
+        return antwort(
+          {
+            ok: true,
+            id: gefunden.konto.id,
+            stufe,
+            name: s.name,
+            bis: gefunden.konto.bis ?? null,
+            monat,
+            verbrauch: await verbrauchLesen(env.ABOS, gefunden.konto.id, monat),
+            grenze: { nachrichten: s.nachrichten, budgetMikro: s.budgetMikro },
+          },
+          200,
+          kopf,
+        );
+      }
+
+      if (url.pathname === "/konto/stufe" && anfrage.method === "POST") {
+        // Von Hand durch den Betreiber, bis ein Kauf im App Store das übernimmt.
+        if (!wortStimmt(anfrage, env)) return antwort({ fehler: "Dafür braucht es das Anmeldewort." }, 401, kopf);
+        const { konto, stufe, bis } = (await anfrage.json()) as { konto?: string; stufe?: string; bis?: string };
+        if (!konto || !stufe) return antwort({ fehler: "Es braucht konto und stufe." }, 400, kopf);
+        const neu = await stufeSetzen(env.ABOS, konto, stufe, bis);
+        if (!neu) return antwort({ fehler: "Konto unbekannt oder Stufe oder Datum ungültig." }, 400, kopf);
+        return antwort({ ok: true, konto: neu }, 200, kopf);
       }
 
       if (url.pathname === "/stand" && anfrage.method === "GET") {
@@ -391,7 +442,7 @@ function corsKopf(env: Env, anfrage: Request): Record<string, string> {
   return {
     "Access-Control-Allow-Origin": treffer,
     "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "content-type, x-daevo-wort",
+    "Access-Control-Allow-Headers": "content-type, x-daevo-wort, authorization",
     "Access-Control-Max-Age": "86400",
     Vary: "Origin",
   };

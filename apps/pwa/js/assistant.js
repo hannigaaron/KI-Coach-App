@@ -86,6 +86,7 @@ import {
 } from "@daevo/core";
 import { brain } from "./brain.js";
 import { KONFIG } from "./konfig.js";
+import { kontoToken } from "./konto.js";
 import { NACHTRAG_TAGE, tageZurueck } from "./exif.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
 
@@ -100,6 +101,8 @@ function provider() {
   return new AnthropicProvider({
     apiKey: settings.apiKey || undefined,
     baseUrl: ueberServer ? KONFIG.chatUrl : undefined,
+    // Der Server zählt je Konto. Ohne Schlüssel gilt die Grenze für alle.
+    kontoToken: ueberServer ? kontoToken : undefined,
     // Rückfallmodell. Welches Modell eine einzelne Nachricht wirklich
     // bekommt, entscheidet der Agent je Modus und überschreibt das hier.
     model: settings.model || "claude-opus-5",
