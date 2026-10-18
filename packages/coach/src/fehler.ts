@@ -26,6 +26,7 @@ export interface Fehlerdeutung {
     | "guthaben"
     | "limit"
     | "kontingent"
+    | "konto"
     | "ueberlastet"
     | "netz"
     | "modell"
@@ -63,8 +64,16 @@ export function fehlerErklaerung(fehler: unknown): Fehlerdeutung {
       art: "kontingent",
       nochmal: false,
       text:
-        "Dein KI Kontingent für diesen Monat ist aufgebraucht. "
+        "Für die KI brauchst du jetzt Plus oder Pro, die Testphase oder das Kontingent ist aufgebraucht. "
         + "Alles ohne KI funktioniert weiter: Essen eintragen, Pläne, Erinnerungen. Den Stand siehst du im Profil unter Konto.",
+    };
+  }
+
+  if (/"type":\s*"konto"/.test(meldung)) {
+    return {
+      art: "konto",
+      nochmal: true,
+      text: "daevo konnte dein Konto gerade nicht einrichten. Prüf deine Verbindung.",
     };
   }
 

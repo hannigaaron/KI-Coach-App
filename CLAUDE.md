@@ -298,7 +298,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1012 Tests
+npm test           # 1020 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -2312,12 +2312,41 @@ gar nicht erst. `fehlerErklaerung` macht daraus "Kontingent aufgebraucht,
 alles ohne KI funktioniert weiter". 402 und nicht 429, weil ein erneuter
 Versuch nicht hilft.
 
-Kostenlose Konten zählen weiter gegen die Tagesgrenze des Workers. Sonst
+Konten in der Testphase zählen weiter gegen die Tagesgrenze des Workers. Sonst
 wären hundert angelegte Konten hundert Kontingente auf Rechnung des
 Betreibers. Bezahlte Stufen zählen nicht dagegen und haben stattdessen 60
-Anfragen je Stunde. Ein Schlüssel, den der Server nicht kennt, fällt auf den
-Weg ohne Konto zurück, und die App legt beim nächsten Blick ins Profil ein
-neues an.
+Anfragen je Stunde. Ein Schlüssel, den der Server nicht kennt, zählt wie
+keiner, und die App legt nach der Ablehnung über `kontoStand` ein neues an.
+
+### Testphase und Abo
+
+Jedes neue Konto hat sieben Tage Testphase, Stufe `test` mit `bis`. Danach
+fällt es auf `frei`, und `frei` heisst: keine KI, aber alles ohne Modell. Das
+ist eine harte Paywall und eine Entscheidung des Betreibers. Der Regelweg
+bleibt in jeder Stufe frei, denn er kostet nichts. Preise: Plus 9,99 Euro,
+Pro 19,99 Euro im Monat.
+
+Die Testphase ist mit 150 Nachrichten und 1,50 Dollar enger als Plus. Ein
+Konto entsteht ohne Anmeldung, und wer jede Woche neu installiert, bekäme
+sonst ein kostenloses Plus. Ohne Konto antwortet `/chat` gar nicht mehr,
+ausser `OHNE_KONTO` steht auf "an": sonst umginge jeder die Testphase, der
+den Kopf mit dem Schlüssel weglässt. Die Tagesgrenze gilt weiter für die
+Testphase und lässt sich über `TAGESGRENZE` anheben, wenn Werbung läuft.
+
+Das Fenster `#aboBlatt` kommt an vier Stellen, und jede Regel steht in
+`aboAnlass` und `aboAnlassLeer` in `apps/pwa/js/konto.js`: an den letzten
+zwei Tagen der Testphase je einmal, einmal wenn sie vorbei ist, bei Plus
+einmal im Monat ab 80 Prozent mit Pro vorgewählt, und nach einer Nachricht,
+die am leeren Kontingent scheitert, höchstens einmal die Stunde. Nie
+während der Einführung, und nie nach einer Nachricht im Modus psyche: wer
+gerade über Scham schreibt und ein Verkaufsfenster bekommt, macht die App
+nicht wieder auf. Ein Fenster, das bei jedem Öffnen aufgeht, wird
+weggedrückt, ohne gelesen zu werden, auch an dem Tag, an dem es zählt.
+
+Der Knopf führt zu `KONFIG.abo.plusUrl` oder `proUrl`, etwa einem Stripe
+Payment Link, mit der Kontokennung als `client_reference_id`. Fehlt der
+Link, geht eine Mail mit der Kennung an den Betreiber. In der iPhone App
+gibt es keinen Link: digitale Abos laufen dort über den Kauf im App Store.
 
 Die Stufe setzt bisher der Betreiber von Hand, `POST /konto/stufe` mit dem
 Anmeldewort und `{ konto, stufe, bis }`. Ein Kauf im App Store und Sign in

@@ -33,6 +33,14 @@ export interface Env {
    */
   ANMELDE_WORT?: string;
   /**
+   * "an" lässt Modellanfragen ohne Konto durch, mit den alten Grenzen je Tag
+   * und Gerät. Aus ist der Standard: sonst umgeht jeder die Testphase, der
+   * den Kopf mit dem Schlüssel weglässt.
+   */
+  OHNE_KONTO?: string;
+  /** Tagesgrenze für Testphase und Anfragen ohne Konto, als Zahl. Fehlt sie, gilt TAGESGRENZE. */
+  TAGESGRENZE?: string;
+  /**
    * Der Anthropic Schlüssel. Nur gesetzt, wenn dieser Worker auch die
    * Modellanfragen weiterreicht, siehe chat.ts. Er liegt als Geheimnis hier
    * und geht nie an den Browser.

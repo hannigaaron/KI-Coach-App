@@ -35,6 +35,13 @@ export const KONFIG = {
 
   /** Das Coaching Angebot des Betreibers. */
   angebot: null,
+
+  /**
+   * Zahlungslinks für Plus und Pro, etwa Stripe Payment Links. Leer heisst:
+   * der Knopf schreibt dem Betreiber eine Mail mit der Kontokennung, und er
+   * setzt die Stufe von Hand.
+   */
+  abo: null,
 };
 
 /**

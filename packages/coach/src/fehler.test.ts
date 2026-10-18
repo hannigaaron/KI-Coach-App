@@ -67,3 +67,9 @@ test("Ein aufgebrauchtes Kontingent sagt, dass der Rest der App weiterläuft", (
   // Die Tagesgrenze der Demo ist ein 429 und bleibt eine Wartezeit, kein Monatskontingent.
   assert.equal(fehlerErklaerung(new Error("Anthropic API 429: Das Tageskontingent der Demo ist aufgebraucht.")).art, "limit");
 });
+
+test("Ein fehlendes Konto ist kein falscher API Schlüssel", () => {
+  const d = fehlerErklaerung(new Error('Anthropic API 401: {"error":{"type":"konto","message":"Ohne Konto"}}'));
+  assert.equal(d.art, "konto");
+  assert.ok(!/Schlüssel/.test(d.text));
+});

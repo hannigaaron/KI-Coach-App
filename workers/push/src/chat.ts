@@ -37,10 +37,11 @@ import type { Env, KVNamespace } from "./umgebung.js";
  * die Demo in Ruhe ausprobiert, bleibt weit darunter. Wer sie automatisiert
  * abgreift, läuft dagegen.
  *
- * Mit Konto gilt statt der Gerätegrenze das Kontingent der Abostufe, siehe
- * konto.ts. Die Tagesgrenze gilt weiter für alles, was nichts bezahlt:
- * Konten lassen sich ohne Anmeldung anlegen, und ohne diese Grenze wären
- * hundert kostenlose Konten hundert Kontingente auf Rechnung des Betreibers.
+ * Ohne Konto gibt es keine Antwort, ausser OHNE_KONTO steht auf "an". Mit
+ * Konto gilt statt der Gerätegrenze das Kontingent der Abostufe, siehe
+ * konto.ts. Die Tagesgrenze gilt weiter für die Testphase: Konten lassen sich
+ * ohne Anmeldung anlegen, und ohne diese Grenze wären hundert neue Konten
+ * hundert Testphasen auf Rechnung des Betreibers.
  */
 
 const ZIEL = "https://api.anthropic.com/v1/messages";
@@ -133,6 +134,9 @@ export async function chatWeiterreichen(
   // sitzen, an der er nichts ändern kann.
   const gefunden = await kontoAusAnfrage(env.ABOS, anfrage);
   const stufe = gefunden ? geltendeStufe(gefunden.konto) : null;
+  if (!gefunden && env.OHNE_KONTO !== "an") {
+    return fehlerAntwort(401, "Ohne Konto gibt es keine KI. Die App legt beim Start eins an.", "konto");
+  }
 
   if (gefunden && stufe) {
     const grund = kontingentPruefen(stufe, await verbrauchLesen(env.ABOS, gefunden.konto.id));
@@ -143,8 +147,9 @@ export async function chatWeiterreichen(
     if (!proStunde.erlaubt) return fehlerAntwort(429, "Zu viele Anfragen in dieser Stunde. Probier es gleich nochmal.");
   }
 
-  if (!stufe || stufe === "frei") {
-    const tagesstand = await zaehlen(env.ABOS, `chat.tag.${tag}`, TAGESGRENZE, 60 * 60 * 26);
+  // Die Testphase zählt gegen die Tagesgrenze, ein bezahltes Abo nicht.
+  if (!stufe || stufe === "test") {
+    const tagesstand = await zaehlen(env.ABOS, `chat.tag.${tag}`, Number(env.TAGESGRENZE) || TAGESGRENZE, 60 * 60 * 26);
     if (!tagesstand.erlaubt) return fehlerAntwort(429, "Das Tageskontingent der Demo ist aufgebraucht.");
   }
   if (!gefunden) {

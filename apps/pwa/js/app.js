@@ -50,7 +50,7 @@ import { rezepteAnsicht } from "./rezepte-ui.js";
 import { symbol } from "./symbole.js";
 import { NATIV_PUSH, gesundheitHolen, postfachHolen, pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
-import { kontoSicherstellen, kontoStand, kontoText } from "./konto.js";
+import { ABO_STUFEN, aboAnlass, aboAnlassLeer, aboLink, kontoSicherstellen, kontoStand, kontoText } from "./konto.js";
 
 const $ = (id) => document.getElementById(id);
 const WEEKDAYS = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
@@ -377,6 +377,15 @@ async function send(text) {
     gespraechNachziehen();
     renderTranscript();
     refreshAll();
+    // Erst nach der Antwort, nie davor: der Regelweg hat dann schon getan,
+    // was ohne KI geht, und das Fenster verdeckt keine halbe Nachricht.
+    // Kennt der Server den Schlüssel nicht mehr, legt kontoStand ein neues
+    // Konto an. Ohne das scheiterte jede weitere Nachricht an derselben Stelle.
+    if (reply.fehlerArt === "konto") kontoStand();
+    if (reply.fehlerArt === "kontingent") {
+      const anlass = aboAnlassLeer(store.getSettings().aboHinweise, Date.now(), reply.modus);
+      if (anlass) setTimeout(() => aboOeffnen(anlass), 700);
+    }
     if (options.speak) {
       orb.setState("speaking");
       setStatus("spricht");
@@ -2491,9 +2500,9 @@ function startApp() {
   $("setup").hidden = true;
   $("app").hidden = false;
   konfigAnwenden();
-  // Im Hintergrund, damit die erste Nachricht schon zählt. Scheitert es, redet
-  // die App ohne Konto weiter.
-  kontoSicherstellen();
+  // Im Hintergrund, damit die erste Nachricht schon zählt. Scheitert es, wird
+  // es vor der nächsten Nachricht nachgeholt.
+  kontoSicherstellen().then(() => aboBeimStart());
   // Die Einführung kommt einmal: nach dem Bogen, beim ersten Öffnen der Demo,
   // und einmal bei allen, die die App schon vorher benutzt haben. Danach steht
   // sie im Profil. Wer sie bei jedem Start sieht, tippt sie weg, ohne zu lesen.
@@ -4511,6 +4520,97 @@ async function renderKonto() {
   const stand = await kontoStand();
   $("kontoStand").textContent = kontoText(stand);
   $("kontoId").textContent = stand?.id || store.getSettings().kontoId || "-";
+}
+
+/* ---------- Abo Fenster ---------- */
+
+let aboWahl = "plus";
+
+function aboMerken(merken) {
+  if (!merken) return;
+  const s = store.getSettings();
+  store.setSettings({ ...s, aboHinweise: { ...(s.aboHinweise || {}), ...merken } });
+}
+
+function aboStufenZeigen() {
+  const box = $("aboStufen");
+  box.innerHTML = "";
+  for (const s of ABO_STUFEN) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "abo-stufe";
+    b.setAttribute("role", "radio");
+    b.setAttribute("aria-checked", String(s.id === aboWahl));
+    const kopf = document.createElement("div");
+    kopf.className = "abo-stufe-kopf";
+    const name = document.createElement("b");
+    name.textContent = s.name;
+    if (s.id === "plus") {
+      const marke = document.createElement("span");
+      marke.className = "abo-marke";
+      marke.textContent = "Beliebt";
+      name.append(marke);
+    }
+    const preis = document.createElement("span");
+    preis.className = "abo-preis";
+    preis.innerHTML = `${s.preis} <small>im Monat</small>`;
+    kopf.append(name, preis);
+    const liste = document.createElement("ul");
+    for (const p of s.punkte) {
+      const li = document.createElement("li");
+      li.textContent = p;
+      liste.append(li);
+    }
+    b.append(kopf, liste);
+    b.addEventListener("click", () => { aboWahl = s.id; aboStufenZeigen(); });
+    box.append(b);
+  }
+  const s = ABO_STUFEN.find((x) => x.id === aboWahl);
+  const link = aboLink(aboWahl, store.getSettings().kontoId, KONFIG, istNativ());
+  $("aboKaufen").textContent = `Jetzt ${s.name} holen`;
+  $("aboKaufen").hidden = !link;
+  $("aboHinweis").textContent = istNativ()
+    ? "Der Kauf in der App kommt mit dem App Store. Bis dahin läuft alles ohne KI weiter."
+    : "Monatlich kündbar. Alles ohne KI bleibt in jeder Stufe frei: Essen eintragen, Pläne, Erinnerungen, Balance Board.";
+}
+
+function aboOeffnen(anlass = null) {
+  aboWahl = anlass?.empfohlen || "plus";
+  $("aboTitel").textContent = anlass?.titel || "Plus und Pro";
+  $("aboText").textContent = anlass?.text || "Mit Abo denkt daevo mit: Fotos auswerten, deinen Tag planen, mit dir reden.";
+  aboStufenZeigen();
+  aboMerken(anlass?.merken);
+  $("aboBlatt").hidden = false;
+  document.body.classList.add("blatt-offen");
+}
+
+function aboSchliessen() {
+  $("aboBlatt").hidden = true;
+  document.body.classList.remove("blatt-offen");
+}
+
+$("aboSchliessen").addEventListener("click", aboSchliessen);
+$("aboSpaeter").addEventListener("click", aboSchliessen);
+$("aboBlatt").addEventListener("click", (event) => { if (event.target === $("aboBlatt")) aboSchliessen(); });
+$("btnAboZeigen").addEventListener("click", () => aboOeffnen());
+$("aboKaufen").addEventListener("click", () => {
+  const link = aboLink(aboWahl, store.getSettings().kontoId, KONFIG, istNativ());
+  if (link) window.open(link, "_blank", "noopener");
+  aboSchliessen();
+});
+
+/**
+ * Beim Start einmal nachsehen, ob die Testphase endet oder das Kontingent
+ * knapp wird. Nicht während der Einführung: zwei Ebenen über der App
+ * zugleich, und keine von beiden wird gelesen.
+ */
+async function aboBeimStart() {
+  if (!KONFIG.chatUrl) return;
+  const stand = await kontoStand();
+  const anlass = aboAnlass(stand, store.getSettings().aboHinweise, todayIso());
+  if (!anlass) return;
+  if (!store.getSettings().einfuehrungGesehen) return;
+  setTimeout(() => aboOeffnen(anlass), 1500);
 }
 
 async function renderPush() {

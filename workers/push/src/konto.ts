@@ -33,16 +33,34 @@ export interface Stufe {
 }
 
 /**
- * Ein Vorschlag, keine Preisentscheidung. Die Zahlen gehören nachjustiert,
- * sobald gemessen ist, was ein aktiver Nutzer wirklich verbraucht. Die
- * Kostenquote im Profil zeigt das. Was ohne Modell läuft, also der ganze
- * Regelpfad, ist in jeder Stufe unbegrenzt und taucht hier nicht auf.
+ * Jedes neue Konto startet mit sieben Tagen Testphase. Danach gibt es die KI
+ * nur mit Abo, der Regelpfad läuft in jeder Stufe weiter und taucht hier nicht
+ * auf. "frei" heisst damit: alles ohne Modell, nichts mit.
+ *
+ * Preise: Plus 9,99 Euro, Pro 19,99 Euro im Monat. Die Budgets lassen nach
+ * Abzug der Gebühr des App Stores Marge, solange ein Nutzer im Schnitt unter
+ * der Grenze bleibt. Die Zahlen gehören nachjustiert, sobald gemessen ist, was
+ * ein aktiver Nutzer wirklich verbraucht.
+ *
+ * Die Testphase ist enger als Plus. Ein Konto lässt sich ohne Anmeldung
+ * anlegen, und eine Testphase mit dem vollen Budget wäre für jeden, der
+ * wöchentlich die App neu installiert, ein kostenloses Plus.
  */
 export const STUFEN: Record<string, Stufe> = {
-  frei: { name: "Kostenlos", nachrichten: 40, budgetMikro: 300_000 },
+  frei: { name: "Ohne Abo", nachrichten: 0, budgetMikro: 0 },
+  test: { name: "Testphase", nachrichten: 150, budgetMikro: 1_500_000 },
   plus: { name: "Plus", nachrichten: 800, budgetMikro: 4_000_000 },
   pro: { name: "Pro", nachrichten: 2500, budgetMikro: 12_000_000 },
 };
+
+/** Wie lange die Testphase läuft, der Tag der Anlage zählt mit. */
+export const TESTTAGE = 7;
+
+export function tagPlus(tag: string, tage: number): string {
+  const d = new Date(`${tag}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + tage);
+  return d.toISOString().slice(0, 10);
+}
 
 export interface Konto {
   id: string;
@@ -86,7 +104,8 @@ export function geltendeStufe(konto: Konto, heute: string = new Date().toISOStri
 
 export async function kontoAnlegen(kv: KVNamespace, jetzt: Date = new Date()): Promise<{ token: string; konto: Konto }> {
   const token = zufall(40, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789");
-  const konto: Konto = { id: zufall(8, KENNUNG_ZEICHEN), stufe: "frei", angelegt: jetzt.toISOString().slice(0, 10) };
+  const angelegt = jetzt.toISOString().slice(0, 10);
+  const konto: Konto = { id: zufall(8, KENNUNG_ZEICHEN), stufe: "test", bis: tagPlus(angelegt, TESTTAGE - 1), angelegt };
   const h = await hash(token);
   await kv.put(`konto.${h}`, JSON.stringify(konto));
   await kv.put(`kontoid.${konto.id}`, h);
@@ -144,6 +163,7 @@ export async function verbrauchBuchen(
 /** Ist noch etwas übrig? Gibt den Grund zurück, wenn nicht. */
 export function kontingentPruefen(stufe: string, v: Monatsverbrauch): string | null {
   const s = STUFEN[stufe] ?? STUFEN.frei!;
+  if (s.nachrichten === 0) return "Die Testphase ist vorbei. Die KI gibt es mit Plus oder Pro.";
   if (v.nachrichten >= s.nachrichten) {
     return `Kontingent aufgebraucht: ${s.nachrichten} Nachrichten im Monat in der Stufe ${s.name}.`;
   }

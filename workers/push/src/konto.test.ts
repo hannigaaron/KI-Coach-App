@@ -61,7 +61,7 @@ test("auf dem Server liegt nur der Hash des Schlüssels", async () => {
   const kv = kvAttrappe();
   const { token, konto } = await kontoAnlegen(kv);
   assert.equal(token.length, 40);
-  assert.equal(konto.stufe, "frei");
+  assert.equal(konto.stufe, "test");
   for (const [k, v] of kv.inhalt) {
     assert.equal(k.includes(token), false);
     assert.equal(v.includes(token), false);
@@ -85,11 +85,13 @@ test("eine abgelaufene Stufe fällt auf kostenlos zurück", () => {
 });
 
 test("das Kontingent greift an Nachrichten und an Kosten", () => {
-  const frei = STUFEN.frei!;
-  assert.equal(kontingentPruefen("frei", { nachrichten: frei.nachrichten - 1, mikro: 0 }), null);
-  assert.match(kontingentPruefen("frei", { nachrichten: frei.nachrichten, mikro: 0 })!, /Nachrichten/);
+  const test = STUFEN.test!;
+  assert.equal(kontingentPruefen("test", { nachrichten: test.nachrichten - 1, mikro: 0 }), null);
+  assert.match(kontingentPruefen("test", { nachrichten: test.nachrichten, mikro: 0 })!, /Nachrichten/);
   // Wenige teure Nachrichten mit Fotos auf Opus erreichen das Budget vor der Zahl.
-  assert.match(kontingentPruefen("frei", { nachrichten: 3, mikro: frei.budgetMikro })!, /Monatsbudget/);
+  assert.match(kontingentPruefen("test", { nachrichten: 3, mikro: test.budgetMikro })!, /Monatsbudget/);
+  // Ohne Abo gibt es nach der Testphase gar keine KI, auch nicht die erste Nachricht.
+  assert.match(kontingentPruefen("frei", { nachrichten: 0, mikro: 0 })!, /Testphase ist vorbei/);
 });
 
 test("der Verbrauch wird aus dem Strom gelesen, Ausgabe aus dem letzten Ereignis", () => {
@@ -146,7 +148,7 @@ test("eine gescheiterte Anfrage kostet keine Nachricht", async () => {
 test("ein aufgebrauchtes Kontingent antwortet mit 402 und fragt Anthropic gar nicht", async () => {
   const env = umgebung();
   const { token, konto } = await kontoAnlegen(env.ABOS);
-  await verbrauchBuchen(env.ABOS, konto.id, { nachrichten: STUFEN.frei!.nachrichten });
+  await verbrauchBuchen(env.ABOS, konto.id, { nachrichten: STUFEN.test!.nachrichten });
   let gefragt = false;
   const antwort = await chatWeiterreichen(chatAnfrage(token), env, async () => {
     gefragt = true;
@@ -212,4 +214,21 @@ test("ein unbekanntes Konto meldet 404, damit die App neu anlegt", async () => {
   const env = umgebung();
   const stand = await worker.fetch(new Request("https://w.dev/konto", { headers: { authorization: `Bearer ${"x".repeat(40)}` } }), env);
   assert.equal(stand.status, 404);
+});
+
+test("ein neues Konto hat sieben Tage Testphase, danach keine KI mehr", async () => {
+  const kv = kvAttrappe();
+  const { konto } = await kontoAnlegen(kv, new Date("2026-10-18T09:00:00Z"));
+  assert.equal(konto.bis, "2026-10-24");
+  assert.equal(geltendeStufe(konto, "2026-10-24"), "test");
+  assert.equal(geltendeStufe(konto, "2026-10-25"), "frei");
+});
+
+test("ohne Konto gibt es keine KI, ausser der Betreiber schaltet es frei", async () => {
+  const ohne = new Request("https://w.dev/chat", { method: "POST", body: "{}" });
+  const zu = await chatWeiterreichen(ohne, umgebung({ OHNE_KONTO: undefined }), async () => new Response("{}"));
+  assert.equal(zu.status, 401);
+  assert.equal(((await zu.json()) as { error: { type: string } }).error.type, "konto");
+  const offen = await chatWeiterreichen(new Request("https://w.dev/chat", { method: "POST", body: "{}" }), umgebung({ OHNE_KONTO: "an" }), async () => new Response("{}"));
+  assert.equal(offen.status, 200);
 });

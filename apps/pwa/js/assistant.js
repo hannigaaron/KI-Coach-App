@@ -86,7 +86,7 @@ import {
 } from "@daevo/core";
 import { brain } from "./brain.js";
 import { KONFIG } from "./konfig.js";
-import { kontoToken } from "./konto.js";
+import { kontoSicherstellen, kontoToken } from "./konto.js";
 import { NACHTRAG_TAGE, tageZurueck } from "./exif.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
 
@@ -2944,6 +2944,10 @@ export async function ask(nachricht, { onChange, anhaenge = [], onStrom } = {}) 
   const modus = denktiefe(nachricht, anhaenge.length > 0).modus;
   const knapp = modus === "erfassen";
 
+  // Ohne Konto antwortet der eigene Server nicht. Scheiterte das Anlegen beim
+  // Start, etwa ohne Netz, wird es hier nachgeholt.
+  if (KONFIG.chatUrl) await kontoSicherstellen();
+
   const reply = await agent.respond({
     nachricht,
     verlauf: store.getChat().slice(knapp ? -6 : -24).map((m) => ({ role: m.role, content: m.text })),
@@ -2982,7 +2986,7 @@ export async function ask(nachricht, { onChange, anhaenge = [], onStrom } = {}) 
   });
   chat.push({ role: "assistant", text: reply.text, at: new Date().toISOString(), ausgeführt: reply.ausgeführt });
   store.setChat(chat);
-  return reply;
+  return { ...reply, modus };
 }
 
 /**

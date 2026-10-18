@@ -110,6 +110,12 @@ export interface AgentReply {
   /** Was tatsächlich passiert ist, für die Anzeige unter der Antwort. */
   ausgeführt: string[];
   source: "model" | "offline";
+  /**
+   * Warum der Modellaufruf scheiterte, falls er scheiterte. Die App braucht
+   * das, um bei einem leeren Kontingent das Abo anzubieten statt nur einen
+   * Satz zu zeigen.
+   */
+  fehlerArt?: string;
 }
 
 /**
@@ -165,6 +171,7 @@ export class Agent {
         const hatGehandelt = offline.ausgeführt.length > 0;
         return {
           ...offline,
+          fehlerArt: deutung.art,
           text: hatGehandelt ? `${offline.text}\n\n${deutung.text}${nachsatz}` : `${deutung.text}${nachsatz}`,
         };
       }

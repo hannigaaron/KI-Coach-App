@@ -3225,3 +3225,24 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 .hk-spur { height: 4px; border-radius: 2px; background: var(--spur, var(--flaeche)); margin-top: var(--s-2); overflow: hidden; }
 .hk-spur > i { display: block; height: 100%; border-radius: 2px; background: var(--hk-ton, var(--accent)); }
 .hk-leer { color: var(--muted); padding: var(--s-3) 0; }
+
+/* ---------- Abo ----------
+   Zwei Karten, eine ist gewählt. Gewählt heisst Markenfarbe am Rand und ein
+   Punkt, nicht eine andere Fläche: die Preise sollen gleich laut sein, die
+   Entscheidung trifft der Nutzer. */
+.abo-text { margin: 0 0 var(--s-4); color: var(--muted); line-height: 1.5; }
+.abo-stufen { display: grid; gap: var(--s-3); }
+.abo-stufe {
+  display: block; width: 100%; text-align: left; cursor: pointer;
+  padding: var(--s-4); border-radius: var(--r-lg); border: 0;
+  background: var(--flaeche, var(--panel)); color: var(--text);
+  box-shadow: var(--haarlinie, inset 0 0 0 1px var(--border));
+}
+.abo-stufe[aria-checked="true"] { box-shadow: inset 0 0 0 2px var(--accent); }
+.abo-stufe-kopf { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s-3); }
+.abo-stufe-kopf b { font-family: var(--schrift-display); font-size: var(--t-lg); font-weight: 600; }
+.abo-preis { font-variant-numeric: tabular-nums; font-weight: 600; }
+.abo-preis small { color: var(--muted); font-weight: 400; }
+.abo-stufe ul { margin: var(--s-2) 0 0; padding: 0; list-style: none; display: grid; gap: 4px; color: var(--muted); font-size: var(--t-sm); font-weight: 400; }
+.abo-stufe li::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); margin-right: var(--s-2); vertical-align: middle; }
+.abo-marke { display: inline-block; margin-left: var(--s-2); padding: 2px 8px; border-radius: var(--r-pill); background: var(--accent); color: var(--on-accent); font-size: var(--t-2xs); font-weight: 600; vertical-align: middle; }

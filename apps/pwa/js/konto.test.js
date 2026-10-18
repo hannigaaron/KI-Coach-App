@@ -63,3 +63,47 @@ test("kennt der Server das Konto nicht mehr, legt die App ein neues an", async (
   assert.equal(kontoToken(), "n".repeat(40));
   assert.equal(kontoText(stand), "Stufe Kostenlos. Diesen Monat 3 von 40 Nachrichten an die KI, 10 Prozent des Budgets.");
 });
+
+const { aboAnlass, aboAnlassLeer, aboLink, tageUebrig } = await import("./konto.js");
+
+test("die Testphase meldet sich an ihren letzten zwei Tagen, je einmal", () => {
+  const stand = { stufe: "test", bis: "2026-10-24" };
+  assert.equal(tageUebrig("2026-10-24", "2026-10-24"), 1);
+  assert.equal(aboAnlass(stand, {}, "2026-10-21"), null);
+  assert.match(aboAnlass(stand, {}, "2026-10-23").titel, /Noch 2 Tage/);
+  assert.match(aboAnlass(stand, {}, "2026-10-24").titel, /letzte Tag/);
+  assert.equal(aboAnlass(stand, { tag: "2026-10-24" }, "2026-10-24"), null);
+});
+
+test("das Ende der Testphase kommt genau einmal", () => {
+  const a = aboAnlass({ stufe: "frei" }, {}, "2026-10-25");
+  assert.equal(a.art, "vorbei");
+  assert.equal(aboAnlass({ stufe: "frei" }, a.merken, "2026-10-26"), null);
+});
+
+test("Plus bekommt ab 80 Prozent einmal im Monat den Hinweis auf Pro", () => {
+  const stand = { stufe: "plus", monat: "2026-11", verbrauch: { nachrichten: 640 }, grenze: { nachrichten: 800 } };
+  const a = aboAnlass(stand, {}, "2026-11-20");
+  assert.equal(a.empfohlen, "pro");
+  assert.equal(aboAnlass(stand, a.merken, "2026-11-21"), null);
+  assert.equal(aboAnlass({ ...stand, verbrauch: { nachrichten: 639 } }, {}, "2026-11-20"), null);
+  assert.equal(aboAnlass({ stufe: "pro" }, {}, "2026-11-20"), null);
+});
+
+test("ein leeres Kontingent bietet das Abo an, aber nicht mitten in einem Gespräch über Gefühle", () => {
+  assert.equal(aboAnlassLeer({}, 1000, "psyche"), null);
+  const a = aboAnlassLeer({}, 1000, "erfassen");
+  assert.equal(a.art, "leer");
+  assert.equal(aboAnlassLeer(a.merken, 1000 + 60000, "erfassen"), null);
+  assert.ok(aboAnlassLeer(a.merken, 1000 + 3600001, "erfassen"));
+});
+
+test("der Knopf führt zum Zahlungslink, sonst zur Mail, in der iPhone App nirgends hin", () => {
+  const mitLink = aboLink("plus", "abc12345", { abo: { plusUrl: "https://buy.stripe.com/test_x" } });
+  assert.equal(mitLink, "https://buy.stripe.com/test_x?client_reference_id=abc12345");
+  const mail = aboLink("pro", "abc12345", { angebot: { mail: "coach@example.org" } });
+  assert.match(mail, /^mailto:coach@example\.org\?subject=daevo%20Pro/);
+  assert.match(decodeURIComponent(mail), /Konto-ID: abc12345/);
+  assert.equal(aboLink("plus", "abc12345", { abo: { plusUrl: "https://buy.stripe.com/x" } }, true), null);
+  assert.equal(aboLink("plus", "abc12345", {}), null);
+});
