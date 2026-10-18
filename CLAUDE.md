@@ -2644,6 +2644,22 @@ Stück ohne Fehlermeldung.
 Gemessen nach beiden Änderungen: 61 Bilder je Sekunde bei dreifacher
 Pixeldichte, mit rund 5400 Punkten.
 
+## Der Stamm steht 60 Einheiten höher als die Schrift
+
+Poppins setzt den Aufstrich auf 740. Neben einem Ring als Bowl wirkte der
+Stamm dort gestaucht, das d sah aus wie ein Ring mit einem Stummel. Jetzt
+endet er oben bei 800, in `tools/brand/ringd.py` als `ASC`. Das trifft keine
+andere Linie, denn in daevo hat kein anderer Buchstabe einen Aufstrich.
+
+Drei Stellen tragen diesen Wert und müssen zusammen geändert werden: der
+Generator mit allen Dateien in `apps/pwa/brand/`, der Kreis in `orb.js`
+(`STEM_TOP`) und die Marke neben der Antwort in `app.js`. Der Kreis hat dafür
+einen grösseren Entwurfsraum bekommen, 860 statt 800, sonst stiesse der
+Stamm oben an den Rand. Das d wirkt dort dadurch um 7 Prozent kleiner. Die
+Punkte im Stamm folgen der Länge, 1508 statt 1335, damit die Dichte gleich
+bleibt. Die PNG Symbole in `apps/pwa/icons` sind aus `daevo-icon.svg` und
+`daevo-icon-maskable.svg` gerendert.
+
 ## Eine Seite hat einen Helden oder keinen
 
 Heute öffnete mit einer abgeleiteten Punktzahl über die halbe Bildschirmhöhe.
