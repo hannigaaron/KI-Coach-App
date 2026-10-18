@@ -70,8 +70,8 @@ test("die Testphase meldet sich an ihren letzten zwei Tagen, je einmal", () => {
   const stand = { stufe: "test", bis: "2026-10-24" };
   assert.equal(tageUebrig("2026-10-24", "2026-10-24"), 1);
   assert.equal(aboAnlass(stand, {}, "2026-10-21"), null);
-  assert.match(aboAnlass(stand, {}, "2026-10-23").titel, /Noch 2 Tage/);
-  assert.match(aboAnlass(stand, {}, "2026-10-24").titel, /letzte Tag/);
+  assert.match(aboAnlass(stand, {}, "2026-10-23").marke, /Noch 2 Tage/);
+  assert.match(aboAnlass(stand, {}, "2026-10-24").titel, /endet/);
   assert.equal(aboAnlass(stand, { tag: "2026-10-24" }, "2026-10-24"), null);
 });
 
@@ -106,4 +106,13 @@ test("der Knopf führt zum Zahlungslink, sonst zur Mail, in der iPhone App nirge
   assert.match(decodeURIComponent(mail), /Konto-ID: abc12345/);
   assert.equal(aboLink("plus", "abc12345", { abo: { plusUrl: "https://buy.stripe.com/x" } }, true), null);
   assert.equal(aboLink("plus", "abc12345", {}), null);
+});
+
+test("die Leiste auf dem Start zählt die Testphase herunter und schweigt bei Pro", async () => {
+  const { aboLeiste } = await import("./konto.js");
+  assert.equal(aboLeiste({ stufe: "test", bis: "2026-10-24" }, "2026-10-20").text, "Testphase, noch 5 Tage");
+  assert.equal(aboLeiste({ stufe: "test", bis: "2026-10-24" }, "2026-10-24").text, "Testphase endet heute");
+  assert.equal(aboLeiste({ stufe: "frei" }, "2026-10-30").knopf, "Plus holen");
+  assert.equal(aboLeiste({ stufe: "plus", verbrauch: { nachrichten: 100 }, grenze: { nachrichten: 800 } }, "2026-10-30"), null);
+  assert.equal(aboLeiste({ stufe: "pro" }, "2026-10-30"), null);
 });

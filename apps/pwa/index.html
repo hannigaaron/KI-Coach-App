@@ -99,6 +99,11 @@ try {
       </button>
     </header>
 
+    <!-- Die Vollversion bleibt sichtbar, ohne zu drängen: eine Zeile, nur auf dem leeren Start, nie im Gespräch. -->
+    <button id="aboLeiste" class="abo-leiste" type="button" hidden>
+      <span id="aboLeisteText"></span><b id="aboLeisteKnopf">Ansehen</b>
+    </button>
+
     <div class="stage" id="stage">
       <button id="orb" class="orb" data-state="idle" aria-label="Sprechen"></button>
       <p id="orbGruss" class="orb-gruss"></p>
@@ -402,21 +407,35 @@ try {
     Woher die Zahlen des Tages kommen. Ein Tipp auf den Kalorienring oder
     einen Makrobalken öffnet es auf genau diesem Wert.
   -->
-  <div id="aboBlatt" class="blatt" hidden>
-    <div class="blatt-innen" role="dialog" aria-modal="true" aria-labelledby="aboTitel">
-      <header class="blatt-kopf">
-        <h2 id="aboTitel">daevo Plus</h2>
-        <button id="aboSchliessen" class="icon-btn" aria-label="Schliessen"><span class="kreuz"></span></button>
-      </header>
-      <div class="blatt-scroll">
-        <p id="aboText" class="abo-text"></p>
-        <div id="aboStufen" class="abo-stufen" role="radiogroup" aria-label="Abo wählen"></div>
-        <p id="aboHinweis" class="fineprint"></p>
+  <!--
+    Das Abo Fenster. Vollbild, oben Bilder aus der App, darunter ein Satz,
+    drei Haken, ein Knopf. Ein Angebot, das man in drei Sekunden liest, wird
+    gelesen. Dunkel in beiden Modi, wie ein Gerät: es soll sich vom Alltag
+    der App abheben, ohne eine fremde Farbe zu tragen.
+  -->
+  <div id="aboBlatt" class="blatt abo-blatt" hidden>
+    <div class="abo-innen" role="dialog" aria-modal="true" aria-labelledby="aboTitel">
+      <div class="abo-bild" aria-hidden="true">
+        <div class="abo-kacheln">
+          <span style="background-image:url(img/rezepte/lachs-reis-bowl.jpg)"><b>Foto erfassen</b></span>
+          <span style="background-image:url(img/uebungen/kachel/bankdruecken.jpg)"><b>Training</b></span>
+          <span style="background-image:url(img/rezepte/protein-pancakes.jpg)"></span>
+          <span style="background-image:url(img/uebungen/kachel/beinpresse.jpg)"><b>Tagesform</b></span>
+          <span style="background-image:url(img/rezepte/quark-bowl.jpg)"><b>Rezepte mit Makros</b></span>
+          <span style="background-image:url(img/rezepte/linsen-curry.jpg)"><b>Kühlschrank</b></span>
+        </div>
       </div>
-      <footer class="blatt-fuss">
-        <button id="aboSpaeter" class="ghost">Später</button>
-        <button id="aboKaufen" class="primary">Jetzt Plus holen</button>
-      </footer>
+      <button id="aboSchliessen" class="abo-x" aria-label="Schliessen"><span class="kreuz"></span></button>
+      <div class="abo-inhalt">
+        <span id="aboMarke" class="abo-marke-gross">Plus und Pro</span>
+        <h2 id="aboTitel">Deinen Coach freischalten</h2>
+        <p id="aboText" class="abo-text"></p>
+        <ul id="aboHaken" class="abo-haken"></ul>
+        <div id="aboStufen" class="abo-wahl" role="radiogroup" aria-label="Abo wählen"></div>
+        <button id="aboKaufen" class="abo-knopf">Plus holen</button>
+        <p id="aboHinweis" class="abo-klein"></p>
+        <button id="aboSpaeter" class="abo-spaeter">Später</button>
+      </div>
     </div>
   </div>
 

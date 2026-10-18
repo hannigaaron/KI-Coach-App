@@ -95,11 +95,20 @@ export function kontoText(stand) {
 export const ABO_STUFEN = [
   {
     id: "plus", name: "Plus", preis: "9,99 €",
-    punkte: ["800 Nachrichten an die KI im Monat", "Fotos von Teller, Etikett und Kühlschrank", "Planung, Coaching und Kopf leeren"],
+    punkte: [
+      "Dein Coach, der mitdenkt, plant und mit dir redet",
+      "Fotos von Teller, Etikett und Kühlschrank auswerten",
+      "Rezepte aus deinem Vorrat, mit allen Makros",
+      "800 Nachrichten an die KI im Monat",
+    ],
   },
   {
     id: "pro", name: "Pro", preis: "19,99 €",
-    punkte: ["2500 Nachrichten an die KI im Monat", "Für viel Diktat und viele Fotos", "Alles aus Plus"],
+    punkte: [
+      "Alles aus Plus",
+      "2500 Nachrichten an die KI im Monat",
+      "Für viel Diktat, viele Fotos und lange Gespräche",
+    ],
   },
 ];
 
@@ -127,7 +136,8 @@ export function aboAnlass(stand, gezeigt = {}, heute) {
     if (tage === null || tage > 2 || gezeigt.tag === heute) return null;
     return {
       art: "testende",
-      titel: tage <= 1 ? "Heute ist der letzte Tag deiner Testphase" : "Noch 2 Tage Testphase",
+      marke: tage <= 1 ? "Letzter Tag" : "Noch 2 Tage",
+      titel: tage <= 1 ? "Heute endet deine Testphase" : "Behalt deinen Coach",
       text: "Danach gibt es die KI mit Plus oder Pro. Essen eintragen, Pläne und Erinnerungen bleiben auch ohne Abo.",
       merken: { tag: heute },
     };
@@ -136,7 +146,8 @@ export function aboAnlass(stand, gezeigt = {}, heute) {
     if (gezeigt.vorbei) return null;
     return {
       art: "vorbei",
-      titel: "Deine Testphase ist vorbei",
+      marke: "Testphase vorbei",
+      titel: "Deinen Coach freischalten",
       text: "Mit Plus denkt daevo weiter mit: Fotos auswerten, deinen Tag planen, mit dir reden. Ohne Abo läuft alles, was keine KI braucht.",
       merken: { vorbei: true, tag: heute },
     };
@@ -147,6 +158,7 @@ export function aboAnlass(stand, gezeigt = {}, heute) {
     if (!g || n < g * 0.8 || gezeigt.monat80 === stand.monat) return null;
     return {
       art: "knapp",
+      marke: "80 Prozent verbraucht",
       titel: "Du nutzt daevo richtig viel",
       text: `${n} von ${g} Nachrichten sind diesen Monat verbraucht. Mit Pro hast du gut das Dreifache.`,
       merken: { monat80: stand.monat },
@@ -169,7 +181,8 @@ export function aboAnlassLeer(gezeigt = {}, jetzt = Date.now(), modus = "") {
   if (gezeigt.leerUm && jetzt - gezeigt.leerUm < 3600000) return null;
   return {
     art: "leer",
-    titel: "Hol dir Plus, damit daevo weiterdenkt",
+    marke: "KI pausiert",
+    titel: "Deinen Coach freischalten",
     text: "Deine Testphase oder dein Kontingent ist aufgebraucht. Alles ohne KI funktioniert weiter.",
     merken: { leerUm: jetzt },
   };
@@ -198,4 +211,26 @@ export function aboLink(stufe, kontoId, konfig = KONFIG, nativ = false) {
   const betreff = encodeURIComponent(`daevo ${s.name}`);
   const text = encodeURIComponent(`Hallo, ich möchte daevo ${s.name} für ${s.preis} im Monat.\n\nMeine Konto-ID: ${kontoId || "unbekannt"}`);
   return `mailto:${mail}?subject=${betreff}&body=${text}`;
+}
+
+/**
+ * Die Zeile auf dem Startbildschirm. Sie steht dort, solange es etwas zu
+ * sagen gibt, und verschwindet für alle, die Pro haben oder bei Plus noch
+ * weit vom Ende entfernt sind: Werbung für etwas, das man schon hat, nervt.
+ */
+export function aboLeiste(stand, heute) {
+  if (!stand || stand.fehler) return null;
+  if (stand.stufe === "test") {
+    const tage = tageUebrig(stand.bis, heute);
+    if (tage === null) return null;
+    return { text: tage <= 1 ? "Testphase endet heute" : `Testphase, noch ${tage} Tage`, knopf: "Plus sichern" };
+  }
+  if (stand.stufe === "frei") return { text: "Die KI pausiert ohne Abo", knopf: "Plus holen" };
+  if (stand.stufe === "plus") {
+    const n = stand.verbrauch?.nachrichten ?? 0;
+    const g = stand.grenze?.nachrichten ?? 0;
+    if (!g || n < g * 0.8) return null;
+    return { text: `${n} von ${g} Nachrichten verbraucht`, knopf: "Pro ansehen", empfohlen: "pro" };
+  }
+  return null;
 }

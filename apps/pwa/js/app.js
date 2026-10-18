@@ -50,7 +50,7 @@ import { rezepteAnsicht } from "./rezepte-ui.js";
 import { symbol } from "./symbole.js";
 import { NATIV_PUSH, gesundheitHolen, postfachHolen, pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
-import { ABO_STUFEN, aboAnlass, aboAnlassLeer, aboLink, kontoSicherstellen, kontoStand, kontoText } from "./konto.js";
+import { ABO_STUFEN, aboAnlass, aboAnlassLeer, aboLeiste, aboLink, kontoSicherstellen, kontoStand, kontoText } from "./konto.js";
 
 const $ = (id) => document.getElementById(id);
 const WEEKDAYS = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
@@ -4541,46 +4541,39 @@ function aboStufenZeigen() {
     b.className = "abo-stufe";
     b.setAttribute("role", "radio");
     b.setAttribute("aria-checked", String(s.id === aboWahl));
-    const kopf = document.createElement("div");
-    kopf.className = "abo-stufe-kopf";
     const name = document.createElement("b");
     name.textContent = s.name;
-    if (s.id === "plus") {
-      const marke = document.createElement("span");
-      marke.className = "abo-marke";
-      marke.textContent = "Beliebt";
-      name.append(marke);
-    }
     const preis = document.createElement("span");
-    preis.className = "abo-preis";
-    preis.innerHTML = `${s.preis} <small>im Monat</small>`;
-    kopf.append(name, preis);
-    const liste = document.createElement("ul");
-    for (const p of s.punkte) {
-      const li = document.createElement("li");
-      li.textContent = p;
-      liste.append(li);
-    }
-    b.append(kopf, liste);
+    preis.textContent = `${s.preis} im Monat`;
+    b.append(name, preis);
     b.addEventListener("click", () => { aboWahl = s.id; aboStufenZeigen(); });
     box.append(b);
   }
   const s = ABO_STUFEN.find((x) => x.id === aboWahl);
+  const haken = $("aboHaken");
+  haken.innerHTML = "";
+  for (const p of s.punkte) {
+    const li = document.createElement("li");
+    li.textContent = p;
+    haken.append(li);
+  }
   const link = aboLink(aboWahl, store.getSettings().kontoId, KONFIG, istNativ());
-  $("aboKaufen").textContent = `Jetzt ${s.name} holen`;
+  $("aboKaufen").textContent = `${s.name} holen, ${s.preis} im Monat`;
   $("aboKaufen").hidden = !link;
   $("aboHinweis").textContent = istNativ()
     ? "Der Kauf in der App kommt mit dem App Store. Bis dahin läuft alles ohne KI weiter."
-    : "Monatlich kündbar. Alles ohne KI bleibt in jeder Stufe frei: Essen eintragen, Pläne, Erinnerungen, Balance Board.";
+    : "Alles ohne KI bleibt in jeder Stufe frei: Essen eintragen, Pläne, Erinnerungen, Balance Board.";
 }
 
 function aboOeffnen(anlass = null) {
   aboWahl = anlass?.empfohlen || "plus";
-  $("aboTitel").textContent = anlass?.titel || "Plus und Pro";
+  $("aboMarke").textContent = anlass?.marke || "Plus und Pro";
+  $("aboTitel").textContent = anlass?.titel || "Deinen Coach freischalten";
   $("aboText").textContent = anlass?.text || "Mit Abo denkt daevo mit: Fotos auswerten, deinen Tag planen, mit dir reden.";
   aboStufenZeigen();
   aboMerken(anlass?.merken);
   $("aboBlatt").hidden = false;
+  $("aboBlatt").querySelector(".abo-innen").scrollTop = 0;
   document.body.classList.add("blatt-offen");
 }
 
@@ -4604,9 +4597,23 @@ $("aboKaufen").addEventListener("click", () => {
  * knapp wird. Nicht während der Einführung: zwei Ebenen über der App
  * zugleich, und keine von beiden wird gelesen.
  */
+let aboLeisteEmpfohlen = null;
+
+function aboLeisteZeigen(stand) {
+  const zeile = aboLeiste(stand, todayIso());
+  $("aboLeiste").hidden = !zeile;
+  if (!zeile) return;
+  $("aboLeisteText").textContent = zeile.text;
+  $("aboLeisteKnopf").textContent = zeile.knopf;
+  aboLeisteEmpfohlen = zeile.empfohlen || null;
+}
+
+$("aboLeiste").addEventListener("click", () => aboOeffnen(aboLeisteEmpfohlen ? { empfohlen: aboLeisteEmpfohlen } : null));
+
 async function aboBeimStart() {
   if (!KONFIG.chatUrl) return;
   const stand = await kontoStand();
+  aboLeisteZeigen(stand);
   const anlass = aboAnlass(stand, store.getSettings().aboHinweise, todayIso());
   if (!anlass) return;
   if (!store.getSettings().einfuehrungGesehen) return;

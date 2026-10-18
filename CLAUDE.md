@@ -298,7 +298,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1020 Tests
+npm test           # 1021 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -2342,6 +2342,16 @@ während der Einführung, und nie nach einer Nachricht im Modus psyche: wer
 gerade über Scham schreibt und ein Verkaufsfenster bekommt, macht die App
 nicht wieder auf. Ein Fenster, das bei jedem Öffnen aufgeht, wird
 weggedrückt, ohne gelesen zu werden, auch an dem Tag, an dem es zählt.
+
+Das Fenster ist ein Vollbild und bleibt in beiden Modi dunkel: oben eine
+gekippte Wand aus Fotos der App, darunter ein Schild mit dem Anlass, eine
+Überschrift, Haken, die Wahl zwischen Plus und Pro und ein Knopf mit Preis.
+Ein Angebot, das man in drei Sekunden liest, wird gelesen.
+
+Dazu `#aboLeiste`, eine Zeile über dem Kreis: "Testphase, noch 5 Tage, Plus
+sichern". Sie steht nur auf dem leeren Start und nie im Gespräch, und sie
+fehlt bei Pro und bei Plus unter 80 Prozent. Werbung für etwas, das man
+schon hat, nervt. Was sie zeigt, entscheidet `aboLeiste` in `konto.js`.
 
 Der Knopf führt zu `KONFIG.abo.plusUrl` oder `proUrl`, etwa einem Stripe
 Payment Link, mit der Kontokennung als `client_reference_id`. Fehlt der
