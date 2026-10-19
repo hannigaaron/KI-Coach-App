@@ -1,3 +1,13 @@
+import {
+  geltendeStufe,
+  hash,
+  kontingentPruefen,
+  kontoAusAnfrage,
+  kostenMikro,
+  verbrauchAusAntwort,
+  verbrauchBuchen,
+  verbrauchLesen,
+} from "./konto.js";
 import type { Env, KVNamespace } from "./umgebung.js";
 
 /**
@@ -28,8 +38,11 @@ import type { Env, KVNamespace } from "./umgebung.js";
  * die Demo in Ruhe ausprobiert, bleibt weit darunter. Wer sie automatisiert
  * abgreift, läuft dagegen.
  *
- * Was das nicht ist: ein Ersatz für ein Konto. Sobald echte Kunden zahlen,
- * gehört hier eine Anmeldung hin und die Grenze ans Konto.
+ * Ohne Konto gibt es keine Antwort, ausser OHNE_KONTO steht auf "an". Mit
+ * Konto gilt statt der Gerätegrenze das Kontingent der Abostufe, siehe
+ * konto.ts. Die Tagesgrenze gilt weiter für die Testphase: Konten lassen sich
+ * ohne Anmeldung anlegen, und ohne diese Grenze wären hundert neue Konten
+ * hundert Testphasen auf Rechnung des Betreibers.
  */
 
 const ZIEL = "https://api.anthropic.com/v1/messages";
@@ -39,6 +52,19 @@ const API_VERSION = "2023-06-01";
 export const TAGESGRENZE = 400;
 /** Wie viele Anfragen ein einzelnes Gerät je Stunde stellen darf. */
 export const GERAETEGRENZE = 40;
+/**
+ * Wie viele Anfragen ein Konto je Stunde stellen darf. Ein Mensch, der viel
+ * diktiert, schafft in einer Stunde keine sechzig Nachrichten. Ein Skript mit
+ * einem abgegriffenen Schlüssel schafft sie in einer Minute.
+ */
+export const KONTO_STUNDENGRENZE = 60;
+
+function fehlerAntwort(status: number, message: string, type?: string): Response {
+  return new Response(JSON.stringify({ error: type ? { type, message } : { message } }), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+}
 
 /** Zählt einen Zugriff und sagt, ob er noch unter der Grenze liegt. */
 export async function zaehlen(
@@ -92,6 +118,7 @@ export async function chatWeiterreichen(
   anfrage: Request,
   env: Env,
   holen: typeof fetch = fetch,
+  warten?: (p: Promise<unknown>) => void,
 ): Promise<Response> {
   // Getrimmt, weil ein Schlüssel von Hand eingefügt wird. Ein angehängter
   // Zeilenumbruch oder ein Leerzeichen bleibt beim Einfügen unsichtbar, geht
@@ -99,27 +126,36 @@ export async function chatWeiterreichen(
   // nach einem falschen Schlüssel aus, und man legt einen neuen an, der
   // genauso scheitert.
   const schluessel = (env.ANTHROPIC_KEY || "").trim();
-  if (!schluessel) {
-    return new Response(JSON.stringify({ error: { message: "Auf diesem Worker liegt kein Schlüssel." } }), {
-      status: 503,
-      headers: { "content-type": "application/json" },
-    });
-  }
+  if (!schluessel) return fehlerAntwort(503, "Auf diesem Worker liegt kein Schlüssel.");
 
   const { tag, stunde } = fenster();
-  const tagesstand = await zaehlen(env.ABOS, `chat.tag.${tag}`, TAGESGRENZE, 60 * 60 * 26);
-  if (!tagesstand.erlaubt) {
-    return new Response(JSON.stringify({ error: { message: "Das Tageskontingent der Demo ist aufgebraucht." } }), {
-      status: 429,
-      headers: { "content-type": "application/json" },
-    });
+  // Ein unbekannter Schlüssel fällt auf den Weg ohne Konto zurück, statt
+  // abgewiesen zu werden. Die App merkt es an GET /konto und legt neu an,
+  // und bis dahin redet der Nutzer weiter, statt vor einer Fehlermeldung zu
+  // sitzen, an der er nichts ändern kann.
+  const gefunden = await kontoAusAnfrage(env.ABOS, anfrage);
+  const stufe = gefunden ? geltendeStufe(gefunden.konto) : null;
+  if (!gefunden && env.OHNE_KONTO !== "an") {
+    return fehlerAntwort(401, "Ohne Konto gibt es keine KI. Die App legt beim Start eins an.", "konto");
   }
-  const geraet = await zaehlen(env.ABOS, `chat.ip.${stunde}.${geraeteKennung(anfrage)}`, GERAETEGRENZE, 60 * 70);
-  if (!geraet.erlaubt) {
-    return new Response(JSON.stringify({ error: { message: "Zu viele Anfragen von diesem Gerät. Probier es später." } }), {
-      status: 429,
-      headers: { "content-type": "application/json" },
-    });
+
+  if (gefunden && stufe) {
+    const grund = kontingentPruefen(stufe, await verbrauchLesen(env.ABOS, gefunden.konto.id));
+    // 402 und nicht 429: ein erneuter Versuch hilft hier nicht, erst der
+    // nächste Monat oder eine andere Stufe.
+    if (grund) return fehlerAntwort(402, grund, "kontingent");
+    const proStunde = await zaehlen(env.ABOS, `chat.konto.${stunde}.${gefunden.konto.id}`, KONTO_STUNDENGRENZE, 60 * 70);
+    if (!proStunde.erlaubt) return fehlerAntwort(429, "Zu viele Anfragen in dieser Stunde. Probier es gleich nochmal.");
+  }
+
+  // Die Testphase zählt gegen die Tagesgrenze, ein bezahltes Abo nicht.
+  if (!stufe || stufe === "test") {
+    const tagesstand = await zaehlen(env.ABOS, `chat.tag.${tag}`, Number(env.TAGESGRENZE) || TAGESGRENZE, 60 * 60 * 26);
+    if (!tagesstand.erlaubt) return fehlerAntwort(429, "Das Tageskontingent der Demo ist aufgebraucht.");
+  }
+  if (!gefunden) {
+    const geraet = await zaehlen(env.ABOS, `chat.ip.${stunde}.${await hash(geraeteKennung(anfrage))}`, GERAETEGRENZE, 60 * 70);
+    if (!geraet.erlaubt) return fehlerAntwort(429, "Zu viele Anfragen von diesem Gerät. Probier es später.");
   }
 
   const koerper = await anfrage.text();
@@ -133,8 +169,34 @@ export async function chatWeiterreichen(
     body: koerper,
   });
 
-  return new Response(antwort.body, {
-    status: antwort.status,
-    headers: { "content-type": antwort.headers.get("content-type") || "application/json" },
-  });
+  const typ = antwort.headers.get("content-type") || "application/json";
+  if (!gefunden || !antwort.ok || !antwort.body) {
+    return new Response(antwort.body, { status: antwort.status, headers: { "content-type": typ } });
+  }
+
+  // Der Strom wird geteilt: ein Zweig geht sofort an die App, der andere wird
+  // nach dem Ende gelesen und gebucht. Gezählt wird erst dann, weil die
+  // Ausgabetoken erst im letzten Ereignis feststehen. Eine gescheiterte
+  // Anfrage kostet keine Nachricht aus dem Kontingent.
+  const [fuerApp, fuerZaehlung] = antwort.body.tee();
+  const modell = modellAus(koerper);
+  const buchung = new Response(fuerZaehlung)
+    .text()
+    .then((text) => {
+      const v = verbrauchAusAntwort(text, modell);
+      return verbrauchBuchen(env.ABOS, gefunden.konto.id, { nachrichten: 1, mikro: v ? kostenMikro(v) : 0 });
+    })
+    .catch(() => undefined);
+  if (warten) warten(buchung);
+
+  return new Response(fuerApp, { status: antwort.status, headers: { "content-type": typ } });
+}
+
+function modellAus(koerper: string): string {
+  try {
+    const m = (JSON.parse(koerper) as { model?: unknown }).model;
+    return typeof m === "string" ? m : "";
+  } catch {
+    return "";
+  }
 }

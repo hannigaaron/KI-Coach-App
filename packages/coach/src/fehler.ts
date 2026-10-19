@@ -25,6 +25,8 @@ export interface Fehlerdeutung {
     | "schluessel"
     | "guthaben"
     | "limit"
+    | "kontingent"
+    | "konto"
     | "ueberlastet"
     | "netz"
     | "modell"
@@ -52,6 +54,26 @@ export function fehlerErklaerung(fehler: unknown): Fehlerdeutung {
       text:
         "Ich komme gerade nicht ins Netz. Prüf deine Verbindung. "
         + "Bleibt es dabei, obwohl andere Seiten laden, blockiert etwas den Zugriff auf die Schnittstelle.",
+    };
+  }
+
+  // Vor dem Schlüssel, weil der eigene Server ein aufgebrauchtes Kontingent
+  // meldet und kein Schlüssel daran schuld ist.
+  if (status === 402 || /"type":\s*"kontingent"/.test(meldung)) {
+    return {
+      art: "kontingent",
+      nochmal: false,
+      text:
+        "Für die KI brauchst du jetzt Plus oder Pro, die Testphase oder das Kontingent ist aufgebraucht. "
+        + "Alles ohne KI funktioniert weiter: Essen eintragen, Pläne, Erinnerungen. Den Stand siehst du im Profil unter Konto.",
+    };
+  }
+
+  if (/"type":\s*"konto"/.test(meldung)) {
+    return {
+      art: "konto",
+      nochmal: true,
+      text: "daevo konnte dein Konto gerade nicht einrichten. Prüf deine Verbindung.",
     };
   }
 

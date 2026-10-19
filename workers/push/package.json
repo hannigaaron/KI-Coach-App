@@ -5,6 +5,7 @@
   "type": "module",
   "main": "./dist/index.js",
   "dependencies": {
+    "@daevo/coach": "*",
     "@daevo/core": "*",
     "@daevo/push": "*"
   }

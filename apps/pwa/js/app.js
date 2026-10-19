@@ -1,3 +1,4 @@
+import "./nativ.js";
 import {
   BEREICHE, BEREICH_NAME, CHECKIN_BOEGEN, CHECKIN_MITTE, STANDARD_ZIELE, WOCHENTAGE,
   MAHLZEITEN, bogenAmTag, bogenFuer, eintragAus100g, energyBreakdown, hatAngebot, mengeLesen,
@@ -50,6 +51,10 @@ import { rezepteAnsicht } from "./rezepte-ui.js";
 import { symbol } from "./symbole.js";
 import { NATIV_PUSH, gesundheitHolen, postfachHolen, pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
+import { healthkitAbgleichen } from "./healthkit.js";
+import { mitteilungenPlanen } from "./mitteilungen.js";
+import { nativAufruf } from "./nativ.js";
+import { ABO_STUFEN, aboAnlass, aboAnlassLeer, aboLeiste, aboLink, kontoSicherstellen, kontoStand, kontoText } from "./konto.js";
 
 const $ = (id) => document.getElementById(id);
 const WEEKDAYS = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
@@ -376,6 +381,15 @@ async function send(text) {
     gespraechNachziehen();
     renderTranscript();
     refreshAll();
+    // Erst nach der Antwort, nie davor: der Regelweg hat dann schon getan,
+    // was ohne KI geht, und das Fenster verdeckt keine halbe Nachricht.
+    // Kennt der Server den Schlüssel nicht mehr, legt kontoStand ein neues
+    // Konto an. Ohne das scheiterte jede weitere Nachricht an derselben Stelle.
+    if (reply.fehlerArt === "konto") kontoStand();
+    if (reply.fehlerArt === "kontingent") {
+      const anlass = aboAnlassLeer(store.getSettings().aboHinweise, Date.now(), reply.modus);
+      if (anlass) setTimeout(() => aboOeffnen(anlass), 700);
+    }
     if (options.speak) {
       orb.setState("speaking");
       setStatus("spricht");
@@ -2238,6 +2252,7 @@ function renderProfile() {
   siriAdresseZeigen();
   renderAngebot();
   renderPush();
+  renderKonto();
   $("e-tempo").value = store.getSettings().sprechtempo ?? 0.96;
 
   const settings = store.getSettings();
@@ -2489,6 +2504,12 @@ function startApp() {
   $("setup").hidden = true;
   $("app").hidden = false;
   konfigAnwenden();
+  // Im Hintergrund, damit die erste Nachricht schon zählt. Scheitert es, wird
+  // es vor der nächsten Nachricht nachgeholt.
+  kontoSicherstellen().then(() => aboBeimStart());
+  // Nacheinander: zwei Abfragen von iOS gleichzeitig, und die zweite geht
+  // unter der ersten verloren.
+  healthNativ().then(() => mitteilungenNativ());
   // Die Einführung kommt einmal: nach dem Bogen, beim ersten Öffnen der Demo,
   // und einmal bei allen, die die App schon vorher benutzt haben. Danach steht
   // sie im Profil. Wer sie bei jedem Start sieht, tippt sie weg, ohne zu lesen.
@@ -4500,6 +4521,163 @@ $("meScan").addEventListener("click", meScanStarten);
  * Bildschirm, und die Erlaubnis steht. Auf dem iPhone scheitert es fast immer
  * am zweiten Punkt, und das sieht man dem Fehler sonst nicht an.
  */
+/** Stufe und Verbrauch im Profil. Nur über den eigenen Server, sonst gibt es kein Konto. */
+async function renderKonto() {
+  if (!KONFIG.chatUrl) return;
+  const stand = await kontoStand();
+  $("kontoStand").textContent = kontoText(stand);
+  $("kontoId").textContent = stand?.id || store.getSettings().kontoId || "-";
+}
+
+/* ---------- Apple Health in der iPhone App ---------- */
+
+let healthLaeuft = false;
+
+/**
+ * Liest Apple Health beim Start und bei jedem Zurückholen der App. Läuft
+ * schon ein Abgleich, wird kein zweiter gestartet: das erste Lesen geht
+ * über zwei Jahre und kann dauern.
+ */
+async function healthNativ() {
+  if (!istNativ() || healthLaeuft) return;
+  healthLaeuft = true;
+  try {
+    const bericht = await healthkitAbgleichen({ aufruf: nativAufruf, store, heute: todayIso() });
+    if (bericht.tage || bericht.trainings) refreshAll();
+  } catch {
+    // Ohne Erlaubnis oder ohne Health bleibt alles, wie es war. Der Weg über
+    // den Export im Profil steht weiter offen.
+  } finally {
+    healthLaeuft = false;
+  }
+}
+
+/**
+ * Plant die Mitteilungen neu und holt ab, was in ihnen beantwortet wurde.
+ * Bei jedem Öffnen, denn jede Mahlzeit und jedes Training kann den Plan
+ * ändern: wer heute trainiert hat, bekommt um 18 Uhr keine Frage nach der
+ * Lücke.
+ */
+async function mitteilungenNativ() {
+  if (!istNativ()) return;
+  try {
+    const { antworten = [], geoeffnet = null } = await nativAufruf("Mitteilungen", "abholen");
+    for (const eintrag of antworten) {
+      if (antwortVerarbeiten(eintrag, { store, brain })) toast("Antwort übernommen");
+    }
+    if (geoeffnet?.art === "luecke") lueckeFrageOeffnen();
+    else if (geoeffnet?.art && geoeffnet.art !== "runterfahren") impulsOeffnen({ art: geoeffnet.art });
+
+    const d = new Date();
+    const jetzt = { tag: todayIso(d), uhrzeit: `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}` };
+    await mitteilungenPlanen({ aufruf: nativAufruf, store, jetzt });
+  } catch {
+    // Ohne Erlaubnis plant iOS nichts. Die App läuft trotzdem.
+  }
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") healthNativ().then(() => mitteilungenNativ());
+});
+
+/* ---------- Abo Fenster ---------- */
+
+let aboWahl = "plus";
+
+function aboMerken(merken) {
+  if (!merken) return;
+  const s = store.getSettings();
+  store.setSettings({ ...s, aboHinweise: { ...(s.aboHinweise || {}), ...merken } });
+}
+
+function aboStufenZeigen() {
+  const box = $("aboStufen");
+  box.innerHTML = "";
+  for (const s of ABO_STUFEN) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "abo-stufe";
+    b.setAttribute("role", "radio");
+    b.setAttribute("aria-checked", String(s.id === aboWahl));
+    const name = document.createElement("b");
+    name.textContent = s.name;
+    const preis = document.createElement("span");
+    preis.textContent = `${s.preis} im Monat`;
+    b.append(name, preis);
+    b.addEventListener("click", () => { aboWahl = s.id; aboStufenZeigen(); });
+    box.append(b);
+  }
+  const s = ABO_STUFEN.find((x) => x.id === aboWahl);
+  const haken = $("aboHaken");
+  haken.innerHTML = "";
+  for (const p of s.punkte) {
+    const li = document.createElement("li");
+    li.textContent = p;
+    haken.append(li);
+  }
+  const link = aboLink(aboWahl, store.getSettings().kontoId, KONFIG, istNativ());
+  $("aboKaufen").textContent = `${s.name} holen, ${s.preis} im Monat`;
+  $("aboKaufen").hidden = !link;
+  $("aboHinweis").textContent = istNativ()
+    ? "Der Kauf in der App kommt mit dem App Store. Bis dahin läuft alles ohne KI weiter."
+    : "Alles ohne KI bleibt in jeder Stufe frei: Essen eintragen, Pläne, Erinnerungen, Balance Board.";
+}
+
+function aboOeffnen(anlass = null) {
+  aboWahl = anlass?.empfohlen || "plus";
+  $("aboMarke").textContent = anlass?.marke || "Plus und Pro";
+  $("aboTitel").textContent = anlass?.titel || "Deinen Coach freischalten";
+  $("aboText").textContent = anlass?.text || "Mit Abo denkt daevo mit: Fotos auswerten, deinen Tag planen, mit dir reden.";
+  aboStufenZeigen();
+  aboMerken(anlass?.merken);
+  $("aboBlatt").hidden = false;
+  $("aboBlatt").querySelector(".abo-innen").scrollTop = 0;
+  document.body.classList.add("blatt-offen");
+}
+
+function aboSchliessen() {
+  $("aboBlatt").hidden = true;
+  document.body.classList.remove("blatt-offen");
+}
+
+$("aboSchliessen").addEventListener("click", aboSchliessen);
+$("aboSpaeter").addEventListener("click", aboSchliessen);
+$("aboBlatt").addEventListener("click", (event) => { if (event.target === $("aboBlatt")) aboSchliessen(); });
+$("btnAboZeigen").addEventListener("click", () => aboOeffnen());
+$("aboKaufen").addEventListener("click", () => {
+  const link = aboLink(aboWahl, store.getSettings().kontoId, KONFIG, istNativ());
+  if (link) window.open(link, "_blank", "noopener");
+  aboSchliessen();
+});
+
+/**
+ * Beim Start einmal nachsehen, ob die Testphase endet oder das Kontingent
+ * knapp wird. Nicht während der Einführung: zwei Ebenen über der App
+ * zugleich, und keine von beiden wird gelesen.
+ */
+let aboLeisteEmpfohlen = null;
+
+function aboLeisteZeigen(stand) {
+  const zeile = aboLeiste(stand, todayIso());
+  $("aboLeiste").hidden = !zeile;
+  if (!zeile) return;
+  $("aboLeisteText").textContent = zeile.text;
+  $("aboLeisteKnopf").textContent = zeile.knopf;
+  aboLeisteEmpfohlen = zeile.empfohlen || null;
+}
+
+$("aboLeiste").addEventListener("click", () => aboOeffnen(aboLeisteEmpfohlen ? { empfohlen: aboLeisteEmpfohlen } : null));
+
+async function aboBeimStart() {
+  if (!KONFIG.chatUrl) return;
+  const stand = await kontoStand();
+  aboLeisteZeigen(stand);
+  const anlass = aboAnlass(stand, store.getSettings().aboHinweise, todayIso());
+  if (!anlass) return;
+  if (!store.getSettings().einfuehrungGesehen) return;
+  setTimeout(() => aboOeffnen(anlass), 1500);
+}
+
 async function renderPush() {
   const settings = store.getSettings();
   $("e-pushWorker").value = settings.pushWorker || "";

@@ -19,7 +19,7 @@ function umgebung(extra: Partial<Env> = {}): Env {
   return {
     ABOS: kvAttrappe(), VAPID_PUBLIC: "p", VAPID_PRIVATE: "q",
     PUSH_KONTAKT: "mailto:a@b.de", HERKUNFT: "https://example.org",
-    ANTHROPIC_KEY: "sk-test", ...extra,
+    ANTHROPIC_KEY: "sk-test", OHNE_KONTO: "an", ...extra,
   } as Env;
 }
 

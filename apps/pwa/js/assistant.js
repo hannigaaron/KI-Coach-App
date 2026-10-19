@@ -86,6 +86,7 @@ import {
 } from "@daevo/core";
 import { brain } from "./brain.js";
 import { KONFIG } from "./konfig.js";
+import { kontoSicherstellen, kontoToken } from "./konto.js";
 import { NACHTRAG_TAGE, tageZurueck } from "./exif.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
 
@@ -100,6 +101,8 @@ function provider() {
   return new AnthropicProvider({
     apiKey: settings.apiKey || undefined,
     baseUrl: ueberServer ? KONFIG.chatUrl : undefined,
+    // Der Server zählt je Konto. Ohne Schlüssel gilt die Grenze für alle.
+    kontoToken: ueberServer ? kontoToken : undefined,
     // Rückfallmodell. Welches Modell eine einzelne Nachricht wirklich
     // bekommt, entscheidet der Agent je Modus und überschreibt das hier.
     model: settings.model || "claude-opus-5",
@@ -189,8 +192,32 @@ export function plausibelHinweis(day = todayIso()) {
   }));
 }
 
+/**
+ * Die Schritte, mit denen das Kalorienziel rechnet.
+ *
+ * Der Fragebogen fragt nach einer Schätzung, und die stimmt selten. Liegen
+ * aus Apple Health an mindestens vier der letzten sieben Tage Schritte vor,
+ * gilt deren Schnitt. Der laufende Tag zählt nicht mit: um neun Uhr morgens
+ * stehen dort 800 Schritte, und das Ziel fiele jeden Morgen ab und stiege
+ * abends wieder. Vier Tage, weil ein einzelner Ausreisser sonst das Ziel der
+ * ganzen Woche verschiebt.
+ */
+export function gemesseneSchritte(day = todayIso()) {
+  const werte = [];
+  for (let i = 1; i <= 7; i++) {
+    const d = new Date(`${day}T12:00:00Z`);
+    d.setUTCDate(d.getUTCDate() - i);
+    const s = store.getDay(d.toISOString().slice(0, 10)).steps;
+    if (s !== null && s !== undefined && Number(s) > 0) werte.push(Number(s));
+  }
+  if (werte.length < 4) return null;
+  return Math.round(werte.reduce((a, b) => a + b, 0) / werte.length);
+}
+
 export function dayNumbers(day = todayIso()) {
-  const profile = store.getProfile();
+  const gespeichert = store.getProfile();
+  const gemessen = gemesseneSchritte(day);
+  const profile = gemessen ? { ...gespeichert, dailySteps: gemessen, schritteGemessen: true } : gespeichert;
   const weekday = new Date(`${day}T12:00:00`).getDay();
   const trainingMinutes = (profile.sessions || [])
     .filter((s) => s.weekday === weekday)
@@ -2941,6 +2968,10 @@ export async function ask(nachricht, { onChange, anhaenge = [], onStrom } = {}) 
   const modus = denktiefe(nachricht, anhaenge.length > 0).modus;
   const knapp = modus === "erfassen";
 
+  // Ohne Konto antwortet der eigene Server nicht. Scheiterte das Anlegen beim
+  // Start, etwa ohne Netz, wird es hier nachgeholt.
+  if (KONFIG.chatUrl) await kontoSicherstellen();
+
   const reply = await agent.respond({
     nachricht,
     verlauf: store.getChat().slice(knapp ? -6 : -24).map((m) => ({ role: m.role, content: m.text })),
@@ -2979,7 +3010,7 @@ export async function ask(nachricht, { onChange, anhaenge = [], onStrom } = {}) 
   });
   chat.push({ role: "assistant", text: reply.text, at: new Date().toISOString(), ausgeführt: reply.ausgeführt });
   store.setChat(chat);
-  return reply;
+  return { ...reply, modus };
 }
 
 /**

@@ -1,0 +1,237 @@
+import Foundation
+import Capacitor
+import HealthKit
+
+/// Liest aus Apple Health, was die Uhr und das iPhone messen.
+///
+/// Dasselbe Tagesformat wie der Export und der Kurzbefehl, siehe
+/// `packages/core/src/health.ts`. Die App schreibt alle drei Quellen über
+/// denselben Weg in die Tage, und deshalb gelten dieselben Regeln: Schritte
+/// überschreiben, ein selbst eingetragenes Gewicht bleibt stehen.
+///
+/// Nur gelesen, nie geschrieben. daevo legt in Health nichts ab, und eine
+/// Berechtigung, die nicht gebraucht wird, steht in der Abfrage als Frage,
+/// die niemand verstehen muss.
+@objc(GesundheitPlugin)
+public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "GesundheitPlugin"
+    public let jsName = "Gesundheit"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "verfuegbar", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "berechtigen", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "lesen", returnType: CAPPluginReturnPromise),
+    ]
+
+    private let store = HKHealthStore()
+
+    private var leseTypen: Set<HKObjectType> {
+        var typen = Set<HKObjectType>()
+        let mengen: [HKQuantityTypeIdentifier] = [
+            .stepCount, .activeEnergyBurned, .restingHeartRate, .heartRateVariabilitySDNN, .bodyMass,
+        ]
+        for id in mengen {
+            if let t = HKObjectType.quantityType(forIdentifier: id) { typen.insert(t) }
+        }
+        if let schlaf = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) { typen.insert(schlaf) }
+        typen.insert(HKObjectType.workoutType())
+        return typen
+    }
+
+    @objc func verfuegbar(_ call: CAPPluginCall) {
+        call.resolve(["verfuegbar": HKHealthStore.isHealthDataAvailable()])
+    }
+
+    @objc func berechtigen(_ call: CAPPluginCall) {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            call.reject("Auf diesem Gerät gibt es Apple Health nicht.")
+            return
+        }
+        // Apple verrät aus Datenschutzgründen nicht, ob Lesen erlaubt wurde.
+        // Ein Erfolg hier heisst nur, dass die Frage gestellt wurde. Ob Daten
+        // kommen, zeigt erst das Lesen.
+        store.requestAuthorization(toShare: nil, read: leseTypen) { ok, fehler in
+            if let fehler = fehler {
+                call.reject("Health hat die Anfrage abgelehnt: \(fehler.localizedDescription)")
+            } else {
+                call.resolve(["gefragt": ok])
+            }
+        }
+    }
+
+    /// Die letzten `tage` Tage, heute eingeschlossen, je Tag ein Eintrag.
+    @objc func lesen(_ call: CAPPluginCall) {
+        let tage = max(1, min(call.getInt("tage") ?? 14, 730))
+        let kalender = Calendar.current
+        let heuteAnfang = kalender.startOfDay(for: Date())
+        guard let anfang = kalender.date(byAdding: .day, value: -(tage - 1), to: heuteAnfang),
+              let ende = kalender.date(byAdding: .day, value: 1, to: heuteAnfang) else {
+            call.reject("Der Zeitraum liess sich nicht bilden.")
+            return
+        }
+
+        var ergebnis: [String: [String: Any]] = [:]
+        var workouts: [[String: Any]] = []
+        let gruppe = DispatchGroup()
+        let sperre = NSLock()
+
+        func setzen(_ tag: String, _ feld: String, _ wert: Double) {
+            sperre.lock()
+            var eintrag = ergebnis[tag] ?? ["tag": tag]
+            eintrag[feld] = wert
+            ergebnis[tag] = eintrag
+            sperre.unlock()
+        }
+
+        // Je Tag eine Statistik: Summe für Schritte und Kalorien, Schnitt für
+        // Puls und HRV, der letzte Wert für das Gewicht. Gerundet wird hier,
+        // weil niemand 8432,7 Schritte gemacht hat.
+        let statistiken: [(HKQuantityTypeIdentifier, String, HKStatisticsOptions, HKUnit, Int)] = [
+            (.stepCount, "schritte", .cumulativeSum, .count(), 0),
+            (.activeEnergyBurned, "aktivKcal", .cumulativeSum, .kilocalorie(), 0),
+            (.restingHeartRate, "ruhepuls", .discreteAverage, HKUnit.count().unitDivided(by: .minute()), 0),
+            (.heartRateVariabilitySDNN, "hrv", .discreteAverage, .secondUnit(with: .milli), 0),
+            (.bodyMass, "gewichtKg", .mostRecent, .gramUnit(with: .kilo), 1),
+        ]
+
+        for (id, feld, option, einheit, stellen) in statistiken {
+            guard let typ = HKQuantityType.quantityType(forIdentifier: id) else { continue }
+            gruppe.enter()
+            let abfrage = HKStatisticsCollectionQuery(
+                quantityType: typ,
+                quantitySamplePredicate: HKQuery.predicateForSamples(withStart: anfang, end: ende),
+                options: option,
+                anchorDate: heuteAnfang,
+                intervalComponents: DateComponents(day: 1)
+            )
+            abfrage.initialResultsHandler = { _, sammlung, _ in
+                sammlung?.enumerateStatistics(from: anfang, to: ende) { stat, _ in
+                    let menge: HKQuantity?
+                    switch option {
+                    case .cumulativeSum: menge = stat.sumQuantity()
+                    case .discreteAverage: menge = stat.averageQuantity()
+                    default: menge = stat.mostRecentQuantity()
+                    }
+                    guard let m = menge else { return }
+                    let faktor = pow(10.0, Double(stellen))
+                    let wert = (m.doubleValue(for: einheit) * faktor).rounded() / faktor
+                    setzen(GesundheitPlugin.tagText(stat.startDate), feld, wert)
+                }
+                gruppe.leave()
+            }
+            store.execute(abfrage)
+        }
+
+        // Schlaf. Uhr und iPhone schreiben dieselbe Nacht oft beide, also
+        // werden die Abschnitte erst zusammengelegt und dann gezählt. Sonst
+        // stünden vierzehn Stunden Schlaf da. Gezählt wird nur Schlaf, nicht
+        // die Zeit im Bett, und die Nacht gehört zum Tag des Aufwachens.
+        if let schlafTyp = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
+            gruppe.enter()
+            // Einen Tag früher anfangen, sonst fehlt der Beginn der ersten Nacht.
+            let schlafAnfang = kalender.date(byAdding: .day, value: -1, to: anfang) ?? anfang
+            let abfrage = HKSampleQuery(
+                sampleType: schlafTyp,
+                predicate: HKQuery.predicateForSamples(withStart: schlafAnfang, end: ende),
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
+            ) { _, proben, _ in
+                let schlafWerte: Set<Int> = GesundheitPlugin.schlafWerte()
+                let abschnitte = (proben as? [HKCategorySample] ?? [])
+                    .filter { schlafWerte.contains($0.value) }
+                    .map { ($0.startDate, $0.endDate) }
+                var zusammen: [(Date, Date)] = []
+                for (von, bis) in abschnitte {
+                    if let letzter = zusammen.last, von <= letzter.1 {
+                        zusammen[zusammen.count - 1].1 = max(letzter.1, bis)
+                    } else {
+                        zusammen.append((von, bis))
+                    }
+                }
+                var jeTag: [String: Double] = [:]
+                for (von, bis) in zusammen {
+                    jeTag[GesundheitPlugin.tagText(bis), default: 0] += bis.timeIntervalSince(von) / 60
+                }
+                for (tag, minuten) in jeTag where tag >= GesundheitPlugin.tagText(anfang) {
+                    setzen(tag, "schlafMinuten", minuten.rounded())
+                }
+                gruppe.leave()
+            }
+            store.execute(abfrage)
+        }
+
+        // Trainings, auch die aus Apple Fitness. Die App ordnet sie selbst
+        // einer Art zu und legt sie nicht doppelt an, siehe healthkit.js.
+        gruppe.enter()
+        let workoutAbfrage = HKSampleQuery(
+            sampleType: HKObjectType.workoutType(),
+            predicate: HKQuery.predicateForSamples(withStart: anfang, end: ende),
+            limit: HKObjectQueryNoLimit,
+            sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
+        ) { _, proben, _ in
+            let liste = (proben as? [HKWorkout] ?? []).map { w -> [String: Any] in
+                [
+                    "id": w.uuid.uuidString,
+                    "start": ISO8601DateFormatter().string(from: w.startDate),
+                    "tag": GesundheitPlugin.tagText(w.startDate),
+                    "uhrzeit": GesundheitPlugin.uhrzeitText(w.startDate),
+                    "minuten": (w.duration / 60).rounded(),
+                    "art": GesundheitPlugin.art(w.workoutActivityType),
+                ]
+            }
+            sperre.lock()
+            workouts = liste
+            sperre.unlock()
+            gruppe.leave()
+        }
+        store.execute(workoutAbfrage)
+
+        gruppe.notify(queue: .main) {
+            let liste = ergebnis.values.sorted { ($0["tag"] as? String ?? "") < ($1["tag"] as? String ?? "") }
+            call.resolve(["tage": liste, "workouts": workouts])
+        }
+    }
+
+    /// Alle Zustände, die Schlaf sind. Ab iOS 16 schreibt die Uhr Phasen,
+    /// davor nur "schlafend".
+    static func schlafWerte() -> Set<Int> {
+        var werte: Set<Int> = [HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue]
+        if #available(iOS 16.0, *) {
+            werte.insert(HKCategoryValueSleepAnalysis.asleepCore.rawValue)
+            werte.insert(HKCategoryValueSleepAnalysis.asleepDeep.rawValue)
+            werte.insert(HKCategoryValueSleepAnalysis.asleepREM.rawValue)
+        }
+        return werte
+    }
+
+    static func tagText(_ datum: Date) -> String {
+        let f = DateFormatter()
+        f.calendar = Calendar(identifier: .gregorian)
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone.current
+        f.dateFormat = "yyyy-MM-dd"
+        return f.string(from: datum)
+    }
+
+    static func uhrzeitText(_ datum: Date) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone.current
+        f.dateFormat = "HH:mm"
+        return f.string(from: datum)
+    }
+
+    /// Dieselben vier Arten wie in der App, `TrainingType` in packages/core.
+    static func art(_ typ: HKWorkoutActivityType) -> String {
+        switch typ {
+        case .traditionalStrengthTraining, .functionalStrengthTraining, .coreTraining, .crossTraining:
+            return "strength"
+        case .volleyball, .soccer, .basketball, .handball, .tennis, .badminton, .tableTennis,
+             .americanFootball, .rugby, .hockey, .squash:
+            return "team_sport"
+        case .yoga, .pilates, .flexibility, .mindAndBody, .cooldown, .preparationAndRecovery:
+            return "mobility"
+        default:
+            return "cardio"
+        }
+    }
+}
