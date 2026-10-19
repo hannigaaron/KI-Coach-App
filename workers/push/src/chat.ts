@@ -1,5 +1,6 @@
 import {
   geltendeStufe,
+  hash,
   kontingentPruefen,
   kontoAusAnfrage,
   kostenMikro,
@@ -153,7 +154,7 @@ export async function chatWeiterreichen(
     if (!tagesstand.erlaubt) return fehlerAntwort(429, "Das Tageskontingent der Demo ist aufgebraucht.");
   }
   if (!gefunden) {
-    const geraet = await zaehlen(env.ABOS, `chat.ip.${stunde}.${geraeteKennung(anfrage)}`, GERAETEGRENZE, 60 * 70);
+    const geraet = await zaehlen(env.ABOS, `chat.ip.${stunde}.${await hash(geraeteKennung(anfrage))}`, GERAETEGRENZE, 60 * 70);
     if (!geraet.erlaubt) return fehlerAntwort(429, "Zu viele Anfragen von diesem Gerät. Probier es später.");
   }
 

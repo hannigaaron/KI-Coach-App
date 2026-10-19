@@ -15,6 +15,7 @@ import { auftragAblegen, auftragsMitteilung, faelligeAuftraege } from "./auftrag
 import { chatWeiterreichen, geraeteKennung, zaehlen } from "./chat.js";
 import {
   geltendeStufe,
+  hash,
   kontoAnlegen,
   kontoAusAnfrage,
   monatVon,
@@ -113,7 +114,7 @@ export default {
       if (url.pathname === "/konto" && anfrage.method === "POST") {
         // Ohne Anmeldung, deshalb je Adresse und Tag begrenzt. Wer ein
         // kostenloses Konto nach dem anderen anlegt, läuft hier auf.
-        const neu = await zaehlen(env.ABOS, `konto.neu.${new Date().toISOString().slice(0, 10)}.${geraeteKennung(anfrage)}`, NEUE_KONTEN_JE_TAG, 60 * 60 * 26);
+        const neu = await zaehlen(env.ABOS, `konto.neu.${new Date().toISOString().slice(0, 10)}.${await hash(geraeteKennung(anfrage))}`, NEUE_KONTEN_JE_TAG, 60 * 60 * 26);
         if (!neu.erlaubt) return antwort({ fehler: "Von dieser Adresse wurden heute schon genug Konten angelegt." }, 429, kopf);
         const { token, konto } = await kontoAnlegen(env.ABOS);
         return antwort({ ok: true, token, id: konto.id, stufe: konto.stufe }, 200, kopf);

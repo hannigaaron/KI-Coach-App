@@ -78,7 +78,8 @@ export interface Monatsverbrauch {
 /** Neue Konten je Adresse und Tag. Mehr legt niemand von Hand an. */
 export const NEUE_KONTEN_JE_TAG = 5;
 
-async function hash(text: string): Promise<string> {
+/** SHA-256 als Hex. Auch für IP-Adressen: für eine Grenze reicht der Prüfwert. */
+export async function hash(text: string): Promise<string> {
   const roh = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
   return [...new Uint8Array(roh)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
