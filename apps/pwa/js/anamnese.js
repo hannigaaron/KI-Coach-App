@@ -1,4 +1,4 @@
-import { BODY_FAT_LEVELS, figurBild, skala } from "./silhouette.js";
+import { BODY_FAT_LEVELS, figurBild, skala, stufeText } from "./silhouette.js";
 
 /**
  * Der Anamnesebogen beim ersten Start.
@@ -768,4 +768,4 @@ function startzeit(wake) {
   return `${String(Math.floor(minuten / 60)).padStart(2, "0")}:${String(minuten % 60).padStart(2, "0")}`;
 }
 
-export { figurBild, skala, BODY_FAT_LEVELS };
+export { figurBild, skala, stufeText, BODY_FAT_LEVELS };

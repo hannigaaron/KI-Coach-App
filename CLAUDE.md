@@ -298,7 +298,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1031 Tests
+npm test           # 1032 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -430,8 +430,10 @@ Die Seite "Das ist dein Tagesziel" rechnet mit `macroTargets` aus dem Kern,
 nicht mit einer eigenen Näherung. Plus und Minus speichern `zielKorrektur`
 im Profil, als Abstand zum Vorschlag und nicht als festen Wert: ändert sich
 das Gewicht oder misst `trend.ts` den echten Verbrauch, wandert der Vorschlag
-mit und die Korrektur bleibt. Kohlenhydrate haben keine Knöpfe, sie füllen den
-Rest, damit `kcal = Protein*4 + Fett*9 + Kohlenhydrate*4` immer aufgeht. Die
+mit und die Korrektur bleibt. Kohlenhydrate füllen den Rest, damit
+`kcal = Protein*4 + Fett*9 + Kohlenhydrate*4` immer aufgeht. Ihre Knöpfe
+verschieben deshalb die Kalorien, 10 Gramm sind 40 kcal: wer mehr
+Kohlenhydrate will, will mehr essen und nicht weniger Protein. Die
 Grenzen stehen in `KORREKTUR_GRENZE`.
 
 Ernährungsform, Allergien, Unverträglichkeiten und Ausschlüsse gehen als

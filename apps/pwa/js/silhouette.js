@@ -11,9 +11,16 @@
  * genau diese Reihe oder eigene Aufnahmen. Siehe docs/ROADMAP.md.
  *
  * Die Vorlage deckt vier Stufen je Geschlecht ab, beim Mann 20 bis 35 Prozent,
- * bei der Frau 30 bis 45. Der schlanke Bereich fehlt darin. Wer darunter liegt,
- * trägt seinen Wert über das Feld daneben ein. Eine Figur zu erfinden, die es
- * in der Vorlage nicht gibt, wäre eine Behauptung über einen Körper.
+ * bei der Frau 30 bis 45. Der schlanke Bereich fehlte darin, und genau dort
+ * liegt, wer regelmässig trainiert. Für den Mann gibt es deshalb zwei
+ * zusätzliche Figuren, für daevo erzeugt: 5 bis 10 und 10 bis 20 Prozent. Sie
+ * tragen Shorts statt Badehose, weil der Bilddienst die Badehose abgelehnt
+ * hat. Für die Frau fehlen sie noch, dort bleibt das Feld daneben.
+ *
+ * Die Bereiche folgen grob den Klassen des American Council on Exercise:
+ * Athleten 6 bis 13 Prozent, Fitness 14 bis 17, Durchschnitt 18 bis 24. Ein
+ * Bereich statt einer Zahl, weil eine Schätzung nach Augenmaß keine Zahl
+ * hergibt. Gespeichert wird die Mitte, gerechnet wird damit.
  *
  * Die Prozentwerte sind Richtwerte für eine Schätzung nach Augenmaß. Eine
  * solche Schätzung liegt selbst bei geübten Trainern gut fünf Prozentpunkte
@@ -23,6 +30,8 @@
 
 export const BODY_FAT_LEVELS = {
   male: [
+    { percent: 8, bereich: "5 bis 10 %", label: "sehr definiert", hint: "Sixpack klar sichtbar, Adern an Armen und Bauch, deutliche Trennung der Muskeln." },
+    { percent: 15, bereich: "10 bis 20 %", label: "durchtrainiert", hint: "Flacher Bauch, obere Bauchmuskeln sichtbar, Schultern und Arme deutlich geformt." },
     { percent: 20, label: "schlank", hint: "Flacher Bauch, Bauchmuskeln angedeutet, Schultern zeichnen sich ab." },
     { percent: 25, label: "leichter Bauch", hint: "Der Bauch steht leicht über den Gürtel, die Taille ist noch abgesetzt." },
     { percent: 30, label: "deutlicher Bauch", hint: "Runder Bauch, Taille etwa so breit wie die Brust." },
@@ -35,6 +44,11 @@ export const BODY_FAT_LEVELS = {
     { percent: 45, label: "stark", hint: "Bauch und Hüfte bestimmen die Form." },
   ],
 };
+
+/** Was unter der Figur steht: der Bereich, wo es einen gibt, sonst die Zahl. */
+export function stufeText(stufe) {
+  return stufe.bereich || `${stufe.percent} %`;
+}
 
 /** Kleinster und grösster Wert, für den es ein Bild gibt. */
 export function skala(sex) {
@@ -61,7 +75,7 @@ export function figurBild(sex, step) {
   return (
     `<img class="figur-bild" src="./img/koerperfett/${geschlecht}-${stufe.percent}.webp" ` +
     `width="190" height="520" loading="lazy" decoding="async" ` +
-    `alt="Körper mit etwa ${stufe.percent} Prozent Körperfett, ${stufe.label}">`
+    `alt="Körper mit etwa ${stufeText(stufe).replace(" %", "")} Prozent Körperfett, ${stufe.label}">`
   );
 }
 
