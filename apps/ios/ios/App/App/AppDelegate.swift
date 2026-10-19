@@ -7,7 +7,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // Vor allem anderen: tippt jemand in einer Mitteilung auf eine Antwort,
+        // startet iOS die App ohne Fenster, und die Antwort käme sonst nirgends an.
+        MitteilungenZentrale.shared.einrichten()
         return true
     }
 

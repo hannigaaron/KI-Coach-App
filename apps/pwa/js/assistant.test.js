@@ -617,3 +617,17 @@ test("Nachtrag aus der Mediathek: Tag und Uhrzeit nur im erlaubten Rahmen", () =
   assert.deepEqual(nachtragZeit("2026-10-17", "22:30", jetzt), { day: "2026-10-17", at: "21:10" });
   assert.deepEqual(nachtragZeit(undefined, "25:00", jetzt), { day: "2026-10-17", at: "21:10" });
 });
+
+test("Das Kalorienziel rechnet mit gemessenen Schritten, sobald die Woche genug davon hat", async () => {
+  const { gemesseneSchritte } = await import("./assistant.js");
+  const heute = frischerTag();
+  const tag = (i) => { const d = new Date(`${heute}T12:00:00Z`); d.setUTCDate(d.getUTCDate() - i); return d.toISOString().slice(0, 10); };
+  const ohne = dayNumbers(heute).targets.kcal;
+  for (const i of [1, 2, 3]) { const d = store.getDay(tag(i)); d.steps = 4000; store.setDay(tag(i), d); }
+  assert.equal(gemesseneSchritte(heute), null, "drei Tage reichen nicht");
+  const d4 = store.getDay(tag(4)); d4.steps = 4000; store.setDay(tag(4), d4);
+  // Der heutige Tag zählt nicht mit, sonst fiele das Ziel jeden Morgen.
+  const h = store.getDay(heute); h.steps = 300; store.setDay(heute, h);
+  assert.equal(gemesseneSchritte(heute), 4000);
+  assert.ok(dayNumbers(heute).targets.kcal < ohne, "weniger Schritte als angegeben heisst ein niedrigeres Ziel");
+});

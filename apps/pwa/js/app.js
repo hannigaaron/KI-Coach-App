@@ -1,3 +1,4 @@
+import "./nativ.js";
 import {
   BEREICHE, BEREICH_NAME, CHECKIN_BOEGEN, CHECKIN_MITTE, STANDARD_ZIELE, WOCHENTAGE,
   MAHLZEITEN, bogenAmTag, bogenFuer, eintragAus100g, energyBreakdown, hatAngebot, mengeLesen,
@@ -50,6 +51,9 @@ import { rezepteAnsicht } from "./rezepte-ui.js";
 import { symbol } from "./symbole.js";
 import { NATIV_PUSH, gesundheitHolen, postfachHolen, pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
+import { healthkitAbgleichen } from "./healthkit.js";
+import { mitteilungenPlanen } from "./mitteilungen.js";
+import { nativAufruf } from "./nativ.js";
 import { ABO_STUFEN, aboAnlass, aboAnlassLeer, aboLeiste, aboLink, kontoSicherstellen, kontoStand, kontoText } from "./konto.js";
 
 const $ = (id) => document.getElementById(id);
@@ -2503,6 +2507,9 @@ function startApp() {
   // Im Hintergrund, damit die erste Nachricht schon zählt. Scheitert es, wird
   // es vor der nächsten Nachricht nachgeholt.
   kontoSicherstellen().then(() => aboBeimStart());
+  // Nacheinander: zwei Abfragen von iOS gleichzeitig, und die zweite geht
+  // unter der ersten verloren.
+  healthNativ().then(() => mitteilungenNativ());
   // Die Einführung kommt einmal: nach dem Bogen, beim ersten Öffnen der Demo,
   // und einmal bei allen, die die App schon vorher benutzt haben. Danach steht
   // sie im Profil. Wer sie bei jedem Start sieht, tippt sie weg, ohne zu lesen.
@@ -4521,6 +4528,57 @@ async function renderKonto() {
   $("kontoStand").textContent = kontoText(stand);
   $("kontoId").textContent = stand?.id || store.getSettings().kontoId || "-";
 }
+
+/* ---------- Apple Health in der iPhone App ---------- */
+
+let healthLaeuft = false;
+
+/**
+ * Liest Apple Health beim Start und bei jedem Zurückholen der App. Läuft
+ * schon ein Abgleich, wird kein zweiter gestartet: das erste Lesen geht
+ * über zwei Jahre und kann dauern.
+ */
+async function healthNativ() {
+  if (!istNativ() || healthLaeuft) return;
+  healthLaeuft = true;
+  try {
+    const bericht = await healthkitAbgleichen({ aufruf: nativAufruf, store, heute: todayIso() });
+    if (bericht.tage || bericht.trainings) refreshAll();
+  } catch {
+    // Ohne Erlaubnis oder ohne Health bleibt alles, wie es war. Der Weg über
+    // den Export im Profil steht weiter offen.
+  } finally {
+    healthLaeuft = false;
+  }
+}
+
+/**
+ * Plant die Mitteilungen neu und holt ab, was in ihnen beantwortet wurde.
+ * Bei jedem Öffnen, denn jede Mahlzeit und jedes Training kann den Plan
+ * ändern: wer heute trainiert hat, bekommt um 18 Uhr keine Frage nach der
+ * Lücke.
+ */
+async function mitteilungenNativ() {
+  if (!istNativ()) return;
+  try {
+    const { antworten = [], geoeffnet = null } = await nativAufruf("Mitteilungen", "abholen");
+    for (const eintrag of antworten) {
+      if (antwortVerarbeiten(eintrag, { store, brain })) toast("Antwort übernommen");
+    }
+    if (geoeffnet?.art === "luecke") lueckeFrageOeffnen();
+    else if (geoeffnet?.art && geoeffnet.art !== "runterfahren") impulsOeffnen({ art: geoeffnet.art });
+
+    const d = new Date();
+    const jetzt = { tag: todayIso(d), uhrzeit: `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}` };
+    await mitteilungenPlanen({ aufruf: nativAufruf, store, jetzt });
+  } catch {
+    // Ohne Erlaubnis plant iOS nichts. Die App läuft trotzdem.
+  }
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") healthNativ().then(() => mitteilungenNativ());
+});
 
 /* ---------- Abo Fenster ---------- */
 

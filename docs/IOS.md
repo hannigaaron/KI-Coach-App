@@ -111,3 +111,26 @@ im Xcode Projekt sind nicht im Repository, sie entstehen bei `sync`.
 Die Begründungen im `Info.plist` für Mikrofon, Spracherkennung, Kamera und
 Mediathek sind Pflicht. Fehlt eine, beendet iOS die App beim ersten Zugriff
 ohne Meldung.
+
+## Apple Health, Mitteilungen und der zweite Speicher
+
+Seit dieser Fassung trägt die App drei eigene Plugins: Speicher, Gesundheit
+und Mitteilungen. Beim ersten Start nach dem Fragebogen fragt iOS zweimal:
+einmal nach Apple Health, einmal nach Mitteilungen. Beides erlauben.
+
+In Xcode muss unter "Signing & Capabilities" die Fähigkeit HealthKit
+stehen. Sie kommt aus `App/App.entitlements`. Fehlt sie oder meldet Xcode
+beim Signieren einen Fehler dazu, dort auf "+ Capability" und HealthKit
+wählen.
+
+Was du beim ersten Test prüfst:
+
+1. Profil öffnen und nachsehen, ob Schritte und Schlaf von gestern da sind.
+2. Auf Heute die Kalorien ansehen. Ab vier Tagen mit Schritten rechnet das
+   Ziel mit deinen echten Schritten.
+3. In den Einstellungen des iPhones unter Mitteilungen, daevo, sehen, ob
+   Mitteilungen erlaubt sind. Die erste kommt zur nächsten vollen Impulszeit.
+4. App schliessen, wieder öffnen: die Daten müssen alle noch da sein.
+
+Geht etwas nicht, in Xcode unten die Konsole kopieren und schicken. Die
+Meldungen der Plugins stehen dort im Klartext.

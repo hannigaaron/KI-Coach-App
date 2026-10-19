@@ -298,7 +298,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1021 Tests
+npm test           # 1031 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -2383,6 +2383,49 @@ Entwicklerfassung, `--nutzer` nimmt die Fassung für Nutzer.
 gibt es kein Web Push und keinen Homebildschirm, und jeder Hinweis darauf
 wäre falsch. Die Herkunft `capacitor://localhost` steht in `HERKUNFT` im
 Worker.
+
+### Eigene Plugins statt fremder Pakete
+
+Drei Swift Plugins liegen im App Ziel unter `apps/ios/ios/App/App` und
+werden in `DaevoBridge.swift` angemeldet. Die Web App spricht sie über
+`nativAufruf` in `apps/pwa/js/nativ.js` an, ohne `@capacitor/core`: sie hat
+keinen Bundler und soll dafür keine Abhängigkeit bekommen. Ein neues Plugin
+braucht drei Schritte: die Datei, einen Eintrag in `DaevoBridge.swift` und
+einen in `project.pbxproj`. Fehlt der dritte, baut Xcode die Datei nicht mit.
+
+`SpeicherPlugin` spiegelt den localStorage in eine Datei im Ordner der App.
+iOS darf Daten einer Web Ansicht unter Speicherdruck verwerfen, und dann
+stünde jemand nach einem halben Jahr vor dem Fragebogen. Ist der Speicher
+beim Start leer und die Kopie nicht, kommt die Kopie zurück und die Seite
+lädt neu. Gespiegelt wird erst danach, sonst überschriebe ein leerer Start
+die einzige Kopie, bevor sie gelesen ist.
+
+`GesundheitPlugin` liest HealthKit: Schritte, aktive Kalorien, Ruhepuls,
+HRV, Gewicht, Schlaf und Trainings. Nur lesen, nie schreiben. Schlaf wird
+vor dem Zählen zusammengelegt, weil Uhr und iPhone dieselbe Nacht oft beide
+schreiben, und gehört zum Tag des Aufwachens. `apps/pwa/js/healthkit.js`
+schreibt über `healthSchreiben`, also nach denselben Regeln wie Export und
+Kurzbefehl. Trainings aus Health werden nicht angelegt, wenn der Nutzer
+dieselbe Art innerhalb von 90 Minuten schon selbst eingetragen hat. Gelesen
+wird beim Öffnen und beim Zurückholen, beim ersten Mal zwei Jahre.
+
+Sobald Schritte aus Health an vier der letzten sieben Tage dastehen, rechnet
+das Kalorienziel mit ihrem Schnitt statt mit der Schätzung aus dem
+Fragebogen, `gemesseneSchritte` in `assistant.js`. Der laufende Tag zählt
+nicht mit, sonst fiele das Ziel jeden Morgen ab.
+
+`MitteilungenPlugin` plant Mitteilungen bei iOS ein, ohne Server. Den Plan
+macht `apps/pwa/js/mitteilungen.js`: die sechs Impulse, das Runterfahren 45
+Minuten vor der Schlafenszeit des jeweiligen Tages und die Trainingslücke um
+18 Uhr mit drei Antwortknöpfen. Sieben Tage voraus, höchstens 60, weil iOS
+bei 64 ausstehenden Mitteilungen still verwirft. Antworten aus den Knöpfen
+nimmt `MitteilungenZentrale` an, die im AppDelegate gesetzt wird: ein Tipp
+auf "Keine Zeit" startet die App ohne Web Ansicht, und das Plugin gäbe es
+dann noch gar nicht. Die App holt die Antworten beim nächsten Öffnen ab.
+
+Nichts davon ist auf einem Gerät gelaufen, bevor es eingecheckt wurde. In
+diesem Repository gibt es kein Xcode. Die erste Runde auf dem iPhone ist
+deshalb ein Test und kein Betrieb.
 
 `build:demo` ersetzt in `konfig.js` nur das Objekt `KONFIG` und behält den
 Rest der Datei. Vorher schrieb es die Hilfsfunktionen von Hand nach, und

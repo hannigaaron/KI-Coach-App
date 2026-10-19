@@ -192,8 +192,32 @@ export function plausibelHinweis(day = todayIso()) {
   }));
 }
 
+/**
+ * Die Schritte, mit denen das Kalorienziel rechnet.
+ *
+ * Der Fragebogen fragt nach einer Schätzung, und die stimmt selten. Liegen
+ * aus Apple Health an mindestens vier der letzten sieben Tage Schritte vor,
+ * gilt deren Schnitt. Der laufende Tag zählt nicht mit: um neun Uhr morgens
+ * stehen dort 800 Schritte, und das Ziel fiele jeden Morgen ab und stiege
+ * abends wieder. Vier Tage, weil ein einzelner Ausreisser sonst das Ziel der
+ * ganzen Woche verschiebt.
+ */
+export function gemesseneSchritte(day = todayIso()) {
+  const werte = [];
+  for (let i = 1; i <= 7; i++) {
+    const d = new Date(`${day}T12:00:00Z`);
+    d.setUTCDate(d.getUTCDate() - i);
+    const s = store.getDay(d.toISOString().slice(0, 10)).steps;
+    if (s !== null && s !== undefined && Number(s) > 0) werte.push(Number(s));
+  }
+  if (werte.length < 4) return null;
+  return Math.round(werte.reduce((a, b) => a + b, 0) / werte.length);
+}
+
 export function dayNumbers(day = todayIso()) {
-  const profile = store.getProfile();
+  const gespeichert = store.getProfile();
+  const gemessen = gemesseneSchritte(day);
+  const profile = gemessen ? { ...gespeichert, dailySteps: gemessen, schritteGemessen: true } : gespeichert;
   const weekday = new Date(`${day}T12:00:00`).getDay();
   const trainingMinutes = (profile.sessions || [])
     .filter((s) => s.weekday === weekday)

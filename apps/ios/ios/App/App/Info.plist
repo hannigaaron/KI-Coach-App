@@ -61,6 +61,8 @@
 	<string>daevo wandelt deine Sprache in Text um, damit du nicht tippen musst.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>daevo schätzt Mengen und Nährwerte aus einem Foto deines Tellers und liest Barcodes.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>daevo liest Schlaf, Schritte, Ruhepuls, HRV, aktive Kalorien, Gewicht und Trainings, damit Training, Kalorienziel und Tagesplan zu deinen echten Werten passen. daevo schreibt nichts in Health.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>daevo wertet ein Foto aus deiner Mediathek aus, wenn du eines auswählst.</string>
 	<key>UISupportedInterfaceOrientations~ipad</key>
