@@ -1,16 +1,39 @@
 import type { FoodEntry } from "@daevo/core";
 import { findFood, normalize } from "./foods.js";
 
-const QUANTITY = /(\d+(?:[.,]\d+)?)\s*(g|gramm|kg|ml|l|stk|stück|stück|scheiben?|el|tl|portionen?)?/i;
+// Zahl, dann optional ein Beiwort wie "gehäuft", dann die Einheit. Das
+// Beiwort steht beim Löffel fast immer dazwischen: "1 gehäufter Teelöffel".
+const QUANTITY = /(\d+(?:[.,]\d+)?)\s*(gehaeuft\w*|gestrichen\w*)?\s*(g|gr|gramm|kg|kilo|ml|milliliter|l|liter|stk|stueck|scheiben?|el|essloeffeln?|tl|teeloeffeln?|messloeffeln?|scoops?|portionen?)?\b/;
 
+// Haushaltsmasse sind Faustwerte und keine Messung. Ein Teelöffel fasst
+// rund 5 Gramm, ein Esslöffel rund 15, gehäuft etwa das Doppelte. Bei
+// Erdnussbutter ist ein gehäufter Teelöffel damit eher 10 als 5 Gramm.
 const UNIT_TO_GRAM: Record<string, number> = {
   g: 1,
+  gr: 1,
   gramm: 1,
   kg: 1000,
+  kilo: 1000,
   ml: 1,
+  milliliter: 1,
   l: 1000,
+  liter: 1000,
   el: 15,
+  essloeffel: 15,
   tl: 5,
+  teeloeffel: 5,
+  // Ein Messlöffel Proteinpulver liegt bei den gängigen Dosen bei 30 Gramm.
+  messloeffel: 30,
+  scoop: 30,
+};
+
+const LOEFFEL = new Set(["el", "essloeffel", "tl", "teeloeffel"]);
+
+// "einen Teelöffel" ist dieselbe Angabe wie "1 Teelöffel". Spracherkennung
+// schreibt kleine Zahlen meist als Wort.
+const ZAHLWORT: Record<string, string> = {
+  ein: "1", eine: "1", einen: "1", einem: "1", einer: "1",
+  zwei: "2", drei: "3", vier: "4", fuenf: "5", sechs: "6", halben: "0.5", halbe: "0.5",
 };
 
 /**
@@ -31,39 +54,73 @@ export function parseMealOffline(text: string): { entries: FoodEntry[]; unresolv
     .map((c) => c.trim())
     .filter(Boolean);
 
+  const treffer: { key: string; explizit: boolean; entry: FoodEntry }[] = [];
   for (const chunk of chunks) {
     const food = findFood(chunk);
     if (!food) {
       if (normalize(chunk).length > 2) unresolved.push(chunk);
       continue;
     }
-    const grams = extractGrams(chunk, food.pieceG);
-    if (grams === null) {
+    const menge = extractGrams(chunk, food.pieceG);
+    if (menge === null) {
       unresolved.push(chunk);
       continue;
     }
+    const grams = menge.grams;
     const factor = grams / 100;
-    entries.push({
+    treffer.push({ key: food.key, explizit: menge.explizit, entry: {
       name: food.label,
-      quantity: `${Math.round(grams)} g`,
+      // Flüssiges bleibt in Milliliter, so wie es gesagt wurde. Gerechnet wird
+      // mit 1 ml gleich 1 g, für Milch und Haferdrink weicht das um wenige
+      // Prozent ab.
+      quantity: `${Math.round(grams)} ${menge.ml ? "ml" : "g"}`,
       kcal: Math.round(food.per100.kcal * factor),
       proteinG: round1(food.per100.proteinG * factor),
       fatG: round1(food.per100.fatG * factor),
       carbsG: round1(food.per100.carbsG * factor),
-    });
+    } });
+  }
+  // "Einen Shake mit 30 Gramm Proteinpulver" nennt dasselbe Pulver zweimal:
+  // einmal als Behälter ohne Menge, einmal mit Menge. Ohne diese Regel
+  // standen 60 Gramm Pulver im Tag. Wo dasselbe Lebensmittel mit einer
+  // ausdrücklichen Menge vorkommt, fällt der Treffer ohne Menge weg.
+  const mitMenge = new Set(treffer.filter((t) => t.explizit).map((t) => t.key));
+  for (const t of treffer) {
+    if (!t.explizit && mitMenge.has(t.key)) continue;
+    entries.push(t.entry);
   }
   return { entries, unresolved };
 }
 
-function extractGrams(chunk: string, pieceG?: number): number | null {
-  const match = QUANTITY.exec(chunk);
-  if (!match) return pieceG ?? null;
+/** Text, auf dem die Mengensuche läuft: gefaltet, Zahlwörter als Ziffern, Kommazahlen erhalten. */
+function mengenText(chunk: string): string {
+  const gefaltet = chunk
+    .toLowerCase()
+    .replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss");
+  return gefaltet.replace(/\b[a-z]+\b/g, (w) => ZAHLWORT[w] ?? w);
+}
+
+const FLUESSIG = new Set(["ml", "milliliter", "l", "liter"]);
+
+export function extractGrams(chunk: string, pieceG?: number): { grams: number; explizit: boolean; ml?: boolean } | null {
+  const match = QUANTITY.exec(mengenText(chunk));
+  if (!match) return pieceG ? { grams: pieceG, explizit: false } : null;
   const amount = Number((match[1] ?? "").replace(",", "."));
-  if (!Number.isFinite(amount)) return pieceG ?? null;
-  const unit = normalize(match[2] ?? "");
-  if (unit && unit in UNIT_TO_GRAM) return amount * (UNIT_TO_GRAM[unit] as number);
+  if (!Number.isFinite(amount) || amount <= 0) return pieceG ? { grams: pieceG, explizit: false } : null;
+  const unit = (match[3] ?? "").replace(/n$/, "").replace(/s$/, "");
+  const einheit = unit in UNIT_TO_GRAM ? unit : (match[3] ?? "");
+  if (einheit && einheit in UNIT_TO_GRAM) {
+    const gehaeuft = Boolean(match[2]?.startsWith("gehaeuft")) && LOEFFEL.has(einheit);
+    return {
+      grams: amount * (UNIT_TO_GRAM[einheit] as number) * (gehaeuft ? 2 : 1),
+      explizit: true,
+      ml: FLUESSIG.has(einheit),
+    };
+  }
   if (!pieceG) return null;
-  return amount * pieceG;
+  // Eine Stückzahl ohne Einheit gilt nicht als ausdrückliche Menge. "Einen
+  // Shake" ist der Becher, das Pulver darin steht mit Gramm daneben.
+  return { grams: amount * pieceG, explizit: false };
 }
 
 function round1(value: number): number {

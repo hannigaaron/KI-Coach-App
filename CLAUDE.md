@@ -298,7 +298,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1032 Tests
+npm test           # 1048 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1182,6 +1182,38 @@ in die Antwort, wenn er wirklich etwas getan hat, also `ausgeführt` nicht leer
 ist. Hat er nur allgemeinen Text erzeugt, steht allein die Fehlermeldung da.
 Eine Antwort, die wie eine Antwort aussieht und keine ist, über einer Meldung
 "ich komme nicht ins Netz", ist schlimmer als die Meldung allein.
+
+## Sechs Posten gesagt, zwei eingetragen
+
+Ein diktierter Satz mit Milchreis, ESN Flexpresso, Erdnussbutter, Hafermilch
+und Whey kam als "30 g Proteinpulver, 10 g Erdnussbutter, Tabellenwert" an.
+Drei Fehler übereinander.
+
+Der erste lag im Weg zum Modell. `generateJson` in
+`packages/coach/src/anthropic.ts` baute seine Köpfe selbst, mit `x-api-key`
+und ohne Kontoschlüssel. Über den Worker kam jede Mahlzeit und jedes Foto mit
+401 zurück, und `parseMeal` fiel still auf die Tabelle. Das Gespräch lief
+dabei normal, deshalb fiel es nicht auf. Jetzt nimmt es `headers()` wie alle
+anderen Aufrufe, und ein Test prüft den Kopf.
+
+Der zweite war das Schweigen. Scheitert das Modell, trägt `MealParseResult`
+den Fehler in `modellFehler`, und die Antwort sagt, dass nur nach Tabelle
+eingetragen wurde, mit Grund aus `fehlerErklaerung`. Was die Tabelle nicht
+kennt, steht direkt hinter dem Eingetragenen. Mit Menge heisst die Rückfrage
+"Nährwerte fehlen, Barcode oder Werte je 100 Gramm", nicht "wie viel war das".
+Ein Posten, der still fehlt, ist der teuerste Fehler beim Tracken: die Zahlen
+sehen richtig aus und sind es nicht.
+
+Der dritte war der Regelweg selbst. Löffel als Masseinheit, auch "gehäuft"
+(Teelöffel 5 g, gehäuft 10 g, Esslöffel 15 g, Faustwerte), Milliliter und
+Liter, Zahlwörter wie "einen", und Hafermilch als eigener Eintrag. "Einen
+Shake mit 30 Gramm Proteinpulver" zählte das Pulver zweimal: ein Treffer ohne
+Einheit fällt jetzt weg, wenn dasselbe Lebensmittel mit Einheit dasteht.
+Markenprodukte wie Flexpresso bekommen keine erfundenen Werte in der Tabelle.
+
+Die Spracherkennung schickte nach 2,2 Sekunden Pause ab, mitten in der
+Aufzählung. Jetzt 3,2 Sekunden, und 6, solange der Satz auf "und", "mit",
+eine Zahl oder eine Einheit endet, `pauseFuer` in `voice.js`.
 
 ## Doppelt eingetragenes Essen
 

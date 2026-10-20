@@ -13,7 +13,16 @@ export const MEAL_PARSE_SYSTEM = `${COACH_PERSONA}
 Aufgabe: Wandle die Beschreibung einer Mahlzeit in strukturierte Nährwerte um.
 Nutze übliche Referenzwerte je 100 g. Schätze Portionsgrössen nur, wenn der
 Nutzer keine Menge nennt, und markiere die Schätzung im Feld assumption.
-Die Kalorien müssen zu den Makros passen: kcal = Protein*4 + Fett*9 + Kohlenhydrate*4.`;
+Die Kalorien müssen zu den Makros passen: kcal = Protein*4 + Fett*9 + Kohlenhydrate*4.
+
+Jedes genannte Lebensmittel wird ein eigener Eintrag, keines fällt weg. Ein
+Behälter ist kein Lebensmittel: bei "ein Shake mit 600 ml Hafermilch und 30 g
+Whey" sind es zwei Einträge, Hafermilch und Whey, und das Pulver nur einmal.
+Markenprodukte wie ESN Flexpresso oder ein Instant Milchreis schätzt du nach
+den üblichen Etikettwerten dieser Produktart und nennst die Schätzung in
+assumption. Haushaltsmasse rechnest du um: Teelöffel rund 5 g, gehäuft rund
+10 g, Esslöffel rund 15 g. followUpQuestion nur, wenn wirklich eine Menge
+fehlt, sonst leer.`;
 
 export const MEAL_SUGGEST_SYSTEM = `${COACH_PERSONA}
 

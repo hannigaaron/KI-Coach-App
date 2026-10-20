@@ -27,8 +27,26 @@
 
 const Recognition = globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition;
 
-/** Sprechpause, nach der ein Satz als beendet gilt. */
-const PAUSE_MS = 2200;
+/**
+ * Sprechpause, nach der ein Satz als beendet gilt.
+ *
+ * 2,2 Sekunden waren zu knapp. Wer eine Mahlzeit mit sechs Posten diktiert,
+ * überlegt zwischen zwei Posten, und die Erkennung schickte dann mitten in
+ * der Aufzählung ab. Der Rest kam als zweite Nachricht oder gar nicht an.
+ */
+const PAUSE_MS = 3200;
+/**
+ * Längere Pause, wenn der Satz erkennbar noch nicht fertig ist: er endet auf
+ * "und", "mit", eine Zahl oder eine Einheit. "80 Gramm Milchreis und" ist
+ * kein Satzende, sondern ein Nachdenken über den nächsten Posten.
+ */
+const PAUSE_OFFEN_MS = 6000;
+const OFFENES_ENDE = /(?:^|[\s,])(und|mit|oder|noch|dazu|plus|sowie|ein|eine|einen|einem|der|die|das|den|dem|von|vom|zum|zur|auf|aus|in|im|also|dann|aber|weil|dass|gramm|g|milliliter|ml|liter|l|löffel|teelöffel|esslöffel|gehäuft|gehäuften|gehäufter)\s*$|[\d,]\s*$/i;
+
+/** Die Pause, die zu diesem Stand des Satzes passt. */
+export function pauseFuer(text, grundMs = PAUSE_MS) {
+  return OFFENES_ENDE.test(String(text ?? "").trim()) ? Math.max(grundMs, PAUSE_OFFEN_MS) : grundMs;
+}
 /** Wartezeit, bevor aufgegeben wird, wenn noch gar nichts gesagt wurde. */
 const STILLE_MS = 9000;
 /** Obergrenze für eine einzelne Aufnahme. Schützt vor einem offenen Mikrofon. */
@@ -142,8 +160,9 @@ export class Listener {
       this.letzterInterim = interim;
       this.onPartial(this.text(interim));
       // Jedes gehörte Wort schiebt das Ende nach hinten. Wer weiterredet,
-      // wird nicht unterbrochen.
-      this.planePause(this.pauseMs);
+      // wird nicht unterbrochen, und wer mitten in einer Aufzählung
+      // nachdenkt, auch nicht.
+      this.planePause(pauseFuer(this.text(interim), this.pauseMs));
     };
 
     recognition.onspeechstart = () => {

@@ -36,6 +36,9 @@ export const FOODS: FoodRef[] = [
   { key: "skyr", label: "Skyr", aliases: ["skyr"], per100: { kcal: 63, proteinG: 11, fatG: 0.2, carbsG: 4 } },
   { key: "huettenkaese", label: "Hüttenkäse", aliases: ["hüttenkäse", "hüttenkäse", "körnigerfrischkäse"], per100: { kcal: 98, proteinG: 11, fatG: 4.3, carbsG: 3.4 } },
   { key: "griechischer_joghurt", label: "Griechischer Joghurt", aliases: ["griechischer joghurt", "joghurt", "jogurt"], per100: { kcal: 73, proteinG: 9, fatG: 2, carbsG: 4 } },
+  // Haferdrink ohne Zucker, gerundet aus gängigen Etiketten. Eigener Eintrag,
+  // weil "Hafermilch" ein Wort ist und sonst auf nichts trifft.
+  { key: "haferdrink", label: "Hafermilch", aliases: ["hafermilch", "haferdrink", "hafer drink", "oatly"], per100: { kcal: 44, proteinG: 1, fatG: 1.5, carbsG: 6.5 } },
   { key: "milch", label: "Milch", aliases: ["milch", "vollmilch"], per100: { kcal: 47, proteinG: 3.4, fatG: 1.5, carbsG: 4.9 } },
   { key: "gouda", label: "Gouda", aliases: ["gouda", "käse", "käse"], per100: { kcal: 356, proteinG: 25, fatG: 28, carbsG: 0 } },
   { key: "haferflocken", label: "Haferflocken", aliases: ["haferflocken", "oats", "porridge"], per100: { kcal: 372, proteinG: 13.5, fatG: 7, carbsG: 58.7 }, state: "roh" },
@@ -60,7 +63,7 @@ export const FOODS: FoodRef[] = [
   { key: "linsen", label: "Linsen", aliases: ["linsen"], per100: { kcal: 116, proteinG: 9, fatG: 0.4, carbsG: 20 }, state: "gekocht" },
   { key: "kichererbsen", label: "Kichererbsen", aliases: ["kichererbsen"], per100: { kcal: 119, proteinG: 7.5, fatG: 2.6, carbsG: 16 }, state: "gekocht" },
   { key: "tofu", label: "Tofu", aliases: ["tofu"], per100: { kcal: 76, proteinG: 8, fatG: 4.8, carbsG: 1.9 } },
-  { key: "whey", label: "Proteinpulver", aliases: ["whey", "proteinpulver", "eiweisspulver", "shake"], per100: { kcal: 380, proteinG: 78, fatG: 5, carbsG: 8 }, pieceG: 30 },
+  { key: "whey", label: "Proteinpulver", aliases: ["whey", "whey protein", "proteinpulver", "eiweisspulver", "eiweißpulver", "proteinshake", "shake"], per100: { kcal: 380, proteinG: 78, fatG: 5, carbsG: 8 }, pieceG: 30 },
   { key: "pizza", label: "Pizza", aliases: ["pizza"], per100: { kcal: 266, proteinG: 11, fatG: 10, carbsG: 33 }, state: "zubereitet" },
   { key: "doener", label: "Döner", aliases: ["doener", "döner", "kebab"], per100: { kcal: 215, proteinG: 14, fatG: 10, carbsG: 17 }, state: "zubereitet" },
   { key: "pommes", label: "Pommes", aliases: ["pommes", "fritten"], per100: { kcal: 312, proteinG: 3.4, fatG: 15, carbsG: 41 }, state: "zubereitet" },

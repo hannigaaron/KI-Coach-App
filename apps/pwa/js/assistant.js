@@ -1,6 +1,6 @@
 import {
   Agent, AnthropicProvider, Coach, addiere, buildShoppingList, cacheQuote, denktiefe, dollarText,
-  einstufeAufgabe, einstufungText, ersparnis, hochrechnung, kopfLeeren, kopfText, leereSumme,
+  einstufeAufgabe, einstufungText, ersparnis, fehlerErklaerung, hochrechnung, kopfLeeren, kopfText, leereSumme,
   mahlzeitAusFoto, modellFuerBilder, produktPerBarcode, produkteSuchen, summiere, vorratAusFoto,
   todoistAbhaken, todoistAufgaben, todoistIdVon,
 } from "@daevo/coach";
@@ -2100,13 +2100,19 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
     async mahlzeitErfassen(beschreibung) {
       const day = todayIso();
       const parsed = await coach.parseMeal(beschreibung);
+      // Lief das Modell nicht, steht das in der Antwort, mit Grund. Vorher
+      // fiel die App still auf die Tabelle zurück, und ein Satz mit sechs
+      // Lebensmitteln kam mit zweien an, ohne dass jemand es merkte.
+      const ohneModell = parsed.modellFehler !== undefined
+        ? `Die KI hat nicht geantwortet, deshalb nur nach der eingebauten Tabelle. ${fehlerErklaerung(parsed.modellFehler).text}`
+        : "";
       if (parsed.entries.length === 0) {
         // Kein erkanntes Lebensmittel heisst fast immer: das war keine
         // Mahlzeit. Eine Rückfrage nach Mengen wirkt dann, als hätte die App
         // nicht zugehört, und genau das ist im Betrieb passiert, als ein
         // Tagesplan mit "zwei gute Mahlzeiten essen" als Eintrag gelesen wurde.
-        return "Daraus konnte ich keine Mahlzeit lesen. Wenn du etwas eintragen willst, "
-          + "sag es mir mit Menge, etwa 200 Gramm Magerquark.";
+        return [ohneModell, "Daraus konnte ich keine Mahlzeit lesen. Wenn du etwas eintragen willst, "
+          + "sag es mir mit Menge, etwa 200 Gramm Magerquark."].filter(Boolean).join(" ");
       }
       // Der Riegel gegen doppeltes Zählen. Das Modell sieht die Zahlen des
       // Tages im Kontext und schickt beim nächsten Eintrag die ganze bisherige
@@ -2143,9 +2149,15 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
       // Der Hinweis steht vorn. Eine Korrektur am Ende einer Antwort wird
       // überlesen, und genau sie ist der Grund, warum die Zahlen stimmen.
       const unplausibel = plausibelHinweis(day);
+      // Was nicht erkannt wurde, steht direkt hinter dem Eingetragenen. Ein
+      // Posten, der still fehlt, ist der teuerste Fehler beim Tracken: die
+      // Zahlen sehen richtig aus und sind es nicht.
       return [
+        ohneModell,
         schonDa,
-        `Eingetragen: ${posten}. Zusammen ${kcal} kcal und ${protein} g Protein. ${restText(n.rest)}${warnung}`,
+        `Eingetragen: ${posten}. Zusammen ${kcal} kcal und ${protein} g Protein.`,
+        parsed.followUpQuestion,
+        `${restText(n.rest)}${warnung}`,
         unplausibel,
       ].filter(Boolean).join(" ").trimEnd();
     },
