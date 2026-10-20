@@ -47,7 +47,10 @@ import { anhangAusDatei, grossInKb } from "./media.js";
 import { EXIF_LESEN_BYTES, aufnahmezeit, tagVor, tageZurueck, zeitVorschlag } from "./exif.js";
 import { gewichtsKurve, gewichtsSpanne } from "./gewichtkurve.js";
 import { bereichFarbe, anteilsRing, kurzDauer, netzDiagramm, wertungsRing } from "./rings.js";
-import { Listener, alleStimmen, istDeutsch, speak, stimmenBereit, stopSpeaking, voiceSupport, waehlbareStimmen } from "./voice.js";
+import {
+  Listener, alleStimmen, istDeutsch, istMaennlich, speak, stimmQualitaet, stimmSchluessel, stimmenBereit, stopSpeaking,
+  voiceSupport, waehlbareStimmen,
+} from "./voice.js";
 import { SetupFlow } from "./setup-ui.js";
 import { einfuehrungStarten } from "./einfuehrung.js";
 import { rezepteAnsicht } from "./rezepte-ui.js";
@@ -1708,33 +1711,44 @@ async function renderStimmwahl() {
     return;
   }
 
+  // Die gespeicherte Wahl kann ein alter Name sein oder ein Schlüssel. Nativ
+  // gibt es Anna in Basis und in Erweitert unter demselben Namen.
+  const gewaehltIst = (v) => gewaehlt && (stimmSchluessel(v) === gewaehlt || v.name === gewaehlt);
+  const markiert = liste.find(gewaehltIst);
   const eintrag = (v) => {
-    const gut = /premium|neural|enhanced|natural/i.test(v.name);
-    // Den Qualitätszusatz aus dem Namen nehmen und als Klammer dahinter
-    // setzen. "Markus (Premium)" liest sich, "Markus (Enhanced) [de-DE]"
-    // nicht.
+    const q = stimmQualitaet(v);
+    const stufe = q === 3 ? "Premium" : q === 2 ? "Erweitert" : "";
+    // Den Qualitätszusatz aus dem Namen nehmen und dahinter setzen.
+    // "Markus, Premium" liest sich, "Markus (Enhanced) [de-DE]" nicht.
     const kurz = v.name.replace(/\s*\((premium|enhanced|neural|natural)\)/i, "").trim();
+    const zusatz = [istMaennlich(v) ? "männlich" : "", stufe].filter(Boolean).join(", ");
     const sprache = istDeutsch(v) ? "" : ` [${v.lang}]`;
-    return `<option value="${escapeHtml(v.name)}"${v.name === gewaehlt ? " selected" : ""}>`
-      + `${escapeHtml(kurz)}${sprache}${gut ? " (bessere Qualität)" : ""}</option>`;
+    return `<option value="${escapeHtml(stimmSchluessel(v))}"${v === markiert ? " selected" : ""}>`
+      + `${escapeHtml(kurz)}${sprache}${zusatz ? `, ${zusatz}` : ""}</option>`;
   };
 
   feld.innerHTML = liste.map(eintrag).join("");
 
   const deutsch = liste.filter(istDeutsch);
-  const hatGute = liste.some((v) => /premium|neural|enhanced|natural/i.test(v.name));
+  const hatGute = liste.some((v) => stimmQualitaet(v) >= 2);
+  const hatMann = deutsch.some(istMaennlich);
   const zeilen = [];
+  const nativeListe = liste.some((v) => v.nativ);
 
   if (deutsch.length === 0) {
     zeilen.push("Dieses Gerät meldet keine Stimme als Deutsch. Die gefundenen stehen trotzdem zur Wahl, "
       + "sie sprechen deutschen Text meist sauber.");
+  } else if (nativeListe && (!hatGute || !hatMann)) {
+    // In der iPhone App sieht daevo jede geladene Stimme. Fehlt eine gute
+    // oder eine männliche, liegt sie noch nicht auf dem Gerät.
+    zeilen.push("Bessere Stimmen lädst du auf dem iPhone unter Einstellungen, Bedienungshilfen, "
+      + "Gesprochene Inhalte, Stimmen, Deutsch. Eine Männerstimme wie Markus oder Yannick in Erweitert "
+      + "oder Premium laden, dann hierher zurückkommen. Sie steht danach in der Liste.");
   } else if (!hatGute && (istNativ() || /iPhone|iPad|iPod/.test(navigator.userAgent))) {
-    // Auf dem iPhone sieht die Sprachausgabe einer App nur die Basisstimmen.
-    // Was unter Bedienungshilfen geladen wird, gehört zu VoiceOver. Der
-    // frühere Hinweis auf Markus und Yannick hat Hoffnung gemacht, die sich
-    // nicht erfüllt.
-    zeilen.push("Auf dem iPhone gibt Apple einer App nur die Basisstimmen frei. Stimmen, die du unter "
-      + "Bedienungshilfen lädst, nutzt nur VoiceOver, daevo kommt an sie nicht heran.");
+    // Safari und die Web App vom Homebildschirm sehen nur die Basisstimmen.
+    // Was unter Bedienungshilfen geladen wird, nutzt erst die iPhone App.
+    zeilen.push("Im Browser gibt Apple nur die Basisstimmen frei. Geladene Stimmen wie Markus oder "
+      + "Yannick nutzt daevo erst in der iPhone App.");
   } else if (!hatGute) {
     zeilen.push("Deine deutschen Stimmen sind in Basisqualität. Bessere lädst du in den Einstellungen "
       + "deines Geräts unter Bedienungshilfen, Gesprochene Inhalte. Danach die App einmal schliessen "
@@ -4066,7 +4080,9 @@ $("btnStimmenAlle").addEventListener("click", async () => {
     return;
   }
   const deutsch = alle.filter(istDeutsch).length;
-  const zeilen = alle.map((v) => `${v.name}  [${v.lang}]  ${v.localService ? "lokal" : "Netz"}`);
+  const zeilen = alle.map((v) => v.nativ
+    ? `${v.name}  [${v.lang}]  ${["", "Basis", "Erweitert", "Premium"][stimmQualitaet(v)]}${v.geschlecht ? `  ${v.geschlecht}` : ""}`
+    : `${v.name}  [${v.lang}]  ${v.localService ? "lokal" : "Netz"}`);
   feld.textContent = `${alle.length} Stimmen gemeldet, davon ${deutsch} deutsch.\n\n${zeilen.join("\n")}`;
 });
 
@@ -4942,6 +4958,12 @@ if (typeof speechSynthesis !== "undefined") {
     if (profilView && !profilView.hidden) renderStimmwahl();
   });
 }
+// In der iPhone App meldet voice.js, wenn die Liste nach der Rückkehr aus den
+// Einstellungen neu gelesen ist.
+window.addEventListener("daevo-stimmen", () => {
+  const profilView = document.querySelector('[data-view="profil"]');
+  if (profilView && !profilView.hidden) renderStimmwahl();
+});
 
 $("btnAddSession").addEventListener("click", () => {
   const minutes = Number($("t-min").value);

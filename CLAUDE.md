@@ -298,7 +298,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1048 Tests
+npm test           # 1050 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -575,6 +575,20 @@ Hoffnung gemacht. Deshalb der Knopf "Alle Stimmen zeigen, die dein Gerät
 meldet" im Profil: er gibt jede gemeldete Stimme aus, mit Sprachkürzel und
 Vermerk lokal oder Netz. Eine Liste beendet eine Vermutung, ein Satz in einer
 Dokumentation nicht.
+
+Das gilt für Safari und die Web App, nicht mehr für die iPhone App. Dort
+liefen Liste und Ausgabe zuerst ebenfalls über die Web Ansicht, und der
+Nutzer stand in einer nativen App wieder vor Anna. Jetzt gehen beide über
+`SprachePlugin.swift` und AVSpeechSynthesizer. Der sieht jede Stimme, die
+unter Bedienungshilfen, Gesprochene Inhalte, Stimmen geladen ist, mit
+Qualität und Geschlecht aus iOS selbst. Premium wiegt 120 Punkte, Erweitert
+100, männlich 40: ohne eigene Wahl spricht damit die beste Männerstimme.
+Gespeichert wird die Kennung der Stimme und nicht der Name, denn Anna gibt
+es nativ in Basis und Erweitert unter demselben Namen. Kommt jemand aus den
+Einstellungen zurück, liest die App die Liste neu und zeigt die geladene
+Stimme ohne Neustart. Der Synthesizer hat eine eigene Audiositzung, damit er
+der Spracherkennung der Web Ansicht das Mikrofon nicht wegnimmt. Auf dem
+Gerät geprüft ist das noch nicht, nur im Browser mit nachgebildeter Hülle.
 
 Eine wirklich menschliche Stimme geht mit der Web Speech API nicht. Dafür
 braucht es eine externe Sprachsynthese, einen weiteren Schlüssel und laufende
@@ -2433,7 +2447,7 @@ Worker.
 
 ### Eigene Plugins statt fremder Pakete
 
-Drei Swift Plugins liegen im App Ziel unter `apps/ios/ios/App/App` und
+Vier Swift Plugins liegen im App Ziel unter `apps/ios/ios/App/App` und
 werden in `DaevoBridge.swift` angemeldet. Die Web App spricht sie über
 `nativAufruf` in `apps/pwa/js/nativ.js` an, ohne `@capacitor/core`: sie hat
 keinen Bundler und soll dafür keine Abhängigkeit bekommen. Ein neues Plugin

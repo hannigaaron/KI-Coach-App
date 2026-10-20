@@ -15,3 +15,24 @@ test("ein fertiger Satz geht nach der normalen Pause raus", () => {
   // Kopf leeren setzt eine eigene, längere Grundpause und behält sie.
   assert.equal(pauseFuer("fertig", 6000), 6000);
 });
+
+test("Stimmen aus der iPhone App tragen Qualität und Geschlecht selbst", async () => {
+  const { stimmQualitaet, istMaennlich, stimmSchluessel } = await import("./voice.js");
+  const markus = { name: "Markus", lang: "de-DE", voiceURI: "com.apple.voice.premium.de-DE.Markus", qualitaet: 3, geschlecht: "m" };
+  const anna = { name: "Anna", lang: "de-DE", voiceURI: "com.apple.voice.compact.de-DE.Anna", qualitaet: 1, geschlecht: "w" };
+  assert.equal(stimmQualitaet(markus), 3);
+  assert.equal(stimmQualitaet(anna), 1);
+  assert.equal(istMaennlich(markus), true);
+  assert.equal(istMaennlich(anna), false);
+  // Gespeichert wird die Kennung, denn Anna gibt es nativ in zwei Stufen unter demselben Namen.
+  assert.equal(stimmSchluessel(markus), "com.apple.voice.premium.de-DE.Markus");
+  // Browserstimmen ohne diese Felder gehen weiter über den Namen.
+  assert.equal(stimmQualitaet({ name: "Yannick (Enhanced)" }), 2);
+  assert.equal(istMaennlich({ name: "Yannick (Enhanced)" }), true);
+});
+
+test("eine Uhrzeit mit Uhr dahinter wird nicht doppelt gesprochen", async () => {
+  const { stripForSpeech } = await import("./voice.js");
+  assert.equal(stripForSpeech("um 14:30 Uhr"), "um 14 Uhr 30");
+  assert.equal(stripForSpeech("um 18:00"), "um 18 Uhr");
+});
