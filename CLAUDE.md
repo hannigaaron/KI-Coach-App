@@ -79,7 +79,7 @@ Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
 
-Der Assistent hat fünfundvierzig Werkzeuge und verändert die App wirklich. Zahlen
+Der Assistent hat sechsundvierzig Werkzeuge und verändert die App wirklich. Zahlen
 über den Nutzer kommen immer aus Werkzeugen, nie aus dem Modell. Allgemeines
 Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
@@ -298,7 +298,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1050 Tests
+npm test           # 1062 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1370,7 +1370,7 @@ Tippfehler darf die Ziele nicht kippen.
 
 ## Der Regelweg ist die kostenlose Stufe
 
-38 der 45 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
+40 der 46 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
 Das ist keine Notlösung für den Ausfall, sondern das Produkt: ein Weg, der
 kein Modell anfragt, kostet nichts je Nutzer und skaliert ohne Rechnung.
 
@@ -1401,9 +1401,8 @@ wie eine echte Antwort. Beschriftete Zahlen schlagen die Reihenfolge, denn wer
 Text um die Zahlen herum, greift der Zweig nicht: "ich hab 7 von 10 Stunden
 geschlafen und 2 Kaffee getrunken" ist kein Bogen.
 
-Offen bleiben sieben. Die beiden Fotowerkzeuge brauchen ein Modell, daran
-ändert kein Regelpfad etwas. `standard_setzen`, `standard_bestaetigen` und
-`gespraech_einordnen` brauchen eine Kennung aus dem Zusammenhang, die ein
+Offen bleiben sechs. Die beiden Fotowerkzeuge brauchen ein Modell, daran
+ändert kein Regelpfad etwas. `standard_bestaetigen` und `gespraech_einordnen` brauchen eine Kennung aus dem Zusammenhang, die ein
 Wortmuster nicht kennt. `profil_aendern` und `einkaufsliste_abhaken` sind
 machbar und stehen aus.
 
@@ -2518,6 +2517,39 @@ Tage voraus noch Platz für die übrigen bleibt. Nur in der iPhone App: im
 Browser plant niemand die Mitteilung ein, und eine Erinnerung an ein
 Medikament, die nie kommt, ist schlimmer als keine. Legt man sie im Browser
 im Gespräch an, sagt die Antwort genau das.
+
+## Was sich dauerhaft ändert, wird gespeichert
+
+`packages/core/src/wochentraining.ts`, Werkzeug `trainingsplan_aendern`, und
+`standardAenderungAus` in `packages/core/src/standards.ts`.
+
+Der Coach konnte hören, dass sich die Trainingstage verschoben haben, aber
+nicht speichern. `profile.sessions` liess sich nur im Profil von Hand ändern,
+und die App rechnete weiter mit den alten Tagen: Kalorienbedarf, Wasser,
+Trainingslücke, Erinnerung vor dem Training. Bei Mindeststandards brauchte
+eine Änderung die Kennung, und ohne sie entstand ein zweiter Standard neben
+dem alten.
+
+Jetzt speichert er sofort und sagt danach, was gilt. Die Persona sagt das
+ausdrücklich, ohne Rückfrage.
+
+`nurArt` ist der wichtigste Parameter. Wer seine Volleyballtage verschiebt,
+darf sein Krafttraining nicht verlieren. Fehlen Uhrzeit oder Dauer, kommen
+sie aus der bisherigen Einheit derselben Art und stehen in der Antwort als
+übernommen. Gibt es kein Vorbild, wird gefragt: eine geratene Dauer geht in
+Kalorienbedarf und Wasser. "Donnerstags statt dienstags" streicht den Tag
+nach "statt" aus dem neuen Plan.
+
+Ein Standard derselben Art wird geändert und nicht verdoppelt, ausser bei
+`frei`. Bei Handy und Schlafenszeit trägt er die Uhrzeit in `uhrzeit`. "Vor
+23 Uhr weg" ohne Gegenstand ist der Handystandard, denn nur dafür gibt es
+einen mit "weg".
+
+Beide Regelpfade greifen eng. Der Plan braucht ein Wort für Training, eines
+für eine dauerhafte Änderung und einen Wochentag: "Volleyball am Donnerstag
+war super" ändert nichts. Der Standard braucht das Wort Standard, damit
+"dreimal die Woche Volleyball" keinen umschreibt. Ein Mindestwert wird nie
+geraten.
 
 ## Das Coaching Angebot
 

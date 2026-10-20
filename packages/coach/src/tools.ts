@@ -415,6 +415,46 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: "trainingsplan_aendern",
+    description:
+      "Ändert die festen Trainingstage im Profil und speichert sie sofort. Nehmen, sobald der Nutzer "
+      + "sagt, dass sich seine Trainingstage oder Zeiten dauerhaft ändern, etwa weil sein Arbeitsplan "
+      + "anders ist: 'Volleyball ist jetzt donnerstags', 'ich trainiere ab jetzt Mo, Mi, Fr um 7', "
+      + "'freitags fällt weg'. Nicht nach Erlaubnis fragen, speichern und sagen, was jetzt gilt. "
+      + "Nicht nehmen für eine einzelne verschobene Einheit diese Woche, dafür gibt es training_anpassen. "
+      + "Der bisherige Plan steht im Profil im Kontext. Was du nicht weisst, lässt du weg: fehlende "
+      + "Uhrzeit oder Dauer nimmt die App aus der bisherigen Einheit derselben Art.",
+    input_schema: {
+      type: "object",
+      properties: {
+        modus: {
+          type: "string", enum: ["ersetzen", "hinzufuegen", "entfernen"],
+          description: "ersetzen: diese Einheiten sind der neue Plan, mit nurArt nur für diese Art. "
+            + "hinzufuegen: kommen dazu. entfernen: an diesen Tagen fällt Training weg.",
+        },
+        nurArt: {
+          type: "string", enum: ["strength", "team_sport", "cardio", "mobility"],
+          description: "Nur Einheiten dieser Art betreffen. Wer nur seine Volleyballtage ändert, "
+            + "darf sein Krafttraining nicht verlieren.",
+        },
+        einheiten: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              wochentag: { type: "number", description: "1 Montag bis 7 Sonntag." },
+              uhrzeit: { type: "string", description: "HH:MM." },
+              minuten: { type: "number" },
+              art: { type: "string", enum: ["strength", "team_sport", "cardio", "mobility"] },
+            },
+            required: ["wochentag"],
+          },
+        },
+      },
+      required: ["modus", "einheiten"],
+    },
+  },
+  {
     name: "tag_zu_ende_planen",
     description:
       "Teilt das offene Kalorien und Proteinbudget auf die Mahlzeiten auf, die heute noch kommen, "
@@ -712,9 +752,12 @@ export const AGENT_TOOLS: ToolDefinition[] = [
   {
     name: "standard_setzen",
     description:
-      "Legt einen neuen Mindeststandard an oder ändert einen bestehenden. " +
+      "Legt einen neuen Mindeststandard an, ändert einen bestehenden oder nimmt ihn heraus, und speichert sofort. " +
       "Ein Mindeststandard ist die Untergrenze, nicht das Ziel. Er muss auch in einer schlechten Woche zu halten sein. " +
-      "Nehmen, wenn der Nutzer sich auf etwas festlegt, das ab jetzt immer gelten soll.",
+      "Nehmen, wenn der Nutzer sich auf etwas festlegt, das ab jetzt immer gelten soll, oder sagt, dass ein " +
+      "Standard so nicht zu halten ist und angepasst werden soll: 'Handy nur noch dreimal die Woche vor 23 Uhr " +
+      "weg' ist art handy_aus, kadenz woechentlich, ziel 3, uhrzeit 23:00. Nicht nach Erlaubnis fragen. " +
+      "Gibt es schon einen Standard derselben Art, wird er geändert und kein zweiter angelegt.",
     input_schema: {
       type: "object",
       properties: {
@@ -726,7 +769,9 @@ export const AGENT_TOOLS: ToolDefinition[] = [
           description: "Woran der Standard gemessen wird. frei, wenn die App ihn nicht selbst messen kann.",
         },
         ziel: { type: "number", description: "Der Mindestwert. Bei frei die Anzahl der Tage oder Male." },
-        id: { type: "string", description: "Nur setzen, wenn ein bestehender Standard geändert wird." },
+        id: { type: "string", description: "Kennung eines bestehenden Standards, wenn bekannt." },
+        uhrzeit: { type: "string", description: "HH:MM bei schlafenszeit und handy_aus: bis wann." },
+        entfernen: { type: "boolean", description: "Wahr, wenn der Standard ganz wegfallen soll." },
       },
       required: ["text", "kadenz", "art", "ziel"],
     },

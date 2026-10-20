@@ -39,3 +39,4 @@ export * from "./rezepte.js";
 export * from "./rezepte-daten.js";
 export * from "./herkunft.js";
 export * from "./erinnerung.js";
+export * from "./wochentraining.js";

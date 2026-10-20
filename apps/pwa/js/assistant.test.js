@@ -631,3 +631,34 @@ test("Das Kalorienziel rechnet mit gemessenen Schritten, sobald die Woche genug 
   assert.equal(gemesseneSchritte(heute), 4000);
   assert.ok(dayNumbers(heute).targets.kcal < ohne, "weniger Schritte als angegeben heisst ein niedrigeres Ziel");
 });
+
+/* ---------- Dauerhafte Änderungen aus dem Gespräch ---------- */
+
+test("eine Änderung der Trainingstage landet im Profil und im Tagesziel", async () => {
+  frischerTag();
+  store.setProfile({ ...PROFIL, sessions: [
+    { type: "team_sport", minutes: 120, weekday: 2, startsAt: "19:00" },
+    { type: "strength", minutes: 75, weekday: 1, startsAt: "07:00" },
+  ] });
+  const aktionen = buildActions({});
+  const antwort = await aktionen.trainingsplanAendern({
+    modus: "ersetzen", nurArt: "team_sport", einheiten: [{ wochentag: 4 }],
+  });
+  assert.match(antwort, /Trainingsplan gespeichert/);
+  const plan = store.getProfile().sessions;
+  assert.deepEqual(plan.map((s) => `${s.weekday}:${s.type}:${s.startsAt}`), ["1:strength:07:00", "4:team_sport:19:00"]);
+});
+
+test("ein Standard derselben Art wird geändert und nicht verdoppelt", async () => {
+  frischerTag();
+  const aktionen = buildActions({});
+  await aktionen.standardSetzen({ text: "Ich lege das Handy jeden Tag vor 22 Uhr weg", kadenz: "taeglich", art: "handy_aus", ziel: 1, uhrzeit: "22:00" });
+  const vorher = store.getStandards().filter((s) => s.kind === "handy_aus").length;
+  const antwort = await aktionen.standardAusSatz("Passe meinen Mindeststandard an, nur noch dreimal die Woche vor 23 Uhr weg");
+  assert.match(antwort, /Standard geändert/);
+  const handy = store.getStandards().filter((s) => s.kind === "handy_aus");
+  assert.equal(handy.length, vorher);
+  assert.equal(handy[0].ziel, 3);
+  assert.equal(handy[0].kadenz, "woechentlich");
+  assert.equal(handy[0].uhrzeit, "23:00");
+});

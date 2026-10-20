@@ -6,6 +6,9 @@ import {
 } from "@daevo/coach";
 import {
   MAX_EIGENE,
+  planAendern,
+  trainingsplanText,
+  standardAenderungAus,
   erinnerungFehler,
   tageText,
   wannText,
@@ -2880,25 +2883,57 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
       return status.map((s) => `- [${s.standard.id}] ${s.satz}`).join("\n");
     },
 
-    async standardSetzen({ text, kadenz, art, ziel, id }) {
+    async standardSetzen({ text, kadenz, art, ziel, id, uhrzeit, entfernen }) {
       const standards = ensureStandards();
-      const vorhanden = id ? standards.find((s) => s.id === id) : null;
-      if (vorhanden) {
-        Object.assign(vorhanden, { text, kadenz, kind: art, ziel, aktiv: true });
-      } else {
-        standards.push({
-          id: `std_${newId().slice(0, 8)}`,
-          kind: art,
-          text,
-          kadenz,
-          ziel,
-          aktiv: true,
-          seit: todayIso(),
-        });
+      // Ohne Kennung zählt die Art. Sagt jemand "Handy nur noch dreimal die
+      // Woche weg", meint er seinen Handystandard und will keinen zweiten
+      // daneben. Bei "frei" gibt es keine Art, die zwei Sätze verbindet.
+      const vorhanden = (id ? standards.find((s) => s.id === id) : null)
+        ?? (art !== "frei" ? standards.find((s) => s.kind === art && s.aktiv) : null);
+      if (entfernen) {
+        if (!vorhanden) return "Diesen Standard gibt es nicht.";
+        store.setStandards(standards.filter((s) => s !== vorhanden));
+        changed();
+        return `Standard entfernt: ${vorhanden.text}.`;
       }
+      const zeit = /^([01]\d|2[0-3]):[0-5]\d$/.test(uhrzeit || "") ? uhrzeit : undefined;
+      if (vorhanden) {
+        const vorher = vorhanden.text;
+        Object.assign(vorhanden, { text, kadenz, kind: art, ziel, aktiv: true, ...(zeit ? { uhrzeit: zeit } : {}) });
+        store.setStandards(standards.slice(0, 8));
+        changed();
+        return `Standard geändert. Vorher: ${vorher}. Jetzt: ${text}.`;
+      }
+      standards.push({
+        id: `std_${newId().slice(0, 8)}`,
+        kind: art,
+        text,
+        kadenz,
+        ziel,
+        aktiv: true,
+        seit: todayIso(),
+        ...(zeit ? { uhrzeit: zeit } : {}),
+      });
       store.setStandards(standards.slice(0, 8));
       changed();
-      return vorhanden ? `Standard geändert: ${text}.` : `Standard steht: ${text}.`;
+      return `Standard steht: ${text}.`;
+    },
+
+    async standardAusSatz(satz) {
+      const a = standardAenderungAus(satz, ensureStandards());
+      if (!a) return null;
+      return this.standardSetzen({ text: a.text, kadenz: a.kadenz, art: a.kind, ziel: a.ziel, id: a.id, uhrzeit: a.uhrzeit });
+    },
+
+    async trainingsplanAendern(aenderung) {
+      const profil = store.getProfile();
+      const r = planAendern(profil.sessions || [], aenderung);
+      if (r.fehler) return r.fehler;
+      store.setProfile({ ...profil, sessions: r.sessions });
+      changed();
+      const ziel = macroTargets({ ...profil, sessions: r.sessions });
+      const angenommen = r.angenommen.length ? ` Übernommen aus dem bisherigen Plan: ${r.angenommen.join(", ")}.` : "";
+      return `Trainingsplan gespeichert: ${trainingsplanText(r.sessions)}.${angenommen} Tagesziel jetzt ${ziel.kcal} kcal.`;
     },
 
     async verlaufAbrufen({ tage } = {}) {

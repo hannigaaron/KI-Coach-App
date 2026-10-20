@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Agent, istAbsicht, runOffline, type AgentActions } from "./agent.js";
 import type { ChatMessage, CoachProvider, ContentBlock, ConverseRequest, ConverseResponse, JsonRequest } from "./provider.js";
+import { standardAenderungAus } from "@daevo/core";
 
 function stubActions(log: string[]): AgentActions {
   return {
@@ -47,6 +48,16 @@ function stubActions(log: string[]): AgentActions {
     async balanceAbrufen(i) { log.push(`balance:${i.tage ?? ""}`); return "Karriere 40 Stunden, Me Time 0 Minuten."; },
     async zeitEintragen(i) { log.push(`zeit:${i.bereich}:${i.minuten}`); return "Gebucht."; },
     async erinnerungAnlegen(i) { log.push(`erinnerung:${i.text}:${i.uhrzeit ?? i.bezug}`); return "Erinnerung angelegt."; },
+    async trainingsplanAendern(i) {
+      log.push(`plan:${i.modus}:${i.nurArt ?? ""}:${i.einheiten.map((e) => `${e.wochentag}@${e.uhrzeit ?? ""}`).join(",")}`);
+      return "Trainingsplan gespeichert.";
+    },
+    async standardAusSatz(satz) {
+      const a = standardAenderungAus(satz, []);
+      if (!a) return null;
+      log.push(`standard-satz:${a.kind}:${a.kadenz}:${a.ziel}:${a.uhrzeit ?? ""}`);
+      return "Standard geändert.";
+    },
     async widerspruechePruefen() { log.push("widerspruch"); return "Protein: Ziel 180 g, im Schnitt 120 g."; },
     async mittagscheckSpeichern(i) { log.push(`mittag:${i.energie}/${i.konzentration}/${i.saettigung}`); return "Notiert."; },
     async briefingErstellen(i) { log.push(`briefing:${i.art}`); return "Guten Morgen."; },
@@ -636,4 +647,30 @@ test("der Regelweg legt eine Erinnerung an, statt eine Aufgabe oder ein Training
   const log2: string[] = [];
   await runOffline("Erinnere mich eine Stunde vor dem Schlafengehen an die Supplemente", stubActions(log2));
   assert.deepEqual(log2, ["erinnerung:Die Supplemente:schlafen"]);
+});
+
+test("der Regelweg ändert die festen Trainingstage", async () => {
+  const log: string[] = [];
+  const reply = await runOffline("Volleyball ist ab jetzt donnerstags statt dienstags um 19 Uhr", stubActions(log));
+  assert.deepEqual(log, ["plan:ersetzen:team_sport:4@19:00"]);
+  assert.deepEqual(reply.ausgeführt, ["Trainingsplan geändert"]);
+  const log2: string[] = [];
+  await runOffline("Mein Arbeitsplan hat sich geändert, ich trainiere jetzt montags, mittwochs und freitags um 7 Uhr", stubActions(log2));
+  assert.deepEqual(log2, ["plan:ersetzen::1@07:00,3@07:00,5@07:00"]);
+});
+
+test("ein einzelnes Training bleibt ein Eintrag und kein neuer Plan", async () => {
+  const log: string[] = [];
+  await runOffline("Hab heute 60 Minuten Krafttraining gemacht", stubActions(log));
+  assert.equal(log.some((l) => l.startsWith("plan:")), false);
+});
+
+test("der Regelweg ändert einen Mindeststandard aus einem Satz", async () => {
+  const log: string[] = [];
+  const reply = await runOffline(
+    "Passe mal bitte meine Mindeststandards an auf nur noch dreimal die Woche vor 23 Uhr weg, weil es anders nicht geht",
+    stubActions(log),
+  );
+  assert.deepEqual(log, ["standard-satz:handy_aus:woechentlich:3:23:00"]);
+  assert.deepEqual(reply.ausgeführt, ["Mindeststandard geändert"]);
 });

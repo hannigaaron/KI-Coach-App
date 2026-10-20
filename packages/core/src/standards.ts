@@ -1,4 +1,5 @@
 import type { UserProfile } from "./types.js";
+import { foldUmlauts } from "./memory.js";
 
 /**
  * Mindeststandards.
@@ -41,6 +42,8 @@ export interface Standard {
   aktiv: boolean;
   /** Wann der Standard vereinbart wurde. */
   seit: string;
+  /** Bei Schlafenszeit und Handy: bis wann, HH:MM. Steht auch im Text. */
+  uhrzeit?: string;
 }
 
 export interface StandardTag {
@@ -291,4 +294,115 @@ function zahlenWoechentlich(standard: Standard, dieseWoche: number): string {
 
 function zaehleTrainings(profile: UserProfile): number {
   return (profile.sessions ?? []).length;
+}
+
+const ZAHLWORT: Record<string, number> = {
+  ein: 1, einmal: 1, zwei: 2, zweimal: 2, drei: 3, dreimal: 3, vier: 4, viermal: 4,
+  fuenf: 5, fuenfmal: 5, sechs: 6, sechsmal: 6, sieben: 7, siebenmal: 7,
+};
+
+const ART_WORTE: [RegExp, StandardKind][] = [
+  [/\b(handy|smartphone|bildschirm)\w*/, "handy_aus"],
+  [/\b(schlafen|bett|schlafenszeit|ins bett)\b/, "schlafenszeit"],
+  [/\bprotein|eiweiss\b/, "protein"],
+  [/\b(wasser|trinken|trinke)\b/, "wasser"],
+  [/\b(training|trainieren|einheiten?)\b/, "training"],
+  [/\bschritte\b/, "schritte"],
+  [/\b(eintragen|tracken|erfassen)\b/, "erfassen"],
+];
+
+/**
+ * Liest eine Änderung eines Mindeststandards aus einem Satz, ohne Modell.
+ *
+ * "Passe meinen Mindeststandard an, Handy nur noch dreimal die Woche vor 23
+ * Uhr weg." Erkannt wird nur, was eindeutig ist: das Wort Standard, eine Art,
+ * und eine Häufigkeit oder ein Wert. Was fehlt, kommt aus dem bestehenden
+ * Standard derselben Art. Gibt es keinen und fehlt der Wert, greift der Zweig
+ * nicht, denn ein geratener Mindestwert ist schlimmer als eine Rückfrage.
+ */
+export function standardAenderungAus(
+  satz: string,
+  bestehend: Standard[] = [],
+): { id?: string; kind: StandardKind; kadenz: Kadenz; ziel: number; uhrzeit?: string; text: string } | null {
+  const t = foldUmlauts(String(satz ?? "").toLowerCase());
+  if (!/\b(mindeststandard\w*|standard\w*)\b/.test(t)) return null;
+  const treffer = ART_WORTE.filter(([m]) => m.test(t)).map(([, k]) => k);
+  // "Dreimal die Woche vor 23 Uhr weg" sagt nicht, was weg ist. Gemeint ist
+  // in dieser App das Handy, denn nur dafür gibt es einen Standard mit "weg".
+  if (treffer.length === 0 && /\bweg\b/.test(t) && /\b(vor|bis)\s+\d{1,2}/.test(t)) treffer.push("handy_aus");
+  if (treffer.length !== 1) return null;
+  const kind = treffer[0] as StandardKind;
+  const alt = bestehend.find((x) => x.kind === kind && x.aktiv);
+
+  let kadenz: Kadenz | undefined;
+  let haeufigkeit: number | undefined;
+  const woche = /\b(\d|ein|einmal|zwei|zweimal|drei|dreimal|vier|viermal|fuenf|fuenfmal|sechs|sechsmal|sieben|siebenmal)\s*(x|mal)?\s*(die|pro|in der|je)\s+woche\b/.exec(t)
+    ?? /\ban\s+(\d|zwei|drei|vier|fuenf|sechs|sieben)\s+tagen\b/.exec(t);
+  if (woche) {
+    kadenz = "woechentlich";
+    const w = woche[1] as string;
+    haeufigkeit = /^\d$/.test(w) ? Number(w) : ZAHLWORT[w];
+  } else if (/\b(jeden tag|taeglich|immer)\b/.test(t)) {
+    kadenz = "taeglich";
+  }
+
+  const zeit = /\b(?:vor|bis|um)\s+(\d{1,2})(?:[:.](\d{2}))?\s*(?:uhr)?\b/.exec(t);
+  let uhrzeit = alt?.uhrzeit;
+  if (zeit && (kind === "handy_aus" || kind === "schlafenszeit")) {
+    const h = Number(zeit[1]);
+    const m = Number(zeit[2] ?? 0);
+    if (h <= 23 && m <= 59) uhrzeit = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  }
+
+  // Ein Mengenwert für die messbaren Arten.
+  let menge: number | undefined;
+  const g = kind === "protein" ? /\b(\d{2,3})\s*(g|gramm)\b/.exec(t)
+    : kind === "wasser" ? /\b(\d(?:[.,]\d)?)\s*(l|liter)\b/.exec(t)
+    : kind === "schritte" ? /\b(\d{1,2}(?:[.]\d{3})?|\d{3,5})\s*schritte\b/.exec(t)
+    : null;
+  if (g) {
+    const roh = String(g[1]).replace(/\.(?=\d{3}\b)/, "").replace(",", ".");
+    menge = kind === "wasser" ? Math.round(Number(roh) * 1000) : Number(roh);
+  }
+
+  kadenz = kadenz ?? alt?.kadenz ?? (haeufigkeit ? "woechentlich" : undefined);
+  if (!kadenz) return null;
+  let ziel: number | undefined;
+  if (kadenz === "woechentlich" && kind !== "protein" && kind !== "wasser" && kind !== "schritte") ziel = haeufigkeit ?? alt?.ziel;
+  else ziel = menge ?? (kadenz === alt?.kadenz ? alt?.ziel : undefined) ?? haeufigkeit;
+  if (!ziel || ziel <= 0) return null;
+  if ((kind === "handy_aus" || kind === "schlafenszeit") && !uhrzeit) return null;
+
+  const text = standardText(kind, kadenz, ziel, uhrzeit);
+  return { ...(alt ? { id: alt.id } : {}), kind, kadenz, ziel, ...(uhrzeit ? { uhrzeit } : {}), text };
+}
+
+function malText(n: number): string {
+  return n === 1 ? "einmal" : `${n} Mal`;
+}
+
+/** Der Satz eines Standards aus seinen Werten, aus Sicht des Nutzers. */
+export function standardText(kind: StandardKind, kadenz: Kadenz, ziel: number, zeit?: string): string {
+  // "vor 23 Uhr" liest sich, "vor 23:00 Uhr" ist eine Tabelle.
+  const uhrzeit = zeit?.endsWith(":00") ? String(Number(zeit.slice(0, 2))) : zeit;
+  const woche = kadenz === "woechentlich";
+  const tage = `An mindestens ${ziel === 1 ? "einem Tag" : `${ziel} Tagen`} die Woche`;
+  switch (kind) {
+    case "handy_aus":
+      return woche ? `${tage} lege ich das Handy vor ${uhrzeit} Uhr weg` : `Ich lege das Handy jeden Tag vor ${uhrzeit} Uhr weg`;
+    case "schlafenszeit":
+      return woche ? `${tage} liege ich vor ${uhrzeit} Uhr im Bett` : `Ich liege jeden Tag vor ${uhrzeit} Uhr im Bett`;
+    case "training":
+      return `Ich trainiere mindestens ${malText(ziel)} die Woche, auch wenn die Woche schlecht läuft`;
+    case "erfassen":
+      return woche ? `${tage} trage ich ein, was ich gegessen habe` : "Ich trage jeden Tag ein, was ich gegessen habe";
+    case "protein":
+      return `Ich komme jeden Tag auf mindestens ${ziel} g Protein`;
+    case "wasser":
+      return `Ich trinke jeden Tag mindestens ${ziel} ml`;
+    case "schritte":
+      return `Ich gehe jeden Tag mindestens ${ziel} Schritte`;
+    default:
+      return woche ? `${tage} halte ich meinen Standard` : "Ich halte meinen Standard jeden Tag";
+  }
 }

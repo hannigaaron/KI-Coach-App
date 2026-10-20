@@ -1,4 +1,5 @@
-import { erinnerungAus } from "@daevo/core";
+import { erinnerungAus, planAenderungAus, ARTEN } from "@daevo/core";
+import type { PlanAenderung, TrainingType } from "@daevo/core";
 import { fehlerErklaerung } from "./fehler.js";
 import { AGENT_TOOLS } from "./tools.js";
 import { modellFuer } from "./modelle.js";
@@ -53,7 +54,12 @@ export interface AgentActions {
   einkaufslisteAbrufen(): Promise<string>;
   einkaufslisteAbhaken(input: { posten: string; stand: "gekauft" | "zuhause" | "offen" }): Promise<string>;
   standardsAbrufen(): Promise<string>;
-  standardSetzen(input: { text: string; kadenz: string; art: string; ziel: number; id?: string }): Promise<string>;
+  standardSetzen(input: {
+    text: string; kadenz: string; art: string; ziel: number; id?: string; uhrzeit?: string; entfernen?: boolean;
+  }): Promise<string>;
+  trainingsplanAendern(input: PlanAenderung): Promise<string>;
+  /** Liest eine Änderung eines Standards aus dem Satz und speichert sie. Null, wenn keine erkannt wurde. */
+  standardAusSatz(satz: string): Promise<string | null>;
   standardBestaetigen(input: { id: string; gehalten: boolean }): Promise<string>;
   verlaufAbrufen(input: { tage?: number }): Promise<string>;
   /**
@@ -747,8 +753,23 @@ async function execute(
           art: String(input.art ?? "frei"),
           ziel: Number(input.ziel) || 1,
           id: typeof input.id === "string" ? input.id : undefined,
+          uhrzeit: typeof input.uhrzeit === "string" ? input.uhrzeit : undefined,
+          entfernen: input.entfernen === true,
         });
-        return { text, notiz: "Mindeststandard gesetzt" };
+        return { text, notiz: input.entfernen === true ? "Mindeststandard entfernt" : "Mindeststandard gesetzt" };
+      }
+      case "trainingsplan_aendern": {
+        const modus = ["ersetzen", "hinzufuegen", "entfernen"].includes(String(input.modus))
+          ? input.modus as PlanAenderung["modus"] : "ersetzen";
+        const nurArt = ARTEN.includes(input.nurArt as TrainingType) ? input.nurArt as TrainingType : undefined;
+        const einheiten = (Array.isArray(input.einheiten) ? input.einheiten : []).map((e: Record<string, unknown>) => ({
+          wochentag: Number(e?.wochentag),
+          uhrzeit: typeof e?.uhrzeit === "string" ? e.uhrzeit : undefined,
+          minuten: Number.isFinite(Number(e?.minuten)) && e?.minuten !== undefined && e?.minuten !== null ? Number(e.minuten) : undefined,
+          art: ARTEN.includes(e?.art as TrainingType) ? e.art as TrainingType : undefined,
+        }));
+        const text = await actions.trainingsplanAendern({ modus, einheiten, ...(nurArt ? { nurArt } : {}) });
+        return { text, notiz: "Trainingsplan geändert" };
       }
       case "standard_bestaetigen": {
         const text = await actions.standardBestaetigen({
@@ -1157,6 +1178,22 @@ export async function runOffline(
   if (erinnerung) {
     const antwort = await actions.erinnerungAnlegen(erinnerung);
     return { text: antwort, ausgeführt: ["Erinnerung angelegt"], source: "offline" };
+  }
+
+  // Ein geänderter Mindeststandard. Braucht das Wort Standard, damit "dreimal
+  // die Woche Volleyball" keinen Standard umschreibt.
+  const standardAntwort = await actions.standardAusSatz(nachricht);
+  if (standardAntwort) {
+    return { text: standardAntwort, ausgeführt: ["Mindeststandard geändert"], source: "offline" };
+  }
+
+  // Eine dauerhafte Änderung der Trainingstage vor dem Eintragen eines
+  // Trainings. "Volleyball ist jetzt donnerstags statt dienstags" ist kein
+  // Training von heute, und ohne diesen Zweig blieb der alte Plan stehen.
+  const planAenderung = planAenderungAus(nachricht);
+  if (planAenderung) {
+    const antwort = await actions.trainingsplanAendern(planAenderung);
+    return { text: antwort, ausgeführt: ["Trainingsplan geändert"], source: "offline" };
   }
 
   // Training vor der Mahlzeit. "Nach dem Training hatte ich einen Shake"

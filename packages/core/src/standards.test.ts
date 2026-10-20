@@ -154,3 +154,25 @@ test("Ohne Daten gibt es keine Quote und keinen erfundenen Satz", () => {
   assert.equal(status.moeglich, 0);
   assert.match(status.zahlen, /keine Daten/);
 });
+
+test("ein Standard lässt sich per Satz ändern, ohne einen zweiten anzulegen", async () => {
+  const { standardAenderungAus } = await import("./standards.js");
+  const bestehend = [{
+    id: "std_handy", kind: "handy_aus" as const, text: "Ich lege das Handy jeden Tag vor 22 Uhr weg",
+    kadenz: "taeglich" as const, ziel: 1, aktiv: true, seit: "2026-09-01", uhrzeit: "22:00",
+  }];
+  const a = standardAenderungAus(
+    "Passe mal bitte meine Mindeststandards an auf nur noch dreimal die Woche vor 23 Uhr weg, weil es anders nicht geht",
+    bestehend,
+  );
+  assert.ok(a);
+  assert.equal(a.id, "std_handy");
+  assert.equal(a.kadenz, "woechentlich");
+  assert.equal(a.ziel, 3);
+  assert.equal(a.uhrzeit, "23:00");
+  assert.match(a.text, /3 Tagen die Woche lege ich das Handy vor 23 Uhr weg/);
+  // Ohne das Wort Standard keine Änderung.
+  assert.equal(standardAenderungAus("dreimal die Woche Volleyball", bestehend), null);
+  // Ein Mindestwert wird nicht geraten.
+  assert.equal(standardAenderungAus("Mein Proteinstandard soll anders werden", []), null);
+});
