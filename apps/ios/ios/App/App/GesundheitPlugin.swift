@@ -192,15 +192,19 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     /// Alle Zustände, die Schlaf sind. Ab iOS 16 schreibt die Uhr Phasen,
-    /// davor nur "schlafend".
+    /// davor nur "schlafend". `asleepUnspecified` gibt es erst ab iOS 16, die
+    /// App läuft ab iOS 15. Davor heisst derselbe Wert `asleep`, mit gleichem
+    /// Rohwert, deshalb zwei Zweige statt einer gemeinsamen Grundmenge.
     static func schlafWerte() -> Set<Int> {
-        var werte: Set<Int> = [HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue]
         if #available(iOS 16.0, *) {
-            werte.insert(HKCategoryValueSleepAnalysis.asleepCore.rawValue)
-            werte.insert(HKCategoryValueSleepAnalysis.asleepDeep.rawValue)
-            werte.insert(HKCategoryValueSleepAnalysis.asleepREM.rawValue)
+            return [
+                HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue,
+                HKCategoryValueSleepAnalysis.asleepCore.rawValue,
+                HKCategoryValueSleepAnalysis.asleepDeep.rawValue,
+                HKCategoryValueSleepAnalysis.asleepREM.rawValue,
+            ]
         }
-        return werte
+        return [HKCategoryValueSleepAnalysis.asleep.rawValue]
     }
 
     static func tagText(_ datum: Date) -> String {

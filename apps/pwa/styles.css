@@ -425,7 +425,7 @@ body { padding-top: env(safe-area-inset-top); }
 }
 .pill.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 
-/* Körperfett schätzen. Vier Figuren, deshalb zwei mal zwei statt drei nebeneinander. */
+/* Körperfett schätzen. Vier oder sechs Figuren, deshalb zwei je Zeile statt drei. */
 .figuren { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 .figur {
   display: flex; flex-direction: column; align-items: center; gap: 4px;
@@ -451,6 +451,8 @@ body { padding-top: env(safe-area-inset-top); }
 
 @media (min-width: 560px) {
   .figuren { grid-template-columns: repeat(4, 1fr); }
+  /* Sechs Figuren in Vierern ergäben eine halbe Zeile, drei je Zeile gehen auf. */
+  .figuren:has(> :nth-child(5)) { grid-template-columns: repeat(3, 1fr); }
 }
 /*
   Der Bogen, eine Frage pro Seite.
@@ -581,7 +583,6 @@ body { padding-top: env(safe-area-inset-top); }
 .budget-punkt { width: 9px; height: 9px; border-radius: 50%; background: var(--ton); flex: none; }
 .budget-name { flex: 1; font-size: var(--t-lg); }
 .budget-wert { min-width: 64px; text-align: center; font-size: var(--t-lg); font-weight: 600; }
-.budget-rest { width: 40px; text-align: center; font-size: var(--t-xs); color: var(--muted); }
 .budget-spur { height: 8px; border-radius: var(--r-pill); background: var(--spur); margin-top: 10px; overflow: hidden; }
 .budget-spur i { display: block; height: 100%; border-radius: var(--r-pill); background: var(--ton); transition: width var(--normal) var(--kurve); }
 

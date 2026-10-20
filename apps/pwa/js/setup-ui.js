@@ -1,5 +1,5 @@
 import { KORREKTUR_GRENZE, WOCHENTAGE, energyBreakdown, macroTargets, waterTargetMl } from "@daevo/core";
-import { BODY_FAT_LEVELS, SCHRITTE, auswerten, figurBild } from "./anamnese.js";
+import { BODY_FAT_LEVELS, SCHRITTE, auswerten, figurBild, stufeText } from "./anamnese.js";
 import { symbol } from "./symbole.js";
 
 /**
@@ -195,10 +195,16 @@ export class SetupFlow {
    *
    * Gespeichert wird die Abweichung vom Vorschlag, nicht der Wert. Ändert der
    * Nutzer danach noch einmal sein Gewicht, wandert der Vorschlag mit und
-   * seine Korrektur bleibt erhalten. Kohlenhydrate haben keine eigenen
-   * Knöpfe: sie füllen den Rest, damit die Rechnung immer aufgeht.
+   * seine Korrektur bleibt erhalten. Kohlenhydrate füllen den Rest, damit
+   * die Rechnung immer aufgeht. Ihre Knöpfe verschieben deshalb die Kalorien
+   * um 4 kcal je Gramm: wer mehr Kohlenhydrate will, will nicht weniger
+   * Protein oder Fett, sondern mehr essen.
    */
   budgetAendern(feld, schritt) {
+    if (feld === "carbsG") {
+      feld = "kcal";
+      schritt *= 4;
+    }
     const alt = { ...(this.antworten.zielKorrektur || {}) };
     const neu = { ...alt, [feld]: (alt[feld] || 0) + schritt };
     if (Math.abs(neu[feld]) > KORREKTUR_GRENZE[feld]) return this.hinweis("Weiter weg vom Vorschlag geht es hier nicht.");
@@ -370,7 +376,7 @@ export class SetupFlow {
       const gewaehlt = this.antworten.koerperfett?.step;
       const figuren = BODY_FAT_LEVELS[sex].map((stufe, i) =>
         `<button type="button" class="figur${gewaehlt === i ? " on" : ""}" data-figur="${i}">
-          ${figurBild(sex, i)}<b>${stufe.percent} %</b><span>${escapeHtml(stufe.label)}</span></button>`).join("");
+          ${figurBild(sex, i)}<b>${stufeText(stufe)}</b><span>${escapeHtml(stufe.label)}</span></button>`).join("");
       const gewaehltText = gewaehlt === undefined ? "" :
         `<div class="figur-hinweis">${escapeHtml(BODY_FAT_LEVELS[sex][gewaehlt].hint)}</div>`;
       return `<div class="field"><div class="figuren">${figuren}</div>${gewaehltText}</div>`;
@@ -396,7 +402,7 @@ export class SetupFlow {
           <span class="budget-punkt"></span><span class="budget-name">${name}</span>
           ${feld ? `<button type="button" class="budget-pm" data-budget="${feld}" data-schritt="-${schritt}" aria-label="${name} weniger">&minus;</button>` : ""}
           <span class="budget-wert">${gramm} g</span>
-          ${feld ? `<button type="button" class="budget-pm" data-budget="${feld}" data-schritt="${schritt}" aria-label="${name} mehr">+</button>` : '<span class="budget-rest">Rest</span>'}
+          ${feld ? `<button type="button" class="budget-pm" data-budget="${feld}" data-schritt="${schritt}" aria-label="${name} mehr">+</button>` : ""}
         </div>
         <div class="budget-spur"><i style="width:${anteil(kcal)}%"></i></div>
       </div>`;
@@ -408,7 +414,7 @@ export class SetupFlow {
         <button type="button" class="budget-pm gross" data-budget="kcal" data-schritt="50" aria-label="50 kcal mehr">+</button>
       </div>
       ${zeile("Protein", "proteinG", z.proteinG, z.proteinG * 4, "--makro-protein", 5)}
-      ${zeile("Kohlenhydrate", null, z.carbsG, z.carbsG * 4, "--makro-kohlenhydrate", 0)}
+      ${zeile("Kohlenhydrate", "carbsG", z.carbsG, z.carbsG * 4, "--makro-kohlenhydrate", 10)}
       ${zeile("Fett", "fatG", z.fatG, z.fatG * 9, "--makro-fett", 5)}
     </div>
     ${geaendert ? '<button type="button" class="setup-link" data-budget-reset>Zurück zum Vorschlag</button>' : ""}`;

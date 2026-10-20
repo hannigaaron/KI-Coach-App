@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { BEREICHE, SCHRITTE, auswerten } from "./anamnese.js";
 import { existsSync } from "node:fs";
-import { BODY_FAT_LEVELS, figurBild, figurDatei, skala } from "./silhouette.js";
+import { BODY_FAT_LEVELS, figurBild, figurDatei, skala, stufeText } from "./silhouette.js";
 
 const basis = {
   name: " Aaron ",
@@ -132,10 +132,10 @@ test("eine Stufe ausserhalb der Skala bricht nicht", () => {
 });
 
 test("die Skala nennt den kleinsten und groessten Wert mit Bild", () => {
-  assert.deepEqual(skala("male"), { min: 20, max: 35 });
+  assert.deepEqual(skala("male"), { min: 8, max: 35 });
   assert.deepEqual(skala("female"), { min: 30, max: 45 });
   // Unbekanntes Geschlecht faellt auf maennlich zurueck statt zu brechen.
-  assert.deepEqual(skala("keine Angabe"), { min: 20, max: 35 });
+  assert.deepEqual(skala("keine Angabe"), { min: 8, max: 35 });
 });
 
 test("es gibt einen Weg fuer Werte unterhalb der Bilder", () => {
@@ -164,10 +164,10 @@ test("ohne beides bleibt der Koerperfettanteil leer", () => {
   assert.equal(auswerten(antworten).profile.bodyFatPercent, null);
 });
 
-test("es gibt vier Stufen je Geschlecht, aufsteigend im Prozentwert", () => {
+test("sechs Stufen beim Mann, vier bei der Frau, aufsteigend im Prozentwert", () => {
   for (const sex of ["male", "female"]) {
     const stufen = BODY_FAT_LEVELS[sex];
-    assert.equal(stufen.length, 4);
+    assert.equal(stufen.length, sex === "male" ? 6 : 4);
     for (let i = 1; i < stufen.length; i++) {
       assert.ok(stufen[i].percent > stufen[i - 1].percent);
       assert.ok(stufen[i].hint.length > 20, `${sex} ${i}: Hinweis zu knapp`);
@@ -233,5 +233,17 @@ test("eine Seite mit Leer Knopf hat kein Pflichtfeld", () => {
     for (const f of s.felder) {
       assert.ok(["chips", "chipwahl"].includes(f.art) || f.optional, `${s.id}: ${f.id} ist Pflicht`);
     }
+  }
+});
+
+test("die schlanken Stufen zeigen einen Bereich, die übrigen eine Zahl", () => {
+  const [erste, zweite] = BODY_FAT_LEVELS.male;
+  assert.equal(stufeText(erste), "5 bis 10 %");
+  assert.equal(stufeText(zweite), "10 bis 20 %");
+  assert.equal(stufeText(BODY_FAT_LEVELS.female[0]), "30 %");
+  // Die Stufen müssen aufsteigen, sonst springt die Auswahl beim Antippen.
+  for (const sex of ["male", "female"]) {
+    const werte = BODY_FAT_LEVELS[sex].map((s) => s.percent);
+    assert.deepEqual(werte, [...werte].sort((a, b) => a - b));
   }
 });
