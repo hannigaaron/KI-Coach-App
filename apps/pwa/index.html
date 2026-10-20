@@ -899,6 +899,12 @@ try {
       <button id="btnPlanUebernehmen" class="ghost" hidden>In das Profil übernehmen</button>
 
       <h2 class="abschnitt">Apple Health</h2>
+      <!-- In der iPhone App liest daevo Health direkt. Der Export ist dort ein
+           Umweg, den niemand braucht, und der Satz über native Apps wäre falsch. -->
+      <p class="sub" data-nur-nativ hidden>daevo liest Schritte, Kalorien, Ruhepuls, HRV, Gewicht, Schlaf und
+        Trainings direkt aus Apple Health, jedes Mal wenn du die App öffnest. Was daevo lesen darf, änderst du
+        in der Health App unter Teilen, Apps, daevo.</p>
+      <div data-nur-web>
       <p class="sub">HealthKit gibt es nur für native Apps. Der Weg für eine Web App ist der Export, den die
         Health App selbst anbietet: Profil oben rechts, ganz unten "Alle Gesundheitsdaten exportieren".
         Dann das ZIP hier auswählen. Es geht nichts an einen Server, alles läuft auf deinem Gerät.</p>
@@ -909,6 +915,7 @@ try {
       <p class="fineprint">Übernommen werden Schritte, Schlafdauer, Ruhepuls, Herzfrequenzvariabilität und
         Gewicht, höchstens für die letzten zwei Jahre. Ein Gewicht, das du selbst eingetragen hast, bleibt
         stehen. Das ist eine Kopie und kein Abo: was nach dem Export dazukommt, kennt daevo nicht.</p>
+      </div>
 
       <!-- Nur für den Betreiber: der Kurzbefehl schickt an den eigenen
            Worker und braucht dessen Anmeldewort. -->
@@ -1183,6 +1190,12 @@ try {
 
       <h2 class="abschnitt">Benachrichtigungen</h2>
       <p class="sub">Sechs Impulse am Tag, auch wenn die App zu ist. Eiweiss, Trinken, Energie, Shake, Stress, Pause.</p>
+      <!-- In der iPhone App plant daevo die Mitteilungen selbst bei iOS ein.
+           Web Push, Worker und Probe gibt es dort nicht. -->
+      <p class="sub" data-nur-nativ hidden>daevo plant sie selbst auf deinem iPhone ein, dazu die Erinnerung
+        ans Runterfahren vor deiner Schlafenszeit. Ausschalten kannst du sie in den Einstellungen des iPhones
+        unter Mitteilungen, daevo.</p>
+      <div data-nur-web>
       <!-- Adresse und Anmeldewort stehen in der Fassung für Nutzer fest in
            der App. Der Knopf darunter bleibt, denn ob jemand Mitteilungen
            will, entscheidet er selbst. -->
@@ -1202,6 +1215,7 @@ try {
       <button id="btnPushProbe" class="ghost breit" hidden>Probe schicken</button>
       <button id="btnPushAus" class="ghost breit" hidden>Ausschalten</button>
       <p id="e-pushhilfe" class="feld-hilfe"></p>
+      </div>
 
       <!-- Das Angebot gehört dem Betreiber. Ein Nutzer soll es sehen,
            nicht einstellen. -->
