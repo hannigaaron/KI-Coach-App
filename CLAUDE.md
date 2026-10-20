@@ -289,6 +289,44 @@ unter dem Richtwert liegt, statt dass er sie verschweigt. Die Dauer ist eine
 Schätzung aus Sätzen, Pausen und Aufbau. Ein Plan, der Verletzungen oder
 Vorerkrankungen kennt, ist das nicht, und das steht auch im Ergebnis.
 
+### Der erste Plan kommt aus dem Fragebogen
+
+Fünf Seiten unter "Dein Training": ob es schon einen Plan gibt, wie oft
+Krafttraining, wie lange je Einheit, wo, und wo es wehtut. Wer bei seinem
+eigenen Plan bleibt, überspringt die drei mittleren über `wenn` an der Seite,
+`seiteSichtbar` in `setup-ui.js`. Die Beschwerden fragt der Bogen immer, denn
+auch ein eigener Plan braucht diese Information, und sie geht mit Wichtigkeit
+5 ins Gedächtnis.
+
+`planWunschAus` in `anamnese.js` macht daraus den Wunsch für den
+Planrechner, `anamneseFertig` speichert den Plan sofort in `settings.plan`.
+Wer den Bogen beendet, hat einen Plan und muss ihn nicht erst suchen. Die
+Abschlussseite zeigt die Einheiten mit Übungen. Die Krafttage stehen im
+Kalender mit der gewählten Dauer und so weit auseinander wie möglich, die
+übrigen Einheiten aus "wie oft trainierst du" als Ausdauer.
+
+Beschwerden und Ort filtern die Datenbank, bevor gewählt wird, `uebungErlaubt`
+im Kern. Welche Übung welches Gelenk stark belastet, steht in `BELASTET` und
+ist eine Regel der App aus der Praxis, keine Diagnose. Im Zweifel fällt eine
+Übung eher weg. Der Plan sagt das in jedem Hinweis dazu, ebenso, dass
+bleibende Schmerzen zu Arzt oder Physiotherapie gehören. Fällt ein Platz ganz
+weg, nennt der Fokus der Einheit ihn nicht mehr: "Knie" über einer Einheit
+ohne Knieübung wäre falsch. Übungen, die jemand im Freitext nennt, werden
+über den Namen gesucht, ab fünf Zeichen, damit "Bankdrücken" auch die
+Varianten trifft.
+
+### Den Plan von Hand ändern
+
+Je Einheit ein Knopf "Bearbeiten". Dann stehen unter jeder Übung Sätze minus
+und plus, Tauschen und Entfernen, unten "Übung hinzufügen". Bearbeiten ist ein
+Zustand der Einheit und kein eigenes Blatt: wer tauscht, will die anderen
+Übungen daneben sehen. Tauschen bietet nur dasselbe Bewegungsmuster an, nach
+Ort und Beschwerden gefiltert, und behält die Dosis: die Rolle im Plan bleibt
+dieselbe. Jede Änderung läuft durch `planNachrechnen`, damit Dauer und Sätze
+pro Woche zur Liste passen, und arbeitet auf einer Kopie: wer nicht
+speichert, findet den gespeicherten Plan unverändert. Ein geänderter Plan
+trägt `bearbeitet` und sagt das im Kopf.
+
 Der gespeicherte Plan liegt in `settings.plan` und ist damit in der Sicherung.
 Er trägt die Positionen und nicht nur die Eingaben: ändert sich die Datenbank,
 bleibt der Plan, den jemand gespeichert hat, wie er war. Übungen, die es später
@@ -298,7 +336,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1062 Tests
+npm test           # 1072 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -413,7 +451,7 @@ Kontext kosten mehr Token als die eigentliche Frage.
 
 ## Der Anamnesebogen
 
-Eine Frage pro Seite, 23 Seiten in acht Abschnitten. Die letzten Abschnitte
+Eine Frage pro Seite, 28 Seiten in acht Abschnitten. Die letzten Abschnitte
 sind der Unterschied zwischen einem Rechner und einem Coach: Essverhalten,
 Vorgeschichte, Umfeld, Antrieb.
 

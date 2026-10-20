@@ -3312,3 +3312,36 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
    in der zweiten Zeile und sah aus wie eine eigene Wahl. */
 #erTage { display: flex; flex-wrap: nowrap; gap: 6px; }
 #erTage .pill { flex: 1 1 0; min-width: 0; padding-left: 0; padding-right: 0; text-align: center; }
+
+/* ---------- Trainingsplan bearbeiten ----------
+   Bearbeiten ist ein Zustand der Einheit und kein eigenes Blatt: wer eine
+   Übung tauscht, will die anderen daneben sehen. Die Werkzeuge stehen unter
+   der Zeile und nicht in ihr, sonst bleibt dem Namen auf dem Handy kein Platz. */
+.pl-einheit header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-3); }
+.pl-mini {
+  flex: none; height: 32px; padding: 0 var(--s-3); border: 0; border-radius: var(--r-pill);
+  background: var(--flaeche); box-shadow: var(--haarlinie); color: var(--text);
+  font: inherit; font-size: var(--t-xs); font-weight: 600; cursor: pointer;
+}
+.pl-mini:active { transform: scale(0.98); }
+.pl-bearb { margin-top: 2px; }
+.pl-bearbeiten .pl-zeile { border-bottom: 0; }
+.pl-werkzeug {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2);
+  padding: 0 0 var(--s-3); border-bottom: 1px solid var(--linie);
+}
+.pl-saetze-wahl { display: inline-flex; align-items: center; gap: var(--s-2); margin-right: auto; }
+.pl-saetze-wahl b { min-width: 56px; text-align: center; font-size: var(--t-sm); font-weight: 600; }
+.pl-saetze-wahl button {
+  display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%;
+  background: var(--flaeche); box-shadow: var(--haarlinie); color: var(--text); font: inherit; font-size: 18px; line-height: 1; cursor: pointer;
+}
+.pl-tausch { display: flex; flex-wrap: wrap; gap: var(--s-2); padding: 0 0 var(--s-3); border-bottom: 1px solid var(--linie); }
+.pl-tausch p { margin: 0; font-size: var(--t-xs); color: var(--muted); }
+.pl-dazu { display: grid; gap: var(--s-2); margin-top: var(--s-3); font-size: var(--t-xs); color: var(--muted); }
+.pl-dazu select { width: 100%; }
+
+/* Der erste Plan auf der Abschlussseite des Fragebogens. */
+.setup-einheit { display: grid; gap: 2px; padding: var(--s-2) 0; border-bottom: 1px solid var(--linie); }
+.setup-einheit b { font-size: var(--t-sm); }
+.setup-einheit span { font-size: var(--t-xs); color: var(--muted); line-height: 1.45; }

@@ -36,8 +36,11 @@
  * - Die schwerste Übung kommt zuerst. Wer müde in die Beinpresse geht, macht
  *   dort die Fehler.
  *
- * Nicht Teil davon: Verletzungen, Vorerkrankungen, Geräte, die ein Studio nicht
- * hat. Das ist ein Gerüst und kein individuelles Coaching.
+ * Beschwerden und Trainingsort filtern die Datenbank, bevor gewählt wird. Wer
+ * Knieschmerzen angibt, bekommt keine Kniebeugen und Ausfallschritte, wer zu
+ * Hause ohne Geräte trainiert, keine Maschinen. Welche Übung welches Gelenk
+ * stark belastet, ist eine Regel dieser App aus der Trainingspraxis und keine
+ * Diagnose, und der Plan sagt das. Eine echte Abklärung ersetzt er nicht.
  */
 
 export type PlanNiveau = "beginner" | "intermediate" | "advanced";
@@ -68,6 +71,67 @@ export interface PlanWunsch {
   deload?: boolean;
   /** Höher zählen heißt andere Übungen bei gleichem Aufbau. */
   variante?: number;
+  /** Wo trainiert wird. Ohne Angabe gilt das Studio. */
+  ort?: PlanOrt;
+  /** Stellen, an denen es wehtut. Übungen, die sie stark belasten, fallen weg. */
+  beschwerden?: Beschwerde[];
+  /** Übungen, die der Nutzer selbst nicht will oder bei denen es wehtut. */
+  meiden?: string[];
+}
+
+export type PlanOrt = "studio" | "zuhause" | "ohne";
+export type Beschwerde =
+  | "schulter" | "ellbogen" | "handgelenk" | "nacken" | "unterer_ruecken" | "huefte" | "knie" | "sprunggelenk";
+
+export const BESCHWERDE_NAME: Record<Beschwerde, string> = {
+  schulter: "Schulter", ellbogen: "Ellbogen", handgelenk: "Handgelenk", nacken: "Nacken",
+  unterer_ruecken: "unterer Rücken", huefte: "Hüfte", knie: "Knie", sprunggelenk: "Sprunggelenk",
+};
+
+/**
+ * Welche Übungen eine Stelle stark belasten. Eine Regel aus der Praxis und
+ * keine medizinische Aussage: im Zweifel fällt eine Übung eher weg, als dass
+ * sie bleibt. Geführte Varianten bleiben, wo sie das Gelenk entlasten, etwa
+ * das Rudern mit Brustauflage bei Beschwerden im unteren Rücken.
+ */
+const BELASTET: Record<Beschwerde, (e: PlanUebung) => boolean> = {
+  knie: (e) => e.pattern === "knee_dominant" || e.pattern === "unilateral_legs" || e.pattern === "plyometric",
+  unterer_ruecken: (e) =>
+    (e.pattern === "hip_dominant" && ["barbell", "trap_bar", "kettlebell"].includes(e.equipment))
+    || ["kniebeuge-langhantel", "frontkniebeuge", "rudern-langhantel", "t-bar-rudern", "good-morning"].includes(e.id),
+  schulter: (e) =>
+    e.pattern === "vertical_push"
+    || ["dips", "bankdruecken", "schraegbankdruecken", "fliegende-kurzhantel", "klimmzug-breit", "seitheben"].includes(e.id),
+  ellbogen: (e) =>
+    e.pattern === "elbow_flexion" || e.pattern === "elbow_extension" || ["dips", "enges-bankdruecken"].includes(e.id),
+  handgelenk: (e) =>
+    ["liegestuetz", "dips", "bankdruecken", "schraegbankdruecken", "enges-bankdruecken", "schulterdruecken-langhantel",
+      "frontkniebeuge", "langhantel-curl", "french-press"].includes(e.id),
+  nacken: (e) => ["kurzhantel-shrug", "kniebeuge-langhantel", "schulterdruecken-langhantel", "good-morning"].includes(e.id),
+  huefte: (e) =>
+    e.pattern === "unilateral_legs" || e.pattern === "plyometric" || e.pattern === "hip_abd_add"
+    || (e.pattern === "hip_dominant" && e.equipment === "barbell"),
+  sprunggelenk: (e) => e.pattern === "unilateral_legs" || e.pattern === "plyometric" || e.id === "wadenheben-stehend" || e.id === "farmers-walk",
+};
+
+/** Was zu Hause ohne Studio fehlt: eine Stange, eine Bank zum Einhängen, Maschinen. */
+const BRAUCHT_STANGE = new Set([
+  "klimmzug", "klimmzug-untergriff", "klimmzug-breit", "klimmzug-eng", "dips", "haengendes-beinheben", "hanging-hold",
+]);
+
+/** Ob eine Übung am Trainingsort geht. */
+export function amOrt(e: PlanUebung, ort: PlanOrt = "studio"): boolean {
+  if (ort === "studio") return true;
+  if (BRAUCHT_STANGE.has(e.id)) return false;
+  if (ort === "ohne") return e.equipment === "bodyweight";
+  return ["bodyweight", "dumbbell", "resistance_band", "kettlebell"].includes(e.equipment);
+}
+
+/** Ob eine Übung für diesen Wunsch in Frage kommt, nach Ort, Beschwerden und eigener Auswahl. */
+export function uebungErlaubt(e: PlanUebung, w: Pick<PlanWunsch, "ort" | "beschwerden" | "meiden">): boolean {
+  if (!amOrt(e, w.ort)) return false;
+  if ((w.meiden ?? []).includes(e.id)) return false;
+  return !(w.beschwerden ?? []).some((b) => BELASTET[b]?.(e));
 }
 
 export interface PlanPosition {
@@ -201,6 +265,16 @@ const VORLAGEN: Record<PlanTage, Tagesvorlage[]> = {
   5: [PUSH, PULL, BEINE, OBER_B, UNTER_B],
 };
 
+const FOKUS_WORT: Record<Platz, string> = {
+  kniebeuge: "Knie", einbein: "Knie", huefte: "Hüfte", beinbeuger: "Beinbeuger", waden: "Waden",
+  druecken_h: "Drücken", druecken_v: "Drücken", ziehen_h: "Ziehen", ziehen_v: "Ziehen",
+  schulter: "Schulter", brust_iso: "Brust", bizeps: "Arme", trizeps: "Arme", rumpf: "Rumpf",
+};
+
+function fokusAus(plaetze: Platz[]): string {
+  return [...new Set(plaetze.map((p) => FOKUS_WORT[p]))].join(", ");
+}
+
 /** Stabiler Streuwert aus Text, damit dieselbe Eingabe denselben Plan ergibt. */
 function streu(text: string, variante: number): number {
   let h = 2166136261 ^ (variante * 16777619);
@@ -249,7 +323,7 @@ function dauerMin(positionen: PlanPosition[]): number {
  */
 export function uebungsplanBauen(wunsch: PlanWunsch, uebungen: PlanUebung[]): Uebungsplan {
   const variante = wunsch.variante ?? 0;
-  const erlaubt = uebungen.filter((e) => RANG[e.level] <= RANG[wunsch.niveau]);
+  const erlaubt = uebungen.filter((e) => RANG[e.level] <= RANG[wunsch.niveau] && uebungErlaubt(e, wunsch));
   const imPlan = new Map<string, number>();
   const einheiten: PlanEinheit[] = [];
 
@@ -330,7 +404,11 @@ export function uebungsplanBauen(wunsch: PlanWunsch, uebungen: PlanUebung[]): Ue
       }
     }
     for (const p of positionen) imPlan.set(p.id, (imPlan.get(p.id) ?? 0) + 1);
-    einheiten.push({ titel: vorlage.titel, fokus: vorlage.fokus, positionen, dauerMin: dauerMin(positionen) });
+    // Fällt ein Platz weg, etwa die Kniebeuge bei Knieschmerzen, darf der
+    // Fokus ihn nicht mehr nennen. Sonst steht "Knie" über einer Einheit ohne
+    // eine einzige Knieübung.
+    const fokus = gewaehlt.length < vorlage.plaetze.length ? fokusAus(gewaehlt.slice(0, positionen.length).map((g) => g.platz)) : vorlage.fokus;
+    einheiten.push({ titel: vorlage.titel, fokus, positionen, dauerMin: dauerMin(positionen) });
   }
 
   const nachId = new Map(uebungen.map((e) => [e.id, e]));
@@ -380,6 +458,14 @@ function hinweise(w: PlanWunsch, einheiten: PlanEinheit[], saetze: Record<string
   if (w.niveau === "beginner") {
     aus.push("Als Einsteiger bekommst du für Beine, Drücken und Ziehen geführte Geräte, wo es welche gibt. Die Bahn ist vorgegeben, die Technik kann weniger schiefgehen.");
   }
+  if (w.beschwerden?.length) {
+    aus.push(
+      `Wegen Beschwerden an ${w.beschwerden.map((b) => BESCHWERDE_NAME[b]).join(", ")} sind Übungen raus, die diese Stelle stark belasten. `
+      + "Das ist eine Regel dieser App und keine Diagnose. Tut etwas trotzdem weh, lass die Übung weg. Bleiben die Schmerzen, gehört das zu Arzt oder Physiotherapie.",
+    );
+  }
+  if (w.ort === "zuhause") aus.push("Für zu Hause stehen nur Übungen mit Kurzhanteln, Band und Körpergewicht im Plan.");
+  if (w.ort === "ohne") aus.push("Ohne Geräte stehen nur Übungen mit dem eigenen Körpergewicht im Plan. Für Rücken und Beine fehlt damit oft der Widerstand, ein Band hilft schon viel.");
   if (w.tage === 2 && w.minuten > KURZ_BIS_MIN) aus.push("Bei zwei Tagen trainierst du jede Muskelgruppe einmal pro Woche mit Schwerpunkt. Ab drei Tagen wird jede Gruppe zweimal getroffen.");
   return aus;
 }
@@ -403,4 +489,44 @@ export function uebungsplanText(plan: Uebungsplan): string {
     }
   }
   return zeilen.join("\n");
+}
+
+/**
+ * Rechnet Dauer und Wochensätze neu, nachdem jemand den Plan von Hand
+ * geändert hat. Die Positionen bleiben, wie sie sind: eine Übung, die der
+ * Nutzer selbst gewählt hat, wird nicht wieder herausgerechnet.
+ */
+export function planNachrechnen(plan: Uebungsplan, uebungen: PlanUebung[]): Uebungsplan {
+  const nachId = new Map(uebungen.map((e) => [e.id, e]));
+  const einheiten = plan.einheiten.map((e) => ({ ...e, dauerMin: dauerMin(e.positionen) }));
+  const wochensaetze: Record<string, number> = {};
+  for (const einheit of einheiten) {
+    for (const p of einheit.positionen) {
+      const gruppe = nachId.get(p.id)?.gruppe;
+      if (gruppe) wochensaetze[gruppe] = (wochensaetze[gruppe] ?? 0) + p.saetze;
+    }
+  }
+  return { ...plan, einheiten, wochensaetze, hinweise: hinweise(plan.wunsch, einheiten, wochensaetze) };
+}
+
+/**
+ * Übungen, die eine Position ersetzen können: dasselbe Bewegungsmuster, am
+ * Trainingsort machbar und ohne die angegebenen Beschwerden. Die eigene Stufe
+ * zuerst, dann die nächste. Eine Übung, die schon in derselben Einheit steht,
+ * fehlt, sonst stünde sie dort zweimal.
+ */
+export function alternativen(plan: Uebungsplan, einheit: number, id: string, uebungen: PlanUebung[]): PlanUebung[] {
+  const alt = uebungen.find((e) => e.id === id);
+  if (!alt) return [];
+  const schon = new Set((plan.einheiten[einheit]?.positionen ?? []).map((p) => p.id));
+  return uebungen
+    .filter((e) => e.pattern === alt.pattern && !schon.has(e.id) && uebungErlaubt(e, plan.wunsch))
+    .sort((a, b) => Math.abs(RANG[a.level] - RANG[plan.wunsch.niveau]) - Math.abs(RANG[b.level] - RANG[plan.wunsch.niveau]));
+}
+
+/** Die Dosis für eine Übung, die von Hand dazukommt. Dieselbe Regel wie beim Bauen. */
+export function positionFuer(e: PlanUebung, w: PlanWunsch): PlanPosition {
+  const platz: Platz = e.mechanics === "compound" ? "kniebeuge" : "bizeps";
+  const d = dosis(e, platz, w);
+  return { id: e.id, name: e.name, saetze: d.saetze, wdh: d.wdh, pauseSek: d.pauseSek, reserve: d.reserve };
 }

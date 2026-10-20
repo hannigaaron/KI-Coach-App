@@ -231,3 +231,24 @@ test("Kurze Pläne sagen, warum keine Isolation drin ist", () => {
   assert.match(uebungsplanBauen(w({ minuten: 30 }), LIB).hinweise.join(" "), /nur Grundübungen/);
   assert.doesNotMatch(uebungsplanBauen(w({ minuten: 60 }), LIB).hinweise.join(" "), /nur Grundübungen/);
 });
+
+test("Knieschmerzen nehmen Kniebeugen und Ausfallschritte aus dem Plan", () => {
+  const plan = uebungsplanBauen(w({ beschwerden: ["knie"] }), LIB);
+  const ids = plan.einheiten.flatMap((e) => e.positionen.map((p) => p.id));
+  assert.equal(ids.some((id) => id.startsWith("kniebeuge") || id.startsWith("ausfall")), false);
+  assert.ok(ids.length > 0);
+  assert.ok(plan.hinweise.some((h) => /Knie/.test(h) && /keine Diagnose/.test(h)));
+});
+
+test("Ohne Geräte stehen nur Übungen mit Körpergewicht im Plan", () => {
+  const lib = LIB.map((e) => (e.id === "plank" || e.id === "bank1" ? { ...e, equipment: "bodyweight" } : e));
+  const plan = uebungsplanBauen(w({ ort: "ohne" }), lib);
+  const ids = plan.einheiten.flatMap((e) => e.positionen.map((p) => p.id));
+  assert.deepEqual([...new Set(ids)].sort(), ["bank1", "plank"]);
+});
+
+test("Eine gemiedene Übung kommt nicht vor", () => {
+  const plan = uebungsplanBauen(w({ meiden: ["bank1", "bank2"] }), LIB);
+  const ids = plan.einheiten.flatMap((e) => e.positionen.map((p) => p.id));
+  assert.equal(ids.includes("bank1") || ids.includes("bank2"), false);
+});

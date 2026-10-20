@@ -20,7 +20,7 @@ import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, produktPerBarcode, produkteS
 import { Coach, AnthropicProvider } from "@daevo/coach";
 import { KONFIG, istDemo, istNativ } from "./konfig.js";
 import { uebungenStarten } from "./uebungen.js";
-import { plaeneStarten } from "./plaene.js";
+import { planFuer as uebungsplanFuer, plaeneStarten } from "./plaene.js";
 import {
   antwortVerarbeiten, antwortenAbholen, lueckeAusSpeicher, lueckeMelden,
   schieflageAusSpeicher, schieflageMelden,
@@ -2475,6 +2475,12 @@ function anamneseFertig(ergebnis) {
     text: `Trainingsvorschlag zum Start: ${ergebnis.kraft.titel}.`,
     art: "hinweis", wichtigkeit: 3, schlagworte: ["training"],
   });
+  // Der Plan aus dem Bogen ist ab sofort der eigene. Wer einen eigenen hat
+  // und dabei bleibt, bekommt keinen, sonst stünden zwei Pläne nebeneinander.
+  if (ergebnis.planWunsch) {
+    store.setSettings({ ...store.getSettings(), plan: { ...uebungsplanFuer(ergebnis.planWunsch), gespeichertAm: new Date().toISOString() } });
+    plaene.laden();
+  }
   // Was im Bogen als Vorrat angetippt wurde, ist ab sofort der Vorrat. Ohne
   // das müsste der Nutzer dieselbe Liste in der App ein zweites Mal tippen.
   if (ergebnis.vorrat?.length) {
@@ -2702,7 +2708,7 @@ $("menu").addEventListener("click", (event) => {
   if (event.target.closest("[data-menu-zurueck]")) menuSeite("start");
 });
 uebungen = uebungenStarten();
-plaeneStarten({
+const plaene = plaeneStarten({
   speicher: {
     lesen: () => store.getSettings().plan ?? null,
     schreiben: (plan) => store.setSettings({ ...store.getSettings(), plan }),

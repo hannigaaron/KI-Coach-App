@@ -247,3 +247,33 @@ test("die schlanken Stufen zeigen einen Bereich, die übrigen eine Zahl", () => 
     assert.deepEqual(werte, [...werte].sort((a, b) => a - b));
   }
 });
+
+test("aus dem Bogen entsteht ein Planwunsch mit Ort, Beschwerden und gemiedenen Übungen", async () => {
+  const { planWunschAus } = await import("./anamnese.js");
+  const w = planWunschAus({
+    planVorhanden: "nein", kraftTage: "4", kraftMinuten: "60", trainingsort: "studio",
+    kraftErfahrung: "ueber3", beschwerden: ["Knie", "Schulter"], schmerzUebungen: "Bankdrücken, Ausfallschritt",
+  });
+  assert.equal(w.tage, 4);
+  assert.equal(w.minuten, 60);
+  assert.equal(w.niveau, "advanced");
+  assert.deepEqual(w.beschwerden, ["knie", "schulter"]);
+  assert.ok(w.meiden.includes("bankdruecken"));
+  assert.ok(w.meiden.includes("ausfallschritt"));
+  // Wer bei seinem eigenen Plan bleibt, bekommt keinen.
+  assert.equal(planWunschAus({ planVorhanden: "eigen" }), null);
+});
+
+test("die Fragen zum neuen Plan fallen weg, wenn jemand bei seinem bleibt", () => {
+  const abhaengig = SCHRITTE.filter((s) => s.wenn?.id === "planVorhanden").map((s) => s.id);
+  assert.deepEqual(abhaengig, ["kraftTage", "kraftMinuten", "trainingsort"]);
+  // Die Beschwerden fragt der Bogen immer: auch ein eigener Plan braucht die Information.
+  assert.ok(SCHRITTE.some((s) => s.id === "beschwerden" && !s.wenn));
+});
+
+test("die Krafttage stehen im Kalender mit der gewählten Dauer, der Rest als weitere Einheiten", () => {
+  const { sessions } = auswerten({ planVorhanden: "nein", kraftTage: "3", kraftMinuten: "45", sportProWoche: 5 });
+  assert.equal(sessions.length, 5);
+  assert.equal(sessions.filter((s) => s.type === "strength").length, 3);
+  assert.ok(sessions.filter((s) => s.type === "strength").every((s) => s.minutes === 45));
+});

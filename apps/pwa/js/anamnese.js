@@ -1,4 +1,5 @@
 import { BODY_FAT_LEVELS, figurBild, skala, stufeText } from "./silhouette.js";
+import { UEBUNGEN } from "./uebungen-daten.js";
 
 /**
  * Der Anamnesebogen beim ersten Start.
@@ -35,6 +36,13 @@ const UNVERTRAEGLICHKEITEN = ["Laktose", "Histamin", "Fruktose", "Sorbit"];
 const AUSSCHLUESSE = [
   "Kein Schweinefleisch", "Kein Rindfleisch", "Kein Alkohol", "Keine Gelatine",
   "Keine Meeresfrüchte", "Keine Innereien",
+];
+
+/** Anzeige und gespeicherter Wert getrennt. Die Kennungen sind die des Planrechners. */
+const BESCHWERDEN_WAHL = [
+  { id: "schulter", titel: "Schulter" }, { id: "ellbogen", titel: "Ellbogen" }, { id: "handgelenk", titel: "Handgelenk" },
+  { id: "nacken", titel: "Nacken" }, { id: "unterer_ruecken", titel: "Unterer Rücken" }, { id: "huefte", titel: "Hüfte" },
+  { id: "knie", titel: "Knie" }, { id: "sprunggelenk", titel: "Sprunggelenk" },
 ];
 
 const GERAETE = [
@@ -179,6 +187,67 @@ export const SCHRITTE = [
     text: "Alles zählt: Kraft, Ausdauer, Mannschaftssport.",
     felder: [{ art: "zahl", id: "sportProWoche", label: "Einheiten pro Woche", einheit: "pro Woche", platzhalter: "z. B. 3", min: 0, max: 14 }],
     tipp: { symbol: "kalender", text: "Ich lege die Einheiten als Vorschlag in deine Woche. Die Tage verschiebst du später im Profil." },
+  },
+  {
+    id: "planVorhanden",
+    abschnitt: "Dein Training",
+    titel: "Hast du schon einen Trainingsplan?",
+    text: "Wenn nicht, baue ich dir einen. Du kannst ihn danach jederzeit ändern.",
+    felder: [{ art: "auswahl", id: "planVorhanden", optionen: [
+      { id: "nein", titel: "Nein, bau mir einen", symbol: "hantel" },
+      { id: "neu", titel: "Ja, aber ich will einen neuen", symbol: "regler" },
+      { id: "eigen", titel: "Ja, und ich bleibe dabei", symbol: "haken" },
+    ] }],
+  },
+  {
+    id: "kraftTage",
+    abschnitt: "Dein Training",
+    titel: "Wie oft willst du Krafttraining machen?",
+    text: "Nur Krafttraining. Volleyball, Laufen und anderes zählen hier nicht mit.",
+    wenn: { id: "planVorhanden", nicht: ["eigen"] },
+    felder: [{ art: "auswahl", id: "kraftTage", optionen: [
+      { id: "2", titel: "Zweimal die Woche", symbol: "kalender" },
+      { id: "3", titel: "Dreimal die Woche", symbol: "kalender" },
+      { id: "4", titel: "Viermal die Woche", symbol: "kalender" },
+      { id: "5", titel: "Fünfmal die Woche", symbol: "kalender" },
+    ] }],
+    tipp: { symbol: "idee", text: "Lieber einmal weniger und dafür jede Woche. Ein Plan, der in einer vollen Woche reisst, hilft dir nicht." },
+  },
+  {
+    id: "kraftMinuten",
+    abschnitt: "Dein Training",
+    titel: "Wie lange hast du für eine Einheit?",
+    text: "Mit fünf Minuten Aufwärmen, ohne Weg und Umziehen.",
+    wenn: { id: "planVorhanden", nicht: ["eigen"] },
+    felder: [{ art: "auswahl", id: "kraftMinuten", optionen: [
+      { id: "30", titel: "Etwa 30 Minuten", symbol: "uhr" },
+      { id: "45", titel: "Etwa 45 Minuten", symbol: "uhr" },
+      { id: "60", titel: "Etwa eine Stunde", symbol: "uhr" },
+      { id: "75", titel: "Länger als eine Stunde", symbol: "uhr" },
+    ] }],
+  },
+  {
+    id: "trainingsort",
+    abschnitt: "Dein Training",
+    titel: "Wo trainierst du?",
+    wenn: { id: "planVorhanden", nicht: ["eigen"] },
+    felder: [{ art: "auswahl", id: "trainingsort", optionen: [
+      { id: "studio", titel: "Im Fitnessstudio", symbol: "hantel" },
+      { id: "zuhause", titel: "Zuhause mit Kurzhanteln", symbol: "haus" },
+      { id: "ohne", titel: "Zuhause ohne Geräte", symbol: "gehen" },
+    ] }],
+  },
+  {
+    id: "beschwerden",
+    abschnitt: "Dein Training",
+    titel: "Hast du irgendwo Schmerzen beim Training?",
+    text: "Übungen, die diese Stellen stark belasten, lasse ich weg.",
+    felder: [
+      { art: "chips", id: "beschwerden", optionen: BESCHWERDEN_WAHL.map((b) => b.titel) },
+      { art: "text", id: "schmerzUebungen", label: "Bei welchen Übungen tut es weh", platzhalter: "Bankdrücken, Ausfallschritte", optional: true },
+    ],
+    knopfLeer: "Hab ich nicht, weiter",
+    tipp: { symbol: "idee", text: "Ich bin kein Arzt. Akute oder neue Schmerzen gehören zu Arzt oder Physiotherapie, bevor du trainierst." },
   },
   {
     id: "budget",
@@ -721,7 +790,20 @@ export function auswerten(antworten) {
     add(`Schätzt den eigenen Körperfettanteil auf etwa ${profile.bodyFatPercent} Prozent.`, "fakt", 3, ["körper"]);
   }
 
-  return { profile, notizen, kraft, sessions, bereiche, vorrat: [...(antworten.vorrat || [])] };
+  const planWunsch = planWunschAus(antworten);
+  const beschwerden = beschwerdenAus(antworten);
+  if (beschwerden.length) {
+    const namen = beschwerden.map((b) => BESCHWERDEN_WAHL.find((x) => x.id === b)?.titel).filter(Boolean);
+    add(`Hat beim Training Beschwerden: ${namen.join(", ")}.`, "fakt", 5, ["training", "beschwerden"]);
+  }
+  if (String(antworten.schmerzUebungen || "").trim()) {
+    add(`Schmerzen bei diesen Übungen: ${String(antworten.schmerzUebungen).trim()}.`, "fakt", 5, ["training", "beschwerden"]);
+  }
+  if (antworten.planVorhanden === "eigen") {
+    add("Hat einen eigenen Trainingsplan und will dabei bleiben.", "praeferenz", 4, ["training"]);
+  }
+
+  return { profile, notizen, kraft, sessions, bereiche, planWunsch, vorrat: [...(antworten.vorrat || [])] };
 }
 
 /** Nur Zahlen, alles andere fällt weg. Ohne jede Abweichung gibt es keine Korrektur. */
@@ -750,16 +832,68 @@ function gueltigerKoerperfettWert(wert) {
  * erinnern, deshalb legt sie welche an.
  */
 function trainingsplan(antworten) {
-  const anzahl = Math.min(6, Math.max(0, Number(antworten.sportProWoche) || 0));
+  const kraft = antworten.planVorhanden && antworten.planVorhanden !== "eigen" ? kraftTageAus(antworten) : 0;
+  const anzahl = Math.min(6, Math.max(kraft, Number(antworten.sportProWoche) || 0));
   if (anzahl === 0) return [];
   const verteilung = { 1: [2], 2: [1, 4], 3: [1, 3, 5], 4: [1, 2, 4, 5], 5: [1, 2, 3, 4, 5], 6: [1, 2, 3, 4, 5, 6] }[anzahl];
   const start = startzeit(antworten.wakeTime || "07:00");
-  return verteilung.map((weekday) => ({
-    type: "strength",
-    minutes: 60,
+  // Die Krafttage liegen so weit auseinander wie möglich. Zwischen zwei
+  // Ganzkörpereinheiten liegt dann ein Tag, an dem der Rest der Woche Platz hat.
+  const kraftPlaetze = new Set(Array.from({ length: kraft }, (_, i) => Math.round((i * anzahl) / kraft)));
+  const minuten = Number(antworten.kraftMinuten) || 60;
+  return verteilung.map((weekday, i) => ({
+    type: kraft === 0 || kraftPlaetze.has(i) ? "strength" : "cardio",
+    minutes: kraft > 0 && kraftPlaetze.has(i) ? minuten : 60,
     weekday,
     startsAt: start,
   }));
+}
+
+function kraftTageAus(antworten) {
+  const tage = Number(antworten.kraftTage);
+  return [2, 3, 4, 5].includes(tage) ? tage : 0;
+}
+
+const NIVEAU = { keine: "beginner", unter1: "beginner", "1bis3": "intermediate", ueber3: "advanced" };
+
+/** Die Stellen mit Schmerzen als Kennungen. Im Bogen stehen die Namen, gerechnet wird mit den Kennungen. */
+function beschwerdenAus(antworten) {
+  return (antworten.beschwerden || []).map((t) => BESCHWERDEN_WAHL.find((b) => b.titel === t)?.id).filter(Boolean);
+}
+
+/**
+ * Übungen, die der Nutzer selbst nennt. Gesucht wird der Begriff im Namen, damit
+ * "Bankdrücken" auch Schrägbank und enges Bankdrücken trifft: wer dort Schmerzen
+ * hat, hat sie bei den Varianten meist auch. Unter fünf Zeichen wird nichts
+ * gesucht, "Bank" allein träfe zu viel.
+ */
+export function uebungenAusText(text) {
+  const falten = (t) => String(t || "").toLowerCase().replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss");
+  const begriffe = falten(text).split(/,|\bund\b|\boder\b|\n/).map((t) => t.trim()).filter((t) => t.length >= 5);
+  if (!begriffe.length) return [];
+  return UEBUNGEN.filter((u) => begriffe.some((b) => falten(u.name).includes(b) || u.id.replace(/-/g, " ").includes(b))).map((u) => u.id);
+}
+
+/**
+ * Der Wunsch, aus dem der erste Trainingsplan gerechnet wird. Null, wenn der
+ * Nutzer einen eigenen Plan hat und dabei bleibt.
+ */
+export function planWunschAus(antworten) {
+  if (!antworten.planVorhanden || antworten.planVorhanden === "eigen") return null;
+  const tage = kraftTageAus(antworten) || 3;
+  const bereiche = antworten.bereiche || [];
+  const ziel = bereiche.includes("ausdauer") && !bereiche.includes("kraft") ? "fitness" : "muskel";
+  return {
+    tage,
+    minuten: [30, 45, 60, 75].includes(Number(antworten.kraftMinuten)) ? Number(antworten.kraftMinuten) : 45,
+    niveau: NIVEAU[antworten.kraftErfahrung] || "beginner",
+    ziel,
+    deload: false,
+    variante: 0,
+    ort: ["studio", "zuhause", "ohne"].includes(antworten.trainingsort) ? antworten.trainingsort : "studio",
+    beschwerden: beschwerdenAus(antworten),
+    meiden: uebungenAusText(antworten.schmerzUebungen),
+  };
 }
 
 function startzeit(wake) {
