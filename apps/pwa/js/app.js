@@ -1723,11 +1723,17 @@ async function renderStimmwahl() {
   if (deutsch.length === 0) {
     zeilen.push("Dieses Gerät meldet keine Stimme als Deutsch. Die gefundenen stehen trotzdem zur Wahl, "
       + "sie sprechen deutschen Text meist sauber.");
+  } else if (!hatGute && (istNativ() || /iPhone|iPad|iPod/.test(navigator.userAgent))) {
+    // Auf dem iPhone sieht die Sprachausgabe einer App nur die Basisstimmen.
+    // Was unter Bedienungshilfen geladen wird, gehört zu VoiceOver. Der
+    // frühere Hinweis auf Markus und Yannick hat Hoffnung gemacht, die sich
+    // nicht erfüllt.
+    zeilen.push("Auf dem iPhone gibt Apple einer App nur die Basisstimmen frei. Stimmen, die du unter "
+      + "Bedienungshilfen lädst, nutzt nur VoiceOver, daevo kommt an sie nicht heran.");
   } else if (!hatGute) {
-    zeilen.push("Deine deutschen Stimmen sind in Basisqualität. Bessere lädst du unter Einstellungen, "
-      + "Bedienungshilfen, Gesprochene Inhalte, Stimmen, Deutsch, dort auf das Pluszeichen. "
-      + "Männlich und ruhig sind Markus und Yannick, jeweils in der Fassung Premium, nicht Kompakt. "
-      + "Danach die App einmal schliessen und neu öffnen.");
+    zeilen.push("Deine deutschen Stimmen sind in Basisqualität. Bessere lädst du in den Einstellungen "
+      + "deines Geräts unter Bedienungshilfen, Gesprochene Inhalte. Danach die App einmal schliessen "
+      + "und neu öffnen.");
   }
 
   zeilen.push("Das Tempo stellst du darunter ein. Spass- und Eloquence-Stimmen wie Zarvox oder Grandpa "
@@ -2486,6 +2492,12 @@ $("btnEinfuehrung").addEventListener("click", () => {
 });
 
 function konfigAnwenden() {
+  // Unabhängig von der Fassung: in der iPhone App fallen die Wege weg, die
+  // es nur gibt, weil eine Web App nicht an HealthKit und iOS herankommt.
+  if (istNativ()) {
+    for (const el of document.querySelectorAll("[data-nur-web]")) el.hidden = true;
+    for (const el of document.querySelectorAll("[data-nur-nativ]")) el.hidden = false;
+  }
   if (!istDemo()) return;
 
   if (KONFIG.pushUrl) {
@@ -5159,7 +5171,10 @@ $("btnSetupSicherungStart").addEventListener("click", () => {
  * kommt der leere Zustand zurück, und mit ihm der Fragebogen.
  */
 async function demoVorbereiten() {
-  if (!istDemo() || profile) return false;
+  // Die iPhone App ist die Fassung für Nutzer, aber keine Demo. Wer sie
+  // installiert, trägt seine eigenen Daten ein und darf keine erfundene
+  // Person vorfinden.
+  if (!istDemo() || istNativ() || profile) return false;
   const { beispieldaten } = await import("./beispiel.js");
   store.importAll(beispieldaten());
   profile = store.getProfile();

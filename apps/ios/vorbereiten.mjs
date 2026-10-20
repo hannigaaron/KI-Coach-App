@@ -6,9 +6,10 @@
  * jede Änderung zweimal verlangen, und nach drei Wochen laufen beide
  * auseinander.
  *
- * Standard ist die Entwicklerfassung: der Betreiber benutzt die App selbst,
- * mit eigenem Schlüssel. Mit `--nutzer` kommt die Fassung für Nutzer hinein,
- * die über den Worker spricht.
+ * Standard ist die Fassung für Nutzer, die über den Worker spricht. Der
+ * Betreiber benutzt die App so, wie seine Kunden sie sehen, sonst weiss er
+ * nie, wie sie beim Kunden aussieht. Mit `--entwickler` kommt die
+ * Entwicklerfassung mit eigenem Schlüssel hinein.
  */
 import { execSync } from "node:child_process";
 import { cp, rm, access } from "node:fs/promises";
@@ -17,7 +18,7 @@ import { fileURLToPath } from "node:url";
 
 const hier = dirname(fileURLToPath(import.meta.url));
 const wurzel = join(hier, "..", "..");
-const nutzer = process.argv.includes("--nutzer");
+const nutzer = !process.argv.includes("--entwickler");
 const quelle = join(wurzel, nutzer ? "dist-demo" : "dist-pages");
 const ziel = join(hier, "www");
 

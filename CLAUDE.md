@@ -2379,7 +2379,15 @@ Plugins in dieselbe Hülle.
 Capacitor liegt mit eigenem `package.json` in `apps/ios` und nicht in der
 Wurzel: die Web App bleibt ohne Laufzeitabhängigkeit. `npm run ios` in der
 Wurzel installiert, baut, kopiert und öffnet Xcode. Standard ist die
-Entwicklerfassung, `--nutzer` nimmt die Fassung für Nutzer.
+Fassung für Nutzer, ohne die Beispieldaten der Demo: der Betreiber benutzt
+die App so, wie seine Kunden sie sehen. `--entwickler` nimmt die
+Entwicklerfassung mit eigenem Schlüssel.
+
+Was es nur gibt, weil eine Web App nicht an HealthKit und iOS herankommt,
+trägt `data-nur-web` und fehlt in der Hülle: der Health Export und Web
+Push. An seiner Stelle steht ein Satz mit `data-nur-nativ`. Auf dem iPhone
+sagt die Stimmenhilfe ausserdem nicht mehr, dass Premium Stimmen aus den
+Bedienungshilfen helfen. Sie gehören zu VoiceOver.
 
 `istNativ()` in `konfig.js` erkennt die Hülle über `window.Capacitor`. Dort
 gibt es kein Web Push und keinen Homebildschirm, und jeder Hinweis darauf

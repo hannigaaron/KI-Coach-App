@@ -62,15 +62,15 @@ Homebildschirm und von Safari. Sie startet leer.
 
 ## Welche Fassung drin ist
 
-Standard ist die Entwicklerfassung aus `dist-pages`: du trägst Schlüssel,
-Worker Adresse und Anmeldewort selbst ein, wie in der Web App. Mit
+Standard ist die Fassung für Nutzer aus `dist-demo`, ohne die Beispieldaten
+der Demo. Sie spricht über den Worker, zeigt keine Felder für Schlüssel,
+Worker oder Angebot und sieht so aus, wie ein Kunde sie sieht. Mit
 
 ```bash
-npm --prefix apps/ios run web -- --nutzer && npx --prefix apps/ios cap sync ios
+npm --prefix apps/ios run web -- --entwickler && npx --prefix apps/ios cap sync ios
 ```
 
-kommt die Fassung für Nutzer hinein. Die startet heute noch mit den Beispieldaten
-der Demo und ist deshalb nicht für den Store gedacht.
+kommt die Entwicklerfassung aus `dist-pages` hinein, mit eigenem Schlüssel.
 
 ## Was in der Hülle anders ist
 
