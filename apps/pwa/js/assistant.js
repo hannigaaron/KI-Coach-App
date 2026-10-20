@@ -3033,16 +3033,10 @@ export function begruessung() {
   const hour = new Date().getHours();
   const name = n.profile.name ? `, ${n.profile.name}` : "";
   const gruss = hour < 11 ? `Guten Morgen${name}` : hour < 18 ? `Hallo${name}` : `Guten Abend${name}`;
-
-  if (n.data.meals.length === 0) {
-    return { gruss, lage: "Noch nichts eingetragen heute. Sag mir, was du gegessen hast, oder frag mich was." };
-  }
-  if (n.rest.kcal < 0) {
-    return { gruss, lage: `Du bist ${Math.abs(n.rest.kcal)} kcal über deinem Ziel. Kein Drama, aber gut zu wissen.` };
-  }
-  // "0 g Protein offen" ist kein Satz, den jemand sagen würde.
-  if (n.rest.proteinG <= 0) return { gruss, lage: `Noch ${n.rest.kcal} kcal offen, dein Protein hast du schon.` };
-  return { gruss, lage: `Noch ${n.rest.kcal} kcal und ${n.rest.proteinG} g Protein offen.` };
+  // Eine Frage statt einer Lage. Die Zahlen des Tages stehen auf Heute, und
+  // ein Satz über offene Kalorien unter dem Kreis machte den Start zu einer
+  // Anzeige, bevor jemand etwas gesagt hat.
+  return { gruss, lage: "Wie kann ich dir weiterhelfen?" };
 }
 
 /**

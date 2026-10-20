@@ -223,14 +223,14 @@ export function aboLeiste(stand, heute) {
   if (stand.stufe === "test") {
     const tage = tageUebrig(stand.bis, heute);
     if (tage === null) return null;
-    return { text: tage <= 1 ? "Testphase endet heute" : `Testphase, noch ${tage} Tage`, knopf: "Plus sichern" };
+    return { text: tage <= 1 ? "Testphase endet heute." : `Testphase, noch ${tage} Tage.`, knopf: "Plus ansehen" };
   }
-  if (stand.stufe === "frei") return { text: "Die KI pausiert ohne Abo", knopf: "Plus holen" };
+  if (stand.stufe === "frei") return { text: "Die KI pausiert ohne Abo.", knopf: "Plus ansehen" };
   if (stand.stufe === "plus") {
     const n = stand.verbrauch?.nachrichten ?? 0;
     const g = stand.grenze?.nachrichten ?? 0;
     if (!g || n < g * 0.8) return null;
-    return { text: `${n} von ${g} Nachrichten verbraucht`, knopf: "Pro ansehen", empfohlen: "pro" };
+    return { text: `${n} von ${g} Nachrichten verbraucht.`, knopf: "Pro ansehen", empfohlen: "pro" };
   }
   return null;
 }

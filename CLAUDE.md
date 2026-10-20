@@ -340,8 +340,11 @@ OAuth für Google und EventKit für Apple gehören in die native App, siehe
 
 ## Jeder Start ist ein leeres Gespräch
 
-Wie bei Claude. Wer die App öffnet, sieht das grosse d, darunter Gruss und
-Lage des Tages, unten die Eingabe. Das Gespräch von gestern steht in der
+Wie bei Claude. Wer die App öffnet, sieht das grosse d, darunter den Gruss
+und "Wie kann ich dir weiterhelfen?", unten die Eingabe. Keine Vorschläge
+über der Eingabe und keine Zahlen unter dem Kreis: die Zeile mit
+Beispielfragen und der Satz über offene Kalorien machten den Start unruhig,
+und die Zahlen stehen ohnehin auf Heute. Das Gespräch von gestern steht in der
 Liste und nicht mehr im Weg. `frischesGespraech()` in `assistant.js`.
 
 Die Begrüssung ist keine Nachricht mehr, sondern steht unter dem Kreis,
@@ -2350,8 +2353,10 @@ gekippte Wand aus Fotos der App, darunter ein Schild mit dem Anlass, eine
 Überschrift, Haken, die Wahl zwischen Plus und Pro und ein Knopf mit Preis.
 Ein Angebot, das man in drei Sekunden liest, wird gelesen.
 
-Dazu `#aboLeiste`, eine Zeile über dem Kreis: "Testphase, noch 5 Tage, Plus
-sichern". Sie steht nur auf dem leeren Start und nie im Gespräch, und sie
+Dazu `#aboLeiste`, eine kleine Textzeile über dem Kreis: "Testphase, noch 5
+Tage. Plus ansehen", ohne Kasten und ohne gefüllten Knopf. Die erste Fassung
+war eine Pille mit schwarzem Knopf "Plus sichern" und zog mehr Blick als der
+Kreis. Sie steht nur auf dem leeren Start und nie im Gespräch, und sie
 fehlt bei Pro und bei Plus unter 80 Prozent. Werbung für etwas, das man
 schon hat, nervt. Was sie zeigt, entscheidet `aboLeiste` in `konto.js`.
 

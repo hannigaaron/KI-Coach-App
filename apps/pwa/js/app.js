@@ -50,7 +50,7 @@ import { einfuehrungStarten } from "./einfuehrung.js";
 import { rezepteAnsicht } from "./rezepte-ui.js";
 import { symbol } from "./symbole.js";
 import { NATIV_PUSH, gesundheitHolen, postfachHolen, pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
-import { newId, nowTime, store, todayIso } from "./storage.js";
+import { kodierungReparieren, newId, nowTime, store, todayIso } from "./storage.js";
 import { healthkitAbgleichen } from "./healthkit.js";
 import { mitteilungenPlanen } from "./mitteilungen.js";
 import { nativAufruf } from "./nativ.js";
@@ -204,9 +204,6 @@ $("anhangLeiste").addEventListener("click", (event) => {
   if (!weg) return;
   anhaenge = anhaenge.filter((a) => a.id !== weg.dataset.anhangWeg);
   renderAnhaenge();
-});
-$("chips").addEventListener("click", (event) => {
-  if (event.target.closest("[data-chip-foto]")) $("kameraWahl").click();
 });
 
 /* ---------- Assistent ---------- */
@@ -2661,10 +2658,6 @@ $("btnWeckwort").addEventListener("click", () => {
   else weckwortStarten();
 });
 $("orb").addEventListener("click", startListening);
-$("chips").addEventListener("click", (event) => {
-  const button = event.target.closest("[data-say]");
-  if (button) send(button.dataset.say);
-});
 
 // Die Zeichen im Menü kommen aus symbole.js und nicht aus dem HTML, damit
 // eine Linie nur an einer Stelle gepflegt wird.
@@ -5057,7 +5050,9 @@ $("btnSicherungKopieren").addEventListener("click", async () => {
 });
 
 $("btnExport").addEventListener("click", () => {
-  const blob = new Blob([JSON.stringify(store.exportAll(), null, 2)], { type: "application/json" });
+  // Mit Angabe der Kodierung. Ohne sie liest iOS die Datei als Latin-1, und
+  // beim Kopieren daraus kommt jeder Umlaut doppelt kodiert zurück.
+  const blob = new Blob([JSON.stringify(store.exportAll(), null, 2)], { type: "application/json;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -5072,7 +5067,9 @@ $("btnWiederherstellen").addEventListener("click", () => {
 });
 
 $("btnWiederherstellenStart").addEventListener("click", () => {
-  const roh = $("wiederherstellenText").value.trim();
+  // Eine Sicherung, die unterwegs falsch gelesen wurde, kommt sonst mit
+  // "Ã¤" statt "ä" in jede Notiz.
+  const roh = kodierungReparieren($("wiederherstellenText").value.trim());
   if (!roh) { $("sicherungHinweis").textContent = "Da steht nichts drin."; return; }
 
   let daten;
@@ -5132,7 +5129,7 @@ $("btnSetupSicherung").addEventListener("click", () => {
 });
 
 $("btnSetupSicherungStart").addEventListener("click", () => {
-  const roh = $("setupSicherungText").value.trim();
+  const roh = kodierungReparieren($("setupSicherungText").value.trim());
   const hinweis = $("setupSicherungHinweis");
   if (!roh) { hinweis.textContent = "Da steht nichts drin."; return; }
 

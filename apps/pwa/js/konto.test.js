@@ -110,9 +110,9 @@ test("der Knopf führt zum Zahlungslink, sonst zur Mail, in der iPhone App nirge
 
 test("die Leiste auf dem Start zählt die Testphase herunter und schweigt bei Pro", async () => {
   const { aboLeiste } = await import("./konto.js");
-  assert.equal(aboLeiste({ stufe: "test", bis: "2026-10-24" }, "2026-10-20").text, "Testphase, noch 5 Tage");
-  assert.equal(aboLeiste({ stufe: "test", bis: "2026-10-24" }, "2026-10-24").text, "Testphase endet heute");
-  assert.equal(aboLeiste({ stufe: "frei" }, "2026-10-30").knopf, "Plus holen");
+  assert.equal(aboLeiste({ stufe: "test", bis: "2026-10-24" }, "2026-10-20").text, "Testphase, noch 5 Tage.");
+  assert.equal(aboLeiste({ stufe: "test", bis: "2026-10-24" }, "2026-10-24").text, "Testphase endet heute.");
+  assert.equal(aboLeiste({ stufe: "frei" }, "2026-10-30").knopf, "Plus ansehen");
   assert.equal(aboLeiste({ stufe: "plus", verbrauch: { nachrichten: 100 }, grenze: { nachrichten: 800 } }, "2026-10-30"), null);
   assert.equal(aboLeiste({ stufe: "pro" }, "2026-10-30"), null);
 });

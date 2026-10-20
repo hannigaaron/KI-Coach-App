@@ -3296,18 +3296,14 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 .abo-klein { margin: 0; text-align: center; color: rgba(255, 255, 255, .6); font-size: 14px; line-height: 1.45; }
 .abo-spaeter { align-self: center; border: 0; background: none; color: rgba(255, 255, 255, .6); font-size: 15px; padding: 8px 16px; cursor: pointer; }
 
-/* Die Leiste auf dem Start. Eine Zeile mit Markenrand, kein Kasten in
-   Signalfarbe: sie soll da sein, wenn man hinsieht, und sonst nicht stören. */
+/* Die Leiste auf dem Start. Eine Textzeile ohne Kasten und ohne Fläche:
+   ein schwarzer Knopf über dem Kreis zog mehr Blick als der Kreis selbst und
+   las sich wie eine Aufforderung. Sie soll da sein, wenn man hinsieht. */
 .abo-leiste {
-  display: flex; align-items: center; justify-content: space-between; gap: var(--s-3);
-  margin: 0 var(--s-4) var(--s-2); padding: 6px 6px 6px 16px; border: 0; cursor: pointer;
-  border-radius: var(--r-pill); text-align: left; color: var(--text); font-size: var(--t-sm); font-weight: 500;
-  background: color-mix(in srgb, var(--brand) 9%, var(--flaeche, transparent));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand) 30%, transparent);
+  display: block; margin: 0 auto var(--s-2); padding: var(--s-2) var(--s-4);
+  border: 0; background: none; cursor: pointer; text-align: center;
+  color: var(--muted); font-size: var(--t-xs); font-weight: 500; letter-spacing: .01em;
 }
 .abo-leiste[hidden] { display: none; }
 #assistant.has-chat .abo-leiste { display: none; }
-.abo-leiste b {
-  flex: none; padding: 6px 14px; border-radius: var(--r-pill);
-  background: var(--text); color: var(--bg); font-weight: 600; font-size: var(--t-sm);
-}
+.abo-leiste b { font-weight: 600; color: var(--accent); }
