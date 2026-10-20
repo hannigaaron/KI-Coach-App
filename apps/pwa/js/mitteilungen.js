@@ -13,10 +13,12 @@
  *
  * Kein `document`, kein `window`: das Modul läuft auch in den Tests.
  */
-import { LUECKE_UHRZEIT, impulseFuerTag, tagesrandFuer } from "@daevo/core";
+import { LUECKE_UHRZEIT, erinnerungAmTag, erinnerungUhrzeit, impulseFuerTag, tagesrandFuer } from "@daevo/core";
 import { lueckeAusSpeicher } from "./luecke.js";
 
 export const MAX_GEPLANT = 60;
+
+const rang = (m) => (m.art === "eigene" ? 2 : m.art === "luecke" ? 1 : 0);
 const TAGE_VORAUS = 7;
 
 function tagPlus(tag, n) {
@@ -47,8 +49,18 @@ export function mitteilungsPlan({ store, jetzt, luecke = null }) {
   const aus = store.getSettings().mitteilungenAus || {};
   const plan = [];
 
+  const eigene = store.getSettings().eigeneErinnerungen || [];
   for (let i = 0; i < TAGE_VORAUS; i++) {
     const tag = tagPlus(jetzt.tag, i);
+    for (const e of eigene) {
+      if (!erinnerungAmTag(e, tag)) continue;
+      // Ohne Profil gibt es keine Schlafenszeit. Eine Erinnerung, die daran
+      // hängt, fällt dann aus, statt auf eine geratene Uhrzeit zu rutschen.
+      const rand = profil ? tagesrandFuer(profil, tag) : null;
+      const uhrzeit = e.bezug ? (rand ? erinnerungUhrzeit(e, rand) : null) : e.uhrzeit;
+      if (!uhrzeit) continue;
+      plan.push({ id: `eigene-${e.id}-${tag}`, tag, uhrzeit, titel: "Erinnerung", text: e.text, art: "eigene" });
+    }
     if (!aus.impulse) {
       for (const impuls of impulseFuerTag(tag)) {
         plan.push({ id: `impuls-${impuls.art}-${tag}`, tag, uhrzeit: impuls.at, titel: impuls.titel, text: impuls.text, art: impuls.art });
@@ -77,9 +89,11 @@ export function mitteilungsPlan({ store, jetzt, luecke = null }) {
   return plan
     .filter((m) => m.tag > jetzt.tag || minuten(m.uhrzeit) > minuten(jetzt.uhrzeit))
     .sort((a, b) => `${a.tag} ${a.uhrzeit}`.localeCompare(`${b.tag} ${b.uhrzeit}`))
-    // Die Lücke geht vor, wenn gekürzt werden muss: sie ist die einzige
-    // Mitteilung, die etwas über diesen Nutzer sagt.
-    .sort((a, b) => (b.art === "luecke") - (a.art === "luecke"))
+    // Wenn gekürzt werden muss, gehen eigene Erinnerungen vor, dann die
+    // Lücke. Eine vergessene Tablette wiegt schwerer als ein Trinkimpuls,
+    // und die Lücke ist die einzige Mitteilung, die etwas über diesen
+    // Nutzer sagt.
+    .sort((a, b) => rang(b) - rang(a))
     .slice(0, MAX_GEPLANT)
     .sort((a, b) => `${a.tag} ${a.uhrzeit}`.localeCompare(`${b.tag} ${b.uhrzeit}`));
 }

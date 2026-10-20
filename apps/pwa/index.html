@@ -1187,6 +1187,48 @@ try {
       <p class="sub" data-nur-nativ hidden>daevo plant sie selbst auf deinem iPhone ein, dazu die Erinnerung
         ans Runterfahren vor deiner Schlafenszeit. Ausschalten kannst du sie in den Einstellungen des iPhones
         unter Mitteilungen, daevo.</p>
+      <!-- Eigene Erinnerungen gibt es nur in der iPhone App. Im Browser
+           plant niemand die Mitteilung ein, und eine Erinnerung an ein
+           Medikament, die nie kommt, ist schlimmer als keine. -->
+      <div data-nur-nativ hidden>
+        <div class="section-title">Eigene Erinnerungen</div>
+        <ul id="eigeneListe" class="list"></ul>
+        <div class="field"><label for="erText">Woran</label>
+          <input id="erText" type="text" maxlength="120" autocomplete="off" placeholder="Abendliche Supplemente"></div>
+        <div class="field"><label for="erWann">Wann</label>
+          <select id="erWann">
+            <option value="uhrzeit" selected>Feste Uhrzeit</option>
+            <option value="schlafen">Vor dem Schlafengehen</option>
+            <option value="aufstehen">Nach dem Aufstehen</option>
+          </select></div>
+        <div class="field" id="erUhrzeitFeld"><label for="erUhrzeit">Uhrzeit</label>
+          <input id="erUhrzeit" type="time" value="08:00"></div>
+        <div class="field" id="erAbstandFeld" hidden><label for="erAbstand">Abstand</label>
+          <select id="erAbstand">
+            <option value="0">Genau dann</option>
+            <option value="15">15 Minuten</option>
+            <option value="30">30 Minuten</option>
+            <option value="60" selected>1 Stunde</option>
+            <option value="90">1,5 Stunden</option>
+            <option value="120">2 Stunden</option>
+          </select></div>
+        <div class="field"><div class="feld-titel">Tage</div>
+          <div class="pills" id="erTage">
+            <button type="button" class="pill" data-er-tag="1">Mo</button>
+            <button type="button" class="pill" data-er-tag="2">Di</button>
+            <button type="button" class="pill" data-er-tag="3">Mi</button>
+            <button type="button" class="pill" data-er-tag="4">Do</button>
+            <button type="button" class="pill" data-er-tag="5">Fr</button>
+            <button type="button" class="pill" data-er-tag="6">Sa</button>
+            <button type="button" class="pill" data-er-tag="7">So</button>
+          </div>
+          <p class="feld-hilfe">Kein Tag gewählt heisst täglich. Die Zeit vor dem Schlafen und nach dem
+            Aufstehen folgt deinen Zeiten aus dem Profil, je Tag.</p></div>
+        <button id="btnErinnerungNeu" class="primary breit">Erinnerung hinzufügen</button>
+        <p id="erHinweis" class="feld-hilfe">Du kannst sie auch im Gespräch anlegen, etwa "Erinnere mich eine
+          Stunde vor dem Schlafen an meine Supplemente". Eine Erinnerung ist eine Mitteilung des iPhones: sind
+          Mitteilungen für daevo aus, kommt sie nicht.</p>
+      </div>
       <div data-nur-web>
       <!-- Adresse und Anmeldewort stehen in der Fassung für Nutzer fest in
            der App. Der Knopf darunter bleibt, denn ob jemand Mitteilungen

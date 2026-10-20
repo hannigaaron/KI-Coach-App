@@ -12,6 +12,9 @@ import {
   spanneKurz,
   restText,
   makroHerkunft,
+  MAX_EIGENE,
+  tageText,
+  wannText,
 } from "@daevo/core";
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, produktPerBarcode, produkteSuchen } from "@daevo/coach";
 import { Coach, AnthropicProvider } from "@daevo/coach";
@@ -383,6 +386,11 @@ async function send(text) {
     // Kennt der Server den Schlüssel nicht mehr, legt kontoStand ein neues
     // Konto an. Ohne das scheiterte jede weitere Nachricht an derselben Stelle.
     if (reply.fehlerArt === "konto") kontoStand();
+    // Im Gespräch angelegt: sofort einplanen, nicht erst beim nächsten Öffnen.
+    if ((reply.ausgeführt || []).some((a) => String(a).startsWith("Erinnerung"))) {
+      eigeneErinnerungenZeigen();
+      mitteilungenNativ();
+    }
     if (reply.fehlerArt === "kontingent") {
       const anlass = aboAnlassLeer(store.getSettings().aboHinweise, Date.now(), reply.modus);
       if (anlass) setTimeout(() => aboOeffnen(anlass), 700);
@@ -850,7 +858,7 @@ function showView(name) {
   if (name === "gespraeche") renderGespraeche();
   if (name === "wochencheck") wcStart();
   if (name === "empfehlungen") { renderRecommendations(); zeigeAngebot("empfehlungenAngebot"); }
-  if (name === "profil") { renderProfile(); healthStandZeigen(); }
+  if (name === "profil") { renderProfile(); healthStandZeigen(); eigeneErinnerungenZeigen(); }
   if (name === "assistant") renderTranscript();
 }
 
@@ -4583,6 +4591,55 @@ async function mitteilungenNativ() {
 
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") healthNativ().then(() => mitteilungenNativ());
+});
+
+/* ---------- Eigene Erinnerungen ---------- */
+
+const ER_KREUZ = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+  + 'stroke-linecap="round" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg>';
+
+function eigeneErinnerungenZeigen() {
+  const liste = store.getSettings().eigeneErinnerungen || [];
+  $("eigeneListe").innerHTML = liste.length
+    ? liste.map((e) => `<li><div class="li-main"><div class="li-title">${escapeHtml(e.text)}</div>`
+      + `<div class="li-sub">${escapeHtml(`${tageText(e.tage)}, ${wannText(e)}`)}</div></div>`
+      + `<div class="li-side"><button class="aufgabe-knopf" data-er-weg="${e.id}" title="Löschen" `
+      + `aria-label="Erinnerung löschen">${ER_KREUZ}</button></div></li>`).join("")
+    : "";
+  $("btnErinnerungNeu").disabled = liste.length >= MAX_EIGENE;
+}
+
+$("erWann").addEventListener("change", () => {
+  const fest = $("erWann").value === "uhrzeit";
+  $("erUhrzeitFeld").hidden = !fest;
+  $("erAbstandFeld").hidden = fest;
+});
+$("erTage").addEventListener("click", (event) => {
+  const b = event.target.closest("[data-er-tag]");
+  if (b) b.classList.toggle("on");
+});
+$("eigeneListe").addEventListener("click", (event) => {
+  const b = event.target.closest("[data-er-weg]");
+  if (!b) return;
+  const s = store.getSettings();
+  store.setSettings({ ...s, eigeneErinnerungen: (s.eigeneErinnerungen || []).filter((e) => e.id !== b.dataset.erWeg) });
+  eigeneErinnerungenZeigen();
+  mitteilungenNativ();
+});
+$("btnErinnerungNeu").addEventListener("click", async () => {
+  const wann = $("erWann").value;
+  const tage = [...$("erTage").querySelectorAll(".on")].map((b) => Number(b.dataset.erTag));
+  const eingabe = wann === "uhrzeit"
+    ? { text: $("erText").value, uhrzeit: $("erUhrzeit").value, tage }
+    : { text: $("erText").value, bezug: wann, versatz: Number($("erAbstand").value) * (wann === "schlafen" ? -1 : 1), tage };
+  const antwort = await buildActions({ onChange: refreshAll }).erinnerungAnlegen(eingabe);
+  $("erHinweis").textContent = antwort;
+  if (antwort.startsWith("Erinnerung angelegt")) {
+    $("erText").value = "";
+    for (const b of $("erTage").querySelectorAll(".on")) b.classList.remove("on");
+    eigeneErinnerungenZeigen();
+    mitteilungenNativ();
+  }
 });
 
 /* ---------- Abo Fenster ---------- */

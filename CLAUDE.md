@@ -79,7 +79,7 @@ Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
 
-Der Assistent hat vierundvierzig Werkzeuge und verändert die App wirklich. Zahlen
+Der Assistent hat fünfundvierzig Werkzeuge und verändert die App wirklich. Zahlen
 über den Nutzer kommen immer aus Werkzeugen, nie aus dem Modell. Allgemeines
 Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
@@ -1324,7 +1324,7 @@ Tippfehler darf die Ziele nicht kippen.
 
 ## Der Regelweg ist die kostenlose Stufe
 
-37 der 44 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
+38 der 45 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
 Das ist keine Notlösung für den Ausfall, sondern das Produkt: ein Weg, der
 kein Modell anfragt, kostet nichts je Nutzer und skaliert ohne Rechnung.
 
@@ -2446,6 +2446,32 @@ deshalb ein Test und kein Betrieb.
 Rest der Datei. Vorher schrieb es die Hilfsfunktionen von Hand nach, und
 `istNativ` wäre in der Fassung für Nutzer gefehlt. Deren Import bricht dann
 das ganze Modul, und die App bleibt schwarz.
+
+## Eigene Erinnerungen
+
+`packages/core/src/erinnerung.ts` rechnet, `apps/pwa/js/mitteilungen.js`
+plant, die Liste steht im Profil unter Benachrichtigungen. Werkzeug
+`erinnerung_anlegen`, mit Regelpfad.
+
+Die Impulse sind für alle dieselben. Was jemand selbst braucht, kennt nur er:
+die Tablette um acht, die Supplemente vor dem Schlafen. Eine Erinnerung ist
+ein Text, eine feste Uhrzeit oder ein Bezug auf den eigenen Tag, und die
+Wochentage, 1 Montag bis 7 Sonntag, leer heisst täglich. "Eine Stunde vor
+dem Schlafen" hängt an `tagesrandFuer` und wandert je Tag mit, auch am
+Wochenende mit späterer Schlafenszeit.
+
+Der Regelpfad nimmt nur, was eindeutig ist: "erinnere" und eine echte
+Uhrzeit oder ein Bezug. "Erinnere mich später" bekommt eine Rückfrage, keine
+geratene Uhrzeit, und "morgen um 8" ist eine Aufgabe, keine wiederkehrende
+Erinnerung. Er steht vor Training und Aufgaben, sonst wird "erinnere mich um
+8 an das Training" zu einem Eintrag.
+
+Beim Kürzen auf 60 Mitteilungen gehen eigene Erinnerungen vor, dann die
+Lücke, dann die Impulse. Höchstens sechs eigene, `MAX_EIGENE`, damit sieben
+Tage voraus noch Platz für die übrigen bleibt. Nur in der iPhone App: im
+Browser plant niemand die Mitteilung ein, und eine Erinnerung an ein
+Medikament, die nie kommt, ist schlimmer als keine. Legt man sie im Browser
+im Gespräch an, sagt die Antwort genau das.
 
 ## Das Coaching Angebot
 

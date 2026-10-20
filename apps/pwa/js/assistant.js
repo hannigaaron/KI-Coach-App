@@ -5,6 +5,10 @@ import {
   todoistAbhaken, todoistAufgaben, todoistIdVon,
 } from "@daevo/coach";
 import {
+  MAX_EIGENE,
+  erinnerungFehler,
+  tageText,
+  wannText,
   MAHLZEITEN,
   artZurUhrzeit,
   empfehlungText,
@@ -85,7 +89,7 @@ import {
   anpassungText,
 } from "@daevo/core";
 import { brain } from "./brain.js";
-import { KONFIG } from "./konfig.js";
+import { KONFIG, istNativ } from "./konfig.js";
 import { kontoSicherstellen, kontoToken } from "./konto.js";
 import { NACHTRAG_TAGE, tageZurueck } from "./exif.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
@@ -2603,6 +2607,27 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
       const ergebnis = await aufgabeErledigen(a.id);
       if (ergebnis.ok) changed();
       return ergebnis.text;
+    },
+
+    async erinnerungAnlegen({ text, uhrzeit, bezug, versatz, tage = [] } = {}) {
+      const eintrag = { id: newId(), text: String(text || "").trim(), tage };
+      if (bezug) Object.assign(eintrag, { bezug, versatz: Number(versatz) || 0 });
+      else eintrag.uhrzeit = uhrzeit;
+      const fehler = erinnerungFehler(eintrag);
+      if (fehler) return fehler;
+      const liste = store.getSettings().eigeneErinnerungen || [];
+      if (liste.length >= MAX_EIGENE) {
+        return `Du hast schon ${MAX_EIGENE} eigene Erinnerungen. Lösch eine im Profil unter Benachrichtigungen, dann geht die nächste.`;
+      }
+      store.setSettings({ ...store.getSettings(), eigeneErinnerungen: [...liste, eintrag] });
+      changed();
+      const wann = `${tageText(eintrag.tage)}, ${wannText(eintrag)}`;
+      // Im Browser plant niemand diese Mitteilung ein. Das gehört gesagt,
+      // gerade wenn es um ein Medikament geht.
+      const hinweis = istNativ()
+        ? " Du siehst und löschst sie im Profil unter Benachrichtigungen."
+        : " Mitteilungen dafür kommen nur in der iPhone App, hier im Browser erinnere ich dich nicht.";
+      return `Erinnerung angelegt: ${eintrag.text}, ${wann}.${hinweis}`;
     },
 
     async zeitEintragen({ bereich, minuten, was, tag } = {}) {

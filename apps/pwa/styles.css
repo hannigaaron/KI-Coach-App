@@ -3307,3 +3307,8 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 .abo-leiste[hidden] { display: none; }
 #assistant.has-chat .abo-leiste { display: none; }
 .abo-leiste b { font-weight: 600; color: var(--accent); }
+
+/* Sieben Wochentage in einer Reihe. Umgebrochen stand der Sonntag allein
+   in der zweiten Zeile und sah aus wie eine eigene Wahl. */
+#erTage { display: flex; flex-wrap: nowrap; gap: 6px; }
+#erTage .pill { flex: 1 1 0; min-width: 0; padding-left: 0; padding-right: 0; text-align: center; }
