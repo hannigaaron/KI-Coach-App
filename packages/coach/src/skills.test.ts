@@ -102,3 +102,46 @@ test("Check-in nutzt ohne Modell den Fallbacktext", async () => {
   });
   assert.equal(message, "Trink was.");
 });
+
+test("Mahlzeit über den eigenen Server: Kontoschlüssel statt API Schlüssel", async () => {
+  const { AnthropicProvider } = await import("./anthropic.js");
+  let ziel = "";
+  let kopf: Record<string, string> = {};
+  const provider = new AnthropicProvider({
+    apiKey: undefined,
+    baseUrl: "https://worker.example",
+    kontoToken: () => "konto-123",
+    model: "claude-sonnet-5",
+    fetchImpl: async (url, init) => {
+      ziel = String(url);
+      kopf = (init as RequestInit).headers as Record<string, string>;
+      return new Response(JSON.stringify({
+        content: [{ type: "tool_use", name: "mahlzeit_erfassen", input: {
+          entries: [{ name: "Hafermilch", quantity: "600 ml", kcal: 264, proteinG: 6, fatG: 9, carbsG: 39 }],
+        } }],
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    },
+  });
+  const ergebnis = await new Coach(provider).parseMeal("600 ml Hafermilch");
+  assert.equal(ziel, "https://worker.example/chat");
+  assert.equal(kopf.authorization, "Bearer konto-123");
+  assert.equal("x-api-key" in kopf, false);
+  assert.equal(ergebnis.source, "model");
+});
+
+test("scheitert das Modell, kommt der Grund mit und kein Posten fällt still weg", async () => {
+  const { AnthropicProvider } = await import("./anthropic.js");
+  const provider = new AnthropicProvider({
+    apiKey: undefined,
+    baseUrl: "https://worker.example",
+    model: "claude-sonnet-5",
+    fetchImpl: async () => new Response('{"type":"konto"}', { status: 401 }),
+  });
+  const ergebnis = await new Coach(provider).parseMeal(
+    "80 Gramm Instant Rice Pudding und 1 gehäuften Teelöffel Erdnussbutter",
+  );
+  assert.equal(ergebnis.source, "offline");
+  assert.ok(ergebnis.modellFehler);
+  assert.match(ergebnis.followUpQuestion, /Nicht eingetragen.*Rice Pudding/);
+  assert.doesNotMatch(ergebnis.followUpQuestion, /Wie viel/);
+});

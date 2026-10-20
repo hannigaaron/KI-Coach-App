@@ -79,7 +79,7 @@ Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
 
-Der Assistent hat vierundvierzig Werkzeuge und verändert die App wirklich. Zahlen
+Der Assistent hat fünfundvierzig Werkzeuge und verändert die App wirklich. Zahlen
 über den Nutzer kommen immer aus Werkzeugen, nie aus dem Modell. Allgemeines
 Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
@@ -298,7 +298,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1032 Tests
+npm test           # 1050 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -340,8 +340,11 @@ OAuth für Google und EventKit für Apple gehören in die native App, siehe
 
 ## Jeder Start ist ein leeres Gespräch
 
-Wie bei Claude. Wer die App öffnet, sieht das grosse d, darunter Gruss und
-Lage des Tages, unten die Eingabe. Das Gespräch von gestern steht in der
+Wie bei Claude. Wer die App öffnet, sieht das grosse d, darunter den Gruss
+und "Wie kann ich dir weiterhelfen?", unten die Eingabe. Keine Vorschläge
+über der Eingabe und keine Zahlen unter dem Kreis: die Zeile mit
+Beispielfragen und der Satz über offene Kalorien machten den Start unruhig,
+und die Zahlen stehen ohnehin auf Heute. Das Gespräch von gestern steht in der
 Liste und nicht mehr im Weg. `frischesGespraech()` in `assistant.js`.
 
 Die Begrüssung ist keine Nachricht mehr, sondern steht unter dem Kreis,
@@ -572,6 +575,20 @@ Hoffnung gemacht. Deshalb der Knopf "Alle Stimmen zeigen, die dein Gerät
 meldet" im Profil: er gibt jede gemeldete Stimme aus, mit Sprachkürzel und
 Vermerk lokal oder Netz. Eine Liste beendet eine Vermutung, ein Satz in einer
 Dokumentation nicht.
+
+Das gilt für Safari und die Web App, nicht mehr für die iPhone App. Dort
+liefen Liste und Ausgabe zuerst ebenfalls über die Web Ansicht, und der
+Nutzer stand in einer nativen App wieder vor Anna. Jetzt gehen beide über
+`SprachePlugin.swift` und AVSpeechSynthesizer. Der sieht jede Stimme, die
+unter Bedienungshilfen, Gesprochene Inhalte, Stimmen geladen ist, mit
+Qualität und Geschlecht aus iOS selbst. Premium wiegt 120 Punkte, Erweitert
+100, männlich 40: ohne eigene Wahl spricht damit die beste Männerstimme.
+Gespeichert wird die Kennung der Stimme und nicht der Name, denn Anna gibt
+es nativ in Basis und Erweitert unter demselben Namen. Kommt jemand aus den
+Einstellungen zurück, liest die App die Liste neu und zeigt die geladene
+Stimme ohne Neustart. Der Synthesizer hat eine eigene Audiositzung, damit er
+der Spracherkennung der Web Ansicht das Mikrofon nicht wegnimmt. Auf dem
+Gerät geprüft ist das noch nicht, nur im Browser mit nachgebildeter Hülle.
 
 Eine wirklich menschliche Stimme geht mit der Web Speech API nicht. Dafür
 braucht es eine externe Sprachsynthese, einen weiteren Schlüssel und laufende
@@ -1180,6 +1197,38 @@ ist. Hat er nur allgemeinen Text erzeugt, steht allein die Fehlermeldung da.
 Eine Antwort, die wie eine Antwort aussieht und keine ist, über einer Meldung
 "ich komme nicht ins Netz", ist schlimmer als die Meldung allein.
 
+## Sechs Posten gesagt, zwei eingetragen
+
+Ein diktierter Satz mit Milchreis, ESN Flexpresso, Erdnussbutter, Hafermilch
+und Whey kam als "30 g Proteinpulver, 10 g Erdnussbutter, Tabellenwert" an.
+Drei Fehler übereinander.
+
+Der erste lag im Weg zum Modell. `generateJson` in
+`packages/coach/src/anthropic.ts` baute seine Köpfe selbst, mit `x-api-key`
+und ohne Kontoschlüssel. Über den Worker kam jede Mahlzeit und jedes Foto mit
+401 zurück, und `parseMeal` fiel still auf die Tabelle. Das Gespräch lief
+dabei normal, deshalb fiel es nicht auf. Jetzt nimmt es `headers()` wie alle
+anderen Aufrufe, und ein Test prüft den Kopf.
+
+Der zweite war das Schweigen. Scheitert das Modell, trägt `MealParseResult`
+den Fehler in `modellFehler`, und die Antwort sagt, dass nur nach Tabelle
+eingetragen wurde, mit Grund aus `fehlerErklaerung`. Was die Tabelle nicht
+kennt, steht direkt hinter dem Eingetragenen. Mit Menge heisst die Rückfrage
+"Nährwerte fehlen, Barcode oder Werte je 100 Gramm", nicht "wie viel war das".
+Ein Posten, der still fehlt, ist der teuerste Fehler beim Tracken: die Zahlen
+sehen richtig aus und sind es nicht.
+
+Der dritte war der Regelweg selbst. Löffel als Masseinheit, auch "gehäuft"
+(Teelöffel 5 g, gehäuft 10 g, Esslöffel 15 g, Faustwerte), Milliliter und
+Liter, Zahlwörter wie "einen", und Hafermilch als eigener Eintrag. "Einen
+Shake mit 30 Gramm Proteinpulver" zählte das Pulver zweimal: ein Treffer ohne
+Einheit fällt jetzt weg, wenn dasselbe Lebensmittel mit Einheit dasteht.
+Markenprodukte wie Flexpresso bekommen keine erfundenen Werte in der Tabelle.
+
+Die Spracherkennung schickte nach 2,2 Sekunden Pause ab, mitten in der
+Aufzählung. Jetzt 3,2 Sekunden, und 6, solange der Satz auf "und", "mit",
+eine Zahl oder eine Einheit endet, `pauseFuer` in `voice.js`.
+
 ## Doppelt eingetragenes Essen
 
 `packages/core/src/doppelt.ts`. Der Anlass ist ein echter Tag. Um 15:58 waren
@@ -1321,7 +1370,7 @@ Tippfehler darf die Ziele nicht kippen.
 
 ## Der Regelweg ist die kostenlose Stufe
 
-37 der 44 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
+38 der 45 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
 Das ist keine Notlösung für den Ausfall, sondern das Produkt: ein Weg, der
 kein Modell anfragt, kostet nichts je Nutzer und skaliert ohne Rechnung.
 
@@ -2350,8 +2399,10 @@ gekippte Wand aus Fotos der App, darunter ein Schild mit dem Anlass, eine
 Überschrift, Haken, die Wahl zwischen Plus und Pro und ein Knopf mit Preis.
 Ein Angebot, das man in drei Sekunden liest, wird gelesen.
 
-Dazu `#aboLeiste`, eine Zeile über dem Kreis: "Testphase, noch 5 Tage, Plus
-sichern". Sie steht nur auf dem leeren Start und nie im Gespräch, und sie
+Dazu `#aboLeiste`, eine kleine Textzeile über dem Kreis: "Testphase, noch 5
+Tage. Plus ansehen", ohne Kasten und ohne gefüllten Knopf. Die erste Fassung
+war eine Pille mit schwarzem Knopf "Plus sichern" und zog mehr Blick als der
+Kreis. Sie steht nur auf dem leeren Start und nie im Gespräch, und sie
 fehlt bei Pro und bei Plus unter 80 Prozent. Werbung für etwas, das man
 schon hat, nervt. Was sie zeigt, entscheidet `aboLeiste` in `konto.js`.
 
@@ -2396,7 +2447,7 @@ Worker.
 
 ### Eigene Plugins statt fremder Pakete
 
-Drei Swift Plugins liegen im App Ziel unter `apps/ios/ios/App/App` und
+Vier Swift Plugins liegen im App Ziel unter `apps/ios/ios/App/App` und
 werden in `DaevoBridge.swift` angemeldet. Die Web App spricht sie über
 `nativAufruf` in `apps/pwa/js/nativ.js` an, ohne `@capacitor/core`: sie hat
 keinen Bundler und soll dafür keine Abhängigkeit bekommen. Ein neues Plugin
@@ -2441,6 +2492,32 @@ deshalb ein Test und kein Betrieb.
 Rest der Datei. Vorher schrieb es die Hilfsfunktionen von Hand nach, und
 `istNativ` wäre in der Fassung für Nutzer gefehlt. Deren Import bricht dann
 das ganze Modul, und die App bleibt schwarz.
+
+## Eigene Erinnerungen
+
+`packages/core/src/erinnerung.ts` rechnet, `apps/pwa/js/mitteilungen.js`
+plant, die Liste steht im Profil unter Benachrichtigungen. Werkzeug
+`erinnerung_anlegen`, mit Regelpfad.
+
+Die Impulse sind für alle dieselben. Was jemand selbst braucht, kennt nur er:
+die Tablette um acht, die Supplemente vor dem Schlafen. Eine Erinnerung ist
+ein Text, eine feste Uhrzeit oder ein Bezug auf den eigenen Tag, und die
+Wochentage, 1 Montag bis 7 Sonntag, leer heisst täglich. "Eine Stunde vor
+dem Schlafen" hängt an `tagesrandFuer` und wandert je Tag mit, auch am
+Wochenende mit späterer Schlafenszeit.
+
+Der Regelpfad nimmt nur, was eindeutig ist: "erinnere" und eine echte
+Uhrzeit oder ein Bezug. "Erinnere mich später" bekommt eine Rückfrage, keine
+geratene Uhrzeit, und "morgen um 8" ist eine Aufgabe, keine wiederkehrende
+Erinnerung. Er steht vor Training und Aufgaben, sonst wird "erinnere mich um
+8 an das Training" zu einem Eintrag.
+
+Beim Kürzen auf 60 Mitteilungen gehen eigene Erinnerungen vor, dann die
+Lücke, dann die Impulse. Höchstens sechs eigene, `MAX_EIGENE`, damit sieben
+Tage voraus noch Platz für die übrigen bleibt. Nur in der iPhone App: im
+Browser plant niemand die Mitteilung ein, und eine Erinnerung an ein
+Medikament, die nie kommt, ist schlimmer als keine. Legt man sie im Browser
+im Gespräch an, sagt die Antwort genau das.
 
 ## Das Coaching Angebot
 

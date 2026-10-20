@@ -465,12 +465,10 @@ export class AnthropicProvider implements CoachProvider {
       const holen = this.fetchImpl;
       const response = await holen(this.ziel(), {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-api-key": this.options.apiKey as string,
-          "anthropic-version": API_VERSION,
-          ...(this.options.browserAccess ? { "anthropic-dangerous-direct-browser-access": "true" } : {}),
-        },
+        // Dieselben Köpfe wie im Gespräch. Hier stand vorher ein eigener
+        // Satz mit `x-api-key` und ohne Kontoschlüssel: über den Worker kam
+        // jede Mahlzeit mit 401 zurück und fiel still auf die Tabelle.
+        headers: this.headers(),
         signal: controller.signal,
         body: JSON.stringify({
           model: request.modell ?? this.options.model,

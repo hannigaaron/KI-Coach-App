@@ -390,6 +390,31 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: "erinnerung_anlegen",
+    description:
+      "Legt eine eigene, wiederkehrende Erinnerung an, die als Mitteilung auf dem iPhone kommt. " +
+      "Nehmen, wenn der Nutzer sagt, dass er an etwas Regelmässiges erinnert werden will: Medikamente, " +
+      "Supplemente, Dehnen, Abendroutine. Entweder eine feste Uhrzeit oder ein Bezug auf den eigenen Tag: " +
+      "'eine Stunde vor dem Schlafen' ist bezug schlafen mit versatz -60, 'nach dem Aufstehen' bezug " +
+      "aufstehen mit versatz 0. Die Zeiten des Nutzers kommen dann aus seinem Profil, je Tag. " +
+      "Nicht nehmen für einmalige Dinge wie einen Termin morgen, das ist eine Aufgabe. " +
+      "Fehlt die Uhrzeit, frag danach, statt eine zu raten.",
+    input_schema: {
+      type: "object",
+      properties: {
+        text: { type: "string", description: "Was in der Mitteilung steht, kurz, etwa 'Abendliche Supplemente'." },
+        uhrzeit: { type: "string", description: "HH:MM bei fester Uhrzeit." },
+        bezug: { type: "string", enum: ["schlafen", "aufstehen"], description: "Statt fester Uhrzeit." },
+        versatz: { type: "number", description: "Minuten zum Bezug, negativ heisst davor." },
+        tage: {
+          type: "array", items: { type: "number" },
+          description: "Wochentage 1 Montag bis 7 Sonntag. Leer heisst täglich.",
+        },
+      },
+      required: ["text", "tage"],
+    },
+  },
+  {
     name: "tag_zu_ende_planen",
     description:
       "Teilt das offene Kalorien und Proteinbudget auf die Mahlzeiten auf, die heute noch kommen, "

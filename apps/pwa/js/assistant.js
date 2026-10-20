@@ -1,10 +1,14 @@
 import {
   Agent, AnthropicProvider, Coach, addiere, buildShoppingList, cacheQuote, denktiefe, dollarText,
-  einstufeAufgabe, einstufungText, ersparnis, hochrechnung, kopfLeeren, kopfText, leereSumme,
+  einstufeAufgabe, einstufungText, ersparnis, fehlerErklaerung, hochrechnung, kopfLeeren, kopfText, leereSumme,
   mahlzeitAusFoto, modellFuerBilder, produktPerBarcode, produkteSuchen, summiere, vorratAusFoto,
   todoistAbhaken, todoistAufgaben, todoistIdVon,
 } from "@daevo/coach";
 import {
+  MAX_EIGENE,
+  erinnerungFehler,
+  tageText,
+  wannText,
   MAHLZEITEN,
   artZurUhrzeit,
   empfehlungText,
@@ -85,7 +89,7 @@ import {
   anpassungText,
 } from "@daevo/core";
 import { brain } from "./brain.js";
-import { KONFIG } from "./konfig.js";
+import { KONFIG, istNativ } from "./konfig.js";
 import { kontoSicherstellen, kontoToken } from "./konto.js";
 import { NACHTRAG_TAGE, tageZurueck } from "./exif.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
@@ -2096,13 +2100,19 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
     async mahlzeitErfassen(beschreibung) {
       const day = todayIso();
       const parsed = await coach.parseMeal(beschreibung);
+      // Lief das Modell nicht, steht das in der Antwort, mit Grund. Vorher
+      // fiel die App still auf die Tabelle zurück, und ein Satz mit sechs
+      // Lebensmitteln kam mit zweien an, ohne dass jemand es merkte.
+      const ohneModell = parsed.modellFehler !== undefined
+        ? `Die KI hat nicht geantwortet, deshalb nur nach der eingebauten Tabelle. ${fehlerErklaerung(parsed.modellFehler).text}`
+        : "";
       if (parsed.entries.length === 0) {
         // Kein erkanntes Lebensmittel heisst fast immer: das war keine
         // Mahlzeit. Eine Rückfrage nach Mengen wirkt dann, als hätte die App
         // nicht zugehört, und genau das ist im Betrieb passiert, als ein
         // Tagesplan mit "zwei gute Mahlzeiten essen" als Eintrag gelesen wurde.
-        return "Daraus konnte ich keine Mahlzeit lesen. Wenn du etwas eintragen willst, "
-          + "sag es mir mit Menge, etwa 200 Gramm Magerquark.";
+        return [ohneModell, "Daraus konnte ich keine Mahlzeit lesen. Wenn du etwas eintragen willst, "
+          + "sag es mir mit Menge, etwa 200 Gramm Magerquark."].filter(Boolean).join(" ");
       }
       // Der Riegel gegen doppeltes Zählen. Das Modell sieht die Zahlen des
       // Tages im Kontext und schickt beim nächsten Eintrag die ganze bisherige
@@ -2139,9 +2149,15 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
       // Der Hinweis steht vorn. Eine Korrektur am Ende einer Antwort wird
       // überlesen, und genau sie ist der Grund, warum die Zahlen stimmen.
       const unplausibel = plausibelHinweis(day);
+      // Was nicht erkannt wurde, steht direkt hinter dem Eingetragenen. Ein
+      // Posten, der still fehlt, ist der teuerste Fehler beim Tracken: die
+      // Zahlen sehen richtig aus und sind es nicht.
       return [
+        ohneModell,
         schonDa,
-        `Eingetragen: ${posten}. Zusammen ${kcal} kcal und ${protein} g Protein. ${restText(n.rest)}${warnung}`,
+        `Eingetragen: ${posten}. Zusammen ${kcal} kcal und ${protein} g Protein.`,
+        parsed.followUpQuestion,
+        `${restText(n.rest)}${warnung}`,
         unplausibel,
       ].filter(Boolean).join(" ").trimEnd();
     },
@@ -2605,6 +2621,27 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
       return ergebnis.text;
     },
 
+    async erinnerungAnlegen({ text, uhrzeit, bezug, versatz, tage = [] } = {}) {
+      const eintrag = { id: newId(), text: String(text || "").trim(), tage };
+      if (bezug) Object.assign(eintrag, { bezug, versatz: Number(versatz) || 0 });
+      else eintrag.uhrzeit = uhrzeit;
+      const fehler = erinnerungFehler(eintrag);
+      if (fehler) return fehler;
+      const liste = store.getSettings().eigeneErinnerungen || [];
+      if (liste.length >= MAX_EIGENE) {
+        return `Du hast schon ${MAX_EIGENE} eigene Erinnerungen. Lösch eine im Profil unter Benachrichtigungen, dann geht die nächste.`;
+      }
+      store.setSettings({ ...store.getSettings(), eigeneErinnerungen: [...liste, eintrag] });
+      changed();
+      const wann = `${tageText(eintrag.tage)}, ${wannText(eintrag)}`;
+      // Im Browser plant niemand diese Mitteilung ein. Das gehört gesagt,
+      // gerade wenn es um ein Medikament geht.
+      const hinweis = istNativ()
+        ? " Du siehst und löschst sie im Profil unter Benachrichtigungen."
+        : " Mitteilungen dafür kommen nur in der iPhone App, hier im Browser erinnere ich dich nicht.";
+      return `Erinnerung angelegt: ${eintrag.text}, ${wann}.${hinweis}`;
+    },
+
     async zeitEintragen({ bereich, minuten, was, tag } = {}) {
       const eintrag = {
         tag: tag || todayIso(),
@@ -3033,16 +3070,10 @@ export function begruessung() {
   const hour = new Date().getHours();
   const name = n.profile.name ? `, ${n.profile.name}` : "";
   const gruss = hour < 11 ? `Guten Morgen${name}` : hour < 18 ? `Hallo${name}` : `Guten Abend${name}`;
-
-  if (n.data.meals.length === 0) {
-    return { gruss, lage: "Noch nichts eingetragen heute. Sag mir, was du gegessen hast, oder frag mich was." };
-  }
-  if (n.rest.kcal < 0) {
-    return { gruss, lage: `Du bist ${Math.abs(n.rest.kcal)} kcal über deinem Ziel. Kein Drama, aber gut zu wissen.` };
-  }
-  // "0 g Protein offen" ist kein Satz, den jemand sagen würde.
-  if (n.rest.proteinG <= 0) return { gruss, lage: `Noch ${n.rest.kcal} kcal offen, dein Protein hast du schon.` };
-  return { gruss, lage: `Noch ${n.rest.kcal} kcal und ${n.rest.proteinG} g Protein offen.` };
+  // Eine Frage statt einer Lage. Die Zahlen des Tages stehen auf Heute, und
+  // ein Satz über offene Kalorien unter dem Kreis machte den Start zu einer
+  // Anzeige, bevor jemand etwas gesagt hat.
+  return { gruss, lage: "Wie kann ich dir weiterhelfen?" };
 }
 
 /**

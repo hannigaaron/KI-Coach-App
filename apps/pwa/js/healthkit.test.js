@@ -111,3 +111,26 @@ test("wer selbst ausgeschaltet hat, bekommt nichts geplant", async () => {
   const { mitteilungsPlan } = await import("./mitteilungen.js");
   assert.equal(mitteilungsPlan({ store, jetzt: { tag: HEUTE, uhrzeit: "06:00" } }).length, 0);
 });
+
+test("eigene Erinnerungen: feste Uhrzeit, vor dem Schlafen, und sie gehen beim Kürzen vor", async () => {
+  frisch();
+  const { mitteilungsPlan, MAX_GEPLANT } = await import("./mitteilungen.js");
+  store.setSettings({ ...store.getSettings(), eigeneErinnerungen: [
+    { id: "tab", text: "Schilddrüsentablette", uhrzeit: "07:30", tage: [1, 2, 3, 4, 5] },
+    { id: "sup", text: "Abendliche Supplemente", bezug: "schlafen", versatz: -60, tage: [] },
+  ] });
+  const plan = mitteilungsPlan({ store, jetzt: { tag: HEUTE, uhrzeit: "06:00" } });
+  const sup = plan.filter((m) => m.id.startsWith("eigene-sup-"));
+  assert.equal(sup.length, 7);
+  assert.ok(sup.every((m) => m.uhrzeit === "22:00" && m.text === "Abendliche Supplemente"), "eine Stunde vor 23:00");
+  const tab = plan.filter((m) => m.id.startsWith("eigene-tab-"));
+  assert.equal(tab.length, 5, "nur werktags");
+
+  // Sechs tägliche Erinnerungen ergeben 42, dazu die Impulse: dann wird
+  // gekürzt, und keine eigene darf dabei verloren gehen.
+  store.setSettings({ ...store.getSettings(), eigeneErinnerungen: Array.from({ length: 6 }, (_, i) =>
+    ({ id: `e${i}`, text: `Punkt ${i}`, uhrzeit: `0${i + 1}:15`, tage: [] })) });
+  const voll = mitteilungsPlan({ store, jetzt: { tag: HEUTE, uhrzeit: "00:00" } });
+  assert.equal(voll.length, MAX_GEPLANT);
+  assert.equal(voll.filter((m) => m.art === "eigene").length, 42);
+});

@@ -12,6 +12,9 @@ import {
   spanneKurz,
   restText,
   makroHerkunft,
+  MAX_EIGENE,
+  tageText,
+  wannText,
 } from "@daevo/core";
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, produktPerBarcode, produkteSuchen } from "@daevo/coach";
 import { Coach, AnthropicProvider } from "@daevo/coach";
@@ -44,13 +47,16 @@ import { anhangAusDatei, grossInKb } from "./media.js";
 import { EXIF_LESEN_BYTES, aufnahmezeit, tagVor, tageZurueck, zeitVorschlag } from "./exif.js";
 import { gewichtsKurve, gewichtsSpanne } from "./gewichtkurve.js";
 import { bereichFarbe, anteilsRing, kurzDauer, netzDiagramm, wertungsRing } from "./rings.js";
-import { Listener, alleStimmen, istDeutsch, speak, stimmenBereit, stopSpeaking, voiceSupport, waehlbareStimmen } from "./voice.js";
+import {
+  Listener, alleStimmen, istDeutsch, istMaennlich, speak, stimmQualitaet, stimmSchluessel, stimmenBereit, stopSpeaking,
+  voiceSupport, waehlbareStimmen,
+} from "./voice.js";
 import { SetupFlow } from "./setup-ui.js";
 import { einfuehrungStarten } from "./einfuehrung.js";
 import { rezepteAnsicht } from "./rezepte-ui.js";
 import { symbol } from "./symbole.js";
 import { NATIV_PUSH, gesundheitHolen, postfachHolen, pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
-import { newId, nowTime, store, todayIso } from "./storage.js";
+import { kodierungReparieren, newId, nowTime, store, todayIso } from "./storage.js";
 import { healthkitAbgleichen } from "./healthkit.js";
 import { mitteilungenPlanen } from "./mitteilungen.js";
 import { nativAufruf } from "./nativ.js";
@@ -204,9 +210,6 @@ $("anhangLeiste").addEventListener("click", (event) => {
   if (!weg) return;
   anhaenge = anhaenge.filter((a) => a.id !== weg.dataset.anhangWeg);
   renderAnhaenge();
-});
-$("chips").addEventListener("click", (event) => {
-  if (event.target.closest("[data-chip-foto]")) $("kameraWahl").click();
 });
 
 /* ---------- Assistent ---------- */
@@ -386,6 +389,11 @@ async function send(text) {
     // Kennt der Server den Schlüssel nicht mehr, legt kontoStand ein neues
     // Konto an. Ohne das scheiterte jede weitere Nachricht an derselben Stelle.
     if (reply.fehlerArt === "konto") kontoStand();
+    // Im Gespräch angelegt: sofort einplanen, nicht erst beim nächsten Öffnen.
+    if ((reply.ausgeführt || []).some((a) => String(a).startsWith("Erinnerung"))) {
+      eigeneErinnerungenZeigen();
+      mitteilungenNativ();
+    }
     if (reply.fehlerArt === "kontingent") {
       const anlass = aboAnlassLeer(store.getSettings().aboHinweise, Date.now(), reply.modus);
       if (anlass) setTimeout(() => aboOeffnen(anlass), 700);
@@ -853,7 +861,7 @@ function showView(name) {
   if (name === "gespraeche") renderGespraeche();
   if (name === "wochencheck") wcStart();
   if (name === "empfehlungen") { renderRecommendations(); zeigeAngebot("empfehlungenAngebot"); }
-  if (name === "profil") { renderProfile(); healthStandZeigen(); }
+  if (name === "profil") { renderProfile(); healthStandZeigen(); eigeneErinnerungenZeigen(); }
   if (name === "assistant") renderTranscript();
 }
 
@@ -1703,33 +1711,44 @@ async function renderStimmwahl() {
     return;
   }
 
+  // Die gespeicherte Wahl kann ein alter Name sein oder ein Schlüssel. Nativ
+  // gibt es Anna in Basis und in Erweitert unter demselben Namen.
+  const gewaehltIst = (v) => gewaehlt && (stimmSchluessel(v) === gewaehlt || v.name === gewaehlt);
+  const markiert = liste.find(gewaehltIst);
   const eintrag = (v) => {
-    const gut = /premium|neural|enhanced|natural/i.test(v.name);
-    // Den Qualitätszusatz aus dem Namen nehmen und als Klammer dahinter
-    // setzen. "Markus (Premium)" liest sich, "Markus (Enhanced) [de-DE]"
-    // nicht.
+    const q = stimmQualitaet(v);
+    const stufe = q === 3 ? "Premium" : q === 2 ? "Erweitert" : "";
+    // Den Qualitätszusatz aus dem Namen nehmen und dahinter setzen.
+    // "Markus, Premium" liest sich, "Markus (Enhanced) [de-DE]" nicht.
     const kurz = v.name.replace(/\s*\((premium|enhanced|neural|natural)\)/i, "").trim();
+    const zusatz = [istMaennlich(v) ? "männlich" : "", stufe].filter(Boolean).join(", ");
     const sprache = istDeutsch(v) ? "" : ` [${v.lang}]`;
-    return `<option value="${escapeHtml(v.name)}"${v.name === gewaehlt ? " selected" : ""}>`
-      + `${escapeHtml(kurz)}${sprache}${gut ? " (bessere Qualität)" : ""}</option>`;
+    return `<option value="${escapeHtml(stimmSchluessel(v))}"${v === markiert ? " selected" : ""}>`
+      + `${escapeHtml(kurz)}${sprache}${zusatz ? `, ${zusatz}` : ""}</option>`;
   };
 
   feld.innerHTML = liste.map(eintrag).join("");
 
   const deutsch = liste.filter(istDeutsch);
-  const hatGute = liste.some((v) => /premium|neural|enhanced|natural/i.test(v.name));
+  const hatGute = liste.some((v) => stimmQualitaet(v) >= 2);
+  const hatMann = deutsch.some(istMaennlich);
   const zeilen = [];
+  const nativeListe = liste.some((v) => v.nativ);
 
   if (deutsch.length === 0) {
     zeilen.push("Dieses Gerät meldet keine Stimme als Deutsch. Die gefundenen stehen trotzdem zur Wahl, "
       + "sie sprechen deutschen Text meist sauber.");
+  } else if (nativeListe && (!hatGute || !hatMann)) {
+    // In der iPhone App sieht daevo jede geladene Stimme. Fehlt eine gute
+    // oder eine männliche, liegt sie noch nicht auf dem Gerät.
+    zeilen.push("Bessere Stimmen lädst du auf dem iPhone unter Einstellungen, Bedienungshilfen, "
+      + "Gesprochene Inhalte, Stimmen, Deutsch. Eine Männerstimme wie Markus oder Yannick in Erweitert "
+      + "oder Premium laden, dann hierher zurückkommen. Sie steht danach in der Liste.");
   } else if (!hatGute && (istNativ() || /iPhone|iPad|iPod/.test(navigator.userAgent))) {
-    // Auf dem iPhone sieht die Sprachausgabe einer App nur die Basisstimmen.
-    // Was unter Bedienungshilfen geladen wird, gehört zu VoiceOver. Der
-    // frühere Hinweis auf Markus und Yannick hat Hoffnung gemacht, die sich
-    // nicht erfüllt.
-    zeilen.push("Auf dem iPhone gibt Apple einer App nur die Basisstimmen frei. Stimmen, die du unter "
-      + "Bedienungshilfen lädst, nutzt nur VoiceOver, daevo kommt an sie nicht heran.");
+    // Safari und die Web App vom Homebildschirm sehen nur die Basisstimmen.
+    // Was unter Bedienungshilfen geladen wird, nutzt erst die iPhone App.
+    zeilen.push("Im Browser gibt Apple nur die Basisstimmen frei. Geladene Stimmen wie Markus oder "
+      + "Yannick nutzt daevo erst in der iPhone App.");
   } else if (!hatGute) {
     zeilen.push("Deine deutschen Stimmen sind in Basisqualität. Bessere lädst du in den Einstellungen "
       + "deines Geräts unter Bedienungshilfen, Gesprochene Inhalte. Danach die App einmal schliessen "
@@ -2661,10 +2680,6 @@ $("btnWeckwort").addEventListener("click", () => {
   else weckwortStarten();
 });
 $("orb").addEventListener("click", startListening);
-$("chips").addEventListener("click", (event) => {
-  const button = event.target.closest("[data-say]");
-  if (button) send(button.dataset.say);
-});
 
 // Die Zeichen im Menü kommen aus symbole.js und nicht aus dem HTML, damit
 // eine Linie nur an einer Stelle gepflegt wird.
@@ -4065,7 +4080,9 @@ $("btnStimmenAlle").addEventListener("click", async () => {
     return;
   }
   const deutsch = alle.filter(istDeutsch).length;
-  const zeilen = alle.map((v) => `${v.name}  [${v.lang}]  ${v.localService ? "lokal" : "Netz"}`);
+  const zeilen = alle.map((v) => v.nativ
+    ? `${v.name}  [${v.lang}]  ${["", "Basis", "Erweitert", "Premium"][stimmQualitaet(v)]}${v.geschlecht ? `  ${v.geschlecht}` : ""}`
+    : `${v.name}  [${v.lang}]  ${v.localService ? "lokal" : "Netz"}`);
   feld.textContent = `${alle.length} Stimmen gemeldet, davon ${deutsch} deutsch.\n\n${zeilen.join("\n")}`;
 });
 
@@ -4592,6 +4609,55 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") healthNativ().then(() => mitteilungenNativ());
 });
 
+/* ---------- Eigene Erinnerungen ---------- */
+
+const ER_KREUZ = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+  + 'stroke-linecap="round" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg>';
+
+function eigeneErinnerungenZeigen() {
+  const liste = store.getSettings().eigeneErinnerungen || [];
+  $("eigeneListe").innerHTML = liste.length
+    ? liste.map((e) => `<li><div class="li-main"><div class="li-title">${escapeHtml(e.text)}</div>`
+      + `<div class="li-sub">${escapeHtml(`${tageText(e.tage)}, ${wannText(e)}`)}</div></div>`
+      + `<div class="li-side"><button class="aufgabe-knopf" data-er-weg="${e.id}" title="Löschen" `
+      + `aria-label="Erinnerung löschen">${ER_KREUZ}</button></div></li>`).join("")
+    : "";
+  $("btnErinnerungNeu").disabled = liste.length >= MAX_EIGENE;
+}
+
+$("erWann").addEventListener("change", () => {
+  const fest = $("erWann").value === "uhrzeit";
+  $("erUhrzeitFeld").hidden = !fest;
+  $("erAbstandFeld").hidden = fest;
+});
+$("erTage").addEventListener("click", (event) => {
+  const b = event.target.closest("[data-er-tag]");
+  if (b) b.classList.toggle("on");
+});
+$("eigeneListe").addEventListener("click", (event) => {
+  const b = event.target.closest("[data-er-weg]");
+  if (!b) return;
+  const s = store.getSettings();
+  store.setSettings({ ...s, eigeneErinnerungen: (s.eigeneErinnerungen || []).filter((e) => e.id !== b.dataset.erWeg) });
+  eigeneErinnerungenZeigen();
+  mitteilungenNativ();
+});
+$("btnErinnerungNeu").addEventListener("click", async () => {
+  const wann = $("erWann").value;
+  const tage = [...$("erTage").querySelectorAll(".on")].map((b) => Number(b.dataset.erTag));
+  const eingabe = wann === "uhrzeit"
+    ? { text: $("erText").value, uhrzeit: $("erUhrzeit").value, tage }
+    : { text: $("erText").value, bezug: wann, versatz: Number($("erAbstand").value) * (wann === "schlafen" ? -1 : 1), tage };
+  const antwort = await buildActions({ onChange: refreshAll }).erinnerungAnlegen(eingabe);
+  $("erHinweis").textContent = antwort;
+  if (antwort.startsWith("Erinnerung angelegt")) {
+    $("erText").value = "";
+    for (const b of $("erTage").querySelectorAll(".on")) b.classList.remove("on");
+    eigeneErinnerungenZeigen();
+    mitteilungenNativ();
+  }
+});
+
 /* ---------- Abo Fenster ---------- */
 
 let aboWahl = "plus";
@@ -4892,6 +4958,12 @@ if (typeof speechSynthesis !== "undefined") {
     if (profilView && !profilView.hidden) renderStimmwahl();
   });
 }
+// In der iPhone App meldet voice.js, wenn die Liste nach der Rückkehr aus den
+// Einstellungen neu gelesen ist.
+window.addEventListener("daevo-stimmen", () => {
+  const profilView = document.querySelector('[data-view="profil"]');
+  if (profilView && !profilView.hidden) renderStimmwahl();
+});
 
 $("btnAddSession").addEventListener("click", () => {
   const minutes = Number($("t-min").value);
@@ -5057,7 +5129,9 @@ $("btnSicherungKopieren").addEventListener("click", async () => {
 });
 
 $("btnExport").addEventListener("click", () => {
-  const blob = new Blob([JSON.stringify(store.exportAll(), null, 2)], { type: "application/json" });
+  // Mit Angabe der Kodierung. Ohne sie liest iOS die Datei als Latin-1, und
+  // beim Kopieren daraus kommt jeder Umlaut doppelt kodiert zurück.
+  const blob = new Blob([JSON.stringify(store.exportAll(), null, 2)], { type: "application/json;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -5072,7 +5146,9 @@ $("btnWiederherstellen").addEventListener("click", () => {
 });
 
 $("btnWiederherstellenStart").addEventListener("click", () => {
-  const roh = $("wiederherstellenText").value.trim();
+  // Eine Sicherung, die unterwegs falsch gelesen wurde, kommt sonst mit
+  // "Ã¤" statt "ä" in jede Notiz.
+  const roh = kodierungReparieren($("wiederherstellenText").value.trim());
   if (!roh) { $("sicherungHinweis").textContent = "Da steht nichts drin."; return; }
 
   let daten;
@@ -5132,7 +5208,7 @@ $("btnSetupSicherung").addEventListener("click", () => {
 });
 
 $("btnSetupSicherungStart").addEventListener("click", () => {
-  const roh = $("setupSicherungText").value.trim();
+  const roh = kodierungReparieren($("setupSicherungText").value.trim());
   const hinweis = $("setupSicherungHinweis");
   if (!roh) { hinweis.textContent = "Da steht nichts drin."; return; }
 

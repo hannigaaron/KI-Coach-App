@@ -25,10 +25,31 @@
  * PAUSE_MS, oder wenn er selbst auf Fertig tippt.
  */
 
+import { istNativ } from "./konfig.js";
+import { nativAufruf } from "./nativ.js";
+
 const Recognition = globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition;
 
-/** Sprechpause, nach der ein Satz als beendet gilt. */
-const PAUSE_MS = 2200;
+/**
+ * Sprechpause, nach der ein Satz als beendet gilt.
+ *
+ * 2,2 Sekunden waren zu knapp. Wer eine Mahlzeit mit sechs Posten diktiert,
+ * überlegt zwischen zwei Posten, und die Erkennung schickte dann mitten in
+ * der Aufzählung ab. Der Rest kam als zweite Nachricht oder gar nicht an.
+ */
+const PAUSE_MS = 3200;
+/**
+ * Längere Pause, wenn der Satz erkennbar noch nicht fertig ist: er endet auf
+ * "und", "mit", eine Zahl oder eine Einheit. "80 Gramm Milchreis und" ist
+ * kein Satzende, sondern ein Nachdenken über den nächsten Posten.
+ */
+const PAUSE_OFFEN_MS = 6000;
+const OFFENES_ENDE = /(?:^|[\s,])(und|mit|oder|noch|dazu|plus|sowie|ein|eine|einen|einem|der|die|das|den|dem|von|vom|zum|zur|auf|aus|in|im|also|dann|aber|weil|dass|gramm|g|milliliter|ml|liter|l|löffel|teelöffel|esslöffel|gehäuft|gehäuften|gehäufter)\s*$|[\d,]\s*$/i;
+
+/** Die Pause, die zu diesem Stand des Satzes passt. */
+export function pauseFuer(text, grundMs = PAUSE_MS) {
+  return OFFENES_ENDE.test(String(text ?? "").trim()) ? Math.max(grundMs, PAUSE_OFFEN_MS) : grundMs;
+}
 /** Wartezeit, bevor aufgegeben wird, wenn noch gar nichts gesagt wurde. */
 const STILLE_MS = 9000;
 /** Obergrenze für eine einzelne Aufnahme. Schützt vor einem offenen Mikrofon. */
@@ -142,8 +163,9 @@ export class Listener {
       this.letzterInterim = interim;
       this.onPartial(this.text(interim));
       // Jedes gehörte Wort schiebt das Ende nach hinten. Wer weiterredet,
-      // wird nicht unterbrochen.
-      this.planePause(this.pauseMs);
+      // wird nicht unterbrochen, und wer mitten in einer Aufzählung
+      // nachdenkt, auch nicht.
+      this.planePause(pauseFuer(this.text(interim), this.pauseMs));
     };
 
     recognition.onspeechstart = () => {
@@ -399,6 +421,74 @@ export function istSpassstimme(v) {
 }
 
 /**
+ * Die Stimmen der iPhone App, aus AVSpeechSynthesizer.
+ *
+ * Die Web Ansicht meldet auf dem iPhone nur Basisstimmen, auf deutsch genau
+ * Anna. Die native Sprachausgabe sieht dagegen jede Stimme, die unter
+ * Bedienungshilfen, Gesprochene Inhalte geladen ist, in Erweitert und
+ * Premium, und damit auch Männerstimmen. In der App läuft deshalb beides,
+ * Liste und Ausgabe, über `SprachePlugin.swift`. Fehlt das Plugin in einer
+ * älteren Fassung der App, bleibt die Liste leer und alles läuft wie im
+ * Browser.
+ */
+let nativeStimmen = [];
+
+async function nativeStimmenLaden() {
+  if (!istNativ()) return [];
+  try {
+    const { stimmen } = await nativAufruf("Sprache", "stimmen");
+    nativeStimmen = (stimmen || []).map((v) => ({
+      name: v.name,
+      lang: v.lang,
+      voiceURI: v.id,
+      localService: true,
+      qualitaet: Number(v.qualitaet) || 1,
+      geschlecht: v.geschlecht || "",
+      nativ: true,
+    }));
+  } catch {
+    nativeStimmen = [];
+  }
+  return nativeStimmen;
+}
+
+const nativGeladen = nativeStimmenLaden();
+
+// Wer in den Einstellungen eine Stimme lädt und zurückkommt, soll sie ohne
+// Neustart der App in der Liste finden.
+if (istNativ()) {
+  globalThis.document?.addEventListener("visibilitychange", () => {
+    if (globalThis.document.visibilityState !== "visible") return;
+    nativeStimmenLaden().then(() => globalThis.dispatchEvent?.(new Event("daevo-stimmen")));
+  });
+}
+
+function nativAusgabe() {
+  return istNativ() && nativeStimmen.length > 0;
+}
+
+/** Qualitätsstufe einer Stimme: 3 Premium, 2 Erweitert, 1 Basis. */
+export function stimmQualitaet(v) {
+  if (v?.qualitaet) return v.qualitaet;
+  const name = (v?.name || "").toLowerCase();
+  if (/premium|neural|natural/.test(name)) return 3;
+  if (/enhanced|erweitert/.test(name)) return 2;
+  return 1;
+}
+
+/** Ob die Stimme männlich ist. Nativ meldet iOS das, im Browser bleibt die Namensliste. */
+export function istMaennlich(v) {
+  if (v?.geschlecht) return v.geschlecht === "m";
+  const name = (v?.name || "").toLowerCase();
+  return MAENNLICHE_STIMMEN.some((m) => name.includes(m));
+}
+
+/** Der Schlüssel, unter dem die Wahl gespeichert wird. Namen sind nativ nicht eindeutig. */
+export function stimmSchluessel(v) {
+  return v?.voiceURI || v?.name || "";
+}
+
+/**
  * Alle Stimmen des Geraets, die brauchbaren zuerst.
  *
  * Frueher stand hier ein Filter auf lang beginnt mit "de", und alles andere
@@ -411,8 +501,10 @@ export function istSpassstimme(v) {
  * Deutsche Stimmen stehen oben, der Rest darunter. Ausgeblendet wird nichts.
  */
 export function alleStimmen() {
-  if (!voiceSupport.ausgabe) return [];
-  const alle = globalThis.speechSynthesis.getVoices() || [];
+  let alle;
+  if (nativAusgabe()) alle = nativeStimmen;
+  else if (voiceSupport.ausgabe) alle = globalThis.speechSynthesis.getVoices() || [];
+  else return [];
   return [...alle]
     .map((v) => ({ stimme: v, punkte: stimmPunkte(v) }))
     .sort((a, b) => b.punkte - a.punkte)
@@ -460,7 +552,11 @@ export function waehlbareStimmen() {
  * Deshalb beides: auf das Ereignis hoeren und zusaetzlich nachsehen. Nach
  * `maxMs` wird zurueckgegeben, was da ist, auch wenn es nichts ist.
  */
-export function stimmenBereit(maxMs = 3000) {
+export async function stimmenBereit(maxMs = 3000) {
+  if (istNativ()) {
+    await nativeStimmenLaden();
+    if (nativeStimmen.length) return alleStimmen();
+  }
   return new Promise((fertig) => {
     if (!voiceSupport.ausgabe) return fertig([]);
     if (alleStimmen().length) return fertig(alleStimmen());
@@ -488,8 +584,12 @@ export function stimmenBereit(maxMs = 3000) {
 function stimmPunkte(v) {
   const name = (v.name || "").toLowerCase();
   let punkte = 0;
-  if (/premium|neural|enhanced|natural/.test(name)) punkte += 100;
-  if (MAENNLICHE_STIMMEN.some((m) => name.includes(m))) punkte += 40;
+  // Qualität wiegt am schwersten. Premium gegen Basis ist ein grösserer
+  // Unterschied als jede andere Wahl, auch als das Geschlecht.
+  const q = stimmQualitaet(v);
+  if (q === 3) punkte += 120;
+  else if (q === 2) punkte += 100;
+  if (istMaennlich(v)) punkte += 40;
   if (v.localService) punkte += 10;
   // Eine "Eloquence" Stimme auf iOS ist die alte Roboterstimme aus den
   // Neunzigern. Die will niemand hören.
@@ -507,7 +607,7 @@ function stimmPunkte(v) {
 export function gewaehlteStimme(name) {
   const alle = alleStimmen();
   if (name) {
-    const treffer = alle.find((v) => v.name === name);
+    const treffer = alle.find((v) => v.voiceURI === name) || alle.find((v) => v.name === name);
     if (treffer) return treffer;
   }
   return waehlbareStimmen()[0] || alle.find(istDeutsch) || alle[0] || null;
@@ -520,8 +620,25 @@ export function gewaehlteStimme(name) {
  * gehetzt, und gehetzt klingt maschinell. 0,96 ist knapp unter Normaltempo,
  * hörbar ruhiger, ohne schleppend zu wirken.
  */
-export function speak(text, { onStart, onEnd, enabled = true, stimme, tempo } = {}) {
-  if (!enabled || !voiceSupport.ausgabe || !text) {
+export async function speak(text, { onStart, onEnd, enabled = true, stimme, tempo } = {}) {
+  if (!enabled || !text) {
+    onEnd?.();
+    return;
+  }
+  // Der erste Satz kann kommen, bevor die Liste aus der App da ist.
+  if (istNativ()) await nativGeladen;
+  if (nativAusgabe()) {
+    const gewaehlt = gewaehlteStimme(stimme);
+    onStart?.();
+    nativAufruf("Sprache", "sprechen", {
+      text: stripForSpeech(text),
+      stimme: gewaehlt?.voiceURI,
+      tempo: Number.isFinite(tempo) ? Math.max(0.7, Math.min(1.3, tempo)) : 0.96,
+      tonhoehe: 0.95,
+    }).then(() => onEnd?.(), () => onEnd?.());
+    return;
+  }
+  if (!voiceSupport.ausgabe) {
     onEnd?.();
     return;
   }
@@ -543,6 +660,7 @@ export function speak(text, { onStart, onEnd, enabled = true, stimme, tempo } = 
 }
 
 export function stopSpeaking() {
+  if (nativAusgabe()) nativAufruf("Sprache", "stoppen").catch(() => {});
   if (voiceSupport.ausgabe) globalThis.speechSynthesis.cancel();
 }
 
@@ -557,7 +675,7 @@ export function stopSpeaking() {
  * Ein Punkt am Ende einer Aufzählungszeile erzeugt eine echte Sprechpause. Das
  * ist der billigste und wirksamste Hebel, den es hier gibt.
  */
-function stripForSpeech(text) {
+export function stripForSpeech(text) {
   return text
     // Aufzählungszeichen am Zeilenanfang raus, dafür eine Pause dahinter.
     .replace(/^\s*[-*•]\s*/gm, "")
@@ -572,6 +690,8 @@ function stripForSpeech(text) {
     .replace(/(\d)\s*min\b/gi, "$1 Minuten")
     .replace(/(\d)\s*h\b/g, "$1 Stunden")
     // Uhrzeiten: "14:30" wird sonst als Doppelpunkt gelesen.
+    // Steht "Uhr" schon dahinter, fällt es weg, sonst heisst es "14 Uhr 30 Uhr".
+    .replace(/\b(\d{1,2}):(\d{2})\s*Uhr\b/g, "$1:$2")
     .replace(/\b(\d{1,2}):(00)\b/g, "$1 Uhr")
     .replace(/\b(\d{1,2}):(\d{2})\b/g, "$1 Uhr $2")
     .replace(/\bz\.\s?B\./gi, "zum Beispiel")

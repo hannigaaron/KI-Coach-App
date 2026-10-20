@@ -38,3 +38,4 @@ export * from "./trainingsplan.js";
 export * from "./rezepte.js";
 export * from "./rezepte-daten.js";
 export * from "./herkunft.js";
+export * from "./erinnerung.js";

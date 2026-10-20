@@ -38,6 +38,49 @@ function migrateLegacyKeys() {
 
 migrateLegacyKeys();
 
+/**
+ * Macht doppelt kodierten Text wieder lesbar.
+ *
+ * Wird UTF-8 als Latin-1 gelesen, wird aus jedem Umlaut ein Paar: aus "ä"
+ * wird "Ã¤", aus "ß" ein "Ã" mit einem Steuerzeichen dahinter. Genau das ist
+ * im Betrieb passiert, beim Weg einer Sicherung über eine Datei ohne Angabe
+ * der Kodierung. Danach stand jede Notiz im Gedächtnis so da.
+ *
+ * Der Weg zurück ist verlustfrei: jedes Zeichen ist wieder ein Byte, und die
+ * Bytes werden als UTF-8 gelesen. Repariert wird nur, wenn alle drei
+ * Bedingungen gelten. Kein Zeichen liegt über 255, denn sonst war der Text
+ * nie Latin-1. Das typische Paar kommt vor. Und die Bytes ergeben gültiges
+ * UTF-8, sonst bricht der strenge Decoder ab. Ein echter deutscher Text
+ * erfüllt das nicht: "é" allein ist kein gültiges UTF-8.
+ */
+export function kodierungReparieren(text) {
+  if (typeof text !== "string" || !/[\u00C2-\u00F4][\u0080-\u00BF]/.test(text)) return text;
+  for (let i = 0; i < text.length; i++) if (text.charCodeAt(i) > 255) return text;
+  try {
+    const bytes = Uint8Array.from(text, (z) => z.charCodeAt(0));
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    return text;
+  }
+}
+
+/** Repariert alle gespeicherten Werte der App, einmal bei jedem Start. */
+function speicherReparieren() {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith(PREFIX)) continue;
+      const alt = localStorage.getItem(key);
+      const neu = kodierungReparieren(alt);
+      if (neu !== alt) localStorage.setItem(key, neu);
+    }
+  } catch {
+    // Kein Speicherzugriff, dann gibt es auch nichts zu reparieren.
+  }
+}
+
+speicherReparieren();
+
 function read(key, fallback) {
   try {
     const raw = localStorage.getItem(PREFIX + key);

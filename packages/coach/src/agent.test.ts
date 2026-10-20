@@ -46,6 +46,7 @@ function stubActions(log: string[]): AgentActions {
     async bereitschaftAbrufen() { log.push("bereitschaft"); return "Bereitschaft 72 von 100."; },
     async balanceAbrufen(i) { log.push(`balance:${i.tage ?? ""}`); return "Karriere 40 Stunden, Me Time 0 Minuten."; },
     async zeitEintragen(i) { log.push(`zeit:${i.bereich}:${i.minuten}`); return "Gebucht."; },
+    async erinnerungAnlegen(i) { log.push(`erinnerung:${i.text}:${i.uhrzeit ?? i.bezug}`); return "Erinnerung angelegt."; },
     async widerspruechePruefen() { log.push("widerspruch"); return "Protein: Ziel 180 g, im Schnitt 120 g."; },
     async mittagscheckSpeichern(i) { log.push(`mittag:${i.energie}/${i.konzentration}/${i.saettigung}`); return "Notiert."; },
     async briefingErstellen(i) { log.push(`briefing:${i.art}`); return "Guten Morgen."; },
@@ -625,4 +626,14 @@ test("ein eingetragenes Training bleibt ein Eintrag", async () => {
   const log: string[] = [];
   await runOffline("Hab heute 60 Minuten Krafttraining gemacht", stubActions(log));
   assert.equal(log.some((l) => l.startsWith("training-anpassen")), false);
+});
+
+test("der Regelweg legt eine Erinnerung an, statt eine Aufgabe oder ein Training", async () => {
+  const log: string[] = [];
+  const reply = await runOffline("Erinnere mich jeden Tag um 8 an meine Tabletten", stubActions(log));
+  assert.deepEqual(log, ["erinnerung:Meine Tabletten:08:00"]);
+  assert.deepEqual(reply.ausgeführt, ["Erinnerung angelegt"]);
+  const log2: string[] = [];
+  await runOffline("Erinnere mich eine Stunde vor dem Schlafengehen an die Supplemente", stubActions(log2));
+  assert.deepEqual(log2, ["erinnerung:Die Supplemente:schlafen"]);
 });

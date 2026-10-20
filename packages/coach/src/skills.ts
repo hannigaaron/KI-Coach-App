@@ -30,7 +30,18 @@ function debugLog(message: string, error: unknown): void {
  */
 export function naechsteFrage(erkannt: number, offen: string[]): string {
   if (erkannt > 0 && offen.length) {
-    return `Das konnte ich nicht zuordnen: ${offen.join(", ")}. Wie viel war das ungefähr?`;
+    // Steht eine Menge dabei, fehlt nicht die Menge, sondern das Lebensmittel
+    // in der Tabelle. "Wie viel war das" auf "80 Gramm Rice Pudding" zu fragen
+    // sieht aus, als hätte die App nicht zugehört.
+    const mitMenge = offen.filter((o) => /\d|\b(ein|eine|einen|zwei|drei)\b/i.test(o));
+    const ohneMenge = offen.filter((o) => !mitMenge.includes(o));
+    const saetze: string[] = [];
+    if (mitMenge.length) {
+      saetze.push(`Nicht eingetragen, weil ich die Nährwerte nicht kenne: ${mitMenge.join(", ")}. `
+        + "Scann den Barcode oder nenn mir Kalorien und Protein je 100 Gramm, dann trage ich es nach.");
+    }
+    if (ohneMenge.length) saetze.push(`Bei ${ohneMenge.join(", ")} fehlt mir die Menge. Wie viel war das ungefähr?`);
+    return saetze.join(" ");
   }
   if (erkannt === 0) {
     return "Daraus konnte ich keine Mahlzeit lesen. Wenn du etwas eintragen willst, "
@@ -45,6 +56,8 @@ export interface MealParseResult {
   followUpQuestion: string;
   warnings: string[];
   source: "model" | "offline";
+  /** Warum das Modell nicht geantwortet hat. Ohne das fiel die App still auf die Tabelle. */
+  modellFehler?: unknown;
 }
 
 export interface MealSuggestion {
@@ -62,6 +75,7 @@ export class Coach {
 
   /** Wandelt freien Text in Nährwerte um. Fällt ohne Modell auf die Tabelle zurück. */
   async parseMeal(text: string): Promise<MealParseResult> {
+    let modellFehler: unknown;
     if (this.provider.available) {
       try {
         const raw = await this.provider.generateJson<{
@@ -87,6 +101,7 @@ export class Coach {
       } catch (error) {
         // Fallback unten. Der Fehler wird vom Aufrufer geloggt.
         debugLog("parseMeal Modellfehler", error);
+        modellFehler = error;
       }
     }
 
@@ -101,6 +116,7 @@ export class Coach {
       followUpQuestion: naechsteFrage(offline.entries.length, offline.unresolved),
       warnings: [],
       source: "offline",
+      ...(modellFehler !== undefined ? { modellFehler } : {}),
     };
   }
 

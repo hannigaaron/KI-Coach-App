@@ -1,3 +1,4 @@
+import { erinnerungAus } from "@daevo/core";
 import { fehlerErklaerung } from "./fehler.js";
 import { AGENT_TOOLS } from "./tools.js";
 import { modellFuer } from "./modelle.js";
@@ -77,6 +78,10 @@ export interface AgentActions {
   bereitschaftAbrufen(): Promise<string>;
   balanceAbrufen(input: { tage?: number }): Promise<string>;
   zeitEintragen(input: { bereich: string; minuten: number; was: string; tag?: string }): Promise<string>;
+  /** Eine eigene, wiederkehrende Erinnerung, etwa für Medikamente. */
+  erinnerungAnlegen(input: {
+    text: string; uhrzeit?: string; bezug?: "schlafen" | "aufstehen"; versatz?: number; tage: number[];
+  }): Promise<string>;
   widerspruechePruefen(): Promise<string>;
   mittagscheckSpeichern(input: {
     energie: number; konzentration: number; saettigung: number; notiz?: string;
@@ -585,6 +590,20 @@ async function execute(
           tag: typeof input.tag === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.tag) ? input.tag : undefined,
         });
         return { text, notiz: `${minuten} Minuten auf ${bereich} gebucht` };
+      }
+      case "erinnerung_anlegen": {
+        const tage = Array.isArray(input.tage) ? input.tage.map(Number).filter((n) => n >= 1 && n <= 7) : [];
+        const bezug = input.bezug === "schlafen" || input.bezug === "aufstehen" ? input.bezug : undefined;
+        const uhrzeit = typeof input.uhrzeit === "string" ? input.uhrzeit : undefined;
+        if (!bezug && !uhrzeit) return { text: "Um wie viel Uhr, oder wann im Tag?", fehler: true };
+        const text = await actions.erinnerungAnlegen({
+          text: String(input.text ?? "").trim().slice(0, 120),
+          uhrzeit: bezug ? undefined : uhrzeit,
+          bezug,
+          versatz: bezug ? Math.round(Number(input.versatz) || 0) : undefined,
+          tage,
+        });
+        return { text, notiz: "Erinnerung angelegt" };
       }
       case "tag_zu_ende_planen": {
         const erlaubt = ["fruehstueck", "mittagessen", "abendessen", "snack"];
@@ -1130,6 +1149,14 @@ export async function runOffline(
   if (pattern("was muss ich heute", "was habe? ich heute zu (tun|erledigen)", "tagesplan",
     "plan(e)? (mir )?(meinen|den) tag", "sinnvolle reihenfolge", "to ?dos? (fur|fuer) heute").test(text)) {
     return { text: await actions.tagesplanErstellen(), ausgeführt, source: "offline" };
+  }
+
+  // Erinnerungen vor allem, was einträgt. "Erinnere mich um 8 an das
+  // Training" ist kein Training, und "an meine Tabletten" keine Aufgabe.
+  const erinnerung = erinnerungAus(nachricht);
+  if (erinnerung) {
+    const antwort = await actions.erinnerungAnlegen(erinnerung);
+    return { text: antwort, ausgeführt: ["Erinnerung angelegt"], source: "offline" };
   }
 
   // Training vor der Mahlzeit. "Nach dem Training hatte ich einen Shake"

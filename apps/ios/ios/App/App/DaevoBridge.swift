@@ -12,5 +12,6 @@ class DaevoBridgeViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(SpeicherPlugin())
         bridge?.registerPluginInstance(GesundheitPlugin())
         bridge?.registerPluginInstance(MitteilungenPlugin())
+        bridge?.registerPluginInstance(SprachePlugin())
     }
 }
