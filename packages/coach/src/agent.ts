@@ -342,6 +342,10 @@ export function denktiefe(nachricht: string, mitAnhang = false): {
     "libido", "erektion", "einsamkeit", "grübel", "grubel", "gedankenkarussell",
     "schlechtes gewissen", "mach\\w* mich( \\w+){0,3} fertig", "mit den nerven",
     "schaffe nichts", "schaffe es nicht", "nichts geschafft", "krieg nichts",
+    // Gefunden im Live-Test: "ich fühl mich leer und weiß nicht, ob das
+    // alles Sinn hat" lief auf dem Modell fürs Eintragen.
+    "fuehl\\w* mich (\\w+ ){0,3}(leer|mies|schlecht|kaputt|allein|wertlos|traurig)",
+    "keinen sinn", "sinn hat", "sinn macht", "nicht mehr kann",
   ).test(text);
 
   // Arbeit, Geld, Zeit, Aufbau.
@@ -369,7 +373,9 @@ export function denktiefe(nachricht: string, mitAnhang = false): {
 
   // Fragt er überhaupt etwas, oder erzählt er nur.
   const fragt = pattern(
-    "warum", "wieso", "weshalb", "erklär", "erklar", "wie kommt", "wie funktioniert",
+    // Am Wortanfang: "erklär" steckt in "Steuererklärung", und der Satz
+    // "ich muss die Steuererklärung machen" galt als Frage und lief auf Opus.
+    "warum", "wieso", "weshalb", "\\berklär", "\\berklar", "wie kommt", "wie funktioniert",
     "was denkst", "was meinst", "was hältst", "was halt", "soll ich", "sollte ich",
     "lohnt sich", "besser", "vergleich", "unterschied", "sinnvoll", "wirklich",
     "wie schaffe", "wie kriege", "was kann ich tun", "hilf mir", "was mache ich",

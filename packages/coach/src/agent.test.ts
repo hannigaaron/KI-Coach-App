@@ -795,3 +795,10 @@ test("eine Fachfrage ohne KI wird nicht mit dem Tagesstand beantwortet", async (
   assert.deepEqual(log, []);
   assert.match(r.text, /nur mit der KI/);
 });
+
+test("Steuererklärung ist keine Frage, Leere ist ein persönliches Thema", () => {
+  assert.equal(denktiefe("Ich muss bis Freitag die Steuererklärung machen, das dauert so zwei Stunden").modus, "standard");
+  assert.equal(denktiefe("Steuererklärung erledigt").modus, "standard");
+  assert.equal(denktiefe("Erklär mir Progression").modus, "coaching");
+  assert.equal(denktiefe("Ich fühl mich heute irgendwie leer und weiß nicht, ob das alles Sinn hat").modus, "psyche");
+});
