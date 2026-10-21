@@ -106,7 +106,7 @@ test("dreissig Gramm Protein je Kilo Körpergewicht fallen nicht auf", () => {
 test("sieben Liter Wasser fallen auf", () => {
   const befunde = plausibelPruefen({ posten: [], waterMl: 7000 });
   assert.equal(befunde.length, 1);
-  assert.match(befunde[0]!.text, /7\.0 Liter/);
+  assert.match(befunde[0]!.text, /7,0 Liter/);
 });
 
 test("harte Befunde stehen im Text vor den auffälligen", () => {

@@ -1009,6 +1009,8 @@ body:has([data-view="assistant"]:not([hidden])) .toast {
     --bereich-wellbeing: #5167d6; --bereich-me_time: #924ed5;
     --bereich-beziehung: #c72f94;
     --spur: #e4e8ec;
+    /* Rot für Text auf hellem Grund: #f85149 lag auf #f5f7fb bei 3,13 zu 1. */
+    --bad: #c62828;
     --accent: var(--brand-deep);
     --accent-text: var(--brand-text);
     --on-accent: #ffffff;
@@ -1032,6 +1034,8 @@ body:has([data-view="assistant"]:not([hidden])) .toast {
     --bereich-wellbeing: #5167d6; --bereich-me_time: #924ed5;
     --bereich-beziehung: #c72f94;
     --spur: #e4e8ec;
+    /* Rot für Text auf hellem Grund: #f85149 lag auf #f5f7fb bei 3,13 zu 1. */
+    --bad: #c62828;
     --accent: var(--brand-deep);
     --accent-text: var(--brand-text);
     --on-accent: #ffffff;
@@ -2830,10 +2834,12 @@ h1,
   font-size: 22px; line-height: 1.35; letter-spacing: -0.01em; text-shadow: 0 1px 12px rgba(0, 0, 0, 0.5);
 }
 .ef-zaehler { display: block; margin-top: 10px; color: rgba(255, 255, 255, 0.65); font-size: var(--t-sm); }
+/* Beenden steht in der Textkarte und nicht als Kreuz in der Ecke. Das Kreuz
+   lag dort genau auf dem Lautsprecherknopf des Assistenten. */
 .ef-schliessen {
-  position: fixed; top: calc(14px + env(safe-area-inset-top)); right: 16px;
-  width: 44px; height: 44px; border-radius: 50%; padding: 0; display: grid; place-items: center;
-  background: rgba(255, 255, 255, 0.16); border: 1px solid rgba(255, 255, 255, 0.22); color: #ffffff;
+  display: inline-block; margin-top: 8px; min-height: 44px; padding: 10px 16px; border: 0;
+  background: none; color: rgba(255, 255, 255, 0.78); font-size: var(--t-sm);
+  text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
 }
 @media (prefers-reduced-motion: reduce) { .ef-licht, .ef-text { transition: none; } }
 

@@ -21,6 +21,8 @@ export interface FoodRef {
   per100: { kcal: number; proteinG: number; fatG: number; carbsG: number };
   /** Typisches Stückgewicht in Gramm, falls zählbar. */
   pieceG?: number;
+  /** Ein Getränk. Die Menge steht dann in Milliliter, auch bei "eine Tasse". */
+  fluessig?: boolean;
   /** Zustand der Angabe, damit roh und gekocht nicht vermischt werden. */
   state?: "roh" | "gekocht" | "zubereitet";
 }
@@ -38,6 +40,8 @@ export const FOODS: FoodRef[] = [
   { key: "griechischer_joghurt", label: "Griechischer Joghurt", aliases: ["griechischer joghurt", "joghurt", "jogurt"], per100: { kcal: 73, proteinG: 9, fatG: 2, carbsG: 4 } },
   // Haferdrink ohne Zucker, gerundet aus gängigen Etiketten. Eigener Eintrag,
   // weil "Hafermilch" ein Wort ist und sonst auf nichts trifft.
+  { key: "honig", label: "Honig", aliases: ["honig"], per100: { kcal: 306, proteinG: 0.4, fatG: 0, carbsG: 75.1 } },
+  { key: "kaffee", label: "Kaffee, schwarz", aliases: ["kaffee", "espresso", "americano", "filterkaffee"], per100: { kcal: 2, proteinG: 0.1, fatG: 0, carbsG: 0 }, pieceG: 150, fluessig: true },
   { key: "haferdrink", label: "Hafermilch", aliases: ["hafermilch", "haferdrink", "hafer drink", "oatly"], per100: { kcal: 44, proteinG: 1, fatG: 1.5, carbsG: 6.5 } },
   { key: "milch", label: "Milch", aliases: ["milch", "vollmilch"], per100: { kcal: 47, proteinG: 3.4, fatG: 1.5, carbsG: 4.9 } },
   { key: "gouda", label: "Gouda", aliases: ["gouda", "käse", "käse"], per100: { kcal: 356, proteinG: 25, fatG: 28, carbsG: 0 } },
@@ -45,7 +49,7 @@ export const FOODS: FoodRef[] = [
   { key: "reis_gekocht", label: "Reis", aliases: ["reis", "reis gekocht", "basmati"], per100: { kcal: 130, proteinG: 2.7, fatG: 0.3, carbsG: 28 }, state: "gekocht" },
   { key: "nudeln_gekocht", label: "Nudeln", aliases: ["nudeln", "pasta", "spaghetti", "penne"], per100: { kcal: 158, proteinG: 5.8, fatG: 0.9, carbsG: 30.9 }, state: "gekocht" },
   { key: "kartoffeln", label: "Kartoffeln", aliases: ["kartoffeln", "kartoffel", "salzkartoffeln"], per100: { kcal: 77, proteinG: 2, fatG: 0.1, carbsG: 17 }, state: "gekocht" },
-  { key: "suesskartoffel", label: "Süsskartoffel", aliases: ["süsskartoffel", "süßkartoffel", "sweet potato"], per100: { kcal: 86, proteinG: 1.6, fatG: 0.1, carbsG: 20 }, state: "gekocht" },
+  { key: "suesskartoffel", label: "Süßkartoffel", aliases: ["süsskartoffel", "süßkartoffel", "sweet potato"], per100: { kcal: 86, proteinG: 1.6, fatG: 0.1, carbsG: 20 }, state: "gekocht" },
   { key: "vollkornbrot", label: "Vollkornbrot", aliases: ["vollkornbrot", "brot", "scheibe brot"], per100: { kcal: 210, proteinG: 7, fatG: 1.2, carbsG: 40 }, pieceG: 45 },
   { key: "banane", label: "Banane", aliases: ["banane", "bananen"], per100: { kcal: 89, proteinG: 1.1, fatG: 0.3, carbsG: 23 }, pieceG: 120 },
   { key: "apfel", label: "Apfel", aliases: ["apfel", "äpfel", "äpfel"], per100: { kcal: 52, proteinG: 0.3, fatG: 0.2, carbsG: 14 }, pieceG: 180 },

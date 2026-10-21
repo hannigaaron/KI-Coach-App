@@ -56,6 +56,13 @@ export interface AnthropicOptions {
    * Zwischenspeichern überhaupt greift.
    */
   onVerbrauch?: (verbrauch: Verbrauch) => void;
+  /**
+   * Keine dieser Anfragen zählt als Nachricht, nur gegen das Budget. Für das
+   * Eintragen von Essen: das läuft auf Haiku und kostet Zehntelcent, und wer
+   * zehnmal am Tag isst, soll dafür nicht sein Kontingent an Gesprächen
+   * aufbrauchen.
+   */
+  ohneZaehlung?: boolean;
 }
 
 /**
@@ -75,6 +82,8 @@ export class AnthropicProvider implements CoachProvider {
    * den Nachfolger gehen und nicht auf ein Modell, das abgelöst ist.
    */
   private readonly standardModell: string;
+  /** Ob über diese Instanz schon eine Anfrage an den eigenen Server ging. */
+  private angefragt = false;
 
   constructor(private readonly options: AnthropicOptions) {
     this.standardModell = aktuellesModell(options.model);
@@ -99,7 +108,19 @@ export class AnthropicProvider implements CoachProvider {
     // raus. Beides gehört dorthin, wo der Schlüssel liegt.
     if (this.options.baseUrl) {
       const token = this.options.kontoToken?.();
-      return { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) };
+      // Eine Nachricht des Nutzers sind mehrere Anfragen: das Gespräch, das
+      // Auslesen einer Mahlzeit, die Antwort nach dem Werkzeug. Gezählt wird
+      // davon nur die erste, alle weiteren tragen x-daevo-folge. Ohne das
+      // kostete eine eingetragene Mahlzeit drei Nachrichten, und aus 800
+      // versprochenen wurden rund 270. Die App legt je Nachricht einen
+      // eigenen Anbieter an, deshalb reicht ein Merker an der Instanz.
+      const folge = this.angefragt || this.options.ohneZaehlung === true;
+      this.angefragt = true;
+      return {
+        "content-type": "application/json",
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+        ...(folge ? { "x-daevo-folge": "1" } : {}),
+      };
     }
     return {
       "content-type": "application/json",

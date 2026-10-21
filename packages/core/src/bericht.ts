@@ -169,12 +169,12 @@ export function bericht(e: BerichtEingabe): Bericht {
   feld("protein", "Protein", (t) => t.proteinG, (w) => ({ zahl: String(Math.round(w)), einheit: "g" }));
   // "Liter" ausgeschrieben. Ein kleines l neben einer grossen Zahl ist auf
   // einer Karte kaum von einem Strich zu unterscheiden.
-  feld("wasser", "Wasser", (t) => t.wasserMl, (w) => ({ zahl: (w / 1000).toFixed(1), einheit: "Liter" }));
+  feld("wasser", "Wasser", (t) => t.wasserMl, (w) => ({ zahl: (w / 1000).toFixed(1).replace(".", ","), einheit: "Liter" }));
   feld("training", "Training", (t) => t.trainingMinuten, (w) => ({ zahl: String(Math.round(w)), einheit: "Minuten" }), "summe");
   feld("einheiten", "Einheiten", (t) => t.trainingEinheiten, (w) => ({ zahl: String(Math.round(w)), einheit: "" }), "summe");
   feld("schlaf", "Schlaf", (t) => t.schlafMinuten, (w) => ({ zahl: stunden(w), einheit: "" }));
-  feld("schlafqualitaet", "Schlafqualität", (t) => t.schlafQualitaet, (w) => ({ zahl: w.toFixed(1), einheit: "von 10" }));
-  feld("energie", "Energie", (t) => t.energie, (w) => ({ zahl: w.toFixed(1), einheit: "von 10" }));
+  feld("schlafqualitaet", "Schlafqualität", (t) => t.schlafQualitaet, (w) => ({ zahl: w.toFixed(1).replace(".", ","), einheit: "von 10" }));
+  feld("energie", "Energie", (t) => t.energie, (w) => ({ zahl: w.toFixed(1).replace(".", ","), einheit: "von 10" }));
 
   // Das Gewicht ist kein Schnitt, sondern eine Strecke. Der Durchschnitt von
   // 87 und 85 Kilo sagt über eine Abnahme nichts.
@@ -192,10 +192,10 @@ export function bericht(e: BerichtEingabe): Bericht {
     werte.push({
       name: "Gewicht",
       schluessel: "gewicht",
-      zahl: letzte.toFixed(1),
+      zahl: letzte.toFixed(1).replace(".", ","),
       einheit: "kg",
       zusatz: `${vorzeichen(diff)} kg seit ${datumKurz(wiegungen[0]!.tag)}`,
-      wert: `${letzte.toFixed(1)} kg, ${vorzeichen(diff)} kg seit ${datumKurz(wiegungen[0]!.tag)}`,
+      wert: `${letzte.toFixed(1).replace(".", ",")} kg, ${vorzeichen(diff)} kg seit ${datumKurz(wiegungen[0]!.tag)}`,
       tage: wiegungen.length,
       trend: null,
       verlauf: tage.map((t) => (t.gewichtKg === null || t.gewichtKg === undefined ? null : Number(t.gewichtKg) || null)),
@@ -337,5 +337,5 @@ function stunden(minuten: number): string {
 }
 
 function vorzeichen(zahl: number): string {
-  return `${zahl >= 0 ? "+" : ""}${zahl.toFixed(1)}`;
+  return `${zahl >= 0 ? "+" : ""}${zahl.toFixed(1).replace(".", ",")}`;
 }

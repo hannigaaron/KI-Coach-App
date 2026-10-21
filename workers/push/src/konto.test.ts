@@ -73,7 +73,10 @@ test("ein Konto wird über den Bearer Kopf gefunden, ein falscher Schlüssel nic
   const { token, konto } = await kontoAnlegen(kv);
   const mit = (t: string) => new Request("https://w.dev/x", { headers: { authorization: `Bearer ${t}` } });
   assert.equal((await kontoAusAnfrage(kv, mit(token)))?.konto.id, konto.id);
-  assert.equal(await kontoAusAnfrage(kv, mit(token.slice(0, -1) + "x")), null);
+  // Das letzte Zeichen wird sicher ein anderes. Mit festem "x" war der Test
+  // einmal in 62 Läufen rot, wenn der Schlüssel schon auf "x" endete.
+  const anders = token.slice(0, -1) + (token.endsWith("x") ? "y" : "x");
+  assert.equal(await kontoAusAnfrage(kv, mit(anders)), null);
   assert.equal(await kontoAusAnfrage(kv, new Request("https://w.dev/x")), null);
 });
 
@@ -231,4 +234,35 @@ test("ohne Konto gibt es keine KI, ausser der Betreiber schaltet es frei", async
   assert.equal(((await zu.json()) as { error: { type: string } }).error.type, "konto");
   const offen = await chatWeiterreichen(new Request("https://w.dev/chat", { method: "POST", body: "{}" }), umgebung({ OHNE_KONTO: "an" }), async () => new Response("{}"));
   assert.equal(offen.status, 200);
+});
+
+test("Folgeanfragen derselben Nachricht kosten Budget, aber keine Nachricht", async () => {
+  // Eine Mahlzeit mit Werkzeug sind drei Anfragen. Gezählt wurden vorher alle
+  // drei, und aus 800 versprochenen Nachrichten wurden rund 270.
+  const env = umgebung();
+  const { token, konto } = await kontoAnlegen(env.ABOS);
+  const offen: Promise<unknown>[] = [];
+  const strom = async () => new Response(STROM, { headers: { "content-type": "text/event-stream" } });
+  for (const folge of [false, true, true]) {
+    const a = chatAnfrage(token);
+    if (folge) a.headers.set("x-daevo-folge", "1");
+    const antwort = await chatWeiterreichen(a, env, strom, (p) => offen.push(p));
+    await antwort.text();
+  }
+  await Promise.all(offen);
+  const v = await verbrauchLesen(env.ABOS, konto.id);
+  assert.equal(v.nachrichten, 1);
+  assert.ok(v.mikro > 0);
+});
+
+test("die letzte erlaubte Nachricht bricht nicht im Werkzeug ab", async () => {
+  const env = umgebung();
+  const { token, konto } = await kontoAnlegen(env.ABOS);
+  await verbrauchBuchen(env.ABOS, konto.id, { nachrichten: 150, mikro: 1000 });
+  const neu = await chatWeiterreichen(chatAnfrage(token), env, async () => new Response("{}"), () => {});
+  assert.equal(neu.status, 402);
+  const folge = chatAnfrage(token);
+  folge.headers.set("x-daevo-folge", "1");
+  const weiter = await chatWeiterreichen(folge, env, async () => new Response("{}"), () => {});
+  assert.equal(weiter.status, 200);
 });

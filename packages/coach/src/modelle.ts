@@ -82,7 +82,10 @@ export function modellInfo(id: string): ModellWahl | undefined {
  *
  * erfassen  Haiku. Eine Menge aus einem Satz lesen und ein Werkzeug rufen.
  *           Dafür braucht es kein teures Modell.
- * standard  Sonnet. Smalltalk soll trotzdem nach dem Coach klingen.
+ * standard  Haiku. Kurze Aufträge wie "Volleyball ist jetzt donnerstags"
+ *           oder "erinnere mich um acht". Im Live-Test lag genau das auf
+ *           Sonnet und war der grösste Posten der Rechnung, bei Antworten,
+ *           die Haiku 5.5 genauso trifft.
  * coaching  Sonnet. Fachfragen zu Training und Ernährung sitzen im Wissen,
  *           nicht in der Denktiefe.
  * psyche    Opus. Hier entscheidet sich, ob die App etwas wert ist. Wer bei
@@ -91,7 +94,7 @@ export function modellInfo(id: string): ModellWahl | undefined {
  */
 export const MODELL_JE_MODUS: Record<Modus, string> = {
   erfassen: HAIKU,
-  standard: SONNET,
+  standard: HAIKU,
   coaching: SONNET,
   psyche: OPUS,
   planung: OPUS,

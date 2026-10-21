@@ -201,8 +201,8 @@ function liste(wert: unknown): string[] {
 /* ---------- Ohne Modell ---------- */
 
 /** Wortgruppen, an denen ein regelbasierter Durchgang eine Handlung erkennt. */
-const HANDLUNG = /\b(muss|müsste|musste|sollte|soll|will|wollte|möchte|mochte|brauche|anrufen|schreiben|machen|erledigen|planen|buchen|fertig|abgeben|melden|schicken|kaufen|aufräumen|aufraeumen|vorbereiten|klären|klaeren|nachfragen|absagen|zusagen)\b/i;
-const SORGE = /\b(angst|sorge|sorgen|schuld|scham|schäme|schame|traurig|müde|mude|überfordert|ueberfordert|stress|druck|weiss nicht|weiß nicht|keine ahnung|hoffe|hoffentlich)\b/i;
+const HANDLUNG = /\b(muss|müsste|musste|sollte|soll|will|wollte|möchte|mochte|brauche|anrufen|schreiben|machen|erledigen|planen|buchen|fertig|abgeben|melden|schicken|kaufen|aufräumen|aufraeumen|vorbereiten|klären|klaeren|nachfragen|absagen|zusagen|buchhaltung|steuer\w*|rechnung\w*|einkauf\w*|wäsche|waesche|termin\w*)\b/i;
+const SORGE = /\b(angst|sorge|sorgen|schuld|scham|schäme|schame|traurig|müde|mude|überfordert|ueberfordert|stress|druck|weiss nicht|weiß nicht|keine ahnung|hoffe|hoffentlich|schlechtes gewissen|komm\w* zu nix|komm\w* zu nichts|schaffe nichts)\b/i;
 const ENTSCHEIDUNG = /\b(oder|entweder|entscheiden|entscheidung|soll ich|ob ich)\b/i;
 const FREMD = /\b(er |sie |die anderen|mein chef|david|antwortet nicht|meldet sich nicht|wartet auf|liegt nicht an mir)\b/i;
 
@@ -216,8 +216,10 @@ const FREMD = /\b(er |sie |die anderen|mein chef|david|antwortet nicht|meldet si
  * Nutzen, und dafür braucht es kein Modell.
  */
 export function regelKopf(text: string): KopfErgebnis {
+  // Auch an Kommas und "und": diktiert wird in einem Satz mit Kommas, und
+  // ein Stück mit Kunden, Content und der Schwester darin ist keine Aufgabe.
   const stuecke = text
-    .split(/(?:[.!?\n]+|\bund dann\b|\baußerdem\b|\bausserdem\b|\bund noch\b)/i)
+    .split(/(?:[.!?\n;,]+|\bund dann\b|\baußerdem\b|\bausserdem\b|\bund noch\b|\bund\b)/i)
     .map((s) => s.trim())
     .filter((s) => s.length >= 8);
 
@@ -243,7 +245,7 @@ export function regelKopf(text: string): KopfErgebnis {
 
   return {
     kern: aufgaben.length
-      ? `${aufgaben.length} Handlungen und ${sorgen.length} Dinge, die dich belasten, ohne dass es dafür eine Aufgabe gibt.`
+      ? `${aufgaben.length} ${aufgaben.length === 1 ? "Handlung" : "Handlungen"} und ${sorgen.length} ${sorgen.length === 1 ? "Sache" : "Sachen"}, die dich belasten, ohne dass es dafür eine Aufgabe gibt.`
       : "Aus deinem Text konnte ich ohne Modell keine klare Handlung herauslesen.",
     aufgaben: aufgaben.slice(0, MAX_AUFGABEN),
     entscheidungen: entscheidungen.slice(0, 8),

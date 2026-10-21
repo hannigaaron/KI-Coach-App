@@ -48,6 +48,11 @@ export const AGENT_TOOLS: ToolDefinition[] = [
           type: "number",
           description: "Die richtige Menge als Zahl, in der Einheit, die am Posten steht.",
         },
+        mengeText: {
+          type: "string",
+          description: "Die Menge so, wie der Nutzer sie sagt, mit Einheit: \"1 Teelöffel\", \"150 g\", \"2 Stück\". "
+            + "Immer mitgeben, wenn der Nutzer eine andere Einheit nennt als am Posten steht. Die App rechnet dann selbst um.",
+        },
       },
       required: ["neueMenge"],
     },
@@ -739,6 +744,37 @@ export const AGENT_TOOLS: ToolDefinition[] = [
         stand: { type: "string", enum: ["gekauft", "zuhause", "offen"], description: "Neuer Stand." },
       },
       required: ["posten", "stand"],
+    },
+  },
+  {
+    name: "trainingsplan_abrufen",
+    description:
+      "Liefert das Training eines Tages: Termin aus dem Wochenplan und die Einheit aus dem gespeicherten " +
+      "Trainingsplan mit Übungen, Sätzen und Wiederholungen. Nehmen bei \"was trainiere ich heute\" oder " +
+      "\"welche Übungen morgen\". Übungen nie aus dem Gedächtnis nennen, sie stehen im Plan.",
+    input_schema: {
+      type: "object",
+      properties: {
+        inTagen: { type: "number", description: "0 heute, 1 morgen, bis 6." },
+      },
+    },
+  },
+  {
+    name: "einkaufsliste_ergaenzen",
+    description:
+      "Setzt Posten auf die Einkaufsliste, die der Nutzer selbst nennt: \"setz Reis und Brokkoli auf die Liste\". " +
+      "Legt die Liste an, wenn es noch keine gibt. Ein Posten, der schon draufsteht, wird wieder offen. " +
+      "Nicht nehmen, um eine Liste aus den Zielen zu rechnen, dafür gibt es einkaufsliste_erstellen.",
+    input_schema: {
+      type: "object",
+      properties: {
+        posten: {
+          type: "array",
+          items: { type: "string" },
+          description: "Je Posten ein Eintrag, so wie der Nutzer ihn nennt, gern mit Menge: \"Hähnchenbrust 500 g\".",
+        },
+      },
+      required: ["posten"],
     },
   },
   {

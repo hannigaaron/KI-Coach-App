@@ -129,7 +129,7 @@ function satzVon(
     `An den ${drittel} Tagen mit der höchsten ${paar.treiberName}, im Schnitt ${xOben} ${paar.einheitTreiber}, ` +
     `lag deine ${paar.zielName} bei ${oben} ${paar.einheitZiel}. An den ${drittel} Tagen mit der niedrigsten, ` +
     `im Schnitt ${xUnten} ${paar.einheitTreiber}, bei ${unten} ${paar.einheitZiel}. ` +
-    `Der Zusammenhang läuft ${richtung} und ist über ${tage} Tage gerechnet, r gleich ${Math.round(r * 100) / 100}. ` +
+    `Der Zusammenhang läuft ${richtung} und ist über ${tage} Tage gerechnet, r gleich ${String(Math.round(r * 100) / 100).replace(".", ",")}. ` +
     "Das ist ein Zusammenhang, keine Ursache."
   );
 }
@@ -188,7 +188,7 @@ export function musterText(befunde: Befund[], tage: number): string {
   if (befunde.length === 0) {
     return (
       `Aus den letzten ${tage} Tagen sehe ich keinen Zusammenhang, der stark genug ist, um ihn zu nennen. ` +
-      "Das heisst nicht, dass es keinen gibt. Es heisst, dass die Daten ihn nicht hergeben."
+      "Das heißt nicht, dass es keinen gibt. Es heißt, dass die Daten ihn nicht hergeben."
     );
   }
   const zeilen = [`Aus den letzten ${tage} Tagen, sortiert nach Stärke. Je Zeile steht dabei, auf wie vielen Tagen mit beiden Werten sie beruht:`];

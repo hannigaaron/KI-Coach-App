@@ -61,3 +61,12 @@ test("der Plan wird in Wochenreihenfolge gesagt, Montag zuerst", () => {
   ]);
   assert.match(text, /Sonntag/);
 });
+
+test("was vor ab jetzt steht, ist der alte Tag", () => {
+  const a = planAenderungAus("Volleyball spiele ich dienstags um 19 Uhr für 2 Stunden, das ist ab jetzt donnerstags");
+  assert.ok(a);
+  assert.deepEqual(a!.einheiten.map((e) => [e.wochentag, e.uhrzeit, e.minuten]), [[4, "19:00", 120]]);
+  const alt = [{ type: "team_sport", minutes: 120, weekday: 2, startsAt: "19:00" }, { type: "strength", minutes: 75, weekday: 1, startsAt: "18:00" }] as never;
+  const r = planAendern(alt, a!);
+  assert.deepEqual(r.sessions.map((s) => [s.weekday, s.type]), [[1, "strength"], [4, "team_sport"]]);
+});

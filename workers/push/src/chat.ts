@@ -53,11 +53,25 @@ export const TAGESGRENZE = 400;
 /** Wie viele Anfragen ein einzelnes Gerät je Stunde stellen darf. */
 export const GERAETEGRENZE = 40;
 /**
- * Wie viele Anfragen ein Konto je Stunde stellen darf. Ein Mensch, der viel
- * diktiert, schafft in einer Stunde keine sechzig Nachrichten. Ein Skript mit
- * einem abgegriffenen Schlüssel schafft sie in einer Minute.
+ * Wie viele Anfragen ein Konto je Stunde stellen darf. Eine Nachricht mit
+ * Werkzeug sind bis zu vier Anfragen, 150 heissen also rund vierzig
+ * Nachrichten. Ein Mensch, der viel diktiert, schafft das in einer Stunde
+ * nicht. Ein Skript mit einem abgegriffenen Schlüssel schafft es in einer
+ * Minute. Vorher stand hier 60, und damit war nach zwanzig Nachrichten mit
+ * Werkzeug Schluss, mitten im Gespräch.
  */
-export const KONTO_STUNDENGRENZE = 60;
+export const KONTO_STUNDENGRENZE = 150;
+
+/**
+ * Ob eine Anfrage zu einer Nachricht gehört, die schon gezählt ist.
+ *
+ * Die App setzt den Kopf ab der zweiten Anfrage derselben Nachricht. Eine
+ * gefälschte Folge spart nur die Zählung der Nachricht: das Budget in Dollar
+ * und die Stundengrenze gelten trotzdem, und die schützen das Geld.
+ */
+export function istFolge(anfrage: Request): boolean {
+  return anfrage.headers.get("x-daevo-folge") === "1";
+}
 
 function fehlerAntwort(status: number, message: string, type?: string): Response {
   return new Response(JSON.stringify({ error: type ? { type, message } : { message } }), {
@@ -134,13 +148,17 @@ export async function chatWeiterreichen(
   // und bis dahin redet der Nutzer weiter, statt vor einer Fehlermeldung zu
   // sitzen, an der er nichts ändern kann.
   const gefunden = await kontoAusAnfrage(env.ABOS, anfrage);
+  const folge = istFolge(anfrage);
   const stufe = gefunden ? geltendeStufe(gefunden.konto) : null;
   if (!gefunden && env.OHNE_KONTO !== "an") {
     return fehlerAntwort(401, "Ohne Konto gibt es keine KI. Die App legt beim Start eins an.", "konto");
   }
 
   if (gefunden && stufe) {
-    const grund = kontingentPruefen(stufe, await verbrauchLesen(env.ABOS, gefunden.konto.id));
+    const stand = await verbrauchLesen(env.ABOS, gefunden.konto.id);
+    // Eine Folge prüft nur das Budget. Sonst bräche die letzte erlaubte
+    // Nachricht mitten im Werkzeugaufruf ab, und die Mahlzeit stünde halb da.
+    const grund = kontingentPruefen(stufe, folge ? { ...stand, nachrichten: 0 } : stand);
     // 402 und nicht 429: ein erneuter Versuch hilft hier nicht, erst der
     // nächste Monat oder eine andere Stufe.
     if (grund) return fehlerAntwort(402, grund, "kontingent");
@@ -149,7 +167,9 @@ export async function chatWeiterreichen(
   }
 
   // Die Testphase zählt gegen die Tagesgrenze, ein bezahltes Abo nicht.
-  if (!stufe || stufe === "test") {
+  // Gezählt werden Nachrichten und keine Folgeanfragen, sonst reichten 400
+  // für rund 130 Nachrichten aller Testkonten zusammen.
+  if ((!stufe || stufe === "test") && !folge) {
     const tagesstand = await zaehlen(env.ABOS, `chat.tag.${tag}`, Number(env.TAGESGRENZE) || TAGESGRENZE, 60 * 60 * 26);
     if (!tagesstand.erlaubt) return fehlerAntwort(429, "Das Tageskontingent der Demo ist aufgebraucht.");
   }
@@ -184,7 +204,7 @@ export async function chatWeiterreichen(
     .text()
     .then((text) => {
       const v = verbrauchAusAntwort(text, modell);
-      return verbrauchBuchen(env.ABOS, gefunden.konto.id, { nachrichten: 1, mikro: v ? kostenMikro(v) : 0 });
+      return verbrauchBuchen(env.ABOS, gefunden.konto.id, { nachrichten: folge ? 0 : 1, mikro: v ? kostenMikro(v) : 0 });
     })
     .catch(() => undefined);
   if (warten) warten(buchung);

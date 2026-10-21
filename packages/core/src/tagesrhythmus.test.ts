@@ -99,5 +99,5 @@ test("der Abschluss macht aus Offenem keine Schuld", () => {
     standards: [], morgen: "3 Termine",
   });
   assert.ok(text.includes("nicht als Schuld"));
-  assert.ok(text.includes("grösste Herausforderung"));
+  assert.ok(text.includes("größte Herausforderung"));
 });

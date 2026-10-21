@@ -237,3 +237,21 @@ test("schnell schickt Planung auf Sonnet, Psyche bleibt auf Opus", () => {
   assert.equal(modellFuerTempo("planung", "normal"), null);
   assert.equal(modellFuerTempo("planung", "gruendlich"), null);
 });
+
+test("über den eigenen Server trägt erst die zweite Anfrage den Folgekopf", async () => {
+  const koepfe: Record<string, string>[] = [];
+  const provider = new AnthropicProvider({
+    apiKey: undefined,
+    baseUrl: "https://w.dev",
+    kontoToken: () => "t",
+    model: "claude-haiku-5-5",
+    fetchImpl: async (_url, init) => {
+      koepfe.push((init as RequestInit).headers as Record<string, string>);
+      return new Response(JSON.stringify({ content: [{ type: "tool_use", name: "x", input: {} }], stop_reason: "end_turn" }), { status: 200 });
+    },
+  });
+  await provider.converse({ system: "s", messages: [{ role: "user", content: "hi" }], tools: [] });
+  await provider.generateJson({ system: "s", user: "u", schema: { type: "object" }, schemaName: "x" });
+  await provider.converse({ system: "s", messages: [{ role: "user", content: "hi" }], tools: [] });
+  assert.deepEqual(koepfe.map((k) => k["x-daevo-folge"] ?? ""), ["", "1", "1"]);
+});

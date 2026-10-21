@@ -18,6 +18,7 @@
  */
 
 import { ARBEITSGRENZE_MINUTEN, aufgabenRang, type Aufgabe } from "./aufgaben.js";
+import { PUFFER_MINUTEN } from "./zeitplan.js";
 
 /**
  * Höchstens dieser Anteil der freien Zeit eines Tages wird mit Aufgaben
@@ -37,6 +38,13 @@ export interface WochenTagEingabe {
   freieMinuten: number;
   /** Im Kalender belegte Minuten. Näherungswert für Arbeit. */
   belegtMinuten: number;
+  /**
+   * Die Längen der freien Blöcke in Minuten. Fehlt die Angabe, zählt nur die
+   * Summe. Mit Angabe kommt eine Aufgabe nur auf einen Tag, an dem sie am
+   * Stück passt, genau wie im Tagesplan: zwei Stunden Steuer in drei Lücken
+   * von vierzig Minuten sind keine zwei Stunden Steuer.
+   */
+  bloecke?: number[];
 }
 
 export interface WochenTag {
@@ -85,13 +93,27 @@ export function wochenplan(e: WochenplanEingabe): Wochenplan {
 
   const fristGerissen: Aufgabe[] = [];
   const naechsteWoche: Aufgabe[] = [];
+  // Je Tag die freien Blöcke, die noch übrig sind. Eine Aufgabe nimmt den
+  // kleinsten, in den sie passt, plus die Luft wie im Tagesplan.
+  const bloecke = new Map(e.tage.filter((t) => t.bloecke).map((t) => [t.tag, [...t.bloecke!].sort((x, y) => x - y)]));
+  const passtAmStueck = (tag: string, minuten: number): number => {
+    const liste = bloecke.get(tag);
+    if (!liste) return -2;
+    return liste.findIndex((b) => b >= minuten);
+  };
 
   for (const a of offen) {
     const kandidaten = tage.filter((t) => (!a.faellig || t.tag <= a.faellig) && (!a.ab || t.tag >= a.ab));
-    const tag = kandidaten.find((t) => t.budgetMinuten - t.geplantMinuten >= a.minuten);
+    const tag = kandidaten.find((t) => t.budgetMinuten - t.geplantMinuten >= a.minuten && passtAmStueck(t.tag, a.minuten) !== -1);
     if (tag) {
       tag.aufgaben.push(a);
       tag.geplantMinuten += a.minuten;
+      const i = passtAmStueck(tag.tag, a.minuten);
+      if (i >= 0) {
+        const liste = bloecke.get(tag.tag)!;
+        liste[i] = Math.max(0, liste[i]! - a.minuten - PUFFER_MINUTEN);
+        liste.sort((x, y) => x - y);
+      }
       continue;
     }
     // Eine Frist, die in diese Woche fällt oder schon vorbei ist, wird gerissen.

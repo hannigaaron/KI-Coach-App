@@ -46,7 +46,7 @@ export const ARTEN = { compound: "Mehrgelenkig", isolation: "Eingelenkig", isome
 const MUSKEL_ALIAS = {
   Gluteus: "Gesäß Po",
   "Gluteus medius": "Gesäß Po",
-  Hamstrings: "hintere Oberschenkel Beinbeuger",
+  Beinbeuger: "hintere Oberschenkel Hamstrings",
   Quadrizeps: "vordere Oberschenkel",
   Latissimus: "Rücken breiter Rückenmuskel",
   Rhomboiden: "Rücken",

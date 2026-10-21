@@ -79,7 +79,7 @@ Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
 
-Der Assistent hat sechsundvierzig Werkzeuge und verändert die App wirklich. Zahlen
+Der Assistent hat achtundvierzig Werkzeuge und verändert die App wirklich. Zahlen
 über den Nutzer kommen immer aus Werkzeugen, nie aus dem Modell. Allgemeines
 Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
@@ -105,7 +105,7 @@ liest, tut weder das eine noch das andere richtig. Deshalb kommt nur der Block
 des erkannten Modus in den Prompt.
 
 Der Modus wählt auch das Modell, siehe `packages/coach/src/modelle.ts`.
-Erfassen läuft auf Haiku 5.5, Fachfragen auf Sonnet 5.5, persönliche
+Erfassen und kurze Aufträge laufen auf Haiku 5.5, Fachfragen auf Sonnet 5.5, persönliche
 Gespräche und Planung auf Opus 5.5, Bilder immer auf Opus 5.5. Das Auslesen
 einer Mahlzeit aus Text läuft fest auf Haiku 5.5: gemessen an sechs echten
 Sätzen fand es jeden Posten in 2 bis 5 Sekunden für zusammen 0,2 Cent, Opus
@@ -348,7 +348,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1079 Tests
+npm test           # 1100 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -463,7 +463,7 @@ Kontext kosten mehr Token als die eigentliche Frage.
 
 ## Der Anamnesebogen
 
-Eine Frage pro Seite, 28 Seiten in acht Abschnitten. Die letzten Abschnitte
+Eine Frage pro Seite, 29 Seiten in acht Abschnitten. Die letzten Abschnitte
 sind der Unterschied zwischen einem Rechner und einem Coach: Essverhalten,
 Vorgeschichte, Umfeld, Antrieb.
 
@@ -533,7 +533,7 @@ wirksamer wäre.
 
 `apps/pwa/js/einfuehrung.js`. Nach dem Fragebogen dunkelt die App ab, ein
 Lichtkreis liegt auf einem Bedienelement, darunter steht ein Satz. Ein Tipp
-führt weiter, das Kreuz beendet. 15 Schritte über Assistent, Heute, Übungen,
+führt weiter, "Einführung beenden" in der Textkarte beendet. 16 Schritte über Assistent, Heute, Übungen,
 Dein Tag, Balance, Bericht und Profil. Wer nur den Assistenten erklärt
 bekommt, findet den Rest Tage später oder nie.
 
@@ -1420,7 +1420,7 @@ Tippfehler darf die Ziele nicht kippen.
 
 ## Der Regelweg ist die kostenlose Stufe
 
-40 der 46 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
+42 der 48 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
 Das ist keine Notlösung für den Ausfall, sondern das Produkt: ein Weg, der
 kein Modell anfragt, kostet nichts je Nutzer und skaliert ohne Rechnung.
 
@@ -1450,6 +1450,48 @@ wie eine echte Antwort. Beschriftete Zahlen schlagen die Reihenfolge, denn wer
 "Energie 7, Sättigung 4" schreibt, meint nicht Konzentration 4. Steht viel
 Text um die Zahlen herum, greift der Zweig nicht: "ich hab 7 von 10 Stunden
 geschlafen und 2 Kaffee getrunken" ist kein Bogen.
+
+### Der Regelweg nach dem Live-Test
+
+Ein Durchlauf mit 36 echten Sätzen ohne KI hat gezeigt, was ein Nutzer nach
+der Testphase erlebt hätte. Jeder dieser Fehler hat jetzt einen Test in
+`agent.test.ts`:
+
+- "Ändere mein Zielgewicht auf 84 kg" trug 84 kg als Wiegung ein. Ziel und
+  Absicht sind keine Wiegung.
+- "Ich schäme mich, weil ich beim Essen die Kontrolle verloren habe" legte
+  eine Mahlzeit an. Eine enge Liste für Belastung, `belastet`, geht vor
+  allem, was einträgt, und die Antwort nennt die Telefonseelsorge. Enger als
+  in `denktiefe`, damit "bei meinen Eltern Kuchen gegessen" ein Eintrag bleibt.
+- "esse" traf als Teilwort "Essen" und "Interesse". Jetzt gilt das Wort,
+  und "hatte" allein reicht nicht, nur mit einer Menge.
+- "Den Kaffee hab ich nicht getrunken" setzte das Wasser des Tages auf null.
+  Wasser nur, wenn Wasser gemeint ist.
+- "Nur 5 Stunden geschlafen, soll ich trainieren" ergab "weder Schlaf noch
+  Stress sprechen dagegen". Stunden unter sechs zählen jetzt als schlechter
+  Schlaf, "platt" als Belastung.
+- "Wie viel Kreatin" und "Big Mac" bekamen den Tagesstand. Der Tagesstand
+  greift nur bei Fragen nach dem eigenen Tag, Nährwerte kommen aus der
+  Tabelle über `naehrwertFrage`, und was nicht drinsteht, wird gesagt.
+- Korrektur, Rücknahme, Abhaken und Planänderung meldeten Erfolg, obwohl
+  nichts gefunden oder gespeichert war. Eine Aktion ohne Wirkung beginnt mit
+  `NICHT_GESPEICHERT` oder sagt, dass sie nichts fand, und dann steht kein
+  Vermerk darunter. Im Live-Test schrieb der Coach sonst "gespeichert" und
+  fragte im selben Satz nach der Uhrzeit.
+- Neu im Regelweg: eine Aufgabe mit Frist und Dauer, `aufgabeMitFrist`,
+  "steh morgen um 5 auf", "was trainiere ich morgen", "hi" und "danke",
+  Posten auf die Einkaufsliste, Fragen nach der letzten Woche, und eine
+  Fachfrage bekommt den ehrlichen Satz, dass sie die KI braucht.
+
+Bei leerem Kontingent steht die Antwort des Regelwegs vorn, sobald er den
+Satz verstanden hat, auch wenn er nur etwas vorliest. Die Meldung zum Abo
+steht höchstens alle sechs Stunden darunter, sonst stünde nach der
+Testphase derselbe Absatz unter jeder Antwort.
+
+Zwei neue Werkzeuge mit Regelpfad: `einkaufsliste_ergaenzen` für eigene
+Posten, die beim Neurechnen der Liste stehen bleiben, und
+`trainingsplan_abrufen`, das Training eines Tages mit den Übungen aus
+`settings.plan`. Vorher kannte der Coach die gespeicherten Übungen nicht.
 
 Offen bleiben sechs. Die beiden Fotowerkzeuge brauchen ein Modell, daran
 ändert kein Regelpfad etwas. `standard_bestaetigen` und `gespraech_einordnen` brauchen eine Kennung aus dem Zusammenhang, die ein
@@ -2403,9 +2445,31 @@ Ausgabe. Die Kosten rechnet dieselbe Tabelle wie in der App,
 
 Zwei Grenzen je Stufe, Nachrichten und Budget in Millionstel Dollar. Die Zahl
 der Nachrichten allein reicht nicht: drei Fotos auf Opus kosten ein
-Vielfaches einer Mahlzeit auf Haiku. Die Werte in `STUFEN` sind ein
-Vorschlag und gehören nachjustiert, sobald gemessen ist, was ein aktiver
-Nutzer verbraucht. Alles ohne Modell ist in jeder Stufe unbegrenzt.
+Vielfaches einer Mahlzeit auf Haiku. Alles ohne Modell ist in jeder Stufe
+unbegrenzt.
+
+Gemessen am 21. Oktober 2026 mit echten Sätzen über den Worker: Essen
+eintragen und kurze Aufträge auf Haiku 5.5 kosten rund 0,1 Cent, eine
+Fachfrage auf Sonnet 2 bis 7 Cent, ein Gespräch auf Opus 3 bis 15 Cent, im
+Schnitt rund 2 Cent je Nachricht. Daraus die Stufen: Testphase 60
+Nachrichten und 1,50 Dollar, Plus 250 und 7 Dollar, Pro 700 und 15 Dollar.
+Die Zahl ist so gewählt, dass das Budget sie beim Schnitt trägt. Wer fast
+nur auf Opus redet, erreicht das Budget früher, deshalb steht in der App
+"bis zu". Vorher standen 800 und 2500 da, und das Budget von 12 Dollar
+hätte für 2500 Nachrichten nie gereicht. Das Versprechen muss halten.
+
+Gezählt wird je Nachricht des Nutzers und nicht je Anfrage. Eine Mahlzeit
+mit Werkzeug sind drei Anfragen, und mit der alten Zählung wurden aus 800
+Nachrichten rund 270. Die App setzt ab der zweiten Anfrage derselben
+Nachricht `x-daevo-folge`, und `ask()` nimmt für Gespräch und Werkzeuge
+denselben Anbieter. Eine Folge prüft nur das Budget, sonst bräche die
+letzte erlaubte Nachricht mitten im Werkzeug ab. Essen per Text und Sprache
+zählt gar nicht als Nachricht, `ohneZaehlung`, nur gegen das Budget. Ein
+gefälschter Kopf spart nur die Zählung, Budget und Stundengrenze gelten
+trotzdem.
+
+Bevor neue Preise im Worker wirken, muss er neu ausgerollt werden. Bis dahin
+rechnet er unbekannte Modelle mit dem teuersten Preis und bucht zu viel.
 
 Ist das Kontingent leer, antwortet der Worker mit 402 und fragt Anthropic
 gar nicht erst. `fehlerErklaerung` macht daraus "Kontingent aufgebraucht,
@@ -2414,8 +2478,9 @@ Versuch nicht hilft.
 
 Konten in der Testphase zählen weiter gegen die Tagesgrenze des Workers. Sonst
 wären hundert angelegte Konten hundert Kontingente auf Rechnung des
-Betreibers. Bezahlte Stufen zählen nicht dagegen und haben stattdessen 60
-Anfragen je Stunde. Ein Schlüssel, den der Server nicht kennt, zählt wie
+Betreibers. Gezählt werden dort Nachrichten und keine Folgeanfragen. Jedes
+Konto hat höchstens 150 Anfragen je Stunde, rund vierzig Nachrichten mit
+Werkzeug. Mit den alten 60 war nach zwanzig Schluss. Ein Schlüssel, den der Server nicht kennt, zählt wie
 keiner, und die App legt nach der Ablehnung über `kontoStand` ein neues an.
 
 ### Testphase und Abo
@@ -2433,7 +2498,7 @@ der fürs Jahr, geht eine Mail raus und nie still der Monatslink: wer
 jährlich wählt und monatlich abgebucht wird, fühlt sich betrogen. Von Hand
 setzt der Betreiber beim Jahr `bis` ein Jahr später.
 
-Die Testphase ist mit 150 Nachrichten und 1,50 Dollar enger als Plus. Ein
+Die Testphase ist mit 60 Nachrichten und 1,50 Dollar enger als Plus. Ein
 Konto entsteht ohne Anmeldung, und wer jede Woche neu installiert, bekäme
 sonst ein kostenloses Plus. Ohne Konto antwortet `/chat` gar nicht mehr,
 ausser `OHNE_KONTO` steht auf "an": sonst umginge jeder die Testphase, der

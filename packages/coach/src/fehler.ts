@@ -128,7 +128,7 @@ export function fehlerErklaerung(fehler: unknown): Fehlerdeutung {
       art: "zu_gross",
       nochmal: false,
       text:
-        "Die Anfrage ist zu gross. Das passiert bei sehr langen Gesprächen oder grossen Anhängen. "
+        "Die Anfrage ist zu groß. Das passiert bei sehr langen Gesprächen oder großen Anhängen. "
         + "Fang ein neues Gespräch an oder schick weniger Bilder auf einmal.",
     };
   }

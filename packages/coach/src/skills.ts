@@ -44,6 +44,14 @@ export function naechsteFrage(erkannt: number, offen: string[]): string {
     if (ohneMenge.length) saetze.push(`Bei ${ohneMenge.join(", ")} fehlt mir die Menge. Wie viel war das ungefähr?`);
     return saetze.join(" ");
   }
+  // Nichts erkannt, aber ein kurzer Posten mit Zahl: das war eine Mahlzeit,
+  // nur nicht aus der Tabelle. "Trag mir 1 Big Mac ein" bekam sonst die
+  // Bitte, es mit Menge zu sagen, obwohl die Menge dastand.
+  if (erkannt === 0 && offen.length > 0 && offen.length <= 3
+    && offen.every((o) => /\d/.test(o) && o.trim().split(/\s+/).length <= 5)) {
+    return `Nicht eingetragen, weil ich die Nährwerte nicht kenne: ${offen.join(", ")}. `
+      + "Scann den Barcode oder nenn mir Kalorien und Protein je 100 Gramm, dann trage ich es nach.";
+  }
   if (erkannt === 0) {
     return "Daraus konnte ich keine Mahlzeit lesen. Wenn du etwas eintragen willst, "
       + "sag es mir mit Menge, etwa 200 Gramm Magerquark.";

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Agent, istAbsicht, runOffline, type AgentActions } from "./agent.js";
+import { Agent, aufgabeMitFrist, denktiefe, istAbsicht, naehrwertFrage, postenFuerListe, runOffline, type AgentActions } from "./agent.js";
 import type { ChatMessage, CoachProvider, ContentBlock, ConverseRequest, ConverseResponse, JsonRequest } from "./provider.js";
 import { standardAenderungAus } from "@daevo/core";
 
@@ -23,6 +23,8 @@ function stubActions(log: string[]): AgentActions {
     async einkaufslisteErstellen(i) { log.push(`einkauf:${i.tage ?? ""}`); return "Liste für 7 Tage, 14 Posten."; },
     async einkaufslisteAbrufen() { log.push("einkauf:abrufen"); return "14 Posten, 3 davon zu Hause."; },
     async einkaufslisteAbhaken(i) { log.push(`einkauf:${i.posten}=${i.stand}`); return "Notiert."; },
+    async trainingsplanAbrufen(i) { log.push(`planTag:${i.inTagen}`); return "Morgen Kraft."; },
+    async einkaufslisteErgaenzen(i) { log.push(`einkaufDazu:${i.posten.join("|")}`); return "Auf der Liste."; },
     async standardsAbrufen() { log.push("standards"); return "Protein: an 5 von 7 Tagen gehalten."; },
     async standardSetzen(i) { log.push(`standard:${i.text}`); return "Standard steht."; },
     async standardBestaetigen(i) { log.push(`standard:${i.id}=${i.gehalten}`); return "Eingetragen."; },
@@ -682,4 +684,114 @@ test("eine abgelehnte Anfrage bekommt einen Satz statt einer leeren Blase", asyn
   const reply = await new Agent(provider).respond({ nachricht: "Hi", verlauf: LEER, kontext: KONTEXT, aktionen: stubActions([]) });
   assert.match(reply.text, /anders/);
   assert.equal(reply.source, "model");
+});
+
+/* ---------- Gefunden im Live-Test über den Worker ---------- */
+
+test("ein Zielgewicht ist keine Wiegung", async () => {
+  for (const satz of ["Ändere mein Zielgewicht auf 84 kg", "Ich will 80 kg wiegen", "Mein Wunschgewicht sind 82 Kilo"]) {
+    const log: string[] = [];
+    await runOffline(satz, stubActions(log));
+    assert.ok(!log.some((e) => e.startsWith("gewicht:")), `${satz} ergab ${log.join(",")}`);
+  }
+  const log: string[] = [];
+  await runOffline("Ich wiege heute 86,2 kg", stubActions(log));
+  assert.deepEqual(log, ["gewicht:86.2"]);
+});
+
+test("Scham über das Essen legt keine Mahlzeit an", async () => {
+  const log: string[] = [];
+  const reply = await runOffline("Ich schäme mich, weil ich gestern Abend wieder total die Kontrolle beim Essen verloren habe", stubActions(log));
+  assert.deepEqual(log, []);
+  assert.match(reply.text, /nichts/);
+  assert.match(reply.text, /0800 111 0 111/);
+});
+
+test("Familie im Satz verhindert keinen Eintrag", async () => {
+  const log: string[] = [];
+  await runOffline("Ich hab bei meinen Eltern zwei Stück Kuchen gegessen", stubActions(log));
+  assert.ok(log.some((e) => e.startsWith("mahlzeit:")));
+});
+
+test("Interesse und Stress sind keine Mahlzeit", async () => {
+  for (const satz of ["Ich hab großes Interesse an Kraftsport", "Ich hatte heute richtig Stress"]) {
+    const log: string[] = [];
+    await runOffline(satz, stubActions(log));
+    assert.ok(!log.some((e) => e.startsWith("mahlzeit:")), `${satz} ergab ${log.join(",")}`);
+  }
+});
+
+test("Posten lassen sich selbst auf die Einkaufsliste setzen", async () => {
+  const log: string[] = [];
+  const reply = await runOffline("Setz Hähnchenbrust, Reis und Brokkoli auf die Einkaufsliste", stubActions(log));
+  assert.deepEqual(log, ["einkaufDazu:Hähnchenbrust|Reis|Brokkoli"]);
+  assert.deepEqual(reply.ausgeführt, ["Einkaufsliste ergänzt"]);
+  assert.deepEqual(postenFuerListe("Schreib mir bitte noch Milch auf den Einkaufszettel"), ["Milch"]);
+  // Eine Frage ist kein Auftrag.
+  assert.deepEqual(postenFuerListe("Steht Reis auf der Liste?"), []);
+});
+
+test("bei leerem Kontingent antwortet der Regelweg weiter, wo er den Satz versteht", async () => {
+  class LeerProvider implements CoachProvider {
+    readonly name = "leer";
+    readonly available = true;
+    async generateJson<T>(): Promise<T> { throw new Error("Anthropic API 402: {\"error\":{\"type\":\"kontingent\"}}"); }
+    async converse(): Promise<ConverseResponse> { throw new Error("Anthropic API 402: {\"error\":{\"type\":\"kontingent\"}}"); }
+  }
+  const agent = new Agent(new LeerProvider());
+  const liste = await agent.respond({ nachricht: "Was steht auf meiner Einkaufsliste?", verlauf: LEER, kontext: KONTEXT, aktionen: stubActions([]) });
+  assert.equal(liste.fehlerArt, "kontingent");
+  assert.ok(!liste.text.startsWith("Für die KI"), "die Antwort des Regelwegs steht vorn");
+  const unsinn = await agent.respond({ nachricht: "asdfgh", verlauf: LEER, kontext: KONTEXT, aktionen: stubActions([]) });
+  assert.match(unsinn.text, /Plus oder Pro/);
+  assert.ok(!/verstehe ich nur einfache/.test(unsinn.text), "keine Hilfe neben der Meldung");
+});
+
+test("ein langer diktierter Teller läuft auf dem Modell fürs Erfassen", () => {
+  const satz = "Ich hatte Milchreis mit ESN Flexpresso, einem gehäuften Teelöffel Erdnussbutter, 200 ml Hafermilch und 30 g Whey, danach noch einen Apfel";
+  assert.equal(denktiefe(satz).modus, "erfassen");
+});
+
+/* ---------- Gefunden im Lauf ohne KI ---------- */
+
+test("ein Kaffee zurücknehmen lässt das Wasser in Ruhe", async () => {
+  const log: string[] = [];
+  await runOffline("Den Kaffee hab ich doch nicht getrunken, nimm den raus", stubActions(log));
+  assert.ok(!log.some((e) => /wasser/.test(e)), log.join(","));
+  assert.ok(log.some((e) => /zurueck|zurück|ruecknahme/i.test(e)), log.join(","));
+});
+
+test("fünf Stunden Schlaf gelten als schlechter Schlaf", async () => {
+  const log: string[] = [];
+  await runOffline("Ich hab heute nur 5 Stunden geschlafen und bin platt, soll ich trotzdem Beine trainieren?", stubActions(log));
+  assert.deepEqual(log, ["training-anpassen:schlaf:stress"]);
+});
+
+test("was morgen trainiert wird, kommt aus dem Plan", async () => {
+  const log: string[] = [];
+  await runOffline("Was soll ich morgen trainieren?", stubActions(log));
+  assert.deepEqual(log, ["planTag:1"]);
+});
+
+test("eine Aufgabe mit Frist bekommt Titel, Datum und Dauer", () => {
+  const a = aufgabeMitFrist("Ich muss bis Freitag die Steuererklärung machen, das dauert so zwei Stunden", new Date("2026-10-21T10:00:00"));
+  assert.deepEqual(a, { text: "Die Steuererklärung machen", minuten: 120, wichtigkeit: 2, faellig: "2026-10-23" });
+});
+
+test("eine Frage nach Nährwerten antwortet aus der Tabelle oder sagt, dass es nicht drinsteht", () => {
+  assert.match(naehrwertFrage("Wie viele Kalorien hat ein Ei?") ?? "", /kcal/);
+  assert.match(naehrwertFrage("Wie viele Kalorien hat ein Big Mac?") ?? "", /^Big Mac steht nicht/);
+  assert.equal(naehrwertFrage("Wie viel Kreatin sollte ich nehmen?"), null);
+});
+
+test("hi und danke bekommen eine Antwort statt der Hilfe", async () => {
+  assert.match((await runOffline("hi", stubActions([]))).text, /^Hallo/);
+  assert.match((await runOffline("Danke dir!", stubActions([]))).text, /^Gern/);
+});
+
+test("eine Fachfrage ohne KI wird nicht mit dem Tagesstand beantwortet", async () => {
+  const log: string[] = [];
+  const r = await runOffline("Ist Kreatin sinnvoll für mich und wie viel sollte ich nehmen?", stubActions(log));
+  assert.deepEqual(log, []);
+  assert.match(r.text, /nur mit der KI/);
 });

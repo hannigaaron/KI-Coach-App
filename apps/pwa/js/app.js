@@ -1482,7 +1482,7 @@ function renderWeight() {
   }
   const richtung = trend.kgProWoche > 0 ? "plus" : "minus";
   $("weightTrend").textContent =
-    `Geglättet ${trend.aktuellKg} kg, ${richtung} ${Math.abs(trend.kgProWoche).toFixed(2)} kg je Woche ` +
+    `Geglättet ${trend.aktuellKg} kg, ${richtung} ${Math.abs(trend.kgProWoche).toFixed(2).replace(".", ",")} kg je Woche ` +
     `über ${trend.spanneTage} Tage aus ${trend.messungen} Wiegungen. Frag mich nach deinem Verlauf, dann rechne ich dein Ziel nach.`;
 }
 
@@ -1584,7 +1584,7 @@ function renderEinkauf() {
     return `<li${erledigt ? ' class="erledigt"' : ""}>
       <div class="li-main">
         <span class="ek-stand ${item.stand}">${EK_TITEL[item.kategorie]}${item.stand === "offen" ? "" : `, ${EK_STAND[item.stand]}`}</span>
-        <div class="li-title">${escapeHtml(item.name)}, ${escapeHtml(item.menge)}</div>
+        <div class="li-title">${escapeHtml(item.name)}${item.menge ? `, ${escapeHtml(item.menge)}` : ""}</div>
         <div class="li-sub">${escapeHtml(item.grund)}</div>
       </div>
       <div class="li-side ek-knoepfe">
@@ -1707,7 +1707,7 @@ async function renderStimmwahl() {
     feld.innerHTML = '<option value="">Keine Stimme gefunden</option>';
     $("e-stimmhilfe").textContent =
       "Dieses Gerät meldet keine Stimme. Auf dem iPhone lädst du welche unter Einstellungen, "
-      + "Bedienungshilfen, Gesprochene Inhalte, Stimmen. Danach die App einmal schliessen und neu öffnen.";
+      + "Bedienungshilfen, Gesprochene Inhalte, Stimmen. Danach die App einmal schließen und neu öffnen.";
     return;
   }
 
@@ -1751,7 +1751,7 @@ async function renderStimmwahl() {
       + "Yannick nutzt daevo erst in der iPhone App.");
   } else if (!hatGute) {
     zeilen.push("Deine deutschen Stimmen sind in Basisqualität. Bessere lädst du in den Einstellungen "
-      + "deines Geräts unter Bedienungshilfen, Gesprochene Inhalte. Danach die App einmal schliessen "
+      + "deines Geräts unter Bedienungshilfen, Gesprochene Inhalte. Danach die App einmal schließen "
       + "und neu öffnen.");
   }
 
@@ -2271,7 +2271,8 @@ function renderProfile() {
   $("e-goal").value = profile.goal;
   $("e-wake").value = profile.wakeTime;
   $("e-sleep").value = profile.sleepTime;
-  $("e-randmodus").value = profile.wechselndeZeiten ? "wechselnd" : (profile.randModus || "gleich");
+  // Nur ein Wert, den das Feld kennt. Ein fremder Wert liess es leer stehen.
+  $("e-randmodus").value = profile.wechselndeZeiten ? "wechselnd" : (profile.randModus === "wochentag" ? "wochentag" : "gleich");
   renderWochenzeiten();
   renderStimmwahl();
   siriAdresseZeigen();
@@ -3617,7 +3618,7 @@ $("btnHeraus").addEventListener("click", async () => {
   herausforderungSpeichern(text);
   renderTag();
   showView("assistant");
-  await send(`Meine grösste Herausforderung heute: ${text}. Was würdest du dagegen machen?`);
+  await send(`Meine größte Herausforderung heute: ${text}. Was würdest du dagegen machen?`);
 });
 
 /* ---------- Kalender ---------- */
@@ -4254,8 +4255,8 @@ function mePostenZeichnen() {
             <span class="kreuz"></span>
           </button>
         </div>
-        <div class="me-werte">${Math.round(e.kcal)} kcal, ${runde1(e.proteinG)} g Eiweiss,
-          ${runde1(e.fatG)} g Fett, ${runde1(e.carbsG)} g Kohlenhydrate</div>
+        <div class="me-werte">${Math.round(e.kcal)} kcal, ${komma(runde1(e.proteinG))} g Eiweiß,
+          ${komma(runde1(e.fatG))} g Fett, ${komma(runde1(e.carbsG))} g Kohlenhydrate</div>
       </li>`;
     }).join("");
   }
@@ -4270,13 +4271,18 @@ function meSummeZeichnen() {
     { kcal: 0, p: 0, f: 0, k: 0 },
   );
   $("meKcal").textContent = String(Math.round(summe.kcal));
-  $("meProtein").textContent = `${runde1(summe.p)} g`;
-  $("meFett").textContent = `${runde1(summe.f)} g`;
-  $("meKh").textContent = `${runde1(summe.k)} g`;
+  $("meProtein").textContent = `${komma(runde1(summe.p))} g`;
+  $("meFett").textContent = `${komma(runde1(summe.f))} g`;
+  $("meKh").textContent = `${komma(runde1(summe.k))} g`;
 }
 
 function runde1(wert) {
   return Math.round((Number(wert) || 0) * 10) / 10;
+}
+
+/** Eine Zahl mit deutschem Komma, für alles, was gelesen wird. */
+function komma(zahl) {
+  return String(zahl).replace(".", ",");
 }
 
 /** Hängt einen Posten an und zeigt ihn sofort. */
@@ -4335,7 +4341,7 @@ function meTrefferZeichnen(treffer) {
     return `<li>
       <button type="button" class="me-treffer-knopf" data-treffer="${i}">
         <div class="me-name">${escapeHtml(titel || "Ohne Namen")}</div>
-        <div class="me-werte">${gramm} g, ${Math.round(n.kcal)} kcal, ${runde1(n.proteinG)} g Eiweiss</div>
+        <div class="me-werte">${gramm} g, ${Math.round(n.kcal)} kcal, ${komma(runde1(n.proteinG))} g Eiweiß</div>
         ${warnung}
       </button>
     </li>`;
@@ -4391,8 +4397,8 @@ $("mePosten").addEventListener("input", (event) => {
   const zeile = feld.closest("li")?.querySelector(".me-werte");
   const e = mePosten[i];
   if (zeile) {
-    zeile.textContent = `${Math.round(e.kcal)} kcal, ${runde1(e.proteinG)} g Eiweiss, `
-      + `${runde1(e.fatG)} g Fett, ${runde1(e.carbsG)} g Kohlenhydrate`;
+    zeile.textContent = `${Math.round(e.kcal)} kcal, ${komma(runde1(e.proteinG))} g Eiweiß, `
+      + `${komma(runde1(e.fatG))} g Fett, ${komma(runde1(e.carbsG))} g Kohlenhydrate`;
   }
   meSummeZeichnen();
 });
@@ -5050,7 +5056,7 @@ const ANWEISUNGEN_VORLAGE = [
   "Bei persönlichen Themen: erst verstehen, dann Vorschläge. Geh unter die Oberfläche,",
   "zeig mir das Muster dahinter, und gib mir am Ende genau eine Sache, die ich heute anders mache.",
   "Sag mir, wenn ich mir etwas vormache.",
-  "Frag nach, wenn eine Antwort nicht zu dem passt, was du über mich weisst.",
+  "Frag nach, wenn eine Antwort nicht zu dem passt, was du über mich weißt.",
 ].join("\n");
 
 function zeigeAnweisungsLaenge() {

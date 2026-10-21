@@ -101,7 +101,7 @@ export function zeitplan(e: ZeitplanEingabe): Zeitplan {
     const laengste = Math.max(0, ...bloecke.map((b) => b.bis - b.zeiger)) / 60000;
     hinweise.push(
       `${passtNicht.length} ${passtNicht.length === 1 ? "Aufgabe passt" : "Aufgaben passen"} in keinen freien Block mehr. ` +
-      `Der grösste, der noch frei ist, hat ${Math.floor(laengste)} Minuten. ` +
+      `Der größte, der noch frei ist, hat ${Math.floor(laengste)} Minuten. ` +
       "Entweder etwas verschieben oder einen Termin freiräumen.",
     );
   }

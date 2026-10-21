@@ -77,3 +77,17 @@ test("volle Kalendertage werden genannt", () => {
   const plan = wochenplan({ aufgaben: [], tage: tage([0, 300, 300, 300, 300, 300, 300]) });
   assert.match(plan.hinweise.join(" "), /An 1 Tag ist keine Zeit für Aufgaben/);
 });
+
+test("eine Aufgabe kommt nur auf einen Tag, an dem sie am Stück passt", () => {
+  // Im Live-Test lag die Steuer mit zwei Stunden im Wochenplan auf heute,
+  // obwohl der längste freie Block 90 Minuten hatte. Der Tagesplan sagte im
+  // selben Gespräch richtig, dass sie heute nicht passt.
+  const plan = wochenplan({
+    aufgaben: [aufgabe("Steuer", 120)],
+    tage: [
+      { tag: "2026-10-21", freieMinuten: 400, belegtMinuten: 300, bloecke: [90, 90, 90] },
+      { tag: "2026-10-22", freieMinuten: 400, belegtMinuten: 300, bloecke: [200] },
+    ],
+  });
+  assert.deepEqual(plan.tage.map((t) => t.aufgaben.length), [0, 1]);
+});

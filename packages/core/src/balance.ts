@@ -387,7 +387,7 @@ const HANDLUNG: Record<Bereich, string> = {
   karriere: "einen festen Block für Aufbau statt Kundenarbeit",
   fitness: "eine Einheit, die du auch bei schlechter Laune durchziehst",
   wellbeing: "Sauna, Spaziergang oder zwanzig Minuten ohne Handy",
-  me_time: "etwas, das keinen Zweck hat ausser dass es dir gefällt",
+  me_time: "etwas, das keinen Zweck hat außer dass es dir gefällt",
   beziehung: "einen Anruf oder ein Treffen, mit Uhrzeit",
 };
 
@@ -460,7 +460,7 @@ export function balanceEmpfehlung(e: EmpfehlungEingabe): Empfehlung {
 
 function stundenText(minuten: number): string {
   const h = stundenZahl(minuten);
-  return h >= 1 ? `${h} Stunden` : `${Math.round(minuten)} Minuten`;
+  return h >= 1 ? `${String(h).replace(".", ",")} Stunden` : `${Math.round(minuten)} Minuten`;
 }
 
 function stundenZahl(minuten: number): number {

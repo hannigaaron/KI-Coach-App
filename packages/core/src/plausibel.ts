@@ -201,7 +201,7 @@ export function plausibelPruefen(lage: PlausibelLage): PlausibelBefund[] {
       befunde.push({
         schwere: "auffaellig",
         text: `${name} stehen bei ${Math.round(ist)} g gegen ein Ziel von ${Math.round(ziel)} g. `
-          + `Das ist mehr als das Doppelte, und dahinter steckt meist eine zu grosse Menge an einem Posten.`,
+          + `Das ist mehr als das Doppelte, und dahinter steckt meist eine zu große Menge an einem Posten.`,
       });
     }
   }
@@ -219,7 +219,7 @@ export function plausibelPruefen(lage: PlausibelLage): PlausibelBefund[] {
   if (wasser > MAX_WASSER_ML) {
     befunde.push({
       schwere: "auffaellig",
-      text: `${(wasser / 1000).toFixed(1)} Liter stehen heute drin. Prüf das bitte, das ist mehr als geplant sein kann.`,
+      text: `${(wasser / 1000).toFixed(1).replace(".", ",")} Liter stehen heute drin. Prüf das bitte, das ist mehr als geplant sein kann.`,
     });
   }
 

@@ -199,9 +199,28 @@ export const WICHTIGKEIT_WORT: Record<number, string> = {
   3: "wichtig",
 };
 
+/**
+ * "2026-10-23" wird "übermorgen" oder "Fr 23. Okt". Daten werden gesagt,
+ * nicht gesetzt: in der Liste stand das Datum schon so, in der Rückmeldung
+ * darunter als Datenbankzeile.
+ */
+export function fristText(iso: string, heute = new Date()): string {
+  const d = new Date(`${iso}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return iso;
+  const h = new Date(heute);
+  h.setHours(12, 0, 0, 0);
+  const abstand = Math.round((d.getTime() - h.getTime()) / 86400000);
+  if (abstand === 0) return "heute";
+  if (abstand === 1) return "morgen";
+  if (abstand === 2) return "übermorgen";
+  const tag = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"][d.getDay()];
+  const monat = ["Jan", "Feb", "März", "Apr", "Mai", "Juni", "Juli", "Aug", "Sep", "Okt", "Nov", "Dez"][d.getMonth()];
+  return `${tag} ${d.getDate()}. ${monat}`;
+}
+
 export function einstufungText(e: Einstufung): string {
   const teile = [`${e.minuten} Minuten`, WICHTIGKEIT_WORT[e.wichtigkeit] ?? "normal"];
-  if (e.faellig) teile.push(`fällig ${e.faellig}`);
+  if (e.faellig) teile.push(`fällig ${fristText(e.faellig)}`);
   const satz = teile.join(", ");
   return e.warum ? `${satz}. ${e.warum}.` : `${satz}.`;
 }

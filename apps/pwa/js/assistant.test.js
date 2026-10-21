@@ -662,3 +662,28 @@ test("ein Standard derselben Art wird geändert und nicht verdoppelt", async () 
   assert.equal(handy[0].kadenz, "woechentlich");
   assert.equal(handy[0].uhrzeit, "23:00");
 });
+
+test("eigene Posten stehen auf der Einkaufsliste und überleben das Neurechnen", async () => {
+  localStorage.clear();
+  store.setProfile(PROFIL);
+  const a = buildActions();
+  const antwort = await a.einkaufslisteErgaenzen({ posten: ["Hähnchenbrust 500 g", "Brokkoli"] });
+  assert.match(antwort, /Hähnchenbrust 500 g, Brokkoli/);
+  let liste = store.getShoppingList();
+  assert.deepEqual(liste.items.map((i) => [i.name, i.menge]), [["Hähnchenbrust", "500 g"], ["Brokkoli", ""]]);
+  await a.einkaufslisteErstellen({ tage: 7 });
+  liste = store.getShoppingList();
+  assert.ok(liste.items.some((i) => i.name.toLowerCase().includes("brokkoli")), "Brokkoli bleibt");
+  assert.ok(liste.items.some((i) => i.name.toLowerCase() === "hähnchenbrust"), "Hähnchenbrust bleibt");
+});
+
+test("eine Korrektur in einer anderen Einheit wird über Gramm umgerechnet", async () => {
+  localStorage.clear();
+  store.setProfile(PROFIL);
+  const day = todayIso();
+  store.addMeal(day, { id: "m1", text: "Honig", at: "08:00", entries: [{ name: "Honig", quantity: "15 g", kcal: 46, proteinG: 0, fatG: 0, carbsG: 11.4 }] });
+  const antwort = await buildActions().mahlzeitKorrigieren({ posten: "Honig", neueMenge: 1, mengeText: "1 Teelöffel" });
+  const e = store.getDay(day).meals[0].entries[0];
+  assert.equal(e.quantity, "1 Teelöffel");
+  assert.equal(e.kcal, 15, antwort);
+});

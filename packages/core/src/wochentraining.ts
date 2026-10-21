@@ -90,7 +90,7 @@ export function planAendern(bestehend: TrainingSession[], a: PlanAenderung): Pla
       ?? alt.find((s) => s.type === art);
 
     let uhrzeit = gueltigeZeit(e.uhrzeit) ? e.uhrzeit : vorbild?.startsAt;
-    if (!uhrzeit) return { sessions: alt, angenommen, fehler: `Um wie viel Uhr trainierst du ${TAG_NAME[isoZuGetDay(e.wochentag)]}s?` };
+    if (!uhrzeit) return { sessions: alt, angenommen, fehler: `Um wie viel Uhr trainierst du ${TAG_NAME[isoZuGetDay(e.wochentag)]!.toLowerCase()}s?` };
     if (!gueltigeZeit(e.uhrzeit)) angenommen.push(`${TAG_NAME[isoZuGetDay(e.wochentag)]} um ${uhrzeit} wie bisher`);
 
     let minuten = Number.isFinite(e.minuten) && (e.minuten as number) >= 5 ? Math.min(480, Math.round(e.minuten as number)) : null;
@@ -169,6 +169,19 @@ export function planAenderungAus(satz: string): PlanAenderung | null {
   for (const [m, t] of TAGE) {
     const r = new RegExp(`\\b(statt|anstatt|anstelle von|nicht mehr)\\s+(am\\s+)?${m.source.replace(/\\b/g, "")}`);
     if (r.test(text)) alteTage.add(t);
+  }
+
+  // "Ich spiele dienstags um 19 Uhr, das ist ab jetzt donnerstags": was vor
+  // "ab jetzt" steht, ist der alte Plan. Im Live-Test blieb der Dienstag
+  // stehen, und es gab danach zweimal Volleyball in der Woche.
+  const wende = /\b(ab jetzt|ab sofort|jetzt immer|ab naechster woche|ist jetzt|sind jetzt)\b/.exec(text);
+  if (wende) {
+    const danach = TAGE.some(([m]) => new RegExp(m.source).test(text.slice(wende.index)));
+    if (danach) {
+      for (const [m, t] of TAGE) {
+        if (new RegExp(m.source).test(text.slice(0, wende.index))) alteTage.add(t);
+      }
+    }
   }
 
   const entfernen = /\b(nicht mehr|streich\w*)\b|\b(faellt|fallen)\b.*\bweg\b/.test(text) && !/\bstatt\b/.test(text);

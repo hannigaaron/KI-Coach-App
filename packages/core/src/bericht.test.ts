@@ -64,7 +64,7 @@ test("Training wird summiert, Kalorien werden gemittelt", () => {
 test("Das Gewicht ist eine Strecke und kein Schnitt", () => {
   const tage = zeitraum("2026-09-01", 28, (i) => ({ ...voll(i), gewichtKg: i === 0 ? 87.4 : i === 27 ? 85.9 : null }));
   const g = lauf(tage).werte.find((w) => w.name === "Gewicht");
-  assert.equal(g?.wert, "85.9 kg, -1.5 kg seit 1. Sep");
+  assert.equal(g?.wert, "85,9 kg, -1,5 kg seit 1. Sep");
 });
 
 test("Eine einzelne Wiegung ergibt keine Strecke", () => {

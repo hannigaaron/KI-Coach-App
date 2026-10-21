@@ -122,6 +122,7 @@ test("die Anzeige nennt Aufwand, Einstufung und Grund", () => {
   const text = einstufungText({ minuten: 45, wichtigkeit: 3, faellig: "2026-09-11", warum: "Geld, das zugesagt ist" });
   assert.ok(text.includes("45 Minuten"));
   assert.ok(text.includes("wichtig"));
-  assert.ok(text.includes("fällig 2026-09-11"));
+  assert.ok(text.includes("fällig Fr 11. Sep"), text);
+  assert.ok(!/\d{4}-\d{2}-\d{2}/.test(text), "kein ISO Datum");
   assert.ok(text.includes("Geld, das zugesagt ist"));
 });

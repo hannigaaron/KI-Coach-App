@@ -1,6 +1,6 @@
 import {
   Agent, AnthropicProvider, Coach, addiere, buildShoppingList, cacheQuote, denktiefe, dollarText,
-  einstufeAufgabe, einstufungText, ersparnis, fehlerErklaerung, hochrechnung, kopfLeeren, kopfText, leereSumme,
+  einstufeAufgabe, einstufungText, ersparnis, extractGrams, NICHT_GESPEICHERT, fehlerErklaerung, hochrechnung, kopfLeeren, kopfText, leereSumme,
   mahlzeitAusFoto, modellFuerBilder, produktPerBarcode, produkteSuchen, summiere, vorratAusFoto,
   todoistAbhaken, todoistAufgaben, todoistIdVon,
 } from "@daevo/coach";
@@ -99,7 +99,7 @@ import { newId, nowTime, store, todayIso } from "./storage.js";
 
 const WEEKDAYS = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
 
-function provider() {
+function provider({ ohneZaehlung = false } = {}) {
   const settings = store.getSettings();
   // Steht eine eigene Adresse in der Konfiguration, läuft die Anfrage über den
   // eigenen Server. Der hält den Schlüssel als Geheimnis, im Browser liegt
@@ -118,6 +118,7 @@ function provider() {
     browserAccess: !ueberServer,
     timeoutMs: 90000,
     onVerbrauch: zaehleVerbrauch,
+    ohneZaehlung,
   });
 }
 
@@ -221,10 +222,20 @@ export function gemesseneSchritte(day = todayIso()) {
   return Math.round(werte.reduce((a, b) => a + b, 0) / werte.length);
 }
 
-export function dayNumbers(day = todayIso()) {
+/**
+ * Das Profil, mit dem ein Tag rechnet: mit gemessenen Schritten, wo es sie
+ * gibt. Eine Stelle für alle Rechnungen des Tages. Der Tagesablauf rechnete
+ * vorher mit dem gespeicherten Profil, und die Mahlzeiten im Kalender
+ * ergaben 2268 kcal gegen ein Tagesziel von 2312 auf Heute.
+ */
+export function profilFuerTag(day = todayIso()) {
   const gespeichert = store.getProfile();
   const gemessen = gemesseneSchritte(day);
-  const profile = gemessen ? { ...gespeichert, dailySteps: gemessen, schritteGemessen: true } : gespeichert;
+  return gemessen && gespeichert ? { ...gespeichert, dailySteps: gemessen, schritteGemessen: true } : gespeichert;
+}
+
+export function dayNumbers(day = todayIso()) {
+  const profile = profilFuerTag(day);
   const weekday = new Date(`${day}T12:00:00`).getDay();
   const trainingMinutes = (profile.sessions || [])
     .filter((s) => s.weekday === weekday)
@@ -266,8 +277,14 @@ function daySummaryText(n) {
     ? sessions.map((s) => `${s.startsAt} Uhr, ${s.minutes} Minuten`).join(" und ")
     : "kein Training geplant";
   return [
-    `Kalorien ${n.totals.kcal} von ${n.targets.kcal}, offen ${n.rest.kcal}.`,
-    `Protein ${n.totals.proteinG} von ${n.targets.proteinG} g, offen ${n.rest.proteinG} g.`,
+    // Über dem Ziel steht "drüber" und keine negative Restmenge. "offen -34 g"
+    // ist kein Deutsch und keine Information.
+    n.rest.kcal >= 0
+      ? `Kalorien ${n.totals.kcal} von ${n.targets.kcal}, offen ${n.rest.kcal}.`
+      : `Kalorien ${n.totals.kcal} von ${n.targets.kcal}, ${-n.rest.kcal} drüber.`,
+    n.rest.proteinG > 0
+      ? `Protein ${n.totals.proteinG} von ${n.targets.proteinG} g, offen ${n.rest.proteinG} g.`
+      : `Protein ${n.totals.proteinG} von ${n.targets.proteinG} g, Ziel erreicht.`,
     `Fett ${n.totals.fatG} von ${n.targets.fatG} g, Kohlenhydrate ${n.totals.carbsG} von ${n.targets.carbsG} g.`,
     `Wasser ${n.totals.waterMl} von ${n.targets.waterMl} ml.`,
     `Mahlzeiten heute: ${n.data.meals.length}. Serie: ${n.streak} ${n.streak === 1 ? "Tag" : "Tage"}. Heute ${training}.`,
@@ -293,7 +310,7 @@ function profileText(profile) {
     `Ziel: ${goal}.`,
     profile.tdeeOverrideKcal
       ? `Bedarf ${energy.tdeeKcal} kcal, gemessen aus dem eigenen Verlauf und nicht aus der Formel. Tagesziel ${ziele.kcal} kcal.`
-      : `Bedarf ${energy.tdeeKcal} kcal, geschätzt über Mifflin-St Jeor mit Aktivitätsfaktor ${energy.activityFactor}. Tagesziel ${ziele.kcal} kcal.`,
+      : `Bedarf ${energy.tdeeKcal} kcal, geschätzt über Mifflin-St Jeor mit Aktivitätsfaktor ${String(energy.activityFactor).replace(".", ",")}. Tagesziel ${ziele.kcal} kcal.`,
     `Makroziele: ${ziele.proteinG} g Protein, ${ziele.fatG} g Fett, ${ziele.carbsG} g Kohlenhydrate.`,
     `Etwa ${profile.dailySteps} Schritte am Tag, ${ARBEIT_LABEL[profile.occupation] || ARBEIT_LABEL.sitzend}, ` +
       `${FREIZEIT_LABEL[profile.leisure] || FREIZEIT_LABEL.gemischt}.`,
@@ -380,7 +397,7 @@ function lageText() {
   if (trend.belastbar) {
     zeilen.push(
       `Gewichtsverlauf: ${trend.aktuellKg} kg geglättet, ${trend.kgProWoche > 0 ? "plus" : "minus"} ` +
-      `${Math.abs(trend.kgProWoche).toFixed(2)} kg je Woche über ${trend.spanneTage} Tage. ` +
+      `${Math.abs(trend.kgProWoche).toFixed(2).replace(".", ",")} kg je Woche über ${trend.spanneTage} Tage. ` +
       "Für Details verlauf_abrufen benutzen.",
     );
   } else if (trend.messungen > 0) {
@@ -583,7 +600,7 @@ export function verlaufText(tage = 28) {
   if (trend.messungen >= 2) {
     zeilen.push(
       `Gewicht: ${trend.aktuellKg} kg geglättet, ${trend.kgProWoche > 0 ? "plus" : "minus"} ` +
-      `${Math.abs(trend.kgProWoche).toFixed(2)} kg je Woche über ${trend.spanneTage} Tage.`,
+      `${Math.abs(trend.kgProWoche).toFixed(2).replace(".", ",")} kg je Woche über ${trend.spanneTage} Tage.`,
     );
   } else {
     zeilen.push("Gewicht: zu wenige Wiegungen für eine Richtung.");
@@ -608,8 +625,8 @@ export function verlaufText(tage = 28) {
   const werte = letzteTage(Math.min(tage, 28));
   const energien = werte.flatMap((d) => d.data.checkins.map((c) => c.energy).filter((e) => typeof e === "number"));
   const schlaf = werte.flatMap((d) => d.data.checkins.map((c) => c.sleepQuality).filter((e) => typeof e === "number"));
-  if (energien.length >= 3) zeilen.push(`Energie im Schnitt ${mittelwert(energien).toFixed(1)} von 10 aus ${energien.length} Check-ins.`);
-  if (schlaf.length >= 3) zeilen.push(`Schlafqualität im Schnitt ${mittelwert(schlaf).toFixed(1)} von 10.`);
+  if (energien.length >= 3) zeilen.push(`Energie im Schnitt ${mittelwert(energien).toFixed(1).replace(".", ",")} von 10 aus ${energien.length} Check-ins.`);
+  if (schlaf.length >= 3) zeilen.push(`Schlafqualität im Schnitt ${mittelwert(schlaf).toFixed(1).replace(".", ",")} von 10.`);
   const einheiten = werte.reduce((sum, d) => sum + (d.data.trainings || []).length, 0);
   zeilen.push(`Absolvierte Einheiten in den letzten ${werte.length} erfassten Tagen: ${einheiten}.`);
   const protein = werte.map((d) => d.totals.proteinG).filter((p) => p > 0);
@@ -752,7 +769,7 @@ export function einkaufslisteText(liste) {
   const offen = liste.items.filter((i) => i.stand === "offen");
   const zuhause = liste.items.filter((i) => i.stand === "zuhause");
   const gekauft = liste.items.filter((i) => i.stand === "gekauft");
-  const zeilen = offen.map((i) => `- ${i.name}, ${i.menge}`);
+  const zeilen = offen.map((i) => (i.menge ? `- ${i.name}, ${i.menge}` : `- ${i.name}`));
   return [
     `Liste für ${liste.tage} Tage, ${liste.items.length} Posten. ` +
       `Offen ${offen.length}, zu Hause ${zuhause.length}, gekauft ${gekauft.length}.`,
@@ -844,7 +861,7 @@ export function kalenderStandText() {
     `Dein Kalender ist verbunden. ${st.anzahl} Termine liegen hier, davon ${st.kommend} in der Zukunft.`,
   ];
   if (namen.length) teile.push(`Quelle: ${namen.join(", ")}.`);
-  if (tageHer === null) teile.push("Wann zuletzt eingelesen wurde, weiss ich nicht.");
+  if (tageHer === null) teile.push("Wann zuletzt eingelesen wurde, weiß ich nicht.");
   else if (tageHer === 0) teile.push("Zuletzt eingelesen: heute.");
   else if (tageHer === 1) teile.push("Zuletzt eingelesen: gestern.");
   else teile.push(`Zuletzt eingelesen: vor ${tageHer} Tagen.`);
@@ -852,7 +869,7 @@ export function kalenderStandText() {
   // Der eigentliche Grund, warum sich der Kalender falsch anfühlt. Der Import
   // ist eine Kopie, kein Abo. Was du seitdem eingetragen hast, fehlt hier.
   if (tageHer !== null && tageHer >= 2) {
-    teile.push(`Das heisst: alles, was du in den letzten ${tageHer} Tagen im Kalender geändert hast, `
+    teile.push(`Das heißt: alles, was du in den letzten ${tageHer} Tagen im Kalender geändert hast, `
       + "kenne ich nicht. Der Import ist eine Kopie und kein Abo. Lad ihn im Menü unter Alltag, Kalender neu.");
   } else {
     teile.push("Der Import ist eine Kopie und kein Abo. Nach jeder Änderung in deinem Kalender "
@@ -889,7 +906,7 @@ const PROFIL_NOTFALL = {
 };
 
 export function ablaufFuer(tagIso) {
-  const profile = store.getProfile() || PROFIL_NOTFALL;
+  const profile = profilFuerTag(tagIso) || PROFIL_NOTFALL;
   return tagesablauf({
     tag: tagIso,
     termine: termineFuer(tagIso),
@@ -1060,7 +1077,8 @@ export function wochenplanFuer(jetzt = Date.now()) {
     // Heute zählt nur, was noch vor einem liegt.
     const ab = i === 0 ? jetzt : 0;
     const frei = luecken.reduce((s, l) => s + Math.max(0, l.bis - Math.max(l.von, ab)), 0) / 60000;
-    tage.push({ tag, freieMinuten: Math.round(frei), belegtMinuten: ablauf.belegtMinuten });
+    const bloecke = luecken.map((l) => Math.round(Math.max(0, l.bis - Math.max(l.von, ab)) / 60000)).filter((m) => m > 0);
+    tage.push({ tag, freieMinuten: Math.round(frei), belegtMinuten: ablauf.belegtMinuten, bloecke });
   }
   return wochenplan({ aufgaben: alleAufgaben(), tage });
 }
@@ -1304,7 +1322,10 @@ function letzteMahlzeit(day = todayIso()) {
   const data = store.getDay(day);
   const meal = data.meals[data.meals.length - 1];
   if (!meal) return null;
-  const summe = { text: meal.text || "Mahlzeit", kcal: 0, proteinG: 0, fatG: 0, carbsG: 0 };
+  // Die Posten und nicht der Satz, mit dem sie eingetragen wurden. Sonst
+  // stand im Mittags Check-in "Ich hab gerade 250 g Magerquark gegessen: 213 kcal".
+  const namen = (meal.entries || []).map((e) => `${e.quantity} ${e.name}`.trim()).join(", ");
+  const summe = { text: namen || meal.text || "Mahlzeit", kcal: 0, proteinG: 0, fatG: 0, carbsG: 0 };
   for (const e of meal.entries) {
     summe.kcal += e.kcal;
     summe.proteinG += e.proteinG;
@@ -1525,7 +1546,7 @@ export function briefing(art = "morgen") {
     aufgaben: tagesplanText(),
     standards: status.filter((s) => !s.aktuell).map((s) => s.satz),
     trend: trend.belastbar
-      ? `Gewicht: ${trend.aktuellKg} kg geglättet, ${trend.kgProWoche > 0 ? "plus" : "minus"} ${Math.abs(trend.kgProWoche).toFixed(2)} kg je Woche.`
+      ? `Gewicht: ${trend.aktuellKg} kg geglättet, ${trend.kgProWoche > 0 ? "plus" : "minus"} ${Math.abs(trend.kgProWoche).toFixed(2).replace(".", ",")} kg je Woche.`
       : undefined,
   });
 }
@@ -2093,9 +2114,30 @@ export function nachtragZeit(tag, uhrzeit, jetzt = new Date()) {
   return { day, at };
 }
 
-export function buildActions({ onChange, anhaenge = [] } = {}) {
+/** "2026-10-23" wird "Fr 23. Okt". Daten werden gesagt, nicht gesetzt. */
+function datumKurz(iso) {
+  const d = new Date(`${iso}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return iso;
+  const tag = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"][d.getDay()];
+  const monat = ["Jan", "Feb", "März", "Apr", "Mai", "Juni", "Juli", "Aug", "Sep", "Okt", "Nov", "Dez"][d.getMonth()];
+  return `${tag} ${d.getDate()}. ${monat}`;
+}
+
+/** Ein Posten mit neuen Nährwerten über einen Faktor, Rundung wie in `mengeSetzen`. */
+function mitFaktor(eintrag, faktor, quantity) {
+  const r1 = (x) => Math.round(x * 10) / 10;
+  return {
+    ...eintrag,
+    quantity,
+    kcal: Math.round(eintrag.kcal * faktor),
+    proteinG: r1(eintrag.proteinG * faktor),
+    fatG: r1(eintrag.fatG * faktor),
+    carbsG: r1(eintrag.carbsG * faktor),
+  };
+}
+
+export function buildActions({ onChange, anhaenge = [], anbieter = provider() } = {}) {
   const changed = () => onChange?.();
-  const anbieter = provider();
   const coach = new Coach(anbieter);
   const bilder = anhaenge.filter((a) => a.mediaType && a.data && !a.fehler);
 
@@ -2380,11 +2422,11 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
       const data = store.getDay(day);
       const meals = data.meals || [];
       const treffer = gesucht
-        ? [...meals].reverse().find((m) => (m.entries || []).some((e) => String(e.name).toLowerCase().includes(gesucht)))
+        ? [...meals].reverse().find((m) => (m.entries || []).some((e) => trifftPosten(e.name, gesucht)))
         : meals[meals.length - 1];
       if (!treffer) {
         return gesucht
-          ? `Dazu finde ich heute keinen Eintrag mit ${suche}.`
+          ? (gesucht.split(/\s+/).length > 3 ? "Dazu finde ich heute keinen passenden Eintrag." : `Dazu finde ich heute keinen Eintrag mit ${suche}.`)
           : "Für heute steht noch keine Mahlzeit drin.";
       }
       const posten = (treffer.entries || []).map((e) => `${e.quantity} ${e.name}`).join(", ");
@@ -2414,7 +2456,7 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
      * und das tun sie. Die Zahlen kommen damit aus dem Rechenkern und nicht
      * aus dem Modell, genau wie beim Erfassen.
      */
-    async mahlzeitKorrigieren({ posten, neueMenge } = {}) {
+    async mahlzeitKorrigieren({ posten, neueMenge, mengeText } = {}) {
       const day = todayIso();
       const gesucht = String(posten || "").toLowerCase().trim();
       const data = store.getDay(day);
@@ -2432,7 +2474,7 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
       }
       if (!treffer) {
         return gesucht
-          ? `Dazu finde ich heute keinen Eintrag mit ${posten}.`
+          ? (gesucht.split(/\s+/).length > 3 ? "Dazu finde ich heute keinen passenden Eintrag." : `Dazu finde ich heute keinen Eintrag mit ${posten}.`)
           : "Für heute steht noch keine Mahlzeit drin, die ich ändern könnte.";
       }
 
@@ -2446,7 +2488,14 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
       }
 
       const alt = treffer.eintrag;
-      const neu = mengeSetzen(alt, zahl);
+      // Nennt der Nutzer eine andere Einheit als am Posten steht, rechnet die
+      // App über Gramm um. Im Live-Test stand Honig als "15 g" da, der Nutzer
+      // sagte "ein Teelöffel", das Modell schickte 1, und daraus wurde 1 g.
+      const neuG = mengeText ? extractGrams(mengeText) : null;
+      const altG = extractGrams(alt.quantity);
+      const neu = neuG?.explizit && altG?.explizit && altG.grams > 0
+        ? mitFaktor(alt, neuG.grams / altG.grams, mengeText)
+        : mengeSetzen(alt, zahl);
       const eintraege = [...(treffer.meal.entries || [])];
       eintraege[treffer.index] = neu;
       // `korrigiert` sagt dem Coach, dass das keine Schätzung mehr ist. Eine
@@ -2528,7 +2577,7 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
       const teile = [verteilungText(v)];
       if (vorrat.length === 0) {
         teile.push(
-          "Was du zu Hause hast, weiss ich nicht, deshalb sind die Vorschläge allgemein. "
+          "Was du zu Hause hast, weiß ich nicht, deshalb sind die Vorschläge allgemein. "
           + "Trag deinen Vorrat ein, dann schlage ich dir vor, was du wirklich kochen kannst.",
         );
       }
@@ -2599,6 +2648,14 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
 
     async gedaechtnisDurchsuchen(frage) {
       const hits = brain.search(frage, 6);
+      // "Was weisst du über mich" teilt mit keiner Notiz ein Wort und fand im
+      // Live-Test nichts, obwohl fünf Notizen dastanden. Bei einer Frage nach
+      // der Person kommen die wichtigsten Notizen, nicht die passendsten.
+      if (hits.length === 0 && /\b(mich|mir|ueber mich|über mich)\b/i.test(String(frage))) {
+        const alle = [...store.getMemories()].sort((a, b) => (b.weight ?? 0) - (a.weight ?? 0)).slice(0, 8);
+        if (alle.length === 0) return "Über dich habe ich noch nichts notiert.";
+        return alle.map((m) => `- ${m.text} (${String(m.at).slice(0, 10)})`).join("\n");
+      }
       if (hits.length === 0) return "Dazu habe ich nichts notiert.";
       return hits.map((h) => `- ${h.entry.text} (${h.entry.at.slice(0, 10)})`).join("\n");
     },
@@ -2613,7 +2670,7 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
       changed();
       return `Steht auf der Liste: ${a.text}, ${a.minuten} Minuten, ` +
         `${["nebensächlich", "normal", "wichtig"][a.wichtigkeit - 1]}` +
-        `${a.faellig ? `, fällig ${a.faellig}` : ""}${a.warum ? `. ${a.warum}` : ""}.`;
+        `${a.faellig ? `, fällig ${datumKurz(a.faellig)}` : ""}.`;
     },
 
     async aufgabeAbhaken({ text } = {}) {
@@ -2625,7 +2682,10 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
     },
 
     async erinnerungAnlegen({ text, uhrzeit, bezug, versatz, tage = [] } = {}) {
-      const eintrag = { id: newId(), text: String(text || "").trim(), tage };
+      // "an mein Magnesium" wird "Magnesium". In der Mitteilung stand sonst
+      // "Mein Magnesium", und das liest sich wie ein Fehler.
+      const sauber = String(text || "").trim().replace(/^(mein|meine|meinen|meinem|meiner)\s+/i, "");
+      const eintrag = { id: newId(), text: sauber ? sauber.charAt(0).toUpperCase() + sauber.slice(1) : sauber, tage };
       if (bezug) Object.assign(eintrag, { bezug, versatz: Number(versatz) || 0 });
       else eintrag.uhrzeit = uhrzeit;
       const fehler = erinnerungFehler(eintrag);
@@ -2846,7 +2906,13 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
       const liste = {
         ...roh,
         erstelltAm: new Date().toISOString(),
-        items: roh.items.map((item) => ({ ...item, stand: alterStand.get(item.key) || "offen" })),
+        // Was der Nutzer selbst dazugeschrieben hat, bleibt beim Neurechnen
+        // stehen. Sonst wäre jeder eigene Posten mit dem nächsten Tipp auf
+        // "Liste rechnen" weg.
+        items: [
+          ...roh.items.map((item) => ({ ...item, stand: alterStand.get(item.key) || "offen" })),
+          ...(alt?.items || []).filter((i) => i.eigen && !roh.items.some((r) => r.name.toLowerCase() === i.name.toLowerCase())),
+        ],
       };
       store.setShoppingList(liste);
       changed();
@@ -2875,6 +2941,61 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
       const offen = liste.items.filter((i) => i.stand === "offen").length;
       const wort = { gekauft: "gekauft", zuhause: "hast du noch", offen: "wieder offen" }[stand];
       return `${treffer.name}: ${wort}. Noch ${offen} Posten offen.`;
+    },
+
+    async trainingsplanAbrufen({ inTagen = 0 } = {}) {
+      const d = new Date(`${todayIso()}T12:00:00`);
+      d.setDate(d.getDate() + inTagen);
+      const wochentag = d.getDay();
+      const wann = inTagen === 0 ? "Heute" : inTagen === 1 ? "Morgen" : `Am ${WEEKDAYS[wochentag]}`;
+      const sessions = store.getProfile()?.sessions || [];
+      const heute = sessions.filter((s) => s.weekday === wochentag).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+      if (heute.length === 0) {
+        return `${wann}, ${WEEKDAYS[wochentag]}, steht kein Training in deinem Wochenplan. Ein Ruhetag gehört zum Plan.`;
+      }
+      const zeilen = [`${wann}, ${WEEKDAYS[wochentag]}: ` + heute.map((s) => `${TYP_LABEL[s.type] || s.type} um ${s.startsAt}, ${s.minutes} Minuten`).join(", ") + "."];
+      // Welche Einheit des gespeicherten Plans dran ist: die Krafttage der
+      // Woche der Reihe nach, Montag zuerst, und die Einheiten A, B, C im
+      // Wechsel darüber. Das ist dieselbe Zuordnung wie im Kalender.
+      const plan = store.getSettings().plan;
+      if (plan?.einheiten?.length && heute.some((s) => s.type === "strength")) {
+        const kraft = sessions.filter((s) => s.type === "strength").sort((a, b) => ((a.weekday + 6) % 7) - ((b.weekday + 6) % 7));
+        const index = Math.max(0, kraft.findIndex((s) => s.weekday === wochentag));
+        const einheit = plan.einheiten[index % plan.einheiten.length];
+        zeilen.push(`Aus deinem Plan: ${einheit.titel}, ${einheit.fokus}, etwa ${einheit.dauerMin} Minuten.`);
+        for (const p of einheit.positionen) zeilen.push(`- ${p.name}: ${p.saetze} x ${p.wdh}, ${p.reserve} in Reserve`);
+      } else if (heute.some((s) => s.type === "strength")) {
+        zeilen.push("Einen Plan mit Übungen hast du noch nicht gespeichert. Den rechnet dir die App unter Training, Trainingspläne.");
+      }
+      return zeilen.join("\n");
+    },
+
+    async einkaufslisteErgaenzen({ posten }) {
+      const alt = store.getShoppingList();
+      const liste = alt ?? { tage: 7, items: [], hinweis: "", gemieden: [], erstelltAm: new Date().toISOString() };
+      const neu = [];
+      for (const roh of posten) {
+        // "Hähnchenbrust 500 g" wird Name und Menge. Ohne Zahl bleibt die
+        // Menge leer, statt geraten zu werden.
+        const m = /^(.*?)\s+(\d+(?:[.,]\d+)?\s*(?:g|kg|ml|l|stück|stk|packungen?|dosen?|flaschen?)?)$/i.exec(roh.trim());
+        const name = (m ? m[1] : roh).trim();
+        const menge = m ? m[2].trim() : "";
+        const schon = liste.items.find((i) => i.name.toLowerCase() === name.toLowerCase());
+        if (schon) {
+          schon.stand = "offen";
+          if (menge) schon.menge = menge;
+        } else {
+          liste.items.push({
+            key: `eigen-${name.toLowerCase().replace(/[^a-z0-9äöüß]+/g, "-")}`,
+            name, menge, kategorie: "sonstiges", grund: "Von dir dazugeschrieben", stand: "offen", eigen: true,
+          });
+        }
+        neu.push(menge ? `${name} ${menge}` : name);
+      }
+      store.setShoppingList(liste);
+      changed();
+      const offen = liste.items.filter((i) => i.stand === "offen").length;
+      return `Auf der Liste: ${neu.join(", ")}. Jetzt ${offen} Posten offen.`;
     },
 
     async standardsAbrufen() {
@@ -2928,7 +3049,7 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
     async trainingsplanAendern(aenderung) {
       const profil = store.getProfile();
       const r = planAendern(profil.sessions || [], aenderung);
-      if (r.fehler) return r.fehler;
+      if (r.fehler) return `${NICHT_GESPEICHERT} ${r.fehler}`;
       store.setProfile({ ...profil, sessions: r.sessions });
       changed();
       const ziel = macroTargets({ ...profil, sessions: r.sessions });
@@ -2955,11 +3076,11 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
       changed();
       const trend = weightTrend(verlaufPunkte(56));
       if (!trend.belastbar) {
-        return `${kg} kg eingetragen. Für eine Richtung brauche ich mindestens vier Wiegungen über zwei Wochen, ` +
+        return `${String(kg).replace(".", ",")} kg eingetragen. Für eine Richtung brauche ich mindestens vier Wiegungen über zwei Wochen, ` +
           `bisher sind es ${trend.messungen}.`;
       }
-      return `${kg} kg eingetragen. Geglättet ${trend.aktuellKg} kg, ` +
-        `${trend.kgProWoche > 0 ? "plus" : "minus"} ${Math.abs(trend.kgProWoche).toFixed(2)} kg je Woche ` +
+      return `${String(kg).replace(".", ",")} kg eingetragen. Geglättet ${String(trend.aktuellKg).replace(".", ",")} kg, ` +
+        `${trend.kgProWoche > 0 ? "plus" : "minus"} ${Math.abs(trend.kgProWoche).toFixed(2).replace(".", ",")} kg je Woche ` +
         `über ${trend.spanneTage} Tage.`;
     },
 
@@ -3022,7 +3143,14 @@ export function buildActions({ onChange, anhaenge = [] } = {}) {
 /* ---------- Gespräch ---------- */
 
 export async function ask(nachricht, { onChange, anhaenge = [], onStrom } = {}) {
-  const agent = new Agent(provider());
+  // Ein Anbieter für die ganze Nachricht, auch für die Werkzeuge. Der Server
+  // zählt je Anbieter nur die erste Anfrage als Nachricht. Mit zwei Anbietern
+  // kostete eine eingetragene Mahlzeit zwei Nachrichten aus dem Kontingent.
+  // Essen eintragen zählt nicht als Nachricht, siehe `ohneZaehlung`. Mit
+  // Anhang nicht: ein Foto läuft auf Opus und kostet das Fünfzigfache.
+  const modusVorab = denktiefe(nachricht, anhaenge.length > 0).modus;
+  const anbieter = provider({ ohneZaehlung: modusVorab === "erfassen" && anhaenge.length === 0 });
+  const agent = new Agent(anbieter);
   const n = dayNumbers();
   const now = new Date();
 
@@ -3054,7 +3182,7 @@ export async function ask(nachricht, { onChange, anhaenge = [], onStrom } = {}) 
       zeit: `${WEEKDAYS[now.getDay()]}, ${now.getDate()}. ${now.toLocaleString("de-DE", { month: "long" })} ${now.getFullYear()}, ${nowTime()} Uhr.`,
       eigeneAnweisungen: store.getSettings().anweisungen || "",
     },
-    aktionen: buildActions({ onChange, anhaenge }),
+    aktionen: buildActions({ onChange, anhaenge, anbieter }),
     modellWahl: store.getSettings().modellWahl || "auto",
     // Die alte Einstellung gilt weiter, solange keine neue dasteht. Sonst
     // liefe die App nach einem Update plötzlich auf Sparflamme.
@@ -3069,6 +3197,15 @@ export async function ask(nachricht, { onChange, anhaenge = [], onStrom } = {}) 
     anhaenge: anhaenge.filter((a) => a.mediaType && a.data && !a.fehler)
       .map((a) => ({ mediaType: a.mediaType, data: a.chatData || a.data, name: a.name })),
   });
+
+  // Die Meldung zum leeren Kontingent einmal in sechs Stunden. Nach der
+  // Testphase stand sonst derselbe Absatz unter jeder einzelnen Antwort.
+  if (reply.fehlerArt === "kontingent" && reply.nurRegel) {
+    const s = store.getSettings();
+    const zuletzt = Number(s.aboHinweise?.kontingentNotizUm) || 0;
+    if (Date.now() - zuletzt < 6 * 3600000) reply.text = reply.nurRegel;
+    else store.setSettings({ ...s, aboHinweise: { ...(s.aboHinweise || {}), kontingentNotizUm: Date.now() } });
+  }
 
   const chat = store.getChat();
   chat.push({
@@ -3167,7 +3304,7 @@ export function recommendations() {
       titel: "Einkauf steht noch aus",
       text: `${offeneposten.length} Posten sind offen, zuerst ${offeneposten.slice(0, 2).map((i) => i.name).join(" und ")}. ` +
         "Sag mir, was du davon noch zu Hause hast, dann streiche ich es.",
-      grund: `Liste vom ${(liste.erstelltAm || "").slice(0, 10)} für ${liste.tage} Tage.`,
+      grund: `Liste vom ${datumKurz((liste.erstelltAm || "").slice(0, 10))} für ${liste.tage} Tage.`,
     });
   }
 
@@ -3192,7 +3329,7 @@ export function recommendations() {
     out.push({
       titel: "Deine Energie ist unten",
       text: "Drei oder mehr Check-ins unter fünf. Das ist ein Muster, kein Ausrutscher. Schlaf und Essenszeiten zuerst.",
-      grund: `Schnitt der Energie: ${mittelwert(energien).toFixed(1)} von 10.`,
+      grund: `Schnitt der Energie: ${mittelwert(energien).toFixed(1).replace(".", ",")} von 10.`,
     });
   }
 

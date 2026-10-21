@@ -103,15 +103,16 @@ export const ABO_STUFEN = [
       "Dein Coach, der mitdenkt, plant und mit dir redet",
       "Fotos von Teller, Etikett und Kühlschrank auswerten",
       "Rezepte aus deinem Vorrat, mit allen Makros",
-      "800 Nachrichten an die KI im Monat",
+      "Bis zu 250 Nachrichten an die KI im Monat",
+      "Essen per Text und Sprache eintragen zählt nicht mit",
     ],
   },
   {
     id: "pro", name: "Pro", monatCent: 1999, jahrCent: 15999,
     punkte: [
       "Alles aus Plus",
-      "2500 Nachrichten an die KI im Monat",
-      "Für viel Diktat, viele Fotos und lange Gespräche",
+      "Bis zu 700 Nachrichten an die KI im Monat",
+      "Für viele Fotos, viel Diktat und lange Gespräche",
     ],
   },
 ];
@@ -194,7 +195,7 @@ export function aboAnlass(stand, gezeigt = {}, heute) {
       art: "knapp",
       marke: "80 Prozent verbraucht",
       titel: "Du nutzt daevo richtig viel",
-      text: `${n} von ${g} Nachrichten sind diesen Monat verbraucht. Mit Pro hast du gut das Dreifache.`,
+      text: `${n} von ${g} Nachrichten sind diesen Monat verbraucht. Mit Pro hast du fast das Dreifache.`,
       merken: { monat80: stand.monat },
       empfohlen: "pro",
     };

@@ -396,7 +396,7 @@ export class SetupFlow {
       return `<div class="field">${label}
         <div class="wochenkopf"><span class="wt-tag"></span><span>Aufstehen</span><span>Schlafen</span></div>
         <div class="wochenzeiten">${zeilen}</div>
-        <p class="feld-hilfe">Leer lassen heisst: an dem Tag gilt dein Standard. Einzelne Tage kannst du
+        <p class="feld-hilfe">Leer lassen heißt: an dem Tag gilt dein Standard. Einzelne Tage kannst du
         später jederzeit im Chat ändern, etwa wenn du morgen Frühdienst hast.</p></div>`;
     }
     if (feld.art === "chips") {
