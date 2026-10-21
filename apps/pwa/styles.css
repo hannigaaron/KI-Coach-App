@@ -3528,3 +3528,7 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 .pl-verlauf-tag ul { list-style: none; margin: var(--s-2) 0 0; padding: 0; }
 .pl-verlauf-tag li { display: flex; flex-direction: column; padding: var(--s-1) 0; font-size: var(--t-sm); }
 .pl-verlauf-tag li span { color: var(--muted); font-variant-numeric: tabular-nums; }
+.pl-heute { margin: var(--s-4) 0 var(--s-6); }
+.pl-heute .sub { margin-top: 0; }
+.pl-heute > .pl-legende { margin: 0 0 var(--s-4); }
+.pl-heute-einheit { margin-top: var(--s-4); }

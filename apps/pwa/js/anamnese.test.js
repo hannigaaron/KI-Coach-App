@@ -266,7 +266,7 @@ test("aus dem Bogen entsteht ein Planwunsch mit Ort, Beschwerden und gemiedenen 
 
 test("die Fragen zum neuen Plan fallen weg, wenn jemand bei seinem bleibt", () => {
   const abhaengig = SCHRITTE.filter((s) => s.wenn?.id === "planVorhanden").map((s) => s.id);
-  assert.deepEqual(abhaengig, ["kraftTage", "kraftMinuten", "trainingsort"]);
+  assert.deepEqual(abhaengig, ["kraftTage", "kraftMinuten", "trainingsort", "fokus"]);
   // Die Beschwerden fragt der Bogen immer: auch ein eigener Plan braucht die Information.
   assert.ok(SCHRITTE.some((s) => s.id === "beschwerden" && !s.wenn));
 });
@@ -276,4 +276,11 @@ test("die Krafttage stehen im Kalender mit der gewählten Dauer, der Rest als we
   assert.equal(sessions.length, 5);
   assert.equal(sessions.filter((s) => s.type === "strength").length, 3);
   assert.ok(sessions.filter((s) => s.type === "strength").every((s) => s.minutes === 45));
+});
+
+test("der Fokus aus dem Bogen geht in den Plan, höchstens zwei, nur bekannte", async () => {
+  const { planWunschAus } = await import("./anamnese.js");
+  const w = planWunschAus({ planVorhanden: "nein", kraftTage: "3", kraftMinuten: "60", fokus: ["arme", "quatsch", "po", "beine"] });
+  assert.deepEqual(w.fokus, ["arme", "po"]);
+  assert.deepEqual(planWunschAus({ planVorhanden: "nein", kraftTage: "3" }).fokus, []);
 });

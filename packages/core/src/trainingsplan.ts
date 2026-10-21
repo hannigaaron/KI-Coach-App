@@ -77,7 +77,20 @@ export interface PlanWunsch {
   beschwerden?: Beschwerde[];
   /** Übungen, die der Nutzer selbst nicht will oder bei denen es wehtut. */
   meiden?: string[];
+  /** Muskelpartien, die zuerst kommen. Siehe `FOKUS_PLAETZE`. */
+  fokus?: FokusGruppe[];
 }
+
+/**
+ * Die Muskelpartien, nach denen jemand fragt. Po ist eine eigene Partie,
+ * obwohl die Datenbank sie unter Beine führt: wer Po sagt, meint Hüftstrecken
+ * und nicht Beinstrecker.
+ */
+export type FokusGruppe = "beine" | "po" | "brust" | "ruecken" | "schultern" | "arme" | "rumpf";
+
+export const FOKUS_NAME: Record<FokusGruppe, string> = {
+  beine: "Beine", po: "Po", brust: "Brust", ruecken: "Rücken", schultern: "Schultern", arme: "Arme", rumpf: "Core",
+};
 
 export type PlanOrt = "studio" | "zuhause" | "ohne";
 export type Beschwerde =
@@ -166,7 +179,7 @@ const AUFWAERMEN_MIN = 5;
 const SATZ_SEK = 45;
 const AUFBAU_SEK = 60;
 
-type Platz =
+export type Platz =
   | "kniebeuge" | "einbein" | "huefte" | "beinbeuger" | "beinstrecker" | "adduktoren" | "waden"
   | "druecken_h" | "druecken_v" | "ziehen_h" | "ziehen_v"
   | "seitlich" | "hintere" | "brust_iso" | "bizeps" | "trizeps" | "rumpf";
@@ -194,6 +207,26 @@ const PASST: Record<Platz, (e: PlanUebung) => boolean> = {
   trizeps: (e) => e.pattern === "elbow_extension",
   rumpf: (e) => e.pattern.startsWith("core_"),
 };
+
+/** Welche Plätze zu einer Partie gehören, die schwerste zuerst. */
+export const FOKUS_PLAETZE: Record<FokusGruppe, Platz[]> = {
+  beine: ["kniebeuge", "huefte", "einbein", "beinbeuger", "beinstrecker", "waden"],
+  po: ["huefte", "einbein", "adduktoren"],
+  brust: ["druecken_h", "brust_iso"],
+  ruecken: ["ziehen_v", "ziehen_h"],
+  schultern: ["druecken_v", "seitlich", "hintere"],
+  arme: ["bizeps", "trizeps"],
+  rumpf: ["rumpf"],
+};
+
+const OBEN: ReadonlySet<Platz> = new Set<Platz>(["druecken_h", "druecken_v", "ziehen_h", "ziehen_v", "seitlich", "hintere", "brust_iso", "bizeps", "trizeps"]);
+const UNTEN: ReadonlySet<Platz> = new Set<Platz>(["kniebeuge", "huefte", "einbein", "beinbeuger", "beinstrecker", "adduktoren", "waden"]);
+
+/** Ob ein Platz zu einer der Fokuspartien gehört. Der Rumpf nie, siehe `einheitBauen`. */
+function imFokus(platz: Platz, fokus: FokusGruppe[] | undefined): boolean {
+  if (platz === "rumpf") return false;
+  return (fokus ?? []).some((f) => FOKUS_PLAETZE[f]?.includes(platz));
+}
 
 /** Mehrgelenkige Plätze zuerst, Isolation hinten. */
 const ISOLATION: ReadonlySet<Platz> = new Set<Platz>([
@@ -420,6 +453,146 @@ function dauerMin(positionen: PlanPosition[]): number {
   return AUFWAERMEN_MIN + Math.round(sek / 60);
 }
 
+interface BauKontext {
+  wunsch: PlanWunsch;
+  erlaubt: PlanUebung[];
+  /** Wie oft eine Übung in dieser Woche schon vorkam. Wird fortgeschrieben. */
+  imPlan: Map<string, number>;
+  kurz: boolean;
+  einsteiger: boolean;
+  variante: number;
+}
+
+/**
+ * Eine Einheit aus einer Vorlage. Dieselbe Rechnung für jeden Tag des
+ * Wochenplans und für das Einzeltraining, damit beide denselben Regeln
+ * folgen: Fokus zuerst, dann schwer vor leicht, Zeit füllen oder kürzen.
+ */
+function einheitBauen(vorlage: Tagesvorlage, { wunsch, erlaubt, imPlan, kurz, einsteiger, variante }: BauKontext): PlanEinheit {
+  const gewaehlt: Array<{ e: PlanUebung; platz: Platz }> = [];
+  const benutzt = new Set<string>();
+
+  const kandidatenFuer = (platz: Platz): PlanUebung[] => {
+    const alle = erlaubt.filter((e) => PASST[platz](e) && !benutzt.has(e.id) && !zuSchwerZusammen(e.id, benutzt));
+    if (!einsteiger || !GRUNDPLATZ.has(platz) || !alle.length) return alle;
+    // Einsteiger: nur die am stärksten geführte Stufe, die es für diesen Platz gibt.
+    const beste = Math.min(...alle.map(fuehrung));
+    return alle.filter((e) => fuehrung(e) === beste);
+  };
+
+  const waehle = (vorlagePlatz: Platz): { e: PlanUebung; platz: Platz } | null => {
+    let platz = vorlagePlatz;
+    let kandidaten = kandidatenFuer(platz);
+    const ersatz = EINSTEIGER_ERSATZ[platz];
+    if (einsteiger && ersatz && (!kandidaten.length || kandidaten.every((e) => fuehrung(e) === 2))) {
+      platz = ersatz;
+      kandidaten = kandidatenFuer(platz);
+    }
+    if (einsteiger && GRUNDPLATZ.has(platz) && kandidaten.every((e) => fuehrung(e) === 2)) {
+      // Eher eine Übung weniger als Kurzhanteln über dem Gesicht eines Einsteigers.
+      // Gilt nur, wenn die Datenbank für diesen Platz überhaupt Geführtes kennt.
+      const gefuehrtBekannt = erlaubt.some((e) => PASST[platz](e) && fuehrung(e) < 2);
+      if (gefuehrtBekannt) return null;
+    }
+    if (!kandidaten.length) return null;
+    // Wer schon in dieser Woche dran war, kommt später. Danach zählt der Abstand
+    // zum eigenen Niveau, dann ein stabiler Streuwert für Abwechslung.
+    const wertung = (e: PlanUebung) =>
+      (imPlan.get(e.id) ?? 0) * 100 + Math.abs(RANG[e.level] - RANG[wunsch.niveau]) * 20 + streu(`${e.id}|${vorlage.titel}`, variante) / 100;
+    kandidaten.sort((a, b) => wertung(a) - wertung(b));
+    const treffer = kandidaten[0];
+    if (!treffer) return null;
+    benutzt.add(treffer.id);
+    return { e: treffer, platz };
+  };
+
+  for (const vorlagePlatz of vorlage.plaetze) {
+    const w = waehle(vorlagePlatz);
+    if (w) gewaehlt.push(w);
+  }
+  const zusatz: Array<{ e: PlanUebung; platz: Platz }> = [];
+  if (!kurz) {
+    // Fokuspartien kommen als erste Zusatzplätze, aber nur in Einheiten, die
+    // diese Körperhälfte ohnehin trainieren. Bizeps am Beintag hiesse, dass
+    // der Plan den Aufbau der Woche vergisst, um eine Vorliebe zu bedienen.
+    const haelfte = (p: Platz) => (OBEN.has(p) ? OBEN : UNTEN.has(p) ? UNTEN : null);
+    const fokusExtra = (wunsch.fokus ?? []).flatMap((f) => FOKUS_PLAETZE[f] ?? [])
+      .filter((p) => p !== "rumpf" && !vorlage.plaetze.includes(p) && vorlage.plaetze.some((v) => haelfte(p)?.has(v)))
+      .filter((p, i, a) => a.indexOf(p) === i)
+      .slice(0, 2);
+    for (const vorlagePlatz of [...fokusExtra, ...(vorlage.extra ?? [])]) {
+      const w = waehle(vorlagePlatz);
+      if (w) zusatz.push(w);
+    }
+  }
+  // Stabil sortiert: bei gleicher Schwere bleibt die Reihenfolge der Vorlage.
+  // Eine Hüftübung ohne Last von aussen, Hyperextension oder Glute Bridge,
+  // ist leichter als die Beinpresse und rückt hinter sie.
+  // Fokus zuerst: wer Arme aufbauen will, trainiert sie frisch, vor allem
+  // anderen. Unter den Fokusübungen und unter dem Rest gilt weiter schwer vor
+  // leicht. Der Rumpf bleibt auch als Fokus am Ende: ein müder Rumpf macht
+  // jede schwere Übung danach unsicherer.
+  const schwere = ({ e, platz }: { e: PlanUebung; platz: Platz }) =>
+    (imFokus(platz, wunsch.fokus) ? -100 : 0)
+    + SCHWERE[platz] + (platz === "huefte" && (e.mechanics !== "compound" || e.equipment === "bodyweight") ? 1.5 : 0);
+  const ordnen = <T extends { e: PlanUebung; platz: Platz }>(liste: T[]): T[] => [...liste].sort((a, b) => schwere(a) - schwere(b));
+
+  const baue = (liste: Array<{ e: PlanUebung; platz: Platz }>, saetzeMinus: number, pauseMax = Infinity, grundPlus = 0, isoPlus = 0): PlanPosition[] =>
+    ordnen(liste).map(({ e, platz }) => {
+      const d = dosis(e, platz, wunsch);
+      const grund = !ISOLATION.has(platz) && e.mechanics !== "isometric";
+      return {
+        // Gekürzt wird nicht unter zwei Sätze, ausser die Übung hatte nie mehr.
+        id: e.id, name: e.name,
+        saetze: Math.max(Math.min(2, d.saetze), d.saetze - saetzeMinus) + (grund ? grundPlus : ISOLATION.has(platz) ? isoPlus : 0),
+        wdh: d.wdh,
+        pauseSek: Math.min(d.pauseSek, pauseMax), reserve: d.reserve,
+      };
+    });
+  let positionen: PlanPosition[] = [];
+  let drin = [...gewaehlt];
+  if (kurz) {
+    // Kurz heisst: alle fünf Bewegungen bleiben. Gekürzt werden erst die
+    // Pausen, dann die Sätze, bis die Einheit passt. Unter zwei Sätze geht es
+    // nur, wenn sonst gar nichts mehr passt.
+    const stufen: Array<[number, number]> = [[0, Infinity], [0, 120], [0, 90], [1, 120], [1, 90], [1, 75], [1, 60], [2, 60]];
+    for (const [minus, pause] of stufen) {
+      positionen = baue(drin, minus, pause);
+      if (dauerMin(positionen) <= wunsch.minuten) break;
+    }
+  } else {
+    // Zu lang: erst die verzichtbarste Isolation raus, Waden und Arme vor
+    // Schulter und Brust, die Rumpfübung zuletzt. Grundübungen bleiben.
+    const passt = (liste: typeof drin, minus = 0, plus = 0, iso = 0) => dauerMin(baue(liste, minus, Infinity, plus, iso)) <= wunsch.minuten;
+    // Eine Fokusübung fällt als letzte Isolation weg, nach dem Rumpf.
+    const verzicht = (g: { platz: Platz }) => (imFokus(g.platz, wunsch.fokus) && VERZICHT[g.platz] > 0 ? 0.5 : VERZICHT[g.platz]);
+    while (!passt(drin) && drin.some((g) => verzicht(g) > 0) && drin.length > 3) {
+      const raus = drin.reduce((a, b) => (verzicht(b) >= verzicht(a) ? b : a));
+      drin = drin.filter((g) => g !== raus);
+    }
+    const minus = passt(drin) ? 0 : 1;
+    // Zu kurz: Zusatzübungen in der Reihenfolge der Vorlage, solange sie
+    // in die Zeit passen. Danach ein vierter Satz auf den Grundübungen,
+    // wenn auch der noch passt, zuletzt ein dritter Satz auf der Isolation.
+    // So wird eine Einheit von 90 Minuten auch 90 Minuten lang, und die
+    // Reihenfolge bleibt: schwer zuerst, Isolation danach, Rumpf am Ende.
+    // In der Entlastungswoche wird nicht aufgefüllt: sie soll kürzer sein.
+    const fuellen = minus === 0 && !wunsch.deload;
+    if (fuellen) for (const z of zusatz) if (passt([...drin, z], minus)) drin.push(z);
+    const plus = fuellen && passt(drin, 0, 1) ? 1 : 0;
+    const iso = fuellen && passt(drin, 0, plus, 1) ? 1 : 0;
+    positionen = baue(drin, minus, Infinity, plus, iso);
+  }
+  for (const p of positionen) imPlan.set(p.id, (imPlan.get(p.id) ?? 0) + 1);
+  // Fällt ein Platz weg, etwa die Kniebeuge bei Knieschmerzen, darf der
+  // Fokus ihn nicht mehr nennen. Sonst steht "Knie" über einer Einheit ohne
+  // eine einzige Knieübung.
+  const genommen = ordnen(drin).map((g) => g.platz);
+  const fehlt = vorlage.plaetze.some((p) => !genommen.includes(p) && !genommen.includes(EINSTEIGER_ERSATZ[p] as Platz));
+  const fokus = fehlt ? fokusAus(genommen) : vorlage.fokus;
+  return { titel: vorlage.titel, fokus, positionen, dauerMin: dauerMin(positionen) };
+}
+
 /**
  * Baut den Plan. `uebungen` ist die Datenbank, damit dieses Paket keine
  * Übungsdaten kennen muss und die Regeln ohne Browser testbar bleiben.
@@ -434,113 +607,7 @@ export function uebungsplanBauen(wunsch: PlanWunsch, uebungen: PlanUebung[]): Ue
   const einsteiger = wunsch.niveau === "beginner";
 
   for (const vorlage of (kurz ? KURZ_VORLAGEN : VORLAGEN)[wunsch.tage]) {
-    const gewaehlt: Array<{ e: PlanUebung; platz: Platz }> = [];
-    const benutzt = new Set<string>();
-
-    const kandidatenFuer = (platz: Platz): PlanUebung[] => {
-      const alle = erlaubt.filter((e) => PASST[platz](e) && !benutzt.has(e.id) && !zuSchwerZusammen(e.id, benutzt));
-      if (!einsteiger || !GRUNDPLATZ.has(platz) || !alle.length) return alle;
-      // Einsteiger: nur die am stärksten geführte Stufe, die es für diesen Platz gibt.
-      const beste = Math.min(...alle.map(fuehrung));
-      return alle.filter((e) => fuehrung(e) === beste);
-    };
-
-    const waehle = (vorlagePlatz: Platz): { e: PlanUebung; platz: Platz } | null => {
-      let platz = vorlagePlatz;
-      let kandidaten = kandidatenFuer(platz);
-      const ersatz = EINSTEIGER_ERSATZ[platz];
-      if (einsteiger && ersatz && (!kandidaten.length || kandidaten.every((e) => fuehrung(e) === 2))) {
-        platz = ersatz;
-        kandidaten = kandidatenFuer(platz);
-      }
-      if (einsteiger && GRUNDPLATZ.has(platz) && kandidaten.every((e) => fuehrung(e) === 2)) {
-        // Eher eine Übung weniger als Kurzhanteln über dem Gesicht eines Einsteigers.
-        // Gilt nur, wenn die Datenbank für diesen Platz überhaupt Geführtes kennt.
-        const gefuehrtBekannt = erlaubt.some((e) => PASST[platz](e) && fuehrung(e) < 2);
-        if (gefuehrtBekannt) return null;
-      }
-      if (!kandidaten.length) return null;
-      // Wer schon in dieser Woche dran war, kommt später. Danach zählt der Abstand
-      // zum eigenen Niveau, dann ein stabiler Streuwert für Abwechslung.
-      const wertung = (e: PlanUebung) =>
-        (imPlan.get(e.id) ?? 0) * 100 + Math.abs(RANG[e.level] - RANG[wunsch.niveau]) * 20 + streu(`${e.id}|${vorlage.titel}`, variante) / 100;
-      kandidaten.sort((a, b) => wertung(a) - wertung(b));
-      const treffer = kandidaten[0];
-      if (!treffer) return null;
-      benutzt.add(treffer.id);
-      return { e: treffer, platz };
-    };
-
-    for (const vorlagePlatz of vorlage.plaetze) {
-      const w = waehle(vorlagePlatz);
-      if (w) gewaehlt.push(w);
-    }
-    const zusatz: Array<{ e: PlanUebung; platz: Platz }> = [];
-    if (!kurz) {
-      for (const vorlagePlatz of vorlage.extra ?? []) {
-        const w = waehle(vorlagePlatz);
-        if (w) zusatz.push(w);
-      }
-    }
-    // Stabil sortiert: bei gleicher Schwere bleibt die Reihenfolge der Vorlage.
-    // Eine Hüftübung ohne Last von aussen, Hyperextension oder Glute Bridge,
-    // ist leichter als die Beinpresse und rückt hinter sie.
-    const schwere = ({ e, platz }: { e: PlanUebung; platz: Platz }) =>
-      SCHWERE[platz] + (platz === "huefte" && (e.mechanics !== "compound" || e.equipment === "bodyweight") ? 1.5 : 0);
-    const ordnen = <T extends { e: PlanUebung; platz: Platz }>(liste: T[]): T[] => [...liste].sort((a, b) => schwere(a) - schwere(b));
-
-    const baue = (liste: Array<{ e: PlanUebung; platz: Platz }>, saetzeMinus: number, pauseMax = Infinity, grundPlus = 0, isoPlus = 0): PlanPosition[] =>
-      ordnen(liste).map(({ e, platz }) => {
-        const d = dosis(e, platz, wunsch);
-        const grund = !ISOLATION.has(platz) && e.mechanics !== "isometric";
-        return {
-          // Gekürzt wird nicht unter zwei Sätze, ausser die Übung hatte nie mehr.
-          id: e.id, name: e.name,
-          saetze: Math.max(Math.min(2, d.saetze), d.saetze - saetzeMinus) + (grund ? grundPlus : ISOLATION.has(platz) ? isoPlus : 0),
-          wdh: d.wdh,
-          pauseSek: Math.min(d.pauseSek, pauseMax), reserve: d.reserve,
-        };
-      });
-    let positionen: PlanPosition[] = [];
-    let drin = [...gewaehlt];
-    if (kurz) {
-      // Kurz heisst: alle fünf Bewegungen bleiben. Gekürzt werden erst die
-      // Pausen, dann die Sätze, bis die Einheit passt. Unter zwei Sätze geht es
-      // nur, wenn sonst gar nichts mehr passt.
-      const stufen: Array<[number, number]> = [[0, Infinity], [0, 120], [0, 90], [1, 120], [1, 90], [1, 75], [1, 60], [2, 60]];
-      for (const [minus, pause] of stufen) {
-        positionen = baue(drin, minus, pause);
-        if (dauerMin(positionen) <= wunsch.minuten) break;
-      }
-    } else {
-      // Zu lang: erst die verzichtbarste Isolation raus, Waden und Arme vor
-      // Schulter und Brust, die Rumpfübung zuletzt. Grundübungen bleiben.
-      const passt = (liste: typeof drin, minus = 0, plus = 0, iso = 0) => dauerMin(baue(liste, minus, Infinity, plus, iso)) <= wunsch.minuten;
-      while (!passt(drin) && drin.some((g) => VERZICHT[g.platz] > 0) && drin.length > 3) {
-        const raus = drin.reduce((a, b) => (VERZICHT[b.platz] >= VERZICHT[a.platz] ? b : a));
-        drin = drin.filter((g) => g !== raus);
-      }
-      const minus = passt(drin) ? 0 : 1;
-      // Zu kurz: Zusatzübungen in der Reihenfolge der Vorlage, solange sie
-      // in die Zeit passen. Danach ein vierter Satz auf den Grundübungen,
-      // wenn auch der noch passt, zuletzt ein dritter Satz auf der Isolation.
-      // So wird eine Einheit von 90 Minuten auch 90 Minuten lang, und die
-      // Reihenfolge bleibt: schwer zuerst, Isolation danach, Rumpf am Ende.
-      // In der Entlastungswoche wird nicht aufgefüllt: sie soll kürzer sein.
-      const fuellen = minus === 0 && !wunsch.deload;
-      if (fuellen) for (const z of zusatz) if (passt([...drin, z], minus)) drin.push(z);
-      const plus = fuellen && passt(drin, 0, 1) ? 1 : 0;
-      const iso = fuellen && passt(drin, 0, plus, 1) ? 1 : 0;
-      positionen = baue(drin, minus, Infinity, plus, iso);
-    }
-    for (const p of positionen) imPlan.set(p.id, (imPlan.get(p.id) ?? 0) + 1);
-    // Fällt ein Platz weg, etwa die Kniebeuge bei Knieschmerzen, darf der
-    // Fokus ihn nicht mehr nennen. Sonst steht "Knie" über einer Einheit ohne
-    // eine einzige Knieübung.
-    const genommen = ordnen(drin).map((g) => g.platz);
-    const fehlt = vorlage.plaetze.some((p) => !genommen.includes(p) && !genommen.includes(EINSTEIGER_ERSATZ[p] as Platz));
-    const fokus = fehlt ? fokusAus(genommen) : vorlage.fokus;
-    einheiten.push({ titel: vorlage.titel, fokus, positionen, dauerMin: dauerMin(positionen) });
+    einheiten.push(einheitBauen(vorlage, { wunsch, erlaubt, imPlan, kurz, einsteiger, variante }));
   }
 
   const nachId = new Map(uebungen.map((e) => [e.id, e]));
@@ -604,6 +671,12 @@ function hinweise(w: PlanWunsch, einheiten: PlanEinheit[], saetze: Record<string
   }
   if (w.ort === "zuhause") aus.push("Für zu Hause stehen nur Übungen mit Kurzhanteln, Band und Körpergewicht im Plan.");
   if (w.ort === "ohne") aus.push("Ohne Geräte stehen nur Übungen mit dem eigenen Körpergewicht im Plan. Für Rücken und Beine fehlt damit oft der Widerstand, ein Band hilft schon viel.");
+  if (w.fokus?.length) {
+    const namen = w.fokus.map((f) => FOKUS_NAME[f]).join(", ");
+    aus.push(`Dein Fokus: ${namen}. Diese Übungen kommen in jeder passenden Einheit zuerst, solange du frisch bist. Danach geht es wie immer von schwer nach leicht.`);
+    if (w.minuten <= KURZ_BIS_MIN && w.fokus.includes("arme")) aus.push("Bis 45 Minuten gibt es keine eigenen Armübungen. Drücken und Ziehen trainieren die Arme mit, für mehr braucht es längere Einheiten.");
+    if (w.fokus.includes("rumpf")) aus.push("Core bleibt auch als Fokus am Ende der Einheit. Ein müder Rumpf macht jede schwere Übung danach unsicherer.");
+  }
   if (w.tage === 1) aus.push("Einmal die Woche: jede große Bewegung einmal, ohne Isolation. Die Übungen bleiben über die Monate gleich, damit du an genau diesen stärker wirst.");
   if (w.tage === 2 && w.minuten > KURZ_BIS_MIN) aus.push("Bei zwei Tagen trainierst du jede Muskelgruppe einmal pro Woche mit Schwerpunkt. Ab drei Tagen wird jede Gruppe zweimal getroffen.");
   return aus;
@@ -670,4 +743,103 @@ export function positionFuer(e: PlanUebung, w: PlanWunsch): PlanPosition {
   const platz: Platz = e.mechanics === "compound" ? "kniebeuge" : "bizeps";
   const d = dosis(e, platz, w);
   return { id: e.id, name: e.name, saetze: d.saetze, wdh: d.wdh, pauseSek: d.pauseSek, reserve: d.reserve };
+}
+
+/* ---------- Ein Training für heute ---------- */
+
+export interface EinzelWunsch {
+  minuten: number;
+  /** Was heute drankommen soll. */
+  gruppen: FokusGruppe[];
+  niveau: PlanNiveau;
+  ziel: PlanZiel;
+  ort?: PlanOrt;
+  beschwerden?: Beschwerde[];
+  meiden?: string[];
+  fokus?: FokusGruppe[];
+  variante?: number;
+}
+
+export const EINZEL_TITEL = "Training für heute";
+
+/**
+ * Eine einzelne Einheit für heute, aus Zeit und den Partien, die diese Woche
+ * noch fehlen. Für den Tag, an dem der Plan nicht passt: nur eine halbe
+ * Stunde, und Push und Pull waren schon dran.
+ *
+ * Je Partie kommt zuerst ihr schwerster Platz, dann reihum die nächsten,
+ * solange die Zeit reicht. Der Rumpf steht als Grundplatz da, wenn er
+ * gewählt ist, und immer am Ende. Gerechnet wird mit `einheitBauen`, also
+ * mit denselben Regeln wie im Wochenplan: Fokus zuerst, schwer vor leicht,
+ * schweres Heben und Beugen nie zusammen, Einsteiger an geführte Geräte.
+ *
+ * Anders als im Wochenplan gibt es auch unter 45 Minuten Isolation, wenn
+ * jemand nur Arme gewählt hat. Wer Arme sagt, will Arme, und für sie gibt es
+ * keine Grundübung. Ob eine Isolation in die Zeit passt, entscheidet wie
+ * sonst die Rechnung.
+ */
+export function einzeltrainingBauen(w: EinzelWunsch, uebungen: PlanUebung[]): PlanEinheit | null {
+  const gruppen = [...new Set(w.gruppen)].filter((g) => FOKUS_PLAETZE[g]);
+  if (!gruppen.length) return null;
+  const ohneRumpf = gruppen.filter((g) => g !== "rumpf");
+  const listen = ohneRumpf.map((g) => FOKUS_PLAETZE[g]);
+  const plaetze: Platz[] = [];
+  const extra: Platz[] = [];
+  const nehmen = (ziel: Platz[], p: Platz | undefined) => { if (p && !plaetze.includes(p) && !extra.includes(p)) ziel.push(p); };
+  for (const l of listen) nehmen(plaetze, l[0]);
+  const tiefe = Math.max(0, ...listen.map((l) => l.length));
+  for (let i = 1; i < tiefe; i++) for (const l of listen) nehmen(extra, l[i]);
+  // Ein zweiter Durchgang mit denselben Plätzen und anderen Übungen, falls
+  // noch Zeit ist. Sonst wären 30 Minuten Arme nach zwei Übungen zu Ende.
+  for (const l of listen) for (const p of l) extra.push(p);
+  if (gruppen.includes("rumpf")) plaetze.push("rumpf");
+  const wunsch: PlanWunsch = {
+    tage: 1, minuten: w.minuten, niveau: w.niveau, ziel: w.ziel, ort: w.ort, beschwerden: w.beschwerden,
+    meiden: w.meiden, fokus: w.fokus, variante: w.variante ?? 0,
+  };
+  const erlaubt = uebungen.filter((e) => RANG[e.level] <= RANG[w.niveau] && uebungErlaubt(e, wunsch));
+  const vorlage: Tagesvorlage = { titel: EINZEL_TITEL, fokus: gruppen.map((g) => FOKUS_NAME[g]).join(", "), plaetze, extra };
+  const einheit = einheitBauen(vorlage, {
+    wunsch, erlaubt, imPlan: new Map(), kurz: false, einsteiger: w.niveau === "beginner", variante: w.variante ?? 0,
+  });
+  return einheit.positionen.length ? einheit : null;
+}
+
+/** Welche Partie ein Bewegungsmuster vor allem trifft. Für den Blick auf die Woche. */
+const MUSTER_PARTIE: Record<string, FokusGruppe> = {
+  knee_dominant: "beine", unilateral_legs: "beine", knee_flexion: "beine", calves: "beine", plyometric: "beine",
+  hip_dominant: "po", hip_abd_add: "po",
+  horizontal_push: "brust", incline_push: "brust", chest_isolation: "brust",
+  vertical_push: "schultern", shoulder_isolation: "schultern",
+  horizontal_pull: "ruecken", vertical_pull: "ruecken",
+  elbow_flexion: "arme", elbow_extension: "arme",
+};
+
+/**
+ * Sätze je Partie in der laufenden Woche, ab Montag, aus dem Protokoll. Was
+ * die Uhr als Training meldet, trägt keine Übungen und zählt hier nicht: aus
+ * "60 Minuten Krafttraining" lässt sich nicht ablesen, ob es Beine waren.
+ */
+export function wocheTrainiert(
+  log: Array<{ datum: string; uebung: string; saetze: unknown[] }>,
+  uebungen: PlanUebung[],
+  heute: string,
+): Partial<Record<FokusGruppe, number>> {
+  const d = new Date(`${heute}T12:00:00Z`);
+  const montag = new Date(d.getTime() - ((d.getUTCDay() + 6) % 7) * 86_400_000).toISOString().slice(0, 10);
+  const nachId = new Map(uebungen.map((e) => [e.id, e]));
+  const aus: Partial<Record<FokusGruppe, number>> = {};
+  for (const e of log) {
+    if (e.datum < montag || e.datum > heute) continue;
+    const u = nachId.get(e.uebung);
+    if (!u) continue;
+    const partie = u.pattern.startsWith("core_") ? "rumpf" : MUSTER_PARTIE[u.pattern];
+    if (partie) aus[partie] = (aus[partie] ?? 0) + e.saetze.length;
+  }
+  return aus;
+}
+
+/** Was diese Woche noch fehlt, in der festen Reihenfolge der Partien. */
+export function fehlendePartien(trainiert: Partial<Record<FokusGruppe, number>>): FokusGruppe[] {
+  return (Object.keys(FOKUS_NAME) as FokusGruppe[]).filter((g) => !trainiert[g]);
 }

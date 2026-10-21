@@ -339,6 +339,42 @@ ohne Knieübung wäre falsch. Übungen, die jemand im Freitext nennt, werden
 über den Namen gesucht, ab fünf Zeichen, damit "Bankdrücken" auch die
 Varianten trifft.
 
+### Fokus: was am wichtigsten ist, kommt zuerst
+
+`wunsch.fokus`, bis zu zwei Partien aus Beine, Po, Brust, Rücken,
+Schultern, Arme, Core, `FOKUS_PLAETZE` im Kern. Gefragt wird im Fragebogen
+und in der Auswahl über dem Wochenplan. In jeder Einheit stehen die
+Fokusübungen vorn, solange man frisch ist, untereinander schwer vor
+leicht, danach der Rest im bekannten Schema. Wer Arme aufbauen will,
+trainiert sie vor dem Bankdrücken. Ab 60 Minuten kommen bis zu zwei
+Fokusplätze als erste Zusatzübungen dazu, aber nur in Einheiten derselben
+Körperhälfte: Bizeps am Beintag hiesse, den Aufbau der Woche für eine
+Vorliebe zu vergessen. Beim Kürzen fällt eine Fokusübung als letzte
+Isolation weg. Zwei Ausnahmen, beide im Hinweis des Plans: Core bleibt auch
+als Fokus am Ende, ein müder Rumpf macht jede schwere Übung danach
+unsicherer, und bis 45 Minuten gibt es weiter keine Armübungen.
+
+### Training für heute
+
+`einzeltrainingBauen` im Kern, `heuteHtml` in `plaene.js`, oben in der
+Ansicht der Pläne. Für den Tag, an dem der Plan nicht passt: Minuten
+wählen, Partien wählen, daevo rechnet eine Einheit. Vorgewählt ist, was
+diese Woche ab Montag noch fehlt, `wocheTrainiert` und `fehlendePartien`
+aus dem Trainingsprotokoll. Nach Push und Pull sind das Beine, Po und Core.
+Ohne Eintrag in dieser Woche ist nichts vorgewählt, sieben Partien auf
+einmal wären keine Wahl. Trainings aus Apple Health tragen keine Übungen
+und zählen dort nicht.
+
+Gerechnet wird mit `einheitBauen`, derselben Funktion wie für jeden Tag
+des Wochenplans, mit Fokus, Schwere, ZNS Regel, Einsteigergeräten und dem
+Füllen der Zeit. Je Partie zuerst ihr schwerster Platz, dann reihum die
+nächsten, danach ein zweiter Durchgang mit anderen Übungen. Anders als im
+Wochenplan gibt es auch unter 45 Minuten Isolation, wenn jemand nur Arme
+wählt: für Arme gibt es keine Grundübung. 30 Minuten Beine und Core ergeben
+Kniebeuge, Rumänisches Kreuzheben und eine Rumpfübung. Gestartet läuft sie
+wie ein freies Training unter "Training für heute", Tauschen ändert den
+Plan nicht.
+
 ### Schweres Heben und Beugen nie am selben Tag
 
 `zuSchwerZusammen` im Kern. Kreuzheben, Sumo und Trap Bar Kreuzheben stehen
@@ -444,7 +480,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1157 Tests
+npm test           # 1163 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -559,7 +595,7 @@ Kontext kosten mehr Token als die eigentliche Frage.
 
 ## Der Anamnesebogen
 
-Eine Frage pro Seite, 29 Seiten in acht Abschnitten. Die letzten Abschnitte
+Eine Frage pro Seite, 30 Seiten in acht Abschnitten. Die letzten Abschnitte
 sind der Unterschied zwischen einem Rechner und einem Coach: Essverhalten,
 Vorgeschichte, Umfeld, Antrieb.
 

@@ -497,6 +497,21 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
       merken();
       oeffnen();
     },
+    /**
+     * Eine fertige Einheit, die nicht im Plan steht, etwa das Training für
+     * heute. Läuft wie ein freies Training: Ersetzen und Entfernen ändern den
+     * Plan nicht.
+     */
+    einheit(e) {
+      if (entwurfBegonnen(entwurf) && !(entwurf.frei && entwurf.titel === e.titel && entwurf.datum === heute())) {
+        melde(`${entwurf.titel} war noch offen und ist verworfen`);
+      }
+      const neu = entwurfNeu({ einheiten: [e] }, 0, logSpeicher.lesen(), heute());
+      entwurf = { ...neu, ei: -1, frei: true };
+      menue = false; waehlen = false; suche = "";
+      merken();
+      oeffnen();
+    },
     /** Ein offener Entwurf von heute, etwa nach einem Neustart der App. */
     offen: () => (entwurf && entwurf.datum === heute() ? entwurf : null),
     fortsetzen() { if (entwurf) oeffnen(); },

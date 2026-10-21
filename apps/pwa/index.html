@@ -1069,12 +1069,17 @@ try {
       </div>
 
       <div id="ueBereichPlaene" hidden>
-        <p class="sub">Ein Plan aus den Übungen dieser App. Er wird gerechnet, nicht geschrieben, und folgt Regeln, die unten stehen.</p>
-        <div id="plSteuerung" class="pl-steuerung"></div>
-        <div id="plGeladen" class="pl-geladen" hidden><button type="button" class="ue-tab">Gespeicherten Plan laden</button></div>
+        <!-- Erst was heute ansteht, dann der Plan für die Woche. Die Auswahl
+             für den Wochenplan steht direkt über ihm, sonst liest man sie als
+             Einstellung für das Training für heute. -->
         <div id="plUpdate"></div>
         <div id="plOffen" class="pl-offen" hidden><button type="button" class="pl-knopf haupt" id="plFortsetzen">Training fortsetzen</button></div>
         <button type="button" class="pl-knopf pl-frei" id="plFrei">Freies Training starten</button>
+        <div id="plHeute" class="pl-heute"></div>
+        <h3 class="ue-abschnitt">Dein Wochenplan</h3>
+        <p class="sub">Ein Plan aus den Übungen dieser App. Er wird gerechnet, nicht geschrieben, und folgt Regeln, die unten stehen.</p>
+        <div id="plSteuerung" class="pl-steuerung"></div>
+        <div id="plGeladen" class="pl-geladen" hidden><button type="button" class="ue-tab">Gespeicherten Plan laden</button></div>
         <div id="plKopf" class="pl-kopf"></div>
         <div id="plEinheiten"></div>
         <div id="plSaetze"></div>

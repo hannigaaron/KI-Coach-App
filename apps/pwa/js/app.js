@@ -2775,6 +2775,13 @@ const plaene = plaeneStarten({
     }
     training.frei();
   },
+  starteEinheit: (einheit) => {
+    if (trainingGestrichen(store, todayIso())) {
+      toast("Heute ist dein Training gestrichen, der Tag gehört der Erholung. Geht es dir besser, sag es unter Check-ins.", 5000);
+      return;
+    }
+    training.einheit(einheit);
+  },
   log: trainingslog,
   heute: todayIso,
 });
