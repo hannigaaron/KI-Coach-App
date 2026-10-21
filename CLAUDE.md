@@ -420,7 +420,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1117 Tests
+npm test           # 1134 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -623,6 +623,51 @@ halbe Einführung.
 Sie kommt einmal, gesteuert über `settings.einfuehrungGesehen`: nach dem Bogen,
 beim ersten Öffnen der Demo und einmal bei allen, die die App schon vorher
 hatten. Danach steht sie im Profil.
+
+## Der Guten Morgen Check-in
+
+`packages/core/src/morgencheck.ts` rechnet, `apps/pwa/js/morgen.js` zeigt,
+das Blatt `#morgenBlatt`. Eine halbe Stunde nach der Aufstehzeit des Tages,
+über `tagesrandFuer`, also auch mit Wochentag und Ausnahmen. In der iPhone
+App als Mitteilung der Art `morgen`. In der Web App öffnet sich das Blatt
+beim ersten Öffnen danach von selbst, einmal am Tag und nur bis 12 Uhr,
+nie während der Einführung und nie über einem anderen offenen Blatt. Er
+geht dem Abo Fenster vor. Unter Check-ins steht er jederzeit als Knopf.
+
+Vier Fragen, je 1 bis 5 zum Antippen: wie gut geschlafen, wie schnell
+eingeschlafen, wie erholt aufgewacht, wie gesund. Fünf Stufen und nicht
+zehn, weil frisch nach dem Aufwachen niemand 6 und 7 trennt. Die Enden
+stehen in Worten darunter.
+
+Der Morgenwert gewichtet erholt 35, Schlaf 30, gesund 20, Einschlafen 15,
+eine Regel der App. Daraus die Belastbarkeit: ab 75 hoch, ab 55 normal, ab
+35 reduziert, darunter schonen. Krank, also gesund 1, heisst immer
+schonen, das Training fällt aus. Gesund 2 deckelt auf reduziert, ebenso
+unter sechs Stunden Schlaf laut Apple Health (Craven und andere 2022).
+Schonen gibt es nur bei gesund bis 3: wer gesund ist und schlecht
+geschlafen hat, trainiert leichter, aber er trainiert. Reduziert heisst
+drei Viertel der Sätze und eine Wiederholung mehr in Reserve, dieselben
+Stufen wie in `trainingsanpassung.ts`. Das geplante Training kommt aus dem
+Wochenplan mit dem Titel der Einheit aus dem gespeicherten Plan.
+
+Höchstens drei Tipps, jeder hängt an einer Antwort: Tageslicht in der
+ersten Stunde nach schlechter Nacht (Blume, Garbazza und Spitschan,
+Somnologie 2019), letzter Kaffee neun Stunden vor der Schlafenszeit nach
+langem Einschlafen, mit Uhrzeit (Gardiner und andere, Sleep Medicine
+Reviews 2023, rund 8,8 Stunden), eine halbe Stunde früher ins Bett, und bei
+Krankheitsgefühl trinken, ruhen, bei Fieber zum Arzt. Der Grund ist ein
+Nebensatz mit dem Verb am Ende, ein Test hält das fest: die erste Fassung
+schrieb "weil du bist wenig erholt aufgewacht".
+
+Gespeichert wird als Check-in der Art `morning` mit `morgen`,
+`morgenWert` und `belastbarkeit`, dazu Schlaf und Energie auf 1 bis 10
+umgerechnet, 3 wird 6. Damit rechnen Bereitschaft, Bericht und Muster
+weiter. Ein zweiter Check-in am selben Morgen ersetzt den ersten. Eine
+Bestätigung als Meldung gibt es nicht: sie lag über dem letzten Satz des
+Ergebnisses, und das Ergebnis zeigt ohnehin, dass gespeichert ist.
+
+Web Push über den Worker kennt die Aufstehzeit nicht, deshalb kommt die
+Mitteilung nur nativ. Im Browser ersetzt das Öffnen von selbst sie.
 
 ## Die zwei Check-ins der Woche
 

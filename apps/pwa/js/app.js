@@ -22,6 +22,7 @@ import { KONFIG, istDemo, istNativ } from "./konfig.js";
 import { uebungenStarten } from "./uebungen.js";
 import { planFuer as uebungsplanFuer, plaeneStarten } from "./plaene.js";
 import { trainingStarten } from "./training.js";
+import { morgenStarten } from "./morgen.js";
 import {
   antwortVerarbeiten, antwortenAbholen, lueckeAusSpeicher, lueckeMelden,
   schieflageAusSpeicher, schieflageMelden,
@@ -2555,6 +2556,7 @@ function startApp() {
   if (!store.getSettings().einfuehrungGesehen) {
     setTimeout(() => einfuehrungStarten({ zeigeAnsicht: showView, beiEnde: einfuehrungGesehen }), 900);
   }
+  else setTimeout(morgenVielleicht, 1000);
   options = { ...options, ...(store.getSettings().voice || {}) };
   renderFeelings();
   ensureStandards();
@@ -4645,8 +4647,28 @@ async function mitteilungenNativ() {
 }
 
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") healthNativ().then(() => mitteilungenNativ());
+  if (document.visibilityState === "visible") healthNativ().then(() => mitteilungenNativ()).then(morgenVielleicht);
 });
+
+/* ---------- Guten Morgen Check-in ---------- */
+
+const morgen = morgenStarten({
+  store, heute: todayIso, melde: (text) => toast(text),
+  gespeichert: () => refreshAll(),
+});
+
+/**
+ * Öffnet den Morgen Check-in, wenn es Zeit ist. Nie während der Einführung
+ * und nie über einem anderen offenen Blatt: wer gerade trainiert oder ein
+ * Foto auswertet, wird nicht unterbrochen.
+ */
+function morgenVielleicht() {
+  if ($("app").hidden || !store.getSettings().einfuehrungGesehen) return;
+  if (document.querySelector(".blatt:not([hidden])")) return;
+  const d = new Date();
+  morgen.vielleicht({ tag: todayIso(d), uhrzeit: `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}` });
+}
+$("btnMorgenCheckin").addEventListener("click", () => morgen.oeffnen());
 
 /* ---------- Eigene Erinnerungen ---------- */
 
@@ -4826,7 +4848,9 @@ async function aboBeimStart() {
   const anlass = aboAnlass(stand, store.getSettings().aboHinweise, todayIso());
   if (!anlass) return;
   if (!store.getSettings().einfuehrungGesehen) return;
-  setTimeout(() => aboOeffnen(anlass), 1500);
+  // Der Morgen Check-in geht vor. Zwei Blätter übereinander am Morgen, und
+  // das zweite ist ein Verkaufsfenster.
+  setTimeout(() => { if ($("morgenBlatt").hidden) aboOeffnen(anlass); }, 1500);
 }
 
 async function renderPush() {
@@ -4916,6 +4940,7 @@ let offeneFrage = null;
 function impulsOeffnen(daten) {
   const art = daten?.art;
   if (!art) return;
+  if (art === "morgen") { morgen.oeffnen(); return; }
   showView("assistant");
   const impuls = impulseFuerTag(todayIso()).find((i) => i.art === art);
   if (!impuls) return;

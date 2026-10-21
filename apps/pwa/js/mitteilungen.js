@@ -13,7 +13,7 @@
  *
  * Kein `document`, kein `window`: das Modul läuft auch in den Tests.
  */
-import { LUECKE_UHRZEIT, erinnerungAmTag, erinnerungUhrzeit, impulseFuerTag, tagesrandFuer } from "@daevo/core";
+import { LUECKE_UHRZEIT, erinnerungAmTag, erinnerungUhrzeit, impulseFuerTag, morgenUhrzeit, tagesrandFuer } from "@daevo/core";
 import { lueckeAusSpeicher } from "./luecke.js";
 
 export const MAX_GEPLANT = 60;
@@ -64,6 +64,17 @@ export function mitteilungsPlan({ store, jetzt, luecke = null }) {
     if (!aus.impulse) {
       for (const impuls of impulseFuerTag(tag)) {
         plan.push({ id: `impuls-${impuls.art}-${tag}`, tag, uhrzeit: impuls.at, titel: impuls.titel, text: impuls.text, art: impuls.art });
+      }
+    }
+    if (!aus.morgen && profil) {
+      // Eine halbe Stunde nach der Aufstehzeit dieses Tages. Ist der
+      // Check-in heute schon gemacht, kommt die Mitteilung nicht.
+      const gemacht = i === 0 && (store.getDay(tag).checkins || []).some((c) => c.kind === "morning" && c.morgen);
+      if (!gemacht) {
+        plan.push({
+          id: `morgen-${tag}`, tag, uhrzeit: morgenUhrzeit(tagesrandFuer(profil, tag).wakeTime),
+          titel: "Guten Morgen", text: "Wie hast du geschlafen? Vier Fragen, dann plant daevo deinen Tag.", art: "morgen",
+        });
       }
     }
     if (!aus.runterfahren && profil) {

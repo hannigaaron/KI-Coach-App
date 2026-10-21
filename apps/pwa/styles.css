@@ -3467,3 +3467,35 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 .pl-update-knoepfe { display: flex; gap: var(--s-2); margin-top: var(--s-3); flex-wrap: wrap; }
 .pl-offen { margin: var(--s-3) 0; }
 .pl-offen[hidden] { display: none; }
+
+/* ---------- Guten Morgen Check-in ----------
+   Fünf runde Punkte je Frage, gross genug für einen Daumen, der gerade
+   aufgewacht ist. Die Enden der Skala stehen darunter in Worten, sonst weiss
+   niemand, ob 1 gut oder schlecht ist. */
+.mg-start { width: 100%; margin: var(--s-2) 0 var(--s-4); }
+#morgenInhalt { padding: 0 var(--s-4) var(--s-4); }
+.mg-frage { border: 0; margin: 0 0 var(--s-5); padding: 0; }
+.mg-frage legend { font-weight: 600; font-size: var(--t-md); margin-bottom: var(--s-3); padding: 0; }
+.mg-skala { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--s-2); }
+.mg-punkt {
+  height: 52px; border: 0; border-radius: var(--r-pill); background: var(--flaeche); box-shadow: var(--haarlinie);
+  color: var(--text); font: inherit; font-size: var(--t-md); font-weight: 600; cursor: pointer;
+}
+.mg-punkt.an { background: var(--accent); color: var(--on-accent); box-shadow: none; }
+.mg-punkt:active { transform: scale(0.97); }
+.mg-enden { display: flex; justify-content: space-between; margin-top: var(--s-2); font-size: var(--t-xs); color: var(--muted); }
+.mg-fuss { flex: none; padding: var(--s-3) var(--s-4) calc(var(--s-3) + env(safe-area-inset-bottom)); border-top: 1px solid var(--linie); display: flex; }
+.mg-fuss .tr-weiter:disabled { opacity: 0.45; }
+.mg-wert { display: flex; align-items: baseline; gap: var(--s-2); margin-top: var(--s-2); }
+.mg-wert b { font-family: var(--schrift-display); font-size: 56px; line-height: 1; font-weight: 600; letter-spacing: -0.02em; }
+.mg-wert span { color: var(--muted); }
+.mg-hoch b { color: var(--good); }
+.mg-normal b { color: var(--accent-text); }
+.mg-reduziert b { color: var(--warn); }
+.mg-schonen b { color: var(--bad); }
+.mg-stufe { margin: var(--s-3) 0 var(--s-1); font-size: var(--t-md); }
+.mg-warum { margin: 0; color: var(--muted); font-size: var(--t-sm); }
+.mg-titel { margin: var(--s-5) 0 var(--s-2); font-size: var(--t-sm); font-weight: 600; }
+.mg-liste { margin: 0; padding-left: 1.1em; }
+.mg-liste li { margin-bottom: var(--s-2); line-height: 1.45; }
+.mg-grenze { margin: var(--s-5) 0 0; font-size: var(--t-xs); color: var(--muted); }

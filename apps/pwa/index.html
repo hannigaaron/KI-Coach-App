@@ -447,6 +447,19 @@ try {
     </div>
   </div>
 
+  <!-- Der Guten Morgen Check-in. Vier Fragen, je fünf Punkte zum Antippen,
+       danach Morgenwert, Belastbarkeit, Training und Tipps. -->
+  <div id="morgenBlatt" class="blatt mg-blatt" hidden>
+    <div class="blatt-innen" role="dialog" aria-modal="true" aria-labelledby="morgenTitel">
+      <header class="blatt-kopf">
+        <h2 id="morgenTitel">Guten Morgen</h2>
+        <button id="morgenZu" class="icon-btn" aria-label="Schließen"><span class="kreuz"></span></button>
+      </header>
+      <div class="blatt-scroll" id="morgenInhalt"></div>
+      <div class="mg-fuss"><button type="button" id="morgenAuswerten" class="tr-weiter" disabled>Auswerten</button></div>
+    </div>
+  </div>
+
   <div id="herkunftBlatt" class="blatt" hidden>
     <div class="blatt-innen" role="dialog" aria-modal="true" aria-labelledby="hkTitel">
       <header class="blatt-kopf">
@@ -596,6 +609,7 @@ try {
         <button type="button" class="" role="tab" aria-selected="false" data-ci-reiter="wochencheck">Wochenbogen</button>
       </div>
       <p class="sub">Kurz festhalten, wie es dir geht. Daraus erkennt der Coach Muster, die dir selbst entgehen.</p>
+      <button type="button" id="btnMorgenCheckin" class="pl-knopf haupt mg-start">Guten Morgen Check-in</button>
       <div class="field-row">
         <div class="field"><label for="energy">Energie</label><input id="energy" type="number" inputmode="numeric" min="1" max="10" value="7"></div>
         <div class="field"><label for="sleepQ">Schlaf</label><input id="sleepQ" type="number" inputmode="numeric" min="1" max="10" value="7"></div>
