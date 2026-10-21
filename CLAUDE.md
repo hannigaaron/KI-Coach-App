@@ -287,6 +287,18 @@ Ziehen, danach Zubehör. Mehr Beinplätze ließen die Beine auf das Doppelte der
 Brust kommen, und der Plan wäre beim Zählen der Sätze schief gewesen, obwohl
 jeder einzelne Tag vernünftig aussah.
 
+Ab 60 Minuten füllt der Plan die gewählte Zeit, im Aufbau der 2x30 Pläne
+von Personal Coach Aaron: die schwerste Übung zuerst, Isolation danach, Rumpf
+am Ende. Jede Vorlage hat Grundplätze und `extra`. Ist die Einheit zu lang,
+fällt die verzichtbarste Isolation raus, `VERZICHT`: Waden und Arme vor
+Schulter und Brust, Rumpf zuletzt. Ist sie zu kurz, kommen die Zusatzplätze
+dazu, danach ein vierter Satz auf den Grundübungen, zuletzt ein dritter auf
+der Isolation. Die Schulter hat zwei Plätze, `seitlich` und `hintere`,
+dazu `beinstrecker` und `adduktoren`. In der Entlastungswoche wird nicht
+aufgefüllt. Bleibt eine Einheit mehr als 15 Minuten unter der Zeit, etwa ein
+Push Tag für Einsteiger mit zu wenig geführten Drückübungen, sagt der Plan
+das, statt mit Sätzen aufzufüllen, die nichts bringen.
+
 Die Übung je Platz kommt aus der Datenbank über `pattern`, `mechanics` und
 `gruppe`. Einsteiger bekommen nur Einsteigerübungen. Für das Ziehen von oben
 heißt das Latzug oder Klimmzug mit Unterstützung (Maschine). Wer in dieser Woche
@@ -348,7 +360,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1101 Tests
+npm test           # 1103 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
