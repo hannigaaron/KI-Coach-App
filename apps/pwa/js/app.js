@@ -2750,6 +2750,7 @@ const training = trainingStarten({
   fertig: ({ titel, minuten }) => {
     store.addTraining(todayIso(), { id: newId(), type: "strength", minutes: minuten, at: nowTime(), note: titel });
     $("plOffen").hidden = true;
+    plaene.verlaufNeu();
     refreshAll();
   },
   geaendert: () => plaene.laden(),
@@ -2766,6 +2767,13 @@ const plaene = plaeneStarten({
       return;
     }
     training.starten(ei);
+  },
+  frei: () => {
+    if (trainingGestrichen(store, todayIso())) {
+      toast("Heute ist dein Training gestrichen, der Tag gehört der Erholung. Geht es dir besser, sag es unter Check-ins.", 5000);
+      return;
+    }
+    training.frei();
   },
   log: trainingslog,
   heute: todayIso,

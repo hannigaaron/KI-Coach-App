@@ -2,8 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { einheitHaeltZns } from "@daevo/core";
 import { UEBUNGEN } from "./uebungen-daten.js";
-import { aktualisierungHtml, planFuer, planPruefen } from "./plaene.js";
+import { aktualisierungHtml, planFuer, planPruefen, verlaufHtml } from "./plaene.js";
 import {
+  FREI_TITEL, auswahlListe, entwurfFrei, uebungHinzu, uebungRaus,
   entwurfAbschliessen, entwurfBegonnen, entwurfNeu, entwurfTauschen, ersatzVorschlaege, satzAbhaken, satzDazu, satzSetzen,
   trainingHtml, zahlAus,
 } from "./training.js";
@@ -89,4 +90,55 @@ test("Kein echter Plan stellt schweres Kreuzheben und schwere Kniebeugen in eine
       }
     }
   }
+});
+
+test("Freies Training: Übungen dazu, Sätze abhaken, speichern unter eigenem Titel", () => {
+  let e = entwurfFrei(HEUTE, "2026-10-21T17:00:00Z");
+  assert.equal(e.uebungen.length, 0);
+  assert.ok(trainingHtml(e, []).includes("Freies Training ohne Plan"));
+  e = uebungHinzu(e, "bankdruecken", []);
+  e = uebungHinzu(e, "klimmzug", []);
+  assert.equal(e.uebungen.length, 2);
+  assert.equal(e.aktiv, 1);
+  assert.ok(e.uebungen[0].saetze.length >= 2);
+  // Dieselbe Übung nochmal springt nur zu ihr.
+  assert.equal(uebungHinzu(e, "bankdruecken", []).uebungen.length, 2);
+  e = satzSetzen(e, 0, 0, "kg", 80);
+  e = satzSetzen(e, 0, 0, "wdh", 8);
+  e = satzAbhaken(e, 0, 0);
+  const r = entwurfAbschliessen(e, [], Date.parse("2026-10-21T17:45:00Z"));
+  assert.equal(r.eintraege.length, 1);
+  assert.equal(r.eintraege[0].einheit, FREI_TITEL);
+  assert.equal(r.minuten, 45);
+  assert.equal(uebungRaus(e, 1).uebungen.length, 1);
+});
+
+test("Beim nächsten freien Training kommen die Sätze vom letzten Mal", () => {
+  const log = [{ datum: "2026-10-14", uebung: "bankdruecken", einheit: FREI_TITEL, saetze: [{ kg: 80, wdh: 8, rir: 2 }, { kg: 80, wdh: 7, rir: 1 }, { kg: 75, wdh: 8, rir: 1 }, { kg: 75, wdh: 8, rir: 1 }] }];
+  const e = uebungHinzu(entwurfFrei(HEUTE), "bankdruecken", log);
+  assert.equal(e.uebungen[0].saetze.length, 4);
+  assert.equal(e.uebungen[0].saetze[2].kg, 75);
+});
+
+test("Die Auswahl findet über den Namen und zeigt zuletzt Gemachtes zuerst", () => {
+  const log = [{ datum: "2026-10-14", uebung: "klimmzug", saetze: [{ kg: 0, wdh: 8, rir: 2 }] }];
+  const leer = auswahlListe("", entwurfFrei(HEUTE), log);
+  assert.equal(leer[0].id, "klimmzug");
+  assert.ok(leer[0].zuletzt);
+  const bank = auswahlListe("bankdrücken", entwurfFrei(HEUTE), log);
+  assert.ok(bank.length > 0 && bank.every((u) => /bank/i.test(u.name)));
+  const ohne = auswahlListe("bankdrücken", uebungHinzu(entwurfFrei(HEUTE), "bankdruecken", []), log);
+  assert.ok(!ohne.some((u) => u.id === "bankdruecken"));
+});
+
+test("Der Verlauf zeigt gespeicherte Trainings mit Sätzen, neuestes zuerst", () => {
+  const log = [
+    { datum: "2026-10-14", uebung: "bankdruecken", einheit: FREI_TITEL, saetze: [{ kg: 80, wdh: 8, rir: 2 }] },
+    { datum: "2026-10-20", uebung: "klimmzug", einheit: "Ganzkörper A", saetze: [{ kg: 0, wdh: 8, rir: null }, { kg: 0, wdh: 7, rir: 1 }] },
+  ];
+  const html = verlaufHtml(log);
+  assert.ok(html.indexOf("Ganzkörper A") < html.indexOf(FREI_TITEL));
+  assert.ok(html.includes("80 kg × 8, 2 RIR"));
+  assert.ok(html.includes("1 Übung, 2 Sätze"));
+  assert.equal(verlaufHtml([]), "");
 });

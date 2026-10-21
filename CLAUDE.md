@@ -385,6 +385,30 @@ Der Tausch gilt ab dann auch im Plan. Wer einen Plan startet, der noch
 nicht gespeichert ist, speichert ihn damit: ohne gespeicherten Plan gibt es
 nichts, woran nach acht Wochen gemessen wird.
 
+### Freies Training
+
+`entwurfFrei` und `uebungHinzu` in `training.js`, Knopf "Freies Training
+starten" bei den Plänen. Ein Training ohne Plan, für alles, was heute
+anders läuft als geplant, und für alle ohne Plan. Ohne das stünde im
+Protokoll nur, was der Plan vorsah, und die Prüfung nach acht Wochen
+rechnete mit der halben Wahrheit.
+
+Das Training beginnt leer mit der Auswahl: Suchfeld über Name, Muskel und
+Gerät, nach Ort und Beschwerden aus dem gespeicherten Plan gefiltert. Ohne
+Suchtext stehen die zuletzt gemachten Übungen vorn. Die Suche zeichnet nur
+die Liste neu, sonst verlöre das Feld nach jedem Buchstaben den Fokus. Die
+Dosis kommt aus `positionFuer`, also derselben Regel wie im Plan. War die
+Übung schon dran, kommen so viele Sätze wie beim letzten Mal, mit dessen
+Werten. Ein Plus in der Leiste nimmt eine weitere Übung dazu, die letzte
+Übung führt mit "Weitere Übung" ebenfalls zur Auswahl, beendet wird oben.
+Ersetzen und Entfernen gelten nur für dieses Training, der Plan bleibt.
+
+Gespeichert wird wie jede Einheit, unter dem Titel "Freies Training". Damit
+zählt jeder Satz für den Fortschritt der Übung, egal wo er gemacht wurde.
+Unter den Plänen steht "Deine letzten Trainings", die letzten zehn je Tag
+und Einheit, aufklappbar mit Kilo, Wiederholungen und RIR: ein Protokoll,
+in das man nur schreibt, wirkt wie eines, das nichts behält.
+
 ### Nach acht Wochen
 
 `packages/core/src/trainingslog.ts`, `planPruefen` in `plaene.js`. Gemessen
@@ -420,7 +444,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1153 Tests
+npm test           # 1157 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
