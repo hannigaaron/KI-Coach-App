@@ -420,7 +420,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1134 Tests
+npm test           # 1136 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -641,20 +641,27 @@ stehen in Worten darunter.
 
 Der Morgenwert gewichtet erholt 35, Schlaf 30, gesund 20, Einschlafen 15,
 eine Regel der App. Daraus die Belastbarkeit: ab 75 hoch, ab 55 normal, ab
-35 reduziert, darunter schonen. Krank, also gesund 1, heisst immer
-schonen, das Training fällt aus. Gesund 2 deckelt auf reduziert, ebenso
-unter sechs Stunden Schlaf laut Apple Health (Craven und andere 2022).
-Schonen gibt es nur bei gesund bis 3: wer gesund ist und schlecht
-geschlafen hat, trainiert leichter, aber er trainiert. Reduziert heisst
-drei Viertel der Sätze und eine Wiederholung mehr in Reserve, dieselben
-Stufen wie in `trainingsanpassung.ts`. Das geplante Training kommt aus dem
-Wochenplan mit dem Titel der Einheit aus dem gespeicherten Plan.
+50 reduziert, darunter niedrig. Niedrig heisst Krafttraining nur leicht und
+nur, wenn man sich fit genug fühlt: die Hälfte der Sätze, 2 bis 3
+Wiederholungen im Tank, und wenn das Aufwärmen sich schlecht anfühlt, gar
+nicht. Fitness 1 heisst schonen, und das Training ist gestrichen, egal wie
+gut die Nacht war. Fitness 2 und 3 deckeln auf reduziert, ebenso unter
+sechs Stunden Schlaf laut Apple Health (Craven und andere 2022). Reduziert
+heisst drei Viertel der Sätze, 1 bis 2 Wiederholungen im Tank, nicht bis
+ans Muskelversagen. Die Grenzen sind Regeln von Coach Aaron. Das geplante
+Training kommt aus dem Wochenplan mit dem Titel der Einheit aus dem
+gespeicherten Plan.
 
-Höchstens drei Tipps, jeder hängt an einer Antwort: Tageslicht in der
-ersten Stunde nach schlechter Nacht (Blume, Garbazza und Spitschan,
-Somnologie 2019), letzter Kaffee neun Stunden vor der Schlafenszeit nach
-langem Einschlafen, mit Uhrzeit (Gardiner und andere, Sleep Medicine
-Reviews 2023, rund 8,8 Stunden), eine halbe Stunde früher ins Bett, und bei
+Höchstens drei Tipps, jeder hängt an einer Antwort. Nach schlechter Nacht
+Tageslicht in der ersten Stunde (Blume, Garbazza und Spitschan, Somnologie
+2019) und, wenn es noch dunkel oder trüb ist, eine Tageslichtlampe mit
+10.000 Lux für 20 bis 30 Minuten, bevor der Bildschirm länger an ist
+(Golden und andere, American Journal of Psychiatry 2005). Nach langem
+Einschlafen oder wenig Erholung der letzte Kaffee neun Stunden vor der
+Schlafenszeit, mit Uhrzeit (Gardiner und andere, Sleep Medicine Reviews
+2023, rund 8,8 Stunden), danach L-Theanin statt Kaffee, etwa 200 mg. Die
+Studien dazu sind klein, etwa Kahathuduwa und andere 2017, und der Satz
+sagt das. Dazu eine halbe Stunde früher ins Bett, und bei
 Krankheitsgefühl trinken, ruhen, bei Fieber zum Arzt. Der Grund ist ein
 Nebensatz mit dem Verb am Ende, ein Test hält das fest: die erste Fassung
 schrieb "weil du bist wenig erholt aufgewacht".

@@ -43,10 +43,10 @@ const GEWICHTE: Record<keyof MorgenAntworten, number> = { erholt: 35, schlaf: 30
 /** Eine halbe Stunde nach dem Aufstehen. Früher ist man noch nicht wach genug für ehrliche Antworten. */
 export const MORGEN_ABSTAND_MIN = 30;
 
-export type Belastbarkeit = "hoch" | "normal" | "reduziert" | "schonen";
+export type Belastbarkeit = "hoch" | "normal" | "reduziert" | "niedrig" | "schonen";
 
 export const BELASTBARKEIT_NAME: Record<Belastbarkeit, string> = {
-  hoch: "Hoch", normal: "Normal", reduziert: "Reduziert", schonen: "Schonen",
+  hoch: "Hoch", normal: "Normal", reduziert: "Reduziert", niedrig: "Niedrig", schonen: "Schonen",
 };
 
 export interface GeplantesTraining {
@@ -116,25 +116,24 @@ export function morgenUhrzeit(aufstehen: string): string {
   return uhrzeit(minuten(aufstehen) + MORGEN_ABSTAND_MIN);
 }
 
-const RANG: Belastbarkeit[] = ["schonen", "reduziert", "normal", "hoch"];
+const RANG: Belastbarkeit[] = ["schonen", "niedrig", "reduziert", "normal", "hoch"];
 const hoechstens = (b: Belastbarkeit, grenze: Belastbarkeit): Belastbarkeit =>
   RANG.indexOf(b) > RANG.indexOf(grenze) ? grenze : b;
 
 export function morgenAuswerten(e: MorgenEingabe): MorgenErgebnis {
   const a = e.antworten;
   const wert = morgenWert(a);
-  let b: Belastbarkeit = wert >= 75 ? "hoch" : wert >= 55 ? "normal" : wert >= 35 ? "reduziert" : "schonen";
+  // Unter 50 heisst niedrig: Krafttraining nur leicht und nur, wenn man sich
+  // fit genug fühlt. Die Grenzen sind Regeln von Coach Aaron, keine Studie.
+  let b: Belastbarkeit = wert >= 75 ? "hoch" : wert >= 55 ? "normal" : wert >= 50 ? "reduziert" : "niedrig";
   const gruende: string[] = [];
 
-  // Schonen heisst krank oder angeschlagen. Wer gesund ist und schlecht
-  // geschlafen hat, trainiert leichter, aber er trainiert: der Leistungsabfall
-  // nach kurzem Schlaf ist messbar, ein Grund für eine Pause ist er nicht.
-  if (b === "schonen" && a.gesund >= 4) b = "reduziert";
-
-  // Krank schlägt jeden Schnitt. Wer sich krank fühlt und gut geschlafen
-  // hat, ist trotzdem krank, und ein Mittelwert würde das verstecken.
+  // Schonen heisst krank, und nur das. Krank schlägt jeden Schnitt: wer
+  // sich krank fühlt und gut geschlafen hat, ist trotzdem krank, und ein
+  // Mittelwert würde das verstecken. Das Training wird gestrichen.
+  // Bei 2 und 3 wird angepasst und nicht gestrichen.
   if (a.gesund === 1) { b = "schonen"; gruende.push("du dich krank fühlst"); }
-  else if (a.gesund === 2) { b = hoechstens(b, "reduziert"); gruende.push("du dich nicht ganz gesund fühlst"); }
+  else if (a.gesund <= 3) { b = hoechstens(b, "reduziert"); gruende.push("du dich nicht ganz fit fühlst"); }
 
   // Unter sechs Stunden laut Uhr, Craven und andere, Sports Medicine 2022.
   const kurz = e.schlafMinuten !== null && e.schlafMinuten !== undefined && e.schlafMinuten > 0 && e.schlafMinuten < 360;
@@ -164,7 +163,7 @@ const ART: Record<string, string> = { strength: "Krafttraining", cardio: "Ausdau
  */
 function trainingFuer(b: Belastbarkeit, geplant: GeplantesTraining[], a: MorgenAntworten): string[] {
   if (!geplant.length) {
-    if (b === "schonen") return ["Heute steht kein Training an, und das passt. Ruh dich aus."];
+    if (b === "schonen" || b === "niedrig") return ["Heute steht kein Training an, und das passt. Ruh dich aus."];
     return ["Heute steht kein Training an. Ein Spaziergang oder zehn Minuten Mobilität reichen."];
   }
   const zeilen: string[] = [];
@@ -172,12 +171,16 @@ function trainingFuer(b: Belastbarkeit, geplant: GeplantesTraining[], a: MorgenA
     const name = t.titel ? `${ART[t.art] ?? t.art}, ${t.titel}` : ART[t.art] ?? t.art;
     const wann = t.uhrzeit ? ` um ${t.uhrzeit}` : "";
     if (b === "schonen") {
-      zeilen.push(a.gesund === 1
-        ? `${name}${wann} fällt heute aus. Mit Krankheitsgefühl trainierst du gar nicht, bei Fieber erst recht nicht.`
-        : `${name}${wann}: heute lieber ausfallen lassen oder 20 Minuten locker bewegen. Morgen zählt mehr als heute.`);
+      zeilen.push(`${name}${wann} ist heute gestrichen. Wer sich krank fühlt, trainiert nicht, bei Fieber erst recht nicht.`);
+    } else if (b === "niedrig") {
+      zeilen.push(t.art === "strength"
+        ? `${name}${wann}: nur leicht und nur, wenn du dich fit genug fühlst. Etwa die Hälfte der Sätze, 2 bis 3 Wiederholungen im Tank. Fühlt sich das Aufwärmen schlecht an, lass es heute.`
+        : t.art === "team_sport"
+          ? `${name}${wann}: nur, wenn du dich fit genug fühlst. Dann Intensität selbst steuern und danach nichts mehr dranhängen.`
+          : `${name}${wann}: nur leicht und nur, wenn du dich fit genug fühlst. Etwa die halbe Dauer, locker.`);
     } else if (b === "reduziert") {
       zeilen.push(t.art === "strength"
-        ? `${name}${wann}: etwa drei Viertel der Sätze, jeden Satz eine Wiederholung früher beenden. Keine Bestwerte heute.`
+        ? `${name}${wann}: etwa drei Viertel der Sätze, 1 bis 2 Wiederholungen im Tank lassen, nicht bis ans Muskelversagen. Keine Bestwerte heute.`
         : t.art === "team_sport"
           ? `${name}${wann}: hingehen geht, Intensität selbst steuern und danach nichts mehr dranhängen.`
           : `${name}${wann}: Dauer auf drei Viertel, locker, Intervalle verschieben.`);
@@ -204,20 +207,25 @@ function tippsFuer(a: MorgenAntworten, b: Belastbarkeit, schlafenszeit: string |
   if (a.schlaf <= 2 || a.erholt <= 2) {
     // Blume, Garbazza und Spitschan, Somnologie 2019: Licht am Morgen ist der
     // stärkste Taktgeber der inneren Uhr.
-    t.push("Geh in der ersten Stunde 10 bis 20 Minuten raus ins Tageslicht. Licht am Morgen stellt die innere Uhr, auch bei Bewölkung.");
+    // Für die Lampe: Golden und andere, American Journal of Psychiatry 2005,
+    // Meta-Analyse zur Lichttherapie, üblich sind 10.000 Lux für rund 30
+    // Minuten. Im Winter ist es zur Aufstehzeit oft noch dunkel.
+    t.push("Geh in der ersten Stunde 10 bis 20 Minuten raus ins Tageslicht. Ist es noch dunkel oder trüb, hilft eine Tageslichtlampe mit 10.000 Lux: in der ersten Stunde des Tages etwa 20 bis 30 Minuten einschalten, am besten bevor du länger auf einen Bildschirm schaust.");
   }
-  if (a.einschlafen <= 2 && schlafenszeit) {
-    // Gardiner und andere, Sleep Medicine Reviews 2023: Koffein verkürzt den
-    // Schlaf, wenn es weniger als rund 8,8 Stunden vor dem Schlafen kommt.
-    const grenze = uhrzeit(minuten(schlafenszeit) - 9 * 60);
-    t.push(`Letzter Kaffee heute bis ${grenze}. Koffein wirkt bis etwa neun Stunden vor dem Schlafen noch auf den Schlaf.`);
-  } else if (a.einschlafen <= 2) {
-    t.push("Letzter Kaffee etwa neun Stunden vor dem Schlafen. So lange wirkt Koffein noch auf den Schlaf.");
+  // Gardiner und andere, Sleep Medicine Reviews 2023: Koffein verkürzt den
+  // Schlaf, wenn es weniger als rund 8,8 Stunden vor dem Schlafen kommt.
+  // L-Theanin putscht nicht auf. Einzelne kleine Studien fanden mit rund
+  // 200 mg bessere Aufmerksamkeit, etwa Kahathuduwa und andere, Nutritional
+  // Neuroscience 2017. Die Lage ist dünn, und so steht es auch im Satz.
+  if (a.einschlafen <= 2 || a.erholt <= 2) {
+    const grenze = schlafenszeit ? uhrzeit(minuten(schlafenszeit) - 9 * 60) : null;
+    t.push(`${grenze ? `Letzter Kaffee heute bis ${grenze}.` : "Letzter Kaffee etwa neun Stunden vor dem Schlafen."} Koffein wirkt bis etwa neun Stunden vor dem Schlafen noch auf den Schlaf. `
+      + "Bist du danach noch müde, nimm statt Kaffee L-Theanin, etwa 200 mg: es putscht nicht auf, kann aber wacher und klarer machen. Die Studien dazu sind klein.");
   }
   if ((a.schlaf <= 2 || a.erholt <= 2) && schlafenszeit && t.length < 3) {
     t.push(`Heute Abend eine halbe Stunde früher ins Bett, um ${uhrzeit(minuten(schlafenszeit) - 30)}.`);
   }
-  if (b === "reduziert" && a.erholt <= 3 && t.length < 3) {
+  if ((b === "reduziert" || b === "niedrig") && a.erholt <= 3 && t.length < 3) {
     t.push("Konzentrierte Arbeit in Blöcken von 45 bis 60 Minuten, dazwischen fünf Minuten aufstehen. Eine Regel der App, keine Studie.");
   }
   if (b === "hoch" && t.length < 3) {

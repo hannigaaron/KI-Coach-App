@@ -3491,7 +3491,7 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 .mg-wert span { color: var(--muted); }
 .mg-hoch b { color: var(--good); }
 .mg-normal b { color: var(--accent-text); }
-.mg-reduziert b { color: var(--warn); }
+.mg-reduziert b, .mg-niedrig b { color: var(--warn); }
 .mg-schonen b { color: var(--bad); }
 .mg-stufe { margin: var(--s-3) 0 var(--s-1); font-size: var(--t-md); }
 .mg-warum { margin: 0; color: var(--muted); font-size: var(--t-sm); }

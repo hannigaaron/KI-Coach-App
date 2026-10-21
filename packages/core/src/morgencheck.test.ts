@@ -36,7 +36,7 @@ test("Ein guter Morgen gibt hohe Belastbarkeit und Training wie geplant", () => 
 test("Krank schlägt jeden guten Schlaf, das Training fällt aus", () => {
   const r = morgenAuswerten({ antworten: { schlaf: 5, einschlafen: 5, erholt: 5, gesund: 1 }, training: kraft });
   assert.equal(r.belastbarkeit, "schonen");
-  assert.ok(r.training[0]!.includes("fällt heute aus"));
+  assert.ok(r.training[0]!.includes("gestrichen"));
   assert.ok(r.tipps.some((t) => t.includes("Arzt")));
 });
 
@@ -65,14 +65,31 @@ test("Der Text sagt, dass nichts gemessen wurde, und hat keine Gedankenstriche",
   assert.ok(!/[–—]/.test(t));
 });
 
-test("Schlechte Nacht ohne Krankheitsgefühl heisst leichter trainieren, nicht ausfallen", () => {
+test("Unter 50 heisst nur leicht und nur, wenn man sich fit genug fühlt", () => {
   const r = morgenAuswerten({ antworten: { schlaf: 1, einschlafen: 1, erholt: 1, gesund: 5 }, training: kraft });
-  assert.equal(r.belastbarkeit, "reduziert");
-  const krank = morgenAuswerten({ antworten: { schlaf: 1, einschlafen: 1, erholt: 1, gesund: 3 }, training: kraft });
+  assert.equal(r.belastbarkeit, "niedrig");
+  assert.ok(r.training[0]!.includes("nur leicht und nur, wenn du dich fit genug fühlst"));
+  assert.ok(!r.training[0]!.includes("gestrichen"));
+});
+
+test("Fitness 1 streicht das Training, 2 und 3 passen es an", () => {
+  for (const gesund of [2, 3]) {
+    const r = morgenAuswerten({ antworten: { schlaf: 5, einschlafen: 5, erholt: 5, gesund }, training: kraft });
+    assert.equal(r.belastbarkeit, "reduziert", String(gesund));
+    assert.ok(r.training[0]!.includes("1 bis 2 Wiederholungen im Tank") && r.training[0]!.includes("Muskelversagen"));
+  }
+  const krank = morgenAuswerten({ antworten: { schlaf: 5, einschlafen: 5, erholt: 5, gesund: 1 }, training: kraft });
   assert.equal(krank.belastbarkeit, "schonen");
+  assert.ok(krank.training[0]!.includes("gestrichen"));
+});
+
+test("Tageslicht mit Lampe als Ausweichweg, und L-Theanin statt spätem Kaffee", () => {
+  const r = morgenAuswerten({ antworten: { schlaf: 2, einschlafen: 4, erholt: 2, gesund: 4 }, schlafenszeit: "23:00", training: [] });
+  assert.ok(r.tipps.some((t) => t.includes("Tageslichtlampe") && t.includes("Bildschirm")));
+  assert.ok(r.tipps.some((t) => t.includes("14:00") && t.includes("L-Theanin")));
 });
 
 test("Der Grund ist ein Nebensatz mit dem Verb am Ende", () => {
   const r = morgenAuswerten({ antworten: { schlaf: 2, einschlafen: 3, erholt: 2, gesund: 2 }, training: [] });
-  assert.equal(r.warum, "Weil du dich nicht ganz gesund fühlst, du wenig erholt aufgewacht bist und die Nacht schlecht war.");
+  assert.equal(r.warum, "Weil du dich nicht ganz fit fühlst, du wenig erholt aufgewacht bist und die Nacht schlecht war.");
 });

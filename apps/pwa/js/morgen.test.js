@@ -51,8 +51,8 @@ test("Das Training von heute kommt mit dem Titel aus dem Plan", () => {
 test("Speichern legt einen Morgen Check-in an, ein zweiter ersetzt den ersten", () => {
   frisch();
   const r = morgenSpeichern(store, HEUTE, { schlaf: 2, einschlafen: 1, erholt: 2, gesund: 4 });
-  assert.equal(r.belastbarkeit, "reduziert");
-  assert.ok(r.training[0].includes("Ganzkörper B"));
+  assert.equal(r.belastbarkeit, "niedrig");
+  assert.ok(r.training[0].includes("Ganzkörper B") && r.training[0].includes("fit genug"));
   assert.ok(r.tipps.some((x) => x.includes("14:00")));
   const c = morgenVonHeute(store, HEUTE);
   assert.equal(c.kind, "morning");
