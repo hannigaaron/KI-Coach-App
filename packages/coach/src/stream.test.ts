@@ -43,7 +43,7 @@ const TEXT_STROM = [
 function anbieter(zeilen: string[], onVerbrauch?: (v: Verbrauch) => void): AnthropicProvider {
   return new AnthropicProvider({
     apiKey: "sk-test",
-    model: "claude-sonnet-5",
+    model: "claude-sonnet-5-5",
     onVerbrauch,
     fetchImpl: async () => sse(zeilen),
   });
@@ -73,7 +73,7 @@ test("der Verbrauch wird auch beim Streamen gemeldet", async () => {
   assert.equal(gemeldet.length, 1);
   assert.deepEqual(gemeldet[0], {
     inputTokens: 12, outputTokens: 9, cacheReadTokens: 5000,
-    cacheWriteTokens: 0, modell: "claude-sonnet-5",
+    cacheWriteTokens: 0, modell: "claude-sonnet-5-5",
   });
 });
 
@@ -110,7 +110,7 @@ test("ohne onText läuft der Aufruf wie bisher in einem Stück", async () => {
   let gesendet: Record<string, unknown> = {};
   const provider = new AnthropicProvider({
     apiKey: "sk-test",
-    model: "claude-sonnet-5",
+    model: "claude-sonnet-5-5",
     fetchImpl: async (_url, init) => {
       gesendet = JSON.parse(String((init as RequestInit).body));
       return new Response(
@@ -128,7 +128,7 @@ test("mit onText wird stream gesetzt", async () => {
   let gesendet: Record<string, unknown> = {};
   const provider = new AnthropicProvider({
     apiKey: "sk-test",
-    model: "claude-sonnet-5",
+    model: "claude-sonnet-5-5",
     fetchImpl: async (_url, init) => {
       gesendet = JSON.parse(String((init as RequestInit).body));
       return sse(TEXT_STROM);
@@ -194,4 +194,30 @@ test("ein abgerissener Denkblock fliegt raus statt den Verlauf zu vergiften", as
   });
   // Ohne Signatur ist der Block wertlos, die Antwort selbst bleibt.
   assert.deepEqual(antwort.content, [{ type: "text", text: "Trotzdem da." }]);
+});
+
+test("ein Denkblock ohne Text, aber mit Signatur bleibt im Verlauf", async () => {
+  // So schicken Opus 5.5, Sonnet 5.5 und Haiku 5.5 ihr Denken: der Text ist
+  // leer, die Signatur da. Die API nimmt den Block so zurück, gemessen am
+  // Worker. Wer ihn verwirft, nimmt dem Modell nach dem Werkzeugaufruf den
+  // eigenen Gedankengang.
+  const verdeckt = [
+    ereignis({ type: "content_block_start", index: 0, content_block: { type: "thinking", thinking: "" } }),
+    ereignis({ type: "content_block_delta", index: 0, delta: { type: "signature_delta", signature: "sig-xyz" } }),
+    ereignis({ type: "content_block_stop", index: 0 }),
+    ereignis({ type: "content_block_start", index: 1, content_block: { type: "text", text: "" } }),
+    ereignis({ type: "content_block_delta", index: 1, delta: { type: "text_delta", text: "Fertig." } }),
+    ereignis({ type: "content_block_stop", index: 1 }),
+    ereignis({ type: "message_delta", delta: { stop_reason: "end_turn" }, usage: { output_tokens: 3 } }),
+  ];
+  const antwort = await anbieter(verdeckt).converse({
+    system: "s",
+    messages: [{ role: "user", content: "hi" }],
+    tools: [],
+    onText: () => {},
+  });
+  assert.deepEqual(antwort.content, [
+    { type: "thinking", thinking: "", signature: "sig-xyz" },
+    { type: "text", text: "Fertig." },
+  ]);
 });

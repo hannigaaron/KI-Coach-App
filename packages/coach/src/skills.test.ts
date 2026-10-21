@@ -111,7 +111,7 @@ test("Mahlzeit über den eigenen Server: Kontoschlüssel statt API Schlüssel", 
     apiKey: undefined,
     baseUrl: "https://worker.example",
     kontoToken: () => "konto-123",
-    model: "claude-sonnet-5",
+    model: "claude-sonnet-5-5",
     fetchImpl: async (url, init) => {
       ziel = String(url);
       kopf = (init as RequestInit).headers as Record<string, string>;
@@ -134,7 +134,7 @@ test("scheitert das Modell, kommt der Grund mit und kein Posten fällt still weg
   const provider = new AnthropicProvider({
     apiKey: undefined,
     baseUrl: "https://worker.example",
-    model: "claude-sonnet-5",
+    model: "claude-sonnet-5-5",
     fetchImpl: async () => new Response('{"type":"konto"}', { status: 401 }),
   });
   const ergebnis = await new Coach(provider).parseMeal(

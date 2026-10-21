@@ -135,7 +135,7 @@ export const store = {
   },
 
   getSettings() {
-    return read("settings", { apiKey: "", model: "claude-sonnet-5" });
+    return read("settings", { apiKey: "", model: "claude-sonnet-5-5" });
   },
   setSettings(settings) {
     write("settings", settings);

@@ -116,3 +116,32 @@ test("die Leiste auf dem Start zählt die Testphase herunter und schweigt bei Pr
   assert.equal(aboLeiste({ stufe: "plus", verbrauch: { nachrichten: 100 }, grenze: { nachrichten: 800 } }, "2026-10-30"), null);
   assert.equal(aboLeiste({ stufe: "pro" }, "2026-10-30"), null);
 });
+
+test("das Jahr kostet acht Monate, und die Ersparnis ist gerechnet", async () => {
+  const { ABO_STUFEN, aboPreis, ersparnisProzent, euro } = await import("./konto.js");
+  assert.equal(euro(7999), "79,99 €");
+  assert.equal(euro(1005), "10,05 €");
+  for (const s of ABO_STUFEN) {
+    // Acht Monatspreise, abgerundet auf ,99. Steigt der Jahrespreis über
+    // zwölf Monate, wäre das Angebot eine Falle.
+    assert.ok(s.jahrCent < s.monatCent * 12, s.id);
+    assert.equal(ersparnisProzent(s), 33, s.id);
+  }
+  const plus = ABO_STUFEN.find((s) => s.id === "plus");
+  assert.deepEqual(aboPreis(plus, "monat"), { preis: "9,99 €", zeitraum: "im Monat", zusatz: "" });
+  assert.deepEqual(aboPreis(plus, "jahr"), { preis: "79,99 €", zeitraum: "im Jahr", zusatz: "6,66 € im Monat" });
+});
+
+test("jährlich führt zum Jahreslink und nie still zum Monatslink", async () => {
+  const konfig = {
+    abo: { plusUrl: "https://buy.stripe.com/monat", plusJahrUrl: "https://buy.stripe.com/jahr" },
+    angebot: { mail: "coach@example.org" },
+  };
+  assert.equal(aboLink("plus", "k1", konfig, false, "jahr"), "https://buy.stripe.com/jahr?client_reference_id=k1");
+  assert.equal(aboLink("plus", "k1", konfig, false, "monat"), "https://buy.stripe.com/monat?client_reference_id=k1");
+  // Pro hat keinen Jahreslink: dann eine Mail, die das Jahr nennt.
+  const mail = decodeURIComponent(aboLink("pro", "k1", { ...konfig, abo: { proUrl: "https://buy.stripe.com/pro" } }, false, "jahr"));
+  assert.match(mail, /^mailto:/);
+  assert.match(mail, /159,99 € im Jahr/);
+  assert.match(mail, /jährlich/);
+});

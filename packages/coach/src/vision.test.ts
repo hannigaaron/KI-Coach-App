@@ -38,7 +38,7 @@ test("Anhänge stehen im Aufruf vor dem Text", async () => {
   let gesendet: Record<string, unknown> = {};
   const provider = new AnthropicProvider({
     apiKey: "sk-test",
-    model: "claude-opus-5",
+    model: "claude-opus-5-5",
     fetchImpl: async (_url, init) => {
       gesendet = JSON.parse(String((init as RequestInit).body));
       return new Response(
@@ -64,7 +64,7 @@ test("ohne Anhang bleibt der Inhalt eine Zeichenkette", async () => {
   let gesendet: Record<string, unknown> = {};
   const provider = new AnthropicProvider({
     apiKey: "sk-test",
-    model: "claude-opus-5",
+    model: "claude-opus-5-5",
     fetchImpl: async (_url, init) => {
       gesendet = JSON.parse(String((init as RequestInit).body));
       return new Response(
@@ -89,7 +89,7 @@ test("fetch wird gebunden gespeichert, nicht blank", async () => {
       { status: 200, headers: { "content-type": "application/json" } },
     ));
   } as unknown as typeof fetch;
-  const provider = new AnthropicProvider({ apiKey: "sk-test", model: "claude-opus-5", fetchImpl: streng });
+  const provider = new AnthropicProvider({ apiKey: "sk-test", model: "claude-opus-5-5", fetchImpl: streng });
   const antwort = await provider.converse({ system: "s", messages: [{ role: "user", content: "hi" }], tools: [] });
   assert.equal(antwort.stopReason, "end_turn");
 });

@@ -105,10 +105,22 @@ liest, tut weder das eine noch das andere richtig. Deshalb kommt nur der Block
 des erkannten Modus in den Prompt.
 
 Der Modus wählt auch das Modell, siehe `packages/coach/src/modelle.ts`.
-Erfassen läuft auf Haiku, Fachfragen auf Sonnet, persönliche Gespräche und
-Planung auf Opus, Bilder immer auf Opus. Haiku 4.5 lehnt `output_config.effort`
-mit einem Fehler ab, deshalb steht je Modell in der Tabelle, ob es die Angabe
-verträgt.
+Erfassen läuft auf Haiku 5.5, Fachfragen auf Sonnet 5.5, persönliche
+Gespräche und Planung auf Opus 5.5, Bilder immer auf Opus 5.5. Das Auslesen
+einer Mahlzeit aus Text läuft fest auf Haiku 5.5: gemessen an sechs echten
+Sätzen fand es jeden Posten in 2 bis 5 Sekunden für zusammen 0,2 Cent, Opus
+5.5 brauchte 7 bis 14 Sekunden für 12 Cent und fand nicht mehr.
+
+Opus 5.5 und Sonnet 5.5 lehnen ein erzwungenes Werkzeug ab, `tool_choice`
+mit `tool` gibt 400. Haiku 5.5 nimmt es an. Die Tabelle führt deshalb
+`kannErzwingen`, und `generateJson` schreibt die Pflicht sonst in den Prompt
+und prüft, ob der Aufruf kam. Alle drei denken immer, ausschalten geht nicht,
+und das Denken zählt gegen `max_tokens`. Grenzen unter 1024 sind deshalb
+weg. Gespeicherte Kennungen der Generation davor, etwa `claude-opus-5`,
+gehen über `aktuellesModell` auf den Nachfolger. Ein Denkblock kommt mit
+leerem Text und Signatur und geht so zurück, unbrauchbar ist er erst ohne
+Signatur. Eine Ablehnung kommt als Status 200 mit `stop_reason` refusal und
+bekommt einen Satz statt einer leeren Blase.
 
 Der Modus steuert ausserdem, wie viel Kontext mitgeht. Erfassen bekommt ein
 kurzes Profil, die Zahlen des Tages, drei Notizen und sechs Nachrichten
@@ -336,7 +348,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1072 Tests
+npm test           # 1079 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -2412,7 +2424,14 @@ Jedes neue Konto hat sieben Tage Testphase, Stufe `test` mit `bis`. Danach
 fällt es auf `frei`, und `frei` heisst: keine KI, aber alles ohne Modell. Das
 ist eine harte Paywall und eine Entscheidung des Betreibers. Der Regelweg
 bleibt in jeder Stufe frei, denn er kostet nichts. Preise: Plus 9,99 Euro,
-Pro 19,99 Euro im Monat.
+Pro 19,99 Euro im Monat, oder jährlich 79,99 und 159,99 Euro. Das Jahr
+kostet acht Monate, 33 Prozent weniger, und ist im Abo Fenster vorgewählt.
+Die Preise stehen in Cent in `ABO_STUFEN`, die Ersparnis wird gerechnet.
+Das Kontingent bleibt auch beim Jahresabo je Monat. Je Zahlweise gibt es
+einen eigenen Link, `plusJahrUrl` und `proJahrUrl` in `KONFIG.abo`. Fehlt
+der fürs Jahr, geht eine Mail raus und nie still der Monatslink: wer
+jährlich wählt und monatlich abgebucht wird, fühlt sich betrogen. Von Hand
+setzt der Betreiber beim Jahr `bis` ein Jahr später.
 
 Die Testphase ist mit 150 Nachrichten und 1,50 Dollar enger als Plus. Ein
 Konto entsteht ohne Anmeldung, und wer jede Woche neu installiert, bekäme

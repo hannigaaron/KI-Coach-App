@@ -16,7 +16,7 @@ import {
   tageText,
   wannText,
 } from "@daevo/core";
-import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, produktPerBarcode, produkteSuchen } from "@daevo/coach";
+import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, PREISE_STAND, aktuellesModell, produktPerBarcode, produkteSuchen } from "@daevo/coach";
 import { Coach, AnthropicProvider } from "@daevo/coach";
 import { KONFIG, istDemo, istNativ } from "./konfig.js";
 import { uebungenStarten } from "./uebungen.js";
@@ -60,7 +60,7 @@ import { kodierungReparieren, newId, nowTime, store, todayIso } from "./storage.
 import { healthkitAbgleichen } from "./healthkit.js";
 import { mitteilungenPlanen } from "./mitteilungen.js";
 import { nativAufruf } from "./nativ.js";
-import { ABO_STUFEN, aboAnlass, aboAnlassLeer, aboLeiste, aboLink, kontoSicherstellen, kontoStand, kontoText } from "./konto.js";
+import { ABO_STUFEN, ABO_TAKTE, aboPreis, ersparnisProzent, aboAnlass, aboAnlassLeer, aboLeiste, aboLink, kontoSicherstellen, kontoStand, kontoText } from "./konto.js";
 
 const $ = (id) => document.getElementById(id);
 const WEEKDAYS = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
@@ -2282,7 +2282,7 @@ function renderProfile() {
 
   const settings = store.getSettings();
   $("apiKey").value = settings.apiKey || "";
-  renderModellwahl(settings.modellWahl || "auto");
+  renderModellwahl(aktuellesModell(settings.modellWahl || "auto"));
   const tempo = tempoVon(settings);
   $("tempoSel").value = tempo;
   renderGruendlich(tempo);
@@ -2331,7 +2331,7 @@ function renderModellwahl(aktuell) {
     const zeilen = Object.entries(MODELL_JE_MODUS)
       .map(([modus, id]) => `${MODUS_TEXT[modus] || modus}: ${MODELLE[id]?.name || id}`);
     $("modelNote").textContent =
-      `${zeilen.join(". ")}. Bilder immer auf Opus 5, weil die Mengenschätzung direkt in deinen Tagesdaten landet. ` +
+      `${zeilen.join(". ")}. Bilder immer auf Opus 5.5, weil die Mengenschätzung direkt in deinen Tagesdaten landet. ` +
       "Das spart gegenüber Opus für alles etwa die Hälfte.";
   } else {
     $("modelNote").textContent =
@@ -2427,7 +2427,7 @@ function renderKosten() {
       zeilen.push("Die Quote aus dem Zwischenspeicher ist niedrig. Das passiert, wenn zwischen zwei Nachrichten mehr als fünf Minuten liegen.");
     }
   }
-  zeilen.push("Preise nach der Anthropic Preisliste, Stand 24. Juni 2026. Geschätzt, nicht abgerechnet. Die echte Abrechnung steht in deiner Anthropic Console.");
+  zeilen.push(`Preise nach der Anthropic Preisliste, Stand ${PREISE_STAND}. Geschätzt, nicht abgerechnet. Die echte Abrechnung steht in deiner Anthropic Console.`);
   $("kostenHinweis").textContent = zeilen.join(" ");
 }
 
@@ -4667,6 +4667,9 @@ $("btnErinnerungNeu").addEventListener("click", async () => {
 /* ---------- Abo Fenster ---------- */
 
 let aboWahl = "plus";
+// Jährlich ist vorgewählt. Es ist für beide Seiten die bessere Wahl, und wer
+// monatlich will, sieht den Schalter direkt darüber.
+let aboTakt = "jahr";
 
 function aboMerken(merken) {
   if (!merken) return;
@@ -4674,10 +4677,33 @@ function aboMerken(merken) {
   store.setSettings({ ...s, aboHinweise: { ...(s.aboHinweise || {}), ...merken } });
 }
 
+function aboTaktZeigen() {
+  const box = $("aboTakt");
+  box.innerHTML = "";
+  const ersparnis = Math.min(...ABO_STUFEN.map(ersparnisProzent));
+  for (const takt of ABO_TAKTE) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.setAttribute("role", "radio");
+    b.setAttribute("aria-checked", String(takt === aboTakt));
+    b.textContent = takt === "jahr" ? "Jährlich" : "Monatlich";
+    if (takt === "jahr") {
+      const marke = document.createElement("span");
+      marke.className = "abo-takt-marke";
+      marke.textContent = `${ersparnis} % sparen`;
+      b.append(marke);
+    }
+    b.addEventListener("click", () => { aboTakt = takt; aboStufenZeigen(); });
+    box.append(b);
+  }
+}
+
 function aboStufenZeigen() {
+  aboTaktZeigen();
   const box = $("aboStufen");
   box.innerHTML = "";
   for (const s of ABO_STUFEN) {
+    const p = aboPreis(s, aboTakt);
     const b = document.createElement("button");
     b.type = "button";
     b.className = "abo-stufe";
@@ -4686,8 +4712,13 @@ function aboStufenZeigen() {
     const name = document.createElement("b");
     name.textContent = s.name;
     const preis = document.createElement("span");
-    preis.textContent = `${s.preis} im Monat`;
+    preis.textContent = `${p.preis} ${p.zeitraum}`;
     b.append(name, preis);
+    if (p.zusatz) {
+      const zusatz = document.createElement("small");
+      zusatz.textContent = p.zusatz;
+      b.append(zusatz);
+    }
     b.addEventListener("click", () => { aboWahl = s.id; aboStufenZeigen(); });
     box.append(b);
   }
@@ -4699,12 +4730,15 @@ function aboStufenZeigen() {
     li.textContent = p;
     haken.append(li);
   }
-  const link = aboLink(aboWahl, store.getSettings().kontoId, KONFIG, istNativ());
-  $("aboKaufen").textContent = `${s.name} holen, ${s.preis} im Monat`;
+  const p = aboPreis(s, aboTakt);
+  const link = aboLink(aboWahl, store.getSettings().kontoId, KONFIG, istNativ(), aboTakt);
+  $("aboKaufen").textContent = `${s.name} holen, ${p.preis} ${p.zeitraum}`;
   $("aboKaufen").hidden = !link;
   $("aboHinweis").textContent = istNativ()
     ? "Der Kauf in der App kommt mit dem App Store. Bis dahin läuft alles ohne KI weiter."
-    : "Alles ohne KI bleibt in jeder Stufe frei: Essen eintragen, Pläne, Erinnerungen, Balance Board.";
+    : aboTakt === "jahr"
+      ? "Einmal im Jahr abgerechnet. Das Kontingent an Nachrichten gilt je Monat. Alles ohne KI bleibt in jeder Stufe frei."
+      : "Monatlich abgerechnet. Alles ohne KI bleibt in jeder Stufe frei: Essen eintragen, Pläne, Erinnerungen, Balance Board.";
 }
 
 function aboOeffnen(anlass = null) {
@@ -4729,7 +4763,7 @@ $("aboSpaeter").addEventListener("click", aboSchliessen);
 $("aboBlatt").addEventListener("click", (event) => { if (event.target === $("aboBlatt")) aboSchliessen(); });
 $("btnAboZeigen").addEventListener("click", () => aboOeffnen());
 $("aboKaufen").addEventListener("click", () => {
-  const link = aboLink(aboWahl, store.getSettings().kontoId, KONFIG, istNativ());
+  const link = aboLink(aboWahl, store.getSettings().kontoId, KONFIG, istNativ(), aboTakt);
   if (link) window.open(link, "_blank", "noopener");
   aboSchliessen();
 });

@@ -91,10 +91,14 @@ export function kontoText(stand) {
  * Was die Stufen kosten und was sie bringen. Die Grenzen selbst stehen auf
  * dem Server in `workers/push/src/konto.ts`, hier steht nur, was der Nutzer
  * liest. Ändert sich dort eine Zahl, ändert sie sich hier mit.
+ *
+ * Preise in Cent, damit die Ersparnis gerechnet und nicht abgeschrieben wird.
+ * Das Jahr kostet acht Monate: wer jährlich zahlt, bringt das Geld sofort und
+ * kündigt seltener, und dafür gibt es vier Monate geschenkt.
  */
 export const ABO_STUFEN = [
   {
-    id: "plus", name: "Plus", preis: "9,99 €",
+    id: "plus", name: "Plus", monatCent: 999, jahrCent: 7999,
     punkte: [
       "Dein Coach, der mitdenkt, plant und mit dir redet",
       "Fotos von Teller, Etikett und Kühlschrank auswerten",
@@ -103,7 +107,7 @@ export const ABO_STUFEN = [
     ],
   },
   {
-    id: "pro", name: "Pro", preis: "19,99 €",
+    id: "pro", name: "Pro", monatCent: 1999, jahrCent: 15999,
     punkte: [
       "Alles aus Plus",
       "2500 Nachrichten an die KI im Monat",
@@ -111,6 +115,36 @@ export const ABO_STUFEN = [
     ],
   },
 ];
+
+/** Die beiden Zahlweisen. `jahr` steht vorn, weil es die bessere Wahl ist. */
+export const ABO_TAKTE = ["jahr", "monat"];
+
+/** 1999 wird "19,99 €". */
+export function euro(cent) {
+  return `${Math.floor(cent / 100)},${String(cent % 100).padStart(2, "0")} €`;
+}
+
+/** Wie viel Prozent das Jahr gegen zwölf Monate spart, abgerundet. */
+export function ersparnisProzent(stufe) {
+  return Math.floor((1 - stufe.jahrCent / (stufe.monatCent * 12)) * 100);
+}
+
+/**
+ * Preis und Zeitraum für die Anzeige.
+ *
+ * Beim Jahr steht der Monatswert daneben, weil 79,99 neben 9,99 sonst teurer
+ * aussieht. Abgerundet: aufgerundet stünde dort ein Cent mehr, als es kostet.
+ */
+export function aboPreis(stufe, takt = "monat") {
+  if (takt === "jahr") {
+    return {
+      preis: euro(stufe.jahrCent),
+      zeitraum: "im Jahr",
+      zusatz: `${euro(Math.floor(stufe.jahrCent / 12))} im Monat`,
+    };
+  }
+  return { preis: euro(stufe.monatCent), zeitraum: "im Monat", zusatz: "" };
+}
 
 const TAG_MS = 86400000;
 
@@ -192,14 +226,18 @@ export function aboAnlassLeer(gezeigt = {}, jetzt = Date.now(), modus = "") {
  * Wohin der Knopf führt. Ein Zahlungslink des Betreibers, sonst eine Mail an
  * ihn mit der Kontokennung, damit er die Stufe von Hand setzen kann.
  *
+ * Je Stufe und Zahlweise ein eigener Link: `plusUrl` und `plusJahrUrl`. Fehlt
+ * der Link fürs Jahr, geht eine Mail raus, statt still den Monatslink zu
+ * öffnen. Wer jährlich wählt und monatlich abgebucht wird, fühlt sich betrogen.
+ *
  * In der iPhone App gibt es keinen Link: digitale Abos laufen dort über den
  * Kauf im App Store, und ein Weg daran vorbei kostet die Freigabe.
  */
-export function aboLink(stufe, kontoId, konfig = KONFIG, nativ = false) {
+export function aboLink(stufe, kontoId, konfig = KONFIG, nativ = false, takt = "monat") {
   if (nativ) return null;
   const s = ABO_STUFEN.find((x) => x.id === stufe);
   if (!s) return null;
-  const url = konfig.abo?.[`${stufe}Url`];
+  const url = konfig.abo?.[takt === "jahr" ? `${stufe}JahrUrl` : `${stufe}Url`];
   if (url) {
     const u = new URL(url);
     // Stripe ordnet die Zahlung darüber dem Konto zu.
@@ -208,8 +246,9 @@ export function aboLink(stufe, kontoId, konfig = KONFIG, nativ = false) {
   }
   const mail = konfig.angebot?.mail;
   if (!mail) return null;
-  const betreff = encodeURIComponent(`daevo ${s.name}`);
-  const text = encodeURIComponent(`Hallo, ich möchte daevo ${s.name} für ${s.preis} im Monat.\n\nMeine Konto-ID: ${kontoId || "unbekannt"}`);
+  const { preis, zeitraum } = aboPreis(s, takt);
+  const betreff = encodeURIComponent(`daevo ${s.name} ${takt === "jahr" ? "jährlich" : "monatlich"}`);
+  const text = encodeURIComponent(`Hallo, ich möchte daevo ${s.name} für ${preis} ${zeitraum}.\n\nMeine Konto-ID: ${kontoId || "unbekannt"}`);
   return `mailto:${mail}?subject=${betreff}&body=${text}`;
 }
 

@@ -674,3 +674,12 @@ test("der Regelweg ändert einen Mindeststandard aus einem Satz", async () => {
   assert.deepEqual(log, ["standard-satz:handy_aus:woechentlich:3:23:00"]);
   assert.deepEqual(reply.ausgeführt, ["Mindeststandard geändert"]);
 });
+
+test("eine abgelehnte Anfrage bekommt einen Satz statt einer leeren Blase", async () => {
+  // Die aktuellen Modelle antworten auf eine Ablehnung mit Status 200,
+  // stop_reason refusal und oft ohne Text.
+  const provider = new ScriptedProvider([{ content: [], stopReason: "refusal" }]);
+  const reply = await new Agent(provider).respond({ nachricht: "Hi", verlauf: LEER, kontext: KONTEXT, aktionen: stubActions([]) });
+  assert.match(reply.text, /anders/);
+  assert.equal(reply.source, "model");
+});

@@ -112,7 +112,7 @@ function provider() {
     kontoToken: ueberServer ? kontoToken : undefined,
     // Rückfallmodell. Welches Modell eine einzelne Nachricht wirklich
     // bekommt, entscheidet der Agent je Modus und überschreibt das hier.
-    model: settings.model || "claude-opus-5",
+    model: settings.model || "claude-sonnet-5-5",
     // Der Kopf für den Direktzugriff aus dem Browser gehört nur auf den
     // direkten Weg. Über den eigenen Server wäre er sinnlos und irreführend.
     browserAccess: !ueberServer,

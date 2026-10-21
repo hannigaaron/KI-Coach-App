@@ -228,12 +228,12 @@ Der erkannte Modus wählt jetzt auch das Modell, nicht nur die Denktiefe.
 
 | Modus | Modell | Warum |
 | --- | --- | --- |
-| erfassen | Haiku 4.5 | Eine Menge aus einem Satz lesen und ein Werkzeug rufen |
-| standard | Sonnet 5 | Smalltalk soll trotzdem nach dem Coach klingen |
-| coaching | Sonnet 5 | Fachfragen sitzen im Wissen, nicht in der Denktiefe |
-| psyche | Opus 5 | Hier entscheidet sich, ob die App etwas wert ist |
-| planung | Opus 5 | Geld und Zeit, Fehler kosten echtes Geld |
-| Bilder | Opus 5 | Die Mengenschätzung landet direkt in den Tagesdaten |
+| erfassen | Haiku 5.5 | Eine Menge aus einem Satz lesen und ein Werkzeug rufen |
+| standard | Sonnet 5.5 | Smalltalk soll trotzdem nach dem Coach klingen |
+| coaching | Sonnet 5.5 | Fachfragen sitzen im Wissen, nicht in der Denktiefe |
+| psyche | Opus 5.5 | Hier entscheidet sich, ob die App etwas wert ist |
+| planung | Opus 5.5 | Geld und Zeit, Fehler kosten echtes Geld |
+| Bilder | Opus 5.5 | Die Mengenschätzung landet direkt in den Tagesdaten |
 
 Gerechnet auf einen Tag mit acht Erfassungen, fünf Fachfragen und zwei
 persönlichen Gesprächen: etwa 75 Cent auf Opus für alles, etwa 35 Cent nach
@@ -241,10 +241,11 @@ dieser Tabelle.
 
 Zwei Dinge, die dabei zu beachten sind:
 
-Haiku 4.5 lehnt `output_config.effort` mit einem Fehler ab. Die Tabelle in
-`packages/coach/src/modelle.ts` führt deshalb je Modell, ob es die Angabe
-verträgt, und der Anbieter lässt das Feld sonst ganz weg. Ein Test prüft das,
-weil sonst jede einzelne Erfassung mit einem 400 scheitern würde.
+Opus 5.5 und Sonnet 5.5 lehnen ein erzwungenes Werkzeug mit einem 400 ab,
+Haiku 5.5 nimmt es an. Die Tabelle in `packages/coach/src/modelle.ts` führt
+deshalb je Modell `kannErzwingen`, und wo es fehlt, steht die Pflicht zum
+Werkzeug im Prompt. Ein Test prüft das, weil sonst jedes Foto und jede
+Mahlzeit über das Modell mit einem 400 scheitern würde.
 
 Der Zwischenspeicher gilt je Modell. Wer zwischen Modellen wechselt, hält
 mehrere Speicher warm statt einen. Das kostet etwas von der Ersparnis zurück,

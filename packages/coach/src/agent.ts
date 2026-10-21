@@ -2,7 +2,7 @@ import { erinnerungAus, planAenderungAus, ARTEN } from "@daevo/core";
 import type { PlanAenderung, TrainingType } from "@daevo/core";
 import { fehlerErklaerung } from "./fehler.js";
 import { AGENT_TOOLS } from "./tools.js";
-import { modellFuer } from "./modelle.js";
+import { modellFuer, SONNET } from "./modelle.js";
 import { systemBloecke, type Modus } from "./persona.js";
 import { anhangBlock, ohneKaputteDenkbloecke, type Anhang, type ChatMessage, type CoachProvider, type ContentBlock } from "./provider.js";
 
@@ -252,6 +252,17 @@ export class Agent {
         (block): block is Extract<ContentBlock, { type: "tool_use" }> => block.type === "tool_use",
       );
 
+      // Die aktuellen Modelle können eine Anfrage ablehnen. Dann kommt
+      // Status 200 mit stop_reason refusal und oft ohne Text. Eine leere
+      // Blase sähe aus wie eine hängende App.
+      if (response.stopReason === "refusal") {
+        const text = textOf(response.content);
+        return {
+          text: text || "Darauf kann ich so nicht antworten. Formulier es bitte anders, dann versuche ich es nochmal.",
+          ausgeführt,
+          source: "model",
+        };
+      }
       if (toolUses.length === 0 || response.stopReason !== "tool_use") {
         return { text: textOf(response.content), ausgeführt, source: "model" };
       }
@@ -453,7 +464,7 @@ export function tiefeAnheben(tiefe: Tiefe, tempo: Tempo | boolean): Tiefe {
 export function modellFuerTempo(modus: Modus, tempo: Tempo | boolean): string | null {
   const stufe: Tempo = typeof tempo === "boolean" ? (tempo ? "gruendlich" : "normal") : tempo;
   if (stufe !== "schnell") return null;
-  if (modus === "planung") return "claude-sonnet-5";
+  if (modus === "planung") return SONNET;
   return null;
 }
 

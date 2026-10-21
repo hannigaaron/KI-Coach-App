@@ -11,6 +11,8 @@
   },
   "abo": {
     "plusUrl": "",
-    "proUrl": ""
+    "plusJahrUrl": "",
+    "proUrl": "",
+    "proJahrUrl": ""
   }
 }

@@ -3276,6 +3276,23 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
   content: ""; flex: none; width: 13px; height: 7px; margin-top: 6px;
   border-left: 2px solid #96d8f0; border-bottom: 2px solid #96d8f0; border-radius: 1px; transform: rotate(-45deg);
 }
+/* Die Zahlweise als Mulde mit erhobenem Reiter, wie der Umschalter oben in
+   der App. Eine zweite Reihe Karten über den Stufen läse sich als vier
+   Angebote statt als zwei Angebote in zwei Zahlweisen. */
+.abo-takt {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin-top: 4px;
+  border-radius: 999px; background: rgba(255, 255, 255, .06);
+}
+.abo-takt button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap;
+  min-height: 44px; padding: 6px 8px; border: 0; border-radius: 999px; cursor: pointer;
+  background: none; color: rgba(255, 255, 255, .72); font-size: 14px; font-weight: 600;
+}
+.abo-takt button[aria-checked="true"] { background: rgba(255, 255, 255, .14); color: #ffffff; }
+.abo-takt-marke {
+  font-size: 11px; font-weight: 600; color: #0b0d10; background: #96d8f0;
+  padding: 2px 7px; border-radius: 999px; white-space: nowrap;
+}
 .abo-wahl { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
 .abo-stufe {
   display: grid; gap: 2px; text-align: left; cursor: pointer; padding: 14px 16px; border: 0;
@@ -3285,6 +3302,7 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 .abo-stufe[aria-checked="true"] { box-shadow: inset 0 0 0 2px #96d8f0; background: rgba(150, 216, 240, .1); }
 .abo-stufe b { font-family: var(--schrift-display); font-weight: 600; font-size: 17px; }
 .abo-stufe span { font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, .72); font-size: 14px; }
+.abo-stufe small { font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, .55); font-size: 13px; }
 .abo-knopf {
   margin-top: 6px; width: 100%; padding: 18px 20px; border: 0; border-radius: 999px; cursor: pointer;
   font-family: var(--schrift-display); font-weight: 600; font-size: 18px; color: #0b0d10;

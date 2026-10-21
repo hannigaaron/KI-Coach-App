@@ -95,7 +95,10 @@ export async function einstufeAufgabe(
       user: teile,
       schema: SCHEMA as unknown as Record<string, unknown>,
       schemaName: "aufgabe_einstufen",
-      maxTokens: 512,
+      // Das Denken lässt sich nicht mehr abschalten und zählt mit. 512 Token
+      // reichten für die Einstufung allein, nicht für Denken und Einstufung.
+      maxTokens: 1024,
+      effort: "low",
       modell: kontext.modell,
     });
     return {
