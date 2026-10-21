@@ -82,6 +82,13 @@ export interface LueckenLage {
   geplanteEinheiten: number;
   /** Wann zuletzt nach dem Grund gefragt wurde, JJJJ-MM-TT. */
   zuletztGefragt?: string | null;
+  /**
+   * Ob Trainings automatisch ankommen, über Apple Health von der Uhr oder
+   * aus Apple Fitness. Ohne das fragt die App nie: wer daevo nicht zum
+   * Trainieren benutzt, trainiert trotzdem, und eine Frage nach einer Lücke,
+   * die es nicht gibt, ist ein Vorwurf. Genau das ist im Betrieb passiert.
+   */
+  automatischErfasst?: boolean;
 }
 
 export interface Trainingsluecke {
@@ -102,6 +109,7 @@ export interface Trainingsluecke {
  * "zu wenig Daten" unterscheiden müsste, hätte davon nichts.
  */
 export function trainingslueckeFinden(lage: LueckenLage): Trainingsluecke | null {
+  if (lage.automatischErfasst !== true) return null;
   if (lage.geplanteEinheiten < 1) return null;
 
   const heute = tagIndex(lage.heute);

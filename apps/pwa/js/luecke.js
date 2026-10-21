@@ -42,6 +42,29 @@ export function naechsterZeitpunkt(jetzt = new Date()) {
  * leerer Tag ist ein Tag ohne Training, und einer, der gar nicht existiert,
  * auch. Die Unterscheidung wäre hier ohne Wert.
  */
+/** So alt darf der letzte Abgleich mit Apple Health sein, damit er als verbunden gilt. */
+export const HEALTH_FRISCH_TAGE = 3;
+
+/**
+ * Ob Trainings automatisch ankommen. Zwei Bedingungen: der Abgleich mit
+ * Apple Health lief in den letzten drei Tagen, und in den letzten 60 Tagen
+ * kam mindestens ein Training aus Health. Das zweite zeigt, dass Uhr oder
+ * Apple Fitness Trainings wirklich aufzeichnen. Eine Verbindung, die nur
+ * Schritte liefert, sagt über Training nichts.
+ *
+ * Ohne das fragte die App jeden, der irgendwann einmal ein Training
+ * eingetragen hatte, nach vier Tagen, was dazwischen gekommen sei. Auch den,
+ * der jeden Tag trainiert und es nur nicht in daevo einträgt.
+ */
+export function trainingAutomatischErfasst(store, heute = new Date().toISOString().slice(0, 10)) {
+  const stand = store.getSettings()?.healthNativ?.at;
+  if (!stand) return false;
+  const alter = (Date.parse(`${heute}T12:00:00Z`) - Date.parse(stand)) / 86_400_000;
+  if (!(alter <= HEALTH_FRISCH_TAGE)) return false;
+  const grenze = new Date(Date.parse(`${heute}T12:00:00Z`) - 60 * 86_400_000).toISOString().slice(0, 10);
+  return store.allDays().some((tag) => tag >= grenze && (store.getDay(tag).trainings || []).some((t) => t?.quelle === "health"));
+}
+
 export function lueckeAusSpeicher(store, heute = new Date().toISOString().slice(0, 10)) {
   const tage = {};
   for (const tag of store.allDays()) tage[tag] = store.getDay(tag);
@@ -52,6 +75,7 @@ export function lueckeAusSpeicher(store, heute = new Date().toISOString().slice(
     heute,
     geplanteEinheiten: Array.isArray(profil?.sessions) ? profil.sessions.length : 0,
     zuletztGefragt: einstellungen?.lueckeGefragt ?? null,
+    automatischErfasst: trainingAutomatischErfasst(store, heute),
   });
 }
 

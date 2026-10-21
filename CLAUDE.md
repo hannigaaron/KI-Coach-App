@@ -420,7 +420,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1140 Tests
+npm test           # 1144 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1797,7 +1797,18 @@ mehr.
 Gefragt wird nicht, warum jemand nicht trainiert hat. Das ist ein Vorwurf und
 erzeugt eine Rechtfertigung. Gefragt wird nach dem, was dazwischen kam.
 
-Drei Bedingungen, und jede einzelne verhindert die Frage. Ohne Trainingsplan im
+Gefragt wird nur, wenn Trainings automatisch ankommen,
+`trainingAutomatischErfasst` in `luecke.js`: der Abgleich mit Apple Health
+lief in den letzten drei Tagen, und in den letzten 60 Tagen kam mindestens
+ein Training aus Health, also von der Uhr oder aus Apple Fitness. Vorher
+reichte ein einziges Training, das irgendwann in daevo stand. Der Betreiber
+trainiert täglich und trägt es nicht in daevo ein, und die App fragte ihn
+nach vier Tagen, was dazwischen gekommen sei. Eine Frage nach einer Lücke,
+die es nicht gibt, ist ein Vorwurf. Im Browser und in der Demo gibt es
+HealthKit nicht, dort kommt die Frage deshalb nie. Eine schon geplante
+Frage fällt mit weg, `lueckeFuerPlan`.
+
+Dazu drei Bedingungen, und jede einzelne verhindert die Frage. Ohne Trainingsplan im
 Profil weiss die App nicht, was überhaupt geplant war. Ohne ein einziges
 Training in den letzten 60 Tagen ist es keine Lücke, sondern keine Datenlage,
 und eine Frage nach einer Lücke setzt voraus, dass es vorher keine war. Nach

@@ -14,7 +14,7 @@
  * Kein `document`, kein `window`: das Modul läuft auch in den Tests.
  */
 import { LUECKE_UHRZEIT, NACHFRAGE_UHRZEIT, erinnerungAmTag, erinnerungUhrzeit, impulseFuerTag, morgenUhrzeit, nachfrageNoetig, tagesrandFuer } from "@daevo/core";
-import { lueckeAusSpeicher } from "./luecke.js";
+import { lueckeAusSpeicher, trainingAutomatischErfasst } from "./luecke.js";
 
 export const MAX_GEPLANT = 60;
 
@@ -123,6 +123,8 @@ export function mitteilungsPlan({ store, jetzt, luecke = null }) {
  * Öffnen am selben Tag heraus, denn dann gilt sie als schon gefragt.
  */
 export function lueckeFuerPlan(store, heute) {
+  // Eine schon geplante Frage fällt ebenfalls weg, wenn die Verbindung fehlt.
+  if (!trainingAutomatischErfasst(store, heute)) return null;
   const neu = lueckeAusSpeicher(store, heute);
   if (neu) {
     store.setSettings({ ...store.getSettings(), lueckeGefragt: heute, lueckeGeplant: { tag: heute, titel: neu.titel, text: neu.text } });
