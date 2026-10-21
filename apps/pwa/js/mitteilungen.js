@@ -13,7 +13,7 @@
  *
  * Kein `document`, kein `window`: das Modul läuft auch in den Tests.
  */
-import { LUECKE_UHRZEIT, erinnerungAmTag, erinnerungUhrzeit, impulseFuerTag, morgenUhrzeit, tagesrandFuer } from "@daevo/core";
+import { LUECKE_UHRZEIT, NACHFRAGE_UHRZEIT, erinnerungAmTag, erinnerungUhrzeit, impulseFuerTag, morgenUhrzeit, nachfrageNoetig, tagesrandFuer } from "@daevo/core";
 import { lueckeAusSpeicher } from "./luecke.js";
 
 export const MAX_GEPLANT = 60;
@@ -70,6 +70,14 @@ export function mitteilungsPlan({ store, jetzt, luecke = null }) {
       // Eine halbe Stunde nach der Aufstehzeit dieses Tages. Ist der
       // Check-in heute schon gemacht, kommt die Mitteilung nicht.
       const gemacht = i === 0 && (store.getDay(tag).checkins || []).some((c) => c.kind === "morning" && c.morgen);
+      // Morgens Fitheit 1 oder 2: mittags fragt daevo nach, ob trainiert wird.
+      const heuteMorgen = i === 0 ? (store.getDay(tag).checkins || []).filter((c) => c.kind === "morning" && c.morgen).pop() : null;
+      if (heuteMorgen && !heuteMorgen.nachgefragt && nachfrageNoetig(heuteMorgen.morgen)) {
+        plan.push({
+          id: `nachfrage-${tag}`, tag, uhrzeit: NACHFRAGE_UHRZEIT,
+          titel: "Wie geht es dir jetzt?", text: "Heute Morgen ging es dir nicht gut. Davon hängt ab, ob du heute trainierst.", art: "nachfrage",
+        });
+      }
       if (!gemacht) {
         plan.push({
           id: `morgen-${tag}`, tag, uhrzeit: morgenUhrzeit(tagesrandFuer(profil, tag).wakeTime),

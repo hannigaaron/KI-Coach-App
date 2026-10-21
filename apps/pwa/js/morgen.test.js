@@ -13,7 +13,7 @@ class SpeicherAttrappe {
 globalThis.localStorage = new SpeicherAttrappe();
 
 const { store } = await import("./storage.js");
-const { ergebnisHtml, fragenHtml, morgenFaellig, morgenSpeichern, morgenVonHeute, trainingHeute } = await import("./morgen.js");
+const { ergebnisHtml, fragenHtml, morgenFaellig, morgenSpeichern, morgenVonHeute, nachfrageFaellig, nachfrageSpeichern, trainingGestrichen, trainingHeute } = await import("./morgen.js");
 const { mitteilungsPlan } = await import("./mitteilungen.js");
 
 // Ein Mittwoch.
@@ -80,4 +80,29 @@ test("Die Mitteilung kommt zur Aufstehzeit plus 30 Minuten, nicht nach einem erl
   const danach = mitteilungsPlan({ store, jetzt: { tag: HEUTE, uhrzeit: "05:00" } });
   assert.ok(!danach.some((x) => x.art === "morgen" && x.tag === HEUTE));
   assert.ok(danach.some((x) => x.art === "morgen" && x.tag === "2026-10-22"));
+});
+
+test("Nach Fitheit 2 kommt mittags die Nachfrage, und weiter 2 streicht das Training", () => {
+  frisch();
+  morgenSpeichern(store, HEUTE, { schlaf: 4, einschlafen: 4, erholt: 4, gesund: 2 });
+  assert.equal(nachfrageFaellig(store, { tag: HEUTE, uhrzeit: "11:00" }), false);
+  assert.equal(nachfrageFaellig(store, { tag: HEUTE, uhrzeit: "12:30" }), true);
+  assert.equal(nachfrageFaellig(store, { tag: HEUTE, uhrzeit: "20:30" }), false);
+  const m = mitteilungsPlan({ store, jetzt: { tag: HEUTE, uhrzeit: "09:00" } }).find((x) => x.art === "nachfrage");
+  assert.equal(m.uhrzeit, "12:30");
+  const r = nachfrageSpeichern(store, HEUTE, 2);
+  assert.equal(r.gestrichen, true);
+  assert.ok(trainingGestrichen(store, HEUTE));
+  assert.equal(nachfrageFaellig(store, { tag: HEUTE, uhrzeit: "13:00" }), false);
+  assert.ok(!mitteilungsPlan({ store, jetzt: { tag: HEUTE, uhrzeit: "09:00" } }).some((x) => x.art === "nachfrage"));
+  // Besser geworden: wieder frei.
+  assert.equal(nachfrageSpeichern(store, HEUTE, 4).gestrichen, false);
+  assert.ok(!trainingGestrichen(store, HEUTE));
+});
+
+test("Ohne schwachen Morgen keine Nachfrage", () => {
+  frisch();
+  morgenSpeichern(store, HEUTE, { schlaf: 4, einschlafen: 4, erholt: 4, gesund: 3 });
+  assert.equal(nachfrageFaellig(store, { tag: HEUTE, uhrzeit: "13:00" }), false);
+  assert.ok(!mitteilungsPlan({ store, jetzt: { tag: HEUTE, uhrzeit: "09:00" } }).some((x) => x.art === "nachfrage"));
 });

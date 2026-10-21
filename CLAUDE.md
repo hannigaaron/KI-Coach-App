@@ -420,7 +420,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1136 Tests
+npm test           # 1140 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -644,9 +644,25 @@ eine Regel der App. Daraus die Belastbarkeit: ab 75 hoch, ab 55 normal, ab
 50 reduziert, darunter niedrig. Niedrig heisst Krafttraining nur leicht und
 nur, wenn man sich fit genug fühlt: die Hälfte der Sätze, 2 bis 3
 Wiederholungen im Tank, und wenn das Aufwärmen sich schlecht anfühlt, gar
-nicht. Fitness 1 heisst schonen, und das Training ist gestrichen, egal wie
-gut die Nacht war. Fitness 2 und 3 deckeln auf reduziert, ebenso unter
-sechs Stunden Schlaf laut Apple Health (Craven und andere 2022). Reduziert
+nicht. Fitheit 1 heisst schonen, egal wie gut die Nacht war, Fitheit 2
+deckelt auf reduziert, ebenso unter sechs Stunden Schlaf laut Apple Health
+(Craven und andere 2022). Fitheit 3 deckelt nichts.
+
+Bei Fitheit 1 oder 2 entscheidet der Morgen nicht über das Training. Es ist
+ausgesetzt, und um 12:30 fragt daevo nach, `NACHFRAGE_UHRZEIT`: nativ als
+Mitteilung der Art `nachfrage`, im Browser öffnet sich das Blatt beim
+ersten Öffnen zwischen 12:30 und 20 Uhr. Ein Infekt zeigt sich oft erst im
+Lauf des Vormittags, eine schlechte Nacht ist mittags oft vorbei. Ab 3 ist
+das Training frei, höchstens reduziert, weil der Morgen schwach war. Bleibt
+es bei 1 oder 2, ist es gestrichen, `trainingGestrichen` am Check-in, und
+der Tag gehört der Erholung: Ruhe, Vitamin C aus dem Essen, Zink als
+Lutschtablette ab dem ersten Tag (Hemilä, JRSM Open 2017), Vitamin C
+regelmässig (Hemilä und Chalker, Cochrane 2013), früh ins Bett, Stress
+schieben. Statt des Morgenwerts steht dann "Ruhetag", denn eine 56 neben
+"Schonen" widerspricht sich. Der Trainingsmodus startet an so einem Tag
+nicht, und `trainingsplan_abrufen` sagt dem Coach, dass gestrichen ist. Wer
+sich besser fühlt, beantwortet unter Check-ins die Nachfrage neu, dann ist
+das Training wieder frei. Reduziert
 heisst drei Viertel der Sätze, 1 bis 2 Wiederholungen im Tank, nicht bis
 ans Muskelversagen. Die Grenzen sind Regeln von Coach Aaron. Das geplante
 Training kommt aus dem Wochenplan mit dem Titel der Einheit aus dem

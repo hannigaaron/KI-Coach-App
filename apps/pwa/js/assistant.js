@@ -2954,6 +2954,12 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
         return `${wann}, ${WEEKDAYS[wochentag]}, steht kein Training in deinem Wochenplan. Ein Ruhetag gehört zum Plan.`;
       }
       const zeilen = [`${wann}, ${WEEKDAYS[wochentag]}: ` + heute.map((s) => `${TYP_LABEL[s.type] || s.type} um ${s.startsAt}, ${s.minutes} Minuten`).join(", ") + "."];
+      // Nach der Nachfrage am Mittag mit Fitheit 1 oder 2 ist das Training gestrichen.
+      const morgens = inTagen === 0 ? (store.getDay(todayIso()).checkins || []).filter((c) => c.kind === "morning" && c.morgen).pop() : null;
+      if (morgens?.trainingGestrichen) {
+        zeilen.push(`Heute gestrichen: du hast dich auch mittags nur bei ${morgens.nachgefragt?.gesund ?? morgens.morgen.gesund} von 5 gefühlt. Der Tag gehört der Erholung.`);
+        return zeilen.join("\n");
+      }
       // Welche Einheit des gespeicherten Plans dran ist: die Krafttage der
       // Woche der Reihe nach, Montag zuerst, und die Einheiten A, B, C im
       // Wechsel darüber. Das ist dieselbe Zuordnung wie im Kalender.

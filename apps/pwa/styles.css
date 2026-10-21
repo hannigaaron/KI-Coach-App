@@ -3489,6 +3489,8 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 .mg-wert { display: flex; align-items: baseline; gap: var(--s-2); margin-top: var(--s-2); }
 .mg-wert b { font-family: var(--schrift-display); font-size: 56px; line-height: 1; font-weight: 600; letter-spacing: -0.02em; }
 .mg-wert span { color: var(--muted); }
+.mg-wert b.mg-wort { font-size: var(--t-xl); }
+.mg-nachfrage { margin: 0 0 var(--s-4); color: var(--muted); font-size: var(--t-sm); }
 .mg-hoch b { color: var(--good); }
 .mg-normal b { color: var(--accent-text); }
 .mg-reduziert b, .mg-niedrig b { color: var(--warn); }

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { aufZehn, morgenAuswerten, morgenText, morgenUhrzeit, morgenVollstaendig, morgenWert } from "./morgencheck.js";
+import { aufZehn, morgenAuswerten, morgenText, morgenUhrzeit, morgenVollstaendig, morgenWert, nachfrageAuswerten } from "./morgencheck.js";
 
 const alle = (v: number) => ({ schlaf: v, einschlafen: v, erholt: v, gesund: v });
 const kraft = [{ art: "strength", minuten: 60, uhrzeit: "18:00", titel: "Ganzkörper A" }];
@@ -33,17 +33,18 @@ test("Ein guter Morgen gibt hohe Belastbarkeit und Training wie geplant", () => 
   assert.ok(r.tipps.length >= 1 && r.tipps.length <= 3);
 });
 
-test("Krank schlägt jeden guten Schlaf, das Training fällt aus", () => {
+test("Krank schlägt jeden guten Schlaf, das Training ist bis mittags ausgesetzt", () => {
   const r = morgenAuswerten({ antworten: { schlaf: 5, einschlafen: 5, erholt: 5, gesund: 1 }, training: kraft });
   assert.equal(r.belastbarkeit, "schonen");
-  assert.ok(r.training[0]!.includes("gestrichen"));
+  assert.ok(r.nachfrage);
+  assert.ok(r.training[0]!.includes("ausgesetzt") && r.training[0]!.includes("12:30"));
   assert.ok(r.tipps.some((t) => t.includes("Arzt")));
 });
 
-test("Nicht ganz gesund deckelt auf reduziert", () => {
+test("Fitheit 2 deckelt auf reduziert und fragt mittags nach", () => {
   const r = morgenAuswerten({ antworten: { schlaf: 5, einschlafen: 5, erholt: 5, gesund: 2 }, training: kraft });
   assert.equal(r.belastbarkeit, "reduziert");
-  assert.ok(r.training[0]!.includes("drei Viertel"));
+  assert.ok(r.nachfrage);
 });
 
 test("Kurzer Schlaf laut Uhr deckelt auf reduziert", () => {
@@ -72,15 +73,32 @@ test("Unter 50 heisst nur leicht und nur, wenn man sich fit genug fühlt", () =>
   assert.ok(!r.training[0]!.includes("gestrichen"));
 });
 
-test("Fitness 1 streicht das Training, 2 und 3 passen es an", () => {
-  for (const gesund of [2, 3]) {
-    const r = morgenAuswerten({ antworten: { schlaf: 5, einschlafen: 5, erholt: 5, gesund }, training: kraft });
-    assert.equal(r.belastbarkeit, "reduziert", String(gesund));
-    assert.ok(r.training[0]!.includes("1 bis 2 Wiederholungen im Tank") && r.training[0]!.includes("Muskelversagen"));
+test("Fitheit 3 deckelt nicht mehr", () => {
+  const r = morgenAuswerten({ antworten: { schlaf: 5, einschlafen: 5, erholt: 5, gesund: 3 }, training: kraft });
+  assert.equal(r.belastbarkeit, "hoch");
+  assert.ok(!r.nachfrage);
+});
+
+test("Mittags 3 oder besser: Training frei, mit angepasster Last", () => {
+  const e = { antworten: { schlaf: 4, einschlafen: 4, erholt: 4, gesund: 2 }, training: kraft };
+  const r = nachfrageAuswerten(e, 3);
+  assert.equal(r.gestrichen, false);
+  assert.equal(r.belastbarkeit, "reduziert");
+  assert.ok(r.training[0]!.includes("1 bis 2 Wiederholungen im Tank") && r.training[0]!.includes("Muskelversagen"));
+  assert.ok(r.warum.includes("Besser als heute Morgen"));
+});
+
+test("Mittags weiter 1 oder 2: Training gestrichen, Fokus auf Erholung", () => {
+  for (const jetzt of [1, 2]) {
+    const r = nachfrageAuswerten({ antworten: { schlaf: 4, einschlafen: 4, erholt: 4, gesund: 2 }, training: kraft, schlafenszeit: "23:00" }, jetzt);
+    assert.equal(r.gestrichen, true);
+    assert.equal(r.belastbarkeit, "schonen");
+    assert.ok(r.training[0]!.includes("gestrichen"));
+    const alle = r.tipps.join(" ");
+    for (const wort of ["Ruhe", "Vitamin C", "Zink", "früh ins Bett", "stresst"]) assert.ok(alle.includes(wort), wort);
+    assert.ok(alle.includes("22:30"));
+    assert.ok(!/[–—]/.test(alle));
   }
-  const krank = morgenAuswerten({ antworten: { schlaf: 5, einschlafen: 5, erholt: 5, gesund: 1 }, training: kraft });
-  assert.equal(krank.belastbarkeit, "schonen");
-  assert.ok(krank.training[0]!.includes("gestrichen"));
 });
 
 test("Tageslicht mit Lampe als Ausweichweg, und L-Theanin statt spätem Kaffee", () => {

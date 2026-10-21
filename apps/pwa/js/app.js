@@ -22,7 +22,7 @@ import { KONFIG, istDemo, istNativ } from "./konfig.js";
 import { uebungenStarten } from "./uebungen.js";
 import { planFuer as uebungsplanFuer, plaeneStarten } from "./plaene.js";
 import { trainingStarten } from "./training.js";
-import { morgenStarten } from "./morgen.js";
+import { morgenStarten, morgenVonHeute, trainingGestrichen } from "./morgen.js";
 import {
   antwortVerarbeiten, antwortenAbholen, lueckeAusSpeicher, lueckeMelden,
   schieflageAusSpeicher, schieflageMelden,
@@ -2740,7 +2740,15 @@ const plaene = plaeneStarten({
   speicher: planSpeicher,
   oeffne: (id) => uebungen.oeffne(id),
   melde: (text) => toast(text),
-  starte: (ei) => training.starten(ei),
+  // Gestrichen heisst gestrichen. Wer sich besser fühlt, sagt es im
+  // Check-in, dann ist das Training wieder frei.
+  starte: (ei) => {
+    if (trainingGestrichen(store, todayIso())) {
+      toast("Heute ist dein Training gestrichen, der Tag gehört der Erholung. Geht es dir besser, sag es unter Check-ins.", 5000);
+      return;
+    }
+    training.starten(ei);
+  },
   log: trainingslog,
   heute: todayIso,
 });
@@ -4654,7 +4662,9 @@ document.addEventListener("visibilitychange", () => {
 
 const morgen = morgenStarten({
   store, heute: todayIso, melde: (text) => toast(text),
-  gespeichert: () => refreshAll(),
+  // Neu planen: nach Fitheit 1 oder 2 kommt die Nachfrage am Mittag dazu,
+  // nach der Nachfrage fällt sie wieder weg.
+  gespeichert: () => { refreshAll(); mitteilungenNativ(); },
 });
 
 /**
@@ -4666,9 +4676,15 @@ function morgenVielleicht() {
   if ($("app").hidden || !store.getSettings().einfuehrungGesehen) return;
   if (document.querySelector(".blatt:not([hidden])")) return;
   const d = new Date();
-  morgen.vielleicht({ tag: todayIso(d), uhrzeit: `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}` });
+  const jetzt = { tag: todayIso(d), uhrzeit: `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}` };
+  if (!morgen.vielleicht(jetzt)) morgen.nachfrageVielleicht(jetzt);
 }
-$("btnMorgenCheckin").addEventListener("click", () => morgen.oeffnen());
+// Nach einem schwachen Morgen führt der Knopf zur Nachfrage. So lässt sich
+// ein gestrichenes Training wieder freigeben, wenn es einem besser geht.
+$("btnMorgenCheckin").addEventListener("click", () => {
+  const c = morgenVonHeute(store, todayIso());
+  if (c && c.morgen.gesund <= 2) morgen.nachfrage(); else morgen.oeffnen();
+});
 
 /* ---------- Eigene Erinnerungen ---------- */
 
@@ -4941,6 +4957,7 @@ function impulsOeffnen(daten) {
   const art = daten?.art;
   if (!art) return;
   if (art === "morgen") { morgen.oeffnen(); return; }
+  if (art === "nachfrage") { morgen.nachfrage(); return; }
   showView("assistant");
   const impuls = impulseFuerTag(todayIso()).find((i) => i.art === art);
   if (!impuls) return;

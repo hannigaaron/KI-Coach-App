@@ -77,7 +77,21 @@ export interface MorgenErgebnis {
   tipps: string[];
   /** Für den bestehenden Check-in und die Bereitschaft, auf der Skala 1 bis 10. */
   alsZehner: { sleepQuality: number; energy: number };
+  /** Bei Fitheit 1 oder 2: mittags wird nachgefragt, und erst dann entscheidet sich das Training. */
+  nachfrage: boolean;
+  /** Nach der Nachfrage: ob das Training an diesem Tag gestrichen ist. */
+  gestrichen?: boolean;
 }
+
+/**
+ * Wann nachgefragt wird, wenn es morgens nicht gut aussah. Mittags, weil
+ * sich bis dahin zeigt, ob es eine schlechte Nacht war oder ein Infekt, und
+ * weil die meisten danach erst trainieren. Eine Regel der App.
+ */
+export const NACHFRAGE_UHRZEIT = "12:30";
+
+/** Ob morgens so wenig Fitheit angegeben wurde, dass mittags nachgefragt wird. */
+export const nachfrageNoetig = (a: Pick<MorgenAntworten, "gesund">) => a.gesund <= 2;
 
 /** Ob alle vier Antworten da und gültig sind. */
 export function morgenVollstaendig(a: Partial<MorgenAntworten> | null | undefined): a is MorgenAntworten {
@@ -133,7 +147,7 @@ export function morgenAuswerten(e: MorgenEingabe): MorgenErgebnis {
   // Mittelwert würde das verstecken. Das Training wird gestrichen.
   // Bei 2 und 3 wird angepasst und nicht gestrichen.
   if (a.gesund === 1) { b = "schonen"; gruende.push("du dich krank fühlst"); }
-  else if (a.gesund <= 3) { b = hoechstens(b, "reduziert"); gruende.push("du dich nicht ganz fit fühlst"); }
+  else if (a.gesund === 2) { b = hoechstens(b, "reduziert"); gruende.push("du dich nicht ganz fit fühlst"); }
 
   // Unter sechs Stunden laut Uhr, Craven und andere, Sports Medicine 2022.
   const kurz = e.schlafMinuten !== null && e.schlafMinuten !== undefined && e.schlafMinuten > 0 && e.schlafMinuten < 360;
@@ -145,12 +159,73 @@ export function morgenAuswerten(e: MorgenEingabe): MorgenErgebnis {
 
   const warum = gruende.length ? `Weil ${verbinden(gruende)}.` : "Aus deinen vier Antworten.";
 
+  const nachfrage = nachfrageNoetig(a);
   return {
     wert, belastbarkeit: b, warum,
-    training: trainingFuer(b, e.training ?? [], a),
+    // Fitheit 1 oder 2: noch keine Entscheidung. Ein Infekt zeigt sich oft
+    // erst im Lauf des Vormittags, eine schlechte Nacht ist mittags oft vorbei.
+    training: nachfrage ? vorlaeufig(e.training ?? []) : trainingFuer(b, e.training ?? [], a),
     tipps: tippsFuer(a, b, e.schlafenszeit ?? null),
     alsZehner: { sleepQuality: aufZehn(a.schlaf), energy: aufZehn(a.erholt) },
+    nachfrage,
   };
+}
+
+function vorlaeufig(geplant: GeplantesTraining[]): string[] {
+  const was = geplant.length
+    ? geplant.map((t) => `${t.titel ? `${ART[t.art] ?? t.art}, ${t.titel}` : ART[t.art] ?? t.art}${t.uhrzeit ? ` um ${t.uhrzeit}` : ""}`).join(" und ")
+    : null;
+  return [
+    `${was ? `${was} ist vorerst ausgesetzt.` : "Heute steht kein Training an."} Um ${NACHFRAGE_UHRZEIT} fragt daevo nochmal, wie du dich fühlst.`
+      + (was ? " Bist du dann bei 3 oder besser, darfst du trainieren. Bleibt es bei 1 oder 2, fällt das Training heute aus." : ""),
+  ];
+}
+
+/**
+ * Die Antwort auf die Nachfrage am Mittag. Ab 3 ist das Training frei, mit
+ * angepasster Last, denn der Morgen war trotzdem schwach: höchstens
+ * reduziert. Bei 1 oder 2 ist es gestrichen, und der Tag dreht sich um
+ * Erholung.
+ */
+export function nachfrageAuswerten(e: MorgenEingabe, gesundJetzt: number): MorgenErgebnis {
+  const jetzt = { ...e.antworten, gesund: gesundJetzt };
+  if (gesundJetzt >= 3) {
+    const r = morgenAuswerten({ ...e, antworten: jetzt });
+    const b = hoechstens(r.belastbarkeit, "reduziert");
+    return {
+      ...r, belastbarkeit: b, nachfrage: false, gestrichen: false,
+      warum: `Besser als heute Morgen, Fitheit jetzt ${gesundJetzt} von 5. Das Training ist frei, mit angepasster Last, weil der Morgen schwach war.`,
+      training: trainingFuer(b, e.training ?? [], jetzt),
+    };
+  }
+  const geplant = e.training ?? [];
+  return {
+    wert: morgenWert(jetzt), belastbarkeit: "schonen", nachfrage: false, gestrichen: true,
+    warum: `Weil du dich auch mittags nur bei ${gesundJetzt} von 5 fühlst.`,
+    training: geplant.length
+      ? geplant.map((t) => `${t.titel ? `${ART[t.art] ?? t.art}, ${t.titel}` : ART[t.art] ?? t.art}${t.uhrzeit ? ` um ${t.uhrzeit}` : ""} ist heute gestrichen.`)
+      : ["Heute steht kein Training an, und das bleibt so."],
+    tipps: erholungsTipps(e.schlafenszeit ?? null),
+    alsZehner: { sleepQuality: aufZehn(e.antworten.schlaf), energy: aufZehn(e.antworten.erholt) },
+  };
+}
+
+/**
+ * Der Tag gehört der Erholung: Ruhe, Vitamine aus dem Essen, gezielt
+ * Supplemente, Schlaf, so wenig Stress wie möglich.
+ *
+ * Zink: Hemilä, JRSM Open 2017, Lutschtabletten ab dem ersten Tag
+ * verkürzten Erkältungen im Mittel. Vitamin C: Hemilä und Chalker, Cochrane
+ * 2013, regelmässig genommen leicht kürzere Erkältungen, als Vorbeugung für
+ * die meisten ohne Wirkung. Beides steht so im Satz, ohne mehr zu versprechen.
+ */
+export function erholungsTipps(schlafenszeit: string | null): string[] {
+  return [
+    "Heute zählt Ruhe. Kein Training und kein Ersatzprogramm, auch nicht nur ein bisschen.",
+    "Iss viel Obst und Gemüse, etwa Paprika, Zitrusfrüchte, Beeren und Brokkoli für Vitamin C, dazu genug Eiweiß, und trink über den Tag verteilt.",
+    "Zink als Lutschtablette kann eine Erkältung etwas verkürzen, wenn du am ersten Tag beginnst, Vitamin C regelmäßig ebenfalls leicht. Mehr ist nicht belegt.",
+    `${schlafenszeit ? `Heute früh ins Bett, spätestens ${uhrzeit(minuten(schlafenszeit) - 30)}.` : "Heute früh ins Bett."} Schieb, was warten kann, und sag ab, was dich stresst. Bei Fieber oder wenn es länger als ein paar Tage anhält, gehört das zum Arzt.`,
+  ];
 }
 
 const ART: Record<string, string> = { strength: "Krafttraining", cardio: "Ausdauer", team_sport: "Mannschaftssport", mobility: "Mobilität" };
