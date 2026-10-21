@@ -3501,3 +3501,30 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 .mg-liste { margin: 0; padding-left: 1.1em; }
 .mg-liste li { margin-bottom: var(--s-2); line-height: 1.45; }
 .mg-grenze { margin: var(--s-5) 0 0; font-size: var(--t-xs); color: var(--muted); }
+
+/* ---------- Freies Training ---------- */
+.tr-fuss[hidden] { display: none; }
+.pl-frei { width: 100%; margin: var(--s-2) 0 var(--s-3); }
+.tr-plus span { font-size: 26px; font-weight: 500; color: var(--accent-text); line-height: 48px; }
+.tr-plus { opacity: 1; }
+.tr-auswahl { margin-top: var(--s-3); display: flex; flex-direction: column; gap: var(--s-2); }
+.tr-suche {
+  width: 100%; height: 44px; border: 0; border-radius: var(--r-pill); background: var(--flaeche); box-shadow: var(--haarlinie);
+  color: var(--text); font: inherit; padding: 0 var(--s-4);
+}
+.tr-auswahl-liste { display: flex; flex-direction: column; }
+.tr-wahl {
+  display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: var(--s-3); align-items: center; text-align: left;
+  border: 0; border-bottom: 1px solid var(--linie); background: none; padding: var(--s-2) 0; color: var(--text); font: inherit; cursor: pointer;
+}
+.tr-wahl img { width: 40px; height: 50px; object-fit: cover; border-radius: var(--r-sm); }
+.tr-wahl span { display: flex; flex-direction: column; min-width: 0; }
+.tr-wahl small { color: var(--muted); font-size: var(--t-xs); }
+.pl-verlauf { margin-top: var(--s-4); }
+.pl-verlauf-tag { border-bottom: 1px solid var(--linie); padding: var(--s-3) 0; }
+.pl-verlauf-tag summary { display: flex; justify-content: space-between; gap: var(--s-3); cursor: pointer; list-style: none; }
+.pl-verlauf-tag summary::-webkit-details-marker { display: none; }
+.pl-verlauf-tag summary span { color: var(--muted); font-size: var(--t-sm); text-align: right; }
+.pl-verlauf-tag ul { list-style: none; margin: var(--s-2) 0 0; padding: 0; }
+.pl-verlauf-tag li { display: flex; flex-direction: column; padding: var(--s-1) 0; font-size: var(--t-sm); }
+.pl-verlauf-tag li span { color: var(--muted); font-variant-numeric: tabular-nums; }

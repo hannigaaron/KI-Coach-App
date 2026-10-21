@@ -17,10 +17,10 @@
  * Alles bis `trainingStarten` fasst weder `document` noch `window` an und ist
  * ohne Browser getestet.
  */
-import { letzteEinheit } from "@daevo/core";
+import { alternativen, letzteEinheit, positionFuer, uebungErlaubt } from "@daevo/core";
 import { UEBUNGEN } from "./uebungen-daten.js";
-import { GERAETE, vorschauPfad } from "./uebungen.js";
-import { tauschListe, uebungTauschen } from "./plaene.js";
+import { GERAETE, uebungenFiltern, vorschauPfad } from "./uebungen.js";
+import { STANDARD_WUNSCH, tauschListe, uebungTauschen } from "./plaene.js";
 
 const nachId = new Map(UEBUNGEN.map((u) => [u.id, u]));
 const esc = (text) => String(text ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
@@ -55,6 +55,64 @@ export function entwurfNeu(plan, ei, log, heute, jetzt = new Date().toISOString(
     ei, titel: einheit.titel, datum: heute, start: jetzt, aktiv: 0,
     uebungen: einheit.positionen.map((p) => uebungImEntwurf(p, log, heute)),
   };
+}
+
+/* ---------- Freies Training ---------- */
+
+/**
+ * Ein Training ohne Plan. Wer heute etwas anderes macht als geplant, oder
+ * gar keinen Plan hat, soll trotzdem jeden Satz festhalten können. Ohne das
+ * stünde im Protokoll nur, was der Plan vorsah, und die Prüfung nach acht
+ * Wochen rechnete mit der halben Wahrheit.
+ *
+ * Gespeichert wird genauso wie eine Einheit aus dem Plan, nur unter dem
+ * Titel "Freies Training". Damit zählt jeder Satz für den Fortschritt der
+ * Übung, egal in welchem Training er gemacht wurde.
+ */
+export const FREI_TITEL = "Freies Training";
+
+export function entwurfFrei(heute, jetzt = new Date().toISOString()) {
+  return { ei: -1, frei: true, titel: FREI_TITEL, datum: heute, start: jetzt, aktiv: 0, uebungen: [] };
+}
+
+/**
+ * Nimmt eine Übung dazu. Die Dosis kommt aus derselben Regel wie beim Plan,
+ * `positionFuer`. War die Übung schon einmal dran, kommen so viele Sätze wie
+ * beim letzten Mal, vorbelegt mit dessen Werten. Steht sie schon im
+ * Training, springt die Ansicht nur zu ihr.
+ */
+export function uebungHinzu(entwurf, id, log, wunsch = STANDARD_WUNSCH) {
+  const u = nachId.get(id);
+  if (!u) return entwurf;
+  const schon = entwurf.uebungen.findIndex((x) => x.id === id);
+  if (schon >= 0) return { ...entwurf, aktiv: schon };
+  const p = positionFuer(u, wunsch);
+  const letzt = letzteEinheit(log, id, entwurf.datum);
+  const pos = letzt ? { ...p, saetze: Math.max(1, Math.min(8, letzt.saetze.length)) } : p;
+  const uebungen = [...entwurf.uebungen, uebungImEntwurf(pos, log, entwurf.datum)];
+  return { ...entwurf, uebungen, aktiv: uebungen.length - 1 };
+}
+
+export function uebungRaus(entwurf, ui) {
+  const uebungen = entwurf.uebungen.filter((_, i) => i !== ui);
+  return { ...entwurf, uebungen, aktiv: Math.max(0, Math.min(entwurf.aktiv, uebungen.length - 1)) };
+}
+
+/**
+ * Was sich hinzufügen lässt, nach Suchtext, Ort und Beschwerden. Ohne
+ * Suchtext stehen die zuletzt gemachten Übungen vorn: wer frei trainiert,
+ * macht meist, was er kennt.
+ */
+export function auswahlListe(text, entwurf, log, wunsch = STANDARD_WUNSCH, grenze = 30) {
+  const drin = new Set(entwurf.uebungen.map((u) => u.id));
+  const zuletzt = [];
+  for (const e of [...log].sort((a, b) => b.datum.localeCompare(a.datum))) if (!zuletzt.includes(e.uebung)) zuletzt.push(e.uebung);
+  const rang = (u) => { const i = zuletzt.indexOf(u.id); return i < 0 ? Infinity : i; };
+  return uebungenFiltern({ text })
+    .filter((u) => !drin.has(u.id) && uebungErlaubt(u, wunsch))
+    .sort((a, b) => (text ? 0 : rang(a) - rang(b)) || a.name.localeCompare(b.name, "de"))
+    .slice(0, grenze)
+    .map((u) => ({ ...u, zuletzt: zuletzt.includes(u.id) }));
 }
 
 function uebungImEntwurf(p, log, heute) {
@@ -107,6 +165,13 @@ function mitUebung(entwurf, ui, aendern) {
  * an, denn 80 kg Bankdrücken sagen über Kurzhanteln nichts.
  */
 export function entwurfTauschen(entwurf, plan, ui, neueId, log) {
+  if (entwurf.frei) {
+    const u = nachId.get(neueId);
+    const alt = entwurf.uebungen[ui];
+    if (!u || !alt) return { entwurf, plan };
+    const p = { id: u.id, name: u.name, saetze: alt.ziel.saetze, wdh: alt.ziel.wdh, pauseSek: alt.ziel.pauseSek, reserve: alt.ziel.reserve };
+    return { plan, entwurf: mitUebung(entwurf, ui, () => uebungImEntwurf(p, log, entwurf.datum)) };
+  }
   const neuerPlan = uebungTauschen(plan, entwurf.ei, ui, neueId);
   const p = neuerPlan.einheiten[entwurf.ei]?.positionen[ui];
   if (!p || p.id !== neueId) return { entwurf, plan };
@@ -118,8 +183,28 @@ export function entwurfTauschen(entwurf, plan, ui, neueId, log) {
  * Beschwerden und Niveau gefiltert. Die ersten drei, damit es eine Wahl ist
  * und keine Liste.
  */
-export function ersatzVorschlaege(plan, ei, id) {
+export function ersatzVorschlaege(plan, ei, id, entwurf = null) {
+  if (entwurf?.frei) {
+    const ersatzPlan = { wunsch: plan?.wunsch ?? STANDARD_WUNSCH, einheiten: [{ positionen: entwurf.uebungen }] };
+    return alternativen(ersatzPlan, 0, id, UEBUNGEN).slice(0, 3);
+  }
   return tauschListe(plan, ei, id).slice(0, 3);
+}
+
+/** Die Auswahl zum Hinzufügen: ein Suchfeld und die Liste darunter. */
+export function auswahlHtml(liste, text = "") {
+  return `<div class="tr-auswahl">
+      <p class="tr-menue-titel">Übung hinzufügen</p>
+      <input type="search" class="tr-suche" data-tr-suche placeholder="Übung, Muskel oder Gerät" value="${esc(text)}" autocomplete="off" autocapitalize="none" spellcheck="false">
+      <div class="tr-auswahl-liste">${auswahlListeHtml(liste)}</div>
+    </div>`;
+}
+
+export function auswahlListeHtml(liste) {
+  if (!liste.length) return '<p class="tr-leer">Keine passende Übung gefunden.</p>';
+  return liste.map((u) => `<button type="button" class="tr-wahl" data-tr-dazu="${esc(u.id)}">`
+    + `<img src="${esc(vorschauPfad(u))}" alt="" loading="lazy" decoding="async" width="40" height="50">`
+    + `<span><b>${esc(u.name)}</b><small>${esc(GERAETE[u.equipment] ?? u.equipment)}${u.zuletzt ? " · zuletzt gemacht" : ""}</small></span></button>`).join("");
 }
 
 /**
@@ -154,9 +239,11 @@ const datumKurz = (iso) => {
 
 /* ---------- Darstellung ---------- */
 
-export function trainingHtml(entwurf, log, { menue = false, vorschlaege = [], pause = null } = {}) {
+export function trainingHtml(entwurf, log, { menue = false, vorschlaege = [], pause = null, waehlen = false, auswahl = [], suche = "" } = {}) {
   const u = entwurf.uebungen[entwurf.aktiv];
-  if (!u) return "";
+  if (!u) {
+    return `<p class="tr-erstes">Freies Training ohne Plan. Nimm die Übungen dazu, die du heute machst. Jeder Satz wird gespeichert und zählt für deinen Fortschritt.</p>${auswahlHtml(auswahl, suche)}`;
+  }
   const info = nachId.get(u.id);
   const leiste = entwurf.uebungen.map((x, i) => {
     const bild = nachId.get(x.id);
@@ -164,7 +251,7 @@ export function trainingHtml(entwurf, log, { menue = false, vorschlaege = [], pa
     return `<button type="button" class="tr-daumen${i === entwurf.aktiv ? " an" : ""}${fertig ? " fertig" : ""}" data-tr-gehe="${i}" aria-label="${esc(x.name)}">`
       + (bild ? `<img src="${esc(vorschauPfad(bild))}" alt="" loading="lazy" decoding="async">` : `<span>${esc(x.name.slice(0, 1))}</span>`)
       + "</button>";
-  }).join("");
+  }).join("") + `<button type="button" class="tr-daumen tr-plus${waehlen ? " an" : ""}" data-tr-waehlen aria-label="Übung hinzufügen"><span>+</span></button>`;
   const geraet = info ? GERAETE[info.equipment] ?? info.equipment : "";
   const zeilen = u.saetze.map((s, si) => `<div class="tr-satz${s.fertig ? " fertig" : ""}">
       <span class="tr-nr">${si + 1}</span>
@@ -185,10 +272,12 @@ export function trainingHtml(entwurf, log, { menue = false, vorschlaege = [], pa
         ${vorschlaege.length
           ? vorschlaege.map((v, i) => `<button type="button" role="menuitem" class="tr-ersatz" data-tr-ersatz="${esc(v.id)}"><b>${esc(v.name)}</b><span>${esc(GERAETE[v.equipment] ?? v.equipment)}${i === 0 ? " · Vorschlag von daevo" : ""}</span></button>`).join("")
           : "<p class=\"tr-leer\">Für diese Bewegung gibt es keine andere Übung, die zu Ort, Niveau und Beschwerden passt.</p>"}
-        <p class="tr-menue-hinweis">Der Tausch gilt ab jetzt auch im Plan.</p>
+        <p class="tr-menue-hinweis">${entwurf.frei ? "Der Tausch gilt für dieses Training." : "Der Tausch gilt ab jetzt auch im Plan."}</p>
+        ${entwurf.frei ? `<button type="button" role="menuitem" class="tr-ersatz" data-tr-raus><b>Aus diesem Training entfernen</b></button>` : ""}
         <button type="button" role="menuitem" class="tr-ersatz" data-tr-anleitung="${esc(u.id)}"><b>Anleitung ansehen</b></button>
       </div>`
     : "";
+  if (waehlen) return `<div class="tr-leiste">${leiste}</div>${auswahlHtml(auswahl, suche)}`;
   return `<div class="tr-leiste">${leiste}</div>
     <div class="tr-titelzeile"><h2 class="tr-name">${esc(u.name)}</h2>
       <button type="button" class="tr-mehr" data-tr-menue aria-expanded="${menue}" aria-label="Übung ersetzen oder Anleitung"><i></i><i></i><i></i></button></div>
@@ -205,14 +294,17 @@ export function trainingHtml(entwurf, log, { menue = false, vorschlaege = [], pa
 }
 
 /** Pause und Weiter. Steht unter dem Blatt und nicht im Scrollbereich, sonst liegt sie über den Sätzen. */
-export function fussHtml(entwurf, pause = null) {
+export function fussHtml(entwurf, pause = null, waehlen = false) {
   const u = entwurf.uebungen[entwurf.aktiv];
   if (!u) return "";
   const letzteUebung = entwurf.aktiv === entwurf.uebungen.length - 1;
   const zeit = pause ? `${Math.floor(pause.rest / 60)}:${String(pause.rest % 60).padStart(2, "0")}` : "";
+  // Bei offener Auswahl nur die Pause: "Weitere Übung" unter der Auswahl
+  // wäre ein Knopf für das, was man gerade schon tut.
+  const weiter = letzteUebung ? (entwurf.frei ? "Weitere Übung" : "Training beenden") : "Nächste Übung";
   return `<button type="button" class="tr-pause${pause ? " laeuft" : ""}" data-tr-pause aria-label="${pause ? "Pause beenden" : `Pause starten, ${u.ziel.pauseSek} Sekunden`}">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 13V9M10 3h4"/></svg>${pause ? `<b>${zeit}</b>` : ""}</button>
-    <button type="button" class="tr-weiter" data-tr-weiter>${letzteUebung ? "Training beenden" : "Nächste Übung"}</button>`;
+    ${waehlen ? "" : `<button type="button" class="tr-weiter" data-tr-weiter>${weiter}</button>`}`;
 }
 
 /**
@@ -244,6 +336,11 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
   let menue = false;
   let pause = null;
   let uhr = 0;
+  // Ob die Auswahl zum Hinzufügen offen ist, und was im Suchfeld steht.
+  let waehlen = false;
+  let suche = "";
+  const wunsch = () => planSpeicher.lesen()?.wunsch ?? STANDARD_WUNSCH;
+  const auswahl = () => (entwurf ? auswahlListe(suche, entwurf, logSpeicher.lesen(), wunsch()) : []);
 
   const merken = () => entwurfSpeicher.schreiben(entwurf);
   const zeichnen = () => {
@@ -251,10 +348,15 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
     titel.textContent = entwurf.titel;
     const plan = planSpeicher.lesen();
     const u = entwurf.uebungen[entwurf.aktiv];
+    const offenWahl = waehlen || !u;
     inhalt.innerHTML = trainingHtml(entwurf, logSpeicher.lesen(), {
-      menue, pause, vorschlaege: menue && plan && u ? ersatzVorschlaege(plan, entwurf.ei, u.id) : [],
+      menue, pause, waehlen: offenWahl, suche, auswahl: offenWahl ? auswahl() : [],
+      vorschlaege: menue && u && (plan || entwurf.frei) ? ersatzVorschlaege(plan, entwurf.ei, u.id, entwurf) : [],
     });
-    fuss.innerHTML = fussHtml(entwurf, pause);
+    fuss.innerHTML = fussHtml(entwurf, pause, offenWahl);
+    // Ohne Übung gibt es weder Pause noch Weiter. Eine leere Leiste sähe aus
+    // wie ein Knopf, der nicht geladen hat.
+    fuss.hidden = !fuss.innerHTML;
   };
   const pauseStopp = () => { clearInterval(uhr); pause = null; };
   const pauseStart = (sek) => {
@@ -297,6 +399,14 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
   };
 
   inhalt.addEventListener("input", (event) => {
+    // Die Suche zeichnet nur die Liste neu. Das Feld selbst bliebe sonst
+    // nach jedem Buchstaben ohne Fokus.
+    if (event.target.matches("[data-tr-suche]")) {
+      suche = event.target.value;
+      const liste = inhalt.querySelector(".tr-auswahl-liste");
+      if (liste) liste.innerHTML = auswahlListeHtml(auswahl());
+      return;
+    }
     const feld = event.target.closest("[data-tr-feld]");
     if (!feld || !entwurf) return;
     entwurf = satzSetzen(entwurf, entwurf.aktiv, Number(feld.dataset.si), feld.dataset.trFeld, zahlAus(feld.value));
@@ -318,7 +428,12 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
     if (!entwurf) return;
     const z = (sel) => event.target.closest(sel);
     let k;
-    if ((k = z("[data-tr-gehe]"))) { entwurf = { ...entwurf, aktiv: Number(k.dataset.trGehe) }; menue = false; }
+    if ((k = z("[data-tr-gehe]"))) { entwurf = { ...entwurf, aktiv: Number(k.dataset.trGehe) }; menue = false; waehlen = false; }
+    else if (z("[data-tr-waehlen]")) { waehlen = !waehlen; menue = false; suche = ""; }
+    else if ((k = z("[data-tr-dazu]"))) {
+      entwurf = uebungHinzu(entwurf, k.dataset.trDazu, logSpeicher.lesen(), wunsch());
+      waehlen = false; suche = ""; inhalt.scrollTop = 0;
+    } else if (z("[data-tr-raus]")) { entwurf = uebungRaus(entwurf, entwurf.aktiv); menue = false; }
     else if ((k = z("[data-tr-haken]"))) {
       const si = Number(k.dataset.trHaken);
       const warFertig = entwurf.uebungen[entwurf.aktiv].saetze[si].fertig;
@@ -329,18 +444,24 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
     } else if (z("[data-tr-menue]")) menue = !menue;
     else if ((k = z("[data-tr-ersatz]"))) {
       const plan = planSpeicher.lesen();
-      if (plan) {
+      if (plan || entwurf.frei) {
         const r = entwurfTauschen(entwurf, plan, entwurf.aktiv, k.dataset.trErsatz, logSpeicher.lesen());
         entwurf = r.entwurf;
-        planSpeicher.schreiben(r.plan);
-        geaendert?.();
+        if (!entwurf.frei) { planSpeicher.schreiben(r.plan); geaendert?.(); }
         melde(`Ersetzt durch ${entwurf.uebungen[entwurf.aktiv].name}`);
       }
       menue = false;
     } else if ((k = z("[data-tr-anleitung]"))) { merken(); schliessen(); oeffne(k.dataset.trAnleitung); return; }
     else if (z("[data-tr-pause]")) { if (pause) pauseStopp(); else pauseStart(entwurf.uebungen[entwurf.aktiv].ziel.pauseSek); }
     else if (z("[data-tr-weiter]")) {
-      if (entwurf.aktiv >= entwurf.uebungen.length - 1) { beenden(); return; }
+      // Im freien Training gibt es kein Ende der Liste: die letzte Übung führt
+      // zur Auswahl, beendet wird oben.
+      if (entwurf.aktiv >= entwurf.uebungen.length - 1) {
+        if (!entwurf.frei) { beenden(); return; }
+        waehlen = true; suche = ""; menue = false;
+        merken(); zeichnen();
+        return;
+      }
       entwurf = { ...entwurf, aktiv: entwurf.aktiv + 1 };
       menue = false;
       inhalt.scrollTop = 0;
@@ -363,6 +484,16 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
         entwurf = entwurfNeu(plan, ei, logSpeicher.lesen(), heute());
       }
       menue = false;
+      merken();
+      oeffnen();
+    },
+    /** Ein freies Training ohne Plan. Ein offenes von heute wird fortgesetzt. */
+    frei() {
+      if (!(entwurf?.frei && entwurf.datum === heute())) {
+        if (entwurfBegonnen(entwurf)) melde(`${entwurf.titel} war noch offen und ist verworfen`);
+        entwurf = entwurfFrei(heute());
+      }
+      menue = false; waehlen = false; suche = "";
       merken();
       oeffnen();
     },

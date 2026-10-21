@@ -225,6 +225,32 @@ export function planPruefen(plan, log, heute) {
   };
 }
 
+/**
+ * Die letzten Trainings aus dem Protokoll, je Tag und Einheit eine Zeile,
+ * aufklappbar mit den Sätzen. Was gespeichert ist, soll man auch sehen: ein
+ * Protokoll, in das man nur schreibt, wirkt wie eines, das nichts behält.
+ */
+export function verlaufHtml(log, grenze = 10) {
+  const gruppen = new Map();
+  for (const e of log) {
+    const k = `${e.datum}|${e.einheit ?? ""}`;
+    gruppen.set(k, [...(gruppen.get(k) ?? []), e]);
+  }
+  const zeilen = [...gruppen.entries()].sort((a, b) => b[0].localeCompare(a[0])).slice(0, grenze).map(([k, liste]) => {
+    const [datum, einheit] = k.split("|");
+    const tag = new Date(`${datum}T12:00:00Z`).toLocaleDateString("de-DE", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+    const saetze = liste.reduce((s, e) => s + e.saetze.length, 0);
+    const details = liste.map((e) => {
+      const name = nachId.get(e.uebung)?.name ?? e.uebung;
+      const s2 = e.saetze.map((x) => `${String(x.kg).replace(".", ",")} kg × ${x.wdh}${x.rir !== null && x.rir !== undefined ? `, ${x.rir} RIR` : ""}`).join(" · ");
+      return `<li><b>${esc(name)}</b><span>${esc(s2)}</span></li>`;
+    }).join("");
+    return `<details class="pl-verlauf-tag"><summary><b>${esc(tag)}</b><span>${esc(einheit || "Training")} · ${liste.length} ${liste.length === 1 ? "Übung" : "Übungen"}, ${saetze} ${saetze === 1 ? "Satz" : "Sätze"}</span></summary><ul>${details}</ul></details>`;
+  });
+  if (!zeilen.length) return "";
+  return `<h3 class="ue-abschnitt">Deine letzten Trainings</h3>${zeilen.join("")}`;
+}
+
 export const hinweiseHtml = (hinweise) => hinweise.map((h) => `<li>${esc(h)}</li>`).join("");
 export const quellenHtml = (quellen) => quellen.map((q) => `<li>${esc(q)}</li>`).join("");
 
@@ -240,7 +266,7 @@ const $ = (id) => document.getElementById(id);
  * eine kurze Rückmeldung. Alle drei kommen von außen, damit diese Datei weder
  * den Speicher noch die Oberfläche der App kennen muss.
  */
-export function plaeneStarten({ speicher, oeffne, melde, starte = () => {}, log = () => [], heute = () => new Date().toISOString().slice(0, 10) }) {
+export function plaeneStarten({ speicher, oeffne, melde, starte = () => {}, frei = () => {}, log = () => [], heute = () => new Date().toISOString().slice(0, 10) }) {
   // Acht Wochen um: Fortschritt prüfen, bevor irgendetwas gezeigt wird.
   const geprueft = planPruefen(gespeicherterPlan(speicher.lesen()), log(), heute());
   if (geprueft) speicher.schreiben(geprueft);
@@ -263,6 +289,7 @@ export function plaeneStarten({ speicher, oeffne, melde, starte = () => {}, log 
       .map((e, ei) => einheitHtml(e, ei, { bearbeitet, tausch, zusatz: bearbeitet === ei ? zusatzListe(plan, ei) : [] }))
       .join("");
     $("plSaetze").innerHTML = saetzeHtml(plan.wochensaetze ?? {});
+    $("plVerlauf").innerHTML = verlaufHtml(log());
     $("plHinweise").innerHTML = hinweiseHtml(plan.hinweise ?? []);
     $("plQuellen").innerHTML = quellenHtml(plan.quellen ?? []);
     $("plSpeichern").textContent = istGespeichert ? "Gespeichert" : "Als meinen Plan speichern";
@@ -303,6 +330,7 @@ export function plaeneStarten({ speicher, oeffne, melde, starte = () => {}, log 
   $("plSteuerung").addEventListener("change", (event) => {
     if (event.target.id === "plDeload") neu({ deload: event.target.checked });
   });
+  $("plFrei").addEventListener("click", () => frei());
   $("plAndere").addEventListener("click", () => neu({ variante: wunsch.variante + 1 }));
   $("plUpdate").addEventListener("click", (event) => {
     const k = event.target.closest("[data-update]");
@@ -398,6 +426,8 @@ export function plaeneStarten({ speicher, oeffne, melde, starte = () => {}, log 
   // Der Fragebogen speichert den ersten Plan, nachdem diese Ansicht schon
   // steht. Ohne Nachladen zeigte sie den Standardplan statt des eigenen.
   return {
+    /** Nach einem beendeten Training, damit der Verlauf stimmt. */
+    verlaufNeu() { $("plVerlauf").innerHTML = verlaufHtml(log()); },
     laden() {
       const geprueft = planPruefen(gespeicherterPlan(speicher.lesen()), log(), heute());
       if (geprueft) speicher.schreiben(geprueft);
