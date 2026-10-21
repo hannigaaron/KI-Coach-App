@@ -1254,7 +1254,15 @@ function healthStandZeigen() {
     ? `Zuletzt über den Kurzbefehl: ${new Date(kurz.at).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" })}.`
     : "Über den Kurzbefehl ist noch nichts angekommen.";
   $("e-healthUrl").value = workerAdresse("gesundheit");
+  $("e-healthErnaehrung").checked = !s.healthErnaehrungAus;
 }
+
+// Ausschalten entfernt die Mahlzeiten aus Health beim nächsten Abgleich,
+// und der kommt sofort.
+$("e-healthErnaehrung").addEventListener("change", (event) => {
+  store.setSettings({ ...store.getSettings(), healthErnaehrungAus: !event.target.checked });
+  healthNativ().then(() => refreshAll());
+});
 
 /**
  * Holt die Werte, die der Health Kurzbefehl auf dem Worker abgelegt hat.
@@ -1506,7 +1514,9 @@ function renderMeals(targetId) {
     ? meals.map((meal) => {
         const kcal = Math.round(meal.entries.reduce((s, e) => s + e.kcal, 0));
         const protein = Math.round(meal.entries.reduce((s, e) => s + e.proteinG, 0));
-        const items = meal.entries.map((e) => `${e.quantity} ${e.name}`).join(", ");
+        // Aus Health kommt eine Mahlzeit als eine Summe. "1 Portion Mahlzeit"
+        // sagt nichts, ihr Name oder "Mahlzeit aus YAZIO" schon.
+        const items = meal.source === "health" ? meal.text : meal.entries.map((e) => `${e.quantity} ${e.name}`).join(", ");
         // Antippbar, weil Korrigieren der häufigste Handgriff beim Tracken
         // ist. Ohne Hinweis darauf findet ihn niemand.
         return `<li data-meal="${meal.id}" class="tippbar"><div class="li-main">` +
@@ -1514,9 +1524,17 @@ function renderMeals(targetId) {
           `<div class="li-sub">${meal.at} Uhr, ${protein} g Protein` +
           (meal.feeling ? `, danach ${escapeHtml(meal.feeling)}` : "") +
           (meal.source === "offline" ? ", Tabellenwert" : "") +
+          (meal.source === "health" && meal.text !== `Mahlzeit aus ${meal.quelle}` ? `, aus ${escapeHtml(meal.quelle || "Apple Health")}` : "") +
           `</div></div><div class="li-side"><b>${kcal}</b>kcal</div></li>`;
       }).join("")
     : `<li><div class="li-main"><div class="li-sub">Noch nichts erfasst.</div></div></li>`;
+  // Was aus Health kam und nicht zählt, steht sichtbar da. Ein stiller
+  // Filter, der Essen verschluckt, wäre derselbe Fehler wie doppelt zählen.
+  const weg = store.getDay(day).healthUebersprungen || [];
+  if (weg.length) {
+    el.innerHTML += weg.map((w) => `<li><div class="li-main"><div class="li-sub">Nicht mitgezählt: ${w.kcal} kcal aus ${escapeHtml(w.quelle)} um ${escapeHtml(w.uhrzeit)} Uhr. `
+      + `Du hast um ${escapeHtml(w.eigeneUm)} Uhr selbst eine Mahlzeit eingetragen, vermutlich dieselbe.</div></div></li>`).join("");
+  }
 }
 
 function renderCheckins() {
@@ -4621,7 +4639,7 @@ async function healthNativ() {
   healthLaeuft = true;
   try {
     const bericht = await healthkitAbgleichen({ aufruf: nativAufruf, store, heute: todayIso() });
-    if (bericht.tage || bericht.trainings) refreshAll();
+    if (bericht.tage || bericht.trainings || bericht.mahlzeiten || bericht.uebersprungen) refreshAll();
   } catch {
     // Ohne Erlaubnis oder ohne Health bleibt alles, wie es war. Der Weg über
     // den Export im Profil steht weiter offen.

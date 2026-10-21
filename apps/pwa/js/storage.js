@@ -387,6 +387,9 @@ export const store = {
   removeMeal(day, id) {
     const data = this.getDay(day);
     data.meals = data.meals.filter((m) => m.id !== id);
+    // Eine Mahlzeit aus Apple Health käme beim nächsten Abgleich zurück. Die
+    // Kennung wird gemerkt, damit gelöscht gelöscht bleibt.
+    if (String(id).startsWith("hk-")) data.healthEntfernt = [...new Set([...(data.healthEntfernt || []), id])];
     this.setDay(day, data);
   },
   /**

@@ -420,7 +420,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1144 Tests
+npm test           # 1153 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -2734,13 +2734,44 @@ lädt neu. Gespiegelt wird erst danach, sonst überschriebe ein leerer Start
 die einzige Kopie, bevor sie gelesen ist.
 
 `GesundheitPlugin` liest HealthKit: Schritte, aktive Kalorien, Ruhepuls,
-HRV, Gewicht, Schlaf und Trainings. Nur lesen, nie schreiben. Schlaf wird
+HRV, Gewicht, Schlaf, Trainings und Ernährung. Nur lesen, nie schreiben. Schlaf wird
 vor dem Zählen zusammengelegt, weil Uhr und iPhone dieselbe Nacht oft beide
 schreiben, und gehört zum Tag des Aufwachens. `apps/pwa/js/healthkit.js`
 schreibt über `healthSchreiben`, also nach denselben Regeln wie Export und
 Kurzbefehl. Trainings aus Health werden nicht angelegt, wenn der Nutzer
 dieselbe Art innerhalb von 90 Minuten schon selbst eingetragen hat. Gelesen
 wird beim Öffnen und beim Zurückholen, beim ersten Mal zwei Jahre.
+
+Ernährung aus Health, `ernaehrungSchreiben` in `healthkit.js`. Viele
+Tracker schreiben Kalorien und Makros nach Apple Health, YAZIO und
+MyFitnessPal etwa. Eine Schnittstelle je Anbieter gibt es meist nicht:
+MyFitnessPal nimmt nach mehreren Quellen keine neuen Entwickler an, YAZIO
+hat keine öffentliche, Virtuagym nur eine für Studios. Health ist deshalb
+die eine Anbindung für alle. Das Plugin liest Kalorien, Protein, Fett und
+Kohlenhydrate je Eintrag mit Quell-App, Zeit und, wo die App sie als
+Ganzes schreibt, der Mahlzeit als Korrelation mit Namen. Zusammengelegt
+wird über diese Korrelation, sonst über App, Tag und Minute. Fehlen die
+Kalorien, kommen sie aus den Makros.
+
+Jede Mahlzeit steht als eigene Mahlzeit da, `source: "health"`, mit der App
+als `quelle`, und wird bei jedem Abgleich neu geschrieben: eine in YAZIO
+geänderte Menge kommt mit, eine dort gelöschte Mahlzeit verschwindet, aber
+nur in den gelesenen Tagen. Hier gelöscht bleibt gelöscht,
+`healthEntfernt` am Tag, hier korrigiert bleibt korrigiert. Höchstens 60
+Tage zurück, sonst füllt der erste Abgleich über zwei Jahre den Speicher.
+
+Doppelt zählen ist der teuerste Fehler beim Tracken. Steht innerhalb von 45
+Minuten eine eigene Mahlzeit aus daevo, zählt die aus Health nicht. Sie
+steht aber unter der Liste als "Nicht mitgezählt" mit Kalorien, App und
+Uhrzeit, `healthUebersprungen`: ein stiller Filter, der Essen verschluckt,
+wäre derselbe Fehler in die andere Richtung. Der Schalter "Ernährung aus
+Apple Health übernehmen" auf der Kalenderseite entfernt beim Ausschalten
+die Mahlzeiten aus Health wieder. Eine ältere Hülle ohne das Feld
+`nahrung` lässt alles stehen, statt es als gelöscht zu lesen.
+
+Die Leseberechtigung hat eine Fassung, `HEALTH_FASSUNG`. iOS fragt nur nach
+neuen Typen, wenn die App erneut fragt, und wer vorher zugestimmt hatte,
+wäre sonst nie nach der Ernährung gefragt worden.
 
 Sobald Schritte aus Health an vier der letzten sieben Tage dastehen, rechnet
 das Kalorienziel mit ihrem Schnitt statt mit der Schätzung aus dem
