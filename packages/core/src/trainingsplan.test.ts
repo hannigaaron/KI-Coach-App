@@ -25,7 +25,7 @@ const LIB: PlanUebung[] = [
 const w = (teil: Partial<PlanWunsch> = {}): PlanWunsch => ({ tage: 3, minuten: 60, niveau: "intermediate", ziel: "muskel", ...teil });
 
 test("Jede Tageszahl ergibt genau so viele Einheiten", () => {
-  for (const tage of [2, 3, 4, 5] as const) {
+  for (const tage of [1, 2, 3, 4, 5] as const) {
     assert.equal(uebungsplanBauen(w({ tage }), LIB).einheiten.length, tage);
   }
 });

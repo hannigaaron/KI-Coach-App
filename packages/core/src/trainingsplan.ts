@@ -45,7 +45,7 @@
 
 export type PlanNiveau = "beginner" | "intermediate" | "advanced";
 export type PlanZiel = "muskel" | "kraft" | "fitness";
-export type PlanTage = 2 | 3 | 4 | 5;
+export type PlanTage = 1 | 2 | 3 | 4 | 5;
 
 /** Die Felder der Übungsdatenbank, die der Plan braucht. */
 export interface PlanUebung {
@@ -224,6 +224,24 @@ const VERZICHT: Record<Platz, number> = {
   beinbeuger: 4, rumpf: 1, kniebeuge: 0, huefte: 0, einbein: 0, druecken_h: 0, druecken_v: 0, ziehen_h: 0, ziehen_v: 0,
 };
 
+/**
+ * Schweres Kreuzheben und schwere Kniebeugen stehen nie in derselben Einheit.
+ * Beide fordern Rücken und Nervensystem am stärksten, und die zweite Übung
+ * wird dann müde und unsauber gemacht. Eine Regel aus der Praxis von Coach
+ * Aaron, keine Studie. Rumänisches Kreuzheben, Hip Thrust oder Beinpresse
+ * bleiben mit der Kniebeuge kombinierbar, sie gehen mit weniger Last.
+ */
+export const SCHWER_HEBEN: ReadonlySet<string> = new Set(["kreuzheben", "sumo-kreuzheben", "trap-bar-kreuzheben"]);
+export const SCHWER_BEUGEN: ReadonlySet<string> = new Set(["kniebeuge-langhantel", "frontkniebeuge"]);
+
+/** Ob eine Übung neben den schon gewählten gegen die Regel oben verstösst. */
+export function zuSchwerZusammen(id: string, andere: Iterable<string>): boolean {
+  const liste = [...andere];
+  if (SCHWER_HEBEN.has(id)) return liste.some((x) => SCHWER_BEUGEN.has(x));
+  if (SCHWER_BEUGEN.has(id)) return liste.some((x) => SCHWER_HEBEN.has(x));
+  return false;
+}
+
 /** Bis zu dieser Länge enthält ein Plan nur Grundübungen und eine Rumpfübung. */
 export const KURZ_BIS_MIN = 45;
 
@@ -266,6 +284,7 @@ const K_D: Tagesvorlage = { titel: "Ganzkörper D", fokus: KURZ_FOKUS, plaetze: 
 const K_E: Tagesvorlage = { ...K_A, titel: "Ganzkörper E" };
 
 const KURZ_VORLAGEN: Record<PlanTage, Tagesvorlage[]> = {
+  1: [K_A],
   2: [K_A, K_B],
   3: [K_A, K_B, K_C],
   4: [K_A, K_B, K_C, K_D],
@@ -330,7 +349,18 @@ const BEINE: Tagesvorlage = {
 const OBER_5: Tagesvorlage = { ...OBER_B, titel: "Oberkörper" };
 const UNTER_5: Tagesvorlage = { ...UNTER_B, titel: "Unterkörper" };
 
+// Einmal die Woche: ein einfacher Ganzkörperplan aus Grundübungen, je
+// Bewegung eine. Wer nur einmal kommt, braucht keine Isolation, sondern jede
+// große Bewegung einmal. Die Übungen bleiben über die Monate gleich, siehe
+// `planAktualisieren`.
+const GK_1: Tagesvorlage = {
+  titel: "Ganzkörper", fokus: "Beine, Hüfte, Drücken, Ziehen",
+  plaetze: ["kniebeuge", "huefte", "druecken_h", "ziehen_v", "rumpf"],
+  extra: ["ziehen_h", "druecken_v", "einbein"],
+};
+
 const VORLAGEN: Record<PlanTage, Tagesvorlage[]> = {
+  1: [GK_1],
   2: [GK_A, GK_B],
   3: [GK_A, GK_B, GK_C],
   4: [OBER_A, UNTER_A, OBER_B, UNTER_B],
@@ -408,7 +438,7 @@ export function uebungsplanBauen(wunsch: PlanWunsch, uebungen: PlanUebung[]): Ue
     const benutzt = new Set<string>();
 
     const kandidatenFuer = (platz: Platz): PlanUebung[] => {
-      const alle = erlaubt.filter((e) => PASST[platz](e) && !benutzt.has(e.id));
+      const alle = erlaubt.filter((e) => PASST[platz](e) && !benutzt.has(e.id) && !zuSchwerZusammen(e.id, benutzt));
       if (!einsteiger || !GRUNDPLATZ.has(platz) || !alle.length) return alle;
       // Einsteiger: nur die am stärksten geführte Stufe, die es für diesen Platz gibt.
       const beste = Math.min(...alle.map(fuehrung));
@@ -498,7 +528,7 @@ export function uebungsplanBauen(wunsch: PlanWunsch, uebungen: PlanUebung[]): Ue
       // Reihenfolge bleibt: schwer zuerst, Isolation danach, Rumpf am Ende.
       // In der Entlastungswoche wird nicht aufgefüllt: sie soll kürzer sein.
       const fuellen = minus === 0 && !wunsch.deload;
-      if (!wunsch.deload) for (const z of zusatz) if (passt([...drin, z], minus)) drin.push(z);
+      if (fuellen) for (const z of zusatz) if (passt([...drin, z], minus)) drin.push(z);
       const plus = fuellen && passt(drin, 0, 1) ? 1 : 0;
       const iso = fuellen && passt(drin, 0, plus, 1) ? 1 : 0;
       positionen = baue(drin, minus, Infinity, plus, iso);
@@ -574,6 +604,7 @@ function hinweise(w: PlanWunsch, einheiten: PlanEinheit[], saetze: Record<string
   }
   if (w.ort === "zuhause") aus.push("Für zu Hause stehen nur Übungen mit Kurzhanteln, Band und Körpergewicht im Plan.");
   if (w.ort === "ohne") aus.push("Ohne Geräte stehen nur Übungen mit dem eigenen Körpergewicht im Plan. Für Rücken und Beine fehlt damit oft der Widerstand, ein Band hilft schon viel.");
+  if (w.tage === 1) aus.push("Einmal die Woche: jede große Bewegung einmal, ohne Isolation. Die Übungen bleiben über die Monate gleich, damit du an genau diesen stärker wirst.");
   if (w.tage === 2 && w.minuten > KURZ_BIS_MIN) aus.push("Bei zwei Tagen trainierst du jede Muskelgruppe einmal pro Woche mit Schwerpunkt. Ab drei Tagen wird jede Gruppe zweimal getroffen.");
   return aus;
 }
@@ -628,7 +659,9 @@ export function alternativen(plan: Uebungsplan, einheit: number, id: string, ueb
   if (!alt) return [];
   const schon = new Set((plan.einheiten[einheit]?.positionen ?? []).map((p) => p.id));
   return uebungen
-    .filter((e) => e.pattern === alt.pattern && !schon.has(e.id) && uebungErlaubt(e, plan.wunsch))
+    .filter((e) => e.pattern === alt.pattern && !schon.has(e.id) && uebungErlaubt(e, plan.wunsch)
+      && RANG[e.level] <= RANG[plan.wunsch.niveau] + 1
+      && !zuSchwerZusammen(e.id, [...schon].filter((x) => x !== id)))
     .sort((a, b) => Math.abs(RANG[a.level] - RANG[plan.wunsch.niveau]) - Math.abs(RANG[b.level] - RANG[plan.wunsch.niveau]));
 }
 

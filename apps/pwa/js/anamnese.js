@@ -206,6 +206,7 @@ export const SCHRITTE = [
     text: "Nur Krafttraining. Volleyball, Laufen und anderes zählen hier nicht mit.",
     wenn: { id: "planVorhanden", nicht: ["eigen"] },
     felder: [{ art: "auswahl", id: "kraftTage", optionen: [
+      { id: "1", titel: "Einmal die Woche", symbol: "kalender" },
       { id: "2", titel: "Zweimal die Woche", symbol: "kalender" },
       { id: "3", titel: "Dreimal die Woche", symbol: "kalender" },
       { id: "4", titel: "Viermal die Woche", symbol: "kalender" },
@@ -223,7 +224,8 @@ export const SCHRITTE = [
       { id: "30", titel: "Etwa 30 Minuten", symbol: "uhr" },
       { id: "45", titel: "Etwa 45 Minuten", symbol: "uhr" },
       { id: "60", titel: "Etwa eine Stunde", symbol: "uhr" },
-      { id: "75", titel: "Länger als eine Stunde", symbol: "uhr" },
+      { id: "75", titel: "Etwa 75 Minuten", symbol: "uhr" },
+      { id: "90", titel: "Etwa 90 Minuten", symbol: "uhr" },
     ] }],
   },
   {
@@ -851,7 +853,7 @@ function trainingsplan(antworten) {
 
 function kraftTageAus(antworten) {
   const tage = Number(antworten.kraftTage);
-  return [2, 3, 4, 5].includes(tage) ? tage : 0;
+  return [1, 2, 3, 4, 5].includes(tage) ? tage : 0;
 }
 
 const NIVEAU = { keine: "beginner", unter1: "beginner", "1bis3": "intermediate", ueber3: "advanced" };
@@ -885,7 +887,7 @@ export function planWunschAus(antworten) {
   const ziel = bereiche.includes("ausdauer") && !bereiche.includes("kraft") ? "fitness" : "muskel";
   return {
     tage,
-    minuten: [30, 45, 60, 75].includes(Number(antworten.kraftMinuten)) ? Number(antworten.kraftMinuten) : 45,
+    minuten: [30, 45, 60, 75, 90].includes(Number(antworten.kraftMinuten)) ? Number(antworten.kraftMinuten) : 45,
     niveau: NIVEAU[antworten.kraftErfahrung] || "beginner",
     ziel,
     deload: false,

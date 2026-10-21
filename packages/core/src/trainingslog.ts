@@ -1,0 +1,192 @@
+/**
+ * Was im Training wirklich passiert ist: Gewicht, Wiederholungen und
+ * Wiederholungen in Reserve je Satz. Daraus misst die App den Fortschritt je
+ * Übung und baut den Plan nach acht Wochen um.
+ *
+ * Gemessen wird mit einer geschätzten Maximalkraft je Satz nach Epley, kg mal
+ * (1 + Wiederholungen / 30), mit den Wiederholungen in Reserve dazugezählt:
+ * 80 kg für 8 Wiederholungen mit 2 in Reserve zählen wie 80 kg für 10 bis
+ * zum Versagen. Quellen: Epley 1985 für die Formel, Zourdos und andere 2016
+ * und Helms und andere 2016 für das Zählen der Reserve. Die Zahl ist eine
+ * Schätzung und kein Test. Sie taugt zum Vergleich einer Übung mit sich
+ * selbst, nicht zwischen zwei Übungen, und genau dafür wird sie benutzt.
+ *
+ * Bei Übungen ohne Gewicht zählt die Summe aus Wiederholungen und Reserve.
+ */
+import {
+  SCHWER_BEUGEN, SCHWER_HEBEN, alternativen, planNachrechnen,
+  type PlanUebung, type Uebungsplan,
+} from "./trainingsplan.js";
+
+export interface SatzEintrag {
+  kg: number;
+  wdh: number;
+  /** Wiederholungen in Reserve. Null, wenn nicht angegeben. */
+  rir: number | null;
+}
+
+export interface LogEintrag {
+  /** Tag als JJJJ-MM-TT. */
+  datum: string;
+  uebung: string;
+  /** Titel der Einheit, etwa "Ganzkörper A". */
+  einheit?: string;
+  saetze: SatzEintrag[];
+}
+
+/** Ein Plan bleibt acht Wochen, dann wird er überprüft. */
+export const PLAN_WOCHEN = 8;
+/**
+ * Unter diesem Zuwachs über acht Wochen gilt eine Übung als festgefahren.
+ * 2,5 Prozent sind bei 100 kg geschätzter Maximalkraft 2,5 kg, weniger als
+ * die kleinste übliche Steigerung an der Stange. Eine Regel der App.
+ */
+export const FORTSCHRITT_MIN = 2.5;
+/** Unter so vielen Einheiten mit einer Übung lässt sich kein Fortschritt sagen. */
+export const EINHEITEN_MIN = 3;
+
+function gueltig(s: SatzEintrag): boolean {
+  return Number.isFinite(s.kg) && s.kg >= 0 && Number.isFinite(s.wdh) && s.wdh > 0;
+}
+
+/** Geschätzte Maximalkraft eines Satzes, mit Reserve. Ohne Gewicht: Wiederholungen plus Reserve. */
+export function satzWert(s: SatzEintrag): number {
+  if (!gueltig(s)) return 0;
+  const reps = s.wdh + (s.rir !== null && s.rir !== undefined && s.rir >= 0 ? s.rir : 0);
+  if (s.kg === 0) return reps;
+  return s.kg * (1 + reps / 30);
+}
+
+/** Der beste Satz einer Einheit zählt. Ein Aufwärmsatz soll den Schnitt nicht drücken. */
+export function einheitWert(e: LogEintrag): number {
+  return Math.max(0, ...e.saetze.map(satzWert));
+}
+
+/** Die Einheiten einer Übung, nach Datum, nur mit mindestens einem gültigen Satz. */
+export function verlaufFuer(log: LogEintrag[], uebung: string, ab?: string): LogEintrag[] {
+  return log
+    .filter((e) => e.uebung === uebung && (!ab || e.datum >= ab) && e.saetze.some(gueltig))
+    .sort((a, b) => a.datum.localeCompare(b.datum));
+}
+
+/** Die letzte Einheit mit dieser Übung, für die Anzeige "letztes Mal". */
+export function letzteEinheit(log: LogEintrag[], uebung: string, vor?: string): LogEintrag | null {
+  const v = verlaufFuer(log, uebung).filter((e) => !vor || e.datum < vor);
+  return v[v.length - 1] ?? null;
+}
+
+export interface Fortschritt {
+  uebung: string;
+  einheiten: number;
+  /** Zuwachs in Prozent vom Anfang zum Ende, null bei zu wenig Daten. */
+  prozent: number | null;
+}
+
+/**
+ * Anfang und Ende sind je der Schnitt aus den ersten und den letzten zwei
+ * Einheiten. Eine einzelne gute oder schlechte Einheit am Rand würde sonst
+ * das ganze Urteil tragen.
+ */
+export function fortschritt(log: LogEintrag[], uebung: string, ab?: string): Fortschritt {
+  const v = verlaufFuer(log, uebung, ab).map(einheitWert).filter((x) => x > 0);
+  if (v.length < EINHEITEN_MIN) return { uebung, einheiten: v.length, prozent: null };
+  const n = Math.min(2, Math.floor(v.length / 2));
+  const schnitt = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+  const anfang = schnitt(v.slice(0, n));
+  const ende = schnitt(v.slice(-n));
+  return { uebung, einheiten: v.length, prozent: anfang > 0 ? Math.round(((ende - anfang) / anfang) * 1000) / 10 : null };
+}
+
+function tageZwischen(von: string, bis: string): number {
+  return Math.round((Date.parse(`${bis}T00:00:00Z`) - Date.parse(`${von}T00:00:00Z`)) / 86_400_000);
+}
+
+export interface Tausch {
+  einheit: string;
+  alt: { id: string; name: string };
+  neu: { id: string; name: string };
+  prozent: number;
+}
+
+export interface PlanPruefung {
+  /** Ob die acht Wochen um sind. Vorher ändert sich nichts. */
+  faellig: boolean;
+  plan: Uebungsplan;
+  getauscht: Tausch[];
+  /** Übungen mit Zuwachs, die bleiben, mit Prozent. */
+  behalten: Array<{ id: string; name: string; prozent: number }>;
+  /** Übungen ohne genug Daten. Sie bleiben, weil die App nichts über sie weiss. */
+  ohneDaten: string[];
+  text: string;
+}
+
+/**
+ * Nach acht Wochen: Übungen mit Fortschritt bleiben, festgefahrene werden
+ * gegen eine andere Übung derselben Bewegung getauscht. Sätze,
+ * Wiederholungen und Pause bleiben, die Rolle im Plan ist dieselbe.
+ *
+ * Ausnahmen, und jede hat einen Grund. Wer einmal die Woche trainiert, behält
+ * seine Übungen: bei acht Einheiten in acht Wochen ist jeder Wechsel ein
+ * Neuanfang, und der einfache Plan lebt davon, an denselben Grundübungen
+ * stärker zu werden. Eine Übung ohne genug Einträge bleibt ebenfalls, denn
+ * ohne Zahlen wäre ein Tausch geraten.
+ */
+export function planAktualisieren(
+  plan: Uebungsplan & { aktualisiertAm?: string; gespeichertAm?: string },
+  log: LogEintrag[],
+  uebungen: PlanUebung[],
+  heute: string,
+): PlanPruefung {
+  const seit = (plan.aktualisiertAm ?? plan.gespeichertAm ?? heute).slice(0, 10);
+  const faellig = tageZwischen(seit, heute) >= PLAN_WOCHEN * 7;
+  const leer = { faellig, plan, getauscht: [], behalten: [], ohneDaten: [], text: "" };
+  if (!faellig) return leer;
+  const neuerStand = { ...plan, aktualisiertAm: heute };
+  if (plan.wunsch.tage === 1) {
+    return { ...leer, plan: neuerStand, text: "Acht Wochen sind um. Bei einem Training pro Woche bleiben die Übungen gleich, damit du an genau diesen stärker wirst." };
+  }
+
+  const getauscht: Tausch[] = [];
+  const behalten: PlanPruefung["behalten"] = [];
+  const ohneDaten: string[] = [];
+  const raus = new Set<string>();
+  let arbeit: Uebungsplan = plan;
+
+  plan.einheiten.forEach((einheit, ei) => {
+    einheit.positionen.forEach((p, pi) => {
+      const f = fortschritt(log, p.id, seit);
+      if (f.prozent === null) { if (!ohneDaten.includes(p.name)) ohneDaten.push(p.name); return; }
+      if (f.prozent >= FORTSCHRITT_MIN) { behalten.push({ id: p.id, name: p.name, prozent: f.prozent }); return; }
+      // Nicht wieder dieselbe festgefahrene Übung aus einer anderen Einheit nehmen.
+      const kandidat = alternativen(arbeit, ei, p.id, uebungen).find((u) => !raus.has(u.id));
+      if (!kandidat) { behalten.push({ id: p.id, name: p.name, prozent: f.prozent }); return; }
+      raus.add(p.id);
+      getauscht.push({ einheit: einheit.titel, alt: { id: p.id, name: p.name }, neu: { id: kandidat.id, name: kandidat.name }, prozent: f.prozent });
+      arbeit = {
+        ...arbeit,
+        einheiten: arbeit.einheiten.map((e, i) => i !== ei ? e : {
+          ...e, positionen: e.positionen.map((q, j) => (j === pi ? { ...q, id: kandidat.id, name: kandidat.name } : q)),
+        }),
+      };
+    });
+  });
+
+  const fertig = { ...planNachrechnen(arbeit, uebungen), aktualisiertAm: heute };
+  const zahl = (x: number) => String(x).replace(".", ",");
+  const zeilen: string[] = [];
+  if (getauscht.length) {
+    zeilen.push(`Acht Wochen sind um. ${getauscht.length} ${getauscht.length === 1 ? "Übung kam" : "Übungen kamen"} kaum voran und ${getauscht.length === 1 ? "ist" : "sind"} getauscht, gegen eine für dieselbe Bewegung:`);
+    for (const t of getauscht) zeilen.push(`${t.alt.name} (${zahl(t.prozent)} %) wird ${t.neu.name}, ${t.einheit}`);
+  } else {
+    zeilen.push("Acht Wochen sind um. Keine Übung musste getauscht werden.");
+  }
+  const stark = [...behalten].sort((a, b) => b.prozent - a.prozent).slice(0, 3);
+  if (stark.length) zeilen.push(`Bleiben, weil du dort am meisten zugelegt hast: ${stark.map((b) => `${b.name} +${zahl(b.prozent)} %`).join(", ")}.`);
+  if (ohneDaten.length) zeilen.push(`Ohne genug Einträge und deshalb unverändert: ${ohneDaten.join(", ")}.`);
+  return { faellig, plan: fertig, getauscht, behalten, ohneDaten, text: zeilen.join("\n") };
+}
+
+/** Für Tests und Prüfungen: ob eine Einheit die Regel gegen schweres Heben und Beugen am selben Tag hält. */
+export function einheitHaeltZns(ids: string[]): boolean {
+  return !(ids.some((x) => SCHWER_HEBEN.has(x)) && ids.some((x) => SCHWER_BEUGEN.has(x)));
+}

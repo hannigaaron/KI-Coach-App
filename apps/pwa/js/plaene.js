@@ -10,7 +10,7 @@
  * fasst `document` an.
  */
 import {
-  BESCHWERDE_NAME, alternativen, planNachrechnen, positionFuer, uebungErlaubt, uebungsplanBauen, uebungsplanText,
+  BESCHWERDE_NAME, alternativen, planAktualisieren, planNachrechnen, positionFuer, uebungErlaubt, uebungsplanBauen, uebungsplanText,
 } from "@daevo/core";
 import { UEBUNGEN } from "./uebungen-daten.js";
 import { GRUPPEN, vorschauPfad } from "./uebungen.js";
@@ -23,8 +23,8 @@ export const STANDARD_WUNSCH = {
 export const BESCHWERDEN = Object.keys(BESCHWERDE_NAME);
 
 export const FELDER = [
-  { feld: "tage", name: "Tage pro Woche", werte: [2, 3, 4, 5].map((w) => ({ wert: w, text: String(w) })) },
-  { feld: "minuten", name: "Minuten pro Einheit", werte: [30, 45, 60, 75].map((w) => ({ wert: w, text: String(w) })) },
+  { feld: "tage", name: "Tage pro Woche", werte: [1, 2, 3, 4, 5].map((w) => ({ wert: w, text: String(w) })) },
+  { feld: "minuten", name: "Minuten pro Einheit", werte: [30, 45, 60, 75, 90].map((w) => ({ wert: w, text: String(w) })) },
   {
     feld: "niveau", name: "Erfahrung",
     werte: [{ wert: "beginner", text: "Einsteiger" }, { wert: "intermediate", text: "Fortgeschritten" }, { wert: "advanced", text: "Erfahren" }],
@@ -120,7 +120,7 @@ export function zeileHtml(p, { bearbeiten = false, ei = 0, pi = 0, tausch = null
 
 export function einheitHtml(e, ei = 0, { bearbeitet = -1, tausch = null, zusatz = [] } = {}) {
   const an = bearbeitet === ei;
-  const knopf = `<button type="button" class="pl-mini pl-bearb" data-bearbeiten="${ei}">${an ? "Fertig" : "Bearbeiten"}</button>`;
+  const knopf = `<div class="pl-knoepfe">${an ? "" : `<button type="button" class="pl-mini pl-start" data-tr-start="${ei}">Starten</button>`}<button type="button" class="pl-mini pl-bearb" data-bearbeiten="${ei}">${an ? "Fertig" : "Bearbeiten"}</button></div>`;
   const dazu = an && zusatz.length
     ? `<label class="pl-dazu"><span>Übung hinzufügen</span><select data-dazu="${ei}"><option value="">Auswählen</option>${
       zusatz.map((u) => `<option value="${esc(u.id)}">${esc(u.name)}</option>`).join("")}</select></label>`
@@ -193,6 +193,38 @@ export function saetzeHtml(wochensaetze) {
   return `<h3 class="ue-abschnitt">Sätze pro Woche</h3><div class="pl-saetze">${zeilen.join("")}</div><p class="pl-legende">Der Strich markiert zehn Sätze, einen üblichen Richtwert für Muskelaufbau.</p>`;
 }
 
+/**
+ * Die Karte nach der Prüfung nach acht Wochen. Sie bleibt zwei Wochen stehen
+ * oder bis sie weggetippt wird: wer den Plan erst am Trainingstag öffnet,
+ * soll trotzdem lesen, warum dort andere Übungen stehen.
+ */
+export function aktualisierungHtml(plan, heute) {
+  const a = plan?.aktualisierung;
+  if (!a || a.gesehen || !a.text) return "";
+  const alter = Math.round((Date.parse(`${heute}T00:00:00Z`) - Date.parse(`${a.datum}T00:00:00Z`)) / 86_400_000);
+  if (alter > 14) return "";
+  const zeilen = a.text.split("\n").map((z) => `<p>${esc(z)}</p>`).join("");
+  return `<div class="pl-update"><b>Dein Plan nach acht Wochen</b>${zeilen}<div class="pl-update-knoepfe">`
+    + `<button type="button" class="pl-mini" data-update="ok">Verstanden</button>`
+    + (a.vorher ? `<button type="button" class="pl-mini" data-update="zurueck">Alten Plan behalten</button>` : "")
+    + "</div></div>";
+}
+
+/**
+ * Prüft einen gespeicherten Plan nach acht Wochen. Gibt den neuen Plan
+ * zurück, wenn sich etwas geändert hat, sonst null. Der alte Stand der
+ * Einheiten reist mit, damit "Alten Plan behalten" ihn zurückholen kann.
+ */
+export function planPruefen(plan, log, heute) {
+  if (!plan) return null;
+  const r = planAktualisieren(plan, log, UEBUNGEN, heute);
+  if (!r.faellig) return null;
+  return {
+    ...r.plan,
+    aktualisierung: { datum: heute, text: r.text, vorher: r.getauscht.length ? plan.einheiten : null, gesehen: false },
+  };
+}
+
 export const hinweiseHtml = (hinweise) => hinweise.map((h) => `<li>${esc(h)}</li>`).join("");
 export const quellenHtml = (quellen) => quellen.map((q) => `<li>${esc(q)}</li>`).join("");
 
@@ -208,7 +240,10 @@ const $ = (id) => document.getElementById(id);
  * eine kurze Rückmeldung. Alle drei kommen von außen, damit diese Datei weder
  * den Speicher noch die Oberfläche der App kennen muss.
  */
-export function plaeneStarten({ speicher, oeffne, melde }) {
+export function plaeneStarten({ speicher, oeffne, melde, starte = () => {}, log = () => [], heute = () => new Date().toISOString().slice(0, 10) }) {
+  // Acht Wochen um: Fortschritt prüfen, bevor irgendetwas gezeigt wird.
+  const geprueft = planPruefen(gespeicherterPlan(speicher.lesen()), log(), heute());
+  if (geprueft) speicher.schreiben(geprueft);
   let gespeichert = gespeicherterPlan(speicher.lesen());
   let wunsch = wunschPruefen(gespeichert?.wunsch);
   let plan = gespeichert ?? planFuer(wunsch);
@@ -222,6 +257,7 @@ export function plaeneStarten({ speicher, oeffne, melde }) {
     $("plSteuerung").innerHTML = steuerHtml(wunsch);
     const dauer = plan.einheiten.map((e) => e.dauerMin);
     const schnitt = dauer.length ? Math.round(dauer.reduce((a, b) => a + b, 0) / dauer.length) : 0;
+    $("plUpdate").innerHTML = istGespeichert ? aktualisierungHtml(plan, heute()) : "";
     $("plKopf").innerHTML = `<b>${plan.einheiten.length} Einheiten pro Woche</b><span>etwa ${schnitt} Min. je Einheit${wunsch.deload ? " · Entlastung" : ""}${plan.bearbeitet ? " · von dir angepasst" : ""}</span>`;
     $("plEinheiten").innerHTML = plan.einheiten
       .map((e, ei) => einheitHtml(e, ei, { bearbeitet, tausch, zusatz: bearbeitet === ei ? zusatzListe(plan, ei) : [] }))
@@ -268,7 +304,34 @@ export function plaeneStarten({ speicher, oeffne, melde }) {
     if (event.target.id === "plDeload") neu({ deload: event.target.checked });
   });
   $("plAndere").addEventListener("click", () => neu({ variante: wunsch.variante + 1 }));
+  $("plUpdate").addEventListener("click", (event) => {
+    const k = event.target.closest("[data-update]");
+    if (!k || !plan.aktualisierung) return;
+    let neuerPlan = { ...plan, aktualisierung: { ...plan.aktualisierung, gesehen: true } };
+    if (k.dataset.update === "zurueck" && plan.aktualisierung.vorher) {
+      neuerPlan = planNachrechnen({ ...neuerPlan, einheiten: plan.aktualisierung.vorher }, UEBUNGEN);
+      melde("Alter Plan bleibt");
+    }
+    speicher.schreiben(neuerPlan);
+    gespeichert = neuerPlan;
+    plan = neuerPlan;
+    zeichnen();
+  });
   $("plEinheiten").addEventListener("click", (event) => {
+    const start = event.target.closest("[data-tr-start]");
+    if (start) {
+      // Wer trainiert, hat sich für diesen Plan entschieden. Ungespeichert
+      // gäbe es kein Protokoll, an dem nach acht Wochen gemessen wird.
+      if (!istGespeichert) {
+        speicher.schreiben({ ...plan, gespeichertAm: new Date().toISOString() });
+        gespeichert = gespeicherterPlan(speicher.lesen());
+        plan = gespeichert;
+        istGespeichert = true;
+        zeichnen();
+      }
+      starte(Number(start.dataset.trStart));
+      return;
+    }
     const bearb = event.target.closest("[data-bearbeiten]");
     if (bearb) {
       const ei = Number(bearb.dataset.bearbeiten);
@@ -336,6 +399,8 @@ export function plaeneStarten({ speicher, oeffne, melde }) {
   // steht. Ohne Nachladen zeigte sie den Standardplan statt des eigenen.
   return {
     laden() {
+      const geprueft = planPruefen(gespeicherterPlan(speicher.lesen()), log(), heute());
+      if (geprueft) speicher.schreiben(geprueft);
       const neu = gespeicherterPlan(speicher.lesen());
       if (!neu) return;
       gespeichert = neu;

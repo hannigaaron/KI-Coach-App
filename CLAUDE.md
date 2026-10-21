@@ -255,7 +255,7 @@ und nicht von einem Modell geschrieben: `packages/core/src/trainingsplan.ts`,
 Darstellung in `apps/pwa/js/plaene.js`. Er läuft ohne Schlüssel, ist bei
 gleicher Eingabe immer derselbe und jede Zahl hängt an einer Regel im Code.
 
-Eingaben: Tage pro Woche (2 bis 5), Minuten je Einheit, Erfahrung, Ziel,
+Eingaben: Tage pro Woche (1 bis 5), Minuten je Einheit (30 bis 90), Erfahrung, Ziel,
 Entlastungswoche.
 
 Bis 45 Minuten gibt es keine Isolation. Jede Einheit hat genau fünf
@@ -339,6 +339,66 @@ ohne Knieübung wäre falsch. Übungen, die jemand im Freitext nennt, werden
 über den Namen gesucht, ab fünf Zeichen, damit "Bankdrücken" auch die
 Varianten trifft.
 
+### Schweres Heben und Beugen nie am selben Tag
+
+`zuSchwerZusammen` im Kern. Kreuzheben, Sumo und Trap Bar Kreuzheben stehen
+nie mit Kniebeuge oder Frontkniebeuge an der Langhantel in einer Einheit.
+Beide fordern Rücken und Nervensystem am stärksten, und die zweite Übung
+wird müde und unsauber gemacht. Eine Regel von Coach Aaron aus der Praxis,
+keine Studie. Rumänisches Kreuzheben, Hip Thrust und Beinpresse bleiben mit
+der Kniebeuge kombinierbar, sie gehen mit weniger Last. Die Regel gilt beim
+Bauen, beim Tauschen und bei der Anpassung nach acht Wochen, und ein Test
+läuft jede Kombination aus Tagen, Minuten, Niveau und Variante durch.
+
+Einmal die Woche gibt es einen einfachen Ganzkörperplan, `GK_1`: Kniebeuge,
+Hüfte, Drücken, Ziehen und Rumpf, bei mehr Zeit das zweite Drücken und
+Ziehen. Keine Isolation.
+
+### Der Trainingsmodus
+
+`apps/pwa/js/training.js`, das Blatt `#trainingBlatt`. Je Einheit steht im
+Plan "Starten". Oben die Daumen aller Übungen, darunter die eine Übung mit
+Gerät, Ziel und RIR, je Satz eine Zeile mit Kilo, Wiederholungen, RIR und
+Haken. Der Haken startet die Pause mit der Pausenzeit aus dem Plan. Darunter
+steht das letzte Mal mit Datum und Einheit.
+
+RIR statt einer geschätzten Maximalkraft in der Tabelle. Die App steuert
+über Reserve, und "10RM 55,5" sagt im Satz danach nichts, was man anders
+machen würde.
+
+Die Felder sind mit dem letzten Mal vorbelegt, das Gewicht aus Satz 1
+wandert in die leeren Sätze danach. Dabei wird nicht neu gezeichnet: im
+ersten Durchlauf nahm das Neuzeichnen beim Wechsel ins nächste Feld den
+Fokus, und die getippten Wiederholungen waren weg.
+
+Der Entwurf liegt bei jeder Eingabe in `settings.trainingEntwurf`. Ein Anruf
+schliesst auf dem iPhone die App, und eine Einheit, die danach weg ist, wird
+nicht nachgetragen. Schliessen ist nicht beenden, beim Plan steht dann
+"Training fortsetzen". Beenden schreibt die abgehakten Sätze in
+`settings.trainingslog` und ein Krafttraining mit der echten Dauer in den
+Tag, sonst fragt die Trainingslücke trotz Training. Nur abgehakte Sätze
+zählen, nicht gemacht ist nicht null. Das Protokoll hält 400 Tage.
+
+Die drei Punkte neben dem Namen bieten drei Übungen für dieselbe Bewegung
+an, nach Ort, Niveau und Beschwerden, die erste als Vorschlag von daevo.
+Der Tausch gilt ab dann auch im Plan. Wer einen Plan startet, der noch
+nicht gespeichert ist, speichert ihn damit: ohne gespeicherten Plan gibt es
+nichts, woran nach acht Wochen gemessen wird.
+
+### Nach acht Wochen
+
+`packages/core/src/trainingslog.ts`, `planPruefen` in `plaene.js`. Gemessen
+wird je Übung eine geschätzte Maximalkraft nach Epley, mit der Reserve zu
+den Wiederholungen gezählt, der beste Satz je Einheit. Anfang und Ende sind
+je der Schnitt aus zwei Einheiten, damit kein einzelner Tag das Urteil
+trägt. Unter 2,5 Prozent Zuwachs gilt eine Übung als festgefahren und wird
+gegen eine für dieselbe Bewegung getauscht, mit derselben Dosis. Was wächst,
+bleibt. Unter drei Einheiten wird nichts geraten, die Übung bleibt. Bei
+einem Training pro Woche bleiben alle Übungen: acht Einheiten sind zu wenig,
+um zu wechseln, und der einfache Plan lebt davon, an denselben Übungen
+stärker zu werden. Die Karte darüber nennt Tausch, Prozent und die drei
+stärksten Übungen und bietet "Alten Plan behalten" an.
+
 ### Den Plan von Hand ändern
 
 Je Einheit ein Knopf "Bearbeiten". Dann stehen unter jeder Übung Sätze minus
@@ -360,7 +420,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1103 Tests
+npm test           # 1117 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages

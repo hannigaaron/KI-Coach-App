@@ -432,6 +432,21 @@ try {
     </div>
   </div>
 
+  <!-- Der Trainingsmodus. Ein Blatt fast über die ganze Höhe: im Studio
+       zählt die Tabelle, nicht was darunter liegt. "Beenden" speichert,
+       das Kreuz schliesst nur, die Einheit bleibt offen. -->
+  <div id="trainingBlatt" class="blatt tr-blatt" hidden>
+    <div class="blatt-innen" role="dialog" aria-modal="true" aria-labelledby="trainingTitel">
+      <header class="blatt-kopf">
+        <button id="trainingZu" class="tr-kopfknopf" type="button">Schließen</button>
+        <h2 id="trainingTitel">Training</h2>
+        <button id="trainingEnde" class="tr-kopfknopf stark" type="button">Beenden</button>
+      </header>
+      <div class="blatt-scroll" id="trainingInhalt"></div>
+      <div class="tr-fuss" id="trainingFuss"></div>
+    </div>
+  </div>
+
   <div id="herkunftBlatt" class="blatt" hidden>
     <div class="blatt-innen" role="dialog" aria-modal="true" aria-labelledby="hkTitel">
       <header class="blatt-kopf">
@@ -1039,6 +1054,8 @@ try {
         <p class="sub">Ein Plan aus den Übungen dieser App. Er wird gerechnet, nicht geschrieben, und folgt Regeln, die unten stehen.</p>
         <div id="plSteuerung" class="pl-steuerung"></div>
         <div id="plGeladen" class="pl-geladen" hidden><button type="button" class="ue-tab">Gespeicherten Plan laden</button></div>
+        <div id="plUpdate"></div>
+        <div id="plOffen" class="pl-offen" hidden><button type="button" class="pl-knopf haupt" id="plFortsetzen">Training fortsetzen</button></div>
         <div id="plKopf" class="pl-kopf"></div>
         <div id="plEinheiten"></div>
         <div id="plSaetze"></div>

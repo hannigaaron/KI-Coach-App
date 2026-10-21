@@ -21,6 +21,7 @@ import { Coach, AnthropicProvider } from "@daevo/coach";
 import { KONFIG, istDemo, istNativ } from "./konfig.js";
 import { uebungenStarten } from "./uebungen.js";
 import { planFuer as uebungsplanFuer, plaeneStarten } from "./plaene.js";
+import { trainingStarten } from "./training.js";
 import {
   antwortVerarbeiten, antwortenAbholen, lueckeAusSpeicher, lueckeMelden,
   schieflageAusSpeicher, schieflageMelden,
@@ -2709,14 +2710,40 @@ $("menu").addEventListener("click", (event) => {
   if (event.target.closest("[data-menu-zurueck]")) menuSeite("start");
 });
 uebungen = uebungenStarten();
-const plaene = plaeneStarten({
-  speicher: {
-    lesen: () => store.getSettings().plan ?? null,
-    schreiben: (plan) => store.setSettings({ ...store.getSettings(), plan }),
+const planSpeicher = {
+  lesen: () => store.getSettings().plan ?? null,
+  schreiben: (plan) => store.setSettings({ ...store.getSettings(), plan }),
+};
+const trainingslog = () => (Array.isArray(store.getSettings().trainingslog) ? store.getSettings().trainingslog : []);
+const training = trainingStarten({
+  plan: planSpeicher,
+  log: { lesen: trainingslog, schreiben: (trainingslog) => store.setSettings({ ...store.getSettings(), trainingslog }) },
+  entwurfSpeicher: {
+    lesen: () => store.getSettings().trainingEntwurf ?? null,
+    schreiben: (trainingEntwurf) => store.setSettings({ ...store.getSettings(), trainingEntwurf }),
   },
+  heute: todayIso,
   oeffne: (id) => uebungen.oeffne(id),
   melde: (text) => toast(text),
+  // Eine beendete Einheit steht danach auch im Tag. Sonst fragt die
+  // Trainingslücke nach vier Tagen, obwohl jeder Satz eingetragen ist.
+  fertig: ({ titel, minuten }) => {
+    store.addTraining(todayIso(), { id: newId(), type: "strength", minutes: minuten, at: nowTime(), note: titel });
+    $("plOffen").hidden = true;
+    refreshAll();
+  },
+  geaendert: () => plaene.laden(),
 });
+const plaene = plaeneStarten({
+  speicher: planSpeicher,
+  oeffne: (id) => uebungen.oeffne(id),
+  melde: (text) => toast(text),
+  starte: (ei) => training.starten(ei),
+  log: trainingslog,
+  heute: todayIso,
+});
+$("plOffen").hidden = !training.offen();
+$("plFortsetzen").addEventListener("click", () => training.fortsetzen());
 
 // Täglicher Check-in und Wochenbogen sind zwei Ansichten, aber ein Menüpunkt.
 // Zwei Einträge für dieselbe Handlung zwingen dazu, jedes Mal zu überlegen,
