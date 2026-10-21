@@ -34,6 +34,12 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
         }
         if let schlaf = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) { typen.insert(schlaf) }
         typen.insert(HKObjectType.workoutType())
+        // Ernährung, die andere Apps nach Health schreiben, etwa YAZIO oder
+        // MyFitnessPal. Die Mahlzeit als Ganzes steht als Korrelation da.
+        for (id, _, _) in GesundheitPlugin.naehrwerte {
+            if let t = HKObjectType.quantityType(forIdentifier: id) { typen.insert(t) }
+        }
+        if let essen = HKObjectType.correlationType(forIdentifier: .food) { typen.insert(essen) }
         return typen
     }
 
@@ -185,10 +191,83 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
         }
         store.execute(workoutAbfrage)
 
+        var nahrung: [[String: Any]] = []
+        gruppe.enter()
+        nahrungLesen(anfang: anfang, ende: ende) { liste in
+            sperre.lock()
+            nahrung = liste
+            sperre.unlock()
+            gruppe.leave()
+        }
+
         gruppe.notify(queue: .main) {
             let liste = ergebnis.values.sorted { ($0["tag"] as? String ?? "") < ($1["tag"] as? String ?? "") }
-            call.resolve(["tage": liste, "workouts": workouts])
+            call.resolve(["tage": liste, "workouts": workouts, "nahrung": nahrung, "von": GesundheitPlugin.tagText(anfang)])
         }
+    }
+
+    /// Kalorien und Makros, mit der Einheit, in der die App rechnet.
+    static let naehrwerte: [(HKQuantityTypeIdentifier, String, HKUnit)] = [
+        (.dietaryEnergyConsumed, "kcal", .kilocalorie()),
+        (.dietaryProtein, "proteinG", .gram()),
+        (.dietaryFatTotal, "fatG", .gram()),
+        (.dietaryCarbohydrates, "carbsG", .gram()),
+    ]
+
+    /// Jeder Nährwert als einzelner Eintrag mit Zeit und Quell-App. Gehört er
+    /// zu einer Mahlzeit, die als Korrelation in Health steht, trägt er deren
+    /// Kennung und Namen. Zusammengelegt wird in der App, siehe healthkit.js.
+    ///
+    /// Erst die Korrelationen, dann die Werte: sonst wüsste ein Wert nicht,
+    /// zu welcher Mahlzeit er gehört. Was die App selbst geschrieben hätte,
+    /// fällt weg. daevo schreibt nichts nach Health, aber falls doch einmal,
+    /// käme es sonst als fremde Mahlzeit zurück.
+    private func nahrungLesen(anfang: Date, ende: Date, fertig: @escaping ([[String: Any]]) -> Void) {
+        let zeitraum = HKQuery.predicateForSamples(withStart: anfang, end: ende)
+        let eigene = Bundle.main.bundleIdentifier ?? ""
+        guard let essenTyp = HKObjectType.correlationType(forIdentifier: .food) else { fertig([]); return }
+        let korrelationen = HKCorrelationQuery(type: essenTyp, predicate: zeitraum, samplePredicates: nil) { [weak self] _, ergebnis, _ in
+            var zuMahlzeit: [UUID: (String, String)] = [:]
+            for k in ergebnis ?? [] {
+                let name = k.metadata?[HKMetadataKeyFoodType] as? String ?? ""
+                for objekt in k.objects { zuMahlzeit[objekt.uuid] = (k.uuid.uuidString, name) }
+            }
+            guard let self = self else { fertig([]); return }
+            var liste: [[String: Any]] = []
+            let gruppe = DispatchGroup()
+            let sperre = NSLock()
+            for (id, feld, einheit) in GesundheitPlugin.naehrwerte {
+                guard let typ = HKQuantityType.quantityType(forIdentifier: id) else { continue }
+                gruppe.enter()
+                let abfrage = HKSampleQuery(sampleType: typ, predicate: zeitraum, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, proben, _ in
+                    var teil: [[String: Any]] = []
+                    for p in proben as? [HKQuantitySample] ?? [] {
+                        let quelle = p.sourceRevision.source
+                        if !eigene.isEmpty && quelle.bundleIdentifier == eigene { continue }
+                        var eintrag: [String: Any] = [
+                            "id": p.uuid.uuidString,
+                            "feld": feld,
+                            "wert": (p.quantity.doubleValue(for: einheit) * 10).rounded() / 10,
+                            "tag": GesundheitPlugin.tagText(p.startDate),
+                            "uhrzeit": GesundheitPlugin.uhrzeitText(p.startDate),
+                            "quelle": quelle.name,
+                        ]
+                        if case let (mahlzeit, name)? = zuMahlzeit[p.uuid] {
+                            eintrag["mahlzeit"] = mahlzeit
+                            if !name.isEmpty { eintrag["name"] = name }
+                        }
+                        teil.append(eintrag)
+                    }
+                    sperre.lock()
+                    liste.append(contentsOf: teil)
+                    sperre.unlock()
+                    gruppe.leave()
+                }
+                self.store.execute(abfrage)
+            }
+            gruppe.notify(queue: .global()) { fertig(liste) }
+        }
+        store.execute(korrelationen)
     }
 
     /// Alle Zustände, die Schlaf sind. Ab iOS 16 schreibt die Uhr Phasen,

@@ -110,7 +110,7 @@ test("der Verbrauch aus der Antwort wird gemeldet", async () => {
   const gemeldet: Verbrauch[] = [];
   const provider = new AnthropicProvider({
     apiKey: "sk-test",
-    model: "claude-sonnet-5",
+    model: "claude-sonnet-5-5",
     onVerbrauch: (x) => gemeldet.push(x),
     fetchImpl: async () => new Response(
       JSON.stringify({
@@ -128,7 +128,7 @@ test("der Verbrauch aus der Antwort wird gemeldet", async () => {
   assert.equal(gemeldet.length, 1);
   assert.deepEqual(gemeldet[0], {
     inputTokens: 400, outputTokens: 120, cacheReadTokens: 5000,
-    cacheWriteTokens: 0, modell: "claude-sonnet-5",
+    cacheWriteTokens: 0, modell: "claude-sonnet-5-5",
   });
   assert.deepEqual(antwort.verbrauch, gemeldet[0]);
 });

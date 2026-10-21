@@ -327,7 +327,7 @@ function pruefe(p: {
   if (mittags.length === 0 && p.termine.length > 0) {
     hinweise.push(
       "Zwischen 11 und 15 Uhr hast du keine Lücke von 20 Minuten. Nimm dir heute etwas Vorbereitetes mit, " +
-      "sonst fällt die Mahlzeit aus und der Abend wird zu gross.",
+      "sonst fällt die Mahlzeit aus und der Abend wird zu groß.",
     );
   }
 

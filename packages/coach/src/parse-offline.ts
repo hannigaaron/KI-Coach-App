@@ -73,7 +73,7 @@ export function parseMealOffline(text: string): { entries: FoodEntry[]; unresolv
       // Flüssiges bleibt in Milliliter, so wie es gesagt wurde. Gerechnet wird
       // mit 1 ml gleich 1 g, für Milch und Haferdrink weicht das um wenige
       // Prozent ab.
-      quantity: `${Math.round(grams)} ${menge.ml ? "ml" : "g"}`,
+      quantity: `${Math.round(grams)} ${menge.ml || food.fluessig ? "ml" : "g"}`,
       kcal: Math.round(food.per100.kcal * factor),
       proteinG: round1(food.per100.proteinG * factor),
       fatG: round1(food.per100.fatG * factor),

@@ -13,8 +13,8 @@
  *
  * Kein `document`, kein `window`: das Modul läuft auch in den Tests.
  */
-import { LUECKE_UHRZEIT, erinnerungAmTag, erinnerungUhrzeit, impulseFuerTag, tagesrandFuer } from "@daevo/core";
-import { lueckeAusSpeicher } from "./luecke.js";
+import { LUECKE_UHRZEIT, NACHFRAGE_UHRZEIT, erinnerungAmTag, erinnerungUhrzeit, impulseFuerTag, morgenUhrzeit, nachfrageNoetig, tagesrandFuer } from "@daevo/core";
+import { lueckeAusSpeicher, trainingAutomatischErfasst } from "./luecke.js";
 
 export const MAX_GEPLANT = 60;
 
@@ -66,6 +66,25 @@ export function mitteilungsPlan({ store, jetzt, luecke = null }) {
         plan.push({ id: `impuls-${impuls.art}-${tag}`, tag, uhrzeit: impuls.at, titel: impuls.titel, text: impuls.text, art: impuls.art });
       }
     }
+    if (!aus.morgen && profil) {
+      // Eine halbe Stunde nach der Aufstehzeit dieses Tages. Ist der
+      // Check-in heute schon gemacht, kommt die Mitteilung nicht.
+      const gemacht = i === 0 && (store.getDay(tag).checkins || []).some((c) => c.kind === "morning" && c.morgen);
+      // Morgens Fitheit 1 oder 2: mittags fragt daevo nach, ob trainiert wird.
+      const heuteMorgen = i === 0 ? (store.getDay(tag).checkins || []).filter((c) => c.kind === "morning" && c.morgen).pop() : null;
+      if (heuteMorgen && !heuteMorgen.nachgefragt && nachfrageNoetig(heuteMorgen.morgen)) {
+        plan.push({
+          id: `nachfrage-${tag}`, tag, uhrzeit: NACHFRAGE_UHRZEIT,
+          titel: "Wie geht es dir jetzt?", text: "Heute Morgen ging es dir nicht gut. Davon hängt ab, ob du heute trainierst.", art: "nachfrage",
+        });
+      }
+      if (!gemacht) {
+        plan.push({
+          id: `morgen-${tag}`, tag, uhrzeit: morgenUhrzeit(tagesrandFuer(profil, tag).wakeTime),
+          titel: "Guten Morgen", text: "Wie hast du geschlafen? Vier Fragen, dann plant daevo deinen Tag.", art: "morgen",
+        });
+      }
+    }
     if (!aus.runterfahren && profil) {
       // Dieselbe Zeit wie im Erinnerungsplan, siehe reminders.ts: 45 Minuten
       // vor der Schlafenszeit dieses Tages, mit Wochentag und Ausnahmen.
@@ -104,6 +123,8 @@ export function mitteilungsPlan({ store, jetzt, luecke = null }) {
  * Öffnen am selben Tag heraus, denn dann gilt sie als schon gefragt.
  */
 export function lueckeFuerPlan(store, heute) {
+  // Eine schon geplante Frage fällt ebenfalls weg, wenn die Verbindung fehlt.
+  if (!trainingAutomatischErfasst(store, heute)) return null;
   const neu = lueckeAusSpeicher(store, heute);
   if (neu) {
     store.setSettings({ ...store.getSettings(), lueckeGefragt: heute, lueckeGeplant: { tag: heute, titel: neu.titel, text: neu.text } });

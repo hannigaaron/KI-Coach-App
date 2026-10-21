@@ -443,7 +443,7 @@ function corsKopf(env: Env, anfrage: Request): Record<string, string> {
   return {
     "Access-Control-Allow-Origin": treffer,
     "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "content-type, x-daevo-wort, authorization",
+    "Access-Control-Allow-Headers": "content-type, x-daevo-wort, x-daevo-folge, authorization",
     "Access-Control-Max-Age": "86400",
     Vary: "Origin",
   };

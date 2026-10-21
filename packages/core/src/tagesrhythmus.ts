@@ -108,7 +108,7 @@ export function mittagsBefund(e: MittagsEingabe): MittagsBefund {
     }
     if (e.saettigung >= 9) {
       massnahmen.push(
-        "Sättigung 9 oder 10 heisst übervoll. Iss die gleiche Menge langsamer oder in zwei Schritten, " +
+        "Sättigung 9 oder 10 heißt übervoll. Iss die gleiche Menge langsamer oder in zwei Schritten, " +
         "dann merkst du die Sättigung, bevor der Teller leer ist.",
       );
     }
@@ -213,6 +213,6 @@ export function abendAbschluss(e: AbschlussEingabe): string {
   zeilen.push("");
   zeilen.push(`Morgen: ${e.morgen}`);
   zeilen.push("");
-  zeilen.push("Zwei Fragen: Was war heute die grösste Herausforderung, und was nimmst du dir für morgen als Erstes vor?");
+  zeilen.push("Zwei Fragen: Was war heute die größte Herausforderung, und was nimmst du dir für morgen als Erstes vor?");
   return zeilen.join("\n");
 }

@@ -37,10 +37,19 @@ export interface Stufe {
  * nur mit Abo, der Regelpfad läuft in jeder Stufe weiter und taucht hier nicht
  * auf. "frei" heisst damit: alles ohne Modell, nichts mit.
  *
- * Preise: Plus 9,99 Euro, Pro 19,99 Euro im Monat. Die Budgets lassen nach
- * Abzug der Gebühr des App Stores Marge, solange ein Nutzer im Schnitt unter
- * der Grenze bleibt. Die Zahlen gehören nachjustiert, sobald gemessen ist, was
- * ein aktiver Nutzer wirklich verbraucht.
+ * Preise: Plus 9,99 Euro, Pro 19,99 Euro im Monat. Gemessen am 21. Oktober
+ * 2026 über den Worker kostet eine Nachricht im Schnitt rund 2 Cent: Essen
+ * eintragen auf Haiku 0,1 Cent, eine Fachfrage auf Sonnet 2 bis 7 Cent, ein
+ * Gespräch auf Opus 3 bis 15 Cent. Die Zahl der Nachrichten ist so gewählt,
+ * dass das Budget sie bei diesem Schnitt trägt: 250 mal 2 Cent sind 5 Dollar
+ * gegen 7 im Budget, 700 mal 2 Cent 14 gegen 15. Wer fast nur auf Opus redet,
+ * erreicht das Budget früher, deshalb steht in der App "bis zu". Nach Steuer
+ * und App Store bleiben je Abo rund 7,14 und 14,28 Euro, das Budget liegt in
+ * beiden Fällen darunter.
+ *
+ * Gezählt wird je Nachricht des Nutzers, nicht je Anfrage, siehe
+ * `x-daevo-folge` in `chat.ts`. Essen per Text und Sprache zählt gar nicht,
+ * nur gegen das Budget.
  *
  * Die Testphase ist enger als Plus. Ein Konto lässt sich ohne Anmeldung
  * anlegen, und eine Testphase mit dem vollen Budget wäre für jeden, der
@@ -48,9 +57,9 @@ export interface Stufe {
  */
 export const STUFEN: Record<string, Stufe> = {
   frei: { name: "Ohne Abo", nachrichten: 0, budgetMikro: 0 },
-  test: { name: "Testphase", nachrichten: 150, budgetMikro: 1_500_000 },
-  plus: { name: "Plus", nachrichten: 800, budgetMikro: 4_000_000 },
-  pro: { name: "Pro", nachrichten: 2500, budgetMikro: 12_000_000 },
+  test: { name: "Testphase", nachrichten: 60, budgetMikro: 1_500_000 },
+  plus: { name: "Plus", nachrichten: 250, budgetMikro: 7_000_000 },
+  pro: { name: "Pro", nachrichten: 700, budgetMikro: 15_000_000 },
 };
 
 /** Wie lange die Testphase läuft, der Tag der Anlage zählt mit. */

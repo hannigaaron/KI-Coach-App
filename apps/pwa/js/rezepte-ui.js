@@ -40,7 +40,12 @@ export function rezepteAnsicht({ wurzel, toast, beiEintrag }) {
     const e = liste[zustand.index];
 
     const rest = Math.round(r.rest.kcal);
-    el("rzRest").innerHTML = `<b>${Math.max(0, rest)}</b> kcal übrig
+    // Wird für morgen geplant, gilt der Rest von heute nicht. Vorher stand
+    // "291 kcal übrig, im Rahmen" über einem Rezept, das mit dem vollen
+    // Tagesziel von morgen gerechnet war.
+    el("rzRest").innerHTML = r.morgen
+      ? `<b>Für morgen</b> <span class="rz-status gut">mit vollem Tagesziel</span>`
+      : `<b>${Math.max(0, rest)}</b> kcal übrig
       <span class="rz-status ${rest >= 0 ? "gut" : "drueber"}">${rest >= 0 ? "Im Rahmen" : `${Math.abs(rest)} kcal drüber`}</span>`;
 
     // Angeboten werden die Mahlzeiten, die heute noch kommen, plus Snack. Ein

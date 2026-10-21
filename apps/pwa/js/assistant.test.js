@@ -631,3 +631,59 @@ test("Das Kalorienziel rechnet mit gemessenen Schritten, sobald die Woche genug 
   assert.equal(gemesseneSchritte(heute), 4000);
   assert.ok(dayNumbers(heute).targets.kcal < ohne, "weniger Schritte als angegeben heisst ein niedrigeres Ziel");
 });
+
+/* ---------- Dauerhafte Änderungen aus dem Gespräch ---------- */
+
+test("eine Änderung der Trainingstage landet im Profil und im Tagesziel", async () => {
+  frischerTag();
+  store.setProfile({ ...PROFIL, sessions: [
+    { type: "team_sport", minutes: 120, weekday: 2, startsAt: "19:00" },
+    { type: "strength", minutes: 75, weekday: 1, startsAt: "07:00" },
+  ] });
+  const aktionen = buildActions({});
+  const antwort = await aktionen.trainingsplanAendern({
+    modus: "ersetzen", nurArt: "team_sport", einheiten: [{ wochentag: 4 }],
+  });
+  assert.match(antwort, /Trainingsplan gespeichert/);
+  const plan = store.getProfile().sessions;
+  assert.deepEqual(plan.map((s) => `${s.weekday}:${s.type}:${s.startsAt}`), ["1:strength:07:00", "4:team_sport:19:00"]);
+});
+
+test("ein Standard derselben Art wird geändert und nicht verdoppelt", async () => {
+  frischerTag();
+  const aktionen = buildActions({});
+  await aktionen.standardSetzen({ text: "Ich lege das Handy jeden Tag vor 22 Uhr weg", kadenz: "taeglich", art: "handy_aus", ziel: 1, uhrzeit: "22:00" });
+  const vorher = store.getStandards().filter((s) => s.kind === "handy_aus").length;
+  const antwort = await aktionen.standardAusSatz("Passe meinen Mindeststandard an, nur noch dreimal die Woche vor 23 Uhr weg");
+  assert.match(antwort, /Standard geändert/);
+  const handy = store.getStandards().filter((s) => s.kind === "handy_aus");
+  assert.equal(handy.length, vorher);
+  assert.equal(handy[0].ziel, 3);
+  assert.equal(handy[0].kadenz, "woechentlich");
+  assert.equal(handy[0].uhrzeit, "23:00");
+});
+
+test("eigene Posten stehen auf der Einkaufsliste und überleben das Neurechnen", async () => {
+  localStorage.clear();
+  store.setProfile(PROFIL);
+  const a = buildActions();
+  const antwort = await a.einkaufslisteErgaenzen({ posten: ["Hähnchenbrust 500 g", "Brokkoli"] });
+  assert.match(antwort, /Hähnchenbrust 500 g, Brokkoli/);
+  let liste = store.getShoppingList();
+  assert.deepEqual(liste.items.map((i) => [i.name, i.menge]), [["Hähnchenbrust", "500 g"], ["Brokkoli", ""]]);
+  await a.einkaufslisteErstellen({ tage: 7 });
+  liste = store.getShoppingList();
+  assert.ok(liste.items.some((i) => i.name.toLowerCase().includes("brokkoli")), "Brokkoli bleibt");
+  assert.ok(liste.items.some((i) => i.name.toLowerCase() === "hähnchenbrust"), "Hähnchenbrust bleibt");
+});
+
+test("eine Korrektur in einer anderen Einheit wird über Gramm umgerechnet", async () => {
+  localStorage.clear();
+  store.setProfile(PROFIL);
+  const day = todayIso();
+  store.addMeal(day, { id: "m1", text: "Honig", at: "08:00", entries: [{ name: "Honig", quantity: "15 g", kcal: 46, proteinG: 0, fatG: 0, carbsG: 11.4 }] });
+  const antwort = await buildActions().mahlzeitKorrigieren({ posten: "Honig", neueMenge: 1, mengeText: "1 Teelöffel" });
+  const e = store.getDay(day).meals[0].entries[0];
+  assert.equal(e.quantity, "1 Teelöffel");
+  assert.equal(e.kcal, 15, antwort);
+});

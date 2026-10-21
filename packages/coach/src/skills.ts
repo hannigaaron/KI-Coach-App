@@ -3,6 +3,7 @@ import { remainingBudget, sumEntries, type RemainingBudget } from "@daevo/core";
 import { parseMealOffline } from "./parse-offline.js";
 import { CHECKIN_SYSTEM, MEAL_PARSE_SYSTEM, MEAL_SUGGEST_SYSTEM } from "./prompts.js";
 import { MEAL_SCHEMA, MESSAGE_SCHEMA, SUGGESTION_SCHEMA } from "./schemas.js";
+import { HAIKU } from "./modelle.js";
 import type { CoachProvider } from "./provider.js";
 import { validateEntries } from "./validate.js";
 
@@ -42,6 +43,14 @@ export function naechsteFrage(erkannt: number, offen: string[]): string {
     }
     if (ohneMenge.length) saetze.push(`Bei ${ohneMenge.join(", ")} fehlt mir die Menge. Wie viel war das ungefähr?`);
     return saetze.join(" ");
+  }
+  // Nichts erkannt, aber ein kurzer Posten mit Zahl: das war eine Mahlzeit,
+  // nur nicht aus der Tabelle. "Trag mir 1 Big Mac ein" bekam sonst die
+  // Bitte, es mit Menge zu sagen, obwohl die Menge dastand.
+  if (erkannt === 0 && offen.length > 0 && offen.length <= 3
+    && offen.every((o) => /\d/.test(o) && o.trim().split(/\s+/).length <= 5)) {
+    return `Nicht eingetragen, weil ich die Nährwerte nicht kenne: ${offen.join(", ")}. `
+      + "Scann den Barcode oder nenn mir Kalorien und Protein je 100 Gramm, dann trage ich es nach.";
   }
   if (erkannt === 0) {
     return "Daraus konnte ich keine Mahlzeit lesen. Wenn du etwas eintragen willst, "
@@ -87,6 +96,11 @@ export class Coach {
           user: `Mahlzeit des Nutzers:\n${text}`,
           schema: MEAL_SCHEMA as unknown as Record<string, unknown>,
           schemaName: "mahlzeit_erfassen",
+          // Haiku 5.5 und nicht das Rückfallmodell. Gemessen am 21. Oktober
+          // 2026 mit sechs echten Sätzen: Haiku fand jeden Posten in 2 bis 5
+          // Sekunden für zusammen 0,2 Cent, Opus 5.5 brauchte 7 bis 14
+          // Sekunden für 12 Cent und fand nicht mehr.
+          modell: HAIKU,
         });
         const validated = validateEntries(raw.entries);
         if (validated.entries.length > 0) {
@@ -176,7 +190,10 @@ export class Coach {
         user: `Art der Erinnerung: ${params.reminderKind}\nStand des Tages:\n${params.context}`,
         schema: MESSAGE_SCHEMA as unknown as Record<string, unknown>,
         schemaName: "checkin_nachricht",
-        maxTokens: 300,
+        // Das Denken zählt gegen die Grenze und lässt sich nicht abschalten.
+        // Mit 300 Token blieb für die Nachricht selbst zu wenig übrig.
+        maxTokens: 1024,
+        effort: "low",
       });
       return raw.message?.trim() || params.fallback;
     } catch (error) {

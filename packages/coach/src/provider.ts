@@ -25,6 +25,8 @@ export interface JsonRequest {
   maxTokens?: number;
   /** Ueberschreibt das Modell des Anbieters für diesen einen Aufruf. */
   modell?: string;
+  /** Denktiefe. Ohne Angabe medium, denn ausgeschaltet werden kann das Denken nicht mehr. */
+  effort?: "low" | "medium" | "high";
 }
 
 /** Ein Werkzeug, das das Modell aufrufen darf. */
@@ -64,7 +66,12 @@ export type ContentBlock =
  * älteren Fassung trägt die kaputten Blöcke weiterhin.
  */
 export function denkblockUnbrauchbar(block: ContentBlock): boolean {
-  if (block.type === "thinking") return !block.thinking?.trim() || !block.signature?.trim();
+  // Ein leerer Text allein ist kein Fehler. Opus 5.5, Sonnet 5.5 und Haiku
+  // 5.5 schicken den Denktext standardmässig gar nicht mit, der Block kommt
+  // mit leerem Text und gültiger Signatur. So zurückgeschickt nimmt die API
+  // ihn an, gemessen am 21. Oktober 2026. Unbrauchbar ist er erst ohne
+  // Signatur, und genau so sah der Block aus, der damals abgeschossen hat.
+  if (block.type === "thinking") return !block.signature?.trim();
   if (block.type === "redacted_thinking") return !block.data?.trim();
   return false;
 }

@@ -1009,6 +1009,8 @@ body:has([data-view="assistant"]:not([hidden])) .toast {
     --bereich-wellbeing: #5167d6; --bereich-me_time: #924ed5;
     --bereich-beziehung: #c72f94;
     --spur: #e4e8ec;
+    /* Rot für Text auf hellem Grund: #f85149 lag auf #f5f7fb bei 3,13 zu 1. */
+    --bad: #c62828;
     --accent: var(--brand-deep);
     --accent-text: var(--brand-text);
     --on-accent: #ffffff;
@@ -1032,6 +1034,8 @@ body:has([data-view="assistant"]:not([hidden])) .toast {
     --bereich-wellbeing: #5167d6; --bereich-me_time: #924ed5;
     --bereich-beziehung: #c72f94;
     --spur: #e4e8ec;
+    /* Rot für Text auf hellem Grund: #f85149 lag auf #f5f7fb bei 3,13 zu 1. */
+    --bad: #c62828;
     --accent: var(--brand-deep);
     --accent-text: var(--brand-text);
     --on-accent: #ffffff;
@@ -2830,10 +2834,12 @@ h1,
   font-size: 22px; line-height: 1.35; letter-spacing: -0.01em; text-shadow: 0 1px 12px rgba(0, 0, 0, 0.5);
 }
 .ef-zaehler { display: block; margin-top: 10px; color: rgba(255, 255, 255, 0.65); font-size: var(--t-sm); }
+/* Beenden steht in der Textkarte und nicht als Kreuz in der Ecke. Das Kreuz
+   lag dort genau auf dem Lautsprecherknopf des Assistenten. */
 .ef-schliessen {
-  position: fixed; top: calc(14px + env(safe-area-inset-top)); right: 16px;
-  width: 44px; height: 44px; border-radius: 50%; padding: 0; display: grid; place-items: center;
-  background: rgba(255, 255, 255, 0.16); border: 1px solid rgba(255, 255, 255, 0.22); color: #ffffff;
+  display: inline-block; margin-top: 8px; min-height: 44px; padding: 10px 16px; border: 0;
+  background: none; color: rgba(255, 255, 255, 0.78); font-size: var(--t-sm);
+  text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
 }
 @media (prefers-reduced-motion: reduce) { .ef-licht, .ef-text { transition: none; } }
 
@@ -3276,6 +3282,23 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
   content: ""; flex: none; width: 13px; height: 7px; margin-top: 6px;
   border-left: 2px solid #96d8f0; border-bottom: 2px solid #96d8f0; border-radius: 1px; transform: rotate(-45deg);
 }
+/* Die Zahlweise als Mulde mit erhobenem Reiter, wie der Umschalter oben in
+   der App. Eine zweite Reihe Karten über den Stufen läse sich als vier
+   Angebote statt als zwei Angebote in zwei Zahlweisen. */
+.abo-takt {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin-top: 4px;
+  border-radius: 999px; background: rgba(255, 255, 255, .06);
+}
+.abo-takt button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap;
+  min-height: 44px; padding: 6px 8px; border: 0; border-radius: 999px; cursor: pointer;
+  background: none; color: rgba(255, 255, 255, .72); font-size: 14px; font-weight: 600;
+}
+.abo-takt button[aria-checked="true"] { background: rgba(255, 255, 255, .14); color: #ffffff; }
+.abo-takt-marke {
+  font-size: 11px; font-weight: 600; color: #0b0d10; background: #96d8f0;
+  padding: 2px 7px; border-radius: 999px; white-space: nowrap;
+}
 .abo-wahl { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
 .abo-stufe {
   display: grid; gap: 2px; text-align: left; cursor: pointer; padding: 14px 16px; border: 0;
@@ -3285,6 +3308,7 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 .abo-stufe[aria-checked="true"] { box-shadow: inset 0 0 0 2px #96d8f0; background: rgba(150, 216, 240, .1); }
 .abo-stufe b { font-family: var(--schrift-display); font-weight: 600; font-size: 17px; }
 .abo-stufe span { font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, .72); font-size: 14px; }
+.abo-stufe small { font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, .55); font-size: 13px; }
 .abo-knopf {
   margin-top: 6px; width: 100%; padding: 18px 20px; border: 0; border-radius: 999px; cursor: pointer;
   font-family: var(--schrift-display); font-weight: 600; font-size: 18px; color: #0b0d10;
@@ -3312,3 +3336,168 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
    in der zweiten Zeile und sah aus wie eine eigene Wahl. */
 #erTage { display: flex; flex-wrap: nowrap; gap: 6px; }
 #erTage .pill { flex: 1 1 0; min-width: 0; padding-left: 0; padding-right: 0; text-align: center; }
+
+/* ---------- Trainingsplan bearbeiten ----------
+   Bearbeiten ist ein Zustand der Einheit und kein eigenes Blatt: wer eine
+   Übung tauscht, will die anderen daneben sehen. Die Werkzeuge stehen unter
+   der Zeile und nicht in ihr, sonst bleibt dem Namen auf dem Handy kein Platz. */
+.pl-einheit header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-3); }
+.pl-mini {
+  flex: none; height: 32px; padding: 0 var(--s-3); border: 0; border-radius: var(--r-pill);
+  background: var(--flaeche); box-shadow: var(--haarlinie); color: var(--text);
+  font: inherit; font-size: var(--t-xs); font-weight: 600; cursor: pointer;
+}
+.pl-mini:active { transform: scale(0.98); }
+.pl-bearb { margin-top: 2px; }
+.pl-bearbeiten .pl-zeile { border-bottom: 0; }
+.pl-werkzeug {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2);
+  padding: 0 0 var(--s-3); border-bottom: 1px solid var(--linie);
+}
+.pl-saetze-wahl { display: inline-flex; align-items: center; gap: var(--s-2); margin-right: auto; }
+.pl-saetze-wahl b { min-width: 56px; text-align: center; font-size: var(--t-sm); font-weight: 600; }
+.pl-saetze-wahl button {
+  display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%;
+  background: var(--flaeche); box-shadow: var(--haarlinie); color: var(--text); font: inherit; font-size: 18px; line-height: 1; cursor: pointer;
+}
+.pl-tausch { display: flex; flex-wrap: wrap; gap: var(--s-2); padding: 0 0 var(--s-3); border-bottom: 1px solid var(--linie); }
+.pl-tausch p { margin: 0; font-size: var(--t-xs); color: var(--muted); }
+.pl-dazu { display: grid; gap: var(--s-2); margin-top: var(--s-3); font-size: var(--t-xs); color: var(--muted); }
+.pl-dazu select { width: 100%; }
+
+/* Der erste Plan auf der Abschlussseite des Fragebogens. */
+.setup-einheit { display: grid; gap: 2px; padding: var(--s-2) 0; border-bottom: 1px solid var(--linie); }
+.setup-einheit b { font-size: var(--t-sm); }
+.setup-einheit span { font-size: var(--t-xs); color: var(--muted); line-height: 1.45; }
+
+/* ---------- Trainingsmodus ----------
+   Aufgebaut wie die Trainings Apps, die im Studio benutzt werden: Daumen der
+   Übungen oben, darunter die eine Übung, je Satz eine Zeile mit Kilo,
+   Wiederholungen, RIR und Haken. Grosse Felder, weil zwischen zwei Sätzen
+   niemand genau tippt. Alles über die Tokens, damit Hell und Dunkel stimmen. */
+.tr-blatt .blatt-innen { max-height: 96vh; height: 96vh; }
+.tr-blatt .blatt-kopf h2 { font-size: var(--t-md); flex: 1; text-align: center; }
+.tr-kopfknopf {
+  border: 0; background: none; color: var(--accent-text); font: inherit; font-size: var(--t-sm);
+  font-weight: 600; padding: var(--s-2) 0; cursor: pointer;
+}
+.tr-kopfknopf.stark { color: var(--text); }
+#trainingInhalt { padding: 0 var(--s-4) var(--s-6); }
+.tr-leiste { display: flex; gap: var(--s-2); overflow-x: auto; padding: var(--s-2) 0 var(--s-3); scrollbar-width: none; }
+.tr-leiste::-webkit-scrollbar { display: none; }
+.tr-daumen {
+  flex: none; width: 64px; height: 48px; padding: 0; border: 0; border-radius: var(--r-md); overflow: hidden;
+  background: var(--flaeche); box-shadow: var(--haarlinie); opacity: 0.55; cursor: pointer; position: relative;
+}
+.tr-daumen img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tr-daumen span { font-weight: 600; color: var(--muted); }
+.tr-daumen.an { opacity: 1; box-shadow: 0 0 0 2px var(--accent); }
+.tr-daumen.fertig::after {
+  content: ""; position: absolute; right: 4px; bottom: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--good);
+}
+.tr-titelzeile { display: flex; align-items: center; gap: var(--s-3); margin-top: var(--s-2); }
+.tr-name { margin: 0; flex: 1; min-width: 0; font-family: var(--schrift-display); font-size: var(--t-xl); font-weight: 600; color: var(--accent-text); letter-spacing: -0.012em; }
+.tr-mehr {
+  flex: none; width: 52px; height: 36px; border: 0; border-radius: var(--r-pill); background: var(--flaeche);
+  box-shadow: var(--haarlinie); display: flex; align-items: center; justify-content: center; gap: 4px; cursor: pointer;
+}
+.tr-mehr i { width: 5px; height: 5px; border-radius: 50%; background: var(--accent-text); }
+.tr-ziel { margin: var(--s-2) 0 var(--s-4); color: var(--muted); font-size: var(--t-sm); }
+.tr-menue {
+  margin: var(--s-3) 0; padding: var(--s-3); border-radius: var(--r-karte); background: var(--karte); box-shadow: var(--tief-karte);
+  display: flex; flex-direction: column; gap: var(--s-2);
+}
+.tr-menue-titel { margin: 0; font-size: var(--t-xs); color: var(--muted); }
+.tr-menue-hinweis { margin: 0; font-size: var(--t-xs); color: var(--muted); }
+.tr-ersatz {
+  text-align: left; border: 0; border-radius: var(--r-md); background: var(--flaeche); padding: var(--s-3);
+  color: var(--text); font: inherit; cursor: pointer; display: flex; flex-direction: column; gap: 2px;
+}
+.tr-ersatz span { font-size: var(--t-xs); color: var(--muted); }
+.tr-leer { margin: 0; font-size: var(--t-sm); color: var(--muted); }
+.tr-kopf, .tr-satz {
+  display: grid; grid-template-columns: 36px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 56px; gap: var(--s-2); align-items: center;
+}
+.tr-kopf { font-size: var(--t-xs); color: var(--muted); letter-spacing: var(--track-versal); text-align: center; padding-bottom: var(--s-2); }
+.tr-satz { margin-bottom: var(--s-2); }
+.tr-nr { text-align: center; font-weight: 600; font-size: var(--t-md); }
+.tr-feld {
+  width: 100%; min-width: 0; height: 48px; border: 0; border-radius: var(--r-pill); background: var(--flaeche);
+  box-shadow: var(--haarlinie); color: var(--text); font: inherit; font-size: var(--t-md); font-weight: 600; text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.tr-feld:focus { outline: none; box-shadow: 0 0 0 2px var(--accent); }
+.tr-haken {
+  height: 48px; border: 0; border-radius: var(--r-pill); background: var(--flaeche); box-shadow: var(--haarlinie);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.tr-haken svg { width: 24px; height: 24px; fill: none; stroke: var(--muted); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.tr-satz.fertig .tr-haken { background: var(--good); box-shadow: none; }
+.tr-satz.fertig .tr-haken svg { stroke: #fff; }
+.tr-satz.fertig .tr-feld { background: transparent; box-shadow: none; color: var(--muted); }
+.tr-satzknoepfe { display: flex; gap: var(--s-2); margin: var(--s-2) 0 var(--s-4); }
+.tr-vorher { padding: var(--s-4); border-radius: var(--r-karte); background: var(--karte); box-shadow: var(--tief-karte); }
+.tr-vorher p { margin: 0 0 var(--s-2); font-size: var(--t-sm); color: var(--muted); }
+.tr-vorher-kopf, .tr-vorher-zeile { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); text-align: center; font-variant-numeric: tabular-nums; }
+.tr-vorher-kopf { font-size: var(--t-xs); color: var(--muted); padding-bottom: var(--s-1); }
+.tr-vorher-zeile { font-size: var(--t-sm); color: var(--muted); padding: 3px 0; }
+.tr-erstes, .tr-rir-hilfe { font-size: var(--t-xs); color: var(--muted); margin: var(--s-3) 0 0; }
+.tr-fuss {
+  flex: none; display: flex; gap: var(--s-3); align-items: center;
+  padding: var(--s-3) var(--s-4) calc(var(--s-3) + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--linie);
+}
+.tr-pause {
+  flex: none; height: 52px; min-width: 64px; padding: 0 var(--s-4); border: 0; border-radius: var(--r-pill);
+  background: var(--flaeche); box-shadow: var(--haarlinie); color: var(--text); font: inherit;
+  display: flex; align-items: center; justify-content: center; gap: var(--s-2); cursor: pointer;
+}
+.tr-pause svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.tr-pause b { font-variant-numeric: tabular-nums; font-size: var(--t-md); }
+.tr-pause.laeuft { background: var(--accent); color: var(--on-accent); box-shadow: none; }
+.tr-weiter {
+  flex: 1; height: 52px; border: 0; border-radius: var(--r-pill); background: var(--accent); color: var(--on-accent);
+  font: inherit; font-weight: 600; cursor: pointer;
+}
+.pl-knoepfe { display: flex; gap: var(--s-2); flex: none; }
+.pl-start { background: var(--accent); color: var(--on-accent); box-shadow: none; }
+.pl-update { margin: var(--s-3) 0; padding: var(--s-4); border-radius: var(--r-karte); background: var(--karte); box-shadow: var(--tief-karte); }
+.pl-update b { display: block; margin-bottom: var(--s-2); }
+.pl-update p { margin: 0 0 var(--s-1); font-size: var(--t-sm); white-space: pre-line; }
+.pl-update-knoepfe { display: flex; gap: var(--s-2); margin-top: var(--s-3); flex-wrap: wrap; }
+.pl-offen { margin: var(--s-3) 0; }
+.pl-offen[hidden] { display: none; }
+
+/* ---------- Guten Morgen Check-in ----------
+   Fünf runde Punkte je Frage, gross genug für einen Daumen, der gerade
+   aufgewacht ist. Die Enden der Skala stehen darunter in Worten, sonst weiss
+   niemand, ob 1 gut oder schlecht ist. */
+.mg-start { width: 100%; margin: var(--s-2) 0 var(--s-4); }
+#morgenInhalt { padding: 0 var(--s-4) var(--s-4); }
+.mg-frage { border: 0; margin: 0 0 var(--s-5); padding: 0; }
+.mg-frage legend { font-weight: 600; font-size: var(--t-md); margin-bottom: var(--s-3); padding: 0; }
+.mg-skala { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--s-2); }
+.mg-punkt {
+  height: 52px; border: 0; border-radius: var(--r-pill); background: var(--flaeche); box-shadow: var(--haarlinie);
+  color: var(--text); font: inherit; font-size: var(--t-md); font-weight: 600; cursor: pointer;
+}
+.mg-punkt.an { background: var(--accent); color: var(--on-accent); box-shadow: none; }
+.mg-punkt:active { transform: scale(0.97); }
+.mg-enden { display: flex; justify-content: space-between; margin-top: var(--s-2); font-size: var(--t-xs); color: var(--muted); }
+.mg-fuss { flex: none; padding: var(--s-3) var(--s-4) calc(var(--s-3) + env(safe-area-inset-bottom)); border-top: 1px solid var(--linie); display: flex; }
+.mg-fuss .tr-weiter:disabled { opacity: 0.45; }
+.mg-wert { display: flex; align-items: baseline; gap: var(--s-2); margin-top: var(--s-2); }
+.mg-wert b { font-family: var(--schrift-display); font-size: 56px; line-height: 1; font-weight: 600; letter-spacing: -0.02em; }
+.mg-wert span { color: var(--muted); }
+.mg-wert b.mg-wort { font-size: var(--t-xl); }
+.mg-nachfrage { margin: 0 0 var(--s-4); color: var(--muted); font-size: var(--t-sm); }
+.mg-hoch b { color: var(--good); }
+.mg-normal b { color: var(--accent-text); }
+.mg-reduziert b, .mg-niedrig b { color: var(--warn); }
+.mg-schonen b { color: var(--bad); }
+.mg-stufe { margin: var(--s-3) 0 var(--s-1); font-size: var(--t-md); }
+.mg-warum { margin: 0; color: var(--muted); font-size: var(--t-sm); }
+.mg-titel { margin: var(--s-5) 0 var(--s-2); font-size: var(--t-sm); font-weight: 600; }
+.mg-liste { margin: 0; padding-left: 1.1em; }
+.mg-liste li { margin-bottom: var(--s-2); line-height: 1.45; }
+.mg-grenze { margin: var(--s-5) 0 0; font-size: var(--t-xs); color: var(--muted); }

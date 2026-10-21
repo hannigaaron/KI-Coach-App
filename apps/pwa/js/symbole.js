@@ -37,6 +37,8 @@ const PFADE = {
   fisch: '<path d="M3 12c3-4 7-5 11-5 3 0 5 2.5 6 5-1 2.5-3 5-6 5-4 0-8-1-11-5z"/><path d="M3 12l-1-3"/><path d="M3 12l-1 3"/><circle cx="16" cy="11" r="0.6"/>',
 
   wiederholen: '<path d="M4 11a8 8 0 0 1 14-4.5L20 8"/><path d="M20 4v4h-4"/><path d="M20 13a8 8 0 0 1-14 4.5L4 16"/><path d="M4 20v-4h4"/>',
+  uhr: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  haus: '<path d="M4 11l8-6.5 8 6.5"/><path d="M6 9.5V20h12V9.5"/><path d="M10 20v-5h4v5"/>',
   kalender: '<rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17"/><path d="M8 3v4"/><path d="M16 3v4"/>',
   wechsel: '<path d="M4 7h11l-3-3"/><path d="M20 17H9l3 3"/><path d="M15 7l3 3"/><path d="M9 17l-3-3"/>',
 

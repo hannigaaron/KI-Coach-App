@@ -149,3 +149,54 @@ test("Kein Text im Plan nutzt Umschreibungen statt Umlaute", () => {
   assert.doesNotMatch(text, /\b\w*(Rueck|Koerper|Gesaess|fuer|ueber)\w*\b/i);
   assert.doesNotMatch(text, /[–—]/);
 });
+
+/* ---------- Von Hand ändern ---------- */
+
+test("Sätze ändern rechnet Dauer und Wochensätze neu und markiert den Plan", async () => {
+  const { saetzeAendern } = await import("./plaene.js");
+  const plan = planFuer({ ...STANDARD_WUNSCH, minuten: 60 });
+  const vorher = plan.einheiten[0].positionen[0].saetze;
+  const neu = saetzeAendern(plan, 0, 0, 1);
+  assert.equal(neu.einheiten[0].positionen[0].saetze, vorher + 1);
+  assert.ok(neu.einheiten[0].dauerMin > plan.einheiten[0].dauerMin);
+  assert.equal(neu.bearbeitet, true);
+  // Der alte Plan bleibt unverändert, sonst wäre Abbrechen kein Abbrechen.
+  assert.equal(plan.einheiten[0].positionen[0].saetze, vorher);
+});
+
+test("Tauschen bietet nur dieselbe Bewegung an und behält die Dosis", async () => {
+  const { tauschListe, uebungTauschen } = await import("./plaene.js");
+  const plan = planFuer({ ...STANDARD_WUNSCH, minuten: 60 });
+  const p = plan.einheiten[0].positionen[0];
+  const muster = UEBUNGEN.find((u) => u.id === p.id).pattern;
+  const liste = tauschListe(plan, 0, p.id);
+  assert.ok(liste.length > 0);
+  assert.ok(liste.every((u) => u.pattern === muster && u.id !== p.id));
+  const neu = uebungTauschen(plan, 0, 0, liste[0].id);
+  assert.equal(neu.einheiten[0].positionen[0].id, liste[0].id);
+  assert.equal(neu.einheiten[0].positionen[0].saetze, p.saetze);
+});
+
+test("Entfernen und Hinzufügen ändern genau eine Einheit", async () => {
+  const { uebungEntfernen, uebungHinzufuegen, zusatzListe } = await import("./plaene.js");
+  const plan = planFuer({ ...STANDARD_WUNSCH, minuten: 60 });
+  const n = plan.einheiten[0].positionen.length;
+  const weniger = uebungEntfernen(plan, 0, 0);
+  assert.equal(weniger.einheiten[0].positionen.length, n - 1);
+  assert.equal(weniger.einheiten[1].positionen.length, plan.einheiten[1].positionen.length);
+  const dazu = zusatzListe(plan, 0)[0];
+  const mehr = uebungHinzufuegen(plan, 0, dazu.id);
+  assert.equal(mehr.einheiten[0].positionen.at(-1).id, dazu.id);
+});
+
+test("Beschwerden und Ort überleben das Prüfen eines gespeicherten Wunsches", () => {
+  const w = wunschPruefen({ ort: "zuhause", beschwerden: ["knie", "unsinn"], meiden: ["bankdruecken", "gibtsnicht"] });
+  assert.equal(w.ort, "zuhause");
+  assert.deepEqual(w.beschwerden, ["knie"]);
+  assert.deepEqual(w.meiden, ["bankdruecken"]);
+  const plan = planFuer(w);
+  const ids = plan.einheiten.flatMap((e) => e.positionen.map((p) => p.id));
+  const muster = new Set(ids.map((id) => UEBUNGEN.find((u) => u.id === id).pattern));
+  assert.equal(muster.has("knee_dominant"), false);
+  assert.ok(ids.every((id) => ["dumbbell", "bodyweight", "resistance_band", "kettlebell"].includes(UEBUNGEN.find((u) => u.id === id).equipment)));
+});

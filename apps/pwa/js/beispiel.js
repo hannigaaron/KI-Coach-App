@@ -64,7 +64,7 @@ export const DEMO_PROFIL = {
   experience: "fortgeschritten",
   wakeTime: "06:30",
   sleepTime: "22:45",
-  randModus: "standard",
+  randModus: "gleich",
   sessions: [
     { weekday: 1, startsAt: "18:00", type: "strength", minutes: 75 },
     { weekday: 3, startsAt: "18:00", type: "strength", minutes: 75 },
@@ -95,7 +95,7 @@ const BAUSTEINE = {
   ],
   abend: [
     [{ name: "Putenbrust", quantity: "180 g", kcal: 194, proteinG: 43, fatG: 1.8, carbsG: 0 },
-      { name: "Süsskartoffel", quantity: "250 g", kcal: 215, proteinG: 4, fatG: 0.3, carbsG: 48 },
+      { name: "Süßkartoffel", quantity: "250 g", kcal: 215, proteinG: 4, fatG: 0.3, carbsG: 48 },
       { name: "Feldsalat mit Öl", quantity: "120 g", kcal: 118, proteinG: 2, fatG: 11, carbsG: 1.5 }],
     [{ name: "Tofu, gebraten", quantity: "200 g", kcal: 290, proteinG: 30, fatG: 17, carbsG: 4 },
       { name: "Basmatireis, gekocht", quantity: "200 g", kcal: 260, proteinG: 5, fatG: 0.6, carbsG: 57 }],
@@ -134,6 +134,12 @@ const MAHLZEITEN = [
 function tageBauen(heute) {
   const rnd = wuerfel(20260924);
   const days = {};
+  // Heute steht nur, was bis jetzt schon passiert sein kann. Vorher stand um
+  // halb elf das Abendessen und das Training von 18 Uhr im Tag, und der Coach
+  // fragte in jeder Antwort, ob da etwas doppelt eingetragen ist.
+  const d = new Date(heute);
+  const jetzt = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  const schonVorbei = (abstand, zeit) => abstand > 0 || zeit <= jetzt;
 
   for (let abstand = 13; abstand >= 0; abstand--) {
     const tag = tagVor(abstand, heute);
@@ -146,6 +152,7 @@ function tageBauen(heute) {
         // Der Snack fällt an manchen Tagen aus. Ein Tag, an dem alles nach
         // Plan lief, ist die Ausnahme und nicht die Regel.
         if ((art === "snack" || art === "spaet") && abstand > 0 && rnd() < 0.3) continue;
+        if (!schonVorbei(abstand, zeit)) continue;
         const auswahl = BAUSTEINE[art];
         const posten = auswahl[Math.floor(rnd() * auswahl.length)];
         meals.push({
@@ -168,7 +175,8 @@ function tageBauen(heute) {
     const weightKg = gewogen ? Math.round((basis + (rnd() - 0.5) * 0.8) * 10) / 10 : null;
 
     const trainingHeute = DEMO_PROFIL.sessions.find((s) => s.weekday === wochentag);
-    const trainings = trainingHeute && !luecke && rnd() < 0.85
+    const trainingVorbei = trainingHeute && schonVorbei(abstand, ende(trainingHeute.startsAt, trainingHeute.minutes));
+    const trainings = trainingHeute && !luecke && rnd() < 0.85 && trainingVorbei
       ? [{ id: `t${abstand}`, type: trainingHeute.type, minutes: trainingHeute.minutes, at: trainingHeute.startsAt, note: "" }]
       : [];
 
@@ -196,7 +204,7 @@ function tageBauen(heute) {
     };
     // In derselben Form, die `mittagsCheckin` schreibt. Die erste Fassung
     // trug eigene Feldnamen, und in der Liste stand "Schlaf -, Stimmung -".
-    if (!luecke && (abstand === 0 || rnd() < 0.7)) {
+    if (!luecke && (abstand === 0 || rnd() < 0.7) && schonVorbei(abstand, "14:00")) {
       checkins.push({
         kind: "midday",
         at: "14:00",
@@ -235,6 +243,13 @@ function tageBauen(heute) {
     };
   }
   return days;
+}
+
+/** Das Ende einer Einheit als HH:MM, für den Vergleich mit der Uhrzeit. */
+function ende(start, minuten) {
+  const [h, m] = start.split(":").map(Number);
+  const t = h * 60 + m + minuten;
+  return `${String(Math.min(23, Math.floor(t / 60))).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
 }
 
 /** Gebuchte Zeit für das Balance Board. Ohne sie behauptet es, er arbeite nur. */
@@ -324,7 +339,7 @@ function aufgabenBauen(heute) {
     // Heute schon erledigt. Ohne sie stand auf Heute "0 von 2 Aufgaben
     // erledigt", und die Tagesnutzung zeigte einen schlechten Tag.
     { id: "a6", text: "Angebot an neue Kundin schicken", minuten: 30, wichtigkeit: 3, faellig: tagVor(0, heute), erledigt: true, erledigtAm: iso(tagVor(0, heute), "10:15"), erstellt: jetzt(1), quelle: "nutzer" },
-    { id: "a7", text: "Rechnung Oktober schreiben", minuten: 20, wichtigkeit: 2, faellig: null, erledigt: true, erledigtAm: iso(tagVor(0, heute), "16:40"), erstellt: jetzt(2), quelle: "nutzer" },
+    { id: "a7", text: "Rechnung Oktober schreiben", minuten: 20, wichtigkeit: 2, faellig: null, erledigt: true, erledigtAm: iso(tagVor(1, heute), "16:40"), erstellt: jetzt(2), quelle: "nutzer" },
   ];
 }
 
@@ -364,7 +379,7 @@ function gespraecheBauen(heute) {
       titel: "Was passt heute Abend noch rein",
       nachrichten: [
         { role: "user", text: "Was passt heute Abend noch rein?", at: at(3, "18:40") },
-        { role: "assistant", text: "Offen sind 720 kcal und 48 g Protein. Aus deinem Vorrat: 180 g Putenbrust, 250 g Süsskartoffel und ein Feldsalat mit einem Esslöffel Öl. Das sind 527 kcal und 49 g Protein, du hast danach noch knapp 200 kcal Luft für einen Quark.", at: at(3, "18:41") },
+        { role: "assistant", text: "Offen sind 720 kcal und 48 g Protein. Aus deinem Vorrat: 180 g Putenbrust, 250 g Süßkartoffel und ein Feldsalat mit einem Esslöffel Öl. Das sind 527 kcal und 49 g Protein, du hast danach noch knapp 200 kcal Luft für einen Quark.", at: at(3, "18:41") },
         { role: "user", text: "Passt, mach ich", at: at(3, "18:43") },
       ],
     },
@@ -397,11 +412,15 @@ function gespraecheBauen(heute) {
  * zweite Stelle, an der dieselbe Form auseinanderlaufen kann.
  */
 export function beispieldaten(heute = new Date()) {
+  const days = tageBauen(heute);
+  // Das Profil trägt die letzte Wiegung, wie nach jedem echten Eintrag. Sonst
+  // stand im Profil 83,4 kg und auf Heute 83,6 kg.
+  const letzte = Object.keys(days).sort().reverse().map((t) => days[t].weightKg).find((w) => w != null);
   return {
     exportedAt: new Date(heute).toISOString(),
     version: 1,
-    profile: DEMO_PROFIL,
-    days: tageBauen(heute),
+    profile: letzte ? { ...DEMO_PROFIL, weightKg: letzte } : DEMO_PROFIL,
+    days,
     zeiten: zeitenBauen(heute),
     aufgaben: aufgabenBauen(heute),
     memories: gedaechtnisBauen(heute),

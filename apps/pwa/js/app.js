@@ -16,11 +16,13 @@ import {
   tageText,
   wannText,
 } from "@daevo/core";
-import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, produktPerBarcode, produkteSuchen } from "@daevo/coach";
+import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, PREISE_STAND, aktuellesModell, produktPerBarcode, produkteSuchen } from "@daevo/coach";
 import { Coach, AnthropicProvider } from "@daevo/coach";
 import { KONFIG, istDemo, istNativ } from "./konfig.js";
 import { uebungenStarten } from "./uebungen.js";
-import { plaeneStarten } from "./plaene.js";
+import { planFuer as uebungsplanFuer, plaeneStarten } from "./plaene.js";
+import { trainingStarten } from "./training.js";
+import { morgenStarten, morgenVonHeute, trainingGestrichen } from "./morgen.js";
 import {
   antwortVerarbeiten, antwortenAbholen, lueckeAusSpeicher, lueckeMelden,
   schieflageAusSpeicher, schieflageMelden,
@@ -60,7 +62,7 @@ import { kodierungReparieren, newId, nowTime, store, todayIso } from "./storage.
 import { healthkitAbgleichen } from "./healthkit.js";
 import { mitteilungenPlanen } from "./mitteilungen.js";
 import { nativAufruf } from "./nativ.js";
-import { ABO_STUFEN, aboAnlass, aboAnlassLeer, aboLeiste, aboLink, kontoSicherstellen, kontoStand, kontoText } from "./konto.js";
+import { ABO_STUFEN, ABO_TAKTE, aboPreis, ersparnisProzent, aboAnlass, aboAnlassLeer, aboLeiste, aboLink, kontoSicherstellen, kontoStand, kontoText } from "./konto.js";
 
 const $ = (id) => document.getElementById(id);
 const WEEKDAYS = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
@@ -1252,7 +1254,15 @@ function healthStandZeigen() {
     ? `Zuletzt über den Kurzbefehl: ${new Date(kurz.at).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" })}.`
     : "Über den Kurzbefehl ist noch nichts angekommen.";
   $("e-healthUrl").value = workerAdresse("gesundheit");
+  $("e-healthErnaehrung").checked = !s.healthErnaehrungAus;
 }
+
+// Ausschalten entfernt die Mahlzeiten aus Health beim nächsten Abgleich,
+// und der kommt sofort.
+$("e-healthErnaehrung").addEventListener("change", (event) => {
+  store.setSettings({ ...store.getSettings(), healthErnaehrungAus: !event.target.checked });
+  healthNativ().then(() => refreshAll());
+});
 
 /**
  * Holt die Werte, die der Health Kurzbefehl auf dem Worker abgelegt hat.
@@ -1482,7 +1492,7 @@ function renderWeight() {
   }
   const richtung = trend.kgProWoche > 0 ? "plus" : "minus";
   $("weightTrend").textContent =
-    `Geglättet ${trend.aktuellKg} kg, ${richtung} ${Math.abs(trend.kgProWoche).toFixed(2)} kg je Woche ` +
+    `Geglättet ${trend.aktuellKg} kg, ${richtung} ${Math.abs(trend.kgProWoche).toFixed(2).replace(".", ",")} kg je Woche ` +
     `über ${trend.spanneTage} Tage aus ${trend.messungen} Wiegungen. Frag mich nach deinem Verlauf, dann rechne ich dein Ziel nach.`;
 }
 
@@ -1504,7 +1514,9 @@ function renderMeals(targetId) {
     ? meals.map((meal) => {
         const kcal = Math.round(meal.entries.reduce((s, e) => s + e.kcal, 0));
         const protein = Math.round(meal.entries.reduce((s, e) => s + e.proteinG, 0));
-        const items = meal.entries.map((e) => `${e.quantity} ${e.name}`).join(", ");
+        // Aus Health kommt eine Mahlzeit als eine Summe. "1 Portion Mahlzeit"
+        // sagt nichts, ihr Name oder "Mahlzeit aus YAZIO" schon.
+        const items = meal.source === "health" ? meal.text : meal.entries.map((e) => `${e.quantity} ${e.name}`).join(", ");
         // Antippbar, weil Korrigieren der häufigste Handgriff beim Tracken
         // ist. Ohne Hinweis darauf findet ihn niemand.
         return `<li data-meal="${meal.id}" class="tippbar"><div class="li-main">` +
@@ -1512,9 +1524,17 @@ function renderMeals(targetId) {
           `<div class="li-sub">${meal.at} Uhr, ${protein} g Protein` +
           (meal.feeling ? `, danach ${escapeHtml(meal.feeling)}` : "") +
           (meal.source === "offline" ? ", Tabellenwert" : "") +
+          (meal.source === "health" && meal.text !== `Mahlzeit aus ${meal.quelle}` ? `, aus ${escapeHtml(meal.quelle || "Apple Health")}` : "") +
           `</div></div><div class="li-side"><b>${kcal}</b>kcal</div></li>`;
       }).join("")
     : `<li><div class="li-main"><div class="li-sub">Noch nichts erfasst.</div></div></li>`;
+  // Was aus Health kam und nicht zählt, steht sichtbar da. Ein stiller
+  // Filter, der Essen verschluckt, wäre derselbe Fehler wie doppelt zählen.
+  const weg = store.getDay(day).healthUebersprungen || [];
+  if (weg.length) {
+    el.innerHTML += weg.map((w) => `<li><div class="li-main"><div class="li-sub">Nicht mitgezählt: ${w.kcal} kcal aus ${escapeHtml(w.quelle)} um ${escapeHtml(w.uhrzeit)} Uhr. `
+      + `Du hast um ${escapeHtml(w.eigeneUm)} Uhr selbst eine Mahlzeit eingetragen, vermutlich dieselbe.</div></div></li>`).join("");
+  }
 }
 
 function renderCheckins() {
@@ -1584,7 +1604,7 @@ function renderEinkauf() {
     return `<li${erledigt ? ' class="erledigt"' : ""}>
       <div class="li-main">
         <span class="ek-stand ${item.stand}">${EK_TITEL[item.kategorie]}${item.stand === "offen" ? "" : `, ${EK_STAND[item.stand]}`}</span>
-        <div class="li-title">${escapeHtml(item.name)}, ${escapeHtml(item.menge)}</div>
+        <div class="li-title">${escapeHtml(item.name)}${item.menge ? `, ${escapeHtml(item.menge)}` : ""}</div>
         <div class="li-sub">${escapeHtml(item.grund)}</div>
       </div>
       <div class="li-side ek-knoepfe">
@@ -1707,7 +1727,7 @@ async function renderStimmwahl() {
     feld.innerHTML = '<option value="">Keine Stimme gefunden</option>';
     $("e-stimmhilfe").textContent =
       "Dieses Gerät meldet keine Stimme. Auf dem iPhone lädst du welche unter Einstellungen, "
-      + "Bedienungshilfen, Gesprochene Inhalte, Stimmen. Danach die App einmal schliessen und neu öffnen.";
+      + "Bedienungshilfen, Gesprochene Inhalte, Stimmen. Danach die App einmal schließen und neu öffnen.";
     return;
   }
 
@@ -1751,7 +1771,7 @@ async function renderStimmwahl() {
       + "Yannick nutzt daevo erst in der iPhone App.");
   } else if (!hatGute) {
     zeilen.push("Deine deutschen Stimmen sind in Basisqualität. Bessere lädst du in den Einstellungen "
-      + "deines Geräts unter Bedienungshilfen, Gesprochene Inhalte. Danach die App einmal schliessen "
+      + "deines Geräts unter Bedienungshilfen, Gesprochene Inhalte. Danach die App einmal schließen "
       + "und neu öffnen.");
   }
 
@@ -2271,7 +2291,8 @@ function renderProfile() {
   $("e-goal").value = profile.goal;
   $("e-wake").value = profile.wakeTime;
   $("e-sleep").value = profile.sleepTime;
-  $("e-randmodus").value = profile.wechselndeZeiten ? "wechselnd" : (profile.randModus || "gleich");
+  // Nur ein Wert, den das Feld kennt. Ein fremder Wert liess es leer stehen.
+  $("e-randmodus").value = profile.wechselndeZeiten ? "wechselnd" : (profile.randModus === "wochentag" ? "wochentag" : "gleich");
   renderWochenzeiten();
   renderStimmwahl();
   siriAdresseZeigen();
@@ -2282,7 +2303,7 @@ function renderProfile() {
 
   const settings = store.getSettings();
   $("apiKey").value = settings.apiKey || "";
-  renderModellwahl(settings.modellWahl || "auto");
+  renderModellwahl(aktuellesModell(settings.modellWahl || "auto"));
   const tempo = tempoVon(settings);
   $("tempoSel").value = tempo;
   renderGruendlich(tempo);
@@ -2331,7 +2352,7 @@ function renderModellwahl(aktuell) {
     const zeilen = Object.entries(MODELL_JE_MODUS)
       .map(([modus, id]) => `${MODUS_TEXT[modus] || modus}: ${MODELLE[id]?.name || id}`);
     $("modelNote").textContent =
-      `${zeilen.join(". ")}. Bilder immer auf Opus 5, weil die Mengenschätzung direkt in deinen Tagesdaten landet. ` +
+      `${zeilen.join(". ")}. Bilder immer auf Opus 5.5, weil die Mengenschätzung direkt in deinen Tagesdaten landet. ` +
       "Das spart gegenüber Opus für alles etwa die Hälfte.";
   } else {
     $("modelNote").textContent =
@@ -2427,7 +2448,7 @@ function renderKosten() {
       zeilen.push("Die Quote aus dem Zwischenspeicher ist niedrig. Das passiert, wenn zwischen zwei Nachrichten mehr als fünf Minuten liegen.");
     }
   }
-  zeilen.push("Preise nach der Anthropic Preisliste, Stand 24. Juni 2026. Geschätzt, nicht abgerechnet. Die echte Abrechnung steht in deiner Anthropic Console.");
+  zeilen.push(`Preise nach der Anthropic Preisliste, Stand ${PREISE_STAND}. Geschätzt, nicht abgerechnet. Die echte Abrechnung steht in deiner Anthropic Console.`);
   $("kostenHinweis").textContent = zeilen.join(" ");
 }
 
@@ -2475,6 +2496,12 @@ function anamneseFertig(ergebnis) {
     text: `Trainingsvorschlag zum Start: ${ergebnis.kraft.titel}.`,
     art: "hinweis", wichtigkeit: 3, schlagworte: ["training"],
   });
+  // Der Plan aus dem Bogen ist ab sofort der eigene. Wer einen eigenen hat
+  // und dabei bleibt, bekommt keinen, sonst stünden zwei Pläne nebeneinander.
+  if (ergebnis.planWunsch) {
+    store.setSettings({ ...store.getSettings(), plan: { ...uebungsplanFuer(ergebnis.planWunsch), gespeichertAm: new Date().toISOString() } });
+    plaene.laden();
+  }
   // Was im Bogen als Vorrat angetippt wurde, ist ab sofort der Vorrat. Ohne
   // das müsste der Nutzer dieselbe Liste in der App ein zweites Mal tippen.
   if (ergebnis.vorrat?.length) {
@@ -2547,6 +2574,7 @@ function startApp() {
   if (!store.getSettings().einfuehrungGesehen) {
     setTimeout(() => einfuehrungStarten({ zeigeAnsicht: showView, beiEnde: einfuehrungGesehen }), 900);
   }
+  else setTimeout(morgenVielleicht, 1000);
   options = { ...options, ...(store.getSettings().voice || {}) };
   renderFeelings();
   ensureStandards();
@@ -2702,14 +2730,48 @@ $("menu").addEventListener("click", (event) => {
   if (event.target.closest("[data-menu-zurueck]")) menuSeite("start");
 });
 uebungen = uebungenStarten();
-plaeneStarten({
-  speicher: {
-    lesen: () => store.getSettings().plan ?? null,
-    schreiben: (plan) => store.setSettings({ ...store.getSettings(), plan }),
+const planSpeicher = {
+  lesen: () => store.getSettings().plan ?? null,
+  schreiben: (plan) => store.setSettings({ ...store.getSettings(), plan }),
+};
+const trainingslog = () => (Array.isArray(store.getSettings().trainingslog) ? store.getSettings().trainingslog : []);
+const training = trainingStarten({
+  plan: planSpeicher,
+  log: { lesen: trainingslog, schreiben: (trainingslog) => store.setSettings({ ...store.getSettings(), trainingslog }) },
+  entwurfSpeicher: {
+    lesen: () => store.getSettings().trainingEntwurf ?? null,
+    schreiben: (trainingEntwurf) => store.setSettings({ ...store.getSettings(), trainingEntwurf }),
   },
+  heute: todayIso,
   oeffne: (id) => uebungen.oeffne(id),
   melde: (text) => toast(text),
+  // Eine beendete Einheit steht danach auch im Tag. Sonst fragt die
+  // Trainingslücke nach vier Tagen, obwohl jeder Satz eingetragen ist.
+  fertig: ({ titel, minuten }) => {
+    store.addTraining(todayIso(), { id: newId(), type: "strength", minutes: minuten, at: nowTime(), note: titel });
+    $("plOffen").hidden = true;
+    refreshAll();
+  },
+  geaendert: () => plaene.laden(),
 });
+const plaene = plaeneStarten({
+  speicher: planSpeicher,
+  oeffne: (id) => uebungen.oeffne(id),
+  melde: (text) => toast(text),
+  // Gestrichen heisst gestrichen. Wer sich besser fühlt, sagt es im
+  // Check-in, dann ist das Training wieder frei.
+  starte: (ei) => {
+    if (trainingGestrichen(store, todayIso())) {
+      toast("Heute ist dein Training gestrichen, der Tag gehört der Erholung. Geht es dir besser, sag es unter Check-ins.", 5000);
+      return;
+    }
+    training.starten(ei);
+  },
+  log: trainingslog,
+  heute: todayIso,
+});
+$("plOffen").hidden = !training.offen();
+$("plFortsetzen").addEventListener("click", () => training.fortsetzen());
 
 // Täglicher Check-in und Wochenbogen sind zwei Ansichten, aber ein Menüpunkt.
 // Zwei Einträge für dieselbe Handlung zwingen dazu, jedes Mal zu überlegen,
@@ -3611,7 +3673,7 @@ $("btnHeraus").addEventListener("click", async () => {
   herausforderungSpeichern(text);
   renderTag();
   showView("assistant");
-  await send(`Meine grösste Herausforderung heute: ${text}. Was würdest du dagegen machen?`);
+  await send(`Meine größte Herausforderung heute: ${text}. Was würdest du dagegen machen?`);
 });
 
 /* ---------- Kalender ---------- */
@@ -4248,8 +4310,8 @@ function mePostenZeichnen() {
             <span class="kreuz"></span>
           </button>
         </div>
-        <div class="me-werte">${Math.round(e.kcal)} kcal, ${runde1(e.proteinG)} g Eiweiss,
-          ${runde1(e.fatG)} g Fett, ${runde1(e.carbsG)} g Kohlenhydrate</div>
+        <div class="me-werte">${Math.round(e.kcal)} kcal, ${komma(runde1(e.proteinG))} g Eiweiß,
+          ${komma(runde1(e.fatG))} g Fett, ${komma(runde1(e.carbsG))} g Kohlenhydrate</div>
       </li>`;
     }).join("");
   }
@@ -4264,13 +4326,18 @@ function meSummeZeichnen() {
     { kcal: 0, p: 0, f: 0, k: 0 },
   );
   $("meKcal").textContent = String(Math.round(summe.kcal));
-  $("meProtein").textContent = `${runde1(summe.p)} g`;
-  $("meFett").textContent = `${runde1(summe.f)} g`;
-  $("meKh").textContent = `${runde1(summe.k)} g`;
+  $("meProtein").textContent = `${komma(runde1(summe.p))} g`;
+  $("meFett").textContent = `${komma(runde1(summe.f))} g`;
+  $("meKh").textContent = `${komma(runde1(summe.k))} g`;
 }
 
 function runde1(wert) {
   return Math.round((Number(wert) || 0) * 10) / 10;
+}
+
+/** Eine Zahl mit deutschem Komma, für alles, was gelesen wird. */
+function komma(zahl) {
+  return String(zahl).replace(".", ",");
 }
 
 /** Hängt einen Posten an und zeigt ihn sofort. */
@@ -4329,7 +4396,7 @@ function meTrefferZeichnen(treffer) {
     return `<li>
       <button type="button" class="me-treffer-knopf" data-treffer="${i}">
         <div class="me-name">${escapeHtml(titel || "Ohne Namen")}</div>
-        <div class="me-werte">${gramm} g, ${Math.round(n.kcal)} kcal, ${runde1(n.proteinG)} g Eiweiss</div>
+        <div class="me-werte">${gramm} g, ${Math.round(n.kcal)} kcal, ${komma(runde1(n.proteinG))} g Eiweiß</div>
         ${warnung}
       </button>
     </li>`;
@@ -4385,8 +4452,8 @@ $("mePosten").addEventListener("input", (event) => {
   const zeile = feld.closest("li")?.querySelector(".me-werte");
   const e = mePosten[i];
   if (zeile) {
-    zeile.textContent = `${Math.round(e.kcal)} kcal, ${runde1(e.proteinG)} g Eiweiss, `
-      + `${runde1(e.fatG)} g Fett, ${runde1(e.carbsG)} g Kohlenhydrate`;
+    zeile.textContent = `${Math.round(e.kcal)} kcal, ${komma(runde1(e.proteinG))} g Eiweiß, `
+      + `${komma(runde1(e.fatG))} g Fett, ${komma(runde1(e.carbsG))} g Kohlenhydrate`;
   }
   meSummeZeichnen();
 });
@@ -4572,7 +4639,7 @@ async function healthNativ() {
   healthLaeuft = true;
   try {
     const bericht = await healthkitAbgleichen({ aufruf: nativAufruf, store, heute: todayIso() });
-    if (bericht.tage || bericht.trainings) refreshAll();
+    if (bericht.tage || bericht.trainings || bericht.mahlzeiten || bericht.uebersprungen) refreshAll();
   } catch {
     // Ohne Erlaubnis oder ohne Health bleibt alles, wie es war. Der Weg über
     // den Export im Profil steht weiter offen.
@@ -4606,7 +4673,35 @@ async function mitteilungenNativ() {
 }
 
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") healthNativ().then(() => mitteilungenNativ());
+  if (document.visibilityState === "visible") healthNativ().then(() => mitteilungenNativ()).then(morgenVielleicht);
+});
+
+/* ---------- Guten Morgen Check-in ---------- */
+
+const morgen = morgenStarten({
+  store, heute: todayIso, melde: (text) => toast(text),
+  // Neu planen: nach Fitheit 1 oder 2 kommt die Nachfrage am Mittag dazu,
+  // nach der Nachfrage fällt sie wieder weg.
+  gespeichert: () => { refreshAll(); mitteilungenNativ(); },
+});
+
+/**
+ * Öffnet den Morgen Check-in, wenn es Zeit ist. Nie während der Einführung
+ * und nie über einem anderen offenen Blatt: wer gerade trainiert oder ein
+ * Foto auswertet, wird nicht unterbrochen.
+ */
+function morgenVielleicht() {
+  if ($("app").hidden || !store.getSettings().einfuehrungGesehen) return;
+  if (document.querySelector(".blatt:not([hidden])")) return;
+  const d = new Date();
+  const jetzt = { tag: todayIso(d), uhrzeit: `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}` };
+  if (!morgen.vielleicht(jetzt)) morgen.nachfrageVielleicht(jetzt);
+}
+// Nach einem schwachen Morgen führt der Knopf zur Nachfrage. So lässt sich
+// ein gestrichenes Training wieder freigeben, wenn es einem besser geht.
+$("btnMorgenCheckin").addEventListener("click", () => {
+  const c = morgenVonHeute(store, todayIso());
+  if (c && c.morgen.gesund <= 2) morgen.nachfrage(); else morgen.oeffnen();
 });
 
 /* ---------- Eigene Erinnerungen ---------- */
@@ -4661,6 +4756,9 @@ $("btnErinnerungNeu").addEventListener("click", async () => {
 /* ---------- Abo Fenster ---------- */
 
 let aboWahl = "plus";
+// Jährlich ist vorgewählt. Es ist für beide Seiten die bessere Wahl, und wer
+// monatlich will, sieht den Schalter direkt darüber.
+let aboTakt = "jahr";
 
 function aboMerken(merken) {
   if (!merken) return;
@@ -4668,10 +4766,33 @@ function aboMerken(merken) {
   store.setSettings({ ...s, aboHinweise: { ...(s.aboHinweise || {}), ...merken } });
 }
 
+function aboTaktZeigen() {
+  const box = $("aboTakt");
+  box.innerHTML = "";
+  const ersparnis = Math.min(...ABO_STUFEN.map(ersparnisProzent));
+  for (const takt of ABO_TAKTE) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.setAttribute("role", "radio");
+    b.setAttribute("aria-checked", String(takt === aboTakt));
+    b.textContent = takt === "jahr" ? "Jährlich" : "Monatlich";
+    if (takt === "jahr") {
+      const marke = document.createElement("span");
+      marke.className = "abo-takt-marke";
+      marke.textContent = `${ersparnis} % sparen`;
+      b.append(marke);
+    }
+    b.addEventListener("click", () => { aboTakt = takt; aboStufenZeigen(); });
+    box.append(b);
+  }
+}
+
 function aboStufenZeigen() {
+  aboTaktZeigen();
   const box = $("aboStufen");
   box.innerHTML = "";
   for (const s of ABO_STUFEN) {
+    const p = aboPreis(s, aboTakt);
     const b = document.createElement("button");
     b.type = "button";
     b.className = "abo-stufe";
@@ -4680,8 +4801,13 @@ function aboStufenZeigen() {
     const name = document.createElement("b");
     name.textContent = s.name;
     const preis = document.createElement("span");
-    preis.textContent = `${s.preis} im Monat`;
+    preis.textContent = `${p.preis} ${p.zeitraum}`;
     b.append(name, preis);
+    if (p.zusatz) {
+      const zusatz = document.createElement("small");
+      zusatz.textContent = p.zusatz;
+      b.append(zusatz);
+    }
     b.addEventListener("click", () => { aboWahl = s.id; aboStufenZeigen(); });
     box.append(b);
   }
@@ -4693,12 +4819,15 @@ function aboStufenZeigen() {
     li.textContent = p;
     haken.append(li);
   }
-  const link = aboLink(aboWahl, store.getSettings().kontoId, KONFIG, istNativ());
-  $("aboKaufen").textContent = `${s.name} holen, ${s.preis} im Monat`;
+  const p = aboPreis(s, aboTakt);
+  const link = aboLink(aboWahl, store.getSettings().kontoId, KONFIG, istNativ(), aboTakt);
+  $("aboKaufen").textContent = `${s.name} holen, ${p.preis} ${p.zeitraum}`;
   $("aboKaufen").hidden = !link;
   $("aboHinweis").textContent = istNativ()
     ? "Der Kauf in der App kommt mit dem App Store. Bis dahin läuft alles ohne KI weiter."
-    : "Alles ohne KI bleibt in jeder Stufe frei: Essen eintragen, Pläne, Erinnerungen, Balance Board.";
+    : aboTakt === "jahr"
+      ? "Einmal im Jahr abgerechnet. Das Kontingent an Nachrichten gilt je Monat. Alles ohne KI bleibt in jeder Stufe frei."
+      : "Monatlich abgerechnet. Alles ohne KI bleibt in jeder Stufe frei: Essen eintragen, Pläne, Erinnerungen, Balance Board.";
 }
 
 function aboOeffnen(anlass = null) {
@@ -4723,7 +4852,7 @@ $("aboSpaeter").addEventListener("click", aboSchliessen);
 $("aboBlatt").addEventListener("click", (event) => { if (event.target === $("aboBlatt")) aboSchliessen(); });
 $("btnAboZeigen").addEventListener("click", () => aboOeffnen());
 $("aboKaufen").addEventListener("click", () => {
-  const link = aboLink(aboWahl, store.getSettings().kontoId, KONFIG, istNativ());
+  const link = aboLink(aboWahl, store.getSettings().kontoId, KONFIG, istNativ(), aboTakt);
   if (link) window.open(link, "_blank", "noopener");
   aboSchliessen();
 });
@@ -4753,7 +4882,9 @@ async function aboBeimStart() {
   const anlass = aboAnlass(stand, store.getSettings().aboHinweise, todayIso());
   if (!anlass) return;
   if (!store.getSettings().einfuehrungGesehen) return;
-  setTimeout(() => aboOeffnen(anlass), 1500);
+  // Der Morgen Check-in geht vor. Zwei Blätter übereinander am Morgen, und
+  // das zweite ist ein Verkaufsfenster.
+  setTimeout(() => { if ($("morgenBlatt").hidden) aboOeffnen(anlass); }, 1500);
 }
 
 async function renderPush() {
@@ -4843,6 +4974,8 @@ let offeneFrage = null;
 function impulsOeffnen(daten) {
   const art = daten?.art;
   if (!art) return;
+  if (art === "morgen") { morgen.oeffnen(); return; }
+  if (art === "nachfrage") { morgen.nachfrage(); return; }
   showView("assistant");
   const impuls = impulseFuerTag(todayIso()).find((i) => i.art === art);
   if (!impuls) return;
@@ -5010,7 +5143,7 @@ const ANWEISUNGEN_VORLAGE = [
   "Bei persönlichen Themen: erst verstehen, dann Vorschläge. Geh unter die Oberfläche,",
   "zeig mir das Muster dahinter, und gib mir am Ende genau eine Sache, die ich heute anders mache.",
   "Sag mir, wenn ich mir etwas vormache.",
-  "Frag nach, wenn eine Antwort nicht zu dem passt, was du über mich weisst.",
+  "Frag nach, wenn eine Antwort nicht zu dem passt, was du über mich weißt.",
 ].join("\n");
 
 function zeigeAnweisungsLaenge() {

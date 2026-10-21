@@ -14,7 +14,7 @@
  */
 
 export const EINFUEHRUNG_SCHRITTE = [
-  { ansicht: "assistant", ziel: "orb", text: "Das ist daevo. Tipp auf den Kreis und sprich, ich höre zu." },
+  { ansicht: "assistant", ziel: "orb", text: "Das ist daevo. Tipp auf den Kreis und sprich, ich höre zu.", textOben: true },
   { ansicht: "assistant", ziel: "btnMic", text: "Hier diktierst du. Was du sagst, geht als Nachricht an daevo.", rund: true },
   { ansicht: "assistant", ziel: "btnAnhang", text: "Mit dem Plus fotografierst du Essen oder Etiketten, leerst deinen Kopf oder sprichst freihändig.", rund: true },
   { ansicht: "assistant", ziel: "btnGespraeche", text: "Hier liegen deine Gespräche, nach Themen sortiert und durchsuchbar.", rund: true },
@@ -22,7 +22,7 @@ export const EINFUEHRUNG_SCHRITTE = [
   { ansicht: "heute", ziel: "ringKcal", text: "Heute: dein Tagesziel und wie viel davon noch offen ist." },
   { ansicht: "heute", ziel: "makroGruppe", text: "Protein, Kohlenhydrate und Fett, jeweils gegen dein Ziel." },
   { ansicht: "heute", ziel: "btnErfassenHeute", text: "Hier trägst du Essen ein: per Foto, Sprache, Barcode oder Suche." },
-  { ansicht: "rezepte", ziel: "rzKarte", text: "Rezepte, die in deinen Rest passen und zu deinen Angaben im Fragebogen." },
+  { ansicht: "rezepte", ziel: "rzKarte", bisZu: "rzAktionen", text: "Rezepte, die in deinen Rest passen und zu deinen Angaben im Fragebogen." },
   { ansicht: "uebungen", ziel: "ueListe", text: "Die Übungsbibliothek: jede Übung mit Foto, Muskeln, Ausführung und Video." },
   { ansicht: "uebungen", ziel: "ueModusPlaene", text: "Hier rechnet daevo dir einen Trainingsplan aus Tagen, Zeit und Ziel." },
   { ansicht: "tag", ziel: "aufgabenHeute", text: "Dein Tag: Aufgaben in einer sinnvollen Reihenfolge, passend zu deinem Kalender." },
@@ -51,10 +51,10 @@ export function einfuehrungStarten({ zeigeAnsicht, schritte = EINFUEHRUNG_SCHRIT
   ebene.setAttribute("aria-label", "Einführung");
   ebene.innerHTML = `
     <div class="ef-licht"></div>
-    <div class="ef-text" aria-live="polite"><p></p><span class="ef-zaehler"></span></div>
-    <button type="button" class="ef-schliessen" aria-label="Einführung beenden">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
-    </button>`;
+    <div class="ef-text" aria-live="polite"><p></p>
+      <span class="ef-zaehler"></span>
+      <button type="button" class="ef-schliessen">Einführung beenden</button>
+    </div>`;
   document.body.appendChild(ebene);
 
   const licht = ebene.querySelector(".ef-licht");
@@ -77,7 +77,15 @@ export function einfuehrungStarten({ zeigeAnsicht, schritte = EINFUEHRUNG_SCHRIT
   };
 
   function setzen(el, s) {
-    const r = el.getBoundingClientRect();
+    // Ein zweites Element, das zum Ziel gehört. Die Knöpfe unter der
+    // Rezeptkarte ragen in die Karte hinein, und ohne sie schnitt der
+    // Lichtkreis die Knöpfe in der Mitte durch.
+    let r = el.getBoundingClientRect();
+    const dazu = s.bisZu && document.getElementById(s.bisZu)?.getBoundingClientRect();
+    if (dazu && dazu.height > 0) {
+      const links = Math.min(r.left, dazu.left), oben = Math.min(r.top, dazu.top);
+      r = { left: links, top: oben, width: Math.max(r.right, dazu.right) - links, height: Math.max(r.bottom, dazu.bottom) - oben };
+    }
     const rund = s.rund || (r.width < 80 && r.height < 80);
     const breite = rund ? Math.max(r.width, r.height) + LUFT * 2 : r.width + LUFT * 2;
     const hoehe = rund ? breite : r.height + LUFT * 2;
@@ -90,7 +98,7 @@ export function einfuehrungStarten({ zeigeAnsicht, schritte = EINFUEHRUNG_SCHRIT
     // Der Text steht dort, wo mehr Platz ist. Unter einem Element am unteren
     // Rand wäre er abgeschnitten, über einem am oberen Rand auch.
     const unten = innerHeight - (oben + hoehe);
-    const drueber = unten < oben;
+    const drueber = s.textOben || unten < oben;
     textBox.classList.toggle("ueber", drueber);
     textBox.style.top = drueber ? "" : `${Math.min(oben + hoehe + 18, innerHeight - 160)}px`;
     textBox.style.bottom = drueber ? `${Math.min(innerHeight - oben + 18, innerHeight - 160)}px` : "";

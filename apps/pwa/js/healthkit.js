@@ -13,6 +13,9 @@
  */
 import { healthSchreiben } from "./gesundheit.js";
 
+/** Welche Fassung der Leseberechtigung zuletzt erfragt wurde. 2 brachte die Ernährung. */
+export const HEALTH_FASSUNG = 2;
+
 /** Trainings innerhalb dieses Abstands zu einem eigenen Eintrag gleicher Art gelten als derselbe. */
 const GLEICH_MINUTEN = 90;
 
@@ -55,13 +58,137 @@ export function workoutsSchreiben(workouts, { store, heute }) {
   return neu;
 }
 
+/**
+ * Eine eigene Mahlzeit in diesem Abstand macht eine Mahlzeit aus Health zum
+ * Verdacht auf dieselbe. Wer sein Mittagessen in YAZIO und in daevo
+ * einträgt, tut das selten mehr als eine Dreiviertelstunde auseinander. Eine
+ * Regel der App, keine Messung.
+ */
+export const NAHRUNG_GLEICH_MINUTEN = 45;
+
+const NAEHRWERTE = ["kcal", "proteinG", "fatG", "carbsG"];
+/** So weit zurück werden Mahlzeiten aus Health übernommen. */
+export const NAHRUNG_TAGE = 60;
+
+/**
+ * Legt die einzelnen Nährwerte aus Health zu Mahlzeiten zusammen. Steht eine
+ * Mahlzeit in Health als Ganzes, gehört alles mit ihrer Kennung zusammen.
+ * Sonst gilt: dieselbe App, derselbe Tag, dieselbe Minute. So schreiben die
+ * Apps eine Mahlzeit, deren Werte einzeln ankommen.
+ */
+export function nahrungZusammenlegen(nahrung) {
+  const mahlzeiten = new Map();
+  for (const n of Array.isArray(nahrung) ? nahrung : []) {
+    if (!n || !/^\d{4}-\d{2}-\d{2}$/.test(String(n.tag)) || !NAEHRWERTE.includes(n.feld)) continue;
+    const wert = Number(n.wert);
+    if (!Number.isFinite(wert) || wert < 0) continue;
+    const quelle = String(n.quelle || "Apple Health").slice(0, 40);
+    const schluessel = n.mahlzeit ? `k:${n.mahlzeit}` : `s:${quelle}|${n.tag}|${n.uhrzeit || ""}`;
+    const m = mahlzeiten.get(schluessel) ?? { schluessel, tag: n.tag, uhrzeit: n.uhrzeit || "", quelle, name: "", kcal: 0, proteinG: 0, fatG: 0, carbsG: 0, hatKcal: false };
+    m[n.feld] += wert;
+    if (n.feld === "kcal") m.hatKcal = true;
+    if (n.name && !m.name) m.name = String(n.name).slice(0, 60);
+    mahlzeiten.set(schluessel, m);
+  }
+  return [...mahlzeiten.values()].map((m) => {
+    // Ohne Kalorien, aber mit Makros: aus den Makros gerechnet, mit den
+    // Faktoren nach Verordnung (EU) Nr. 1169/2011, Anhang XIV.
+    const kcal = m.hatKcal ? m.kcal : m.proteinG * 4 + m.fatG * 9 + m.carbsG * 4;
+    const r = (x) => Math.round(x * 10) / 10;
+    return { ...m, kcal: Math.round(kcal), proteinG: r(m.proteinG), fatG: r(m.fatG), carbsG: r(m.carbsG) };
+  }).filter((m) => m.kcal > 0 || m.proteinG > 0 || m.fatG > 0 || m.carbsG > 0);
+}
+
+/** Eine kurze, feste Kennung aus dem Schlüssel. Der Schlüssel selbst trägt Leerzeichen und Namen. */
+function kennung(text) {
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h >>> 0).toString(36);
+}
+
+/**
+ * Schreibt Mahlzeiten aus Health in die Tage.
+ *
+ * Drei Regeln. Was in Health steht, kommt als eigene Mahlzeit mit der App
+ * als Quelle, "aus YAZIO", und wird bei jedem Abgleich neu geschrieben: wer
+ * in YAZIO eine Menge ändert, sieht sie danach auch hier. Was dort gelöscht
+ * wurde, verschwindet hier, aber nur in den gelesenen Tagen.
+ *
+ * Steht in der Nähe schon eine eigene Mahlzeit aus daevo, wird die aus
+ * Health nicht mitgezählt. Sie steht am Tag unter `healthUebersprungen`,
+ * damit sichtbar bleibt, dass etwas da war und warum es nicht zählt. Ein
+ * stiller Filter, der Essen verschluckt, wäre derselbe Fehler wie doppelt
+ * zählen, nur in die andere Richtung.
+ *
+ * Ausschalten lässt es sich unter `settings.healthErnaehrungAus`. Dann
+ * werden die Mahlzeiten aus Health auch wieder entfernt.
+ */
+export function ernaehrungSchreiben(nahrung, { store, heute, von }) {
+  const aus = Boolean(store.getSettings().healthErnaehrungAus);
+  // Höchstens 60 Tage. Beim ersten Abgleich kommen zwei Jahre, und zwei
+  // Jahre Mahlzeiten aus YAZIO füllen den localStorage, ohne dass eine
+  // Auswertung so weit zurückschaut.
+  const grenze = new Date(Date.parse(`${heute}T12:00:00Z`) - NAHRUNG_TAGE * 86_400_000).toISOString().slice(0, 10);
+  von = von && von > grenze ? von : grenze;
+  const mahlzeiten = aus ? [] : nahrungZusammenlegen(nahrung).filter((m) => m.tag <= heute && m.tag >= von);
+  const jeTag = new Map();
+  for (const m of mahlzeiten) jeTag.set(m.tag, [...(jeTag.get(m.tag) ?? []), m]);
+  // Auch Tage ohne Health Mahlzeit im Zeitraum anfassen: dort kann eine
+  // gelöschte Mahlzeit stehen, die weg muss.
+  const tage = new Set([...jeTag.keys(), ...store.allDays().filter((t) => t >= von && t <= heute)]);
+  let neu = 0;
+  let uebersprungen = 0;
+  for (const tag of tage) {
+    const day = store.getDay(tag);
+    const alt = day.meals || [];
+    const eigene = alt.filter((m) => m.source !== "health");
+    if (!jeTag.has(tag) && eigene.length === alt.length && !day.healthUebersprungen) continue;
+    const ausHealth = [];
+    const weg = [];
+    for (const m of jeTag.get(tag) ?? []) {
+      const start = minutenVon(m.uhrzeit);
+      const nah = eigene.find((e) => {
+        const andere = minutenVon(e.at);
+        return start !== null && andere !== null && Math.abs(andere - start) <= NAHRUNG_GLEICH_MINUTEN;
+      });
+      if (nah) {
+        weg.push({ quelle: m.quelle, uhrzeit: m.uhrzeit, kcal: m.kcal, eigeneUm: nah.at });
+        continue;
+      }
+      const id = `hk-${kennung(m.schluessel)}`;
+      // Hier gelöscht bleibt gelöscht, hier korrigiert bleibt korrigiert.
+      // Sonst käme jede Änderung beim nächsten Öffnen aus Health zurück.
+      if ((day.healthEntfernt || []).includes(id)) continue;
+      const vorher = alt.find((x) => x.id === id);
+      if (vorher?.korrigiert) { ausHealth.push(vorher); continue; }
+      if (!vorher) neu++;
+      ausHealth.push({
+        id, text: m.name || `Mahlzeit aus ${m.quelle}`, at: m.uhrzeit, source: "health", quelle: m.quelle,
+        entries: [{ name: m.name || "Mahlzeit", quantity: "1 Portion", kcal: m.kcal, proteinG: m.proteinG, fatG: m.fatG, carbsG: m.carbsG }],
+        feeling: null,
+      });
+    }
+    uebersprungen += weg.length;
+    day.meals = [...eigene, ...ausHealth].sort((a, b) => String(a.at || "").localeCompare(String(b.at || "")));
+    if (weg.length) day.healthUebersprungen = weg;
+    else delete day.healthUebersprungen;
+    store.setDay(tag, day);
+  }
+  return { mahlzeiten: neu, uebersprungen };
+}
+
 /** Schreibt eine Antwort des Plugins. Gibt zurück, was übernommen wurde. */
 export function healthkitSchreiben(antwort, { store, heute }) {
   const tage = (antwort?.tage || []).filter((t) => t && /^\d{4}-\d{2}-\d{2}$/.test(String(t.tag)));
   const bericht = tage.length
     ? healthSchreiben({ tage }, { store, heute, stempel: "healthNativ" })
     : { tage: 0, schritte: 0, schlaf: 0, gewicht: 0 };
-  return { ...bericht, trainings: workoutsSchreiben(antwort?.workouts, { store, heute }) };
+  // Eine ältere Hülle ohne Ernährung schickt kein Feld. Dann bleibt alles,
+  // wie es ist, statt die Mahlzeiten aus Health als gelöscht zu behandeln.
+  const essen = Array.isArray(antwort?.nahrung)
+    ? ernaehrungSchreiben(antwort.nahrung, { store, heute, von: antwort.von })
+    : { mahlzeiten: 0, uebersprungen: 0 };
+  return { ...bericht, trainings: workoutsSchreiben(antwort?.workouts, { store, heute }), ...essen };
 }
 
 /**
@@ -71,9 +198,13 @@ export function healthkitSchreiben(antwort, { store, heute }) {
  */
 export async function healthkitAbgleichen({ aufruf, store, heute, tage = 14 }) {
   const settings = store.getSettings();
-  if (!settings.healthNativGefragt) {
+  // iOS fragt nur nach Typen, die neu dazukommen, und nur, wenn die App
+  // erneut fragt. Mit der Ernährung kam ein zweiter Satz Typen, deshalb
+  // eine Fassung statt eines Ja oder Nein.
+  const fassung = Number(settings.healthNativFassung ?? (settings.healthNativGefragt ? 1 : 0));
+  if (fassung < HEALTH_FASSUNG) {
     await aufruf("Gesundheit", "berechtigen");
-    store.setSettings({ ...store.getSettings(), healthNativGefragt: true });
+    store.setSettings({ ...store.getSettings(), healthNativGefragt: true, healthNativFassung: HEALTH_FASSUNG });
   }
   // Beim ersten Abgleich zwei Jahre, damit Bericht und Trend sofort Daten
   // haben. Danach reichen zwei Wochen: was älter ist, ändert sich nicht mehr.

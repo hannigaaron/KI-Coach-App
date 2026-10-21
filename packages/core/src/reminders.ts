@@ -185,7 +185,7 @@ export function buildDailyReminders(params: {
       kind: "midday_challenge",
       at: formatTime(MITTAG_HERAUSFORDERUNG),
       title: "Was war bisher das Schwierigste",
-      body: "Sag mir die grösste Herausforderung von heute. Ich sag dir, was ich dagegen machen würde.",
+      body: "Sag mir die größte Herausforderung von heute. Ich sag dir, was ich dagegen machen würde.",
       priority: 88,
     });
   }

@@ -8,7 +8,14 @@ import type { Verbrauch } from "./provider.js";
  * Preise, und dann stimmt diese Datei nicht mehr. Deshalb trägt jede Anzeige
  * das Datum mit, und die App nennt die Zahl eine Schätzung.
  *
- * Stand: 24. Juni 2026, Preise der Anthropic API in Dollar je Million Token.
+ * Stand: Oktober 2026, Preise der Anthropic API in Dollar je Million Token.
+ * Die Modelle der Generation davor bleiben in der Tabelle: ältere Einträge im
+ * Verbrauch tragen ihre Kennung und sollen weiter richtig gerechnet werden.
+ *
+ * Haiku 5.5 hat zwei Preise. 0,10 und 0,50 gelten bis 100.000 Token je
+ * Anfrage, darüber 0,50 und 2,50. Die App schickt rund 6000 Token je
+ * Nachricht und kommt an die Grenze nicht heran, deshalb steht hier nur der
+ * erste Preis.
  *
  * Zwischenspeichern:
  * Ein Lesen aus dem Zwischenspeicher kostet ein Zehntel des Eingabepreises.
@@ -22,11 +29,19 @@ export interface Preis {
   input: number;
   /** Dollar je Million Ausgabetoken. */
   output: number;
+  /**
+   * Dollar je Million gelesener Token aus dem Zwischenspeicher, wo es nicht
+   * ein Zehntel des Eingabepreises ist. Bei Opus 5.5 sind es 0,20 statt 0,40.
+   */
+  cacheLesen?: number;
 }
 
-export const PREISE_STAND = "24. Juni 2026";
+export const PREISE_STAND = "Oktober 2026";
 
 export const MODELL_PREISE: Record<string, Preis> = {
+  "claude-opus-5-5": { input: 4, output: 20, cacheLesen: 0.2 },
+  "claude-sonnet-5-5": { input: 2, output: 10 },
+  "claude-haiku-5-5": { input: 0.1, output: 0.5 },
   "claude-opus-5": { input: 5, output: 25 },
   "claude-opus-4-8": { input: 5, output: 25 },
   "claude-sonnet-5": { input: 2, output: 10 },
@@ -44,7 +59,7 @@ export function kostenVon(verbrauch: Verbrauch): number {
   const preis = MODELL_PREISE[verbrauch.modell] ?? RUECKFALL;
   const eingabe =
     verbrauch.inputTokens * preis.input +
-    verbrauch.cacheReadTokens * preis.input * CACHE_LESEN +
+    verbrauch.cacheReadTokens * (preis.cacheLesen ?? preis.input * CACHE_LESEN) +
     verbrauch.cacheWriteTokens * preis.input * CACHE_SCHREIBEN;
   return (eingabe + verbrauch.outputTokens * preis.output) / 1_000_000;
 }

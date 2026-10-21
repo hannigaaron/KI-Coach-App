@@ -25,7 +25,7 @@ const LIB: PlanUebung[] = [
 const w = (teil: Partial<PlanWunsch> = {}): PlanWunsch => ({ tage: 3, minuten: 60, niveau: "intermediate", ziel: "muskel", ...teil });
 
 test("Jede Tageszahl ergibt genau so viele Einheiten", () => {
-  for (const tage of [2, 3, 4, 5] as const) {
+  for (const tage of [1, 2, 3, 4, 5] as const) {
     assert.equal(uebungsplanBauen(w({ tage }), LIB).einheiten.length, tage);
   }
 });
@@ -230,4 +230,50 @@ test("Fortgeschrittene behalten freie Gewichte", () => {
 test("Kurze Pläne sagen, warum keine Isolation drin ist", () => {
   assert.match(uebungsplanBauen(w({ minuten: 30 }), LIB).hinweise.join(" "), /nur Grundübungen/);
   assert.doesNotMatch(uebungsplanBauen(w({ minuten: 60 }), LIB).hinweise.join(" "), /nur Grundübungen/);
+});
+
+test("Knieschmerzen nehmen Kniebeugen und Ausfallschritte aus dem Plan", () => {
+  const plan = uebungsplanBauen(w({ beschwerden: ["knie"] }), LIB);
+  const ids = plan.einheiten.flatMap((e) => e.positionen.map((p) => p.id));
+  assert.equal(ids.some((id) => id.startsWith("kniebeuge") || id.startsWith("ausfall")), false);
+  assert.ok(ids.length > 0);
+  assert.ok(plan.hinweise.some((h) => /Knie/.test(h) && /keine Diagnose/.test(h)));
+});
+
+test("Ohne Geräte stehen nur Übungen mit Körpergewicht im Plan", () => {
+  const lib = LIB.map((e) => (e.id === "plank" || e.id === "bank1" ? { ...e, equipment: "bodyweight" } : e));
+  const plan = uebungsplanBauen(w({ ort: "ohne" }), lib);
+  const ids = plan.einheiten.flatMap((e) => e.positionen.map((p) => p.id));
+  assert.deepEqual([...new Set(ids)].sort(), ["bank1", "plank"]);
+});
+
+test("Eine gemiedene Übung kommt nicht vor", () => {
+  const plan = uebungsplanBauen(w({ meiden: ["bank1", "bank2"] }), LIB);
+  const ids = plan.einheiten.flatMap((e) => e.positionen.map((p) => p.id));
+  assert.equal(ids.includes("bank1") || ids.includes("bank2"), false);
+});
+
+test("Eine lange Einheit füllt ihre Zeit, die Entlastung nicht", () => {
+  const sechzig = uebungsplanBauen(w({ tage: 4, minuten: 60 }), LIB).einheiten;
+  const neunzig = uebungsplanBauen(w({ tage: 4, minuten: 90 }), LIB).einheiten;
+  const deload = uebungsplanBauen(w({ tage: 4, minuten: 90, deload: true }), LIB).einheiten;
+  for (let i = 0; i < neunzig.length; i++) {
+    assert.ok(neunzig[i]!.dauerMin > sechzig[i]!.dauerMin, neunzig[i]!.titel);
+    assert.ok(neunzig[i]!.dauerMin <= 90);
+    assert.ok(deload[i]!.dauerMin < neunzig[i]!.dauerMin);
+  }
+});
+
+test("Grundübungen zuerst, Isolation danach, Rumpf am Ende", () => {
+  const nachId = new Map(LIB.map((e) => [e.id, e]));
+  for (const minuten of [60, 90]) for (const tage of [2, 3, 4, 5] as const) {
+    for (const e of uebungsplanBauen(w({ tage, minuten }), LIB).einheiten) {
+      const arten = e.positionen.map((p) => nachId.get(p.id)!);
+      const ersteIso = arten.findIndex((u) => u.mechanics === "isolation");
+      const letzteGrund = arten.map((u) => u.mechanics === "compound").lastIndexOf(true);
+      if (ersteIso >= 0) assert.ok(letzteGrund < ersteIso, `${tage}/${minuten} ${e.titel}`);
+      const rumpf = arten.findIndex((u) => u.gruppe === "rumpf");
+      if (rumpf >= 0) assert.ok(arten.slice(rumpf).every((u) => u.gruppe === "rumpf"), `${tage}/${minuten} ${e.titel}`);
+    }
+  }
 });

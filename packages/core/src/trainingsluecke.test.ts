@@ -12,6 +12,7 @@ function lage(teil: Partial<LueckenLage> = {}): LueckenLage {
     tage: {},
     heute: "2026-09-26",
     geplanteEinheiten: 4,
+    automatischErfasst: true,
     ...teil,
   };
 }
@@ -83,4 +84,9 @@ test("jede Schnellantwort hat eine ASCII Kennung und einen ganzen Satz", () => {
     assert.ok(a.label.length <= 20, `${a.label} ist zu lang für einen Knopf`);
     assert.match(a.satz, /\.$/);
   }
+});
+
+test("ohne automatische Erfassung wird nie gefragt", () => {
+  assert.equal(trainingslueckeFinden(lage({ tage: { "2026-09-10": einheit }, automatischErfasst: false })), null);
+  assert.equal(trainingslueckeFinden(lage({ tage: { "2026-09-10": einheit }, automatischErfasst: undefined })), null);
 });

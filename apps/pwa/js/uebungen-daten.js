@@ -185,7 +185,7 @@ export const UEBUNGEN = [
    "Gluteus"
   ],
   "secondaryMuscles": [
-   "Hamstrings"
+   "Beinbeuger"
   ],
   "equipment": "dumbbell",
   "level": "beginner",
@@ -296,7 +296,7 @@ export const UEBUNGEN = [
   "pattern": "hip_dominant",
   "primaryMuscles": [
    "Gluteus",
-   "Hamstrings",
+   "Beinbeuger",
    "Rückenstrecker"
   ],
   "secondaryMuscles": [
@@ -328,7 +328,7 @@ export const UEBUNGEN = [
   "nameEn": "Romanian Deadlift",
   "pattern": "hip_dominant",
   "primaryMuscles": [
-   "Hamstrings",
+   "Beinbeuger",
    "Gluteus"
   ],
   "secondaryMuscles": [
@@ -341,7 +341,7 @@ export const UEBUNGEN = [
   "steps": [
    "Aufrecht stehen, Stange vor den Oberschenkeln",
    "Knie leicht gebeugt, Hüfte nach hinten schieben",
-   "Stange an den Beinen entlang absenken, bis die Hamstrings dehnen",
+   "Stange an den Beinen entlang absenken, bis du die Dehnung hinten im Oberschenkel spürst",
    "Hüfte nach vorn schieben und aufrichten"
   ],
   "gruppe": "beine",
@@ -423,7 +423,7 @@ export const UEBUNGEN = [
    "Gluteus"
   ],
   "secondaryMuscles": [
-   "Hamstrings"
+   "Beinbeuger"
   ],
   "equipment": "barbell",
   "level": "intermediate",
@@ -452,7 +452,7 @@ export const UEBUNGEN = [
    "Gluteus"
   ],
   "secondaryMuscles": [
-   "Hamstrings"
+   "Beinbeuger"
   ],
   "equipment": "bodyweight",
   "level": "beginner",
@@ -478,7 +478,7 @@ export const UEBUNGEN = [
   "nameEn": "Good Morning",
   "pattern": "hip_dominant",
   "primaryMuscles": [
-   "Hamstrings",
+   "Beinbeuger",
    "Rückenstrecker"
   ],
   "secondaryMuscles": [
@@ -508,7 +508,7 @@ export const UEBUNGEN = [
   "nameEn": "Lying Leg Curl",
   "pattern": "knee_flexion",
   "primaryMuscles": [
-   "Hamstrings"
+   "Beinbeuger"
   ],
   "secondaryMuscles": [],
   "equipment": "machine",
@@ -535,7 +535,7 @@ export const UEBUNGEN = [
   "nameEn": "Seated Leg Curl",
   "pattern": "knee_flexion",
   "primaryMuscles": [
-   "Hamstrings"
+   "Beinbeuger"
   ],
   "secondaryMuscles": [],
   "equipment": "machine",
@@ -562,7 +562,7 @@ export const UEBUNGEN = [
   "nameEn": "Nordic Hamstring Curl",
   "pattern": "knee_flexion",
   "primaryMuscles": [
-   "Hamstrings"
+   "Beinbeuger"
   ],
   "secondaryMuscles": [
    "Gluteus"
@@ -2245,7 +2245,7 @@ export const UEBUNGEN = [
   "pattern": "hip_dominant",
   "primaryMuscles": [
    "Gluteus",
-   "Hamstrings"
+   "Beinbeuger"
   ],
   "secondaryMuscles": [
    "Rückenstrecker",
@@ -2368,7 +2368,7 @@ export const UEBUNGEN = [
    "Gluteus"
   ],
   "secondaryMuscles": [
-   "Hamstrings"
+   "Beinbeuger"
   ],
   "equipment": "machine",
   "level": "beginner",

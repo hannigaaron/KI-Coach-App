@@ -37,9 +37,10 @@ export const KONFIG = {
   angebot: null,
 
   /**
-   * Zahlungslinks für Plus und Pro, etwa Stripe Payment Links. Leer heisst:
-   * der Knopf schreibt dem Betreiber eine Mail mit der Kontokennung, und er
-   * setzt die Stufe von Hand.
+   * Zahlungslinks für Plus und Pro, etwa Stripe Payment Links, je Zahlweise:
+   * `plusUrl`, `plusJahrUrl`, `proUrl`, `proJahrUrl`. Leer heisst: der Knopf
+   * schreibt dem Betreiber eine Mail mit der Kontokennung, und er setzt die
+   * Stufe von Hand, beim Jahr mit `bis` ein Jahr später.
    */
   abo: null,
 };

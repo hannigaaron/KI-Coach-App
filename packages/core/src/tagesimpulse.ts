@@ -45,7 +45,7 @@ const SLOTS: Slot[] = [
   {
     art: "protein",
     at: "09:00",
-    titel: "Eiweiss zuerst",
+    titel: "Eiweiß zuerst",
     frage: false,
     texte: [
       "Denk daran, in jede Mahlzeit eine Eiweissquelle einzubauen.",
@@ -81,7 +81,7 @@ const SLOTS: Slot[] = [
     frage: false,
     texte: [
       "Falls dein Mittagessen ausfallen musste oder keine Eiweissquelle drin war, nimm jetzt einen Shake.",
-      "Mittagessen ausgefallen oder ohne Eiweiss? Dann jetzt ein Shake, damit der Tag nicht kippt.",
+      "Mittagessen ausgefallen oder ohne Eiweiß? Dann jetzt ein Shake, damit der Tag nicht kippt.",
       "Prüf kurz dein Protein für heute. Fehlt was, geht ein Shake schneller als eine Mahlzeit.",
     ],
   },

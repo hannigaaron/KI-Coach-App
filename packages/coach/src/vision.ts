@@ -140,7 +140,9 @@ export async function mahlzeitAusFoto(
     anhaenge,
     schema: FOTO_MAHLZEIT_SCHEMA as unknown as Record<string, unknown>,
     schemaName: "mahlzeit_aus_foto",
-    maxTokens: 2048,
+    // Opus 5.5 denkt über einen Teller nach, bevor es antwortet, und das
+    // zählt gegen die Grenze. Abgeschnitten käme kein Ergebnis zurück.
+    maxTokens: 4096,
     modell,
   });
 
@@ -173,7 +175,7 @@ export async function vorratAusFoto(
     anhaenge,
     schema: FOTO_VORRAT_SCHEMA as unknown as Record<string, unknown>,
     schemaName: "vorrat_aus_foto",
-    maxTokens: 1024,
+    maxTokens: 2048,
     modell,
   });
 

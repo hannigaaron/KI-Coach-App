@@ -315,7 +315,7 @@ try {
 
       <div class="field"><label for="fridgeInput">Was hast du zu Hause</label>
         <textarea id="fridgeInput" rows="2" placeholder="Eier, Reis, Brokkoli, Magerquark"></textarea>
-        <p class="feld-hilfe">Leer lassen heisst: ich schlage ohne Rücksicht auf deinen Vorrat vor.
+        <p class="feld-hilfe">Leer lassen heißt: ich schlage ohne Rücksicht auf deinen Vorrat vor.
         Was du hier einträgst, merke ich mir.</p>
       </div>
 
@@ -343,7 +343,7 @@ try {
     <div class="blatt-innen" role="dialog" aria-modal="true" aria-labelledby="ebTitel">
       <header class="blatt-kopf">
         <h2 id="ebTitel">Essen erfassen</h2>
-        <button id="ebSchliessen" class="icon-btn" aria-label="Schliessen"><span class="kreuz"></span></button>
+        <button id="ebSchliessen" class="icon-btn" aria-label="Schließen"><span class="kreuz"></span></button>
       </header>
       <div class="blatt-scroll">
         <div class="wege">
@@ -417,12 +417,13 @@ try {
           <span style="background-image:url(img/rezepte/linsen-curry.jpg)"><b>Kühlschrank</b></span>
         </div>
       </div>
-      <button id="aboSchliessen" class="abo-x" aria-label="Schliessen"><span class="kreuz"></span></button>
+      <button id="aboSchliessen" class="abo-x" aria-label="Schließen"><span class="kreuz"></span></button>
       <div class="abo-inhalt">
         <span id="aboMarke" class="abo-marke-gross">Plus und Pro</span>
         <h2 id="aboTitel">Deinen Coach freischalten</h2>
         <p id="aboText" class="abo-text"></p>
         <ul id="aboHaken" class="abo-haken"></ul>
+        <div id="aboTakt" class="abo-takt" role="radiogroup" aria-label="Zahlweise"></div>
         <div id="aboStufen" class="abo-wahl" role="radiogroup" aria-label="Abo wählen"></div>
         <button id="aboKaufen" class="abo-knopf">Plus holen</button>
         <p id="aboHinweis" class="abo-klein"></p>
@@ -431,11 +432,39 @@ try {
     </div>
   </div>
 
+  <!-- Der Trainingsmodus. Ein Blatt fast über die ganze Höhe: im Studio
+       zählt die Tabelle, nicht was darunter liegt. "Beenden" speichert,
+       das Kreuz schliesst nur, die Einheit bleibt offen. -->
+  <div id="trainingBlatt" class="blatt tr-blatt" hidden>
+    <div class="blatt-innen" role="dialog" aria-modal="true" aria-labelledby="trainingTitel">
+      <header class="blatt-kopf">
+        <button id="trainingZu" class="tr-kopfknopf" type="button">Schließen</button>
+        <h2 id="trainingTitel">Training</h2>
+        <button id="trainingEnde" class="tr-kopfknopf stark" type="button">Beenden</button>
+      </header>
+      <div class="blatt-scroll" id="trainingInhalt"></div>
+      <div class="tr-fuss" id="trainingFuss"></div>
+    </div>
+  </div>
+
+  <!-- Der Guten Morgen Check-in. Vier Fragen, je fünf Punkte zum Antippen,
+       danach Morgenwert, Belastbarkeit, Training und Tipps. -->
+  <div id="morgenBlatt" class="blatt mg-blatt" hidden>
+    <div class="blatt-innen" role="dialog" aria-modal="true" aria-labelledby="morgenTitel">
+      <header class="blatt-kopf">
+        <h2 id="morgenTitel">Guten Morgen</h2>
+        <button id="morgenZu" class="icon-btn" aria-label="Schließen"><span class="kreuz"></span></button>
+      </header>
+      <div class="blatt-scroll" id="morgenInhalt"></div>
+      <div class="mg-fuss"><button type="button" id="morgenAuswerten" class="tr-weiter" disabled>Auswerten</button></div>
+    </div>
+  </div>
+
   <div id="herkunftBlatt" class="blatt" hidden>
     <div class="blatt-innen" role="dialog" aria-modal="true" aria-labelledby="hkTitel">
       <header class="blatt-kopf">
         <h2 id="hkTitel">Woher kommt das</h2>
-        <button id="hkSchliessen" class="icon-btn" aria-label="Schliessen"><span class="kreuz"></span></button>
+        <button id="hkSchliessen" class="icon-btn" aria-label="Schließen"><span class="kreuz"></span></button>
       </header>
       <div class="blatt-scroll">
         <div class="ue-modus hk-wahl" id="hkWahl" role="tablist">
@@ -457,7 +486,7 @@ try {
     <div class="blatt-innen" role="dialog" aria-modal="true" aria-labelledby="fbTitel">
       <header class="blatt-kopf">
         <h2 id="fbTitel">KI Foto-Tracking</h2>
-        <button id="fbSchliessen" class="icon-btn" aria-label="Schliessen"><span class="kreuz"></span></button>
+        <button id="fbSchliessen" class="icon-btn" aria-label="Schließen"><span class="kreuz"></span></button>
       </header>
       <div class="blatt-scroll">
         <div id="fbBuehne" class="foto-buehne">
@@ -487,7 +516,7 @@ try {
 
         <label class="feld-label" for="fbDetails">Details (optional)</label>
         <textarea id="fbDetails" class="foto-details" rows="3"
-          placeholder="4 Stangen Spargel dazu, Reis war eine grosse Kelle"></textarea>
+          placeholder="4 Stangen Spargel dazu, Reis war eine große Kelle"></textarea>
         <p class="sub">Mengen, die man nicht sieht, gehören hierhin. Alles andere liest daevo aus dem Bild.</p>
         <div id="fbFeedback" class="feedback" hidden></div>
       </div>
@@ -508,7 +537,7 @@ try {
     <div class="blatt-innen" role="dialog" aria-modal="true" aria-labelledby="meTitel">
       <header class="blatt-kopf">
         <h2 id="meTitel">Mahlzeit</h2>
-        <button id="meSchliessen" class="icon-btn" aria-label="Schliessen"><span class="kreuz"></span></button>
+        <button id="meSchliessen" class="icon-btn" aria-label="Schließen"><span class="kreuz"></span></button>
       </header>
 
       <div class="blatt-scroll">
@@ -522,7 +551,7 @@ try {
         <div class="me-summe">
           <div class="me-kcal"><b id="meKcal">0</b><span>kcal</span></div>
           <div class="me-makros">
-            <div><b id="meProtein">0</b><span>Eiweiss</span></div>
+            <div><b id="meProtein">0</b><span>Eiweiß</span></div>
             <div><b id="meFett">0</b><span>Fett</span></div>
             <div><b id="meKh">0</b><span>Kohlenhydrate</span></div>
           </div>
@@ -553,7 +582,7 @@ try {
               <input id="meHandKcal" type="number" inputmode="decimal" min="0" step="1"></div>
           </div>
           <div class="field-row">
-            <div class="field"><label for="meHandP">Eiweiss je 100 g</label>
+            <div class="field"><label for="meHandP">Eiweiß je 100 g</label>
               <input id="meHandP" type="number" inputmode="decimal" min="0" step="0.1"></div>
             <div class="field"><label for="meHandF">Fett je 100 g</label>
               <input id="meHandF" type="number" inputmode="decimal" min="0" step="0.1"></div>
@@ -580,6 +609,7 @@ try {
         <button type="button" class="" role="tab" aria-selected="false" data-ci-reiter="wochencheck">Wochenbogen</button>
       </div>
       <p class="sub">Kurz festhalten, wie es dir geht. Daraus erkennt der Coach Muster, die dir selbst entgehen.</p>
+      <button type="button" id="btnMorgenCheckin" class="pl-knopf haupt mg-start">Guten Morgen Check-in</button>
       <div class="field-row">
         <div class="field"><label for="energy">Energie</label><input id="energy" type="number" inputmode="numeric" min="1" max="10" value="7"></div>
         <div class="field"><label for="sleepQ">Schlaf</label><input id="sleepQ" type="number" inputmode="numeric" min="1" max="10" value="7"></div>
@@ -691,7 +721,7 @@ try {
       <h2 class="abschnitt">Belastung</h2>
       <p class="sub">Deine letzten sieben Tage gegen deinen Schnitt der letzten achtundzwanzig, beide in Minuten.</p>
       <pre class="pre" id="belastungText">Wird beim Öffnen gerechnet.</pre>
-      <p class="fineprint">Das Verfahren stammt aus dem Leistungssport und heisst dort acute chronic workload
+      <p class="fineprint">Das Verfahren stammt aus dem Leistungssport und heißt dort acute chronic workload
         ratio. Die Schwellen 0,8 und 1,5 stammen aus Gabbett, British Journal of Sports Medicine 2016. Genau
         diese Arbeit ist seit 2020 stark kritisiert worden, unter anderem von Impellizzeri und anderen. Der
         Quotient beschreibt zuverlässig, wie deine Woche zu deinem Schnitt steht. Dass ein hoher Wert zu
@@ -830,15 +860,16 @@ try {
           <input id="mKonz" type="number" inputmode="numeric" min="1" max="10" value="7"></div>
       </div>
       <div class="field-row">
-        <div class="field"><label for="mSatt">Sättigung 1 hungrig, 10 übervoll</label>
+        <div class="field"><label for="mSatt">Sättigung 1 bis 10</label>
           <input id="mSatt" type="number" inputmode="numeric" min="1" max="10" value="5"></div>
         <div class="field"><label for="btnMittag">&nbsp;</label>
           <button id="btnMittag" class="primary" style="width:100%">Auswerten</button></div>
       </div>
+      <p class="sub">Sättigung: 1 heißt hungrig, 10 übervoll.</p>
       <pre class="pre" id="mittagBefund" hidden></pre>
       <button id="btnMittagAlternative" class="ghost" hidden>Bessere Mahlzeit vorschlagen</button>
 
-      <h2 class="abschnitt">Grösste Herausforderung heute</h2>
+      <h2 class="abschnitt">Größte Herausforderung heute</h2>
       <div class="field"><label for="herausText">Was war bisher am schwersten</label>
         <textarea id="herausText" rows="2" placeholder="Zum Beispiel: drei Absagen hintereinander"></textarea></div>
       <button id="btnHeraus" class="ghost">Antwort holen</button>
@@ -847,7 +878,7 @@ try {
       <h2 class="abschnitt">Kopf leeren</h2>
       <p class="sub">Sag oder schreib alles, was dir gerade im Kopf herumgeht. Ungeordnet, mitten im Satz, egal. daevo trennt daraus Aufgaben, Entscheidungen und Sorgen und sagt dir, womit du anfängst.</p>
       <div class="field"><label for="kopfText">Alles raus</label>
-        <textarea id="kopfText" rows="5" placeholder="Ich muss noch das Angebot schreiben und eigentlich die Reels schneiden und ich weiss nicht ob ich zuerst..."></textarea></div>
+        <textarea id="kopfText" rows="5" placeholder="Ich muss noch das Angebot schreiben und eigentlich die Reels schneiden und ich weiß nicht ob ich zuerst..."></textarea></div>
       <div class="quick">
         <button id="btnKopfDiktat" class="chip">Diktieren</button>
         <button id="btnKopf" class="chip">Sortieren</button>
@@ -896,6 +927,10 @@ try {
       <p class="sub" data-nur-nativ hidden>daevo liest Schritte, Kalorien, Ruhepuls, HRV, Gewicht, Schlaf und
         Trainings direkt aus Apple Health, jedes Mal wenn du die App öffnest. Was daevo lesen darf, änderst du
         in der Health App unter Teilen, Apps, daevo.</p>
+      <label class="pl-deload" data-nur-nativ hidden><input type="checkbox" id="e-healthErnaehrung" checked>
+        <span>Ernährung aus Apple Health übernehmen</span>
+        <small>Mahlzeiten, die YAZIO, MyFitnessPal und andere Apps nach Health schreiben. Was du in der Nähe
+          selbst in daevo einträgst, zählt nicht doppelt.</small></label>
       <div data-nur-web>
       <p class="sub">HealthKit gibt es nur für native Apps. Der Weg für eine Web App ist der Export, den die
         Health App selbst anbietet: Profil oben rechts, ganz unten "Alle Gesundheitsdaten exportieren".
@@ -968,7 +1003,7 @@ try {
 
       <h2 class="abschnitt">Neuen Standard setzen</h2>
       <div class="field"><label for="stdText">Der Satz</label>
-        <input id="stdText" placeholder="Ich gehe an fünf Tagen die Woche vor 23 Uhr ins Bett"></div>
+        <input id="stdText" placeholder="Fünfmal die Woche vor 23 Uhr ins Bett"></div>
       <div class="field-row">
         <div class="field"><label for="stdKadenz">Gilt</label>
           <select id="stdKadenz"><option value="taeglich">jeden Tag</option><option value="woechentlich">je Woche</option></select></div>
@@ -1037,6 +1072,8 @@ try {
         <p class="sub">Ein Plan aus den Übungen dieser App. Er wird gerechnet, nicht geschrieben, und folgt Regeln, die unten stehen.</p>
         <div id="plSteuerung" class="pl-steuerung"></div>
         <div id="plGeladen" class="pl-geladen" hidden><button type="button" class="ue-tab">Gespeicherten Plan laden</button></div>
+        <div id="plUpdate"></div>
+        <div id="plOffen" class="pl-offen" hidden><button type="button" class="pl-knopf haupt" id="plFortsetzen">Training fortsetzen</button></div>
         <div id="plKopf" class="pl-kopf"></div>
         <div id="plEinheiten"></div>
         <div id="plSaetze"></div>
@@ -1127,7 +1164,7 @@ try {
         <label>Deine Woche</label>
         <div class="wochenkopf"><span class="wt-tag"></span><span>Aufstehen</span><span>Schlafen</span></div>
         <div id="e-wochenzeiten" class="wochenzeiten"></div>
-        <p class="feld-hilfe">Leer lassen heisst: an dem Tag gilt dein Schnitt.</p>
+        <p class="feld-hilfe">Leer lassen heißt: an dem Tag gilt dein Schnitt.</p>
       </div>
       <p id="e-randhilfe" class="feld-hilfe"></p>
       <button id="btnSaveTage" class="primary breit">Tagesablauf speichern</button>
@@ -1181,7 +1218,7 @@ try {
       </div>
 
       <h2 class="abschnitt">Benachrichtigungen</h2>
-      <p class="sub">Sechs Impulse am Tag, auch wenn die App zu ist. Eiweiss, Trinken, Energie, Shake, Stress, Pause.</p>
+      <p class="sub">Sechs Impulse am Tag, auch wenn die App zu ist. Eiweiß, Trinken, Energie, Shake, Stress, Pause.</p>
       <!-- In der iPhone App plant daevo die Mitteilungen selbst bei iOS ein.
            Web Push, Worker und Probe gibt es dort nicht. -->
       <p class="sub" data-nur-nativ hidden>daevo plant sie selbst auf deinem iPhone ein, dazu die Erinnerung
@@ -1222,7 +1259,7 @@ try {
             <button type="button" class="pill" data-er-tag="6">Sa</button>
             <button type="button" class="pill" data-er-tag="7">So</button>
           </div>
-          <p class="feld-hilfe">Kein Tag gewählt heisst täglich. Die Zeit vor dem Schlafen und nach dem
+          <p class="feld-hilfe">Kein Tag gewählt heißt täglich. Die Zeit vor dem Schlafen und nach dem
             Aufstehen folgt deinen Zeiten aus dem Profil, je Tag.</p></div>
         <button id="btnErinnerungNeu" class="primary breit">Erinnerung hinzufügen</button>
         <p id="erHinweis" class="feld-hilfe">Du kannst sie auch im Gespräch anlegen, etwa "Erinnere mich eine
@@ -1352,7 +1389,7 @@ try {
 
       <h2 class="abschnitt">Wie daevo mit dir reden soll</h2>
       <p class="sub">Was hier steht, liest daevo bei jeder Nachricht mit. Schreib rein, wie du behandelt
-      werden willst, was dich nervt, worauf er achten soll. Er hält sich daran, ausser es geht gegen
+      werden willst, was dich nervt, worauf er achten soll. Er hält sich daran, außer es geht gegen
       seine Grenzen oder er müsste dafür Zahlen erfinden.</p>
       <div class="field">
         <label for="anweisungen">Eigene Anweisungen</label>

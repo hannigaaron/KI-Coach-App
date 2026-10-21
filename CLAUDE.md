@@ -79,7 +79,7 @@ Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
 
-Der Assistent hat fünfundvierzig Werkzeuge und verändert die App wirklich. Zahlen
+Der Assistent hat achtundvierzig Werkzeuge und verändert die App wirklich. Zahlen
 über den Nutzer kommen immer aus Werkzeugen, nie aus dem Modell. Allgemeines
 Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
@@ -105,10 +105,22 @@ liest, tut weder das eine noch das andere richtig. Deshalb kommt nur der Block
 des erkannten Modus in den Prompt.
 
 Der Modus wählt auch das Modell, siehe `packages/coach/src/modelle.ts`.
-Erfassen läuft auf Haiku, Fachfragen auf Sonnet, persönliche Gespräche und
-Planung auf Opus, Bilder immer auf Opus. Haiku 4.5 lehnt `output_config.effort`
-mit einem Fehler ab, deshalb steht je Modell in der Tabelle, ob es die Angabe
-verträgt.
+Erfassen und kurze Aufträge laufen auf Haiku 5.5, Fachfragen auf Sonnet 5.5, persönliche
+Gespräche und Planung auf Opus 5.5, Bilder immer auf Opus 5.5. Das Auslesen
+einer Mahlzeit aus Text läuft fest auf Haiku 5.5: gemessen an sechs echten
+Sätzen fand es jeden Posten in 2 bis 5 Sekunden für zusammen 0,2 Cent, Opus
+5.5 brauchte 7 bis 14 Sekunden für 12 Cent und fand nicht mehr.
+
+Opus 5.5 und Sonnet 5.5 lehnen ein erzwungenes Werkzeug ab, `tool_choice`
+mit `tool` gibt 400. Haiku 5.5 nimmt es an. Die Tabelle führt deshalb
+`kannErzwingen`, und `generateJson` schreibt die Pflicht sonst in den Prompt
+und prüft, ob der Aufruf kam. Alle drei denken immer, ausschalten geht nicht,
+und das Denken zählt gegen `max_tokens`. Grenzen unter 1024 sind deshalb
+weg. Gespeicherte Kennungen der Generation davor, etwa `claude-opus-5`,
+gehen über `aktuellesModell` auf den Nachfolger. Ein Denkblock kommt mit
+leerem Text und Signatur und geht so zurück, unbrauchbar ist er erst ohne
+Signatur. Eine Ablehnung kommt als Status 200 mit `stop_reason` refusal und
+bekommt einen Satz statt einer leeren Blase.
 
 Der Modus steuert ausserdem, wie viel Kontext mitgeht. Erfassen bekommt ein
 kurzes Profil, die Zahlen des Tages, drei Notizen und sechs Nachrichten
@@ -243,7 +255,7 @@ und nicht von einem Modell geschrieben: `packages/core/src/trainingsplan.ts`,
 Darstellung in `apps/pwa/js/plaene.js`. Er läuft ohne Schlüssel, ist bei
 gleicher Eingabe immer derselbe und jede Zahl hängt an einer Regel im Code.
 
-Eingaben: Tage pro Woche (2 bis 5), Minuten je Einheit, Erfahrung, Ziel,
+Eingaben: Tage pro Woche (1 bis 5), Minuten je Einheit (30 bis 90), Erfahrung, Ziel,
 Entlastungswoche.
 
 Bis 45 Minuten gibt es keine Isolation. Jede Einheit hat genau fünf
@@ -275,6 +287,18 @@ Ziehen, danach Zubehör. Mehr Beinplätze ließen die Beine auf das Doppelte der
 Brust kommen, und der Plan wäre beim Zählen der Sätze schief gewesen, obwohl
 jeder einzelne Tag vernünftig aussah.
 
+Ab 60 Minuten füllt der Plan die gewählte Zeit, im Aufbau der 2x30 Pläne
+von Personal Coach Aaron: die schwerste Übung zuerst, Isolation danach, Rumpf
+am Ende. Jede Vorlage hat Grundplätze und `extra`. Ist die Einheit zu lang,
+fällt die verzichtbarste Isolation raus, `VERZICHT`: Waden und Arme vor
+Schulter und Brust, Rumpf zuletzt. Ist sie zu kurz, kommen die Zusatzplätze
+dazu, danach ein vierter Satz auf den Grundübungen, zuletzt ein dritter auf
+der Isolation. Die Schulter hat zwei Plätze, `seitlich` und `hintere`,
+dazu `beinstrecker` und `adduktoren`. In der Entlastungswoche wird nicht
+aufgefüllt. Bleibt eine Einheit mehr als 15 Minuten unter der Zeit, etwa ein
+Push Tag für Einsteiger mit zu wenig geführten Drückübungen, sagt der Plan
+das, statt mit Sätzen aufzufüllen, die nichts bringen.
+
 Die Übung je Platz kommt aus der Datenbank über `pattern`, `mechanics` und
 `gruppe`. Einsteiger bekommen nur Einsteigerübungen. Für das Ziehen von oben
 heißt das Latzug oder Klimmzug mit Unterstützung (Maschine). Wer in dieser Woche
@@ -289,6 +313,104 @@ unter dem Richtwert liegt, statt dass er sie verschweigt. Die Dauer ist eine
 Schätzung aus Sätzen, Pausen und Aufbau. Ein Plan, der Verletzungen oder
 Vorerkrankungen kennt, ist das nicht, und das steht auch im Ergebnis.
 
+### Der erste Plan kommt aus dem Fragebogen
+
+Fünf Seiten unter "Dein Training": ob es schon einen Plan gibt, wie oft
+Krafttraining, wie lange je Einheit, wo, und wo es wehtut. Wer bei seinem
+eigenen Plan bleibt, überspringt die drei mittleren über `wenn` an der Seite,
+`seiteSichtbar` in `setup-ui.js`. Die Beschwerden fragt der Bogen immer, denn
+auch ein eigener Plan braucht diese Information, und sie geht mit Wichtigkeit
+5 ins Gedächtnis.
+
+`planWunschAus` in `anamnese.js` macht daraus den Wunsch für den
+Planrechner, `anamneseFertig` speichert den Plan sofort in `settings.plan`.
+Wer den Bogen beendet, hat einen Plan und muss ihn nicht erst suchen. Die
+Abschlussseite zeigt die Einheiten mit Übungen. Die Krafttage stehen im
+Kalender mit der gewählten Dauer und so weit auseinander wie möglich, die
+übrigen Einheiten aus "wie oft trainierst du" als Ausdauer.
+
+Beschwerden und Ort filtern die Datenbank, bevor gewählt wird, `uebungErlaubt`
+im Kern. Welche Übung welches Gelenk stark belastet, steht in `BELASTET` und
+ist eine Regel der App aus der Praxis, keine Diagnose. Im Zweifel fällt eine
+Übung eher weg. Der Plan sagt das in jedem Hinweis dazu, ebenso, dass
+bleibende Schmerzen zu Arzt oder Physiotherapie gehören. Fällt ein Platz ganz
+weg, nennt der Fokus der Einheit ihn nicht mehr: "Knie" über einer Einheit
+ohne Knieübung wäre falsch. Übungen, die jemand im Freitext nennt, werden
+über den Namen gesucht, ab fünf Zeichen, damit "Bankdrücken" auch die
+Varianten trifft.
+
+### Schweres Heben und Beugen nie am selben Tag
+
+`zuSchwerZusammen` im Kern. Kreuzheben, Sumo und Trap Bar Kreuzheben stehen
+nie mit Kniebeuge oder Frontkniebeuge an der Langhantel in einer Einheit.
+Beide fordern Rücken und Nervensystem am stärksten, und die zweite Übung
+wird müde und unsauber gemacht. Eine Regel von Coach Aaron aus der Praxis,
+keine Studie. Rumänisches Kreuzheben, Hip Thrust und Beinpresse bleiben mit
+der Kniebeuge kombinierbar, sie gehen mit weniger Last. Die Regel gilt beim
+Bauen, beim Tauschen und bei der Anpassung nach acht Wochen, und ein Test
+läuft jede Kombination aus Tagen, Minuten, Niveau und Variante durch.
+
+Einmal die Woche gibt es einen einfachen Ganzkörperplan, `GK_1`: Kniebeuge,
+Hüfte, Drücken, Ziehen und Rumpf, bei mehr Zeit das zweite Drücken und
+Ziehen. Keine Isolation.
+
+### Der Trainingsmodus
+
+`apps/pwa/js/training.js`, das Blatt `#trainingBlatt`. Je Einheit steht im
+Plan "Starten". Oben die Daumen aller Übungen, darunter die eine Übung mit
+Gerät, Ziel und RIR, je Satz eine Zeile mit Kilo, Wiederholungen, RIR und
+Haken. Der Haken startet die Pause mit der Pausenzeit aus dem Plan. Darunter
+steht das letzte Mal mit Datum und Einheit.
+
+RIR statt einer geschätzten Maximalkraft in der Tabelle. Die App steuert
+über Reserve, und "10RM 55,5" sagt im Satz danach nichts, was man anders
+machen würde.
+
+Die Felder sind mit dem letzten Mal vorbelegt, das Gewicht aus Satz 1
+wandert in die leeren Sätze danach. Dabei wird nicht neu gezeichnet: im
+ersten Durchlauf nahm das Neuzeichnen beim Wechsel ins nächste Feld den
+Fokus, und die getippten Wiederholungen waren weg.
+
+Der Entwurf liegt bei jeder Eingabe in `settings.trainingEntwurf`. Ein Anruf
+schliesst auf dem iPhone die App, und eine Einheit, die danach weg ist, wird
+nicht nachgetragen. Schliessen ist nicht beenden, beim Plan steht dann
+"Training fortsetzen". Beenden schreibt die abgehakten Sätze in
+`settings.trainingslog` und ein Krafttraining mit der echten Dauer in den
+Tag, sonst fragt die Trainingslücke trotz Training. Nur abgehakte Sätze
+zählen, nicht gemacht ist nicht null. Das Protokoll hält 400 Tage.
+
+Die drei Punkte neben dem Namen bieten drei Übungen für dieselbe Bewegung
+an, nach Ort, Niveau und Beschwerden, die erste als Vorschlag von daevo.
+Der Tausch gilt ab dann auch im Plan. Wer einen Plan startet, der noch
+nicht gespeichert ist, speichert ihn damit: ohne gespeicherten Plan gibt es
+nichts, woran nach acht Wochen gemessen wird.
+
+### Nach acht Wochen
+
+`packages/core/src/trainingslog.ts`, `planPruefen` in `plaene.js`. Gemessen
+wird je Übung eine geschätzte Maximalkraft nach Epley, mit der Reserve zu
+den Wiederholungen gezählt, der beste Satz je Einheit. Anfang und Ende sind
+je der Schnitt aus zwei Einheiten, damit kein einzelner Tag das Urteil
+trägt. Unter 2,5 Prozent Zuwachs gilt eine Übung als festgefahren und wird
+gegen eine für dieselbe Bewegung getauscht, mit derselben Dosis. Was wächst,
+bleibt. Unter drei Einheiten wird nichts geraten, die Übung bleibt. Bei
+einem Training pro Woche bleiben alle Übungen: acht Einheiten sind zu wenig,
+um zu wechseln, und der einfache Plan lebt davon, an denselben Übungen
+stärker zu werden. Die Karte darüber nennt Tausch, Prozent und die drei
+stärksten Übungen und bietet "Alten Plan behalten" an.
+
+### Den Plan von Hand ändern
+
+Je Einheit ein Knopf "Bearbeiten". Dann stehen unter jeder Übung Sätze minus
+und plus, Tauschen und Entfernen, unten "Übung hinzufügen". Bearbeiten ist ein
+Zustand der Einheit und kein eigenes Blatt: wer tauscht, will die anderen
+Übungen daneben sehen. Tauschen bietet nur dasselbe Bewegungsmuster an, nach
+Ort und Beschwerden gefiltert, und behält die Dosis: die Rolle im Plan bleibt
+dieselbe. Jede Änderung läuft durch `planNachrechnen`, damit Dauer und Sätze
+pro Woche zur Liste passen, und arbeitet auf einer Kopie: wer nicht
+speichert, findet den gespeicherten Plan unverändert. Ein geänderter Plan
+trägt `bearbeitet` und sagt das im Kopf.
+
 Der gespeicherte Plan liegt in `settings.plan` und ist damit in der Sicherung.
 Er trägt die Positionen und nicht nur die Eingaben: ändert sich die Datenbank,
 bleibt der Plan, den jemand gespeichert hat, wie er war. Übungen, die es später
@@ -298,7 +420,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1050 Tests
+npm test           # 1153 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -413,7 +535,7 @@ Kontext kosten mehr Token als die eigentliche Frage.
 
 ## Der Anamnesebogen
 
-Eine Frage pro Seite, 23 Seiten in acht Abschnitten. Die letzten Abschnitte
+Eine Frage pro Seite, 29 Seiten in acht Abschnitten. Die letzten Abschnitte
 sind der Unterschied zwischen einem Rechner und einem Coach: Essverhalten,
 Vorgeschichte, Umfeld, Antrieb.
 
@@ -483,7 +605,7 @@ wirksamer wäre.
 
 `apps/pwa/js/einfuehrung.js`. Nach dem Fragebogen dunkelt die App ab, ein
 Lichtkreis liegt auf einem Bedienelement, darunter steht ein Satz. Ein Tipp
-führt weiter, das Kreuz beendet. 15 Schritte über Assistent, Heute, Übungen,
+führt weiter, "Einführung beenden" in der Textkarte beendet. 16 Schritte über Assistent, Heute, Übungen,
 Dein Tag, Balance, Bericht und Profil. Wer nur den Assistenten erklärt
 bekommt, findet den Rest Tage später oder nie.
 
@@ -501,6 +623,74 @@ halbe Einführung.
 Sie kommt einmal, gesteuert über `settings.einfuehrungGesehen`: nach dem Bogen,
 beim ersten Öffnen der Demo und einmal bei allen, die die App schon vorher
 hatten. Danach steht sie im Profil.
+
+## Der Guten Morgen Check-in
+
+`packages/core/src/morgencheck.ts` rechnet, `apps/pwa/js/morgen.js` zeigt,
+das Blatt `#morgenBlatt`. Eine halbe Stunde nach der Aufstehzeit des Tages,
+über `tagesrandFuer`, also auch mit Wochentag und Ausnahmen. In der iPhone
+App als Mitteilung der Art `morgen`. In der Web App öffnet sich das Blatt
+beim ersten Öffnen danach von selbst, einmal am Tag und nur bis 12 Uhr,
+nie während der Einführung und nie über einem anderen offenen Blatt. Er
+geht dem Abo Fenster vor. Unter Check-ins steht er jederzeit als Knopf.
+
+Vier Fragen, je 1 bis 5 zum Antippen: wie gut geschlafen, wie schnell
+eingeschlafen, wie erholt aufgewacht, wie gesund. Fünf Stufen und nicht
+zehn, weil frisch nach dem Aufwachen niemand 6 und 7 trennt. Die Enden
+stehen in Worten darunter.
+
+Der Morgenwert gewichtet erholt 35, Schlaf 30, gesund 20, Einschlafen 15,
+eine Regel der App. Daraus die Belastbarkeit: ab 75 hoch, ab 55 normal, ab
+50 reduziert, darunter niedrig. Niedrig heisst Krafttraining nur leicht und
+nur, wenn man sich fit genug fühlt: die Hälfte der Sätze, 2 bis 3
+Wiederholungen im Tank, und wenn das Aufwärmen sich schlecht anfühlt, gar
+nicht. Fitheit 1 heisst schonen, egal wie gut die Nacht war, Fitheit 2
+deckelt auf reduziert, ebenso unter sechs Stunden Schlaf laut Apple Health
+(Craven und andere 2022). Fitheit 3 deckelt nichts.
+
+Bei Fitheit 1 oder 2 entscheidet der Morgen nicht über das Training. Es ist
+ausgesetzt, und um 12:30 fragt daevo nach, `NACHFRAGE_UHRZEIT`: nativ als
+Mitteilung der Art `nachfrage`, im Browser öffnet sich das Blatt beim
+ersten Öffnen zwischen 12:30 und 20 Uhr. Ein Infekt zeigt sich oft erst im
+Lauf des Vormittags, eine schlechte Nacht ist mittags oft vorbei. Ab 3 ist
+das Training frei, höchstens reduziert, weil der Morgen schwach war. Bleibt
+es bei 1 oder 2, ist es gestrichen, `trainingGestrichen` am Check-in, und
+der Tag gehört der Erholung: Ruhe, Vitamin C aus dem Essen, Zink als
+Lutschtablette ab dem ersten Tag (Hemilä, JRSM Open 2017), Vitamin C
+regelmässig (Hemilä und Chalker, Cochrane 2013), früh ins Bett, Stress
+schieben. Statt des Morgenwerts steht dann "Ruhetag", denn eine 56 neben
+"Schonen" widerspricht sich. Der Trainingsmodus startet an so einem Tag
+nicht, und `trainingsplan_abrufen` sagt dem Coach, dass gestrichen ist. Wer
+sich besser fühlt, beantwortet unter Check-ins die Nachfrage neu, dann ist
+das Training wieder frei. Reduziert
+heisst drei Viertel der Sätze, 1 bis 2 Wiederholungen im Tank, nicht bis
+ans Muskelversagen. Die Grenzen sind Regeln von Coach Aaron. Das geplante
+Training kommt aus dem Wochenplan mit dem Titel der Einheit aus dem
+gespeicherten Plan.
+
+Höchstens drei Tipps, jeder hängt an einer Antwort. Nach schlechter Nacht
+Tageslicht in der ersten Stunde (Blume, Garbazza und Spitschan, Somnologie
+2019) und, wenn es noch dunkel oder trüb ist, eine Tageslichtlampe mit
+10.000 Lux für 20 bis 30 Minuten, bevor der Bildschirm länger an ist
+(Golden und andere, American Journal of Psychiatry 2005). Nach langem
+Einschlafen oder wenig Erholung der letzte Kaffee neun Stunden vor der
+Schlafenszeit, mit Uhrzeit (Gardiner und andere, Sleep Medicine Reviews
+2023, rund 8,8 Stunden), danach L-Theanin statt Kaffee, etwa 200 mg. Die
+Studien dazu sind klein, etwa Kahathuduwa und andere 2017, und der Satz
+sagt das. Dazu eine halbe Stunde früher ins Bett, und bei
+Krankheitsgefühl trinken, ruhen, bei Fieber zum Arzt. Der Grund ist ein
+Nebensatz mit dem Verb am Ende, ein Test hält das fest: die erste Fassung
+schrieb "weil du bist wenig erholt aufgewacht".
+
+Gespeichert wird als Check-in der Art `morning` mit `morgen`,
+`morgenWert` und `belastbarkeit`, dazu Schlaf und Energie auf 1 bis 10
+umgerechnet, 3 wird 6. Damit rechnen Bereitschaft, Bericht und Muster
+weiter. Ein zweiter Check-in am selben Morgen ersetzt den ersten. Eine
+Bestätigung als Meldung gibt es nicht: sie lag über dem letzten Satz des
+Ergebnisses, und das Ergebnis zeigt ohnehin, dass gespeichert ist.
+
+Web Push über den Worker kennt die Aufstehzeit nicht, deshalb kommt die
+Mitteilung nur nativ. Im Browser ersetzt das Öffnen von selbst sie.
 
 ## Die zwei Check-ins der Woche
 
@@ -1370,7 +1560,7 @@ Tippfehler darf die Ziele nicht kippen.
 
 ## Der Regelweg ist die kostenlose Stufe
 
-38 der 45 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
+42 der 48 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
 Das ist keine Notlösung für den Ausfall, sondern das Produkt: ein Weg, der
 kein Modell anfragt, kostet nichts je Nutzer und skaliert ohne Rechnung.
 
@@ -1401,9 +1591,50 @@ wie eine echte Antwort. Beschriftete Zahlen schlagen die Reihenfolge, denn wer
 Text um die Zahlen herum, greift der Zweig nicht: "ich hab 7 von 10 Stunden
 geschlafen und 2 Kaffee getrunken" ist kein Bogen.
 
-Offen bleiben sieben. Die beiden Fotowerkzeuge brauchen ein Modell, daran
-ändert kein Regelpfad etwas. `standard_setzen`, `standard_bestaetigen` und
-`gespraech_einordnen` brauchen eine Kennung aus dem Zusammenhang, die ein
+### Der Regelweg nach dem Live-Test
+
+Ein Durchlauf mit 36 echten Sätzen ohne KI hat gezeigt, was ein Nutzer nach
+der Testphase erlebt hätte. Jeder dieser Fehler hat jetzt einen Test in
+`agent.test.ts`:
+
+- "Ändere mein Zielgewicht auf 84 kg" trug 84 kg als Wiegung ein. Ziel und
+  Absicht sind keine Wiegung.
+- "Ich schäme mich, weil ich beim Essen die Kontrolle verloren habe" legte
+  eine Mahlzeit an. Eine enge Liste für Belastung, `belastet`, geht vor
+  allem, was einträgt, und die Antwort nennt die Telefonseelsorge. Enger als
+  in `denktiefe`, damit "bei meinen Eltern Kuchen gegessen" ein Eintrag bleibt.
+- "esse" traf als Teilwort "Essen" und "Interesse". Jetzt gilt das Wort,
+  und "hatte" allein reicht nicht, nur mit einer Menge.
+- "Den Kaffee hab ich nicht getrunken" setzte das Wasser des Tages auf null.
+  Wasser nur, wenn Wasser gemeint ist.
+- "Nur 5 Stunden geschlafen, soll ich trainieren" ergab "weder Schlaf noch
+  Stress sprechen dagegen". Stunden unter sechs zählen jetzt als schlechter
+  Schlaf, "platt" als Belastung.
+- "Wie viel Kreatin" und "Big Mac" bekamen den Tagesstand. Der Tagesstand
+  greift nur bei Fragen nach dem eigenen Tag, Nährwerte kommen aus der
+  Tabelle über `naehrwertFrage`, und was nicht drinsteht, wird gesagt.
+- Korrektur, Rücknahme, Abhaken und Planänderung meldeten Erfolg, obwohl
+  nichts gefunden oder gespeichert war. Eine Aktion ohne Wirkung beginnt mit
+  `NICHT_GESPEICHERT` oder sagt, dass sie nichts fand, und dann steht kein
+  Vermerk darunter. Im Live-Test schrieb der Coach sonst "gespeichert" und
+  fragte im selben Satz nach der Uhrzeit.
+- Neu im Regelweg: eine Aufgabe mit Frist und Dauer, `aufgabeMitFrist`,
+  "steh morgen um 5 auf", "was trainiere ich morgen", "hi" und "danke",
+  Posten auf die Einkaufsliste, Fragen nach der letzten Woche, und eine
+  Fachfrage bekommt den ehrlichen Satz, dass sie die KI braucht.
+
+Bei leerem Kontingent steht die Antwort des Regelwegs vorn, sobald er den
+Satz verstanden hat, auch wenn er nur etwas vorliest. Die Meldung zum Abo
+steht höchstens alle sechs Stunden darunter, sonst stünde nach der
+Testphase derselbe Absatz unter jeder Antwort.
+
+Zwei neue Werkzeuge mit Regelpfad: `einkaufsliste_ergaenzen` für eigene
+Posten, die beim Neurechnen der Liste stehen bleiben, und
+`trainingsplan_abrufen`, das Training eines Tages mit den Übungen aus
+`settings.plan`. Vorher kannte der Coach die gespeicherten Übungen nicht.
+
+Offen bleiben sechs. Die beiden Fotowerkzeuge brauchen ein Modell, daran
+ändert kein Regelpfad etwas. `standard_bestaetigen` und `gespraech_einordnen` brauchen eine Kennung aus dem Zusammenhang, die ein
 Wortmuster nicht kennt. `profil_aendern` und `einkaufsliste_abhaken` sind
 machbar und stehen aus.
 
@@ -1566,7 +1797,18 @@ mehr.
 Gefragt wird nicht, warum jemand nicht trainiert hat. Das ist ein Vorwurf und
 erzeugt eine Rechtfertigung. Gefragt wird nach dem, was dazwischen kam.
 
-Drei Bedingungen, und jede einzelne verhindert die Frage. Ohne Trainingsplan im
+Gefragt wird nur, wenn Trainings automatisch ankommen,
+`trainingAutomatischErfasst` in `luecke.js`: der Abgleich mit Apple Health
+lief in den letzten drei Tagen, und in den letzten 60 Tagen kam mindestens
+ein Training aus Health, also von der Uhr oder aus Apple Fitness. Vorher
+reichte ein einziges Training, das irgendwann in daevo stand. Der Betreiber
+trainiert täglich und trägt es nicht in daevo ein, und die App fragte ihn
+nach vier Tagen, was dazwischen gekommen sei. Eine Frage nach einer Lücke,
+die es nicht gibt, ist ein Vorwurf. Im Browser und in der Demo gibt es
+HealthKit nicht, dort kommt die Frage deshalb nie. Eine schon geplante
+Frage fällt mit weg, `lueckeFuerPlan`.
+
+Dazu drei Bedingungen, und jede einzelne verhindert die Frage. Ohne Trainingsplan im
 Profil weiss die App nicht, was überhaupt geplant war. Ohne ein einziges
 Training in den letzten 60 Tagen ist es keine Lücke, sondern keine Datenlage,
 und eine Frage nach einer Lücke setzt voraus, dass es vorher keine war. Nach
@@ -2354,9 +2596,31 @@ Ausgabe. Die Kosten rechnet dieselbe Tabelle wie in der App,
 
 Zwei Grenzen je Stufe, Nachrichten und Budget in Millionstel Dollar. Die Zahl
 der Nachrichten allein reicht nicht: drei Fotos auf Opus kosten ein
-Vielfaches einer Mahlzeit auf Haiku. Die Werte in `STUFEN` sind ein
-Vorschlag und gehören nachjustiert, sobald gemessen ist, was ein aktiver
-Nutzer verbraucht. Alles ohne Modell ist in jeder Stufe unbegrenzt.
+Vielfaches einer Mahlzeit auf Haiku. Alles ohne Modell ist in jeder Stufe
+unbegrenzt.
+
+Gemessen am 21. Oktober 2026 mit echten Sätzen über den Worker: Essen
+eintragen und kurze Aufträge auf Haiku 5.5 kosten rund 0,1 Cent, eine
+Fachfrage auf Sonnet 2 bis 7 Cent, ein Gespräch auf Opus 3 bis 15 Cent, im
+Schnitt rund 2 Cent je Nachricht. Daraus die Stufen: Testphase 60
+Nachrichten und 1,50 Dollar, Plus 250 und 7 Dollar, Pro 700 und 15 Dollar.
+Die Zahl ist so gewählt, dass das Budget sie beim Schnitt trägt. Wer fast
+nur auf Opus redet, erreicht das Budget früher, deshalb steht in der App
+"bis zu". Vorher standen 800 und 2500 da, und das Budget von 12 Dollar
+hätte für 2500 Nachrichten nie gereicht. Das Versprechen muss halten.
+
+Gezählt wird je Nachricht des Nutzers und nicht je Anfrage. Eine Mahlzeit
+mit Werkzeug sind drei Anfragen, und mit der alten Zählung wurden aus 800
+Nachrichten rund 270. Die App setzt ab der zweiten Anfrage derselben
+Nachricht `x-daevo-folge`, und `ask()` nimmt für Gespräch und Werkzeuge
+denselben Anbieter. Eine Folge prüft nur das Budget, sonst bräche die
+letzte erlaubte Nachricht mitten im Werkzeug ab. Essen per Text und Sprache
+zählt gar nicht als Nachricht, `ohneZaehlung`, nur gegen das Budget. Ein
+gefälschter Kopf spart nur die Zählung, Budget und Stundengrenze gelten
+trotzdem.
+
+Bevor neue Preise im Worker wirken, muss er neu ausgerollt werden. Bis dahin
+rechnet er unbekannte Modelle mit dem teuersten Preis und bucht zu viel.
 
 Ist das Kontingent leer, antwortet der Worker mit 402 und fragt Anthropic
 gar nicht erst. `fehlerErklaerung` macht daraus "Kontingent aufgebraucht,
@@ -2365,8 +2629,9 @@ Versuch nicht hilft.
 
 Konten in der Testphase zählen weiter gegen die Tagesgrenze des Workers. Sonst
 wären hundert angelegte Konten hundert Kontingente auf Rechnung des
-Betreibers. Bezahlte Stufen zählen nicht dagegen und haben stattdessen 60
-Anfragen je Stunde. Ein Schlüssel, den der Server nicht kennt, zählt wie
+Betreibers. Gezählt werden dort Nachrichten und keine Folgeanfragen. Jedes
+Konto hat höchstens 150 Anfragen je Stunde, rund vierzig Nachrichten mit
+Werkzeug. Mit den alten 60 war nach zwanzig Schluss. Ein Schlüssel, den der Server nicht kennt, zählt wie
 keiner, und die App legt nach der Ablehnung über `kontoStand` ein neues an.
 
 ### Testphase und Abo
@@ -2375,9 +2640,16 @@ Jedes neue Konto hat sieben Tage Testphase, Stufe `test` mit `bis`. Danach
 fällt es auf `frei`, und `frei` heisst: keine KI, aber alles ohne Modell. Das
 ist eine harte Paywall und eine Entscheidung des Betreibers. Der Regelweg
 bleibt in jeder Stufe frei, denn er kostet nichts. Preise: Plus 9,99 Euro,
-Pro 19,99 Euro im Monat.
+Pro 19,99 Euro im Monat, oder jährlich 79,99 und 159,99 Euro. Das Jahr
+kostet acht Monate, 33 Prozent weniger, und ist im Abo Fenster vorgewählt.
+Die Preise stehen in Cent in `ABO_STUFEN`, die Ersparnis wird gerechnet.
+Das Kontingent bleibt auch beim Jahresabo je Monat. Je Zahlweise gibt es
+einen eigenen Link, `plusJahrUrl` und `proJahrUrl` in `KONFIG.abo`. Fehlt
+der fürs Jahr, geht eine Mail raus und nie still der Monatslink: wer
+jährlich wählt und monatlich abgebucht wird, fühlt sich betrogen. Von Hand
+setzt der Betreiber beim Jahr `bis` ein Jahr später.
 
-Die Testphase ist mit 150 Nachrichten und 1,50 Dollar enger als Plus. Ein
+Die Testphase ist mit 60 Nachrichten und 1,50 Dollar enger als Plus. Ein
 Konto entsteht ohne Anmeldung, und wer jede Woche neu installiert, bekäme
 sonst ein kostenloses Plus. Ohne Konto antwortet `/chat` gar nicht mehr,
 ausser `OHNE_KONTO` steht auf "an": sonst umginge jeder die Testphase, der
@@ -2462,13 +2734,44 @@ lädt neu. Gespiegelt wird erst danach, sonst überschriebe ein leerer Start
 die einzige Kopie, bevor sie gelesen ist.
 
 `GesundheitPlugin` liest HealthKit: Schritte, aktive Kalorien, Ruhepuls,
-HRV, Gewicht, Schlaf und Trainings. Nur lesen, nie schreiben. Schlaf wird
+HRV, Gewicht, Schlaf, Trainings und Ernährung. Nur lesen, nie schreiben. Schlaf wird
 vor dem Zählen zusammengelegt, weil Uhr und iPhone dieselbe Nacht oft beide
 schreiben, und gehört zum Tag des Aufwachens. `apps/pwa/js/healthkit.js`
 schreibt über `healthSchreiben`, also nach denselben Regeln wie Export und
 Kurzbefehl. Trainings aus Health werden nicht angelegt, wenn der Nutzer
 dieselbe Art innerhalb von 90 Minuten schon selbst eingetragen hat. Gelesen
 wird beim Öffnen und beim Zurückholen, beim ersten Mal zwei Jahre.
+
+Ernährung aus Health, `ernaehrungSchreiben` in `healthkit.js`. Viele
+Tracker schreiben Kalorien und Makros nach Apple Health, YAZIO und
+MyFitnessPal etwa. Eine Schnittstelle je Anbieter gibt es meist nicht:
+MyFitnessPal nimmt nach mehreren Quellen keine neuen Entwickler an, YAZIO
+hat keine öffentliche, Virtuagym nur eine für Studios. Health ist deshalb
+die eine Anbindung für alle. Das Plugin liest Kalorien, Protein, Fett und
+Kohlenhydrate je Eintrag mit Quell-App, Zeit und, wo die App sie als
+Ganzes schreibt, der Mahlzeit als Korrelation mit Namen. Zusammengelegt
+wird über diese Korrelation, sonst über App, Tag und Minute. Fehlen die
+Kalorien, kommen sie aus den Makros.
+
+Jede Mahlzeit steht als eigene Mahlzeit da, `source: "health"`, mit der App
+als `quelle`, und wird bei jedem Abgleich neu geschrieben: eine in YAZIO
+geänderte Menge kommt mit, eine dort gelöschte Mahlzeit verschwindet, aber
+nur in den gelesenen Tagen. Hier gelöscht bleibt gelöscht,
+`healthEntfernt` am Tag, hier korrigiert bleibt korrigiert. Höchstens 60
+Tage zurück, sonst füllt der erste Abgleich über zwei Jahre den Speicher.
+
+Doppelt zählen ist der teuerste Fehler beim Tracken. Steht innerhalb von 45
+Minuten eine eigene Mahlzeit aus daevo, zählt die aus Health nicht. Sie
+steht aber unter der Liste als "Nicht mitgezählt" mit Kalorien, App und
+Uhrzeit, `healthUebersprungen`: ein stiller Filter, der Essen verschluckt,
+wäre derselbe Fehler in die andere Richtung. Der Schalter "Ernährung aus
+Apple Health übernehmen" auf der Kalenderseite entfernt beim Ausschalten
+die Mahlzeiten aus Health wieder. Eine ältere Hülle ohne das Feld
+`nahrung` lässt alles stehen, statt es als gelöscht zu lesen.
+
+Die Leseberechtigung hat eine Fassung, `HEALTH_FASSUNG`. iOS fragt nur nach
+neuen Typen, wenn die App erneut fragt, und wer vorher zugestimmt hatte,
+wäre sonst nie nach der Ernährung gefragt worden.
 
 Sobald Schritte aus Health an vier der letzten sieben Tage dastehen, rechnet
 das Kalorienziel mit ihrem Schnitt statt mit der Schätzung aus dem
@@ -2518,6 +2821,39 @@ Tage voraus noch Platz für die übrigen bleibt. Nur in der iPhone App: im
 Browser plant niemand die Mitteilung ein, und eine Erinnerung an ein
 Medikament, die nie kommt, ist schlimmer als keine. Legt man sie im Browser
 im Gespräch an, sagt die Antwort genau das.
+
+## Was sich dauerhaft ändert, wird gespeichert
+
+`packages/core/src/wochentraining.ts`, Werkzeug `trainingsplan_aendern`, und
+`standardAenderungAus` in `packages/core/src/standards.ts`.
+
+Der Coach konnte hören, dass sich die Trainingstage verschoben haben, aber
+nicht speichern. `profile.sessions` liess sich nur im Profil von Hand ändern,
+und die App rechnete weiter mit den alten Tagen: Kalorienbedarf, Wasser,
+Trainingslücke, Erinnerung vor dem Training. Bei Mindeststandards brauchte
+eine Änderung die Kennung, und ohne sie entstand ein zweiter Standard neben
+dem alten.
+
+Jetzt speichert er sofort und sagt danach, was gilt. Die Persona sagt das
+ausdrücklich, ohne Rückfrage.
+
+`nurArt` ist der wichtigste Parameter. Wer seine Volleyballtage verschiebt,
+darf sein Krafttraining nicht verlieren. Fehlen Uhrzeit oder Dauer, kommen
+sie aus der bisherigen Einheit derselben Art und stehen in der Antwort als
+übernommen. Gibt es kein Vorbild, wird gefragt: eine geratene Dauer geht in
+Kalorienbedarf und Wasser. "Donnerstags statt dienstags" streicht den Tag
+nach "statt" aus dem neuen Plan.
+
+Ein Standard derselben Art wird geändert und nicht verdoppelt, ausser bei
+`frei`. Bei Handy und Schlafenszeit trägt er die Uhrzeit in `uhrzeit`. "Vor
+23 Uhr weg" ohne Gegenstand ist der Handystandard, denn nur dafür gibt es
+einen mit "weg".
+
+Beide Regelpfade greifen eng. Der Plan braucht ein Wort für Training, eines
+für eine dauerhafte Änderung und einen Wochentag: "Volleyball am Donnerstag
+war super" ändert nichts. Der Standard braucht das Wort Standard, damit
+"dreimal die Woche Volleyball" keinen umschreibt. Ein Mindestwert wird nie
+geraten.
 
 ## Das Coaching Angebot
 

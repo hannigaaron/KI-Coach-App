@@ -1,6 +1,7 @@
 import { KORREKTUR_GRENZE, WOCHENTAGE, energyBreakdown, macroTargets, waterTargetMl } from "@daevo/core";
 import { BODY_FAT_LEVELS, SCHRITTE, auswerten, figurBild, stufeText } from "./anamnese.js";
 import { symbol } from "./symbole.js";
+import { planFuer } from "./plaene.js";
 
 /**
  * Zeigt den Anamnesebogen an.
@@ -215,10 +216,24 @@ export class SetupFlow {
     this.render(true);
   }
 
+  /**
+   * Ob eine ganze Seite gezeigt wird. `wenn` hängt sie an eine frühere
+   * Antwort: wer bei seinem eigenen Trainingsplan bleibt, braucht keine
+   * Fragen, aus denen ein neuer gebaut wird.
+   */
+  seiteSichtbar(s) {
+    if (!s?.wenn) return true;
+    const wert = this.antworten[s.wenn.id];
+    if (s.wenn.nicht) return !s.wenn.nicht.includes(wert);
+    return (s.wenn.ist ?? []).includes(wert);
+  }
+
   weiter(uebersprungen = false) {
     if (!uebersprungen && !this.vollstaendig()) return this.hinweis("Da fehlt noch eine Angabe.");
-    if (this.index === SCHRITTE.length - 1) return this.zusammenfassung();
-    this.index++;
+    let naechste = this.index + 1;
+    while (naechste < SCHRITTE.length && !this.seiteSichtbar(SCHRITTE[naechste])) naechste++;
+    if (naechste >= SCHRITTE.length) return this.zusammenfassung();
+    this.index = naechste;
     this.richtung = "vor";
     this.render();
   }
@@ -231,8 +246,28 @@ export class SetupFlow {
       return this.render();
     }
     if (this.index === 0) return;
-    this.index--;
+    let vorige = this.index - 1;
+    while (vorige > 0 && !this.seiteSichtbar(SCHRITTE[vorige])) vorige--;
+    this.index = vorige;
     this.render();
+  }
+
+  /**
+   * Der erste Plan, so wie er gespeichert wird. Gezeigt werden die Einheiten mit
+   * ihren Übungen, damit niemand erst suchen muss, was "Ganzkörper A" heisst.
+   */
+  planHtml(ergebnis) {
+    const termine = `<div class="kv"><span>Einheiten im Kalender</span><b>${ergebnis.sessions.length} pro Woche</b></div>`;
+    if (!ergebnis.planWunsch) {
+      return `<p>Du bleibst bei deinem eigenen Plan. Sag mir im Chat, was du trainierst, dann rechne ich damit.</p>${termine}`;
+    }
+    const plan = planFuer(ergebnis.planWunsch);
+    const einheiten = plan.einheiten.map((e) => `<div class="setup-einheit"><b>${escapeHtml(e.titel)}</b>
+      <span>${e.positionen.map((p) => escapeHtml(p.name)).join(", ")}</span></div>`).join("");
+    const beschwerde = ergebnis.planWunsch.beschwerden.length || ergebnis.planWunsch.meiden.length
+      ? "<p class=\"feld-hilfe\">Übungen, die deine Beschwerden belasten, sind raus.</p>" : "";
+    return `${einheiten}${beschwerde}${termine}
+      <p class="feld-hilfe">Unter Training, Trainingspläne tauschst du Übungen, änderst Sätze oder baust den Plan neu.</p>`;
   }
 
   /** Kopf mit Pfeil zurück, Abschnitt, Zähler und Fortschritt. */
@@ -361,7 +396,7 @@ export class SetupFlow {
       return `<div class="field">${label}
         <div class="wochenkopf"><span class="wt-tag"></span><span>Aufstehen</span><span>Schlafen</span></div>
         <div class="wochenzeiten">${zeilen}</div>
-        <p class="feld-hilfe">Leer lassen heisst: an dem Tag gilt dein Standard. Einzelne Tage kannst du
+        <p class="feld-hilfe">Leer lassen heißt: an dem Tag gilt dein Standard. Einzelne Tage kannst du
         später jederzeit im Chat ändern, etwa wenn du morgen Frühdienst hast.</p></div>`;
     }
     if (feld.art === "chips") {
@@ -448,12 +483,8 @@ export class SetupFlow {
           <div class="kv"><span>Schritte</span><b>${schrittziel}</b></div>
         </div>
 
-        <h2 class="section-title">Trainingsvorschlag</h2>
-        <div class="card">
-          <h3>${escapeHtml(ergebnis.kraft.titel)}</h3>
-          <p>${escapeHtml(ergebnis.kraft.text)}</p>
-          <div class="kv"><span>Einheiten im Kalender</span><b>${ergebnis.sessions.length} pro Woche</b></div>
-        </div>
+        <h2 class="section-title">Dein Trainingsplan</h2>
+        <div class="card">${this.planHtml(ergebnis)}</div>
 
         <h2 class="section-title">Was ich mir gemerkt habe</h2>
         <ul class="list">

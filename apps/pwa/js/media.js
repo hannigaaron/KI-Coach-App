@@ -56,7 +56,7 @@ export async function anhangAusDatei(datei) {
   };
   try {
     if (datei.size > MAX_DATEI_MB * 1024 * 1024) {
-      return { ...basis, fehler: `Die Datei ist ${(datei.size / 1048576).toFixed(0)} MB gross. Mehr als ${MAX_DATEI_MB} MB kann ich nicht verarbeiten.` };
+      return { ...basis, fehler: `Die Datei ist ${(datei.size / 1048576).toFixed(0)} MB groß. Mehr als ${MAX_DATEI_MB} MB kann ich nicht verarbeiten.` };
     }
     if (basis.art === "bild") return { ...basis, ...(await ausBild(datei)) };
     if (basis.art === "video") return { ...basis, ...(await ausVideo(datei)) };
@@ -149,7 +149,7 @@ async function ausVideo(datei) {
 
 async function ausPdf(datei) {
   if (datei.size > MAX_PDF_MB * 1024 * 1024) {
-    return { fehler: `Das PDF ist ${(datei.size / 1048576).toFixed(1)} MB gross. Mehr als ${MAX_PDF_MB} MB kann ich nicht schicken.` };
+    return { fehler: `Das PDF ist ${(datei.size / 1048576).toFixed(1).replace(".", ",")} MB groß. Mehr als ${MAX_PDF_MB} MB kann ich nicht schicken.` };
   }
   const daten = await new Promise((auf, ab) => {
     const leser = new FileReader();
@@ -173,7 +173,7 @@ function ladeBild(url) {
 function zeichne(quelle, maxKante, breiteRoh, hoeheRoh) {
   const breite = breiteRoh || quelle.naturalWidth || quelle.width;
   const hoehe = hoeheRoh || quelle.naturalHeight || quelle.height;
-  if (!breite || !hoehe) throw new Error("Bild hat keine Grösse");
+  if (!breite || !hoehe) throw new Error("Bild hat keine Größe");
   const faktor = Math.min(1, maxKante / Math.max(breite, hoehe));
   const canvas = document.createElement("canvas");
   canvas.width = Math.max(1, Math.round(breite * faktor));

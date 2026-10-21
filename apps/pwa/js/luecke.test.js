@@ -22,7 +22,7 @@ class CacheAttrappe {
   }
 }
 
-function storeAttrappe({ tage = {}, sessions = 4, settings = {} } = {}) {
+function storeAttrappe({ tage = {}, sessions = 4, settings = { healthNativ: { at: "2026-09-26T08:00:00Z" } } } = {}) {
   let einstellungen = { ...settings };
   let profil = { sessions: Array.from({ length: sessions }, () => ({ type: "strength" })) };
   return {
@@ -34,7 +34,7 @@ function storeAttrappe({ tage = {}, sessions = 4, settings = {} } = {}) {
   };
 }
 
-const einheit = { trainings: [{ art: "strength", minuten: 60 }] };
+const einheit = { trainings: [{ art: "strength", minuten: 60, quelle: "health" }] };
 
 const { antwortVerarbeiten, antwortenAbholen, lueckeAusSpeicher, lueckeMelden, naechsterZeitpunkt } =
   await import("./luecke.js");
@@ -238,4 +238,21 @@ test("Eine gemeldete Schieflage sperrt die nächsten drei Tage", async () => {
   const { schieflageAusSpeicher } = await import("./luecke.js");
   const store = speicherMitZeit(14, { schieflageGemeldet: "2026-09-28" });
   assert.equal(schieflageAusSpeicher(store, balanceAttrappe(SCHIEF), "2026-09-29"), null);
+});
+
+test("ohne Verbindung zu Apple Health wird nie gefragt", () => {
+  const ohne = storeAttrappe({ tage: { "2026-09-22": einheit }, settings: {} });
+  assert.equal(lueckeAusSpeicher(ohne, "2026-09-26"), null);
+  const alt = storeAttrappe({ tage: { "2026-09-22": einheit }, settings: { healthNativ: { at: "2026-09-10T08:00:00Z" } } });
+  assert.equal(lueckeAusSpeicher(alt, "2026-09-26"), null, "Abgleich älter als drei Tage");
+});
+
+test("nur von Hand eingetragene Trainings reichen nicht", () => {
+  const store = storeAttrappe({ tage: { "2026-09-22": { trainings: [{ art: "strength", minuten: 60 }] } } });
+  assert.equal(lueckeAusSpeicher(store, "2026-09-26"), null);
+});
+
+test("mit Health zählt auch ein Training, das von Hand eingetragen wurde", () => {
+  const store = storeAttrappe({ tage: { "2026-09-10": einheit, "2026-09-22": { trainings: [{ art: "strength", minuten: 60 }] } } });
+  assert.equal(lueckeAusSpeicher(store, "2026-09-26").tageOhne, 4);
 });

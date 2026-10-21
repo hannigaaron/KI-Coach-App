@@ -201,8 +201,8 @@ export function targetCorrection(params: {
   const richtung = istProWoche === 0 ? "gleich" : istProWoche < 0 ? "runter" : "hoch";
   const basis =
     `Über ${schaetzung.trend.spanneTage} Tage: im Schnitt ${schaetzung.schnittAufnahmeKcal} kcal am Tag, ` +
-    `Gewicht ${istProWoche > 0 ? "plus" : "minus"} ${Math.abs(istProWoche).toFixed(2)} kg die Woche ` +
-    `(${istProzent.toFixed(2)} Prozent). Daraus ergibt sich ein Verbrauch von etwa ${schaetzung.tdeeKcal} kcal.`;
+    `Gewicht ${istProWoche > 0 ? "plus" : "minus"} ${Math.abs(istProWoche).toFixed(2).replace(".", ",")} kg die Woche ` +
+    `(${istProzent.toFixed(2).replace(".", ",")} Prozent). Daraus ergibt sich ein Verbrauch von etwa ${schaetzung.tdeeKcal} kcal.`;
 
   if (istProzent >= spanne.min && istProzent <= spanne.max) {
     return {
@@ -231,7 +231,7 @@ export function targetCorrection(params: {
     differenzKcal: differenz,
     begruendung:
       `${basis} Erwartet wären ${spanne.min} bis ${spanne.max} Prozent die Woche, du liegst bei ` +
-      `${istProzent.toFixed(2)}. Dein Gewicht geht ${richtung}. ` +
+      `${istProzent.toFixed(2).replace(".", ",")}. Dein Gewicht geht ${richtung}. ` +
       `Neues Ziel: ${neuesZiel} kcal, also ${differenz > 0 ? "plus" : "minus"} ${Math.abs(differenz)}.`,
   };
 }

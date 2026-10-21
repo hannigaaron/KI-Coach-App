@@ -107,7 +107,7 @@ test("die Lücke steht mit Antwortknöpfen im Plan und geht vor, wenn gekürzt w
 
 test("wer selbst ausgeschaltet hat, bekommt nichts geplant", async () => {
   frisch();
-  store.setSettings({ ...store.getSettings(), mitteilungenAus: { impulse: true, runterfahren: true } });
+  store.setSettings({ ...store.getSettings(), mitteilungenAus: { impulse: true, runterfahren: true, morgen: true } });
   const { mitteilungsPlan } = await import("./mitteilungen.js");
   assert.equal(mitteilungsPlan({ store, jetzt: { tag: HEUTE, uhrzeit: "06:00" } }).length, 0);
 });
@@ -133,4 +133,101 @@ test("eigene Erinnerungen: feste Uhrzeit, vor dem Schlafen, und sie gehen beim K
   const voll = mitteilungsPlan({ store, jetzt: { tag: HEUTE, uhrzeit: "00:00" } });
   assert.equal(voll.length, MAX_GEPLANT);
   assert.equal(voll.filter((m) => m.art === "eigene").length, 42);
+});
+
+/* ---------- Ernährung aus Apple Health ---------- */
+
+const { ernaehrungSchreiben, nahrungZusammenlegen, NAHRUNG_GLEICH_MINUTEN } = await import("./healthkit.js");
+const wert = (feld, w, extra = {}) => ({ id: `${feld}${Math.random()}`, feld, wert: w, tag: "2026-10-18", uhrzeit: "12:30", quelle: "YAZIO", ...extra });
+
+test("Einzelne Nährwerte werden zu einer Mahlzeit, je App und Minute", () => {
+  const m = nahrungZusammenlegen([
+    wert("kcal", 640), wert("proteinG", 42), wert("fatG", 18), wert("carbsG", 72),
+    wert("kcal", 120, { uhrzeit: "16:00" }),
+    wert("kcal", 300, { quelle: "MyFitnessPal" }),
+  ]);
+  assert.equal(m.length, 3);
+  const mittag = m.find((x) => x.quelle === "YAZIO" && x.uhrzeit === "12:30");
+  assert.deepEqual([mittag.kcal, mittag.proteinG, mittag.fatG, mittag.carbsG], [640, 42, 18, 72]);
+});
+
+test("Eine Mahlzeit als Korrelation gehört zusammen und trägt ihren Namen", () => {
+  const m = nahrungZusammenlegen([
+    wert("kcal", 400, { mahlzeit: "A", name: "Haferflocken", uhrzeit: "08:00" }),
+    wert("proteinG", 20, { mahlzeit: "A", uhrzeit: "08:01" }),
+  ]);
+  assert.equal(m.length, 1);
+  assert.equal(m[0].name, "Haferflocken");
+});
+
+test("Ohne Kalorien wird aus den Makros gerechnet", () => {
+  const [m] = nahrungZusammenlegen([wert("proteinG", 10), wert("fatG", 10), wert("carbsG", 10)]);
+  assert.equal(m.kcal, 170);
+});
+
+test("Mahlzeiten aus Health landen im Tag, neben einer eigenen in der Nähe zählen sie nicht", () => {
+  frisch();
+  store.addMeal("2026-10-18", { id: "eigen", text: "Reis", at: "12:50", source: "llm", entries: [{ name: "Reis", quantity: "200 g", kcal: 260, proteinG: 5, fatG: 1, carbsG: 56 }], feeling: null });
+  const r = ernaehrungSchreiben([wert("kcal", 640), wert("kcal", 300, { uhrzeit: "19:00" })], { store, heute: HEUTE, von: "2026-10-10" });
+  assert.equal(r.mahlzeiten, 1);
+  assert.equal(r.uebersprungen, 1);
+  const d = store.getDay("2026-10-18");
+  assert.equal(d.meals.length, 2);
+  const health = d.meals.find((m) => m.source === "health");
+  assert.equal(health.quelle, "YAZIO");
+  assert.equal(health.entries[0].kcal, 300);
+  assert.equal(d.healthUebersprungen[0].kcal, 640);
+  assert.equal(d.healthUebersprungen[0].eigeneUm, "12:50");
+  assert.ok(NAHRUNG_GLEICH_MINUTEN >= 20);
+});
+
+test("Ein zweiter Abgleich legt nichts doppelt an und übernimmt Änderungen und Löschungen", () => {
+  frisch();
+  ernaehrungSchreiben([wert("kcal", 500), wert("kcal", 200, { uhrzeit: "18:00" })], { store, heute: HEUTE, von: "2026-10-10" });
+  ernaehrungSchreiben([wert("kcal", 550)], { store, heute: HEUTE, von: "2026-10-10" });
+  const d = store.getDay("2026-10-18");
+  assert.equal(d.meals.length, 1, "die gelöschte Mahlzeit von 18 Uhr ist weg");
+  assert.equal(d.meals[0].entries[0].kcal, 550);
+});
+
+test("Hier gelöscht bleibt gelöscht, hier korrigiert bleibt korrigiert", () => {
+  frisch();
+  ernaehrungSchreiben([wert("kcal", 500), wert("kcal", 200, { uhrzeit: "18:00" })], { store, heute: HEUTE, von: "2026-10-10" });
+  const [a, b] = store.getDay("2026-10-18").meals;
+  store.removeMeal("2026-10-18", a.id);
+  const day = store.getDay("2026-10-18");
+  day.meals = day.meals.map((m) => (m.id === b.id ? { ...m, korrigiert: true, entries: [{ ...m.entries[0], kcal: 150 }] } : m));
+  store.setDay("2026-10-18", day);
+  ernaehrungSchreiben([wert("kcal", 500), wert("kcal", 200, { uhrzeit: "18:00" })], { store, heute: HEUTE, von: "2026-10-10" });
+  const danach = store.getDay("2026-10-18").meals;
+  assert.equal(danach.length, 1);
+  assert.equal(danach[0].entries[0].kcal, 150);
+});
+
+test("Ausgeschaltet entfernt die Mahlzeiten aus Health, eigene bleiben", () => {
+  frisch();
+  store.addMeal("2026-10-18", { id: "eigen", text: "Quark", at: "08:00", source: "llm", entries: [{ name: "Quark", quantity: "250 g", kcal: 170, proteinG: 30, fatG: 1, carbsG: 10 }], feeling: null });
+  ernaehrungSchreiben([wert("kcal", 640)], { store, heute: HEUTE, von: "2026-10-10" });
+  assert.equal(store.getDay("2026-10-18").meals.length, 2);
+  store.setSettings({ ...store.getSettings(), healthErnaehrungAus: true });
+  ernaehrungSchreiben([wert("kcal", 640)], { store, heute: HEUTE, von: "2026-10-10" });
+  const d = store.getDay("2026-10-18");
+  assert.deepEqual(d.meals.map((m) => m.id), ["eigen"]);
+});
+
+test("Eine ältere Hülle ohne Ernährung lässt Mahlzeiten aus Health stehen", () => {
+  frisch();
+  ernaehrungSchreiben([wert("kcal", 640)], { store, heute: HEUTE, von: "2026-10-10" });
+  healthkitSchreiben({ tage: [], workouts: [] }, { store, heute: HEUTE });
+  assert.equal(store.getDay("2026-10-18").meals.length, 1);
+});
+
+test("Wer vor der Ernährung schon zugestimmt hat, wird für die neuen Typen noch einmal gefragt", async () => {
+  frisch();
+  store.setSettings({ ...store.getSettings(), healthNativGefragt: true });
+  const aufrufe = [];
+  const aufruf = async (plugin, methode) => { aufrufe.push(methode); return methode === "lesen" ? { tage: [], workouts: [], nahrung: [] } : {}; };
+  await healthkitAbgleichen({ aufruf, store, heute: HEUTE });
+  await healthkitAbgleichen({ aufruf, store, heute: HEUTE });
+  assert.deepEqual(aufrufe, ["berechtigen", "lesen", "lesen"]);
 });

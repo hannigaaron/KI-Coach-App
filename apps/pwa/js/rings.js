@@ -243,7 +243,9 @@ export function wertungsRing({ wert, etikett, urteil, groesse = 230, farbe = TAG
   // Aufmerksamkeit von der Zahl weg, um die es geht. Versalien mit weiter
   // Laufweite tragen sich allein.
   const label = el("text", {
-    x: mitte, y: mitte - groesse * 0.205,
+    // Etwas weiter auseinander als zuerst: Etikett, Zahl und Urteil stiessen
+    // im Browsertest fast aneinander.
+    x: mitte, y: mitte - groesse * 0.235,
     "text-anchor": "middle", "dominant-baseline": "middle",
     "font-size": Math.round(groesse / 23), "font-weight": 620,
     "letter-spacing": groesse / 130,
@@ -255,14 +257,14 @@ export function wertungsRing({ wert, etikett, urteil, groesse = 230, farbe = TAG
   const zahl = el("text", {
     x: mitte, y: mitte + groesse * 0.03,
     "text-anchor": "middle", "dominant-baseline": "middle",
-    "font-size": Math.round(groesse / 2.5), "font-weight": 250,
+    "font-size": Math.round(groesse / 2.8), "font-weight": 250,
     "letter-spacing": -groesse / 90, fill: "currentColor",
   });
   zahl.textContent = String(wert);
   svg.appendChild(zahl);
 
   const wort = el("text", {
-    x: mitte, y: mitte + groesse * 0.2,
+    x: mitte, y: mitte + groesse * 0.225,
     "text-anchor": "middle", "dominant-baseline": "middle",
     "font-size": Math.round(groesse / 15), "font-weight": 520,
     fill: "currentColor", "fill-opacity": 0.55,

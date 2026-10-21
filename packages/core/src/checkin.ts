@@ -55,7 +55,7 @@ export interface CheckinBogen {
 export const CHECKIN_MITTE: CheckinBogen = {
   id: "mitte",
   titel: "Mitte der Woche",
-  einleitung: "Elf Fragen, zwei Minuten. Danach weisst du, ob die Woche noch zu drehen ist.",
+  einleitung: "Elf Fragen, zwei Minuten. Danach weißt du, ob die Woche noch zu drehen ist.",
   wochentag: 3,
   uhrzeit: "18:00",
   fragen: [

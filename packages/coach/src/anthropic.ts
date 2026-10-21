@@ -1,4 +1,4 @@
-import { MODELLE } from "./modelle.js";
+import { MODELLE, aktuellesModell, modellInfo } from "./modelle.js";
 import {
   ProviderUnavailableError,
   type CoachProvider,
@@ -56,6 +56,13 @@ export interface AnthropicOptions {
    * Zwischenspeichern überhaupt greift.
    */
   onVerbrauch?: (verbrauch: Verbrauch) => void;
+  /**
+   * Keine dieser Anfragen zählt als Nachricht, nur gegen das Budget. Für das
+   * Eintragen von Essen: das läuft auf Haiku und kostet Zehntelcent, und wer
+   * zehnmal am Tag isst, soll dafür nicht sein Kontingent an Gesprächen
+   * aufbrauchen.
+   */
+  ohneZaehlung?: boolean;
 }
 
 /**
@@ -69,8 +76,17 @@ export interface AnthropicOptions {
 export class AnthropicProvider implements CoachProvider {
   readonly name = "anthropic";
   private readonly fetchImpl: typeof fetch;
+  /**
+   * Das Rückfallmodell unter seiner aktuellen Kennung. In den Einstellungen
+   * steht bei vielen noch `claude-opus-5`, und das soll nach dem Update auf
+   * den Nachfolger gehen und nicht auf ein Modell, das abgelöst ist.
+   */
+  private readonly standardModell: string;
+  /** Ob über diese Instanz schon eine Anfrage an den eigenen Server ging. */
+  private angefragt = false;
 
   constructor(private readonly options: AnthropicOptions) {
+    this.standardModell = aktuellesModell(options.model);
     // fetch muss an globalThis gebunden bleiben. Speichert man die blanke
     // Funktion in einem Feld und ruft sie als this.fetchImpl auf, ist this
     // die Instanz und nicht window. Browser werfen dann "Illegal invocation",
@@ -92,7 +108,19 @@ export class AnthropicProvider implements CoachProvider {
     // raus. Beides gehört dorthin, wo der Schlüssel liegt.
     if (this.options.baseUrl) {
       const token = this.options.kontoToken?.();
-      return { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) };
+      // Eine Nachricht des Nutzers sind mehrere Anfragen: das Gespräch, das
+      // Auslesen einer Mahlzeit, die Antwort nach dem Werkzeug. Gezählt wird
+      // davon nur die erste, alle weiteren tragen x-daevo-folge. Ohne das
+      // kostete eine eingetragene Mahlzeit drei Nachrichten, und aus 800
+      // versprochenen wurden rund 270. Die App legt je Nachricht einen
+      // eigenen Anbieter an, deshalb reicht ein Merker an der Instanz.
+      const folge = this.angefragt || this.options.ohneZaehlung === true;
+      this.angefragt = true;
+      return {
+        "content-type": "application/json",
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+        ...(folge ? { "x-daevo-folge": "1" } : {}),
+      };
     }
     return {
       "content-type": "application/json",
@@ -123,7 +151,7 @@ export class AnthropicProvider implements CoachProvider {
   }
 
   /** Liest den Verbrauch aus einer Antwort und meldet ihn. */
-  private meldeVerbrauch(payload: unknown, modell = this.options.model): Verbrauch | undefined {
+  private meldeVerbrauch(payload: unknown, modell = this.standardModell): Verbrauch | undefined {
     const usage = (payload as { usage?: Record<string, unknown> })?.usage;
     if (!usage) return undefined;
     const zahl = (wert: unknown) => (Number.isFinite(Number(wert)) ? Number(wert) : 0);
@@ -176,7 +204,7 @@ export class AnthropicProvider implements CoachProvider {
    */
   async converse(request: ConverseRequest): Promise<ConverseResponse> {
     if (!this.available) throw new ProviderUnavailableError("ANTHROPIC_API_KEY fehlt");
-    const modell = request.modell ?? this.options.model;
+    const modell = aktuellesModell(request.modell ?? this.standardModell);
     const koerper = {
       model: modell,
       max_tokens: request.maxTokens ?? 2048,
@@ -384,7 +412,7 @@ export class AnthropicProvider implements CoachProvider {
         method: "POST",
         headers: this.headers(),
         body: JSON.stringify({
-          model: this.options.model,
+          model: this.standardModell,
           max_tokens: 1,
           messages: [{ role: "user", content: "ok" }],
         }),
@@ -459,8 +487,12 @@ export class AnthropicProvider implements CoachProvider {
   async generateJson<T>(request: JsonRequest): Promise<T> {
     if (!this.available) throw new ProviderUnavailableError("ANTHROPIC_API_KEY fehlt");
 
+    const modell = aktuellesModell(request.modell ?? this.standardModell);
+    const erzwingen = modellInfo(modell)?.kannErzwingen ?? false;
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), this.options.timeoutMs ?? 30000);
+    // Mit Denken dauert ein Foto länger als vorher. 30 Sekunden reichten für
+    // ein Modell ohne Denken und brachen jetzt mitten in der Auswertung ab.
+    const timeout = setTimeout(() => controller.abort(), this.options.timeoutMs ?? 60000);
     try {
       const holen = this.fetchImpl;
       const response = await holen(this.ziel(), {
@@ -471,11 +503,15 @@ export class AnthropicProvider implements CoachProvider {
         headers: this.headers(),
         signal: controller.signal,
         body: JSON.stringify({
-          model: request.modell ?? this.options.model,
-          max_tokens: request.maxTokens ?? 2048,
+          model: modell,
+          // Die aktuellen Modelle denken immer, auch hier. Das Denken zählt
+          // gegen max_tokens, und ein Teller mit fünf Posten braucht mehr
+          // als ein Satz. Abgeschnitten käme kein Werkzeugaufruf zurück.
+          max_tokens: request.maxTokens ?? 4096,
+          output_config: { effort: request.effort ?? "medium" },
           // Auch hier cachen. Der Prompt fuers Auswerten eines Tellers ist
           // lang und bei jedem Foto derselbe.
-          system: [{ type: "text", text: request.system, cache_control: { type: "ephemeral" } }],
+          system: [{ type: "text", text: erzwingen ? request.system : `${request.system}\n\n${pflichtSatz(request.schemaName)}`, cache_control: { type: "ephemeral" } }],
           // Anhänge stehen vor dem Text. Das Modell sieht sonst die Frage,
           // bevor es das Bild kennt, und beginnt zu raten.
           messages: [{
@@ -491,7 +527,10 @@ export class AnthropicProvider implements CoachProvider {
               input_schema: request.schema,
             },
           ],
-          tool_choice: { type: "tool", name: request.schemaName },
+          // Opus 5.5 und Sonnet 5.5 lehnen ein erzwungenes Werkzeug mit 400
+          // ab. Dort steht die Pflicht im Prompt, und unten wird geprüft,
+          // ob der Aufruf wirklich kam.
+          tool_choice: erzwingen ? { type: "tool", name: request.schemaName } : { type: "auto" },
         }),
       });
 
@@ -502,9 +541,11 @@ export class AnthropicProvider implements CoachProvider {
 
       const payload = (await response.json()) as {
         content?: Array<{ type: string; name?: string; input?: unknown }>;
+        stop_reason?: string;
       };
-      this.meldeVerbrauch(payload, request.modell ?? this.options.model);
+      this.meldeVerbrauch(payload, modell);
       const toolUse = payload.content?.find((block) => block.type === "tool_use");
+      if (payload.stop_reason === "refusal") throw new Error("Anthropic API refusal: Das Modell hat die Anfrage abgelehnt.");
       if (!toolUse?.input) throw new Error("Antwort enthält keinen Tool Call");
       return toolUse.input as T;
     } finally {
@@ -560,4 +601,14 @@ function kurz(text: string): string {
     // Kein JSON. Dann eben der rohe Anfang.
   }
   return text.replace(/\s+/g, " ").slice(0, 200);
+}
+
+/**
+ * Die Pflicht zum Werkzeug, wo sie sich nicht erzwingen lässt.
+ *
+ * Ein fester Satz je Schema und nicht je Aufruf: er steht im gecachten
+ * Systemblock, und ein wechselnder Text verwürfe den Speicher bei jedem Foto.
+ */
+function pflichtSatz(schemaName: string): string {
+  return `Antworte ausschließlich, indem du das Werkzeug ${schemaName} genau einmal aufrufst. Schreib keinen Text davor oder danach.`;
 }

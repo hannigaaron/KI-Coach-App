@@ -62,7 +62,7 @@
 	<key>NSCameraUsageDescription</key>
 	<string>daevo schätzt Mengen und Nährwerte aus einem Foto deines Tellers und liest Barcodes.</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>daevo liest Schlaf, Schritte, Ruhepuls, HRV, aktive Kalorien, Gewicht und Trainings, damit Training, Kalorienziel und Tagesplan zu deinen echten Werten passen. daevo schreibt nichts in Health.</string>
+	<string>daevo liest Schlaf, Schritte, Ruhepuls, HRV, aktive Kalorien, Gewicht, Trainings und Ernährung aus Apps wie YAZIO oder MyFitnessPal, damit Training, Kalorienziel und Tagesplan zu deinen echten Werten passen. daevo schreibt nichts in Health.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>daevo wertet ein Foto aus deiner Mediathek aus, wenn du eines auswählst.</string>
 	<key>UISupportedInterfaceOrientations~ipad</key>

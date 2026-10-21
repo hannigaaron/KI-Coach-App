@@ -10,46 +10,82 @@ import type { Modus } from "./persona.js";
  * kein Stück besser.
  *
  * Gemessen an den echten Anfragegrössen der App, rund 6000 Token Eingabe je
- * Nachricht, kostet ein Tag mit acht Erfassungen, fünf Fachfragen und zwei
- * persönlichen Gesprächen:
+ * Nachricht, kostete ein Tag mit acht Erfassungen, fünf Fachfragen und zwei
+ * persönlichen Gesprächen auf der Generation davor:
  *   alles auf Opus      etwa 75 Cent
  *   nach dieser Tabelle etwa 35 Cent
+ * Seit Oktober 2026 laufen Opus 5.5, Sonnet 5.5 und Haiku 5.5. Opus ist 20
+ * Prozent billiger als Opus 5, Haiku kostet ein Zehntel von Haiku 4.5.
  *
- * Zwei Dinge, die man dabei wissen muss:
+ * Drei Dinge, die man dabei wissen muss:
  *
  * Der Zwischenspeicher gilt je Modell. Wer zwischen Modellen wechselt, hält
  * mehrere Speicher warm statt einen. Das kostet etwas von der Ersparnis
  * zurück, deutlich weniger als der Preisunterschied zwischen den Modellen
  * einbringt.
  *
- * Haiku 4.5 nimmt keine Angabe zur Denktiefe entgegen und lehnt sie mit einem
- * Fehler ab. Deshalb steht in der Tabelle, welches Modell das kann.
+ * Opus 5.5 und Sonnet 5.5 lehnen ein erzwungenes Werkzeug ab, `tool_choice`
+ * mit `tool` oder `any` gibt Status 400. Haiku 5.5 nimmt es an. Gemessen am
+ * Worker am 21. Oktober 2026. Deshalb steht in der Tabelle, wer es kann.
+ *
+ * Alle drei denken immer, auch ohne Angabe. Gesteuert wird nur über effort,
+ * und die Grundstufe ist bei Opus 5.5 und Haiku 5.5 medium, bei Sonnet 5.5
+ * high. Deshalb schickt die App die Stufe immer ausdrücklich mit.
  */
 
 export interface ModellWahl {
   id: string;
-  /** Nimmt output_config.effort entgegen. Haiku 4.5 tut das nicht. */
+  /** Nimmt output_config.effort entgegen. Haiku 4.5 tat das nicht. */
   kannEffort: boolean;
+  /** Nimmt ein erzwungenes Werkzeug an, `tool_choice: { type: "tool" }`. */
+  kannErzwingen: boolean;
   /** Für die Anzeige im Profil. */
   name: string;
 }
 
 export const MODELLE: Record<string, ModellWahl> = {
-  "claude-opus-5": { id: "claude-opus-5", kannEffort: true, name: "Opus 5" },
-  "claude-sonnet-5": { id: "claude-sonnet-5", kannEffort: true, name: "Sonnet 5" },
-  "claude-haiku-4-5": { id: "claude-haiku-4-5", kannEffort: false, name: "Haiku 4.5" },
+  "claude-opus-5-5": { id: "claude-opus-5-5", kannEffort: true, kannErzwingen: false, name: "Opus 5.5" },
+  "claude-sonnet-5-5": { id: "claude-sonnet-5-5", kannEffort: true, kannErzwingen: false, name: "Sonnet 5.5" },
+  "claude-haiku-5-5": { id: "claude-haiku-5-5", kannEffort: true, kannErzwingen: true, name: "Haiku 5.5" },
 };
 
-const OPUS = "claude-opus-5";
-const SONNET = "claude-sonnet-5";
-const HAIKU = "claude-haiku-4-5";
+export const OPUS = "claude-opus-5-5";
+export const SONNET = "claude-sonnet-5-5";
+export const HAIKU = "claude-haiku-5-5";
+
+/**
+ * Gespeicherte Werte aus der Generation davor.
+ *
+ * Wer im Profil "Immer Opus 5" gewählt hatte, hat `claude-opus-5` in den
+ * Einstellungen stehen. Ohne diese Tabelle fiele die Wahl nach dem Update
+ * still auf Automatisch zurück, und der Nutzer merkt es nicht.
+ */
+const NACHFOLGER: Record<string, string> = {
+  "claude-opus-5": OPUS,
+  "claude-opus-4-8": OPUS,
+  "claude-sonnet-5": SONNET,
+  "claude-haiku-4-5": HAIKU,
+};
+
+/** Die aktuelle Kennung zu einer gespeicherten. Unbekanntes bleibt, wie es ist. */
+export function aktuellesModell(id: string): string {
+  return NACHFOLGER[id] ?? id;
+}
+
+/** Die Eigenschaften eines Modells, auch unter einer alten Kennung. */
+export function modellInfo(id: string): ModellWahl | undefined {
+  return MODELLE[aktuellesModell(id)];
+}
 
 /**
  * Die Zuordnung.
  *
  * erfassen  Haiku. Eine Menge aus einem Satz lesen und ein Werkzeug rufen.
  *           Dafür braucht es kein teures Modell.
- * standard  Sonnet. Smalltalk soll trotzdem nach dem Coach klingen.
+ * standard  Haiku. Kurze Aufträge wie "Volleyball ist jetzt donnerstags"
+ *           oder "erinnere mich um acht". Im Live-Test lag genau das auf
+ *           Sonnet und war der grösste Posten der Rechnung, bei Antworten,
+ *           die Haiku 5.5 genauso trifft.
  * coaching  Sonnet. Fachfragen zu Training und Ernährung sitzen im Wissen,
  *           nicht in der Denktiefe.
  * psyche    Opus. Hier entscheidet sich, ob die App etwas wert ist. Wer bei
@@ -58,7 +94,7 @@ const HAIKU = "claude-haiku-4-5";
  */
 export const MODELL_JE_MODUS: Record<Modus, string> = {
   erfassen: HAIKU,
-  standard: SONNET,
+  standard: HAIKU,
   coaching: SONNET,
   psyche: OPUS,
   planung: OPUS,
@@ -81,20 +117,20 @@ export const MODELL_FUER_BILDER = OPUS;
  * ohne dass jemand im Code etwas ändern muss.
  */
 export function modellFuer(modus: Modus, wahl = "auto"): ModellWahl {
-  if (wahl !== "auto" && MODELLE[wahl]) return MODELLE[wahl]!;
+  if (wahl !== "auto" && modellInfo(wahl)) return modellInfo(wahl)!;
   return MODELLE[MODELL_JE_MODUS[modus]] ?? MODELLE[OPUS]!;
 }
 
 /** Modell für einen Bildaufruf, unter derselben Regel. */
 export function modellFuerBilder(wahl = "auto"): ModellWahl {
-  if (wahl !== "auto" && MODELLE[wahl]) return MODELLE[wahl]!;
+  if (wahl !== "auto" && modellInfo(wahl)) return modellInfo(wahl)!;
   return MODELLE[MODELL_FUER_BILDER]!;
 }
 
 /** Was im Profil zur Auswahl steht. */
 export const MODELL_OPTIONEN = [
   { wert: "auto", text: "Automatisch, je nach Frage" },
-  { wert: OPUS, text: "Immer Opus 5, am schlausten und teuersten" },
-  { wert: SONNET, text: "Immer Sonnet 5, guter Mittelweg" },
-  { wert: HAIKU, text: "Immer Haiku 4.5, am günstigsten" },
+  { wert: OPUS, text: "Immer Opus 5.5, am schlausten und teuersten" },
+  { wert: SONNET, text: "Immer Sonnet 5.5, guter Mittelweg" },
+  { wert: HAIKU, text: "Immer Haiku 5.5, am günstigsten" },
 ];

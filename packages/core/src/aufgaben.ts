@@ -99,8 +99,8 @@ export function priorisiere(eingabe: PlanEingabe): Plan {
     );
   } else {
     begruendung.push(
-      `Nach deinem Kalender bleiben heute ${rest} freie Minuten. Bis zu deiner Grenze von ${stunden(grenze)} ` +
-      `sind es ${grenze - eingabe.bereitsGearbeitet} Minuten. Gerechnet wird mit dem kleineren Wert, ${budget} Minuten.`,
+      `Nach deinem Kalender bleiben heute ${stunden(rest)} frei. Bis zu deiner Grenze von ${stunden(grenze)} ` +
+      `sind es ${stunden(grenze - eingabe.bereitsGearbeitet)}. Gerechnet wird mit dem kleineren Wert, ${stunden(budget)}.`,
     );
   }
 
