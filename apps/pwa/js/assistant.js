@@ -90,6 +90,8 @@ import {
   wochenplanText,
   trainingAnpassen,
   anpassungText,
+  letzteEinheit,
+  steigerung,
 } from "@daevo/core";
 import { brain } from "./brain.js";
 import { KONFIG, istNativ } from "./konfig.js";
@@ -2969,7 +2971,14 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
         const index = Math.max(0, kraft.findIndex((s) => s.weekday === wochentag));
         const einheit = plan.einheiten[index % plan.einheiten.length];
         zeilen.push(`Aus deinem Plan: ${einheit.titel}, ${einheit.fokus}, etwa ${einheit.dauerMin} Minuten.`);
-        for (const p of einheit.positionen) zeilen.push(`- ${p.name}: ${p.saetze} x ${p.wdh}, ${p.reserve} in Reserve`);
+        // Der Vorschlag für heute steht dabei, gerechnet aus dem Protokoll.
+        // Sonst rät der Coach ein Gewicht, und eine Zahl aus dem Modell ist
+        // in dieser App der eine Fehler, der nicht passieren darf.
+        const log = Array.isArray(store.getSettings().trainingslog) ? store.getSettings().trainingslog : [];
+        for (const p of einheit.positionen) {
+          const st = steigerung(letzteEinheit(log, p.id, todayIso()), p.wdh, p.reserve);
+          zeilen.push(`- ${p.name}: ${p.saetze} x ${p.wdh}, ${p.reserve} in Reserve${st ? `. ${st.text}` : ""}`);
+        }
       } else if (heute.some((s) => s.type === "strength")) {
         zeilen.push("Einen Plan mit Übungen hast du noch nicht gespeichert. Den rechnet dir die App unter Training, Trainingspläne.");
       }

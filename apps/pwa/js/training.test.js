@@ -245,3 +245,13 @@ test("Nach Push und Pull schlägt daevo Beine, Po und Core vor", () => {
   const e = heuteEinheit({ minuten: 30, gruppen: v.gruppen, variante: 0 }, { niveau: "intermediate", ziel: "muskel" });
   assert.ok(e.dauerMin <= 30);
 });
+
+test("Steigerung übernehmen setzt nur offene Sätze", async () => {
+  const { steigerungUebernehmen } = await import("./training.js");
+  const entwurf = { aktiv: 0, uebungen: [{ id: "x", saetze: [{ kg: 80, wdh: 10, rir: 2, fertig: true }, { kg: 80, wdh: 10, rir: 2, fertig: false }] }] };
+  const neu = steigerungUebernehmen(entwurf, 0, { art: "gewicht", kg: 82.5, wdh: 6, text: "" });
+  assert.deepEqual(neu.uebungen[0].saetze.map((x) => [x.kg, x.wdh]), [[80, 10], [82.5, 6]]);
+  // Ohne Kilo im Vorschlag bleibt das Gewicht.
+  const ohne = steigerungUebernehmen(entwurf, 0, { art: "wdh", kg: null, wdh: 11, text: "" });
+  assert.deepEqual(ohne.uebungen[0].saetze[1], { kg: 80, wdh: 11, rir: 2, fertig: false });
+});

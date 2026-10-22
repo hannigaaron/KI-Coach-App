@@ -186,6 +186,65 @@ export function planAktualisieren(
   return { faellig, plan: fertig, getauscht, behalten, ohneDaten, text: zeilen.join("\n") };
 }
 
+export interface Steigerung {
+  /** gewicht: mehr Kilo, wdh: mehr Wiederholungen, halten: wie letztes Mal, variante: ohne Gewicht am oberen Ende. */
+  art: "gewicht" | "wdh" | "halten" | "variante";
+  /** Vorschlag je Satz. Null, wo nichts zu setzen ist. */
+  kg: number | null;
+  wdh: number | null;
+  text: string;
+}
+
+const zahlText = (x: number) => String(Math.round(x * 10) / 10).replace(".", ",");
+
+/**
+ * Was heute dran ist, aus dem letzten Mal: doppelte Progression. Erst werden
+ * die Wiederholungen bis ans obere Ende des Bereichs gesteigert, dann kommt
+ * Gewicht dazu, und es geht wieder unten los.
+ *
+ * Gestützt auf ACSM, Progression Models in Resistance Training for Healthy
+ * Adults, Medicine and Science in Sports and Exercise 2009: mehr Last um 2
+ * bis 10 Prozent, sobald die Wiederholungen ein bis zwei über dem Ziel
+ * liegen. Die Schritte von 2,5 kg und unter 20 kg von 1 kg sind eine Regel
+ * der App, die kleinsten üblichen Scheiben und Kurzhanteln.
+ *
+ * Gezählt werden die Sätze mit dem höchsten Gewicht, die Aufwärmsätze nicht.
+ * Lag die Reserve letztes Mal mehr als eine Wiederholung unter dem Ziel, ging
+ * es härter als geplant, und dann wird gehalten statt gesteigert.
+ */
+export function steigerung(letzt: LogEintrag | null, wdhBereich: string, reserve: number): Steigerung | null {
+  if (!letzt) return null;
+  const b = /^\s*(\d+)\s*(?:-\s*(\d+))?\s*$/.exec(String(wdhBereich));
+  if (!b) return null;
+  const unten = Number(b[1]);
+  const oben = Number(b[2] ?? b[1]);
+  const saetze = letzt.saetze.filter(gueltig);
+  if (!saetze.length) return null;
+  const kg = Math.max(...saetze.map((x) => x.kg));
+  const oberste = saetze.filter((x) => x.kg === kg);
+  const minWdh = Math.min(...oberste.map((x) => x.wdh));
+  const rirs = oberste.map((x) => x.rir).filter((x): x is number => x !== null && x !== undefined && x >= 0);
+  const zuHart = rirs.length > 0 && Math.min(...rirs) < reserve - 1;
+  const ohneGewicht = kg === 0;
+  const last = ohneGewicht ? "" : `${zahlText(kg)} kg und `;
+
+  if (minWdh >= oben && !zuHart) {
+    if (ohneGewicht) {
+      return { art: "variante", kg: null, wdh: null, text: `Letztes Mal alle Sätze bei ${oben} Wiederholungen oder mehr. Mach es schwerer: Zusatzgewicht, langsamer ablassen oder eine schwerere Variante.` };
+    }
+    const neu = Math.round((kg + (kg < 20 ? 1 : 2.5)) * 10) / 10;
+    return { art: "gewicht", kg: neu, wdh: unten, text: `Letztes Mal alle Sätze bei ${oben} Wiederholungen oder mehr. Heute ${zahlText(neu)} kg, wieder ab ${unten} Wiederholungen.` };
+  }
+  if (zuHart) {
+    return { art: "halten", kg: ohneGewicht ? null : kg, wdh: minWdh, text: `Letztes Mal knapp am Limit. Heute ${last}${minWdh} Wiederholungen, mit ${reserve} in Reserve.` };
+  }
+  const wdh = Math.min(oben, minWdh + 1);
+  return {
+    art: "wdh", kg: ohneGewicht ? null : kg, wdh,
+    text: `Heute ${last}${wdh} Wiederholungen je Satz, eine mehr als im schwächsten Satz letztes Mal. Bei ${oben} kommt mehr Gewicht.`,
+  };
+}
+
 /** Für Tests und Prüfungen: ob eine Einheit die Regel gegen schweres Heben und Beugen am selben Tag hält. */
 export function einheitHaeltZns(ids: string[]): boolean {
   return !(ids.some((x) => SCHWER_HEBEN.has(x)) && ids.some((x) => SCHWER_BEUGEN.has(x)));

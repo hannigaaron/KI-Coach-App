@@ -17,7 +17,7 @@
  * Alles bis `trainingStarten` fasst weder `document` noch `window` an und ist
  * ohne Browser getestet.
  */
-import { alternativen, letzteEinheit, positionFuer, uebungErlaubt } from "@daevo/core";
+import { alternativen, letzteEinheit, positionFuer, steigerung, uebungErlaubt } from "@daevo/core";
 import { UEBUNGEN } from "./uebungen-daten.js";
 import { spueren } from "./haptik.js";
 import { GERAETE, uebungenFiltern, vorschauPfad } from "./uebungen.js";
@@ -92,6 +92,23 @@ export function uebungHinzu(entwurf, id, log, wunsch = STANDARD_WUNSCH) {
   const pos = letzt ? { ...p, saetze: Math.max(1, Math.min(8, letzt.saetze.length)) } : p;
   const uebungen = [...entwurf.uebungen, uebungImEntwurf(pos, log, entwurf.datum)];
   return { ...entwurf, uebungen, aktiv: uebungen.length - 1 };
+}
+
+/**
+ * Setzt den Vorschlag aus `steigerung` in die Sätze, die noch offen sind.
+ * Abgehakte bleiben, wie sie gemacht wurden.
+ */
+export function steigerungUebernehmen(entwurf, ui, vorschlag) {
+  if (!vorschlag) return entwurf;
+  const uebungen = entwurf.uebungen.map((u, i) => i !== ui ? u : {
+    ...u,
+    saetze: u.saetze.map((x) => x.fertig ? x : {
+      ...x,
+      kg: vorschlag.kg ?? x.kg,
+      wdh: vorschlag.wdh ?? x.wdh,
+    }),
+  });
+  return { ...entwurf, uebungen };
 }
 
 export function uebungRaus(entwurf, ui) {
@@ -262,8 +279,14 @@ export function trainingHtml(entwurf, log, { menue = false, vorschlaege = [], pa
       <button type="button" class="tr-haken" data-tr-haken="${si}" aria-pressed="${s.fertig}" aria-label="Satz ${si + 1} ${s.fertig ? "offen setzen" : "abschliessen"}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>
     </div>`).join("");
   const letzt = letzteEinheit(log, u.id, entwurf.datum);
+  // Was heute dran ist, gerechnet aus dem letzten Mal. Übernehmen setzt nur
+  // die offenen Sätze, die Felder sind ohnehin mit dem letzten Mal vorbelegt.
+  const st = steigerung(letzt, u.ziel.wdh, u.ziel.reserve);
+  const steigernHtml = st
+    ? `<div class="tr-steigern"><p>${esc(st.text)}</p>${st.kg !== null || st.wdh !== null ? '<button type="button" class="pl-mini" data-tr-steigern>Übernehmen</button>' : ""}</div>`
+    : "";
   const vorher = letzt
-    ? `<div class="tr-vorher"><p>${esc(datumKurz(letzt.datum))}${letzt.einheit ? ` · ${esc(letzt.einheit)}` : ""}</p>
+    ? `${steigernHtml}<div class="tr-vorher"><p>${esc(datumKurz(letzt.datum))}${letzt.einheit ? ` · ${esc(letzt.einheit)}` : ""}</p>
         <div class="tr-vorher-kopf"><span>#</span><span>KG</span><span>WDH</span><span>RIR</span></div>
         ${letzt.saetze.map((s, i) => `<div class="tr-vorher-zeile"><span>${i + 1}</span><span>${esc(komma(s.kg))}</span><span>${s.wdh}</span><span>${s.rir ?? ""}</span></div>`).join("")}</div>`
     : `<p class="tr-erstes">Das erste Mal mit dieser Übung. Ab dem nächsten Mal steht hier, was du gemacht hast.</p>`;
@@ -444,6 +467,11 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
     } else if ((k = z("[data-tr-satz]"))) {
       entwurf = k.dataset.trSatz === "dazu" ? satzDazu(entwurf, entwurf.aktiv) : satzWeg(entwurf, entwurf.aktiv);
     } else if (z("[data-tr-menue]")) menue = !menue;
+    else if (z("[data-tr-steigern]")) {
+      const u = entwurf.uebungen[entwurf.aktiv];
+      entwurf = steigerungUebernehmen(entwurf, entwurf.aktiv, steigerung(letzteEinheit(logSpeicher.lesen(), u.id, entwurf.datum), u.ziel.wdh, u.ziel.reserve));
+      spueren("leicht");
+    }
     else if ((k = z("[data-tr-ersatz]"))) {
       const plan = planSpeicher.lesen();
       if (plan || entwurf.frei) {

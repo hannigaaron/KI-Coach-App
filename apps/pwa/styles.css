@@ -3546,3 +3546,9 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 .ci-skala { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; }
 .ci-skala .mg-punkt { height: 40px; min-width: 0; padding: 0; font-size: var(--t-sm); }
 .sub + .ci-stufen { margin-top: var(--s-4); }
+
+/* Der Vorschlag für heute steht über dem letzten Mal, ohne eigene Karte:
+   ein Satz mit einem kleinen Knopf daneben. */
+.tr-steigern { display: flex; align-items: center; gap: var(--s-3); margin: 0 0 var(--s-3); }
+.tr-steigern p { flex: 1; margin: 0; font-size: var(--t-sm); color: var(--text); line-height: 1.45; }
+.tr-steigern .pl-mini { flex: none; }

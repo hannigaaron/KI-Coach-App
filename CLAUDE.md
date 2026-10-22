@@ -428,6 +428,22 @@ Der Tausch gilt ab dann auch im Plan. Wer einen Plan startet, der noch
 nicht gespeichert ist, speichert ihn damit: ohne gespeicherten Plan gibt es
 nichts, woran nach acht Wochen gemessen wird.
 
+### Was heute dran ist
+
+`steigerung` in `trainingslog.ts`, angezeigt über dem letzten Mal, mit
+"Übernehmen" für die offenen Sätze. Doppelte Progression: erst die
+Wiederholungen bis ans obere Ende des Bereichs, dann Gewicht dazu und unten
+wieder anfangen. Gestützt auf ACSM, Progression Models in Resistance
+Training, 2009: 2 bis 10 Prozent mehr Last, sobald die Wiederholungen über
+dem Ziel liegen. Die Schritte, 2,5 kg und unter 20 kg 1 kg, sind eine Regel
+der App. Gezählt werden die Sätze mit dem höchsten Gewicht. Lag die Reserve
+mehr als eine Wiederholung unter dem Ziel, wird gehalten. Ohne Gewicht am
+oberen Ende rät die App kein Kilo, sondern sagt, wie es schwerer wird.
+
+Die Felder bleiben mit dem letzten Mal vorbelegt, der Vorschlag ist ein
+Angebot. `trainingsplan_abrufen` gibt denselben Satz je Übung an den Coach,
+sonst nennt er ein Gewicht aus dem Modell.
+
 ### Freies Training
 
 `entwurfFrei` und `uebungHinzu` in `training.js`, Knopf "Freies Training
@@ -487,7 +503,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1170 Tests
+npm test           # 1172 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
