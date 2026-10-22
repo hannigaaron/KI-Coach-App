@@ -720,6 +720,7 @@ button.messwert:active { opacity: 0.65; }
 .messwert-wert { font-size: var(--t-sm); color: var(--muted); font-variant-numeric: tabular-nums; }
 .messwert-wert b { color: var(--text); font-weight: 650; }
 .messwert-zusatz { color: var(--muted); font-weight: 500; }
+.messwert-quelle { margin: var(--s-2) 0 0; font-size: var(--t-xs); color: var(--muted); }
 .messwert.gross .messwert-name { font-size: var(--t-md); }
 .messwert.gross .messwert-wert b { font-size: var(--t-xl); letter-spacing: -0.02em; }
 /* Die Farbe kommt je Zeile über eine Variable, nicht über eine Klasse je

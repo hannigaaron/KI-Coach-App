@@ -1383,11 +1383,27 @@ function renderBereitschaft() {
   // Nur der Rat, nicht der ganze Text. Die Teile stehen darunter als Liste,
   // und die Grenze der Zahl steht fest im HTML.
   $("bereitschaftSub").textContent = bereitschaftText(b).split("\n").filter(Boolean).slice(-2)[0];
-  teile.innerHTML = b.teile
-    .map((t) => `<li><div class="li-main"><div class="li-title">${escapeHtml(t.name)} ${t.wert} von 100</div>`
-      + `<div class="li-sub">aus ${escapeHtml(t.quelle)}</div></div></li>`)
-    .join("");
+  // Dieselben Balken wie auf Heute und Balance. Vorher standen die Teile als
+  // gerahmte Karten mit "78 von 100" im Titel, eine dritte Form für dieselbe
+  // Aussage: wie voll ist dieser Teil.
+  teile.innerHTML = "";
+  for (const t of b.teile) {
+    const zeile = messwert({ name: t.name, wert: t.wert, zusatz: "von 100", anteil: t.wert / 100, ton: TEIL_TON[t.name] });
+    const quelle = document.createElement("p");
+    quelle.className = "messwert-quelle";
+    quelle.textContent = `aus ${t.quelle}`;
+    zeile.appendChild(quelle);
+    teile.appendChild(zeile);
+  }
 }
+
+/** Die Farbe je Teil der Bereitschaft, aus den Farben, die es schon gibt. */
+const TEIL_TON = {
+  Schlaf: "var(--bereich-wellbeing)",
+  Energie: "var(--makro-kohlenhydrate)",
+  Belastung: "var(--bereich-fitness)",
+  Ruhe: "var(--bereich-me_time)",
+};
 
 function renderHeuteBalance() {
   const el = $("heuteBalance");
