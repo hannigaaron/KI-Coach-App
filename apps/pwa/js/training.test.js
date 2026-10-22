@@ -172,6 +172,31 @@ test("Fokus Arme: in jeder Oberkörpereinheit kommen die Arme zuerst, danach sch
   assert.ok(plan.hinweise.some((h) => h.includes("Dein Fokus: Arme")));
 });
 
+test("Fokus Arme in 45 Minuten: Bizeps und Trizeps je 2 bis 3 Sätze vorn, die Beine geben die Zeit", () => {
+  for (const niveau of ["beginner", "intermediate", "advanced"]) {
+    for (const tage of [1, 2, 3]) {
+      const plan = uebungsplanBauen({ tage, minuten: 45, niveau, ziel: "muskel", fokus: ["arme"] }, UEBUNGEN);
+      const ohne = uebungsplanBauen({ tage, minuten: 45, niveau, ziel: "muskel" }, UEBUNGEN);
+      plan.einheiten.forEach((e, i) => {
+        const muster = e.positionen.map((p) => nachId.get(p.id).pattern);
+        const bizeps = e.positionen[muster.indexOf("elbow_flexion")];
+        const trizeps = e.positionen[muster.indexOf("elbow_extension")];
+        assert.ok(bizeps && trizeps, `${niveau} ${tage} ${e.titel}`);
+        for (const p of [bizeps, trizeps]) assert.ok(p.saetze >= 2 && p.saetze <= 3, `${p.name} ${p.saetze}`);
+        assert.deepEqual(e.positionen.slice(0, 2).map((p) => partieVon(p.id)), ["arme", "arme"]);
+        assert.ok(e.dauerMin <= 45, `${e.titel} ${e.dauerMin}`);
+        // Mindestens eine Beinübung bleibt, und Drücken und Ziehen behalten ihre Sätze.
+        assert.ok(e.positionen.some((p) => ["beine", "po"].includes(partieVon(p.id))), e.titel);
+        const satz = (pl, f) => pl.positionen.filter((p) => f(partieVon(p.id))).reduce((s, p) => s + p.saetze, 0);
+        const oben = (x) => ["brust", "ruecken", "schultern"].includes(x);
+        assert.ok(satz(e, oben) >= satz(ohne.einheiten[i], oben) - 1, e.titel);
+      });
+      assert.ok(plan.hinweise.some((h) => h.includes("Bizeps und Trizeps")));
+      assert.ok(!plan.hinweise.some((h) => h.includes("nur Grundübungen")));
+    }
+  }
+});
+
 test("Fokus Core bleibt am Ende", () => {
   const plan = uebungsplanBauen({ tage: 3, minuten: 60, niveau: "intermediate", ziel: "muskel", fokus: ["rumpf"] }, UEBUNGEN);
   for (const e of plan.einheiten) {

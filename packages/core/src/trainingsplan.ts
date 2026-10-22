@@ -222,6 +222,11 @@ export const FOKUS_PLAETZE: Record<FokusGruppe, Platz[]> = {
 const OBEN: ReadonlySet<Platz> = new Set<Platz>(["druecken_h", "druecken_v", "ziehen_h", "ziehen_v", "seitlich", "hintere", "brust_iso", "bizeps", "trizeps"]);
 const UNTEN: ReadonlySet<Platz> = new Set<Platz>(["kniebeuge", "huefte", "einbein", "beinbeuger", "beinstrecker", "adduktoren", "waden"]);
 
+/** Ob eine kurze Einheit eigene Armübungen bekommt: Fokus Arme und ein Oberkörperplatz in der Vorlage. */
+function armFokus(vorlage: Tagesvorlage, wunsch: PlanWunsch): boolean {
+  return (wunsch.fokus ?? []).includes("arme") && vorlage.plaetze.some((p) => OBEN.has(p));
+}
+
 /** Ob ein Platz zu einer der Fokuspartien gehört. Der Rumpf nie, siehe `einheitBauen`. */
 function imFokus(platz: Platz, fokus: FokusGruppe[] | undefined): boolean {
   if (platz === "rumpf") return false;
@@ -537,21 +542,54 @@ function einheitBauen(vorlage: Tagesvorlage, { wunsch, erlaubt, imPlan, kurz, ei
     + SCHWERE[platz] + (platz === "huefte" && (e.mechanics !== "compound" || e.equipment === "bodyweight") ? 1.5 : 0);
   const ordnen = <T extends { e: PlanUebung; platz: Platz }>(liste: T[]): T[] => [...liste].sort((a, b) => schwere(a) - schwere(b));
 
-  const baue = (liste: Array<{ e: PlanUebung; platz: Platz }>, saetzeMinus: number, pauseMax = Infinity, grundPlus = 0, isoPlus = 0): PlanPosition[] =>
+  const baue = (
+    liste: Array<{ e: PlanUebung; platz: Platz }>, saetzeMinus: number, pauseMax = Infinity, grundPlus = 0, isoPlus = 0,
+    platzMinus: (platz: Platz) => number = () => 0,
+  ): PlanPosition[] =>
     ordnen(liste).map(({ e, platz }) => {
       const d = dosis(e, platz, wunsch);
       const grund = !ISOLATION.has(platz) && e.mechanics !== "isometric";
       return {
         // Gekürzt wird nicht unter zwei Sätze, ausser die Übung hatte nie mehr.
         id: e.id, name: e.name,
-        saetze: Math.max(Math.min(2, d.saetze), d.saetze - saetzeMinus) + (grund ? grundPlus : ISOLATION.has(platz) ? isoPlus : 0),
+        saetze: Math.max(Math.min(2, d.saetze), d.saetze - saetzeMinus - platzMinus(platz)) + (grund ? grundPlus : ISOLATION.has(platz) ? isoPlus : 0),
         wdh: d.wdh,
         pauseSek: Math.min(d.pauseSek, pauseMax), reserve: d.reserve,
       };
     });
   let positionen: PlanPosition[] = [];
   let drin = [...gewaehlt];
-  if (kurz) {
+  if (kurz && armFokus(vorlage, wunsch)) {
+    // Wer Arme als Fokus wählt, bekommt sie auch in einer kurzen Einheit:
+    // Bizeps und Trizeps mit zwei bis drei Sätzen, ganz vorn. Die Zeit dafür
+    // kommt von den Beinen, die nicht im Fokus stehen: erst ein Satz weniger
+    // dort, dann fällt die zweite Beinübung weg. Eine Beinübung bleibt immer.
+    // So hat es Coach Aaron festgelegt, eine Regel der App und keine Studie.
+    for (const p of ["bizeps", "trizeps"] as Platz[]) {
+      const w = waehle(p);
+      if (w) drin.push(w);
+    }
+    const beinFrei = (p: Platz) => UNTEN.has(p) && !imFokus(p, wunsch.fokus);
+    const beine = drin.filter((g) => beinFrei(g.platz));
+    const ohneZweites = beine.length > 1 ? drin.filter((g) => g !== beine[beine.length - 1]) : drin;
+    const weniger = (p: Platz) => (beinFrei(p) ? 1 : 0);
+    const stufen: Array<[typeof drin, number, number, (p: Platz) => number]> = [
+      [drin, 0, Infinity, () => 0], [drin, 0, 120, () => 0], [drin, 0, 90, () => 0], [drin, 0, 90, weniger],
+      [ohneZweites, 0, 120, () => 0], [ohneZweites, 0, 90, () => 0], [ohneZweites, 0, 90, weniger],
+      [ohneZweites, 1, 90, () => 0], [ohneZweites, 1, 75, () => 0], [ohneZweites, 1, 60, () => 0], [ohneZweites, 2, 60, () => 0],
+    ];
+    for (const [liste, minus, pause, platzMinus] of stufen) {
+      drin = liste;
+      positionen = baue(liste, minus, pause, 0, 0, platzMinus);
+      if (dauerMin(positionen) <= wunsch.minuten) {
+        // Bleibt Zeit, bekommen die Arme ihren dritten Satz.
+        const armPlus = (p: Platz) => (p === "bizeps" || p === "trizeps" ? -1 : platzMinus(p));
+        const mehr = baue(liste, minus, pause, 0, 0, armPlus);
+        if (dauerMin(mehr) <= wunsch.minuten) positionen = mehr;
+        break;
+      }
+    }
+  } else if (kurz) {
     // Kurz heisst: alle fünf Bewegungen bleiben. Gekürzt werden erst die
     // Pausen, dann die Sätze, bis die Einheit passt. Unter zwei Sätze geht es
     // nur, wenn sonst gar nichts mehr passt.
@@ -589,7 +627,7 @@ function einheitBauen(vorlage: Tagesvorlage, { wunsch, erlaubt, imPlan, kurz, ei
   // eine einzige Knieübung.
   const genommen = ordnen(drin).map((g) => g.platz);
   const fehlt = vorlage.plaetze.some((p) => !genommen.includes(p) && !genommen.includes(EINSTEIGER_ERSATZ[p] as Platz));
-  const fokus = fehlt ? fokusAus(genommen) : vorlage.fokus;
+  const fokus = fehlt || (kurz && armFokus(vorlage, wunsch)) ? fokusAus(genommen) : vorlage.fokus;
   return { titel: vorlage.titel, fokus, positionen, dauerMin: dauerMin(positionen) };
 }
 
@@ -657,7 +695,7 @@ function hinweise(w: PlanWunsch, einheiten: PlanEinheit[], saetze: Record<string
   if (zuKurz.length) {
     aus.push(`${zuKurz.map((e) => `${e.titel} dauert rund ${e.dauerMin} Minuten`).join(", ")}. Mehr Übungen derselben Art bringen an diesem Tag keinen Vorteil, die übrige Zeit passt gut für Mobilität oder lockeres Ausdauertraining.`);
   }
-  if (w.minuten <= KURZ_BIS_MIN) {
+  if (w.minuten <= KURZ_BIS_MIN && !w.fokus?.includes("arme")) {
     aus.push(`Bis ${KURZ_BIS_MIN} Minuten enthält jede Einheit nur Grundübungen: Knie, Hüfte, Drücken, Ziehen und eine Rumpfübung. Die schwerste Übung kommt zuerst. Isolation ginge in dieser Zeit auf Kosten einer Grundbewegung.`);
   }
   if (w.niveau === "beginner") {
@@ -674,7 +712,7 @@ function hinweise(w: PlanWunsch, einheiten: PlanEinheit[], saetze: Record<string
   if (w.fokus?.length) {
     const namen = w.fokus.map((f) => FOKUS_NAME[f]).join(", ");
     aus.push(`Dein Fokus: ${namen}. Diese Übungen kommen in jeder passenden Einheit zuerst, solange du frisch bist. Danach geht es wie immer von schwer nach leicht.`);
-    if (w.minuten <= KURZ_BIS_MIN && w.fokus.includes("arme")) aus.push("Bis 45 Minuten gibt es keine eigenen Armübungen. Drücken und Ziehen trainieren die Arme mit, für mehr braucht es längere Einheiten.");
+    if (w.minuten <= KURZ_BIS_MIN && w.fokus.includes("arme")) aus.push("Weil Arme dein Fokus sind, stehen auch in kurzen Einheiten Bizeps und Trizeps mit zwei bis drei Sätzen ganz vorn. Die Zeit dafür kommt von den Beinen: dort gibt es weniger Sätze oder eine Beinübung weniger.");
     if (w.fokus.includes("rumpf")) aus.push("Core bleibt auch als Fokus am Ende der Einheit. Ein müder Rumpf macht jede schwere Übung danach unsicherer.");
   }
   if (w.tage === 1) aus.push("Einmal die Woche: jede große Bewegung einmal, ohne Isolation. Die Übungen bleiben über die Monate gleich, damit du an genau diesen stärker wirst.");

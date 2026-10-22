@@ -350,9 +350,16 @@ trainiert sie vor dem Bankdrücken. Ab 60 Minuten kommen bis zu zwei
 Fokusplätze als erste Zusatzübungen dazu, aber nur in Einheiten derselben
 Körperhälfte: Bizeps am Beintag hiesse, den Aufbau der Woche für eine
 Vorliebe zu vergessen. Beim Kürzen fällt eine Fokusübung als letzte
-Isolation weg. Zwei Ausnahmen, beide im Hinweis des Plans: Core bleibt auch
-als Fokus am Ende, ein müder Rumpf macht jede schwere Übung danach
-unsicherer, und bis 45 Minuten gibt es weiter keine Armübungen.
+Isolation weg. Core bleibt auch als Fokus am Ende, ein müder Rumpf macht
+jede schwere Übung danach unsicherer, das steht im Hinweis des Plans.
+
+Fokus Arme gilt auch bis 45 Minuten, `armFokus` im Kern: Bizeps und Trizeps
+kommen mit zwei bis drei Sätzen ganz vorn in jede Ganzkörpereinheit. Die
+Zeit kommt von den Beinen, die nicht im Fokus stehen: erst ein Satz weniger
+dort, dann fällt die zweite Beinübung weg, eine bleibt immer. Drücken und
+Ziehen behalten ihre Sätze. Wer Arme als Fokus angibt, will sie trainieren,
+und Drücken und Ziehen allein reichen dafür nicht. Eine Regel von Coach
+Aaron, keine Studie.
 
 ### Training für heute
 
@@ -480,7 +487,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1163 Tests
+npm test           # 1164 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
