@@ -751,7 +751,8 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     description:
       "Liefert das Training eines Tages: Termin aus dem Wochenplan und die Einheit aus dem gespeicherten " +
       "Trainingsplan mit Übungen, Sätzen und Wiederholungen. Nehmen bei \"was trainiere ich heute\" oder " +
-      "\"welche Übungen morgen\". Übungen nie aus dem Gedächtnis nennen, sie stehen im Plan.",
+      "\"welche Übungen morgen\". Übungen nie aus dem Gedächtnis nennen, sie stehen im Plan. " +
+      "Je Übung steht, was heute dran ist, gerechnet aus dem Protokoll. Gewichte nur von dort nennen, nie schätzen.",
     input_schema: {
       type: "object",
       properties: {
