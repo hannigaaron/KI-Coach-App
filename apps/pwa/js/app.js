@@ -871,7 +871,24 @@ function showView(name) {
   if (name === "empfehlungen") { renderRecommendations(); zeigeAngebot("empfehlungenAngebot"); }
   if (name === "profil") { renderProfile(); healthStandZeigen(); eigeneErinnerungenZeigen(); }
   if (name === "assistant") renderTranscript();
+  // Werte, die beim Öffnen gesetzt werden, etwa der Vorrat, lösen kein input
+  // aus. Ohne das hier stand die zweite Zeile halb abgeschnitten im Feld.
+  requestAnimationFrame(() => document.querySelectorAll(`.view[data-view="${name}"] textarea`).forEach(feldWachsen));
 }
+
+/**
+ * Ein Textfeld wächst mit dem Inhalt, bis zu vier Zehnteln des Bildschirms.
+ * Darüber scrollt es: eine Sicherung als Text wäre sonst so hoch wie die
+ * Seite. Ein abgeschnittener Satz sieht aus wie ein verlorener.
+ */
+function feldWachsen(el) {
+  if (!el || el.offsetParent === null) return;
+  el.style.height = "auto";
+  el.style.height = `${Math.min(el.scrollHeight + 2, Math.round(innerHeight * 0.4))}px`;
+}
+document.addEventListener("input", (event) => {
+  if (event.target instanceof HTMLTextAreaElement) feldWachsen(event.target);
+});
 
 function refreshAll() {
   const visible = document.querySelector(".view:not([hidden])");
@@ -1830,7 +1847,9 @@ function renderRestDesTages() {
     const an = gewaehlt.includes(m.art);
     const schon = gegessen.includes(m.art);
     return `<button type="button" class="pill${an ? " on" : ""}" data-mahlzeit="${m.art}">`
-      + `${escapeHtml(m.name)}${schon ? " ✓" : ""}</button>`;
+      // Ein gezeichneter Haken statt des Schriftzeichens, das je nach Schrift
+      // anders sitzt. Dieselbe Linie wie der Haken im Trainingsmodus.
+      + `${escapeHtml(m.name)}${schon ? '<svg class="pill-haken" viewBox="0 0 24 24" role="img" aria-label="schon gegessen"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>' : ""}</button>`;
   }).join("");
 }
 
