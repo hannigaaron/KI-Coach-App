@@ -866,3 +866,16 @@ test("Regelweg nach dem zweiten Durchlauf: Gym, Kundentermin, Beschwerde, Befind
   assert.doesNotMatch(leer.r.text, /Rest des Tages vor/);
   assert.deepEqual((await fall("Mein Ziel ist jetzt Muskelaufbau")).log, ['profil:{"ziel":"lean_bulk"}']);
 });
+
+test("Regelweg beim Essen: Frage, nichts gegessen, gleich essen, Frühstück löschen, Menge richtigstellen", async () => {
+  const fall = async (satz: string) => { const log: string[] = []; const r = await runOffline(satz, stubActions(log)); return { log, r }; };
+  for (const satz of ["Was hab ich heute gegessen?", "Ich hab heute noch nichts gegessen", "Ich esse gleich Lachs mit Kartoffeln"]) {
+    const { log } = await fall(satz);
+    assert.ok(!log.some((e) => e.startsWith("mahlzeit:")), `${satz}: ${log.join(",")}`);
+  }
+  assert.deepEqual((await fall("Lösch das Frühstück")).log, ["zurueck:mahlzeit:fruehstueck"]);
+  // Eine Richtigstellung ist keine zweite Mahlzeit. Das wäre doppelt gezählt.
+  const richtig = await fall("Das waren 300 g und nicht 200 g Reis");
+  assert.ok(richtig.log.some((e) => e.startsWith("korrigieren:")), richtig.log.join(","));
+  assert.ok(!richtig.log.some((e) => e.startsWith("mahlzeit:")));
+});

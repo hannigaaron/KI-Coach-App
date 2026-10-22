@@ -971,7 +971,7 @@ function enthaeltMarke(text: string, marke: string): boolean {
 function korrekturAus(text: string, nachricht: string): { posten?: string; neueMenge: number; mengeText?: string } | null {
   const richtigstellung = pattern("waren nur", "war nur", "waren blos", "nicht die ganze",
     "nicht die komplette", "nur ein", "nur eine", "nur zwei", "korrigier", "richtig waren",
-    "eigentlich nur", "stattdessen", "war falsch").test(text);
+    "eigentlich nur", "stattdessen", "war falsch", "und nicht", "nicht so viel").test(text);
   if (!richtigstellung) return null;
 
   // Löffel und Zahlwörter zählen mit. "Es war nur ein Teelöffel" ist im
@@ -1019,7 +1019,8 @@ function ruecknahmeAus(text: string): { art?: string; suche?: string } | null {
   // Ohne Gegenstand nichts tun. "Das stimmt nicht" ueber eine Aussage des
   // Coaches darf keinen Eintrag entfernen.
   const gegenstand = pattern("eintrag", "eintraege", "mahlzeit", "essen", "gegessen",
-    "letzte", "letzten", "wasser", "getrunken", "training", "einheit", "aufgabe").test(text)
+    "letzte", "letzten", "wasser", "getrunken", "training", "einheit", "aufgabe",
+    "fruehstueck", "mittagessen", "abendessen", "snack").test(text)
     || /\b(den|die|das) \w+ (hab|habe) ich (doch )?nicht\b/.test(text);
   if (!gegenstand) return null;
 
@@ -1032,7 +1033,10 @@ function ruecknahmeAus(text: string): { art?: string; suche?: string } | null {
       : pattern("aufgabe").test(text) ? "aufgabe"
         : "mahlzeit";
   if (art === "mahlzeit") {
-    const suche = getraenk?.[1] ?? parseMealOffline(text).entries[0]?.name;
+    // "Lösch das Frühstück" meint die Mahlzeit dieser Tageszeit und nicht die
+    // letzte. Die App sucht dann über die Uhrzeit des Eintrags.
+    const tageszeit = /\b(fruehstueck|mittagessen|abendessen|snack)\b/.exec(text)?.[1];
+    const suche = getraenk?.[1] ?? parseMealOffline(text).entries[0]?.name ?? tageszeit;
     return suche ? { art, suche } : { art };
   }
   return { art };
@@ -1107,6 +1111,7 @@ export function istAbsicht(roh: string): boolean {
   const absicht = pattern(
     "moechte", "will ich", "ich will", "wollte", "werde", "vorhaben",
     "plane", "geplant", "soll ich", "sollte ich", "was mache ich", "muss ich noch",
+    "esse gleich", "gleich esse", "esse nachher", "esse spaeter", "esse heute abend", "gleich gibt es", "nachher gibt es",
   ).test(text);
   if (!absicht) return false;
   const vergangenheit = pattern(
@@ -1403,6 +1408,21 @@ export async function runOffline(
       ausgeführt: ["Beschwerde gemerkt"],
       source: "offline",
     };
+  }
+
+  // "Ich esse gleich Lachs" ist noch kein Eintrag. Eine Antwort, die das
+  // sagt, ist besser als die allgemeine Hilfe.
+  if (istAbsicht(text) && /\b(gleich|nachher|spaeter|heute abend)\b/.test(text) && /\b(esse|essen|gibt es)\b/.test(text)) {
+    return { text: "Guten Appetit. Sag mir danach, was und wie viel es war, dann trage ich es ein.", ausgeführt, source: "offline" };
+  }
+
+  // Eine Frage nach dem eigenen Tag und ein "nichts gegessen" enthalten das
+  // Wort gegessen und trugen deshalb eine leere Mahlzeit ein.
+  if ((/\?\s*$/.test(text) || /^(was|wie ?viel\w*|welche\w*)\b/.test(text)) && /\b(gegessen|getrunken)\b/.test(text)) {
+    return { text: await actions.tagesstandAbrufen(), ausgeführt, source: "offline" };
+  }
+  if (/\b(nichts|nix|noch nichts|gar nichts)\b(\s+\w+){0,2}\s+(gegessen|getrunken)\b/.test(text)) {
+    return { text: `Dann ist heute noch alles offen. ${await actions.tagesstandAbrufen()}`, ausgeführt, source: "offline" };
   }
 
   // Eindeutige Wörter reichen für den Versuch. "hatte" allein nicht, es steht

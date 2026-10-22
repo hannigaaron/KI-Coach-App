@@ -2423,9 +2423,14 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
 
       const data = store.getDay(day);
       const meals = data.meals || [];
-      const treffer = gesucht
-        ? [...meals].reverse().find((m) => (m.entries || []).some((e) => trifftPosten(e.name, gesucht)))
-        : meals[meals.length - 1];
+      // "Lösch das Frühstück": die jüngste Mahlzeit dieser Tageszeit, über
+      // dieselbe Uhrzeitregel wie überall sonst.
+      const tageszeit = { fruehstueck: "fruehstueck", "frühstück": "fruehstueck", mittagessen: "mittagessen", abendessen: "abendessen", snack: "snack" }[gesucht];
+      const treffer = tageszeit
+        ? [...meals].reverse().find((m) => artZurUhrzeit(m.at) === tageszeit)
+        : gesucht
+          ? [...meals].reverse().find((m) => (m.entries || []).some((e) => trifftPosten(e.name, gesucht)))
+          : meals[meals.length - 1];
       if (!treffer) {
         return gesucht
           ? (gesucht.split(/\s+/).length > 3 ? "Dazu finde ich heute keinen passenden Eintrag." : `Dazu finde ich heute keinen Eintrag mit ${suche}.`)

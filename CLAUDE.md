@@ -510,7 +510,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1173 Tests
+npm test           # 1174 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1736,6 +1736,23 @@ geschlafen und 2 Kaffee getrunken" ist kein Bogen.
   wird ein Check-in, und die Rückfrage ist nicht die nach den Vorhaben des
   Tages: die klingt wie die nächste Aufgabe.
 - "Mein Ziel ist jetzt Muskelaufbau" kannte nur das Verb aufbauen.
+
+Dazu 20 Sätze nur zum Essen:
+
+- "Das waren 300 g und nicht 200 g Reis" trug eine zweite Mahlzeit ein,
+  statt die erste zu korrigieren. Das ist der Fehler mit den 5172 Kalorien
+  in anderer Form. "und nicht" zählt jetzt als Richtigstellung.
+- "Was hab ich heute gegessen?" und "Ich hab heute noch nichts gegessen"
+  enthalten gegessen und legten eine leere Mahlzeit an. Beides bekommt
+  jetzt den Tagesstand.
+- "Ich esse gleich Lachs" ist ein Vorhaben, "gleich" und "nachher" zählen in
+  `istAbsicht`, die Antwort sagt, dass danach eingetragen wird.
+- "Lösch das Frühstück" fand keinen Gegenstand. Jetzt wird die jüngste
+  Mahlzeit dieser Tageszeit entfernt, über `artZurUhrzeit`, und nicht die
+  letzte des Tages.
+- Pizza, Döner und Proteinriegel ohne Marke kennt die Tabelle nicht. Die
+  Lücke bleibt: ein erfundener Wert für eine Pizza wäre schlimmer als die
+  Rückfrage nach Barcode oder Etikett.
 
 ### Der Schnellweg
 
