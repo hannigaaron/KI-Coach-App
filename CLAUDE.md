@@ -487,7 +487,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1164 Tests
+npm test           # 1167 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -967,6 +967,33 @@ wird die Instanz weggeworfen und eine neue aufgesetzt. Nach dem vierten
 stummen Versuch bekommt der Nutzer eine Meldung statt eines toten Knopfes. Ein
 geglückter Start löscht die Bilanz, sonst summieren sich über eine lange
 Freihandsitzung vier einzelne Ausrutscher zu einem Abbruch.
+
+## Die Spracherkennung in der iPhone App
+
+`apps/ios/ios/App/App/DiktatPlugin.swift`, angesprochen aus `voice.js`,
+Wörter und Korrekturen in `apps/pwa/js/diktat.js`.
+
+Die Web Ansicht kennt nur `webkitSpeechRecognition`. Sie kennt keine
+Fachwörter und schrieb im Betrieb "zwei Sitze breite Umzüge" für "zwei
+Sätze breite Klimmzüge". In der iPhone App erkennt deshalb Apple selbst: ab
+iOS 26 `SpeechAnalyzer` mit `SpeechTranscriber`, dieselbe Erkennung, auf der
+Apps wie Yap aufbauen, für lange Aufnahmen gebaut und auf dem Gerät. Davor
+oder ohne deutsches Sprachpaket `SFSpeechRecognizer` mit der Wortliste als
+`contextualStrings`. Scheitert der native Start, bleibt die Erkennung der
+Web Ansicht.
+
+Die Web App fragt den Stand alle 220 Millisekunden ab, statt auf Ereignisse
+zu warten: Ereignisse bräuchten `@capacitor/core`, und die Web App hat keinen
+Bundler. Pause, Freihand und Abschicken laufen über denselben `Listener` wie
+im Browser.
+
+`diktatKorrektur` läuft auf jedem Weg. Jede Zeile stammt aus einer echten
+Ausgabe und greift nur im Zusammenhang: "Sitze" wird nur nach einer Zahl zu
+"Sätze", "Umzüge" nur nach "breite" oder "enge" zu Klimmzügen.
+
+Ungeprüft: der Swift Teil ist hier nicht kompiliert, es gibt kein Xcode. Der
+Weg über iOS 26 steht hinter `#if compiler(>=6.2)` und braucht Xcode 26. Ob
+Deutsch dort angeboten wird, fragt das Plugin bei iOS ab.
 
 ## Tagesränder
 

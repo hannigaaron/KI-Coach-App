@@ -27,6 +27,7 @@
 
 import { istNativ } from "./konfig.js";
 import { nativAufruf } from "./nativ.js";
+import { diktatKorrektur, diktatWoerter } from "./diktat.js";
 
 const Recognition = globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition;
 
@@ -69,8 +70,14 @@ const START_WACHHUND_MS = 1800;
 const IST_IOS = /iPad|iPhone|iPod/.test(globalThis.navigator?.userAgent || "")
   || (globalThis.navigator?.platform === "MacIntel" && (globalThis.navigator?.maxTouchPoints || 0) > 1);
 
+/** So oft fragt die Web App in der iPhone App den Stand der Erkennung ab. */
+const ABFRAGE_MS = 220;
+
 export const voiceSupport = {
-  erkennung: Boolean(Recognition),
+  // In der iPhone App erkennt `DiktatPlugin.swift`, auch wenn die Web
+  // Ansicht keine eigene Erkennung hat. Als Getter, weil Capacitor die
+  // Brücke erst beim Laden der Seite einhängt.
+  get erkennung() { return Boolean(Recognition) || istNativ(); },
   ausgabe: typeof globalThis.speechSynthesis !== "undefined",
 };
 
@@ -105,6 +112,10 @@ export class Listener {
     /** Wie oft der Start stumm gescheitert ist, ohne Fehler zu melden. */
     this.fehlstarts = 0;
     this.messerAus = false;
+    /** Die native Erkennung ist gescheitert, ab dann bleibt die der Web Ansicht. */
+    this.nativAus = false;
+    this.nativLaeuft = false;
+    this.abfrage = 0;
     this.pauseMs = pauseMs ?? PAUSE_MS;
     this.maxMs = maxMs ?? MAX_MS;
     this.stilleMs = stilleMs ?? STILLE_MS;
@@ -116,7 +127,7 @@ export class Listener {
 
   /** Alles, was bisher verstanden wurde, inklusive des laufenden Teilstücks. */
   text(interim = "") {
-    return `${this.gesammelt} ${interim}`.replace(/\s+/g, " ").trim();
+    return diktatKorrektur(`${this.gesammelt} ${interim}`.replace(/\s+/g, " ").trim());
   }
 
   async start() {
@@ -131,8 +142,62 @@ export class Listener {
 
     this.maxTimer = setTimeout(() => this.fertig("zeit"), this.maxMs);
     this.planePause(this.stilleMs);
-    this.starteErkennung();
+    if (istNativ() && !this.nativAus) this.starteNativ();
+    else this.starteErkennung();
     return true;
+  }
+
+  /**
+   * Die Erkennung von Apple über `DiktatPlugin.swift`. Sie kennt die
+   * Fachwörter aus `diktat.js` und hört ohne Neustarts der Web Ansicht. Der
+   * Stand wird abgefragt statt gemeldet, siehe dort. Scheitert der Start,
+   * bleibt die Erkennung der Web Ansicht, wenn es sie gibt.
+   */
+  async starteNativ() {
+    try {
+      const recht = await nativAufruf("Diktat", "berechtigen");
+      if (!recht?.mikrofon || !recht?.erkennung) {
+        this.onState("error", "Zugriff auf Mikrofon oder Spracherkennung verweigert. Erlaube beides in den Einstellungen unter daevo.");
+        this.abbrechen();
+        return;
+      }
+      await nativAufruf("Diktat", "starten", { woerter: diktatWoerter() });
+    } catch (e) {
+      if (!this.active) return;
+      this.nativAus = true;
+      if (Recognition) { this.starteErkennung(); return; }
+      this.onState("error", e?.message || "Die Spracherkennung liess sich nicht starten.");
+      this.abbrechen();
+      return;
+    }
+    if (!this.active) { nativAufruf("Diktat", "stoppen").catch(() => {}); return; }
+    this.nativLaeuft = true;
+    let zuletzt = "";
+    this.abfrage = setInterval(async () => {
+      if (!this.nativLaeuft) return;
+      let stand;
+      try { stand = await nativAufruf("Diktat", "stand"); } catch { return; }
+      if (!this.nativLaeuft) return;
+      if (stand?.fehler) {
+        this.onState("error", stand.fehler);
+        this.fertig("fehler");
+        return;
+      }
+      const roh = String(stand?.text ?? "");
+      if (roh === zuletzt) return;
+      zuletzt = roh;
+      this.letzterInterim = roh;
+      this.onPartial(this.text(roh));
+      this.planePause(pauseFuer(this.text(roh), this.pauseMs));
+    }, ABFRAGE_MS);
+  }
+
+  /** Hält die native Erkennung an und liefert ihren letzten Stand. */
+  async stoppeNativ() {
+    clearInterval(this.abfrage);
+    if (!this.nativLaeuft) return null;
+    this.nativLaeuft = false;
+    try { return String((await nativAufruf("Diktat", "stoppen"))?.text ?? ""); } catch { return null; }
   }
 
   /**
@@ -265,7 +330,7 @@ export class Listener {
    * Beendet die Aufnahme und schickt ab, was verstanden wurde.
    * Ohne Text wird nichts geschickt, im Freihandmodus wird neu gehört.
    */
-  fertig() {
+  async fertig() {
     if (!this.active) return;
     this.active = false;
     clearTimeout(this.pauseTimer);
@@ -273,6 +338,10 @@ export class Listener {
     this.loeseErkennung();
     this.stopMeter();
     this.onState("idle");
+    // Beim Anhalten schliesst die native Erkennung das letzte Stück ab, das
+    // kann noch ein Wort mehr sein als beim letzten Abruf.
+    const nativ = await this.stoppeNativ();
+    if (nativ) this.letzterInterim = nativ;
 
     const text = this.text(this.letzterInterim || "");
     this.gesammelt = "";
@@ -285,6 +354,7 @@ export class Listener {
   abbrechen() {
     this.active = false;
     this.handsFree = false;
+    this.stoppeNativ();
     clearTimeout(this.pauseTimer);
     clearTimeout(this.maxTimer);
     this.loeseErkennung();
