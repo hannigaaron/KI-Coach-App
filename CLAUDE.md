@@ -487,7 +487,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1167 Tests
+npm test           # 1169 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1654,7 +1654,7 @@ Tippfehler darf die Ziele nicht kippen.
 
 ## Der Regelweg ist die kostenlose Stufe
 
-42 der 48 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
+44 der 48 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
 Das ist keine Notlösung für den Ausfall, sondern das Produkt: ein Weg, der
 kein Modell anfragt, kostet nichts je Nutzer und skaliert ohne Rechnung.
 
@@ -1727,10 +1727,18 @@ Posten, die beim Neurechnen der Liste stehen bleiben, und
 `trainingsplan_abrufen`, das Training eines Tages mit den Übungen aus
 `settings.plan`. Vorher kannte der Coach die gespeicherten Übungen nicht.
 
-Offen bleiben sechs. Die beiden Fotowerkzeuge brauchen ein Modell, daran
-ändert kein Regelpfad etwas. `standard_bestaetigen` und `gespraech_einordnen` brauchen eine Kennung aus dem Zusammenhang, die ein
-Wortmuster nicht kennt. `profil_aendern` und `einkaufsliste_abhaken` sind
-machbar und stehen aus.
+Offen bleiben vier. Die beiden Fotowerkzeuge brauchen ein Modell, daran
+ändert kein Regelpfad etwas. `standard_bestaetigen` und `gespraech_einordnen`
+brauchen eine Kennung aus dem Zusammenhang, die ein Wortmuster nicht kennt.
+
+`einkaufsliste_abhaken` hat jetzt einen Regelpfad, `listeAbhakenAus`: "Reis
+und Eier gekauft", "Milch hab ich noch zuhause". Er steht vor dem Abhaken
+von Aufgaben, sonst wird "Milch gekauft, erledigt" zu einer Aufgabe namens
+Milch. `profil_aendern` über `profilAus`, nur mit einem Zeichen für Dauer:
+"mein Ziel ist jetzt abnehmen", "im Schnitt 12.000 Schritte", "ab jetzt um
+6 aufstehen". Ein Satz mit heute, morgen oder gestern ist ein einzelner Tag
+und ändert das Profil nicht, eine falsch übernommene Schrittzahl verschiebt
+das Kalorienziel an jedem Tag danach.
 
 ## Rezepte
 

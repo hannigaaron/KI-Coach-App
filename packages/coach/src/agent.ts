@@ -1191,6 +1191,15 @@ export async function runOffline(
     return { text: antwort, ausgeführt: ["Tageszeiten eingetragen"], source: "offline" };
   }
 
+  // Dauerhafte Änderungen am Profil nach dem einzelnen Tag: "ab jetzt um 6
+  // aufstehen" ist das Profil, "morgen um 6 aufstehen" der eine Tag.
+  const profil = profilAus(text);
+  if (profil) {
+    const antwort = await actions.profilAendern(profil);
+    const geaendert = !antwort.startsWith("Da war nichts");
+    return { text: antwort, ausgeführt: geaendert ? ["Profil geändert"] : [], source: "offline" };
+  }
+
   // Markenprodukte vor der allgemeinen Mahlzeit pruefen. Ohne Schluessel raet
   // sonst die Wortliste in foods.ts, und die kennt nur Grundnahrungsmittel.
   // Ein Barcode trifft genau, eine Marke im Text ist ein starkes Indiz.
@@ -1311,6 +1320,20 @@ export async function runOffline(
   if (zeit) {
     const antwort = await actions.zeitEintragen(zeit);
     return { text: antwort, ausgeführt: ["Zeit gebucht"], source: "offline" };
+  }
+
+  // Gekauftes vor den Aufgaben. "Milch gekauft, erledigt" meint die
+  // Einkaufsliste und nicht eine Aufgabe namens Milch.
+  const abhaken = listeAbhakenAus(nachricht);
+  if (abhaken) {
+    const antworten: string[] = [];
+    let gefunden = 0;
+    for (const posten of abhaken.posten) {
+      const a = await actions.einkaufslisteAbhaken({ posten, stand: abhaken.stand });
+      if (!/steht nicht auf der Liste|keine Einkaufsliste/.test(a)) gefunden++;
+      antworten.push(a);
+    }
+    return { text: antworten.join("\n"), ausgeführt: gefunden ? ["Einkaufsliste aktualisiert"] : [], source: "offline" };
   }
 
   // Abhaken vor dem Anlegen. "Angebot geschrieben, erledigt" enthaelt beides,
@@ -1670,6 +1693,64 @@ function belastet(text: string): boolean {
  * Ohne Verb des Hinzufügens greift nichts: "steht Reis auf der Liste" ist
  * eine Frage und kein Auftrag.
  */
+/**
+ * Posten, die gekauft oder noch zu Hause sind: "Reis und Eier gekauft",
+ * "Milch hab ich noch zuhause". Nur mit einem eindeutigen Verb am Satzende
+ * oder direkt hinter den Posten. "Ich hab gestern Schuhe gekauft" landet
+ * zwar hier, findet aber nichts auf der Liste und trägt nichts ein.
+ */
+export function listeAbhakenAus(satz: string): { posten: string[]; stand: "gekauft" | "zuhause" } | null {
+  const t = satz.trim().replace(/[.!]+$/, "");
+  if (/\?$/.test(t)) return null;
+  const gekauft = /^(?:ich\s+)?(?:hab(?:e)?\s+)?(?:ich\s+)?(?:schon\s+|jetzt\s+|grad(?:e)?\s+)?(.+?)\s+(?:schon\s+)?(?:gekauft|eingekauft|besorgt|im wagen|in den wagen gelegt)(?:\s*,?\s*erledigt)?$/i.exec(t);
+  const zuhause = /^(?:ich\s+)?(.+?)\s+(?:hab(?:e)?\s+ich|habe?)\s+(?:noch\s+)?(?:zu\s*hause|daheim|da|im kühlschrank)$/i.exec(t);
+  const m = gekauft ?? zuhause;
+  if (!m) return null;
+  const posten = m[1]!
+    .replace(/^(?:die|den|das|der|noch|auch|bitte)\s+/i, "")
+    .split(/\s*,\s*|\s+und\s+|\s+sowie\s+/i)
+    .map((p) => p.replace(/^(?:die|den|das|der|noch|auch)\s+/i, "").trim())
+    .filter((p) => p.length >= 2 && p.length <= 40 && !/^(ich|was|alles|nichts|etwas)$/i.test(p));
+  if (!posten.length || posten.length > 15) return null;
+  return { posten, stand: gekauft ? "gekauft" : "zuhause" };
+}
+
+/**
+ * Dauerhafte Angaben fürs Profil aus einem Satz, ohne Modell.
+ *
+ * Jede Angabe braucht ein Zeichen, dass sich etwas dauerhaft ändert: "ab
+ * jetzt", "neuerdings", "mein Ziel ist". "Heute bin ich 15000 Schritte
+ * gelaufen" ist ein Tag und kein Durchschnitt, und eine falsch übernommene
+ * Schrittzahl verschiebt das Kalorienziel jeden Tag.
+ */
+export function profilAus(text: string): { ziel?: string; schritte?: number; aufstehen?: string; schlafen?: string } | null {
+  if (/\?\s*$/.test(text) || /\b(morgen|gestern|heute)\b/.test(text)) return null;
+  const aus: { ziel?: string; schritte?: number; aufstehen?: string; schlafen?: string } = {};
+  const dauerhaft = /\b(ab jetzt|ab sofort|neuerdings|in zukunft|kuenftig|jeden tag|immer|normalerweise|im schnitt|durchschnittlich)\b/.test(text);
+
+  const zielWechsel = /\b(mein ziel ist|ziel ist jetzt|neues ziel|ziel auf|ziel aendern|ich will (jetzt|ab jetzt|ab sofort|lieber)|ab (jetzt|sofort) (will|moechte) ich)\b/.test(text);
+  if (zielWechsel) {
+    if (/\b(abnehm\w*|fett (verlieren|abbauen|reduzieren)|definier\w*|diaet)\b/.test(text)) aus.ziel = "fat_loss";
+    else if (/\b(muskel\w* aufbauen|aufbau(en)?|zunehmen|masse|bulk\w*)\b/.test(text)) aus.ziel = "lean_bulk";
+    else if (/\b(halten|gewicht halten|erhalten)\b/.test(text)) aus.ziel = "maintain";
+  }
+
+  const schritte = /\b(\d{1,2}[.]\d{3}|\d{4,5})\s*schritte\b/.exec(text);
+  if (schritte && (dauerhaft || /\b(am tag|pro tag|taeglich)\b/.test(text))) {
+    const n = Number(schritte[1]!.replace(".", ""));
+    if (n >= 1000 && n <= 40000) aus.schritte = n;
+  }
+
+  if (dauerhaft) {
+    const aufstehen = uhrzeitNach(text, /(aufstehen|aufstehe|\bsteh\w*\b.{0,25}\bauf\b|wecker)/);
+    const schlafen = uhrzeitNach(text, /(schlafen|ins bett)/);
+    // Eine Uhrzeit, zwei Stichworte: dann ist unklar, welche gemeint ist.
+    if (aufstehen && !schlafen) aus.aufstehen = aufstehen;
+    if (schlafen && !aufstehen) aus.schlafen = schlafen;
+  }
+  return Object.keys(aus).length ? aus : null;
+}
+
 export function postenFuerListe(satz: string): string[] {
   const m = /\b(?:setz|schreib|pack|tu|füg|fueg|nimm|kommt|kommen)\w*\s+(?:mir\s+|bitte\s+|noch\s+)*(.+?)\s+(?:mit\s+)?(?:auf|in|zu)\s+(?:die|den|meine|meinen|der)?\s*(?:einkaufsliste|einkaufszettel|liste)\b/i.exec(satz);
   if (!m) return [];

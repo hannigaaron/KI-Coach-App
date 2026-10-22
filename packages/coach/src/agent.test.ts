@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Agent, aufgabeMitFrist, denktiefe, istAbsicht, naehrwertFrage, postenFuerListe, runOffline, type AgentActions } from "./agent.js";
+import { Agent, aufgabeMitFrist, denktiefe, istAbsicht, listeAbhakenAus, naehrwertFrage, postenFuerListe, profilAus, runOffline, type AgentActions } from "./agent.js";
 import type { ChatMessage, CoachProvider, ContentBlock, ConverseRequest, ConverseResponse, JsonRequest } from "./provider.js";
 import { standardAenderungAus } from "@daevo/core";
 
@@ -801,4 +801,30 @@ test("Steuererklärung ist keine Frage, Leere ist ein persönliches Thema", () =
   assert.equal(denktiefe("Steuererklärung erledigt").modus, "standard");
   assert.equal(denktiefe("Erklär mir Progression").modus, "coaching");
   assert.equal(denktiefe("Ich fühl mich heute irgendwie leer und weiß nicht, ob das alles Sinn hat").modus, "psyche");
+});
+
+test("Gekauftes wird auf der Einkaufsliste abgehakt, ohne KI", async () => {
+  const log: string[] = [];
+  const reply = await runOffline("Hab Reis und Eier gekauft", stubActions(log));
+  assert.deepEqual(log, ["einkauf:Reis=gekauft", "einkauf:Eier=gekauft"]);
+  assert.deepEqual(reply.ausgeführt, ["Einkaufsliste aktualisiert"]);
+  assert.deepEqual(listeAbhakenAus("Milch hab ich noch zuhause"), { posten: ["Milch"], stand: "zuhause" });
+  assert.deepEqual(listeAbhakenAus("Haferflocken gekauft, erledigt"), { posten: ["Haferflocken"], stand: "gekauft" });
+  // Eine Frage ist kein Abhaken.
+  assert.equal(listeAbhakenAus("Hab ich Reis gekauft?"), null);
+});
+
+test("Profil ändern ohne KI, nur mit Zeichen für eine dauerhafte Änderung", async () => {
+  const log: string[] = [];
+  await runOffline("Mein Ziel ist jetzt abnehmen", stubActions(log));
+  assert.deepEqual(log, ['profil:{"ziel":"fat_loss"}']);
+  assert.deepEqual(profilAus("ich will ab jetzt muskeln aufbauen"), { ziel: "lean_bulk" });
+  assert.deepEqual(profilAus("ich laufe im schnitt 12.000 schritte am tag"), { schritte: 12000 });
+  assert.deepEqual(profilAus("ab jetzt stehe ich um 6 uhr auf"), { aufstehen: "06:00" });
+  assert.deepEqual(profilAus("ich gehe neuerdings um 22:30 schlafen"), { schlafen: "22:30" });
+  // Ein einzelner Tag, eine Frage oder kein Zeichen für Dauer ändern nichts.
+  assert.equal(profilAus("heute bin ich 15000 schritte gelaufen"), null);
+  assert.equal(profilAus("soll ich mein ziel auf abnehmen stellen?"), null);
+  assert.equal(profilAus("ich stehe um 6 auf"), null);
+  assert.equal(profilAus("aendere mein zielgewicht auf 84 kg"), null);
 });
