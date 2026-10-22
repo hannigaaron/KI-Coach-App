@@ -759,6 +759,16 @@ Ergebnisses, und das Ergebnis zeigt ohnehin, dass gespeichert ist.
 Web Push über den Worker kennt die Aufstehzeit nicht, deshalb kommt die
 Mitteilung nur nativ. Im Browser ersetzt das Öffnen von selbst sie.
 
+## Zahlen von 1 bis 10 werden angetippt
+
+Der tägliche Check-in und der Mittags Check-in fragten Energie, Schlaf,
+Stimmung, Konzentration und Sättigung über Zahlenfelder ab. Ein Zahlenfeld
+öffnet die Tastatur, verdeckt die halbe Seite und will erst gelöscht werden.
+Jetzt zehn Stufen in einer Reihe wie beim Morgen Check-in,
+`stufenZeichnen` in `app.js` über `data-stufen`. Der Wert steht weiter im
+versteckten Feld mit derselben Kennung, Speichern liest unverändert. Die
+Enden stehen in Worten darunter.
+
 ## Die zwei Check-ins der Woche
 
 `packages/core/src/checkin.ts`. Mittwoch 18:00 die Bilanz, Sonntag 19:30 der

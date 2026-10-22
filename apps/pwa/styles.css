@@ -3533,3 +3533,16 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 .pl-heute .sub { margin-top: 0; }
 .pl-heute > .pl-legende { margin: 0 0 var(--s-4); }
 .pl-heute-einheit { margin-top: var(--s-4); }
+
+/* Ein leerer Zustand ist ein Satz und kein Eintrag. Als Karte sah "Nichts,
+   was warten müsste" aus wie eine Aufgabe mit diesem Namen. */
+.list > li.empty {
+  background: none; box-shadow: none !important; padding: 0 2px var(--s-2);
+  color: var(--muted); font-size: var(--t-sm);
+}
+
+/* Der tägliche Check-in mit zehn Stufen in einer Reihe. Kleiner als die fünf
+   des Morgens, damit zehn auf 390 Pixel passen, ohne umzubrechen. */
+.ci-skala { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; }
+.ci-skala .mg-punkt { height: 40px; min-width: 0; padding: 0; font-size: var(--t-sm); }
+.sub + .ci-stufen { margin-top: var(--s-4); }

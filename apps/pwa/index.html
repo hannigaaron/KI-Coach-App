@@ -610,11 +610,12 @@ try {
       </div>
       <p class="sub">Kurz festhalten, wie es dir geht. Daraus erkennt der Coach Muster, die dir selbst entgehen.</p>
       <button type="button" id="btnMorgenCheckin" class="pl-knopf haupt mg-start">Guten Morgen Check-in</button>
-      <div class="field-row">
-        <div class="field"><label for="energy">Energie</label><input id="energy" type="number" inputmode="numeric" min="1" max="10" value="7"></div>
-        <div class="field"><label for="sleepQ">Schlaf</label><input id="sleepQ" type="number" inputmode="numeric" min="1" max="10" value="7"></div>
-        <div class="field"><label for="mood">Stimmung</label><input id="mood" type="number" inputmode="numeric" min="1" max="10" value="7"></div>
-      </div>
+      <fieldset class="mg-frage ci-stufen"><legend>Energie</legend><input id="energy" type="hidden" value="7"><div class="ci-skala" data-stufen="energy"></div>
+        <div class="mg-enden"><span>leer</span><span>voll da</span></div></fieldset>
+      <fieldset class="mg-frage ci-stufen"><legend>Schlaf</legend><input id="sleepQ" type="hidden" value="7"><div class="ci-skala" data-stufen="sleepQ"></div>
+        <div class="mg-enden"><span>kaum</span><span>tief und lang</span></div></fieldset>
+      <fieldset class="mg-frage ci-stufen"><legend>Stimmung</legend><input id="mood" type="hidden" value="7"><div class="ci-skala" data-stufen="mood"></div>
+        <div class="mg-enden"><span>am Boden</span><span>richtig gut</span></div></fieldset>
       <div class="field"><label for="checkNote">Was war heute</label>
         <textarea id="checkNote" rows="3" placeholder="Schlecht geschlafen, Training lief trotzdem gut"></textarea></div>
       <button id="btnCheckin" class="primary big">Check-in speichern</button>
@@ -853,19 +854,13 @@ try {
 
       <h2 class="abschnitt">Mittags Check-in</h2>
       <p class="sub" id="mittagSub">Nach dem Mittagessen. Drei Zahlen, danach sage ich dir, ob es am Essen lag.</p>
-      <div class="field-row">
-        <div class="field"><label for="mEnergie">Energie 1 bis 10</label>
-          <input id="mEnergie" type="number" inputmode="numeric" min="1" max="10" value="7"></div>
-        <div class="field"><label for="mKonz">Konzentration 1 bis 10</label>
-          <input id="mKonz" type="number" inputmode="numeric" min="1" max="10" value="7"></div>
-      </div>
-      <div class="field-row">
-        <div class="field"><label for="mSatt">Sättigung 1 bis 10</label>
-          <input id="mSatt" type="number" inputmode="numeric" min="1" max="10" value="5"></div>
-        <div class="field"><label for="btnMittag">&nbsp;</label>
-          <button id="btnMittag" class="primary" style="width:100%">Auswerten</button></div>
-      </div>
-      <p class="sub">Sättigung: 1 heißt hungrig, 10 übervoll.</p>
+      <fieldset class="mg-frage ci-stufen"><legend>Energie</legend><input id="mEnergie" type="hidden" value="7"><div class="ci-skala" data-stufen="mEnergie"></div>
+        <div class="mg-enden"><span>leer</span><span>voll da</span></div></fieldset>
+      <fieldset class="mg-frage ci-stufen"><legend>Konzentration</legend><input id="mKonz" type="hidden" value="7"><div class="ci-skala" data-stufen="mKonz"></div>
+        <div class="mg-enden"><span>zerstreut</span><span>klar</span></div></fieldset>
+      <fieldset class="mg-frage ci-stufen"><legend>Sättigung</legend><input id="mSatt" type="hidden" value="5"><div class="ci-skala" data-stufen="mSatt"></div>
+        <div class="mg-enden"><span>hungrig</span><span>übervoll</span></div></fieldset>
+      <button id="btnMittag" class="primary big">Auswerten</button>
       <pre class="pre" id="mittagBefund" hidden></pre>
       <button id="btnMittagAlternative" class="ghost" hidden>Bessere Mahlzeit vorschlagen</button>
 

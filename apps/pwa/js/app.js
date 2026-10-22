@@ -3283,6 +3283,32 @@ $("btnSuggest").addEventListener("click", async () => {
   }
 });
 
+/**
+ * Stufen von 1 bis 10 zum Antippen statt eines Zahlenfelds. Ein Zahlenfeld
+ * öffnet die Tastatur, verdeckt die halbe Seite und will gelöscht werden,
+ * bevor man tippt. Der Wert bleibt im versteckten Feld, damit Speichern
+ * unverändert liest.
+ */
+function stufenZeichnen() {
+  for (const reihe of document.querySelectorAll("[data-stufen]")) {
+    const feld = $(reihe.dataset.stufen);
+    const wert = Number(feld.value);
+    reihe.innerHTML = Array.from({ length: 10 }, (_, i) => i + 1)
+      .map((v) => `<button type="button" class="mg-punkt${v === wert ? " an" : ""}" role="radio" aria-checked="${v === wert}" data-stufe="${v}">${v}</button>`)
+      .join("");
+    reihe.setAttribute("role", "radiogroup");
+    reihe.setAttribute("aria-label", reihe.closest("fieldset")?.querySelector("legend")?.textContent ?? "");
+  }
+}
+document.addEventListener("click", (event) => {
+  const knopf = event.target.closest("[data-stufen] [data-stufe]");
+  if (!knopf) return;
+  $(knopf.closest("[data-stufen]").dataset.stufen).value = knopf.dataset.stufe;
+  spueren("leicht");
+  stufenZeichnen();
+});
+stufenZeichnen();
+
 $("btnCheckin").addEventListener("click", async () => {
   await buildActions({ onChange: refreshAll }).checkinSpeichern({
     energie: Number($("energy").value) || undefined,
