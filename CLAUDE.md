@@ -510,7 +510,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1172 Tests
+npm test           # 1173 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1717,6 +1717,25 @@ wie eine echte Antwort. Beschriftete Zahlen schlagen die Reihenfolge, denn wer
 "Energie 7, Sättigung 4" schreibt, meint nicht Konzentration 4. Steht viel
 Text um die Zahlen herum, greift der Zweig nicht: "ich hab 7 von 10 Stunden
 geschlafen und 2 Kaffee getrunken" ist kein Bogen.
+
+### Der zweite Durchlauf
+
+34 weitere Sätze aus dem Alltag ohne KI, jeder Fehler mit Test in
+`agent.test.ts`:
+
+- "War eben 60 min im Gym, Oberkörper" verstand der Regelweg nicht. Gym,
+  Studio, Beintag, Ober und Unterkörper zählen jetzt als Training.
+- "Ich hatte heute ein Coaching mit einem Kunden 2 Stunden" stand als
+  Mahlzeit im Tag. "hatte" mit einer Dauer und ohne Lebensmittel ist keine
+  Mahlzeit, Coaching und Meeting sind Arbeitszeit.
+- "Mir tut das Knie weh" wird als Beschwerde mit Wichtigkeit 5 gemerkt, mit
+  dem Weg zu den Beschwerden im Trainingsplan und dem Satz zu Arzt und
+  Physiotherapie. Die Stelle wird auf Wortgrenzen gesucht, sonst wird aus
+  "beim Kniebeugen" die Stelle Kniebeugen.
+- "Ich fühl mich total leer" fiel durch, weil nur "fühle" mit e galt. Es
+  wird ein Check-in, und die Rückfrage ist nicht die nach den Vorhaben des
+  Tages: die klingt wie die nächste Aufgabe.
+- "Mein Ziel ist jetzt Muskelaufbau" kannte nur das Verb aufbauen.
 
 ### Der Schnellweg
 

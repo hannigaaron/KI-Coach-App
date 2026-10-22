@@ -850,3 +850,19 @@ test("Schnellweg: eindeutige Kurzbefehle ohne Modell, alles andere ans Modell", 
   assert.deepEqual(log, ["wasser:500"]);
   assert.equal(reply.source, "offline");
 });
+
+test("Regelweg nach dem zweiten Durchlauf: Gym, Kundentermin, Beschwerde, Befinden, Ziel als Wort", async () => {
+  const fall = async (satz: string) => { const log: string[] = []; const r = await runOffline(satz, stubActions(log)); return { log, r }; };
+  assert.deepEqual((await fall("War eben 60 min im Gym, Oberkörper")).log, ["training:strength/60"]);
+  // Ein Kundentermin ist Arbeitszeit und keine Mahlzeit.
+  const kunde = await fall("Ich hatte heute ein Coaching mit einem Kunden 2 Stunden");
+  assert.deepEqual(kunde.log, ["zeit:karriere:120"]);
+  const knie = await fall("Mir tut das Knie weh beim Kniebeugen");
+  assert.ok(knie.log[0]?.startsWith("merken:Beschwerden:"), knie.log.join(","));
+  assert.match(knie.r.text, /Knie\./);
+  assert.match(knie.r.text, /Arzt oder Physiotherapie/);
+  const leer = await fall("Ich fühl mich heute total leer");
+  assert.ok(leer.log[0]?.startsWith("checkin:"));
+  assert.doesNotMatch(leer.r.text, /Rest des Tages vor/);
+  assert.deepEqual((await fall("Mein Ziel ist jetzt Muskelaufbau")).log, ['profil:{"ziel":"lean_bulk"}']);
+});

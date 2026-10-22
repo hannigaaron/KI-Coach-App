@@ -1392,6 +1392,19 @@ export async function runOffline(
     };
   }
 
+  // Schmerzen beim Training. Ohne Modell lässt sich nicht beurteilen, was
+  // los ist, aber merken lässt es sich, und der Plan kann die Stelle schonen.
+  const beschwerde = beschwerdeAus(text);
+  if (beschwerde) {
+    await actions.merken({ text: `Beschwerden: ${nachricht.trim()}`, art: "fakt", wichtigkeit: 5 });
+    return {
+      text: `Notiert, mit höchster Wichtigkeit: ${beschwerde}. Unter Training, Trainingspläne kannst du die Stelle als Beschwerde angeben, ` +
+        "dann fallen Übungen weg, die sie stark belasten. Lass weg, was weh tut. Bleibt der Schmerz, gehört er zu Arzt oder Physiotherapie.",
+      ausgeführt: ["Beschwerde gemerkt"],
+      source: "offline",
+    };
+  }
+
   // Eindeutige Wörter reichen für den Versuch. "hatte" allein nicht, es steht
   // in jedem zweiten Satz, "ich hatte Stress" ist keine Mahlzeit. Mit einer
   // Menge davor ist es eine: "ich hatte ein Glas Cola". "esse" steckte
@@ -1401,7 +1414,10 @@ export async function runOffline(
     // "Und dazu einen Kaffee mit 100 ml Hafermilch": kein Verb, aber eine
     // Menge mit Einheit an einem Lebensmittel aus der Tabelle, und keine Frage.
     || (!text.trim().endsWith("?") && parseMealOffline(nachricht).entries.some((e) => /\d/.test(e.quantity)));
-  const mitMenge = /\bhatte\b/.test(text)
+  // Eine Dauer ohne Lebensmittel ist keine Mahlzeit. "Ich hatte heute ein
+  // Coaching, 2 Stunden" stand sonst als Essen im Tag.
+  const nurDauer = dauerAus(text) !== null && parseMealOffline(nachricht).entries.length === 0;
+  const mitMenge = /\bhatte\b/.test(text) && !nurDauer
     && /\b(\d+|ein|eine|einen|zwei|drei|glas|tasse|becher|flasche|portion|stueck|scheibe|schuessel|teller|riegel|dose)\b/.test(text);
   if (!istAbsicht(text) && (eindeutig || mitMenge)) {
     const antwort = await actions.mahlzeitErfassen(nachricht);
@@ -1560,13 +1576,19 @@ export async function runOffline(
     return { text: await actions.tagesstandAbrufen(), ausgeführt, source: "offline" };
   }
 
-  if (pattern("geschlafen", "energie", "fühle", "müde", "stress", "erschöpft", "kaputt").test(text)) {
+  // "fühl mich" ohne e ist die häufigere Form im Gesprochenen.
+  if (pattern("geschlafen", "energie", "fühl", "müde", "stress", "erschöpft", "kaputt", "ausgebrannt", "kraftlos",
+    "überfordert", "total leer", "so leer", "innerlich leer").test(text)) {
     const antwort = await actions.checkinSpeichern({
       notiz: nachricht,
       energie: extractScore(text, /energie\D{0,10}(\d{1,2})/),
       schlaf: extractScore(text, /schlaf\D{0,10}(\d{1,2})/),
     });
-    return { text: `${antwort} Was nimmst du dir für den Rest des Tages vor?`, ausgeführt: ["Check-in gespeichert"], source: "offline" };
+    // Wer sagt, dass er leer oder überfordert ist, braucht keine Frage nach
+    // seinen Vorhaben. Die klingt wie die nächste Aufgabe.
+    const schwer = pattern("leer", "ausgebrannt", "ueberfordert", "kraftlos", "stress mit").test(text);
+    const frage = schwer ? "Was würde dir heute ein Stück Druck nehmen?" : "Was nimmst du dir für den Rest des Tages vor?";
+    return { text: `${antwort} ${frage}`, ausgeführt: ["Check-in gespeichert"], source: "offline" };
   }
 
   const naehrwert = naehrwertFrage(nachricht);
@@ -1690,17 +1712,18 @@ export function naehrwertFrage(satz: string): string | null {
  * Liste, ob etwas eingetragen wird. "Bei meinen Eltern Kuchen gegessen"
  * ist ein Eintrag, "ich schäme mich fürs Essen" nicht.
  */
+/** Eine Körperstelle mit Schmerz, etwa "mir tut das Knie weh". Nur beides zusammen. */
+function beschwerdeAus(text: string): string | null {
+  if (!/\b(tut\w* (\w+ ){0,4}weh|schmerz\w*|zwickt|zieht (\w+ ){0,3}(im|in der)|verletzt|verzerrt|gezerrt)\b/.test(text)) return null;
+  // Auf Wortgrenzen, sonst wird aus "beim Kniebeugen" die Stelle Kniebeugen.
+  const stelle = /\b(knie|schultern?|ruecken|nacken|ellbogen|ellenbogen|handgelenk|huefte|leiste|knoechel|sprunggelenk|achillessehne|waden?|oberschenkel|brust)\b/.exec(text);
+  return stelle ? stelle[0].replace(/ue/g, "ü").replace(/oe/g, "ö").replace(/^./, (c) => c.toUpperCase()) : null;
+}
+
 function belastet(text: string): boolean {
   return /\b(scham|schaem\w*|schuld\w*|kontrolle\w*( \w+){0,3} verloren|fressattacke\w*|essattacke\w*|heisshunger\w*attacke|hasse mich|wertlos|versag\w*|depress\w*|panik\w*|traurig|einsam\w*|sinnlos|nicht mehr leben|suizid\w*|umbringen|selbst verletz\w*|mag mich nicht|ekel\w* mich)\b/.test(text);
 }
 
-/**
- * Was auf die Einkaufsliste soll, aus "Setz Reis und Brokkoli auf die Liste".
- *
- * Gelesen wird der Satz im Original, damit die Namen ihre Umlaute behalten.
- * Ohne Verb des Hinzufügens greift nichts: "steht Reis auf der Liste" ist
- * eine Frage und kein Auftrag.
- */
 /**
  * Ob ein Satz so eindeutig ist, dass der Regelweg ihn ohne Modell erledigt.
  *
@@ -1759,8 +1782,8 @@ export function profilAus(text: string): { ziel?: string; schritte?: number; auf
 
   const zielWechsel = /\b(mein ziel ist|ziel ist jetzt|neues ziel|ziel auf|ziel aendern|ich will (jetzt|ab jetzt|ab sofort|lieber)|ab (jetzt|sofort) (will|moechte) ich)\b/.test(text);
   if (zielWechsel) {
-    if (/\b(abnehm\w*|fett (verlieren|abbauen|reduzieren)|definier\w*|diaet)\b/.test(text)) aus.ziel = "fat_loss";
-    else if (/\b(muskel\w* aufbauen|aufbau(en)?|zunehmen|masse|bulk\w*)\b/.test(text)) aus.ziel = "lean_bulk";
+    if (/\b(abnehm\w*|fett (verlieren|abbauen|reduzieren)|fettabbau|definier\w*|diaet)\b/.test(text)) aus.ziel = "fat_loss";
+    else if (/\b(muskel\w* aufbauen|muskelaufbau|aufbau(en)?|zunehmen|masse|bulk\w*)\b/.test(text)) aus.ziel = "lean_bulk";
     else if (/\b(halten|gewicht halten|erhalten)\b/.test(text)) aus.ziel = "maintain";
   }
 
@@ -1780,6 +1803,13 @@ export function profilAus(text: string): { ziel?: string; schritte?: number; auf
   return Object.keys(aus).length ? aus : null;
 }
 
+/**
+ * Was auf die Einkaufsliste soll, aus "Setz Reis und Brokkoli auf die Liste".
+ *
+ * Gelesen wird der Satz im Original, damit die Namen ihre Umlaute behalten.
+ * Ohne Verb des Hinzufügens greift nichts: "steht Reis auf der Liste" ist
+ * eine Frage und kein Auftrag.
+ */
 export function postenFuerListe(satz: string): string[] {
   const m = /\b(?:setz|schreib|pack|tu|füg|fueg|nimm|kommt|kommen)\w*\s+(?:mir\s+|bitte\s+|noch\s+)*(.+?)\s+(?:mit\s+)?(?:auf|in|zu)\s+(?:die|den|meine|meinen|der)?\s*(?:einkaufsliste|einkaufszettel|liste)\b/i.exec(satz);
   if (!m) return [];
@@ -1853,7 +1883,8 @@ function trainingAus(text: string): { art: string; minuten: number } | null {
   // "Ich war 2 Stunden Volleyball spielen" steht im Infinitiv, nicht im
   // Partizip. Beide Formen kommen vor, und ein Vorhaben faengt istAbsicht
   // oben schon ab, deshalb ist der Infinitiv hier ungefaehrlich.
-  const gemacht = pattern("trainiert", "training gemacht", "war im gym", "war trainieren",
+  const gemacht = pattern("trainiert", "training gemacht", "im gym", "im studio", "fitnessstudio", "war trainieren",
+    "krafttraining", "beintag", "oberkoerper", "unterkoerper", "ganzkoerper",
     "gespielt", "spielen", "workout", "einheit gemacht", "gedehnt",
     "dehnen", "joggen", "laufen", "gelaufen", "schwimmen", "geschwommen").test(text);
   if (!gemacht) return null;
@@ -1917,12 +1948,13 @@ function mittagscheckAus(text: string): { energie: number; konzentration: number
 function zeitAus(text: string): { bereich: string; minuten: number; was: string } | null {
   if (istAbsicht(text)) return null;
   const gebucht = pattern("verbracht", "gearbeitet", "zeit mit", "war mit", "gebraucht fuer",
+    "coaching", "kundentermin", "meeting", "besprechung",
     "beschaeftigt", "gelernt", "telefoniert", "entspannt", "spazieren", "meditiert",
     "gelesen", "gezockt").test(text);
   if (!gebucht) return null;
 
   const bereich = pattern("familie", "schwester", "eltern", "mutter", "vater", "freundin", "partnerin", "date").test(text) ? "beziehung"
-    : pattern("gelernt", "kunde", "kundin", "gearbeitet", "buero", "angebot", "content", "akquise").test(text) ? "karriere"
+    : pattern("gelernt", "kunde", "kundin", "gearbeitet", "buero", "angebot", "content", "akquise", "coaching", "meeting", "besprechung").test(text) ? "karriere"
       : pattern("meditiert", "therapie", "spaziergang", "spazieren", "entspannt", "geschlafen").test(text) ? "wellbeing"
         : pattern("gelesen", "gezockt", "serie", "film", "hobby", "fuer mich").test(text) ? "me_time"
           : null;
