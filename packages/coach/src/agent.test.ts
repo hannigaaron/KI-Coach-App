@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Agent, aufgabeMitFrist, denktiefe, istAbsicht, listeAbhakenAus, naehrwertFrage, postenFuerListe, profilAus, runOffline, type AgentActions } from "./agent.js";
+import { Agent, aufgabeMitFrist, denktiefe, istAbsicht, listeAbhakenAus, naehrwertFrage, postenFuerListe, profilAus, runOffline, schnellweg, type AgentActions } from "./agent.js";
 import type { ChatMessage, CoachProvider, ContentBlock, ConverseRequest, ConverseResponse, JsonRequest } from "./provider.js";
 import { standardAenderungAus } from "@daevo/core";
 
@@ -827,4 +827,26 @@ test("Profil ändern ohne KI, nur mit Zeichen für eine dauerhafte Änderung", a
   assert.equal(profilAus("soll ich mein ziel auf abnehmen stellen?"), null);
   assert.equal(profilAus("ich stehe um 6 auf"), null);
   assert.equal(profilAus("aendere mein zielgewicht auf 84 kg"), null);
+});
+
+test("Schnellweg: eindeutige Kurzbefehle ohne Modell, alles andere ans Modell", async () => {
+  for (const s of ["500 ml Wasser", "0,5 l", "2 Gläser Wasser getrunken", "86,4 kg", "Gewicht 87 kg", "7, 6, 8", "Reis gekauft"]) {
+    assert.ok(schnellweg(s), s);
+  }
+  for (const s of ["200 g Magerquark", "500 ml Wasser und ein Apfel, wie viel fehlt noch?", "Ich fühle mich heute schwer, 87 kg und keine Lust",
+    "Wie viel Wasser soll ich trinken?", "hi"]) {
+    assert.ok(!schnellweg(s), s);
+  }
+  // Mit Schlüssel fragt der Schnellweg das Modell gar nicht erst.
+  let gefragt = 0;
+  const provider = {
+    name: "zaehler", available: true,
+    async generateJson() { gefragt++; throw new Error("nie"); },
+    async converse() { gefragt++; throw new Error("nie"); },
+  } as unknown as CoachProvider;
+  const log: string[] = [];
+  const reply = await new Agent(provider).respond({ nachricht: "500 ml Wasser", verlauf: [], kontext: {} as never, aktionen: stubActions(log) });
+  assert.equal(gefragt, 0);
+  assert.deepEqual(log, ["wasser:500"]);
+  assert.equal(reply.source, "offline");
 });

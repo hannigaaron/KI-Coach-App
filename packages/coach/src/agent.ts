@@ -180,6 +180,14 @@ export class Agent {
     /** Nimmt die Antwort entgegen, während sie entsteht. */
     strom?: Strom;
   }): Promise<AgentReply> {
+    // Eindeutige Kurzbefehle gehen gar nicht erst ans Modell. Für "500 ml
+    // Wasser" rechnet die App ohnehin selbst, das Modell würde nur den Satz
+    // drumherum schreiben, für zwei bis vier Sekunden und eine Anfrage aus
+    // dem Kontingent. Greift der Regelweg doch nicht, läuft alles wie immer.
+    if (this.provider.available && !params.anhaenge?.length && schnellweg(params.nachricht)) {
+      const sofort = await runOffline(params.nachricht, params.aktionen);
+      if (sofort.ausgeführt.length) return sofort;
+    }
     if (this.provider.available) {
       try {
         return await this.runModel(params);
@@ -1693,6 +1701,27 @@ function belastet(text: string): boolean {
  * Ohne Verb des Hinzufügens greift nichts: "steht Reis auf der Liste" ist
  * eine Frage und kein Auftrag.
  */
+/**
+ * Ob ein Satz so eindeutig ist, dass der Regelweg ihn ohne Modell erledigt.
+ *
+ * Nur Sätze, die fast nur aus der Angabe bestehen: eine Wassermenge, eine
+ * Wiegung, die drei Zahlen des Mittags Check-ins, Gekauftes. Sobald mehr
+ * dasteht, kann mehr gemeint sein, und dann antwortet das Modell. Eine
+ * Mahlzeit gehört nie hierher: dort schätzt das Modell Mengen und Posten,
+ * die keine Tabelle kennt.
+ */
+export function schnellweg(nachricht: string): boolean {
+  const t = foldUmlauts(nachricht.toLowerCase()).trim().replace(/[.!]+$/, "");
+  if (t.split(/\s+/).length > 8 || /\?/.test(t)) return false;
+  const zahl = "\\d+(?:[.,]\\d+)?";
+  if (new RegExp(`^(?:noch\\s+)?${zahl}\\s*(?:ml|l|liter)\\s*(?:wasser)?(?:\\s+getrunken)?$`).test(t)) return true;
+  if (new RegExp(`^(?:noch\\s+)?(?:ein|eine|zwei|drei|vier|\\d)\\s+(?:glas|glaeser|flasche|flaschen)\\s+wasser(?:\\s+getrunken)?$`).test(t)) return true;
+  if (new RegExp(`^(?:gewicht|gewogen|waage|heute)?\\s*:?\\s*${zahl}\\s*(?:kg|kilo)(?:\\s+gewogen)?$`).test(t)) return true;
+  if (/^\d{1,2}\s*[,/ ]\s*\d{1,2}\s*[,/ ]\s*\d{1,2}$/.test(t)) return true;
+  if (/^energie\D{0,4}\d{1,2}\W+konzentration\D{0,4}\d{1,2}\W+saettigung\D{0,4}\d{1,2}$/.test(t)) return true;
+  return listeAbhakenAus(nachricht) !== null;
+}
+
 /**
  * Posten, die gekauft oder noch zu Hause sind: "Reis und Eier gekauft",
  * "Milch hab ich noch zuhause". Nur mit einem eindeutigen Verb am Satzende

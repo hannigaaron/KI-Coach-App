@@ -487,7 +487,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1169 Tests
+npm test           # 1170 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1684,6 +1684,16 @@ wie eine echte Antwort. Beschriftete Zahlen schlagen die Reihenfolge, denn wer
 "Energie 7, Sättigung 4" schreibt, meint nicht Konzentration 4. Steht viel
 Text um die Zahlen herum, greift der Zweig nicht: "ich hab 7 von 10 Stunden
 geschlafen und 2 Kaffee getrunken" ist kein Bogen.
+
+### Der Schnellweg
+
+`schnellweg` in `agent.ts`. Auch mit Schlüssel gehen eindeutige Kurzbefehle
+nicht ans Modell: eine Wassermenge, eine Wiegung, die drei Zahlen des
+Mittags Check-ins, Gekauftes. Die App rechnet dort ohnehin selbst, das
+Modell schrieb nur den Satz drumherum, für zwei bis vier Sekunden und eine
+Nachricht aus dem Kontingent. Höchstens acht Wörter, keine Frage, und nie
+eine Mahlzeit: dort schätzt das Modell Posten, die keine Tabelle kennt.
+Trägt der Regelweg nichts ein, läuft die Nachricht wie immer ans Modell.
 
 ### Der Regelweg nach dem Live-Test
 
