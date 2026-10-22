@@ -14,5 +14,6 @@ class DaevoBridgeViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(MitteilungenPlugin())
         bridge?.registerPluginInstance(SprachePlugin())
         bridge?.registerPluginInstance(DiktatPlugin())
+        bridge?.registerPluginInstance(HaptikPlugin())
     }
 }

@@ -19,6 +19,7 @@ import {
   MORGEN_FRAGEN, BELASTBARKEIT_NAME, NACHFRAGE_UHRZEIT, morgenAuswerten, morgenUhrzeit, morgenVollstaendig, nachfrageAuswerten, nachfrageNoetig, tagesrandFuer,
 } from "@daevo/core";
 import { newId, nowTime } from "./storage.js";
+import { spueren } from "./haptik.js";
 
 /** Bis zu dieser Uhrzeit öffnet sich der Check-in von selbst. */
 export const MORGEN_BIS = "12:00";
@@ -209,10 +210,11 @@ export function morgenStarten({ store, heute, melde, gespeichert }) {
 
   inhalt.addEventListener("click", (event) => {
     const j = event.target.closest("[data-mg-jetzt]");
-    if (j) { jetzt = Number(j.dataset.mgJetzt); zeichnen(); return; }
+    if (j) { jetzt = Number(j.dataset.mgJetzt); spueren("leicht"); zeichnen(); return; }
     const p = event.target.closest("[data-mg-frage]");
     if (!p) return;
     antworten = { ...antworten, [p.dataset.mgFrage]: Number(p.dataset.mgWert) };
+    spueren("leicht");
     zeichnen();
   });
   knopf.addEventListener("click", () => {
@@ -220,6 +222,7 @@ export function morgenStarten({ store, heute, melde, gespeichert }) {
     const r = modus === "morgen" ? morgenSpeichern(store, heute(), antworten) : nachfrageSpeichern(store, heute(), jetzt);
     if (!r) return;
     fertig = true;
+    spueren("erfolg");
     inhalt.innerHTML = ergebnisHtml(r);
     inhalt.scrollTop = 0;
     knopf.textContent = "Fertig";

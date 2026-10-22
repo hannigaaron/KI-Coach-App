@@ -19,6 +19,7 @@
  */
 import { alternativen, letzteEinheit, positionFuer, uebungErlaubt } from "@daevo/core";
 import { UEBUNGEN } from "./uebungen-daten.js";
+import { spueren } from "./haptik.js";
 import { GERAETE, uebungenFiltern, vorschauPfad } from "./uebungen.js";
 import { STANDARD_WUNSCH, tauschListe, uebungTauschen } from "./plaene.js";
 
@@ -366,7 +367,7 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
       pause.rest -= 1;
       if (pause.rest <= 0) {
         pauseStopp();
-        try { navigator.vibrate?.([180, 80, 180]); } catch { /* nicht jedes Gerät kann vibrieren */ }
+        spueren("hinweis");
         melde("Pause vorbei");
       }
       const knopf = fuss.querySelector("[data-tr-pause] b");
@@ -395,6 +396,7 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
     entwurfSpeicher.schreiben(null);
     entwurf = null;
     schliessen();
+    spueren("erfolg");
     melde(`${r.saetze} Sätze gespeichert`);
   };
 
@@ -438,7 +440,7 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
       const si = Number(k.dataset.trHaken);
       const warFertig = entwurf.uebungen[entwurf.aktiv].saetze[si].fertig;
       entwurf = satzAbhaken(entwurf, entwurf.aktiv, si);
-      if (!warFertig) pauseStart(entwurf.uebungen[entwurf.aktiv].ziel.pauseSek);
+      if (!warFertig) { spueren("leicht"); pauseStart(entwurf.uebungen[entwurf.aktiv].ziel.pauseSek); }
     } else if ((k = z("[data-tr-satz]"))) {
       entwurf = k.dataset.trSatz === "dazu" ? satzDazu(entwurf, entwurf.aktiv) : satzWeg(entwurf, entwurf.aktiv);
     } else if (z("[data-tr-menue]")) menue = !menue;

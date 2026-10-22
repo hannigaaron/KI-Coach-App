@@ -62,6 +62,7 @@ import { kodierungReparieren, newId, nowTime, store, todayIso } from "./storage.
 import { healthkitAbgleichen } from "./healthkit.js";
 import { mitteilungenPlanen } from "./mitteilungen.js";
 import { nativAufruf } from "./nativ.js";
+import { spueren } from "./haptik.js";
 import { ABO_STUFEN, ABO_TAKTE, aboPreis, ersparnisProzent, aboAnlass, aboAnlassLeer, aboLeiste, aboLink, kontoSicherstellen, kontoStand, kontoText } from "./konto.js";
 
 const $ = (id) => document.getElementById(id);
@@ -712,6 +713,11 @@ function setupAssistant() {
     onState: (state, detail) => {
       $("btnMic").setAttribute("aria-pressed", state === "listening" ? "true" : "false");
       if (state === "listening") {
+        // Spürbar, dass das Mikrofon offen ist, auch wer nicht hinsieht.
+        // Nicht im Weckwortmodus und nicht beim Neustart im Freihandbetrieb:
+        // dort startet das Mikrofon nach jedem Satz neu, und ein Summen nach
+        // jedem Satz im Raum wäre Lärm.
+        if (!weckwortLaeuft && !listener.handsFree) spueren("leicht");
         orb.setState("listening");
         // Im Weckwortmodus heisst zuhören etwas anderes als beim Diktieren:
         // dort wartet die App auf die Anrede, hier auf den Satz. Ohne den
@@ -2639,6 +2645,7 @@ function startApp() {
 
 $("composer").addEventListener("submit", (event) => {
   event.preventDefault();
+  if ($("chatInput").value.trim()) spueren("leicht");
   send($("chatInput").value);
 });
 /**
