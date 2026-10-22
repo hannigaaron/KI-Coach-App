@@ -20,6 +20,7 @@
 import { alternativen, letzteEinheit, positionFuer, steigerung, uebungErlaubt } from "@daevo/core";
 import { UEBUNGEN } from "./uebungen-daten.js";
 import { spueren } from "./haptik.js";
+import { pauseMitteilung, pauseMitteilungAus } from "./nativ.js";
 import { GERAETE, uebungenFiltern, vorschauPfad } from "./uebungen.js";
 import { STANDARD_WUNSCH, tauschListe, uebungTauschen } from "./plaene.js";
 
@@ -382,12 +383,17 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
     // wie ein Knopf, der nicht geladen hat.
     fuss.hidden = !fuss.innerHTML;
   };
-  const pauseStopp = () => { clearInterval(uhr); pause = null; };
+  const pauseStopp = () => { clearInterval(uhr); if (pause) pauseMitteilungAus(); pause = null; };
   const pauseStart = (sek) => {
     clearInterval(uhr);
+    // Gerechnet wird gegen das Ende und nicht durch Abzählen. Im Hintergrund
+    // hält iOS die Uhr der Seite an, und wer nach zwei Minuten zurückkommt,
+    // sähe sonst noch die alte Restzeit.
+    const ende = Date.now() + sek * 1000;
     pause = { rest: sek };
+    pauseMitteilung(sek, entwurf?.uebungen[entwurf.aktiv]?.name ?? "");
     uhr = setInterval(() => {
-      pause.rest -= 1;
+      pause.rest = Math.max(0, Math.round((ende - Date.now()) / 1000));
       if (pause.rest <= 0) {
         pauseStopp();
         spueren("hinweis");

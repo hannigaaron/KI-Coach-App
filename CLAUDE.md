@@ -440,6 +440,13 @@ der App. Gezählt werden die Sätze mit dem höchsten Gewicht. Lag die Reserve
 mehr als eine Wiederholung unter dem Ziel, wird gehalten. Ohne Gewicht am
 oberen Ende rät die App kein Kilo, sondern sagt, wie es schwerer wird.
 
+Das Ende der Pause kommt in der iPhone App auch als Mitteilung, bei
+gesperrtem Handy: `pauseStellen` im `MitteilungenPlugin`, eine Kennung
+ohne das Präfix der geplanten Mitteilungen, sonst löschte das nächste
+Planen die laufende Pause. Ist die App vorn, unterdrückt iOS sie, und die
+Seite meldet selbst. Die Uhr rechnet gegen den Endzeitpunkt statt
+abzuzählen, denn im Hintergrund hält iOS die Uhr der Seite an.
+
 Die Felder bleiben mit dem letzten Mal vorbelegt, der Vorschlag ist ein
 Angebot. `trainingsplan_abrufen` gibt denselben Satz je Übung an den Coach,
 sonst nennt er ein Gewicht aus dem Modell.

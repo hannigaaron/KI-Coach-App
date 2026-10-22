@@ -226,14 +226,14 @@ export function steigerung(letzt: LogEintrag | null, wdhBereich: string, reserve
   const rirs = oberste.map((x) => x.rir).filter((x): x is number => x !== null && x !== undefined && x >= 0);
   const zuHart = rirs.length > 0 && Math.min(...rirs) < reserve - 1;
   const ohneGewicht = kg === 0;
-  const last = ohneGewicht ? "" : `${zahlText(kg)} kg und `;
+  const last = ohneGewicht ? "" : `${zahlText(kg)}\u00a0kg und `;
 
   if (minWdh >= oben && !zuHart) {
     if (ohneGewicht) {
       return { art: "variante", kg: null, wdh: null, text: `Letztes Mal alle Sätze bei ${oben} Wiederholungen oder mehr. Mach es schwerer: Zusatzgewicht, langsamer ablassen oder eine schwerere Variante.` };
     }
     const neu = Math.round((kg + (kg < 20 ? 1 : 2.5)) * 10) / 10;
-    return { art: "gewicht", kg: neu, wdh: unten, text: `Letztes Mal alle Sätze bei ${oben} Wiederholungen oder mehr. Heute ${zahlText(neu)} kg, wieder ab ${unten} Wiederholungen.` };
+    return { art: "gewicht", kg: neu, wdh: unten, text: `Letztes Mal alle Sätze bei ${oben} Wiederholungen oder mehr. Heute ${zahlText(neu)}\u00a0kg, wieder ab ${unten} Wiederholungen.` };
   }
   if (zuHart) {
     return { art: "halten", kg: ohneGewicht ? null : kg, wdh: minWdh, text: `Letztes Mal knapp am Limit. Heute ${last}${minWdh} Wiederholungen, mit ${reserve} in Reserve.` };
