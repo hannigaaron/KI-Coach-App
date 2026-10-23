@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { parseMealOffline } from "./parse-offline.js";
+import { FOODS } from "./foods.js";
 
 test("erkennt Grammangaben", () => {
   const { entries } = parseMealOffline("200g Hähnchenbrust und 150g Reis");
@@ -60,4 +61,26 @@ test("Esslöffel gestrichen und gehäuft", () => {
   assert.equal(parseMealOffline("2 Esslöffel Olivenöl").entries[0]!.quantity, "30 g");
   assert.equal(parseMealOffline("ein gehäufter EL Erdnussbutter").entries[0]!.quantity, "30 g");
   assert.equal(parseMealOffline("0,5 Liter Milch").entries[0]!.quantity, "500 ml");
+});
+
+test("Gerichte aus dem BLS ohne KI: Portion als Annahme, Gramm schlagen sie", () => {
+  const eine = (s: string) => parseMealOffline(s).entries;
+  assert.deepEqual(eine("Ein Döner").map((e) => [e.name, e.quantity, e.kcal]), [["Döner", "350 g", 620]]);
+  assert.deepEqual(eine("Döner mit Hähnchen").map((e) => e.name), ["Döner mit Hähnchen"]);
+  assert.deepEqual(eine("Pommes mit Mayo").map((e) => e.name), ["Pommes", "Mayonnaise"]);
+  assert.deepEqual(eine("2 Käsebrötchen").map((e) => e.quantity), ["170 g"]);
+  assert.deepEqual(eine("300 g Pizza").map((e) => [e.quantity, e.kcal]), [["300 g", 714]]);
+  assert.deepEqual(eine("Brötchen mit Butter und Käse").map((e) => e.name), ["Brötchen", "Butter", "Gouda"]);
+  assert.equal(parseMealOffline("Gerade nen Proteinriegel").entries.length, 0);
+});
+
+test("Jeder Eintrag der Tabelle geht in der Makrorechnung auf", () => {
+  for (const f of FOODS) {
+    const { kcal, proteinG, fatG, carbsG } = f.per100;
+    const gerechnet = proteinG * 4 + fatG * 9 + carbsG * 4;
+    // Der BLS zählt Ballaststoffe und organische Säuren mit, deshalb liegt
+    // seine Energie leicht über der einfachen Formel. Zehn Prozent oder
+    // 25 kcal decken das, ein Tippfehler in einer Zeile fällt trotzdem auf.
+    assert.ok(Math.abs(kcal - gerechnet) <= Math.max(25, kcal * 0.1), `${f.key}: ${kcal} gegen ${Math.round(gerechnet)}`);
+  }
 });

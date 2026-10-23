@@ -510,7 +510,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1174 Tests
+npm test           # 1176 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1750,9 +1750,30 @@ Dazu 20 Sätze nur zum Essen:
 - "Lösch das Frühstück" fand keinen Gegenstand. Jetzt wird die jüngste
   Mahlzeit dieser Tageszeit entfernt, über `artZurUhrzeit`, und nicht die
   letzte des Tages.
-- Pizza, Döner und Proteinriegel ohne Marke kennt die Tabelle nicht. Die
-  Lücke bleibt: ein erfundener Wert für eine Pizza wäre schlimmer als die
-  Rückfrage nach Barcode oder Etikett.
+- Pizza, Döner, Pommes und belegte Brötchen kennt der Regelweg jetzt, mit
+  Werten aus dem Bundeslebensmittelschlüssel 4.0, siehe unten.
+  Proteinriegel nicht: den gibt es im BLS nicht, und die Marken liegen weit
+  auseinander. Dort bleibt die Rückfrage nach Barcode oder Etikett.
+
+### Gerichte aus dem Bundeslebensmittelschlüssel
+
+`packages/coach/src/foods.ts`. Der BLS 4.0 des Max Rubner-Instituts ist seit
+Dezember 2025 kostenfrei, blsdb.de. Daraus kommen 41 Gerichte und
+Zutaten, je 100 g essbarer Anteil, mit dem BLS Code über jeder Zeile: Döner
+in drei Arten, Lahmacun, Falafel, Pizza, Pommes, Mayo, Ketchup, Currywurst,
+Bratwurst, Burger, Schnitzel, Lasagne, Brötchen, Brezel, Croissant, Toast,
+Schinken, Salami, Cola und mehr. Butter und Gouda tragen jetzt ebenfalls
+BLS Werte.
+
+Die Portion in `pieceG` ist eine Annahme der App und kein BLS Wert: ein
+Döner 350 g, eine Pizza 400 g, Pommes 150 g. Die Antwort nennt die Menge,
+eine Angabe in Gramm schlägt sie. Belegte Brötchen, Käsebrot und Wurstbrot
+gibt es im BLS nicht als Gericht, sie sind aus BLS Zutaten gerechnet, die
+Mengen stehen im Kommentar.
+
+"Döner mit Hähnchen" wird vor dem Trennen am "mit" zu einem Gericht, sonst
+fiel Hähnchen als Posten ohne Menge heraus. Ein Test prüft für jede Zeile
+der Tabelle, dass Kalorien und Makros zusammenpassen.
 
 ### Der Schnellweg
 
