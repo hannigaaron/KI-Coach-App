@@ -720,6 +720,7 @@ button.messwert:active { opacity: 0.65; }
 .messwert-wert { font-size: var(--t-sm); color: var(--muted); font-variant-numeric: tabular-nums; }
 .messwert-wert b { color: var(--text); font-weight: 650; }
 .messwert-zusatz { color: var(--muted); font-weight: 500; }
+.messwert-quelle { margin: var(--s-2) 0 0; font-size: var(--t-xs); color: var(--muted); }
 .messwert.gross .messwert-name { font-size: var(--t-md); }
 .messwert.gross .messwert-wert b { font-size: var(--t-xl); letter-spacing: -0.02em; }
 /* Die Farbe kommt je Zeile über eine Variable, nicht über eine Klasse je
@@ -3528,3 +3529,31 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 .pl-verlauf-tag ul { list-style: none; margin: var(--s-2) 0 0; padding: 0; }
 .pl-verlauf-tag li { display: flex; flex-direction: column; padding: var(--s-1) 0; font-size: var(--t-sm); }
 .pl-verlauf-tag li span { color: var(--muted); font-variant-numeric: tabular-nums; }
+.pl-heute { margin: var(--s-4) 0 var(--s-6); }
+.pl-heute .sub { margin-top: 0; }
+.pl-heute > .pl-legende { margin: 0 0 var(--s-4); }
+.pl-heute-einheit { margin-top: var(--s-4); }
+
+/* Ein leerer Zustand ist ein Satz und kein Eintrag. Als Karte sah "Nichts,
+   was warten müsste" aus wie eine Aufgabe mit diesem Namen. */
+.list > li.empty {
+  background: none; box-shadow: none !important; padding: 0 2px var(--s-2);
+  color: var(--muted); font-size: var(--t-sm);
+}
+
+/* Der tägliche Check-in mit zehn Stufen in einer Reihe. Kleiner als die fünf
+   des Morgens, damit zehn auf 390 Pixel passen, ohne umzubrechen. */
+.ci-skala { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; }
+.ci-skala .mg-punkt { height: 40px; min-width: 0; padding: 0; font-size: var(--t-sm); }
+.sub + .ci-stufen { margin-top: var(--s-4); }
+
+/* Der Vorschlag für heute steht über dem letzten Mal, ohne eigene Karte:
+   ein Satz mit einem kleinen Knopf daneben. */
+.tr-steigern { display: flex; align-items: center; gap: var(--s-3); margin: 0 0 var(--s-3); }
+.tr-steigern p { flex: 1; margin: 0; font-size: var(--t-sm); color: var(--text); line-height: 1.45; }
+.tr-steigern .pl-mini { flex: none; }
+
+.pill-haken {
+  width: 14px; height: 14px; margin-left: 6px; vertical-align: -2px;
+  fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round;
+}

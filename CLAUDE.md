@@ -339,6 +339,49 @@ ohne Knieübung wäre falsch. Übungen, die jemand im Freitext nennt, werden
 über den Namen gesucht, ab fünf Zeichen, damit "Bankdrücken" auch die
 Varianten trifft.
 
+### Fokus: was am wichtigsten ist, kommt zuerst
+
+`wunsch.fokus`, bis zu zwei Partien aus Beine, Po, Brust, Rücken,
+Schultern, Arme, Core, `FOKUS_PLAETZE` im Kern. Gefragt wird im Fragebogen
+und in der Auswahl über dem Wochenplan. In jeder Einheit stehen die
+Fokusübungen vorn, solange man frisch ist, untereinander schwer vor
+leicht, danach der Rest im bekannten Schema. Wer Arme aufbauen will,
+trainiert sie vor dem Bankdrücken. Ab 60 Minuten kommen bis zu zwei
+Fokusplätze als erste Zusatzübungen dazu, aber nur in Einheiten derselben
+Körperhälfte: Bizeps am Beintag hiesse, den Aufbau der Woche für eine
+Vorliebe zu vergessen. Beim Kürzen fällt eine Fokusübung als letzte
+Isolation weg. Core bleibt auch als Fokus am Ende, ein müder Rumpf macht
+jede schwere Übung danach unsicherer, das steht im Hinweis des Plans.
+
+Fokus Arme gilt auch bis 45 Minuten, `armFokus` im Kern: Bizeps und Trizeps
+kommen mit zwei bis drei Sätzen ganz vorn in jede Ganzkörpereinheit. Die
+Zeit kommt von den Beinen, die nicht im Fokus stehen: erst ein Satz weniger
+dort, dann fällt die zweite Beinübung weg, eine bleibt immer. Drücken und
+Ziehen behalten ihre Sätze. Wer Arme als Fokus angibt, will sie trainieren,
+und Drücken und Ziehen allein reichen dafür nicht. Eine Regel von Coach
+Aaron, keine Studie.
+
+### Training für heute
+
+`einzeltrainingBauen` im Kern, `heuteHtml` in `plaene.js`, oben in der
+Ansicht der Pläne. Für den Tag, an dem der Plan nicht passt: Minuten
+wählen, Partien wählen, daevo rechnet eine Einheit. Vorgewählt ist, was
+diese Woche ab Montag noch fehlt, `wocheTrainiert` und `fehlendePartien`
+aus dem Trainingsprotokoll. Nach Push und Pull sind das Beine, Po und Core.
+Ohne Eintrag in dieser Woche ist nichts vorgewählt, sieben Partien auf
+einmal wären keine Wahl. Trainings aus Apple Health tragen keine Übungen
+und zählen dort nicht.
+
+Gerechnet wird mit `einheitBauen`, derselben Funktion wie für jeden Tag
+des Wochenplans, mit Fokus, Schwere, ZNS Regel, Einsteigergeräten und dem
+Füllen der Zeit. Je Partie zuerst ihr schwerster Platz, dann reihum die
+nächsten, danach ein zweiter Durchgang mit anderen Übungen. Anders als im
+Wochenplan gibt es auch unter 45 Minuten Isolation, wenn jemand nur Arme
+wählt: für Arme gibt es keine Grundübung. 30 Minuten Beine und Core ergeben
+Kniebeuge, Rumänisches Kreuzheben und eine Rumpfübung. Gestartet läuft sie
+wie ein freies Training unter "Training für heute", Tauschen ändert den
+Plan nicht.
+
 ### Schweres Heben und Beugen nie am selben Tag
 
 `zuSchwerZusammen` im Kern. Kreuzheben, Sumo und Trap Bar Kreuzheben stehen
@@ -384,6 +427,29 @@ an, nach Ort, Niveau und Beschwerden, die erste als Vorschlag von daevo.
 Der Tausch gilt ab dann auch im Plan. Wer einen Plan startet, der noch
 nicht gespeichert ist, speichert ihn damit: ohne gespeicherten Plan gibt es
 nichts, woran nach acht Wochen gemessen wird.
+
+### Was heute dran ist
+
+`steigerung` in `trainingslog.ts`, angezeigt über dem letzten Mal, mit
+"Übernehmen" für die offenen Sätze. Doppelte Progression: erst die
+Wiederholungen bis ans obere Ende des Bereichs, dann Gewicht dazu und unten
+wieder anfangen. Gestützt auf ACSM, Progression Models in Resistance
+Training, 2009: 2 bis 10 Prozent mehr Last, sobald die Wiederholungen über
+dem Ziel liegen. Die Schritte, 2,5 kg und unter 20 kg 1 kg, sind eine Regel
+der App. Gezählt werden die Sätze mit dem höchsten Gewicht. Lag die Reserve
+mehr als eine Wiederholung unter dem Ziel, wird gehalten. Ohne Gewicht am
+oberen Ende rät die App kein Kilo, sondern sagt, wie es schwerer wird.
+
+Das Ende der Pause kommt in der iPhone App auch als Mitteilung, bei
+gesperrtem Handy: `pauseStellen` im `MitteilungenPlugin`, eine Kennung
+ohne das Präfix der geplanten Mitteilungen, sonst löschte das nächste
+Planen die laufende Pause. Ist die App vorn, unterdrückt iOS sie, und die
+Seite meldet selbst. Die Uhr rechnet gegen den Endzeitpunkt statt
+abzuzählen, denn im Hintergrund hält iOS die Uhr der Seite an.
+
+Die Felder bleiben mit dem letzten Mal vorbelegt, der Vorschlag ist ein
+Angebot. `trainingsplan_abrufen` gibt denselben Satz je Übung an den Coach,
+sonst nennt er ein Gewicht aus dem Modell.
 
 ### Freies Training
 
@@ -444,7 +510,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1157 Tests
+npm test           # 1176 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -559,7 +625,7 @@ Kontext kosten mehr Token als die eigentliche Frage.
 
 ## Der Anamnesebogen
 
-Eine Frage pro Seite, 29 Seiten in acht Abschnitten. Die letzten Abschnitte
+Eine Frage pro Seite, 30 Seiten in acht Abschnitten. Die letzten Abschnitte
 sind der Unterschied zwischen einem Rechner und einem Coach: Essverhalten,
 Vorgeschichte, Umfeld, Antrieb.
 
@@ -715,6 +781,16 @@ Ergebnisses, und das Ergebnis zeigt ohnehin, dass gespeichert ist.
 
 Web Push über den Worker kennt die Aufstehzeit nicht, deshalb kommt die
 Mitteilung nur nativ. Im Browser ersetzt das Öffnen von selbst sie.
+
+## Zahlen von 1 bis 10 werden angetippt
+
+Der tägliche Check-in und der Mittags Check-in fragten Energie, Schlaf,
+Stimmung, Konzentration und Sättigung über Zahlenfelder ab. Ein Zahlenfeld
+öffnet die Tastatur, verdeckt die halbe Seite und will erst gelöscht werden.
+Jetzt zehn Stufen in einer Reihe wie beim Morgen Check-in,
+`stufenZeichnen` in `app.js` über `data-stufen`. Der Wert steht weiter im
+versteckten Feld mit derselben Kennung, Speichern liest unverändert. Die
+Enden stehen in Worten darunter.
 
 ## Die zwei Check-ins der Woche
 
@@ -924,6 +1000,33 @@ wird die Instanz weggeworfen und eine neue aufgesetzt. Nach dem vierten
 stummen Versuch bekommt der Nutzer eine Meldung statt eines toten Knopfes. Ein
 geglückter Start löscht die Bilanz, sonst summieren sich über eine lange
 Freihandsitzung vier einzelne Ausrutscher zu einem Abbruch.
+
+## Die Spracherkennung in der iPhone App
+
+`apps/ios/ios/App/App/DiktatPlugin.swift`, angesprochen aus `voice.js`,
+Wörter und Korrekturen in `apps/pwa/js/diktat.js`.
+
+Die Web Ansicht kennt nur `webkitSpeechRecognition`. Sie kennt keine
+Fachwörter und schrieb im Betrieb "zwei Sitze breite Umzüge" für "zwei
+Sätze breite Klimmzüge". In der iPhone App erkennt deshalb Apple selbst: ab
+iOS 26 `SpeechAnalyzer` mit `SpeechTranscriber`, dieselbe Erkennung, auf der
+Apps wie Yap aufbauen, für lange Aufnahmen gebaut und auf dem Gerät. Davor
+oder ohne deutsches Sprachpaket `SFSpeechRecognizer` mit der Wortliste als
+`contextualStrings`. Scheitert der native Start, bleibt die Erkennung der
+Web Ansicht.
+
+Die Web App fragt den Stand alle 220 Millisekunden ab, statt auf Ereignisse
+zu warten: Ereignisse bräuchten `@capacitor/core`, und die Web App hat keinen
+Bundler. Pause, Freihand und Abschicken laufen über denselben `Listener` wie
+im Browser.
+
+`diktatKorrektur` läuft auf jedem Weg. Jede Zeile stammt aus einer echten
+Ausgabe und greift nur im Zusammenhang: "Sitze" wird nur nach einer Zahl zu
+"Sätze", "Umzüge" nur nach "breite" oder "enge" zu Klimmzügen.
+
+Ungeprüft: der Swift Teil ist hier nicht kompiliert, es gibt kein Xcode. Der
+Weg über iOS 26 steht hinter `#if compiler(>=6.2)` und braucht Xcode 26. Ob
+Deutsch dort angeboten wird, fragt das Plugin bei iOS ab.
 
 ## Tagesränder
 
@@ -1584,7 +1687,7 @@ Tippfehler darf die Ziele nicht kippen.
 
 ## Der Regelweg ist die kostenlose Stufe
 
-42 der 48 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
+44 der 48 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
 Das ist keine Notlösung für den Ausfall, sondern das Produkt: ein Weg, der
 kein Modell anfragt, kostet nichts je Nutzer und skaliert ohne Rechnung.
 
@@ -1614,6 +1717,74 @@ wie eine echte Antwort. Beschriftete Zahlen schlagen die Reihenfolge, denn wer
 "Energie 7, Sättigung 4" schreibt, meint nicht Konzentration 4. Steht viel
 Text um die Zahlen herum, greift der Zweig nicht: "ich hab 7 von 10 Stunden
 geschlafen und 2 Kaffee getrunken" ist kein Bogen.
+
+### Der zweite Durchlauf
+
+34 weitere Sätze aus dem Alltag ohne KI, jeder Fehler mit Test in
+`agent.test.ts`:
+
+- "War eben 60 min im Gym, Oberkörper" verstand der Regelweg nicht. Gym,
+  Studio, Beintag, Ober und Unterkörper zählen jetzt als Training.
+- "Ich hatte heute ein Coaching mit einem Kunden 2 Stunden" stand als
+  Mahlzeit im Tag. "hatte" mit einer Dauer und ohne Lebensmittel ist keine
+  Mahlzeit, Coaching und Meeting sind Arbeitszeit.
+- "Mir tut das Knie weh" wird als Beschwerde mit Wichtigkeit 5 gemerkt, mit
+  dem Weg zu den Beschwerden im Trainingsplan und dem Satz zu Arzt und
+  Physiotherapie. Die Stelle wird auf Wortgrenzen gesucht, sonst wird aus
+  "beim Kniebeugen" die Stelle Kniebeugen.
+- "Ich fühl mich total leer" fiel durch, weil nur "fühle" mit e galt. Es
+  wird ein Check-in, und die Rückfrage ist nicht die nach den Vorhaben des
+  Tages: die klingt wie die nächste Aufgabe.
+- "Mein Ziel ist jetzt Muskelaufbau" kannte nur das Verb aufbauen.
+
+Dazu 20 Sätze nur zum Essen:
+
+- "Das waren 300 g und nicht 200 g Reis" trug eine zweite Mahlzeit ein,
+  statt die erste zu korrigieren. Das ist der Fehler mit den 5172 Kalorien
+  in anderer Form. "und nicht" zählt jetzt als Richtigstellung.
+- "Was hab ich heute gegessen?" und "Ich hab heute noch nichts gegessen"
+  enthalten gegessen und legten eine leere Mahlzeit an. Beides bekommt
+  jetzt den Tagesstand.
+- "Ich esse gleich Lachs" ist ein Vorhaben, "gleich" und "nachher" zählen in
+  `istAbsicht`, die Antwort sagt, dass danach eingetragen wird.
+- "Lösch das Frühstück" fand keinen Gegenstand. Jetzt wird die jüngste
+  Mahlzeit dieser Tageszeit entfernt, über `artZurUhrzeit`, und nicht die
+  letzte des Tages.
+- Pizza, Döner, Pommes und belegte Brötchen kennt der Regelweg jetzt, mit
+  Werten aus dem Bundeslebensmittelschlüssel 4.0, siehe unten.
+  Proteinriegel nicht: den gibt es im BLS nicht, und die Marken liegen weit
+  auseinander. Dort bleibt die Rückfrage nach Barcode oder Etikett.
+
+### Gerichte aus dem Bundeslebensmittelschlüssel
+
+`packages/coach/src/foods.ts`. Der BLS 4.0 des Max Rubner-Instituts ist seit
+Dezember 2025 kostenfrei, blsdb.de. Daraus kommen 40 Gerichte und
+Zutaten, dazu 8 aus BLS Zutaten gerechnete, je 100 g essbarer Anteil,
+mit dem BLS Code über jeder Zeile: Döner
+in drei Arten, Lahmacun, Falafel, Pizza, Pommes, Mayo, Ketchup, Currywurst,
+Bratwurst, Burger, Schnitzel, Lasagne, Brötchen, Brezel, Croissant, Toast,
+Schinken, Salami, Cola und mehr. Butter und Gouda tragen jetzt ebenfalls
+BLS Werte.
+
+Die Portion in `pieceG` ist eine Annahme der App und kein BLS Wert: ein
+Döner 350 g, eine Pizza 400 g, Pommes 150 g. Die Antwort nennt die Menge,
+eine Angabe in Gramm schlägt sie. Belegte Brötchen, Käsebrot und Wurstbrot
+gibt es im BLS nicht als Gericht, sie sind aus BLS Zutaten gerechnet, die
+Mengen stehen im Kommentar.
+
+"Döner mit Hähnchen" wird vor dem Trennen am "mit" zu einem Gericht, sonst
+fiel Hähnchen als Posten ohne Menge heraus. Ein Test prüft für jede Zeile
+der Tabelle, dass Kalorien und Makros zusammenpassen.
+
+### Der Schnellweg
+
+`schnellweg` in `agent.ts`. Auch mit Schlüssel gehen eindeutige Kurzbefehle
+nicht ans Modell: eine Wassermenge, eine Wiegung, die drei Zahlen des
+Mittags Check-ins, Gekauftes. Die App rechnet dort ohnehin selbst, das
+Modell schrieb nur den Satz drumherum, für zwei bis vier Sekunden und eine
+Nachricht aus dem Kontingent. Höchstens acht Wörter, keine Frage, und nie
+eine Mahlzeit: dort schätzt das Modell Posten, die keine Tabelle kennt.
+Trägt der Regelweg nichts ein, läuft die Nachricht wie immer ans Modell.
 
 ### Der Regelweg nach dem Live-Test
 
@@ -1657,10 +1828,18 @@ Posten, die beim Neurechnen der Liste stehen bleiben, und
 `trainingsplan_abrufen`, das Training eines Tages mit den Übungen aus
 `settings.plan`. Vorher kannte der Coach die gespeicherten Übungen nicht.
 
-Offen bleiben sechs. Die beiden Fotowerkzeuge brauchen ein Modell, daran
-ändert kein Regelpfad etwas. `standard_bestaetigen` und `gespraech_einordnen` brauchen eine Kennung aus dem Zusammenhang, die ein
-Wortmuster nicht kennt. `profil_aendern` und `einkaufsliste_abhaken` sind
-machbar und stehen aus.
+Offen bleiben vier. Die beiden Fotowerkzeuge brauchen ein Modell, daran
+ändert kein Regelpfad etwas. `standard_bestaetigen` und `gespraech_einordnen`
+brauchen eine Kennung aus dem Zusammenhang, die ein Wortmuster nicht kennt.
+
+`einkaufsliste_abhaken` hat jetzt einen Regelpfad, `listeAbhakenAus`: "Reis
+und Eier gekauft", "Milch hab ich noch zuhause". Er steht vor dem Abhaken
+von Aufgaben, sonst wird "Milch gekauft, erledigt" zu einer Aufgabe namens
+Milch. `profil_aendern` über `profilAus`, nur mit einem Zeichen für Dauer:
+"mein Ziel ist jetzt abnehmen", "im Schnitt 12.000 Schritte", "ab jetzt um
+6 aufstehen". Ein Satz mit heute, morgen oder gestern ist ein einzelner Tag
+und ändert das Profil nicht, eine falsch übernommene Schrittzahl verschiebt
+das Kalorienziel an jedem Tag danach.
 
 ## Rezepte
 

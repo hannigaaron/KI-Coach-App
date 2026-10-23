@@ -22,6 +22,17 @@ export const BEREICHE = [
   { id: "gewicht", symbol: "waage", titel: "Gewicht", text: "Auf- oder abnehmen, ohne Jojo" },
 ];
 
+/** Die Partien für den Fokus im Trainingsplan. Die Kennungen sind die aus `FOKUS_NAME` im Kern. */
+export const FOKUS_WAHL = [
+  { id: "beine", symbol: "laufen", titel: "Beine", text: "Oberschenkel und Waden" },
+  { id: "po", symbol: "stuhl", titel: "Po", text: "Gesäß und Hüfte" },
+  { id: "brust", symbol: "hantel", titel: "Brust", text: "Drücken" },
+  { id: "ruecken", symbol: "person", titel: "Rücken", text: "Ziehen, Haltung" },
+  { id: "schultern", symbol: "stehen", titel: "Schultern", text: "Breite und Stabilität" },
+  { id: "arme", symbol: "hantel", titel: "Arme", text: "Bizeps und Trizeps" },
+  { id: "rumpf", symbol: "ring", titel: "Core", text: "Bauch und Rumpf" },
+];
+
 /**
  * Die 14 Hauptallergene nach Verordnung (EU) Nr. 1169/2011, Anhang II. Mit
  * Kennzeichnungspflicht, deshalb verlässlich auf jeder Packung zu finden.
@@ -250,6 +261,16 @@ export const SCHRITTE = [
     ],
     knopfLeer: "Hab ich nicht, weiter",
     tipp: { symbol: "idee", text: "Ich bin kein Arzt. Akute oder neue Schmerzen gehören zu Arzt oder Physiotherapie, bevor du trainierst." },
+  },
+  {
+    id: "fokus",
+    abschnitt: "Dein Training",
+    titel: "Welche Muskelpartien sind dir am wichtigsten?",
+    text: "Was du wählst, trainierst du in jeder passenden Einheit zuerst, solange du frisch bist.",
+    wenn: { id: "planVorhanden", nicht: ["eigen"] },
+    felder: [{ art: "mehrfach", id: "fokus", optionen: FOKUS_WAHL, max: 2, optional: true }],
+    knopfLeer: "Kein besonderer Fokus, weiter",
+    tipp: { symbol: "idee", text: "Höchstens zwei. Wenn alles zuerst kommt, kommt nichts zuerst." },
   },
   {
     id: "budget",
@@ -895,6 +916,7 @@ export function planWunschAus(antworten) {
     ort: ["studio", "zuhause", "ohne"].includes(antworten.trainingsort) ? antworten.trainingsort : "studio",
     beschwerden: beschwerdenAus(antworten),
     meiden: uebungenAusText(antworten.schmerzUebungen),
+    fokus: (antworten.fokus || []).filter((f) => FOKUS_WAHL.some((w) => w.id === f)).slice(0, 2),
   };
 }
 

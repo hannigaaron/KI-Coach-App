@@ -62,6 +62,7 @@ import { kodierungReparieren, newId, nowTime, store, todayIso } from "./storage.
 import { healthkitAbgleichen } from "./healthkit.js";
 import { mitteilungenPlanen } from "./mitteilungen.js";
 import { nativAufruf } from "./nativ.js";
+import { spueren } from "./haptik.js";
 import { ABO_STUFEN, ABO_TAKTE, aboPreis, ersparnisProzent, aboAnlass, aboAnlassLeer, aboLeiste, aboLink, kontoSicherstellen, kontoStand, kontoText } from "./konto.js";
 
 const $ = (id) => document.getElementById(id);
@@ -712,6 +713,11 @@ function setupAssistant() {
     onState: (state, detail) => {
       $("btnMic").setAttribute("aria-pressed", state === "listening" ? "true" : "false");
       if (state === "listening") {
+        // Spürbar, dass das Mikrofon offen ist, auch wer nicht hinsieht.
+        // Nicht im Weckwortmodus und nicht beim Neustart im Freihandbetrieb:
+        // dort startet das Mikrofon nach jedem Satz neu, und ein Summen nach
+        // jedem Satz im Raum wäre Lärm.
+        if (!weckwortLaeuft && !listener.handsFree) spueren("leicht");
         orb.setState("listening");
         // Im Weckwortmodus heisst zuhören etwas anderes als beim Diktieren:
         // dort wartet die App auf die Anrede, hier auf den Satz. Ohne den
@@ -865,7 +871,24 @@ function showView(name) {
   if (name === "empfehlungen") { renderRecommendations(); zeigeAngebot("empfehlungenAngebot"); }
   if (name === "profil") { renderProfile(); healthStandZeigen(); eigeneErinnerungenZeigen(); }
   if (name === "assistant") renderTranscript();
+  // Werte, die beim Öffnen gesetzt werden, etwa der Vorrat, lösen kein input
+  // aus. Ohne das hier stand die zweite Zeile halb abgeschnitten im Feld.
+  requestAnimationFrame(() => document.querySelectorAll(`.view[data-view="${name}"] textarea`).forEach(feldWachsen));
 }
+
+/**
+ * Ein Textfeld wächst mit dem Inhalt, bis zu vier Zehnteln des Bildschirms.
+ * Darüber scrollt es: eine Sicherung als Text wäre sonst so hoch wie die
+ * Seite. Ein abgeschnittener Satz sieht aus wie ein verlorener.
+ */
+function feldWachsen(el) {
+  if (!el || el.offsetParent === null) return;
+  el.style.height = "auto";
+  el.style.height = `${Math.min(el.scrollHeight + 2, Math.round(innerHeight * 0.4))}px`;
+}
+document.addEventListener("input", (event) => {
+  if (event.target instanceof HTMLTextAreaElement) feldWachsen(event.target);
+});
 
 function refreshAll() {
   const visible = document.querySelector(".view:not([hidden])");
@@ -1377,11 +1400,27 @@ function renderBereitschaft() {
   // Nur der Rat, nicht der ganze Text. Die Teile stehen darunter als Liste,
   // und die Grenze der Zahl steht fest im HTML.
   $("bereitschaftSub").textContent = bereitschaftText(b).split("\n").filter(Boolean).slice(-2)[0];
-  teile.innerHTML = b.teile
-    .map((t) => `<li><div class="li-main"><div class="li-title">${escapeHtml(t.name)} ${t.wert} von 100</div>`
-      + `<div class="li-sub">aus ${escapeHtml(t.quelle)}</div></div></li>`)
-    .join("");
+  // Dieselben Balken wie auf Heute und Balance. Vorher standen die Teile als
+  // gerahmte Karten mit "78 von 100" im Titel, eine dritte Form für dieselbe
+  // Aussage: wie voll ist dieser Teil.
+  teile.innerHTML = "";
+  for (const t of b.teile) {
+    const zeile = messwert({ name: t.name, wert: t.wert, zusatz: "von 100", anteil: t.wert / 100, ton: TEIL_TON[t.name] });
+    const quelle = document.createElement("p");
+    quelle.className = "messwert-quelle";
+    quelle.textContent = `aus ${t.quelle}`;
+    zeile.appendChild(quelle);
+    teile.appendChild(zeile);
+  }
 }
+
+/** Die Farbe je Teil der Bereitschaft, aus den Farben, die es schon gibt. */
+const TEIL_TON = {
+  Schlaf: "var(--bereich-wellbeing)",
+  Energie: "var(--makro-kohlenhydrate)",
+  Belastung: "var(--bereich-fitness)",
+  Ruhe: "var(--bereich-me_time)",
+};
 
 function renderHeuteBalance() {
   const el = $("heuteBalance");
@@ -1808,7 +1847,9 @@ function renderRestDesTages() {
     const an = gewaehlt.includes(m.art);
     const schon = gegessen.includes(m.art);
     return `<button type="button" class="pill${an ? " on" : ""}" data-mahlzeit="${m.art}">`
-      + `${escapeHtml(m.name)}${schon ? " ✓" : ""}</button>`;
+      // Ein gezeichneter Haken statt des Schriftzeichens, das je nach Schrift
+      // anders sitzt. Dieselbe Linie wie der Haken im Trainingsmodus.
+      + `${escapeHtml(m.name)}${schon ? '<svg class="pill-haken" viewBox="0 0 24 24" role="img" aria-label="schon gegessen"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>' : ""}</button>`;
   }).join("");
 }
 
@@ -2639,6 +2680,7 @@ function startApp() {
 
 $("composer").addEventListener("submit", (event) => {
   event.preventDefault();
+  if ($("chatInput").value.trim()) spueren("leicht");
   send($("chatInput").value);
 });
 /**
@@ -2774,6 +2816,13 @@ const plaene = plaeneStarten({
       return;
     }
     training.frei();
+  },
+  starteEinheit: (einheit) => {
+    if (trainingGestrichen(store, todayIso())) {
+      toast("Heute ist dein Training gestrichen, der Tag gehört der Erholung. Geht es dir besser, sag es unter Check-ins.", 5000);
+      return;
+    }
+    training.einheit(einheit);
   },
   log: trainingslog,
   heute: todayIso,
@@ -3252,6 +3301,32 @@ $("btnSuggest").addEventListener("click", async () => {
     button.textContent = "Mahlzeit vorschlagen";
   }
 });
+
+/**
+ * Stufen von 1 bis 10 zum Antippen statt eines Zahlenfelds. Ein Zahlenfeld
+ * öffnet die Tastatur, verdeckt die halbe Seite und will gelöscht werden,
+ * bevor man tippt. Der Wert bleibt im versteckten Feld, damit Speichern
+ * unverändert liest.
+ */
+function stufenZeichnen() {
+  for (const reihe of document.querySelectorAll("[data-stufen]")) {
+    const feld = $(reihe.dataset.stufen);
+    const wert = Number(feld.value);
+    reihe.innerHTML = Array.from({ length: 10 }, (_, i) => i + 1)
+      .map((v) => `<button type="button" class="mg-punkt${v === wert ? " an" : ""}" role="radio" aria-checked="${v === wert}" data-stufe="${v}">${v}</button>`)
+      .join("");
+    reihe.setAttribute("role", "radiogroup");
+    reihe.setAttribute("aria-label", reihe.closest("fieldset")?.querySelector("legend")?.textContent ?? "");
+  }
+}
+document.addEventListener("click", (event) => {
+  const knopf = event.target.closest("[data-stufen] [data-stufe]");
+  if (!knopf) return;
+  $(knopf.closest("[data-stufen]").dataset.stufen).value = knopf.dataset.stufe;
+  spueren("leicht");
+  stufenZeichnen();
+});
+stufenZeichnen();
 
 $("btnCheckin").addEventListener("click", async () => {
   await buildActions({ onChange: refreshAll }).checkinSpeichern({

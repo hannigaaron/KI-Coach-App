@@ -23,6 +23,24 @@ export function nativAufruf(plugin, methode, daten = {}) {
   return Promise.reject(new Error(`Plugin ${plugin} fehlt in dieser Fassung der App.`));
 }
 
+/* ---------- Ende der Satzpause ---------- */
+
+/**
+ * Meldet das Ende der Pause auch bei gesperrtem Handy. Die Uhr der Seite
+ * läuft im Hintergrund nicht weiter, und wer zwischen zwei Sätzen das Handy
+ * weglegt, sieht nicht, dass es weitergeht. Ist die App vorn, zeigt iOS die
+ * Mitteilung nicht, dann meldet die Seite selbst.
+ */
+export function pauseMitteilung(sekunden, uebung = "") {
+  if (!istNativ()) return;
+  nativAufruf("Mitteilungen", "pauseStellen", { sekunden, uebung }).catch(() => {});
+}
+
+export function pauseMitteilungAus() {
+  if (!istNativ()) return;
+  nativAufruf("Mitteilungen", "pauseAbbrechen").catch(() => {});
+}
+
 /* ---------- Spiegel des Speichers ---------- */
 
 const PREFIX = "daevo.";

@@ -49,7 +49,12 @@ export function parseMealOffline(text: string): { entries: FoodEntry[]; unresolv
   const unresolved: string[] = [];
   // Komma trennt nur, wenn es nicht zwischen zwei Ziffern steht. Sonst
   // würde "1,5 EL" in zwei Teile zerfallen.
+  // "Döner mit Hähnchen" ist ein Gericht und nicht Döner plus Hähnchen. Ohne
+  // das trennt das "mit" unten den Satz, und Hähnchen fällt als offener
+  // Posten ohne Menge heraus.
   const chunks = text
+    .replace(/d(ö|oe)ner mit (hähnchen|haehnchen|hühnchen|huehnchen|huhn|chicken|geflügel|gefluegel|pute)/gi, "Hähnchendöner")
+    .replace(/(veggie|vegetarischer|vegetarisch) d(ö|oe)ner|d(ö|oe)ner (vegetarisch|ohne fleisch)/gi, "vegetarischer Döner")
     .split(/(?<!\d),(?!\d)| und | mit |\+|\n/i)
     .map((c) => c.trim())
     .filter(Boolean);

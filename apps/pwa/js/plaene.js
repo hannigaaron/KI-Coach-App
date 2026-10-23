@@ -10,15 +10,19 @@
  * fasst `document` an.
  */
 import {
-  BESCHWERDE_NAME, alternativen, planAktualisieren, planNachrechnen, positionFuer, uebungErlaubt, uebungsplanBauen, uebungsplanText,
+  BESCHWERDE_NAME, FOKUS_NAME, einzeltrainingBauen, fehlendePartien, wocheTrainiert, alternativen, planAktualisieren, planNachrechnen, positionFuer, uebungErlaubt, uebungsplanBauen, uebungsplanText,
 } from "@daevo/core";
 import { UEBUNGEN } from "./uebungen-daten.js";
 import { GRUPPEN, vorschauPfad } from "./uebungen.js";
 
 export const STANDARD_WUNSCH = {
   tage: 3, minuten: 45, niveau: "intermediate", ziel: "muskel", deload: false, variante: 0,
-  ort: "studio", beschwerden: [], meiden: [],
+  ort: "studio", beschwerden: [], meiden: [], fokus: [],
 };
+
+export const FOKUS = Object.keys(FOKUS_NAME);
+/** Mehr als zwei Partien zuerst heisst: keine zuerst. */
+export const FOKUS_MAX = 2;
 
 export const BESCHWERDEN = Object.keys(BESCHWERDE_NAME);
 
@@ -53,6 +57,7 @@ export function wunschPruefen(roh) {
   w.variante = Number.isInteger(w.variante) && w.variante >= 0 ? w.variante : 0;
   w.beschwerden = (Array.isArray(w.beschwerden) ? w.beschwerden : []).filter((b) => BESCHWERDEN.includes(b));
   w.meiden = (Array.isArray(w.meiden) ? w.meiden : []).filter((id) => nachId.has(id));
+  w.fokus = (Array.isArray(w.fokus) ? w.fokus : []).filter((f) => FOKUS.includes(f)).slice(0, FOKUS_MAX);
   return w;
 }
 
@@ -90,8 +95,15 @@ export function steuerHtml(wunsch) {
     })
     .join("");
   const schmerz = `<div class="pl-feld"><p class="pl-name">Beschwerden</p><div class="pl-reihe">${beschwerden}</div></div>`;
+  const fokusKnoepfe = FOKUS
+    .map((f) => {
+      const an = wunsch.fokus.includes(f);
+      return `<button type="button" class="ue-tab${an ? " on" : ""}" data-fokus="${f}" aria-pressed="${an}">${esc(FOKUS_NAME[f])}</button>`;
+    })
+    .join("");
+  const fokus = `<div class="pl-feld"><p class="pl-name">Am wichtigsten, kommt zuerst (bis zu zwei)</p><div class="pl-reihe">${fokusKnoepfe}</div></div>`;
   const deload = `<label class="pl-deload"><input type="checkbox" id="plDeload"${wunsch.deload ? " checked" : ""}><span>Entlastungswoche</span><small>Halbe Satzzahl, mehr Reserve</small></label>`;
-  return reihen.join("") + schmerz + deload;
+  return reihen.join("") + fokus + schmerz + deload;
 }
 
 export function zeileHtml(p, { bearbeiten = false, ei = 0, pi = 0, tausch = null } = {}) {
@@ -225,6 +237,55 @@ export function planPruefen(plan, log, heute) {
   };
 }
 
+/* ---------- Training für heute ---------- */
+
+export const HEUTE_MINUTEN = [20, 30, 45, 60, 75, 90];
+
+/**
+ * Was diese Woche schon dran war, als Satz, und welche Partien vorgewählt
+ * sind. Ohne Eintrag in dieser Woche ist nichts vorgewählt: alle sieben
+ * Partien auf einmal wären keine Wahl, sondern ein Formular.
+ */
+export function heuteVorschlag(log, heute) {
+  const trainiert = wocheTrainiert(log, UEBUNGEN, heute);
+  const namen = Object.entries(trainiert).map(([g, n]) => `${FOKUS_NAME[g]} ${n} ${n === 1 ? "Satz" : "Sätze"}`);
+  const fehlt = fehlendePartien(trainiert);
+  return {
+    text: namen.length
+      ? `Diese Woche in daevo: ${namen.join(", ")}. Noch offen: ${fehlt.map((g) => FOKUS_NAME[g]).join(", ") || "nichts"}.`
+      : "Diese Woche steht in daevo noch kein Training. Wähl, was heute drankommen soll.",
+    gruppen: namen.length ? fehlt : [],
+  };
+}
+
+export function heuteHtml(stand, einheit) {
+  const minuten = HEUTE_MINUTEN.map((m) => `<button type="button" class="ue-tab${stand.minuten === m ? " on" : ""}" data-heute-min="${m}" aria-pressed="${stand.minuten === m}">${m}</button>`).join("");
+  const gruppen = FOKUS.map((g) => {
+    const an = stand.gruppen.includes(g);
+    return `<button type="button" class="ue-tab${an ? " on" : ""}" data-heute-gruppe="${g}" aria-pressed="${an}">${esc(FOKUS_NAME[g])}</button>`;
+  }).join("");
+  const ergebnis = einheit
+    ? `<section class="pl-einheit pl-heute-einheit"><header><div><h3>${esc(einheit.fokus)}</h3><p>${einheit.positionen.length} Übungen · etwa ${einheit.dauerMin} Min.</p></div>
+        <div class="pl-knoepfe"><button type="button" class="pl-mini pl-start" data-heute-start>Starten</button><button type="button" class="pl-mini" data-heute-andere>Andere Übungen</button></div></header>
+        <ol class="pl-liste">${einheit.positionen.map((p) => zeileHtml(p)).join("")}</ol></section>`
+    : stand.gruppen.length ? "" : '<p class="pl-legende">Wähl mindestens eine Partie.</p>';
+  return `<h3 class="ue-abschnitt">Training für heute</h3>
+    <p class="sub">Wenn der Plan heute nicht passt: wie viel Zeit du hast und was diese Woche noch fehlt.</p>
+    <p class="pl-legende">${esc(stand.text)}</p>
+    <div class="pl-feld"><p class="pl-name">Minuten</p><div class="pl-reihe">${minuten}</div></div>
+    <div class="pl-feld"><p class="pl-name">Heute dran</p><div class="pl-reihe">${gruppen}</div></div>
+    ${ergebnis}`;
+}
+
+/** Die Einheit für heute, mit Erfahrung, Ziel, Ort, Beschwerden und Fokus aus dem Plan. */
+export function heuteEinheit(stand, wunsch) {
+  const w = wunschPruefen(wunsch);
+  return einzeltrainingBauen({
+    minuten: stand.minuten, gruppen: stand.gruppen, niveau: w.niveau, ziel: w.ziel, ort: w.ort,
+    beschwerden: w.beschwerden, meiden: w.meiden, fokus: w.fokus, variante: stand.variante ?? 0,
+  }, UEBUNGEN);
+}
+
 /**
  * Die letzten Trainings aus dem Protokoll, je Tag und Einheit eine Zeile,
  * aufklappbar mit den Sätzen. Was gespeichert ist, soll man auch sehen: ein
@@ -266,7 +327,7 @@ const $ = (id) => document.getElementById(id);
  * eine kurze Rückmeldung. Alle drei kommen von außen, damit diese Datei weder
  * den Speicher noch die Oberfläche der App kennen muss.
  */
-export function plaeneStarten({ speicher, oeffne, melde, starte = () => {}, frei = () => {}, log = () => [], heute = () => new Date().toISOString().slice(0, 10) }) {
+export function plaeneStarten({ speicher, oeffne, melde, starte = () => {}, frei = () => {}, starteEinheit = () => {}, log = () => [], heute = () => new Date().toISOString().slice(0, 10) }) {
   // Acht Wochen um: Fortschritt prüfen, bevor irgendetwas gezeigt wird.
   const geprueft = planPruefen(gespeicherterPlan(speicher.lesen()), log(), heute());
   if (geprueft) speicher.schreiben(geprueft);
@@ -274,6 +335,14 @@ export function plaeneStarten({ speicher, oeffne, melde, starte = () => {}, frei
   let wunsch = wunschPruefen(gespeichert?.wunsch);
   let plan = gespeichert ?? planFuer(wunsch);
   let istGespeichert = Boolean(gespeichert);
+
+  // Das Training für heute. Vorgewählt wird beim Öffnen der Ansicht neu,
+  // denn was diese Woche fehlt, ändert sich mit jedem Training.
+  const vorschlag = heuteVorschlag(log(), heute());
+  let heuteStand = { minuten: 30, gruppen: vorschlag.gruppen, text: vorschlag.text, variante: 0 };
+  const heuteZeichnen = () => {
+    $("plHeute").innerHTML = heuteHtml(heuteStand, heuteStand.gruppen.length ? heuteEinheit(heuteStand, wunsch) : null);
+  };
 
   // Welche Einheit gerade bearbeitet wird und welche Tauschliste offen ist.
   let bearbeitet = -1;
@@ -290,6 +359,7 @@ export function plaeneStarten({ speicher, oeffne, melde, starte = () => {}, frei
       .join("");
     $("plSaetze").innerHTML = saetzeHtml(plan.wochensaetze ?? {});
     $("plVerlauf").innerHTML = verlaufHtml(log());
+    heuteZeichnen();
     $("plHinweise").innerHTML = hinweiseHtml(plan.hinweise ?? []);
     $("plQuellen").innerHTML = quellenHtml(plan.quellen ?? []);
     $("plSpeichern").textContent = istGespeichert ? "Gespeichert" : "Als meinen Plan speichern";
@@ -313,6 +383,16 @@ export function plaeneStarten({ speicher, oeffne, melde, starte = () => {}, frei
   };
 
   $("plSteuerung").addEventListener("click", (event) => {
+    const fokusKnopf = event.target.closest("[data-fokus]");
+    if (fokusKnopf) {
+      const f = fokusKnopf.dataset.fokus;
+      let liste = wunsch.fokus.includes(f) ? wunsch.fokus.filter((x) => x !== f) : [...wunsch.fokus, f];
+      // Eine dritte Partie verdrängt die älteste. Ein gesperrter Knopf ohne
+      // Erklärung sähe kaputt aus.
+      if (liste.length > FOKUS_MAX) liste = liste.slice(-FOKUS_MAX);
+      neu({ fokus: liste });
+      return;
+    }
     const beschwerde = event.target.closest("[data-beschwerde]");
     if (beschwerde) {
       const b = beschwerde.dataset.beschwerde;
@@ -331,6 +411,23 @@ export function plaeneStarten({ speicher, oeffne, melde, starte = () => {}, frei
     if (event.target.id === "plDeload") neu({ deload: event.target.checked });
   });
   $("plFrei").addEventListener("click", () => frei());
+  $("plHeute").addEventListener("click", (event) => {
+    const k = (sel) => event.target.closest(sel);
+    let x;
+    if ((x = k("[data-heute-min]"))) heuteStand = { ...heuteStand, minuten: Number(x.dataset.heuteMin), variante: 0 };
+    else if ((x = k("[data-heute-gruppe]"))) {
+      const g = x.dataset.heuteGruppe;
+      const gruppen = heuteStand.gruppen.includes(g) ? heuteStand.gruppen.filter((y) => y !== g) : [...heuteStand.gruppen, g];
+      heuteStand = { ...heuteStand, gruppen, variante: 0 };
+    } else if (k("[data-heute-andere]")) heuteStand = { ...heuteStand, variante: heuteStand.variante + 1 };
+    else if (k("[data-heute-start]")) {
+      const einheit = heuteEinheit(heuteStand, wunsch);
+      if (einheit) starteEinheit(einheit);
+      return;
+    } else if ((x = k("[data-uebung]"))) { oeffne(x.dataset.uebung); return; }
+    else return;
+    heuteZeichnen();
+  });
   $("plAndere").addEventListener("click", () => neu({ variante: wunsch.variante + 1 }));
   $("plUpdate").addEventListener("click", (event) => {
     const k = event.target.closest("[data-update]");
@@ -427,7 +524,12 @@ export function plaeneStarten({ speicher, oeffne, melde, starte = () => {}, frei
   // steht. Ohne Nachladen zeigte sie den Standardplan statt des eigenen.
   return {
     /** Nach einem beendeten Training, damit der Verlauf stimmt. */
-    verlaufNeu() { $("plVerlauf").innerHTML = verlaufHtml(log()); },
+    verlaufNeu() {
+      $("plVerlauf").innerHTML = verlaufHtml(log());
+      const v = heuteVorschlag(log(), heute());
+      heuteStand = { ...heuteStand, gruppen: v.gruppen, text: v.text, variante: 0 };
+      heuteZeichnen();
+    },
     laden() {
       const geprueft = planPruefen(gespeicherterPlan(speicher.lesen()), log(), heute());
       if (geprueft) speicher.schreiben(geprueft);
