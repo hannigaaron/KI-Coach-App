@@ -1758,8 +1758,9 @@ Dazu 20 Sätze nur zum Essen:
 ### Gerichte aus dem Bundeslebensmittelschlüssel
 
 `packages/coach/src/foods.ts`. Der BLS 4.0 des Max Rubner-Instituts ist seit
-Dezember 2025 kostenfrei, blsdb.de. Daraus kommen 41 Gerichte und
-Zutaten, je 100 g essbarer Anteil, mit dem BLS Code über jeder Zeile: Döner
+Dezember 2025 kostenfrei, blsdb.de. Daraus kommen 40 Gerichte und
+Zutaten, dazu 8 aus BLS Zutaten gerechnete, je 100 g essbarer Anteil,
+mit dem BLS Code über jeder Zeile: Döner
 in drei Arten, Lahmacun, Falafel, Pizza, Pommes, Mayo, Ketchup, Currywurst,
 Bratwurst, Burger, Schnitzel, Lasagne, Brötchen, Brezel, Croissant, Toast,
 Schinken, Salami, Cola und mehr. Butter und Gouda tragen jetzt ebenfalls
