@@ -53,10 +53,10 @@ Das kann niemand ausser dir.
 
 1. **Gewerbe anmelden**, falls noch nicht für daevo erfasst. Ohne Gewerbe
    keine Einnahmen aus Abos.
-2. **Platzhalter ausfüllen** in `apps/pwa/rechtliches/`: Name, Anschrift,
-   E-Mail, Telefon, Umsatzsteuer, Aufsichtsbehörde, Hosting. Schick sie
-   Claude, dann trägt er sie ein. Das Impressum braucht eine Anschrift, an
-   die Post zugestellt werden kann.
+2. **Impressum:** eingetragen am 25. Oktober 2026, mit Anschrift in Asperg
+   und Aufsichtsbehörde Baden-Württemberg. Eine Umsatzsteuer
+   Identifikationsnummer steht nicht drin. Bekommst du eine, gehört sie
+   ins Impressum.
 3. **Anthropic:** in der Console prüfen, dass der Vertrag zur
    Auftragsverarbeitung (DPA) gilt, und den Vertragspartner für die EU
    notieren. Danach den gelben Satz in Abschnitt 6 der Datenschutzerklärung
@@ -68,6 +68,22 @@ Das kann niemand ausser dir.
    und Datenschutzrecht oder einen geprüften Dienst die sichere Wahl.
 6. **Marke** beim DPMA anmelden, siehe `docs/MARKE-UND-DOMAIN.md`.
 7. **Domain** registrieren und die Rechtstexte darunter erreichbar machen.
+
+## Vor der ersten Werbung
+
+Werbung bringt fremde Menschen in die App, also gilt ab dann alles aus
+Teil 2, nicht erst zum Start im App Store.
+
+1. Anthropic DPA bestätigt und der gelbe Satz in Abschnitt 6 ersetzt.
+2. Wohin die Werbung führt, festlegen. Die iPhone App ist bis zur Freigabe
+   durch Apple nicht öffentlich. Möglich ist die Web App auf Cloudflare
+   Pages, `npm run deploy:demo`.
+3. Verkaufen: Wer über Werbung kommt und zahlen will, zahlt ohne App Store
+   über einen Stripe Link. Dafür muss Teil 3, Punkt 2 vorher stehen. Ohne
+   das nur die kostenlose Testphase bewerben und Abos von Hand vergeben.
+4. Tagesgrenze im Worker anheben, `TAGESGRENZE`, sonst sind die 400
+   Anfragen am Tag nach wenigen Dutzend neuen Nutzern weg.
+5. Ausgabenlimit in der Anthropic Console prüfen.
 
 ## Teil 3: Vor dem ersten verkauften Abo
 
