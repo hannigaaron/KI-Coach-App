@@ -180,4 +180,19 @@ for (const path of ["./lib/core/index.js", "./lib/coach/index.js"]) {
   }
 }
 
+/**
+ * Offene Stellen in den Rechtstexten. Name, Anschrift und Behörde kann nur
+ * der Betreiber eintragen, und ein Impressum mit Platzhalter ist ein Verstoss
+ * gegen § 5 DDG. Der Build bricht nicht ab, damit die eigene Testfassung
+ * weiter baut, aber er sagt es bei jedem Lauf.
+ */
+const rechtOrdner = join(root, "apps/pwa/rechtliches");
+const offen = [];
+for (const name of await readdir(rechtOrdner)) {
+  if (!name.endsWith(".html")) continue;
+  const zahl = ((await readFile(join(rechtOrdner, name), "utf8")).match(/class="offen"/g) || []).length;
+  if (zahl) offen.push(`${name}: ${zahl}`);
+}
+if (offen.length) console.warn(`Achtung, offene Stellen in den Rechtstexten, vor dem Start ausfüllen: ${offen.join(", ")}.`);
+
 console.log(`${demo ? "dist-demo" : "dist-pages"} gebaut, ${files.length} Dateien.`);

@@ -96,6 +96,7 @@ import {
 import { brain } from "./brain.js";
 import { KONFIG, istNativ } from "./konfig.js";
 import { kontoSicherstellen, kontoToken } from "./konto.js";
+import { kiErlaubt } from "./einwilligung.js";
 import { NACHTRAG_TAGE, tageZurueck } from "./exif.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
 
@@ -107,6 +108,13 @@ function provider({ ohneZaehlung = false } = {}) {
   // eigenen Server. Der hält den Schlüssel als Geheimnis, im Browser liegt
   // keiner. Genau deshalb kann die Fassung für Nutzer ohne Eingabe reden.
   const ueberServer = Boolean(KONFIG.chatUrl);
+  // Ohne Einwilligung geht über den Server nichts an die KI. Ein Anbieter
+  // ohne Ziel meldet sich als nicht verfügbar, und der Agent nimmt den
+  // Regelweg. Eine Sperre an einer einzigen Stelle statt an jedem Aufruf:
+  // ein vergessener Aufruf wäre eine Übermittlung ohne Erlaubnis.
+  if (ueberServer && !kiErlaubt(settings, KONFIG)) {
+    return new AnthropicProvider({ model: settings.model || "claude-sonnet-5-5", onVerbrauch: zaehleVerbrauch });
+  }
   return new AnthropicProvider({
     apiKey: settings.apiKey || undefined,
     baseUrl: ueberServer ? KONFIG.chatUrl : undefined,

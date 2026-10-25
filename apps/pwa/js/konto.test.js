@@ -15,7 +15,7 @@ globalThis.localStorage = new SpeicherAttrappe();
 
 const { KONFIG } = await import("./konfig.js");
 const { store } = await import("./storage.js");
-const { kontoSicherstellen, kontoStand, kontoText, kontoToken } = await import("./konto.js");
+const { kontoLoeschen, kontoSicherstellen, kontoStand, kontoText, kontoToken } = await import("./konto.js");
 
 function json(daten, status = 200) {
   return new Response(JSON.stringify(daten), { status, headers: { "content-type": "application/json" } });
@@ -61,7 +61,7 @@ test("kennt der Server das Konto nicht mehr, legt die App ein neues an", async (
   const stand = await kontoStand(holen);
   assert.equal(stand.id, "neuneu12");
   assert.equal(kontoToken(), "n".repeat(40));
-  assert.equal(kontoText(stand), "Stufe Kostenlos. Diesen Monat 3 von 40 Nachrichten an die KI, 10 Prozent des Budgets.");
+  assert.equal(kontoText(stand), "Stufe Kostenlos. Diesen Monat 3 von 40 Nachrichten an die KI, 10 Prozent des Budgets. Kontokennung neuneu12.");
 });
 
 const { aboAnlass, aboAnlassLeer, aboLink, tageUebrig } = await import("./konto.js");
@@ -144,4 +144,27 @@ test("jährlich führt zum Jahreslink und nie still zum Monatslink", async () =>
   assert.match(mail, /^mailto:/);
   assert.match(mail, /159,99 € im Jahr/);
   assert.match(mail, /jährlich/);
+});
+
+test("Konto löschen schickt DELETE mit Schlüssel und vergisst ihn danach", async () => {
+  KONFIG.chatUrl = "https://w.dev";
+  localStorage.clear();
+  store.setSettings({ kontoToken: "T".repeat(40), kontoId: "abc", theme: "dark" });
+  let anfrage = null;
+  const ergebnis = await kontoLoeschen(async (url, opt) => { anfrage = { url, opt }; return json({ ok: true }); });
+  assert.deepEqual(ergebnis, { ok: true });
+  assert.equal(anfrage.url, "https://w.dev/konto");
+  assert.equal(anfrage.opt.method, "DELETE");
+  assert.equal(anfrage.opt.headers.authorization, `Bearer ${"T".repeat(40)}`);
+  assert.equal(kontoToken(), undefined);
+  assert.equal(store.getSettings().theme, "dark");
+});
+
+test("scheitert das Löschen auf dem Server, bleibt der Schlüssel", async () => {
+  KONFIG.chatUrl = "https://w.dev";
+  localStorage.clear();
+  store.setSettings({ kontoToken: "T".repeat(40), kontoId: "abc" });
+  const ergebnis = await kontoLoeschen(async () => { throw new Error("offline"); });
+  assert.equal(ergebnis.ok, false);
+  assert.equal(kontoToken(), "T".repeat(40));
 });

@@ -3557,3 +3557,21 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
   width: 14px; height: 14px; margin-left: 6px; vertical-align: -2px;
   fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round;
 }
+
+/* Einwilligung und Rechtstexte. Das Blatt der Rechtstexte geht fast über die
+   ganze Höhe: ein Text von zwei Bildschirmen in einem halben Blatt liest
+   niemand. Die Knöpfe der Einwilligung stehen unten fest, beide gleich gross:
+   ein kleiner Nein Knopf neben einem grossen Ja wäre keine freie Wahl. */
+.ki-text p { margin: 0 0 var(--s-3); line-height: 1.55; }
+.ki-knoepfe {
+  display: flex; flex-direction: column; gap: var(--s-2);
+  padding: var(--s-3) var(--s-4) calc(var(--s-4) + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--linie);
+}
+.link-knopf {
+  background: none; border: 0; padding: var(--s-1) 0; box-shadow: none;
+  color: var(--accent-text); font: inherit; text-decoration: underline; cursor: pointer;
+}
+.recht-links { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-4); margin: var(--s-3) 0; }
+.recht-blatt .blatt-innen { height: 94vh; max-height: 94vh; }
+.recht-rahmen { flex: 1; width: 100%; border: 0; background: var(--panel-2); }

@@ -18,6 +18,7 @@ import {
   hash,
   kontoAnlegen,
   kontoAusAnfrage,
+  kontoLoeschen,
   monatVon,
   NEUE_KONTEN_JE_TAG,
   STUFEN,
@@ -140,6 +141,14 @@ export default {
           200,
           kopf,
         );
+      }
+
+      if (url.pathname === "/konto" && anfrage.method === "DELETE") {
+        // Nur mit dem eigenen Schlüssel. Wer ihn hat, hat auch das Gerät.
+        const gefunden = await kontoAusAnfrage(env.ABOS, anfrage);
+        if (!gefunden) return antwort({ fehler: "Dieses Konto kennt der Server nicht." }, 404, kopf);
+        await kontoLoeschen(env.ABOS, gefunden.h, gefunden.konto);
+        return antwort({ ok: true, geloescht: gefunden.konto.id }, 200, kopf);
       }
 
       if (url.pathname === "/konto/stufe" && anfrage.method === "POST") {

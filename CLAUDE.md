@@ -510,7 +510,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1176 Tests
+npm test           # 1185 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -3057,6 +3057,42 @@ für eine dauerhafte Änderung und einen Wochentag: "Volleyball am Donnerstag
 war super" ändert nichts. Der Standard braucht das Wort Standard, damit
 "dreimal die Woche Volleyball" keinen umschreibt. Ein Mindestwert wird nie
 geraten.
+
+## Rechtstexte, Einwilligung und Konto löschen
+
+`apps/pwa/rechtliches/` trägt Datenschutzerklärung, Nutzungsbedingungen und
+Impressum als eigene Seiten mit eigenem Stylesheet. Sie liegen öffentlich
+unter derselben Adresse wie die App, denn der App Store verlangt eine
+Adresse für die Datenschutzerklärung, und in der App öffnet sie das Blatt
+`#rechtBlatt` in einem Rahmen. Was der Betreiber eintragen muss, steht als
+`<span class="offen">` da, gelb markiert, und `build:pwa` zählt es bei jedem
+Lauf. Der Build bricht deshalb nicht ab: die eigene Testfassung muss weiter
+bauen. Wer am Code etwas ändert, das Daten an den Server oder an einen Dienst
+schickt, ändert die Datenschutzerklärung im selben Commit.
+
+`apps/pwa/js/einwilligung.js`. Über den eigenen Server gehen Gesundheitsdaten
+an Anthropic in den USA, und dafür braucht es nach Art. 9 DSGVO eine
+ausdrückliche Einwilligung vor der ersten Anfrage. Gesperrt wird an genau
+einer Stelle, in `provider()` in `assistant.js`: ohne Zustimmung bekommt der
+Anbieter kein Ziel, meldet sich als nicht verfügbar, und der Regelweg
+antwortet. Eine Sperre je Aufruf wäre eine Übermittlung ohne Erlaubnis,
+sobald jemand einen Aufruf vergisst. Gefragt wird vor der ersten Nachricht
+und vor dem ersten Foto, `#kiBlatt`, mit zwei gleich grossen Knöpfen. Nach
+einem Nein fragt die App nicht wieder: eine Frage, die nach jedem Nein
+wiederkommt, wird irgendwann weggedrückt, und das ist keine freiwillige
+Einwilligung. Ändert sich, was an die KI geht, steigt
+`EINWILLIGUNG_FASSUNG`, und die App fragt neu. Mit eigenem Schlüssel in der
+Entwicklerfassung fragt sie nicht, dort sind Nutzer und Betreiber dieselbe
+Person.
+
+`DELETE /konto` im Worker löscht Konto, Kennung und den Verbrauch dieses und
+des letzten Monats. Apple verlangt das Löschen in der App, sobald eine App
+ein Konto anlegt. In der App erst der Server, dann das Gerät: andersherum
+wäre der Schlüssel weg, und das Konto läge auf dem Server, ohne dass es
+jemand löschen kann. Die Kontokennung steht im Profil, weil jede Anfrage an
+den Betreiber sie braucht.
+
+Was vor dem Start nur der Betreiber tun kann, steht in `docs/LAUNCH.md`.
 
 ## Das Coaching Angebot
 

@@ -63,7 +63,8 @@ import { healthkitAbgleichen } from "./healthkit.js";
 import { mitteilungenPlanen } from "./mitteilungen.js";
 import { nativAufruf } from "./nativ.js";
 import { spueren } from "./haptik.js";
-import { ABO_STUFEN, ABO_TAKTE, aboPreis, ersparnisProzent, aboAnlass, aboAnlassLeer, aboLeiste, aboLink, kontoSicherstellen, kontoStand, kontoText } from "./konto.js";
+import { einwilligungOffen, einwilligungSetzen, einwilligungText, kiErlaubt } from "./einwilligung.js";
+import { ABO_STUFEN, ABO_TAKTE, aboPreis, ersparnisProzent, aboAnlass, aboAnlassLeer, aboLeiste, aboLink, kontoLoeschen, kontoSicherstellen, kontoStand, kontoText } from "./konto.js";
 
 const $ = (id) => document.getElementById(id);
 const WEEKDAYS = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
@@ -329,6 +330,9 @@ async function send(text) {
   const mit = anhaenge.filter((a) => !a.fehler && !a.laedt);
   if ((!nachricht && mit.length === 0) || busy) return;
   if (anhaenge.some((a) => a.laedt)) { toast("Ein Anhang wird noch verarbeitet."); return; }
+  // Vor der ersten Antwort mit KI fragt die App. Die Nachricht wartet so
+  // lange im Feld, und danach geht sie mit oder ohne KI raus.
+  if (einwilligungOffen(store.getSettings(), KONFIG)) await kiFreigabe();
   busy = true;
   stopSpeaking();
   $("chatInput").value = "";
@@ -3022,6 +3026,10 @@ $("fotoBlatt").addEventListener("click", (event) => {
 });
 
 $("fbAuswerten").addEventListener("click", async () => {
+  if (!(await kiFreigabe())) {
+    toast("Fotos auswerten braucht die KI. Du kannst sie im Profil unter Datenschutz erlauben.");
+    return;
+  }
   if (!fotoDatei) return;
   const hinweis = $("fbDetails").value.trim().slice(0, 500);
   const feedback = $("fbFeedback");
@@ -5394,11 +5402,94 @@ $("btnWiederherstellenStart").addEventListener("click", () => {
   }
 });
 
-$("btnReset").addEventListener("click", () => {
-  if (!confirm("Wirklich alle Daten auf diesem Gerät löschen? Das kann nicht rückgängig gemacht werden.")) return;
+$("btnReset").addEventListener("click", async () => {
+  if (!confirm("Wirklich dein Konto und alle Daten auf diesem Gerät löschen? Das kann nicht rückgängig gemacht werden.")) return;
+  // Erst der Server, dann das Gerät. Andersherum wäre der Schlüssel weg, und
+  // das Konto bliebe auf dem Server liegen, ohne dass es jemand löschen kann.
+  const server = await kontoLoeschen();
+  if (server && !server.ok
+    && !confirm(`${server.fehler} Trotzdem alles auf diesem Gerät löschen? Dein Konto auf dem Server bleibt dann, bis du an die Adresse im Impressum schreibst.`)) return;
   store.clearAll();
   location.reload();
 });
+
+/* ---------- Einwilligung und Rechtstexte ---------- */
+
+let kiWartet = null;
+
+/**
+ * Ist die KI erlaubt? Steht die Frage noch offen, öffnet sich das Blatt, und
+ * die Antwort kommt erst nach dem Tipp. Nach einem Nein fragt die App nicht
+ * wieder, das geht nur über das Profil.
+ */
+function kiFreigabe() {
+  const s = store.getSettings();
+  if (kiErlaubt(s, KONFIG)) return Promise.resolve(true);
+  if (!einwilligungOffen(s, KONFIG)) return Promise.resolve(false);
+  return new Promise((resolve) => {
+    kiWartet = resolve;
+    $("kiBlatt").hidden = false;
+    document.body.classList.add("blatt-offen");
+  });
+}
+
+function kiEntscheiden(ja) {
+  store.setSettings(einwilligungSetzen(store.getSettings(), ja));
+  $("kiBlatt").hidden = true;
+  if ($("rechtBlatt").hidden) document.body.classList.remove("blatt-offen");
+  kiStandZeigen();
+  const warten = kiWartet;
+  kiWartet = null;
+  warten?.(ja);
+}
+
+function kiStandZeigen() {
+  const s = store.getSettings();
+  $("kiStand").textContent = einwilligungText(s, KONFIG);
+  const gefragt = Boolean(KONFIG.chatUrl);
+  $("btnKiEinwilligung").hidden = !gefragt;
+  $("btnKiEinwilligung").textContent = kiErlaubt(s, KONFIG) ? "Einwilligung widerrufen" : "KI erlauben";
+}
+
+$("kiJa").addEventListener("click", () => kiEntscheiden(true));
+$("kiNein").addEventListener("click", () => kiEntscheiden(false));
+$("btnKiEinwilligung").addEventListener("click", () => {
+  const erlaubt = kiErlaubt(store.getSettings(), KONFIG);
+  if (erlaubt && !confirm("Einwilligung widerrufen? Danach antwortet daevo nur noch mit dem, was ohne KI geht.")) return;
+  if (!erlaubt) {
+    // Erlauben geht über dasselbe Blatt wie beim ersten Mal, damit niemand
+    // zustimmt, ohne gelesen zu haben, wozu.
+    $("kiBlatt").hidden = false;
+    document.body.classList.add("blatt-offen");
+    return;
+  }
+  store.setSettings(einwilligungSetzen(store.getSettings(), false));
+  kiStandZeigen();
+  toast("Widerrufen. Ab jetzt geht nichts mehr an die KI.");
+});
+
+const RECHT_TITEL = { datenschutz: "Datenschutz", nutzungsbedingungen: "Nutzungsbedingungen", impressum: "Impressum" };
+
+function rechtOeffnen(seite) {
+  $("rechtTitel").textContent = RECHT_TITEL[seite] || "Rechtliches";
+  $("rechtRahmen").src = `rechtliches/${seite}.html`;
+  $("rechtBlatt").hidden = false;
+  document.body.classList.add("blatt-offen");
+}
+
+function rechtSchliessen() {
+  $("rechtBlatt").hidden = true;
+  if ($("kiBlatt").hidden) document.body.classList.remove("blatt-offen");
+}
+
+document.addEventListener("click", (event) => {
+  const knopf = event.target.closest?.("[data-recht]");
+  if (!knopf) return;
+  event.preventDefault();
+  rechtOeffnen(knopf.dataset.recht);
+});
+$("rechtSchliessen").addEventListener("click", rechtSchliessen);
+kiStandZeigen();
 
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "visible" || !profile) return;

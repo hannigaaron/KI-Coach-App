@@ -460,6 +460,39 @@ try {
     </div>
   </div>
 
+  <!-- Die Einwilligung vor der ersten Antwort mit KI, Art. 9 DSGVO. Kommt
+       einmal je Fassung, nach Ja oder Nein nicht wieder. Widerruf im Profil. -->
+  <div id="kiBlatt" class="blatt" hidden>
+    <div class="blatt-innen" role="dialog" aria-modal="true" aria-labelledby="kiTitel">
+      <header class="blatt-kopf">
+        <h2 id="kiTitel">Bevor daevo mit KI antwortet</h2>
+      </header>
+      <div class="blatt-scroll ki-text">
+        <p>Für freie Antworten, Fotos und deinen Tagesplan nutzt daevo ein Sprachmodell von Anthropic in den USA.</p>
+        <p>Dafür geht deine Nachricht über den Server von daevo an Anthropic, mit dem, was die Antwort braucht: etwa Auszüge aus deinem Profil, Zahlen des Tages, Notizen aus dem Gedächtnis, Gesundheitswerte und Fotos, die du schickst. Das sind auch Gesundheitsdaten.</p>
+        <p>Der Server von daevo speichert den Inhalt nicht. Anthropic nutzt ihn nach eigenen Angaben nicht zum Training und löscht ihn innerhalb von 30 Tagen.</p>
+        <p>Ohne Zustimmung läuft alles weiter, was ohne KI geht: Essen eintragen, Pläne, Erinnerungen, Auswertungen. Du kannst das im Profil unter Datenschutz jederzeit ändern.</p>
+        <p><button type="button" class="link-knopf" data-recht="datenschutz">Datenschutzerklärung lesen</button></p>
+      </div>
+      <div class="ki-knoepfe">
+        <button id="kiJa" class="primary breit" type="button">Zustimmen</button>
+        <button id="kiNein" class="ghost breit" type="button">Ohne KI weiter</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Die Rechtstexte. Dieselben Seiten liegen öffentlich unter
+       rechtliches/, für den App Store und die Website. -->
+  <div id="rechtBlatt" class="blatt recht-blatt" hidden>
+    <div class="blatt-innen" role="dialog" aria-modal="true" aria-labelledby="rechtTitel">
+      <header class="blatt-kopf">
+        <h2 id="rechtTitel">Rechtliches</h2>
+        <button id="rechtSchliessen" class="icon-btn" aria-label="Schließen"><span class="kreuz"></span></button>
+      </header>
+      <iframe id="rechtRahmen" class="recht-rahmen" title="Rechtstext"></iframe>
+    </div>
+  </div>
+
   <div id="herkunftBlatt" class="blatt" hidden>
     <div class="blatt-innen" role="dialog" aria-modal="true" aria-labelledby="hkTitel">
       <header class="blatt-kopf">
@@ -1439,8 +1472,19 @@ try {
       </div>
       <p id="sicherungHinweis" class="feld-hilfe"></p>
 
+      <h2 class="abschnitt">Datenschutz</h2>
+      <p class="sub">Einwilligung für die KI</p>
+      <p class="fineprint" id="kiStand"></p>
+      <button id="btnKiEinwilligung" class="ghost breit" type="button">Einwilligung ändern</button>
+      <div class="recht-links">
+        <button type="button" class="link-knopf" data-recht="datenschutz">Datenschutzerklärung</button>
+        <button type="button" class="link-knopf" data-recht="nutzungsbedingungen">Nutzungsbedingungen</button>
+        <button type="button" class="link-knopf" data-recht="impressum">Impressum</button>
+      </div>
+
       <h2 class="abschnitt">Daten</h2>
-      <button id="btnReset" class="danger">Alles löschen</button>
+      <p class="sub">Löscht alles auf diesem Gerät und dein Konto auf dem Server von daevo. Mach vorher eine Sicherung, wenn du etwas behalten willst.</p>
+      <button id="btnReset" class="danger">Konto und alle Daten löschen</button>
       <p class="fineprint" id="versionLine"></p>
     </div>
   </section>

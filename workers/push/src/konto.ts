@@ -170,6 +170,21 @@ export async function verbrauchBuchen(
   return neu;
 }
 
+/**
+ * Löscht ein Konto mit allem, was der Server dazu hält: den Eintrag, die
+ * Zuordnung der Kennung und den Verbrauch dieses und des letzten Monats.
+ * Apple verlangt das Löschen in der App, sobald eine App ein Konto anlegt,
+ * und Art. 17 DSGVO verlangt es ohnehin. Ältere Monate sind nach 40 Tagen
+ * von selbst weg.
+ */
+export async function kontoLoeschen(kv: KVNamespace, h: string, konto: Konto, jetzt: Date = new Date()): Promise<void> {
+  const vormonat = new Date(Date.UTC(jetzt.getUTCFullYear(), jetzt.getUTCMonth() - 1, 1));
+  await kv.delete(`konto.${h}`);
+  await kv.delete(`kontoid.${konto.id}`);
+  await kv.delete(`verbrauch.${konto.id}.${monatVon(jetzt)}`);
+  await kv.delete(`verbrauch.${konto.id}.${monatVon(vormonat)}`);
+}
+
 /** Ist noch etwas übrig? Gibt den Grund zurück, wenn nicht. */
 export function kontingentPruefen(stufe: string, v: Monatsverbrauch): string | null {
   const s = STUFEN[stufe] ?? STUFEN.frei!;
