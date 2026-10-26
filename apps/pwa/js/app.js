@@ -2541,6 +2541,16 @@ function anamneseFertig(ergebnis) {
   for (const notiz of ergebnis.notizen) {
     brain.add({ text: notiz.text, art: notiz.art, wichtigkeit: notiz.wichtigkeit, schlagworte: notiz.schlagworte });
   }
+  // Wer den Bogen abgekürzt hat, wird später gefragt, aber einzeln und im
+  // passenden Moment, nicht mit zwölf Fragen auf einmal.
+  if (ergebnis.kurzweg) {
+    brain.add({
+      text: "Fragebogen abgekürzt. Es fehlen Ernährungsform, Allergien, Geschmack, Gesundheit, Essverhalten, "
+        + "Vorgeschichte, Umfeld, Antrieb und Tagesränder. Frag einzeln danach, wenn es zum Gespräch passt, "
+        + "vor allem nach Allergien, bevor du ein Rezept vorschlägst.",
+      art: "hinweis", wichtigkeit: 5, schlagworte: ["anamnese", "allergie", "rezept"],
+    });
+  }
   brain.add({
     text: `Trainingsvorschlag zum Start: ${ergebnis.kraft.titel}.`,
     art: "hinweis", wichtigkeit: 3, schlagworte: ["training"],
