@@ -358,6 +358,43 @@ function profilKurz(profile) {
  * erst drei Werkzeuge aufrufen muss, um zu wissen, wie es gerade steht. Die
  * genauen Zahlen holt er trotzdem aus den Werkzeugen, bevor er sie nennt.
  */
+/**
+ * Die Messwerte aus Apple Health, die der Coach kennen soll: die letzte
+ * Nacht mit Phasen, Ruhepuls und HRV gegen den eigenen Schnitt, VO2max und
+ * Körperfett mit Datum. Ohne Vergleich sagt "HRV 42" nichts, und eine Zahl,
+ * die nichts sagt, verleitet das Modell zu einer Deutung.
+ */
+export function koerperText(heute = todayIso()) {
+  const tage = [];
+  for (let i = 0; i < 28; i++) {
+    const tag = new Date(Date.parse(`${heute}T00:00:00Z`) - i * 86400000).toISOString().slice(0, 10);
+    tage.push({ tag, g: store.getDay(tag).gesundheit || {} });
+  }
+  const zahl = (v) => v !== null && v !== undefined && Number.isFinite(Number(v)) && Number(v) > 0;
+  const teile = [];
+  const nacht = tage.slice(0, 2).find((t) => zahl(t.g.schlafMinuten));
+  if (nacht) {
+    const h = (m) => `${Math.floor(m / 60)} h ${String(Math.round(m % 60)).padStart(2, "0")}`;
+    const phasen = [
+      zahl(nacht.g.tiefschlafMinuten) ? `davon ${h(nacht.g.tiefschlafMinuten)} Tiefschlaf` : "",
+      zahl(nacht.g.remMinuten) ? `${h(nacht.g.remMinuten)} REM` : "",
+    ].filter(Boolean).join(", ");
+    teile.push(`Schlaf ${nacht.tag === heute ? "letzte Nacht" : "vorletzte Nacht"} ${h(nacht.g.schlafMinuten)}${phasen ? ` (${phasen})` : ""}`);
+  }
+  for (const [feld, name, einheit] of [["ruhepuls", "Ruhepuls", "bpm"], ["hrv", "HRV", "ms"]]) {
+    const werte = tage.map((t) => t.g[feld]).filter(zahl).map(Number);
+    if (!zahl(tage[0].g[feld]) && !zahl(tage[1].g[feld])) continue;
+    const jetzt = Number(zahl(tage[0].g[feld]) ? tage[0].g[feld] : tage[1].g[feld]);
+    const schnitt = werte.length >= 7 ? Math.round(mittelwert(werte)) : null;
+    teile.push(`${name} ${Math.round(jetzt)} ${einheit}${schnitt ? `, Schnitt 28 Tage ${schnitt}` : ""}`);
+  }
+  for (const [feld, name, einheit] of [["vo2max", "VO2max", "ml/kg/min"], ["koerperfett", "Körperfett", "%"]]) {
+    const t = tage.find((x) => zahl(x.g[feld]));
+    if (t) teile.push(`${name} ${String(t.g[feld]).replace(".", ",")} ${einheit} (${t.tag})`);
+  }
+  return teile.length ? `Apple Health: ${teile.join(". ")}.` : "";
+}
+
 function lageText() {
   const zeilen = [];
   const status = standardsUebersicht();
@@ -385,6 +422,9 @@ function lageText() {
     const einheiten = woche.reduce((sum, d) => sum + (d.data.trainings || []).length, 0);
     if (einheiten > 0) zeilen.push(`Absolvierte Trainingseinheiten in den letzten sieben Tagen: ${einheiten}.`);
   }
+
+  const koerper = koerperText();
+  if (koerper) zeilen.push(koerper);
 
   // Der heutige Tagesablauf, falls ein Kalender verbunden ist. Ohne das müsste
   // der Coach für jede Frage nach Zeit erst ein Werkzeug rufen, und für die

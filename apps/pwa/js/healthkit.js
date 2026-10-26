@@ -13,8 +13,8 @@
  */
 import { healthSchreiben } from "./gesundheit.js";
 
-/** Welche Fassung der Leseberechtigung zuletzt erfragt wurde. 2 brachte die Ernährung. */
-export const HEALTH_FASSUNG = 2;
+/** Welche Fassung der Leseberechtigung zuletzt erfragt wurde. 2 brachte die Ernährung, 3 Körperfett, VO2max und Trainingsminuten. */
+export const HEALTH_FASSUNG = 3;
 
 /** Trainings innerhalb dieses Abstands zu einem eigenen Eintrag gleicher Art gelten als derselbe. */
 const GLEICH_MINUTEN = 90;

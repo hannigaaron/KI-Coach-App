@@ -25,6 +25,9 @@ const TYPEN = {
   HKQuantityTypeIdentifierHeartRateVariabilitySDNN: "hrv",
   HKQuantityTypeIdentifierBodyMass: "gewichtKg",
   HKQuantityTypeIdentifierActiveEnergyBurned: "aktivKcal",
+  HKQuantityTypeIdentifierBodyFatPercentage: "koerperfett",
+  HKQuantityTypeIdentifierVO2Max: "vo2max",
+  HKQuantityTypeIdentifierAppleExerciseTime: "trainingsMinuten",
 } as const;
 
 const SCHLAF_TYP = "HKCategoryTypeIdentifierSleepAnalysis";
@@ -40,6 +43,14 @@ export interface HealthTag {
   hrv?: number;
   gewichtKg?: number;
   aktivKcal?: number;
+  /** Anteil von 0 bis 1, wie Health ihn schreibt. Die App rechnet in Prozent um. */
+  koerperfett?: number;
+  /** ml je kg und Minute, von der Uhr geschätzt. */
+  vo2max?: number;
+  /** Trainingsminuten nach Apple, der grüne Ring. */
+  trainingsMinuten?: number;
+  tiefschlafMinuten?: number;
+  remMinuten?: number;
 }
 
 export interface HealthErgebnis {
@@ -156,6 +167,9 @@ export function healthSammler() {
         if (proTag?.has("aktivKcal")) eintragTag.aktivKcal = Math.round(proTag.get("aktivKcal")!.summe);
         if (proTag?.has("ruhepuls")) eintragTag.ruhepuls = mittel(proTag.get("ruhepuls")!);
         if (proTag?.has("hrv")) eintragTag.hrv = mittel(proTag.get("hrv")!);
+        if (proTag?.has("trainingsMinuten")) eintragTag.trainingsMinuten = Math.round(proTag.get("trainingsMinuten")!.summe);
+        if (proTag?.has("koerperfett")) eintragTag.koerperfett = Math.round(proTag.get("koerperfett")!.letzter * 1000) / 1000;
+        if (proTag?.has("vo2max")) eintragTag.vo2max = Math.round(proTag.get("vo2max")!.letzter * 10) / 10;
         if (proTag?.has("gewichtKg")) {
           eintragTag.gewichtKg = Math.round(proTag.get("gewichtKg")!.letzter * 10) / 10;
         }

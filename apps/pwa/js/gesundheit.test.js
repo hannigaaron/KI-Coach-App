@@ -239,3 +239,20 @@ test("Kurzbefehl: ohne Tage passiert nichts", () => {
   assert.equal(kurzbefehlSchreiben([], { store, heute: "2026-09-29" }), null);
   assert.equal(kurzbefehlSchreiben(undefined, { store, heute: "2026-09-29" }), null);
 });
+
+test("Körperfett, VO2max, Trainingsminuten und Schlafphasen landen im Tag, Körperfett in Prozent", () => {
+  const heute = "2026-10-26";
+  healthSchreiben({ tage: [
+    { tag: heute, koerperfett: 0.162, vo2max: 48.3, trainingsMinuten: 42, schlafMinuten: 430, tiefschlafMinuten: 61, remMinuten: 95 },
+    { tag: "2026-10-25", koerperfett: 15.8 },
+    { tag: "2026-10-24", koerperfett: 0.001 },
+  ] }, { store, heute });
+  const g = store.getDay(heute).gesundheit;
+  assert.equal(g.koerperfett, 16.2);
+  assert.equal(g.vo2max, 48.3);
+  assert.equal(g.trainingsMinuten, 42);
+  assert.equal(g.tiefschlafMinuten, 61);
+  assert.equal(store.getDay("2026-10-25").gesundheit.koerperfett, 15.8);
+  // Ein unmöglicher Wert bleibt draussen.
+  assert.equal(store.getDay("2026-10-24").gesundheit?.koerperfett, undefined);
+});

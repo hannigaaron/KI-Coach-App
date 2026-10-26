@@ -103,6 +103,14 @@ async function stromFuer(datei) {
  * Waage synchronisiert, hätte sonst plötzlich zwei Wahrheiten, und die des
  * Nutzers verliert.
  */
+/**
+ * Werte, die je Tag unverändert übernommen werden. Tief und REM Schlaf gibt
+ * es nur von der Uhr, VO2max schätzt sie aus Gehen und Laufen im Freien.
+ */
+export const GESUNDHEIT_FELDER = [
+  "schlafMinuten", "tiefschlafMinuten", "remMinuten", "ruhepuls", "hrv", "aktivKcal", "vo2max", "trainingsMinuten",
+];
+
 export function healthSchreiben(ergebnis, { store, heute = new Date().toISOString().slice(0, 10), stempel = "healthImport" }) {
   const grenze = new Date(Date.parse(`${heute}T00:00:00Z`) - MAX_TAGE * 86400000)
     .toISOString().slice(0, 10);
@@ -118,8 +126,14 @@ export function healthSchreiben(ergebnis, { store, heute = new Date().toISOStrin
     if (Number.isFinite(t.schritte)) { day.steps = t.schritte; bericht.schritte++; geaendert = true; }
 
     const gesundheit = { ...(day.gesundheit || {}) };
-    for (const feld of ["schlafMinuten", "ruhepuls", "hrv", "aktivKcal"]) {
+    for (const feld of GESUNDHEIT_FELDER) {
       if (Number.isFinite(t[feld])) { gesundheit[feld] = t[feld]; geaendert = true; }
+    }
+    // HealthKit liefert Körperfett als Anteil von 0 bis 1, der Export als
+    // Prozent. Gespeichert wird immer in Prozent.
+    if (Number.isFinite(t.koerperfett)) {
+      const prozent = t.koerperfett <= 1 ? t.koerperfett * 100 : t.koerperfett;
+      if (prozent > 2 && prozent < 70) { gesundheit.koerperfett = Math.round(prozent * 10) / 10; geaendert = true; }
     }
     if (Number.isFinite(t.schlafMinuten)) bericht.schlaf++;
     if (Object.keys(gesundheit).length) day.gesundheit = gesundheit;
