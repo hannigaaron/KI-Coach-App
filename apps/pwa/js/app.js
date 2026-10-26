@@ -60,6 +60,7 @@ import { symbol } from "./symbole.js";
 import { NATIV_PUSH, gesundheitHolen, postfachHolen, pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
 import { kodierungReparieren, newId, nowTime, store, todayIso } from "./storage.js";
 import { healthkitAbgleichen } from "./healthkit.js";
+import { aboEntfernen, aboHinzufuegen, APPLE_QUELLE, appleKalenderTrennen, appleKalenderVerbinden, kalenderAbgleichen, kalenderAbos } from "./kalender-sync.js";
 import { mitteilungenPlanen } from "./mitteilungen.js";
 import { nativAufruf } from "./nativ.js";
 import { spueren } from "./haptik.js";
@@ -2614,6 +2615,7 @@ function startApp() {
   // Nacheinander: zwei Abfragen von iOS gleichzeitig, und die zweite geht
   // unter der ersten verloren.
   healthNativ().then(() => mitteilungenNativ());
+  kontoSicherstellen().then(() => kalenderStill());
   // Die Einführung kommt einmal: nach dem Bogen, beim ersten Öffnen der Demo,
   // und einmal bei allen, die die App schon vorher benutzt haben. Danach steht
   // sie im Profil. Wer sie bei jedem Start sieht, tippt sie weg, ohne zu lesen.
@@ -3791,6 +3793,9 @@ function renderKalender() {
   renderTodoist();
   $("kalTag").value = kalenderTag;
   $("kalAnleitung").textContent = KALENDER_ANLEITUNG;
+  const sync = store.getSettings();
+  $("btnAppleKalender").hidden = Boolean(sync.appleKalender);
+  $("btnKalAbgleich").hidden = !(sync.appleKalender || kalenderAbos(sync).length);
 
   const stand = kalenderStand();
   const quellen = $("kalQuellen");
@@ -3800,16 +3805,25 @@ function renderKalender() {
   } else {
     for (const q of stand.quellen) {
       const li = document.createElement("li");
-      const datum = q.stand ? new Date(q.stand).toLocaleDateString("de-DE") : "";
+      const stand = q.stand ? new Date(q.stand) : null;
+      const wann = stand
+        ? (todayIso(stand) === todayIso() ? `heute ${uhrzeit(stand.getTime())}` : stand.toLocaleDateString("de-DE"))
+        : "";
+      const art = q.art === "apple" ? "gleicht sich ab, vom iPhone" : q.art === "abo" ? "gleicht sich ab, Abo" : "einmalig eingelesen";
       li.innerHTML =
         `<div class="li-main"><div class="li-title">${escapeHtml(q.name)}</div>` +
-        `<div class="li-sub">${q.anzahl} Termine, eingelesen am ${escapeHtml(datum)}</div></div>`;
+        `<div class="li-sub">${q.anzahl} Termine, Stand ${escapeHtml(wann)} · <span class="kal-art">${art}</span></div></div>`;
       const weg = document.createElement("button");
       weg.className = "ghost";
       weg.textContent = "Entfernen";
       weg.addEventListener("click", () => {
-        kalenderEntfernen(q.name);
+        if (q.name === APPLE_QUELLE) appleKalenderTrennen();
+        else {
+          store.setSettings(aboEntfernen(store.getSettings(), q.name));
+          kalenderEntfernen(q.name);
+        }
         renderKalender();
+        refreshAll();
         toast("Kalender entfernt");
       });
       li.appendChild(weg);
@@ -3940,6 +3954,55 @@ $("btnTodoistTrennen").addEventListener("click", () => {
   renderTodoist();
   refreshAll();
 });
+
+/** Zeigt das Ergebnis eines Abgleichs in einer Meldung, Fehler zuerst. */
+function abgleichMelden(r) {
+  const fehler = (r?.ergebnisse || []).filter((e) => e.fehler);
+  if (fehler.length) { toast(`${fehler[0].name}: ${fehler[0].fehler}`, 5000); return; }
+  const summe = (r?.ergebnisse || []).reduce((n, e) => n + (e.anzahl || 0), 0);
+  toast(`Kalender abgeglichen, ${summe} Termine`);
+}
+
+$("btnAppleKalender").addEventListener("click", async () => {
+  try {
+    const r = await appleKalenderVerbinden();
+    if (r.fehler) { toast(r.fehler, 6000); return; }
+    abgleichMelden(r);
+  } catch (e) {
+    toast(`Kalender nicht lesbar: ${e.message}`, 5000);
+  }
+  renderKalender();
+  refreshAll();
+});
+
+$("btnKalAbo").addEventListener("click", async () => {
+  const r = aboHinzufuegen(store.getSettings(), $("kalAboUrl").value);
+  if (r.fehler) { toast(r.fehler, 5000); return; }
+  store.setSettings(r.settings);
+  $("kalAboUrl").value = "";
+  await kontoSicherstellen();
+  abgleichMelden(await kalenderAbgleichen({ zwang: true }));
+  renderKalender();
+  refreshAll();
+});
+
+$("btnKalAbgleich").addEventListener("click", async () => {
+  abgleichMelden(await kalenderAbgleichen({ zwang: true }));
+  renderKalender();
+  refreshAll();
+});
+
+/** Still im Hintergrund, beim Start und beim Zurückholen der App. */
+async function kalenderStill() {
+  const s = store.getSettings();
+  if (!s.appleKalender && !kalenderAbos(s).length) return;
+  try {
+    const r = await kalenderAbgleichen();
+    if (!r.uebersprungen && r.ergebnisse.some((e) => e.anzahl !== undefined)) refreshAll();
+  } catch {
+    // Ohne Netz bleibt der letzte Stand. Der Kalender sagt im Profil, von wann er ist.
+  }
+}
 
 $("btnKalDatei").addEventListener("click", () => $("kalDatei").click());
 
@@ -4971,7 +5034,10 @@ async function mitteilungenNativ() {
 }
 
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") healthNativ().then(() => mitteilungenNativ()).then(morgenVielleicht);
+  if (document.visibilityState === "visible") {
+    kalenderStill();
+    healthNativ().then(() => mitteilungenNativ()).then(morgenVielleicht);
+  }
 });
 
 /* ---------- Guten Morgen Check-in ---------- */

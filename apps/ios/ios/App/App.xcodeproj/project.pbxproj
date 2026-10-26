@@ -23,6 +23,7 @@
 		D4E0A0012F00000000000016 /* SprachePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E0A0012F00000000000006 /* SprachePlugin.swift */; };
 		D4E0A0012F00000000000017 /* DiktatPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E0A0012F00000000000007 /* DiktatPlugin.swift */; };
 		D4E0A0012F00000000000018 /* HaptikPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E0A0012F00000000000008 /* HaptikPlugin.swift */; };
+		D4E0A0012F00000000000019 /* KalenderPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E0A0012F00000000000009 /* KalenderPlugin.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -44,6 +45,7 @@
 		D4E0A0012F00000000000006 /* SprachePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SprachePlugin.swift; sourceTree = "<group>"; };
 		D4E0A0012F00000000000007 /* DiktatPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiktatPlugin.swift; sourceTree = "<group>"; };
 		D4E0A0012F00000000000008 /* HaptikPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HaptikPlugin.swift; sourceTree = "<group>"; };
+		D4E0A0012F00000000000009 /* KalenderPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KalenderPlugin.swift; sourceTree = "<group>"; };
 		D4E0A0012F00000000000005 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -89,6 +91,7 @@
 				D4E0A0012F00000000000006 /* SprachePlugin.swift */,
 				D4E0A0012F00000000000007 /* DiktatPlugin.swift */,
 				D4E0A0012F00000000000008 /* HaptikPlugin.swift */,
+				D4E0A0012F00000000000009 /* KalenderPlugin.swift */,
 				D4E0A0012F00000000000005 /* App.entitlements */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
@@ -190,6 +193,7 @@
 				D4E0A0012F00000000000016 /* SprachePlugin.swift in Sources */,
 				D4E0A0012F00000000000017 /* DiktatPlugin.swift in Sources */,
 				D4E0A0012F00000000000018 /* HaptikPlugin.swift in Sources */,
+				D4E0A0012F00000000000019 /* KalenderPlugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

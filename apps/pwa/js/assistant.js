@@ -819,19 +819,30 @@ export function kalenderImportieren(icsText, quelle) {
   const fenster = kalenderFenster();
   const ergebnis = termineAusIcs(icsText, fenster, quelle);
   const name = quelle || ergebnis.kalendername || "Kalender";
-  const bestand = store.getKalender();
-
-  const andere = (bestand.termine || []).filter((t) => t.quelle !== name);
-  const quellen = (bestand.quellen || []).filter((q) => q.name !== name);
-  quellen.push({ name, anzahl: ergebnis.termine.length, stand: new Date().toISOString() });
-
-  const termine = [...andere, ...ergebnis.termine.map((t) => ({ ...t, quelle: name }))]
-    .filter((t) => t.bis > fenster.von && t.von < fenster.bis)
-    .sort((a, b) => a.von - b.von);
-
-  store.setKalender({ quellen, termine, stand: new Date().toISOString() });
+  kalenderTermineSetzen(name, ergebnis.termine, { art: "datei" });
   return { name, anzahl: ergebnis.termine.length, hinweise: ergebnis.hinweise };
 }
+
+/**
+ * Ersetzt die Termine einer Quelle. Gemeinsamer Weg für Datei, Abo Adresse
+ * und den Apple Kalender auf dem iPhone, damit alle drei dieselben Regeln
+ * haben: Fenster, Sortierung, und eine Quelle ersetzt nur sich selbst.
+ * `art` sagt der Oberfläche, ob die Quelle von selbst nachgeladen wird.
+ */
+export function kalenderTermineSetzen(name, neue, { art = "datei" } = {}) {
+  const fenster = kalenderFenster();
+  const bestand = store.getKalender();
+  const andere = (bestand.termine || []).filter((t) => t.quelle !== name);
+  const quellen = (bestand.quellen || []).filter((q) => q.name !== name);
+  quellen.push({ name, anzahl: neue.length, stand: new Date().toISOString(), art });
+  const termine = [...andere, ...neue.map((t) => ({ ...t, quelle: name }))]
+    .filter((t) => t.bis > fenster.von && t.von < fenster.bis)
+    .sort((a, b) => a.von - b.von);
+  store.setKalender({ quellen, termine, stand: new Date().toISOString() });
+  return neue.length;
+}
+
+export { kalenderFenster };
 
 /** Entfernt einen Kalender samt seiner Termine. */
 export function kalenderEntfernen(name) {
@@ -876,6 +887,12 @@ export function kalenderStandText() {
   else if (tageHer === 1) teile.push("Zuletzt eingelesen: gestern.");
   else teile.push(`Zuletzt eingelesen: vor ${tageHer} Tagen.`);
 
+  // Eine Quelle, die von selbst nachlädt, ist keine Kopie. Der Hinweis auf
+  // das Neuladen stimmt nur für Dateien.
+  if (st.quellen.length && st.quellen.every((q) => q.art === "abo" || q.art === "apple")) {
+    teile.push("Er gleicht sich beim Öffnen der App von selbst ab, höchstens alle 30 Minuten.");
+    return teile.join(" ");
+  }
   // Der eigentliche Grund, warum sich der Kalender falsch anfühlt. Der Import
   // ist eine Kopie, kein Abo. Was du seitdem eingetragen hast, fehlt hier.
   if (tageHer !== null && tageHer >= 2) {

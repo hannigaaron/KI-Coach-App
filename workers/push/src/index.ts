@@ -26,6 +26,7 @@ import {
   verbrauchLesen,
 } from "./konto.js";
 import { gesundheitAbholen, gesundheitAblegen, tagPruefen, werteLesen } from "./gesundheit.js";
+import { kalenderHolen } from "./kalender.js";
 import { postAblegen, postAbholen, postMitteilung } from "./postfach.js";
 import type { Env, ScheduledEvent } from "./umgebung.js";
 
@@ -149,6 +150,15 @@ export default {
         if (!gefunden) return antwort({ fehler: "Dieses Konto kennt der Server nicht." }, 404, kopf);
         await kontoLoeschen(env.ABOS, gefunden.h, gefunden.konto);
         return antwort({ ok: true, geloescht: gefunden.konto.id }, 200, kopf);
+      }
+
+      if (url.pathname === "/kalender" && anfrage.method === "POST") {
+        // Nur mit Konto: sonst ruft jeder über diesen Worker fremde Kalender ab.
+        if (!(await kontoAusAnfrage(env.ABOS, anfrage))) return antwort({ fehler: "Dafür braucht es ein Konto." }, 401, kopf);
+        const { url: adresse } = (await anfrage.json()) as { url?: string };
+        const r = await kalenderHolen(String(adresse || ""));
+        if (r.status !== 200) return antwort({ fehler: r.fehler }, r.status, kopf);
+        return new Response(r.text, { status: 200, headers: { ...kopf, "content-type": "text/calendar; charset=utf-8", "cache-control": "no-store" } });
       }
 
       if (url.pathname === "/konto/stufe" && anfrage.method === "POST") {

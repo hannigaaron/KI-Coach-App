@@ -3743,3 +3743,9 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 .me-blatt .me-kopf .pills::-webkit-scrollbar { display: none; }
 .me-blatt .me-kopf .pills button { flex: none; }
 .me-blatt #meZeit { flex: none; width: auto; min-width: 0; padding: 8px 10px; border-radius: var(--r-pill); }
+
+/* Kalender: Datei ist der Ausweg, Abo und Apple Kalender der Normalfall. */
+.kal-datei { margin-top: var(--s-6); }
+.kal-datei summary { cursor: pointer; padding: var(--s-2) 0; font-weight: 600; color: var(--accent-text); }
+.kal-datei summary::marker { color: var(--accent); }
+#kalQuellen .li-sub .kal-art { color: var(--accent-text); }

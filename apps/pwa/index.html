@@ -1030,6 +1030,22 @@ try {
       </div>
 
       <h2 class="abschnitt">Kalender verbinden</h2>
+      <ul class="list" id="kalQuellen"></ul>
+      <div data-nur-nativ hidden>
+        <button id="btnAppleKalender" class="primary breit">Apple Kalender verbinden</button>
+        <p class="fineprint">Liest alle Kalender auf deinem iPhone, auch Google und Outlook, wenn sie unter
+          Einstellungen, Kalender, Accounts eingetragen sind. Die Termine bleiben auf dem Gerät.</p>
+      </div>
+      <div class="field"><label for="kalAboUrl">Kalender abonnieren</label>
+        <input id="kalAboUrl" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="Adresse im iCal Format"></div>
+      <button id="btnKalAbo" class="ghost breit">Abonnieren</button>
+      <p class="fineprint" id="kalAboHilfe">Google: Kalender Einstellungen, dein Kalender, Kalender integrieren, Geheime Adresse im iCal Format.
+        iCloud: Kalender App, Info neben dem Kalender, Öffentlicher Kalender, Link teilen. Abonnierte Kalender gleichen sich
+        beim Öffnen von selbst ab, höchstens alle 30 Minuten. Die Adresse geht dafür über den daevo Server, gespeichert wird dort nichts.</p>
+      <button id="btnKalAbgleich" class="ghost breit" hidden>Jetzt abgleichen</button>
+
+      <details class="kal-datei">
+      <summary>Einmalig aus einer Datei einlesen</summary>
       <p class="sub" id="kalQuellenSub">Beide Kalender geben eine .ics Datei aus. Die liest daevo direkt im Gerät, es geht nichts an einen Server.</p>
       <input id="kalDatei" type="file" accept=".ics,text/calendar" hidden>
       <button id="btnKalDatei" class="primary">ICS Datei auswählen</button>
@@ -1040,8 +1056,8 @@ try {
         <div class="field"><label for="btnKalText">&nbsp;</label>
           <button id="btnKalText" class="ghost" style="width:100%">Text einlesen</button></div>
       </div>
-      <ul class="list" id="kalQuellen"></ul>
       <p class="fineprint" id="kalAnleitung"></p>
+      </details>
 
       <h2 class="abschnitt">Todoist verbinden</h2>
       <p class="sub" id="todoistStand">Wer seine Aufgaben in Todoist führt, pflegt sie nicht zweimal. daevo liest sie dort, legt sie in deinen Tag und hakt sie dort ab.</p>
