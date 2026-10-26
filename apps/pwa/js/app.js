@@ -5892,7 +5892,7 @@ $("btnKiEinwilligung").addEventListener("click", () => {
   toast("Widerrufen. Ab jetzt geht nichts mehr an die KI.");
 });
 
-const RECHT_TITEL = { datenschutz: "Datenschutz", nutzungsbedingungen: "Nutzungsbedingungen", impressum: "Impressum" };
+const RECHT_TITEL = { datenschutz: "Datenschutz", nutzungsbedingungen: "Nutzungsbedingungen", impressum: "Impressum", bildnachweis: "Bildnachweis" };
 
 function rechtOeffnen(seite) {
   $("rechtTitel").textContent = RECHT_TITEL[seite] || "Rechtliches";

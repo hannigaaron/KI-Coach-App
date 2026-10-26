@@ -6,6 +6,7 @@
  */
 import { foldUmlauts } from "@daevo/core";
 import { FOODS } from "@daevo/coach";
+import { BILDER } from "./lebensmittel-bilder.js";
 
 const norm = (t) => foldUmlauts(String(t ?? "").toLowerCase()).replace(/\s+/g, " ").trim();
 
@@ -63,34 +64,36 @@ export function tabellenSuche(begriff, { anzahl = 6, tabelle = FOODS } = {}) {
 }
 
 /**
- * Lebensmittel mit eigenem Foto unter `img/lebensmittel/<key>.jpg`. Alle
- * Fotos sind gemeinfrei (CC0 oder Public Domain Mark), Quelle und Urheber je
- * Datei in `img/lebensmittel/NACHWEIS.json`. Ohne Foto bleibt der
- * Anfangsbuchstabe auf der Farbe des Hauptmakros.
+ * Lebensmittel mit eigenem Foto unter `img/lebensmittel/<key>.jpg`. Nur CC0,
+ * Public Domain Mark oder CC BY, Quelle, Urheber und Lizenz je Datei in
+ * `img/lebensmittel/NACHWEIS.json`, die Namensnennung steht unter
+ * rechtliches/bildnachweis.html. Ohne Foto bleibt der Anfangsbuchstabe auf
+ * der Farbe des Hauptmakros.
  */
-export const LEBENSMITTEL_BILDER = new Set([
-  "apfel", "avocado", "beeren", "bratwurst", "broetchen", "brokkoli", "burger", "butterbrot",
-  "cheeseburger", "cola", "croissant", "currywurst", "ei", "erdnussbutter", "falafel", "gurke",
-  "haferflocken", "honig", "huettenkaese", "kaffee", "kartoffeln", "kichererbsen", "kochschinken", "lachs",
-  "lasagne", "linsen", "milch", "mischbrot", "muesli", "nudeln_gekocht", "olivenoel", "paprika",
-  "pizza", "pommes", "putenbrust", "rinderhack", "suesskartoffel", "sushi", "toast", "tofu",
-  "tomate", "vollkornbrot", "wrap", "zwiebel",
-]);
+export const LEBENSMITTEL_BILDER = new Set(BILDER.map((b) => b.key));
 
 const bildFuerKey = (key) => (LEBENSMITTEL_BILDER.has(key) ? `img/lebensmittel/${key}.jpg` : undefined);
 
+// Längere Namen zuerst: "Griechischer Joghurt" vor "Joghurt".
+const NAMEN = BILDER
+  .flatMap((b) => b.namen.map((n) => ({ n: norm(n), key: b.key })))
+  .filter((x) => x.n.length >= 2)
+  .sort((x, y) => y.n.length - x.n.length);
+
 /**
- * Das Foto zu einem Posten, der keines trägt. Gesucht wird über den Namen
- * gegen Bezeichnung und Synonyme der Tabelle, nur bei genauem Treffer: ein
- * falsches Foto neben einem Posten ist schlimmer als ein Buchstabe.
+ * Das Foto zu einem Posten. Erst der genaue Name, dann ein Name, mit dem der
+ * Posten beginnt, auf ganzen Wörtern: "Magerquark 500 g" und "Hähnchenbrust
+ * mit Reis" bekommen ein Foto, "Apfelmus" nicht das vom Apfel. Was nicht
+ * vorn steht, zählt nicht: ein falsches Foto neben einem Posten ist
+ * schlimmer als ein Buchstabe.
  */
-export function tabellenBild(name, tabelle = FOODS) {
+export function tabellenBild(name) {
   const q = norm(name);
   if (!q) return undefined;
-  for (const f of tabelle) {
-    if ([f.label, ...(f.aliases || [])].map(norm).includes(q)) return bildFuerKey(f.key);
-  }
-  return undefined;
+  const genau = NAMEN.find((x) => x.n === q);
+  if (genau) return bildFuerKey(genau.key);
+  const vorn = NAMEN.find((x) => q.startsWith(`${x.n} `) || q.startsWith(`${x.n},`));
+  return vorn ? bildFuerKey(vorn.key) : undefined;
 }
 
 /** Ein Posten aus der Tabelle, mit dem Stückgewicht als Menge, sonst 100 g. */
@@ -104,7 +107,7 @@ export function tabellenPosten(f, gramm = f.pieceG ?? 100) {
     proteinG: r1(f.per100.proteinG),
     fatG: r1(f.per100.fatG),
     carbsG: r1(f.per100.carbsG),
-    ...(bildFuerKey(f.key) ? { bild: bildFuerKey(f.key) } : {}),
+    ...((bildFuerKey(f.key) || tabellenBild(f.label)) ? { bild: bildFuerKey(f.key) || tabellenBild(f.label) } : {}),
   };
 }
 

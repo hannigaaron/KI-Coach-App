@@ -76,7 +76,7 @@ test("Anteil am Ziel und Hauptmakro", () => {
   assert.equal(hauptMakro({}), "keiner");
 });
 
-test("Lebensmittelfotos: jede Kennung hat Datei und Nachweis, Zuordnung nur bei genauem Namen", async () => {
+test("Lebensmittelfotos: jede Kennung hat Datei und Nachweis, Zuordnung auf ganzen Wörtern am Anfang", async () => {
   const { existsSync, readFileSync } = await import("node:fs");
   const { LEBENSMITTEL_BILDER, tabellenBild } = await import("./bibliothek.js");
   const ordner = new URL("../img/lebensmittel/", import.meta.url);
@@ -84,9 +84,13 @@ test("Lebensmittelfotos: jede Kennung hat Datei und Nachweis, Zuordnung nur bei 
   for (const key of LEBENSMITTEL_BILDER) {
     assert.ok(existsSync(new URL(`${key}.jpg`, ordner)), key);
     const n = nachweis.find((x) => x.datei === `${key}.jpg`);
-    assert.ok(n && /^(CC0|PDM)/.test(n.lizenz) && n.quelle.startsWith("https://"), key);
+    assert.ok(n && /^(CC0|PDM|BY)/.test(n.lizenz) && n.quelle.startsWith("https://"), key);
   }
   assert.equal(tabellenBild("Avocado"), "img/lebensmittel/avocado.jpg");
-  assert.equal(tabellenBild("Avocado Toast mit Ei"), undefined);
+  assert.equal(tabellenBild("Avocado, halbe"), "img/lebensmittel/avocado.jpg");
+  assert.equal(tabellenBild("Apfel 150 g"), "img/lebensmittel/apfel.jpg");
+  // Ein Wortanfang ist kein Wort: Apfelmus ist kein Apfel.
+  assert.notEqual(tabellenBild("Apfelmusschale"), "img/lebensmittel/apfel.jpg");
+  assert.equal(tabellenBild("Ein Teller mit Avocado"), undefined);
   assert.equal(tabellenSuche("avocado")[0].bild, "img/lebensmittel/avocado.jpg");
 });
