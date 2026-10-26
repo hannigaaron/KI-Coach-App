@@ -43,6 +43,13 @@ export const KONFIG = {
    * Stufe von Hand, beim Jahr mit `bis` ein Jahr später.
    */
   abo: null,
+
+  /**
+   * Anmeldung mit Google: `googleWebClientId` für den Browser,
+   * `googleIosClientId` für die iPhone App, beide aus der Google Cloud
+   * Console. Leer heisst: kein Google Knopf. Apple braucht hier nichts.
+   */
+  anmeldung: null,
 };
 
 /**

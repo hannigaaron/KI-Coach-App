@@ -46,6 +46,20 @@ export interface Env {
    * und geht nie an den Browser.
    */
   ANTHROPIC_KEY?: string;
+  /** Bundle ID der iPhone App für Sign in with Apple, Standard de.daevo.app. */
+  APPLE_AUD?: string;
+  /** Google Client IDs, durch Komma getrennt: Web und iOS. Ohne sie gibt es keine Google Anmeldung. */
+  GOOGLE_CLIENT_IDS?: string;
+  /** Der iOS Client bei Google, für den Codeaustausch der iPhone App. */
+  GOOGLE_IOS_CLIENT_ID?: string;
+  /** Signaturgeheimnis des Stripe Webhooks, beginnt mit whsec_. */
+  STRIPE_WEBHOOK_SECRET?: string;
+  /**
+   * "abo" heisst: ein neues Konto startet ohne KI, die Testphase beginnt erst
+   * mit dem abgeschlossenen Abo im App Store oder bei Stripe. Fehlt der Wert,
+   * bekommt jedes neue Konto sieben Tage ohne Abo, wie bisher.
+   */
+  TESTPHASE?: string;
 }
 
 export interface ScheduledEvent {

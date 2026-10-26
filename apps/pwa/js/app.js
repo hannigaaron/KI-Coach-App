@@ -60,6 +60,7 @@ import { symbol } from "./symbole.js";
 import { NATIV_PUSH, gesundheitHolen, postfachHolen, pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
 import { kodierungReparieren, newId, nowTime, store, todayIso } from "./storage.js";
 import { healthkitAbgleichen } from "./healthkit.js";
+import { anmeldeWege, anmeldenApple, anmeldenGoogleNativ, anmeldungSenden, anmeldungText } from "./anmeldung.js";
 import { aboEntfernen, aboHinzufuegen, APPLE_QUELLE, appleKalenderTrennen, appleKalenderVerbinden, kalenderAbgleichen, kalenderAbos } from "./kalender-sync.js";
 import { mitteilungenPlanen } from "./mitteilungen.js";
 import { nativAufruf } from "./nativ.js";
@@ -2616,6 +2617,9 @@ function startApp() {
   // unter der ersten verloren.
   healthNativ().then(() => mitteilungenNativ());
   kontoSicherstellen().then(() => kalenderStill());
+  anmeldungStandZeigen();
+  // Wer die App schon benutzt, wird einmal gefragt, nicht vor jedem Start.
+  if (store.getSettings().einfuehrungGesehen) setTimeout(() => anmeldungFragen(), 1200);
   // Die Einführung kommt einmal: nach dem Bogen, beim ersten Öffnen der Demo,
   // und einmal bei allen, die die App schon vorher benutzt haben. Danach steht
   // sie im Profil. Wer sie bei jedem Start sieht, tippt sie weg, ohne zu lesen.
@@ -4986,6 +4990,93 @@ async function renderKonto() {
   $("kontoId").textContent = stand?.id || store.getSettings().kontoId || "-";
 }
 
+/* ---------- Anmeldung mit Apple oder Google ---------- */
+
+let anmeldungWartet = null;
+
+/**
+ * Zeigt den Anmeldebildschirm, wenn es einen Weg gibt und noch nicht
+ * gefragt wurde. Löst auf, sobald angemeldet oder übersprungen ist. Nach
+ * "Ohne Anmeldung weiter" fragt die App nicht wieder, im Profil bleibt der
+ * Knopf.
+ */
+function anmeldungFragen({ immer = false } = {}) {
+  const wege = anmeldeWege();
+  const s = store.getSettings();
+  if (!wege.apple && !wege.google) return Promise.resolve(false);
+  if (!immer && (s.login || s.anmeldungGefragt)) return Promise.resolve(false);
+  $("btnAnmeldenApple").hidden = !wege.apple;
+  $("btnAnmeldenGoogle").hidden = !(wege.google && istNativ());
+  $("googleWebKnopf").hidden = !(wege.google && !istNativ());
+  if (wege.google && !istNativ()) googleWebLaden();
+  $("anmeldeBlatt").hidden = false;
+  return new Promise((resolve) => { anmeldungWartet = resolve; });
+}
+
+function anmeldungSchliessen(ergebnis) {
+  $("anmeldeBlatt").hidden = true;
+  store.setSettings({ ...store.getSettings(), anmeldungGefragt: true });
+  anmeldungStandZeigen();
+  const w = anmeldungWartet;
+  anmeldungWartet = null;
+  w?.(ergebnis);
+}
+
+async function anmeldungAusfuehren(weg, knopf) {
+  if (knopf) knopf.disabled = true;
+  try {
+    const r = await weg();
+    if (r?.fehler) { toast(r.fehler, 5000); return; }
+    toast(r.uebernommen ? "Angemeldet. Dein Konto ist wieder da." : "Angemeldet.");
+    kontoStand().catch(() => {});
+    anmeldungSchliessen(true);
+  } catch (e) {
+    if (String(e?.message || e) !== "abgebrochen") toast(`Anmeldung gescheitert: ${e?.message || e}`, 5000);
+  } finally {
+    if (knopf) knopf.disabled = false;
+  }
+}
+
+$("btnAnmeldenApple").addEventListener("click", (e) => anmeldungAusfuehren(() => anmeldenApple(), e.currentTarget));
+$("btnAnmeldenGoogle").addEventListener("click", (e) => anmeldungAusfuehren(() => anmeldenGoogleNativ(), e.currentTarget));
+$("btnAnmeldenSpaeter").addEventListener("click", () => anmeldungSchliessen(false));
+$("btnAnmeldungProfil").addEventListener("click", () => anmeldungFragen({ immer: true }));
+
+let googleGeladen = false;
+
+/**
+ * Im Browser zeichnet Google seinen eigenen Knopf. Das Skript kommt erst,
+ * wenn der Bildschirm wirklich erscheint: vorher verrät kein Abruf an Google,
+ * dass jemand daevo öffnet.
+ */
+function googleWebLaden() {
+  const zeichnen = () => {
+    const g = globalThis.google?.accounts?.id;
+    if (!g) return;
+    g.initialize({
+      client_id: KONFIG.anmeldung?.googleWebClientId,
+      callback: (antwort) => anmeldungAusfuehren(() => anmeldungSenden({ anbieter: "google", idToken: antwort.credential })),
+    });
+    $("googleWebKnopf").innerHTML = "";
+    g.renderButton($("googleWebKnopf"), { theme: "filled_black", size: "large", shape: "pill", text: "signin_with", width: 320, locale: "de" });
+  };
+  if (googleGeladen) { zeichnen(); return; }
+  const skript = document.createElement("script");
+  skript.src = "https://accounts.google.com/gsi/client";
+  skript.async = true;
+  skript.onload = () => { googleGeladen = true; zeichnen(); };
+  document.head.appendChild(skript);
+}
+
+function anmeldungStandZeigen() {
+  const wege = anmeldeWege();
+  const da = wege.apple || wege.google;
+  const s = store.getSettings();
+  $("anmeldungStand").hidden = !da;
+  $("anmeldungStand").textContent = anmeldungText(s);
+  $("btnAnmeldungProfil").hidden = !da || Boolean(s.login);
+}
+
 /* ---------- Apple Health in der iPhone App ---------- */
 
 let healthLaeuft = false;
@@ -5837,9 +5928,12 @@ async function demoVorbereiten() {
   return Boolean(profile);
 }
 
-demoVorbereiten().then((gefuellt) => {
-  if (profile || gefuellt) startApp();
-  else new SetupFlow($("setupFlow"), { onFertig: anamneseFertig });
+demoVorbereiten().then(async (gefuellt) => {
+  if (profile || gefuellt) { startApp(); return; }
+  // Wer neu ist, meldet sich vor dem Fragebogen an: dann kommt ein schon
+  // gekauftes Abo sofort zurück, und die Testphase gilt je Person einmal.
+  await anmeldungFragen();
+  new SetupFlow($("setupFlow"), { onFertig: anamneseFertig });
 });
 
 if ("serviceWorker" in navigator) {

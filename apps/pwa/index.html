@@ -462,6 +462,26 @@ try {
 
   <!-- Die Einwilligung vor der ersten Antwort mit KI, Art. 9 DSGVO. Kommt
        einmal je Fassung, nach Ja oder Nein nicht wieder. Widerruf im Profil. -->
+  <div id="anmeldeBlatt" class="anmelde-blatt" hidden role="dialog" aria-modal="true" aria-labelledby="anmeldeTitel">
+    <div class="anmelde-innen">
+      <img class="anmelde-marke" src="./brand/daevo-lockup-dark.svg" width="220" alt="daevo, Evolve your daily life">
+      <h2 id="anmeldeTitel">Schön, dass du da bist</h2>
+      <p class="anmelde-sub">Melde dich an, dann kommt dein Abo nach einem Handywechsel oder einer Neuinstallation zurück. Deine Daten bleiben auf deinem Gerät.</p>
+      <div class="anmelde-knoepfe">
+        <button id="btnAnmeldenApple" class="anmelde-knopf apple" type="button" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.37 12.6c-.02-2.2 1.8-3.26 1.88-3.31-1.03-1.5-2.62-1.7-3.18-1.73-1.35-.14-2.64.8-3.33.8-.69 0-1.74-.78-2.87-.76-1.47.02-2.83.86-3.59 2.18-1.53 2.66-.39 6.6 1.1 8.76.73 1.06 1.6 2.24 2.73 2.2 1.1-.04 1.51-.71 2.84-.71 1.32 0 1.7.71 2.86.69 1.18-.02 1.93-1.07 2.65-2.13.84-1.22 1.18-2.41 1.2-2.47-.03-.01-2.3-.88-2.32-3.5zM14.2 6.13c.6-.74 1.01-1.75.9-2.77-.87.04-1.93.58-2.55 1.31-.56.65-1.05 1.69-.92 2.69.97.07 1.96-.49 2.57-1.23z" fill="currentColor"/></svg>
+          Mit Apple anmelden</button>
+        <button id="btnAnmeldenGoogle" class="anmelde-knopf google" type="button" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.5 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.9a5.04 5.04 0 0 1-2.19 3.31v2.75h3.54c2.07-1.91 3.25-4.72 3.25-8.07z"/><path fill="#34A853" d="M12 23c2.96 0 5.45-.98 7.26-2.66l-3.54-2.75c-.98.66-2.24 1.05-3.72 1.05-2.86 0-5.29-1.93-6.15-4.53H2.2v2.84A10.99 10.99 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.85 14.11a6.6 6.6 0 0 1 0-4.22V7.05H2.2a11 11 0 0 0 0 9.9l3.65-2.84z"/><path fill="#EA4335" d="M12 5.36c1.61 0 3.06.55 4.2 1.64l3.14-3.14C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.2 7.05l3.65 2.84C6.71 7.29 9.14 5.36 12 5.36z"/></svg>
+          Mit Google anmelden</button>
+        <div id="googleWebKnopf" hidden></div>
+        <button id="btnAnmeldenSpaeter" class="link-knopf anmelde-spaeter" type="button">Ohne Anmeldung weiter</button>
+      </div>
+      <p class="anmelde-fein">daevo speichert dazu nur einen Prüfwert deiner Kennung, keinen Namen und keine E-Mail.
+        <button type="button" class="link-knopf" data-recht="datenschutz">Datenschutz</button></p>
+    </div>
+  </div>
+
   <div id="kiBlatt" class="blatt" hidden>
     <div class="blatt-innen" role="dialog" aria-modal="true" aria-labelledby="kiTitel">
       <header class="blatt-kopf">
@@ -1464,6 +1484,8 @@ try {
       <h2 class="abschnitt" data-nutzer hidden>Dein Konto</h2>
       <div class="card" id="kontoKarte" data-nutzer hidden>
         <p id="kontoStand" style="margin:0 0 8px">Wird geladen.</p>
+        <p id="anmeldungStand" class="fineprint" hidden></p>
+        <button id="btnAnmeldungProfil" class="ghost breit" type="button" hidden>Anmelden mit Apple oder Google</button>
         <div class="kv"><span>Konto</span><b id="kontoId">-</b></div>
         <button id="btnAboZeigen" class="ghost" style="margin-top:12px">Plus und Pro ansehen</button>
         <p class="fineprint" style="margin-bottom:0">Auf dem Server liegen nur Stufe und Verbrauch, keine Gespräche und keine Zahlen über dich. Dein Konto steckt in der Sicherung: ohne Sicherung ist es beim Löschen der App weg. Alles ohne KI ist in jeder Stufe unbegrenzt.</p>

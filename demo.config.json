@@ -14,5 +14,9 @@
     "plusJahrUrl": "",
     "proUrl": "",
     "proJahrUrl": ""
+  },
+  "anmeldung": {
+    "googleWebClientId": "",
+    "googleIosClientId": ""
   }
 }

@@ -77,6 +77,10 @@ export interface Konto {
   /** Bis wann eine bezahlte Stufe gilt, als Tag. Danach gilt wieder frei. */
   bis?: string;
   angelegt: string;
+  /** Mit welchem Anbieter verknüpft, siehe anmeldung.ts. Nur der Name, keine Kennung. */
+  login?: string;
+  /** Woher die bezahlte Stufe kommt: "hand", "appstore" oder "stripe". */
+  quelle?: string;
 }
 
 export interface Monatsverbrauch {
@@ -112,10 +116,21 @@ export function geltendeStufe(konto: Konto, heute: string = new Date().toISOStri
   return konto.stufe;
 }
 
-export async function kontoAnlegen(kv: KVNamespace, jetzt: Date = new Date()): Promise<{ token: string; konto: Konto }> {
+/**
+ * Legt ein Konto an. Mit `testphase: false` startet es ohne KI, und die
+ * Testphase beginnt erst mit dem abgeschlossenen Abo, siehe `TESTPHASE` in
+ * umgebung.ts. Dann bucht jemand ab dem ersten Tag und zahlt ab dem achten.
+ */
+export async function kontoAnlegen(
+  kv: KVNamespace,
+  jetzt: Date = new Date(),
+  { testphase = true }: { testphase?: boolean } = {},
+): Promise<{ token: string; konto: Konto }> {
   const token = zufall(40, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789");
   const angelegt = jetzt.toISOString().slice(0, 10);
-  const konto: Konto = { id: zufall(8, KENNUNG_ZEICHEN), stufe: "test", bis: tagPlus(angelegt, TESTTAGE - 1), angelegt };
+  const konto: Konto = testphase
+    ? { id: zufall(8, KENNUNG_ZEICHEN), stufe: "test", bis: tagPlus(angelegt, TESTTAGE - 1), angelegt }
+    : { id: zufall(8, KENNUNG_ZEICHEN), stufe: "frei", angelegt };
   const h = await hash(token);
   await kv.put(`konto.${h}`, JSON.stringify(konto));
   await kv.put(`kontoid.${konto.id}`, h);
@@ -181,6 +196,11 @@ export async function kontoLoeschen(kv: KVNamespace, h: string, konto: Konto, je
   const vormonat = new Date(Date.UTC(jetzt.getUTCFullYear(), jetzt.getUTCMonth() - 1, 1));
   await kv.delete(`konto.${h}`);
   await kv.delete(`kontoid.${konto.id}`);
+  // Die Verknüpfung mit Apple oder Google geht mit, sonst bekäme dieselbe
+  // Person nach dem Löschen ihr gelöschtes Konto nie wieder frei.
+  const login = await kv.get(`loginvon.${konto.id}`);
+  if (login) await kv.delete(login);
+  await kv.delete(`loginvon.${konto.id}`);
   await kv.delete(`verbrauch.${konto.id}.${monatVon(jetzt)}`);
   await kv.delete(`verbrauch.${konto.id}.${monatVon(vormonat)}`);
 }
