@@ -60,6 +60,7 @@ import { symbol } from "./symbole.js";
 import { NATIV_PUSH, gesundheitHolen, postfachHolen, pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
 import { kodierungReparieren, newId, nowTime, store, todayIso } from "./storage.js";
 import { healthkitAbgleichen } from "./healthkit.js";
+import { abosAbgleichen, kaufenNativ, startAnlass } from "./kauf.js";
 import { anmeldeWege, anmeldenApple, anmeldenGoogleNativ, anmeldungSenden, anmeldungText } from "./anmeldung.js";
 import { aboEntfernen, aboHinzufuegen, APPLE_QUELLE, appleKalenderTrennen, appleKalenderVerbinden, kalenderAbgleichen, kalenderAbos } from "./kalender-sync.js";
 import { mitteilungenPlanen } from "./mitteilungen.js";
@@ -2612,7 +2613,7 @@ function startApp() {
   konfigAnwenden();
   // Im Hintergrund, damit die erste Nachricht schon zählt. Scheitert es, wird
   // es vor der nächsten Nachricht nachgeholt.
-  kontoSicherstellen().then(() => aboBeimStart());
+  const aboGeprueft = kontoSicherstellen().then(() => aboBeimStart()).catch(() => {});
   // Nacheinander: zwei Abfragen von iOS gleichzeitig, und die zweite geht
   // unter der ersten verloren.
   healthNativ().then(() => mitteilungenNativ());
@@ -2624,7 +2625,7 @@ function startApp() {
   // und einmal bei allen, die die App schon vorher benutzt haben. Danach steht
   // sie im Profil. Wer sie bei jedem Start sieht, tippt sie weg, ohne zu lesen.
   if (!store.getSettings().einfuehrungGesehen) {
-    setTimeout(() => einfuehrungStarten({ zeigeAnsicht: showView, beiEnde: einfuehrungGesehen }), 900);
+    aboGeprueft.then(() => setTimeout(() => aboFensterZu().then(() => einfuehrungStarten({ zeigeAnsicht: showView, beiEnde: einfuehrungGesehen })), 900));
   }
   else setTimeout(morgenVielleicht, 1000);
   options = { ...options, ...(store.getSettings().voice || {}) };
@@ -5042,6 +5043,18 @@ $("btnAnmeldenGoogle").addEventListener("click", (e) => anmeldungAusfuehren(() =
 $("btnAnmeldenSpaeter").addEventListener("click", () => anmeldungSchliessen(false));
 $("btnAnmeldungProfil").addEventListener("click", () => anmeldungFragen({ immer: true }));
 
+/**
+ * Kündigen muss so leicht sein wie abschliessen. In der iPhone App öffnet
+ * das die Abos der Apple ID, im Browser das Kundenportal von Stripe.
+ */
+$("btnAboVerwalten").addEventListener("click", async () => {
+  if (istNativ()) {
+    try { await nativAufruf("Abo", "verwalten", {}); } catch (e) { toast(e.message, 5000); }
+    return;
+  }
+  if (KONFIG.abo?.portalUrl) window.open(KONFIG.abo.portalUrl, "_blank", "noopener");
+});
+
 let googleGeladen = false;
 
 /**
@@ -5075,6 +5088,7 @@ function anmeldungStandZeigen() {
   $("anmeldungStand").hidden = !da;
   $("anmeldungStand").textContent = anmeldungText(s);
   $("btnAnmeldungProfil").hidden = !da || Boolean(s.login);
+  $("btnAboVerwalten").hidden = !(KONFIG.chatUrl && (istNativ() || KONFIG.abo?.portalUrl));
 }
 
 /* ---------- Apple Health in der iPhone App ---------- */
@@ -5276,19 +5290,26 @@ function aboStufenZeigen() {
   }
   const p = aboPreis(s, aboTakt);
   const link = aboLink(aboWahl, store.getSettings().kontoId, KONFIG, istNativ(), aboTakt);
-  $("aboKaufen").textContent = `${s.name} holen, ${p.preis} ${p.zeitraum}`;
-  $("aboKaufen").hidden = !link;
-  $("aboHinweis").textContent = istNativ()
-    ? "Der Kauf in der App kommt mit dem App Store. Bis dahin läuft alles ohne KI weiter."
+  $("aboKaufen").textContent = aboAnlassJetzt?.testphase ? `${aboAnlassJetzt.knopf}, danach ${p.preis} ${p.zeitraum}` : `${s.name} holen, ${p.preis} ${p.zeitraum}`;
+  $("aboKaufen").hidden = !link && !(istNativ() && KONFIG.chatUrl);
+  $("aboHinweis").textContent = aboAnlassJetzt?.testphase
+    ? `Die ersten 7 Tage kosten nichts. Ab Tag 8 ${p.preis} ${p.zeitraum}, bis Tag 7 kostenlos kündbar${istNativ() ? " in den Einstellungen deiner Apple ID" : " über den Link in der Bestätigungsmail"}. Ohne Abo läuft alles weiter, was keine KI braucht.`
+    : istNativ()
+    ? "Abgerechnet über deine Apple ID, kündbar in deren Einstellungen. Alles ohne KI bleibt in jeder Stufe frei."
     : aboTakt === "jahr"
       ? "Einmal im Jahr abgerechnet. Das Kontingent an Nachrichten gilt je Monat. Alles ohne KI bleibt in jeder Stufe frei."
       : "Monatlich abgerechnet. Alles ohne KI bleibt in jeder Stufe frei: Essen eintragen, Pläne, Erinnerungen, Balance Board.";
 }
 
+let aboAnlassJetzt = null;
+let nachAbo = null;
+
 function aboOeffnen(anlass = null) {
+  aboAnlassJetzt = anlass;
   aboWahl = anlass?.empfohlen || "plus";
   $("aboMarke").textContent = anlass?.marke || "Plus und Pro";
   $("aboTitel").textContent = anlass?.titel || "Deinen Coach freischalten";
+  $("aboSpaeter").textContent = anlass?.testphase ? "Erst ohne KI umsehen" : "Später";
   $("aboText").textContent = anlass?.text || "Mit Abo denkt daevo mit: Fotos auswerten, deinen Tag planen, mit dir reden.";
   aboStufenZeigen();
   aboMerken(anlass?.merken);
@@ -5300,13 +5321,36 @@ function aboOeffnen(anlass = null) {
 function aboSchliessen() {
   $("aboBlatt").hidden = true;
   document.body.classList.remove("blatt-offen");
+  aboAnlassJetzt = null;
+  const weiter = nachAbo;
+  nachAbo = null;
+  weiter?.();
+}
+
+/** Wartet, bis das Abo Fenster zu ist. Die Einführung kommt danach, nicht darüber. */
+function aboFensterZu() {
+  if ($("aboBlatt").hidden) return Promise.resolve();
+  return new Promise((r) => { nachAbo = r; });
 }
 
 $("aboSchliessen").addEventListener("click", aboSchliessen);
 $("aboSpaeter").addEventListener("click", aboSchliessen);
 $("aboBlatt").addEventListener("click", (event) => { if (event.target === $("aboBlatt")) aboSchliessen(); });
 $("btnAboZeigen").addEventListener("click", () => aboOeffnen());
-$("aboKaufen").addEventListener("click", () => {
+$("aboKaufen").addEventListener("click", async () => {
+  if (istNativ()) {
+    const knopf = $("aboKaufen");
+    knopf.disabled = true;
+    const r = await kaufenNativ(aboWahl, aboTakt).catch((e) => ({ fehler: e.message }));
+    knopf.disabled = false;
+    if (r.abgebrochen) return;
+    if (r.fehler) { toast(r.fehler, 6000); return; }
+    if (r.wartet) toast("Der Kauf wartet auf eine Freigabe, etwa durch die Familienfreigabe.", 6000);
+    else toast(aboAnlassJetzt?.testphase ? "Testphase läuft. Viel Spaß mit daevo." : "Abo aktiv.");
+    aboSchliessen();
+    kontoStand().then(aboLeisteZeigen).catch(() => {});
+    return;
+  }
   const link = aboLink(aboWahl, store.getSettings().kontoId, KONFIG, istNativ(), aboTakt);
   if (link) window.open(link, "_blank", "noopener");
   aboSchliessen();
@@ -5332,8 +5376,14 @@ $("aboLeiste").addEventListener("click", () => aboOeffnen(aboLeisteEmpfohlen ? {
 
 async function aboBeimStart() {
   if (!KONFIG.chatUrl) return;
+  // Ein Abo, das im App Store gilt und dem Server fehlt, kommt zuerst an.
+  if (istNativ()) await abosAbgleichen().catch(() => null);
   const stand = await kontoStand();
   aboLeisteZeigen(stand);
+  // Startet die Testphase erst mit dem Abo, kommt das Fenster direkt nach
+  // dem Fragebogen und vor der Einführung.
+  const start = startAnlass(stand, store.getSettings().aboHinweise);
+  if (start) { aboOeffnen(start); return; }
   const anlass = aboAnlass(stand, store.getSettings().aboHinweise, todayIso());
   if (!anlass) return;
   if (!store.getSettings().einfuehrungGesehen) return;

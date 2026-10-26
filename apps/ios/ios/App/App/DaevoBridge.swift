@@ -17,5 +17,6 @@ class DaevoBridgeViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(HaptikPlugin())
         bridge?.registerPluginInstance(KalenderPlugin())
         bridge?.registerPluginInstance(AnmeldungPlugin())
+        bridge?.registerPluginInstance(AboPlugin())
     }
 }
