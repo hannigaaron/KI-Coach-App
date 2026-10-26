@@ -589,17 +589,33 @@ try {
             <div><b id="meKh">0</b><span>Kohlenhydrate</span></div>
           </div>
         </div>
+        <!-- Der Anteil am Tagesziel je Wert. 600 kcal sagen wenig, 19 Prozent
+             des Tages sagen, ob es eine grosse Mahlzeit war. -->
+        <div id="meAnteile" class="me-anteile" hidden></div>
 
         <ul id="mePosten" class="me-posten"></ul>
+
+        <div class="me-rezept">
+          <button id="meAlsRezept" class="ghost breit" type="button">Als eigenes Rezept speichern</button>
+          <div id="meRezeptForm" class="me-suche" hidden>
+            <input id="meRezeptName" type="text" autocomplete="off" maxlength="60"
+                   placeholder="Name, etwa Overnight Oats" aria-label="Name des Rezepts">
+            <button id="meRezeptOk" class="primary" type="button">Speichern</button>
+          </div>
+          <p id="meRezeptHinweis" class="feld-hilfe"></p>
+        </div>
 
         <h3 class="section-title">Lebensmittel hinzufügen</h3>
         <div class="me-suche">
           <input id="meSuche" type="search" autocomplete="off" enterkeyhint="search"
-                 placeholder="Magerquark, Haferflocken, Skyr">
+                 placeholder="Lebensmittel oder Marke">
           <button id="meSuchen" class="ghost" type="button">Suchen</button>
           <button id="meScan" class="ghost" type="button">Barcode</button>
         </div>
         <p id="meSuchHinweis" class="feld-hilfe"></p>
+        <!-- Ohne Suchtext stehen hier die eigenen Rezepte und das zuletzt
+             Gegessene, beim Tippen die Treffer aus der Nährwerttabelle. -->
+        <div id="meBibliothek" class="me-bibliothek"></div>
         <ul id="meTreffer" class="me-treffer" hidden></ul>
 
         <details class="me-hand">

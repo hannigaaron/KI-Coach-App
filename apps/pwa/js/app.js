@@ -63,6 +63,7 @@ import { healthkitAbgleichen } from "./healthkit.js";
 import { mitteilungenPlanen } from "./mitteilungen.js";
 import { nativAufruf } from "./nativ.js";
 import { spueren } from "./haptik.js";
+import { anteilAmZiel, eigeneRezepte, hauptMakro, rezeptGrenze, rezeptLoeschen, rezeptSpeichern, summe as postenSumme, tabellenSuche, zuletztGegessen } from "./bibliothek.js";
 import { einwilligungOffen, einwilligungSetzen, einwilligungText, kiErlaubt } from "./einwilligung.js";
 import { ABO_STUFEN, ABO_TAKTE, aboPreis, ersparnisProzent, aboAnlass, aboAnlassLeer, aboLeiste, aboLink, kontoLoeschen, kontoSicherstellen, kontoStand, kontoText } from "./konto.js";
 
@@ -4324,8 +4325,11 @@ function mahlzeitOeffnen(id) {
   $("meTreffer").hidden = true;
   $("meSuchHinweis").textContent = "";
   $("meHandHinweis").textContent = "";
+  $("meRezeptForm").hidden = true;
+  $("meRezeptHinweis").textContent = "";
   meArtenZeichnen();
   mePostenZeichnen();
+  meBibliothekZeichnen();
   $("mahlzeitEditor").hidden = false;
   document.body.classList.add("blatt-offen");
 }
@@ -4383,6 +4387,7 @@ function mePostenZeichnen() {
       ? `<li class="me-leer">Noch nichts drin. Such unten ein Lebensmittel oder scann einen Barcode.</li>`
       : `<li class="me-leer">Kein Posten mehr drin. Speichern löscht die Mahlzeit.</li>`;
   } else {
+    const ziel = dayNumbers(day).targets;
     liste.innerHTML = mePosten.map((e, i) => {
       const menge = mengeLesen(e.quantity);
       const kann = skalierbar(e);
@@ -4395,14 +4400,14 @@ function mePostenZeichnen() {
         : `<span class="me-fest">${escapeHtml(e.quantity)}</span>`;
       return `<li>
         <div class="me-zeile">
+          ${postenBild(e)}
           <div class="me-name">${escapeHtml(e.name)}</div>
           <div class="me-mengefeld">${feld}</div>
           <button type="button" class="me-weg" data-weg="${i}" aria-label="${escapeHtml(e.name)} entfernen">
             <span class="kreuz"></span>
           </button>
         </div>
-        <div class="me-werte">${Math.round(e.kcal)} kcal, ${komma(runde1(e.proteinG))} g Eiweiß,
-          ${komma(runde1(e.fatG))} g Fett, ${komma(runde1(e.carbsG))} g Kohlenhydrate</div>
+        <div class="me-werte">${postenWerte(e, ziel)}</div>
       </li>`;
     }).join("");
   }
@@ -4420,7 +4425,163 @@ function meSummeZeichnen() {
   $("meProtein").textContent = `${komma(runde1(summe.p))} g`;
   $("meFett").textContent = `${komma(runde1(summe.f))} g`;
   $("meKh").textContent = `${komma(runde1(summe.k))} g`;
+  const ziel = dayNumbers(day).targets;
+  const teile = [
+    ["Kalorien", summe.kcal, ziel.kcal, "kcal"],
+    ["Eiweiß", summe.p, ziel.proteinG, "protein"],
+    ["Fett", summe.f, ziel.fatG, "fett"],
+    ["Kohlenhydrate", summe.k, ziel.carbsG, "kohlenhydrate"],
+  ].map(([name, wert, z, art]) => [name, anteilAmZiel(wert, z), art]).filter(([, a]) => a !== null);
+  $("meAnteile").hidden = mePosten.length === 0 || teile.length === 0;
+  $("meAnteile").innerHTML = teile.map(([name, a, art]) => `<div class="me-anteil" data-makro="${art}">
+      <span class="me-anteil-spur"><span style="width:${Math.min(100, a)}%"></span></span>
+      <span class="me-anteil-text"><b>${a} %</b> ${escapeHtml(name)}</span>
+    </div>`).join("");
 }
+
+/**
+ * Das Bild eines Postens. Ein Foto gibt es nur von Open Food Facts, für
+ * alles andere steht der Anfangsbuchstabe auf der Farbe des Makros, der die
+ * meisten Kalorien trägt. Kein Emoji: die sehen auf jedem Gerät anders aus
+ * und bringen eine fremde Farbigkeit in die Palette.
+ */
+function postenBild(e) {
+  if (e.bild) return `<span class="me-bild"><img src="${escapeHtml(e.bild)}" alt="" loading="lazy" referrerpolicy="no-referrer"></span>`;
+  const buchstabe = (String(e.name || "?").trim()[0] || "?").toUpperCase();
+  return `<span class="me-bild" data-makro="${hauptMakro(e)}" aria-hidden="true"><b>${escapeHtml(buchstabe)}</b></span>`;
+}
+
+/** Die Zeile unter einem Posten: Werte und, wenn ein Ziel da ist, der Anteil am Tag. */
+function postenWerte(e, ziel) {
+  const a = anteilAmZiel(e.kcal, ziel?.kcal);
+  const anteil = a === null ? "" : ` · <b class="me-tagesanteil">${a} % des Tages</b>`;
+  return `${Math.round(e.kcal)} kcal${anteil}<br>${komma(runde1(e.proteinG))} g Eiweiß · `
+    + `${komma(runde1(e.fatG))} g Fett · ${komma(runde1(e.carbsG))} g Kohlenhydrate`;
+}
+
+/* ---------- Bibliothek: Rezepte, zuletzt gegessen, Nährwerttabelle ---------- */
+
+/** Was gerade in der Bibliothek steht, damit ein Tipp den richtigen Posten findet. */
+let meBibliothekPosten = [];
+
+function bibZeile(e, i, { loeschen = null, unter = "" } = {}) {
+  const weg = loeschen
+    ? `<button type="button" class="me-weg" data-rezept-weg="${escapeHtml(loeschen)}" aria-label="Rezept ${escapeHtml(e.name)} löschen"><span class="kreuz"></span></button>`
+    : "";
+  return `<li class="bib-zeile">
+    <button type="button" class="bib-knopf" data-bib="${i}">
+      ${postenBild(e)}
+      <span class="bib-text"><span class="me-name">${escapeHtml(e.name)}</span>
+        <span class="me-werte">${unter || `${Math.round(e.kcal)} kcal · ${escapeHtml(e.quantity || "")}`}</span></span>
+      <span class="bib-plus" aria-hidden="true"></span>
+    </button>${weg}
+  </li>`;
+}
+
+function meBibliothekZeichnen() {
+  const box = $("meBibliothek");
+  const begriff = $("meSuche").value.trim();
+  meBibliothekPosten = [];
+  const teile = [];
+  if (begriff) {
+    // Beim Tippen sofort die eigene Tabelle, ohne Netz. Open Food Facts kommt
+    // erst mit Enter, sonst ginge bei jedem Buchstaben eine Anfrage raus.
+    const treffer = tabellenSuche(begriff);
+    if (treffer.length) {
+      teile.push(`<h3 class="section-title">Aus der Nährwerttabelle</h3><ul class="bib-liste">${
+        treffer.map((e) => bibZeile(e, meBibliothekPosten.push({ art: "posten", e }) - 1)).join("")}</ul>`);
+    }
+    teile.push(`<p class="feld-hilfe">Enter sucht zusätzlich nach Marken und Produkten.</p>`);
+  } else {
+    const s = store.getSettings();
+    const rezepte = eigeneRezepte(s);
+    const grenze = rezeptGrenze(s, KONFIG);
+    const zaehler = grenze === Infinity ? "" : ` <span class="bib-zaehler">${rezepte.length} von ${grenze}</span>`;
+    if (rezepte.length) {
+      teile.push(`<h3 class="section-title">Meine Rezepte${zaehler}</h3><ul class="bib-liste">${rezepte.map((r) => {
+        const sum = postenSumme(r.posten);
+        const e = { name: r.name, kcal: sum.kcal, proteinG: sum.proteinG, fatG: sum.fatG, carbsG: sum.carbsG, bild: r.posten.find((p) => p.bild)?.bild };
+        const unter = `${Math.round(sum.kcal)} kcal · ${r.posten.length} ${r.posten.length === 1 ? "Zutat" : "Zutaten"}`;
+        return bibZeile(e, meBibliothekPosten.push({ art: "rezept", r }) - 1, { loeschen: r.id, unter });
+      }).join("")}</ul>`);
+    }
+    const tage = store.allDays().slice(-30).map((d) => ({ ...store.getDay(d), date: d }));
+    const zuletzt = zuletztGegessen(tage, { anzahl: 12 });
+    if (zuletzt.length) {
+      teile.push(`<h3 class="section-title">Zuletzt gegessen</h3><ul class="bib-liste">${
+        zuletzt.map((e) => bibZeile(e, meBibliothekPosten.push({ art: "posten", e }) - 1)).join("")}</ul>`);
+    }
+  }
+  box.innerHTML = teile.join("");
+}
+
+function meRezeptHinweis(text) {
+  $("meRezeptHinweis").textContent = text;
+}
+
+$("meBibliothek").addEventListener("click", (event) => {
+  const weg = event.target.closest("[data-rezept-weg]");
+  if (weg) {
+    const r = eigeneRezepte(store.getSettings()).find((x) => x.id === weg.dataset.rezeptWeg);
+    if (!r || !confirm(`Rezept "${r.name}" löschen?`)) return;
+    store.setSettings(rezeptLoeschen(store.getSettings(), r.id));
+    meBibliothekZeichnen();
+    return;
+  }
+  const knopf = event.target.closest("[data-bib]");
+  if (!knopf) return;
+  const eintrag = meBibliothekPosten[Number(knopf.dataset.bib)];
+  if (!eintrag) return;
+  spueren("leicht");
+  // Ein Rezept kommt als seine Zutaten in die Mahlzeit, nicht als ein Block:
+  // so lässt sich heute weniger Reis nehmen, ohne das Rezept zu ändern.
+  const neu = eintrag.art === "rezept" ? eintrag.r.posten : [eintrag.e];
+  for (const e of neu) mePostenAnhaengen({ ...e });
+  if (eintrag.art === "rezept") meRezeptHinweis(`"${eintrag.r.name}" eingefügt. Mengen lassen sich oben ändern.`);
+  $("meSuche").value = "";
+  $("meTreffer").hidden = true;
+  meBibliothekZeichnen();
+});
+
+$("meSuche").addEventListener("input", () => {
+  if (!$("meSuche").value.trim()) $("meTreffer").hidden = true;
+  meBibliothekZeichnen();
+});
+
+$("meAlsRezept").addEventListener("click", () => {
+  if (mePosten.length === 0) { meRezeptHinweis("Füg erst Lebensmittel hinzu, dann lässt sich das Ganze als Rezept speichern."); return; }
+  const grenze = rezeptGrenze(store.getSettings(), KONFIG);
+  if (grenze === 0) {
+    aboOeffnen({ marke: "Plus und Pro", titel: "Eigene Rezepte speichern", empfohlen: "plus",
+      text: "Mit Plus speicherst du fünf eigene Rezepte, mit Pro so viele du willst. Einmal zusammengestellt, mit einem Tipp eingetragen." });
+    return;
+  }
+  $("meRezeptForm").hidden = false;
+  $("meRezeptName").focus();
+});
+
+function meRezeptSichern() {
+  const s = store.getSettings();
+  const grenze = rezeptGrenze(s, KONFIG);
+  const ergebnis = rezeptSpeichern(s, $("meRezeptName").value, mePosten, { grenze, id: newId });
+  if (ergebnis.fehler === "grenze") {
+    aboOeffnen({ marke: "Pro", titel: "Mehr eigene Rezepte", empfohlen: "pro",
+      text: `In deiner Stufe sind ${grenze} eigene Rezepte möglich. Mit Pro speicherst du so viele du willst. Ein bestehendes Rezept ersetzt du, indem du es unter demselben Namen speicherst.` });
+    return;
+  }
+  if (ergebnis.fehler) { meRezeptHinweis(ergebnis.fehler); return; }
+  store.setSettings(ergebnis.settings);
+  spueren("erfolg");
+  $("meRezeptForm").hidden = true;
+  $("meRezeptName").value = "";
+  meRezeptHinweis(ergebnis.ersetzt ? `"${ergebnis.rezept.name}" aktualisiert.` : `"${ergebnis.rezept.name}" gespeichert. Es steht jetzt oben unter Meine Rezepte.`);
+  meBibliothekZeichnen();
+}
+
+$("meRezeptOk").addEventListener("click", meRezeptSichern);
+$("meRezeptName").addEventListener("keydown", (event) => {
+  if (event.key === "Enter") { event.preventDefault(); meRezeptSichern(); }
+});
 
 function runde1(wert) {
   return Math.round((Number(wert) || 0) * 10) / 10;
@@ -4485,10 +4646,13 @@ function meTrefferZeichnen(treffer) {
     const n = naehrwerteFuer(p, gramm);
     const warnung = t.einwaende.length ? `<div class="me-warnung">${escapeHtml(t.einwaende.join(" "))}</div>` : "";
     return `<li>
-      <button type="button" class="me-treffer-knopf" data-treffer="${i}">
+      <button type="button" class="me-treffer-knopf bib-knopf" data-treffer="${i}">
+        ${postenBild({ name: titel || "?", bild: p.bild, kcal: n.kcal, proteinG: n.proteinG, fatG: n.fatG, carbsG: n.carbsG })}
+        <span class="bib-text">
         <div class="me-name">${escapeHtml(titel || "Ohne Namen")}</div>
         <div class="me-werte">${gramm} g, ${Math.round(n.kcal)} kcal, ${komma(runde1(n.proteinG))} g Eiweiß</div>
         ${warnung}
+        </span>
       </button>
     </li>`;
   }).join("");
@@ -4500,6 +4664,7 @@ function meTrefferZeichnen(treffer) {
       name: [t.produkt.marke, t.produkt.name].filter(Boolean).join(" ") || "Ohne Namen",
       gramm,
       kcal: n.kcal, proteinG: n.proteinG, fatG: n.fatG, carbsG: n.carbsG,
+      bild: t.produkt.bild,
     };
   }));
 }
@@ -4542,10 +4707,7 @@ $("mePosten").addEventListener("input", (event) => {
   // dem Nutzer mitten im Tippen den Fokus aus dem Feld nehmen.
   const zeile = feld.closest("li")?.querySelector(".me-werte");
   const e = mePosten[i];
-  if (zeile) {
-    zeile.textContent = `${Math.round(e.kcal)} kcal, ${komma(runde1(e.proteinG))} g Eiweiß, `
-      + `${komma(runde1(e.fatG))} g Fett, ${komma(runde1(e.carbsG))} g Kohlenhydrate`;
-  }
+  if (zeile) zeile.innerHTML = postenWerte(e, dayNumbers(day).targets);
   meSummeZeichnen();
 });
 
@@ -4574,9 +4736,11 @@ $("meTreffer").addEventListener("click", (event) => {
     proteinG: runde1(t.proteinG),
     fatG: runde1(t.fatG),
     carbsG: runde1(t.carbsG),
+    ...(t.bild ? { bild: t.bild } : {}),
   });
   $("meTreffer").hidden = true;
   $("meSuche").value = "";
+  meBibliothekZeichnen();
 });
 
 $("meHandAdd").addEventListener("click", () => {

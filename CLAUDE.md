@@ -510,7 +510,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1185 Tests
+npm test           # 1191 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1432,6 +1432,32 @@ Gefunden hat das erst der Durchlauf im Browser.
 Geprüft wird nur der Aufruf mit fester Zeichenkette. Was aus einer Variablen
 kommt, lässt sich ohne Ausführen nicht auflösen, und eine Prüfung, die dort
 rät, meldet Fehler, die keine sind.
+
+## Die Bibliothek im Mahlzeit Editor
+
+`apps/pwa/js/bibliothek.js`, gezeichnet in `meBibliothekZeichnen` in
+`app.js`. Ohne Suchtext stehen unter dem Suchfeld die eigenen Rezepte und
+das zuletzt Gegessene, beim Tippen sofort die Treffer aus der eigenen
+Nährwerttabelle, Open Food Facts erst mit Enter. Wer drei Tage Tofu isst,
+sucht ihn am vierten nicht. Zuletzt gegessen bringt die zuletzt gegessene
+Menge mit, die isst man meistens wieder. Mahlzeiten aus Apple Health zählen
+dort nicht.
+
+Eigene Rezepte stehen in `settings.eigeneRezepte` und damit in der
+Sicherung. Ein Rezept geht als seine Zutaten in die Mahlzeit und nicht als
+Block: so lässt sich heute weniger Reis nehmen, ohne das Rezept zu ändern.
+Gleicher Name ersetzt, so ändert man ein Rezept. Die Grenze ist eine
+Entscheidung des Betreibers, `REZEPT_GRENZE`: Plus und Testphase fünf, Pro
+ohne Grenze, ohne Abo keines. Die Stufe merkt sich `kontoStand` in
+`settings.kontoStufe`, damit die Grenze ohne Netz gilt. Ohne eigenen Server
+gibt es keine Grenze.
+
+Jeder Posten trägt ein Bild und seinen Anteil am Tagesziel, die Mahlzeit
+oben den Anteil je Wert als Balken. Ein Foto gibt es nur von Open Food
+Facts, `offBild` im Kern nimmt nur Adressen von images.openfoodfacts.org an:
+das Feld schreiben Freiwillige, und eine fremde Adresse wäre ein Abruf, den
+die Datenschutzerklärung nicht nennt. Ohne Foto steht der Anfangsbuchstabe
+auf der Farbe des Makros, der die meisten Kalorien trägt, `hauptMakro`.
 
 ## Eine Mahlzeit nachträglich ändern
 

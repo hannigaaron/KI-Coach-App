@@ -3575,3 +3575,64 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 .recht-links { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-4); margin: var(--s-3) 0; }
 .recht-blatt .blatt-innen { height: 94vh; max-height: 94vh; }
 .recht-rahmen { flex: 1; width: 100%; border: 0; background: var(--panel-2); }
+
+/* Die Bibliothek im Mahlzeit Editor und die Posten mit Bild. Zeilen statt
+   Karten, ein Bild links, die Zahl darunter, wie in den guten Trackern. Das
+   Bild ist 44 Pixel gross: kleiner liest man es nicht, grösser nimmt es dem
+   Namen die Breite. */
+.me-bild {
+  flex: none; width: 44px; height: 44px; border-radius: var(--r-md); overflow: hidden;
+  display: grid; place-items: center; background: var(--flaeche);
+  --ton: var(--muted);
+}
+.me-bild img { width: 100%; height: 100%; object-fit: cover; display: block; background: #fff; }
+.me-bild b {
+  font-family: Poppins, var(--font-ui, system-ui), sans-serif; font-weight: 600; font-size: var(--t-md);
+  color: var(--ton);
+}
+.me-bild[data-makro="protein"] { --ton: var(--makro-protein); background: color-mix(in srgb, var(--makro-protein) 16%, transparent); }
+.me-bild[data-makro="fett"] { --ton: var(--makro-fett); background: color-mix(in srgb, var(--makro-fett) 16%, transparent); }
+.me-bild[data-makro="kohlenhydrate"] { --ton: var(--makro-kohlenhydrate); background: color-mix(in srgb, var(--makro-kohlenhydrate) 16%, transparent); }
+.me-zeile .me-bild { margin-right: var(--s-1); }
+/* Die Werte rücken unter den Namen, nicht unter das Bild. */
+.me-posten .me-werte { padding-left: calc(44px + var(--s-1) + var(--s-2)); line-height: 1.5; }
+.me-tagesanteil { color: var(--text); font-weight: 600; }
+
+.me-anteile { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-2) var(--s-4); margin: 0 0 var(--s-4); }
+.me-anteil { --ton: var(--accent); }
+.me-anteil[data-makro="protein"] { --ton: var(--makro-protein); }
+.me-anteil[data-makro="fett"] { --ton: var(--makro-fett); }
+.me-anteil[data-makro="kohlenhydrate"] { --ton: var(--makro-kohlenhydrate); }
+.me-anteil-spur { display: block; height: 6px; border-radius: var(--r-pill); background: var(--spur, var(--flaeche)); overflow: hidden; }
+.me-anteil-spur > span { display: block; height: 100%; background: var(--ton); border-radius: inherit; }
+.me-anteil-text { display: block; margin-top: 4px; font-size: var(--t-xs); color: var(--muted); }
+.me-anteil-text b { color: var(--text); font-weight: 600; }
+
+.me-rezept { margin: var(--s-3) 0 var(--s-4); }
+.me-rezept .me-suche { margin-top: var(--s-2); }
+.me-rezept .primary { flex: none; padding: 9px 14px; font-size: var(--t-sm); }
+
+.me-bibliothek .section-title { margin-top: var(--s-4); }
+.bib-zaehler { font-weight: 500; text-transform: none; letter-spacing: 0; margin-left: 6px; }
+.bib-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.bib-zeile { display: flex; align-items: center; gap: var(--s-1); border-bottom: 1px solid var(--linie); }
+.bib-zeile:last-child { border-bottom: none; }
+.bib-knopf {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--s-3); text-align: left;
+  background: none; border: 0; box-shadow: none; color: var(--text); padding: var(--s-2) 0; border-radius: 0;
+}
+.bib-knopf:active { opacity: 0.7; }
+.bib-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.bib-text .me-werte { margin-top: 2px; }
+.bib-plus {
+  flex: none; width: 30px; height: 30px; border-radius: var(--r-pill); display: grid; place-items: center;
+  background: var(--accent); position: relative;
+}
+/* Gebaut und kein Schriftzeichen, wie das Plus beim Erfassen: ein Plus aus
+   dem Zeichensatz sitzt je nach Schrift nie genau mittig. */
+.bib-plus::before, .bib-plus::after {
+  content: ""; position: absolute; width: 12px; height: 2px; border-radius: 2px;
+  background: var(--on-accent);
+}
+.bib-plus::after { transform: rotate(90deg); }
+.me-treffer .bib-knopf.me-treffer-knopf { display: flex; padding: var(--s-2) var(--s-3); }

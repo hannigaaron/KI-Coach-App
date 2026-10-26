@@ -68,7 +68,13 @@ export async function kontoStand(holen = fetch) {
       return kontoStand(holen);
     }
     if (!antwort.ok) return { fehler: `Der Server antwortet mit ${antwort.status}.` };
-    return await antwort.json();
+    const stand = await antwort.json();
+    // Die Stufe bleibt auf dem Gerät, damit Grenzen ohne Netz gelten, etwa
+    // die Zahl der eigenen Rezepte. Der Server bleibt die Quelle.
+    if (stand?.stufe && stand.stufe !== store.getSettings().kontoStufe) {
+      store.setSettings({ ...store.getSettings(), kontoStufe: stand.stufe });
+    }
+    return stand;
   } catch {
     return { fehler: "Der Server ist gerade nicht erreichbar." };
   }
