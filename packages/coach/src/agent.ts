@@ -295,17 +295,28 @@ export class Agent {
       }
 
       messages.push({ role: "assistant", content: response.content });
-      const results: ContentBlock[] = [];
-      for (const call of toolUses) {
-        const outcome = await execute(call.name, call.input, params.aktionen);
+      // Werkzeuge, die nur lesen, laufen gleichzeitig. Fragt das Modell nach
+      // Tagesstand, Kalender und Belastung in einer Runde, wartete der Nutzer
+      // sonst auf drei Abrufe hintereinander, Produktsuche und Todoist gehen
+      // dabei übers Netz. Sobald ein Aufruf schreibt, bleibt die Reihenfolge:
+      // zwei Einträge in denselben Tag dürfen sich nicht überholen.
+      const nurLesen = toolUses.every((c) => NUR_LESEN.has(c.name));
+      const outcomes = nurLesen
+        ? await Promise.all(toolUses.map((c) => execute(c.name, c.input, params.aktionen)))
+        : [];
+      if (!nurLesen) {
+        for (const call of toolUses) outcomes.push(await execute(call.name, call.input, params.aktionen));
+      }
+      const results: ContentBlock[] = toolUses.map((call, i) => {
+        const outcome = outcomes[i]!;
         if (outcome.notiz) ausgeführt.push(outcome.notiz);
-        results.push({
+        return {
           type: "tool_result",
           tool_use_id: call.id,
           content: outcome.text,
           ...(outcome.fehler ? { is_error: true } : {}),
-        });
-      }
+        };
+      });
       messages.push({ role: "user", content: results });
     }
 
@@ -534,6 +545,14 @@ interface ToolOutcome {
   notiz?: string;
   fehler?: boolean;
 }
+
+/** Werkzeuge ohne Schreibzugriff, die gleichzeitig laufen dürfen. */
+export const NUR_LESEN = new Set([
+  "tagesstand_abrufen", "verlauf_abrufen", "kalender_abrufen", "gespraeche_durchsuchen",
+  "produkt_nachschlagen", "balance_abrufen", "muster_erkennen", "bericht_erstellen",
+  "belastung_abrufen", "bereitschaft_abrufen", "widersprueche_pruefen",
+  "trainingsplan_abrufen", "standards_abrufen", "gedaechtnis_durchsuchen",
+]);
 
 async function execute(
   name: string,

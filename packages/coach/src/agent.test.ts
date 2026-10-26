@@ -879,3 +879,30 @@ test("Regelweg beim Essen: Frage, nichts gegessen, gleich essen, Frühstück lö
   assert.ok(richtig.log.some((e) => e.startsWith("korrigieren:")), richtig.log.join(","));
   assert.ok(!richtig.log.some((e) => e.startsWith("mahlzeit:")));
 });
+
+test("lesende Werkzeuge laufen gleichzeitig, schreibende nacheinander", async () => {
+  const warte = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  const lauf = (parallel: boolean) => {
+    const log: string[] = [];
+    const a = stubActions(log);
+    a.tagesstandAbrufen = async () => { log.push("stand-start"); await warte(30); log.push("stand-ende"); return "Stand."; };
+    a.widerspruechePruefen = async () => { log.push("wid-start"); await warte(5); log.push("wid-ende"); return "Nichts."; };
+    a.wasserEintragen = async (ml) => { log.push(`wasser:${ml}`); return "ok"; };
+    const blöcke: ContentBlock[] = [
+      { type: "tool_use", id: "a", name: "tagesstand_abrufen", input: {} },
+      { type: "tool_use", id: "b", name: parallel ? "widersprueche_pruefen" : "wasser_eintragen", input: { ml: 300 } },
+    ];
+    const provider = new ScriptedProvider([
+      { content: blöcke, stopReason: "tool_use" },
+      { content: text("Fertig."), stopReason: "end_turn" },
+    ]);
+    return new Agent(provider).respond({ nachricht: "Wie stehe ich?", verlauf: LEER, kontext: KONTEXT, aktionen: a })
+      .then(() => ({ log, ergebnisse: provider.seen[1]!.messages.at(-1)!.content as ContentBlock[] }));
+  };
+  const p = await lauf(true);
+  assert.deepEqual(p.log, ["stand-start", "wid-start", "wid-ende", "stand-ende"]);
+  // Die Reihenfolge der Ergebnisse folgt den Aufrufen, nicht dem Ende.
+  assert.deepEqual(p.ergebnisse.map((b) => (b as { tool_use_id: string }).tool_use_id), ["a", "b"]);
+  const s = await lauf(false);
+  assert.deepEqual(s.log, ["stand-start", "stand-ende", "wasser:300"]);
+});
