@@ -27,6 +27,7 @@ import {
 } from "./konto.js";
 import { gesundheitAbholen, gesundheitAblegen, tagPruefen, werteLesen } from "./gesundheit.js";
 import { anmeldungVerknuepfen, googleCodeTauschen, idTokenPruefen, pruefungFuer, type Anbieter } from "./anmeldung.js";
+import { appleJwsAnwenden, appleMeldung, stripeEreignis, stripeSignaturPruefen } from "./abo-kauf.js";
 import { kalenderHolen } from "./kalender.js";
 import { postAblegen, postAbholen, postMitteilung } from "./postfach.js";
 import type { Env, ScheduledEvent } from "./umgebung.js";
@@ -172,6 +173,39 @@ export default {
         const aktuell = await kontoAusAnfrage(env.ABOS, anfrage);
         const r = await anmeldungVerknuepfen(env.ABOS, anbieter, geprueft.sub, aktuell, new Date(), { testphase: env.TESTPHASE !== "abo" });
         return antwort({ ok: true, token: r.token, id: r.konto.id, login: anbieter, neu: r.neu, uebernommen: r.uebernommen }, 200, kopf);
+      }
+
+      if (url.pathname === "/appstore" && anfrage.method === "POST") {
+        // Die App schickt nach jedem Kauf und beim Start die Transaktion,
+        // die StoreKit ihr gegeben hat. Geprüft wird die Signatur von Apple.
+        const gefunden = await kontoAusAnfrage(env.ABOS, anfrage);
+        if (!gefunden) return antwort({ fehler: "Dafür braucht es ein Konto." }, 401, kopf);
+        const { jws } = (await anfrage.json()) as { jws?: string };
+        const r = await appleJwsAnwenden(env.ABOS, String(jws || ""), {
+          kontoId: gefunden.konto.id,
+          bundleId: env.APPLE_AUD || "de.daevo.app",
+          produkte: env.APPSTORE_PRODUKTE || "",
+        });
+        if (r.fehler) return antwort({ fehler: r.fehler }, r.status, kopf);
+        return antwort({ ok: true, stufe: r.konto?.stufe, bis: r.konto?.bis ?? null }, 200, kopf);
+      }
+
+      if (url.pathname === "/appstore/meldung" && anfrage.method === "POST") {
+        const { signedPayload } = (await anfrage.json()) as { signedPayload?: string };
+        const r = await appleMeldung(env.ABOS, String(signedPayload || ""), {
+          bundleId: env.APPLE_AUD || "de.daevo.app",
+          produkte: env.APPSTORE_PRODUKTE || "",
+        });
+        return antwort(r.fehler ? { fehler: r.fehler } : { ok: true }, r.status, kopf);
+      }
+
+      if (url.pathname === "/stripe" && anfrage.method === "POST") {
+        const roh = await anfrage.text();
+        if (!(await stripeSignaturPruefen(roh, anfrage.headers.get("stripe-signature") || "", env.STRIPE_WEBHOOK_SECRET || ""))) {
+          return antwort({ fehler: "Signatur ungültig." }, 400, kopf);
+        }
+        await stripeEreignis(env.ABOS, JSON.parse(roh), env.STRIPE_PREISE || "");
+        return antwort({ ok: true }, 200, kopf);
       }
 
       if (url.pathname === "/kalender" && anfrage.method === "POST") {

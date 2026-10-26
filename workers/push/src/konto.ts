@@ -219,7 +219,7 @@ export function kontingentPruefen(stufe: string, v: Monatsverbrauch): string | n
 }
 
 /** Setzt die Stufe eines Kontos, von Hand über das Anmeldewort oder später nach einem Kauf. */
-export async function stufeSetzen(kv: KVNamespace, id: string, stufe: string, bis?: string): Promise<Konto | null> {
+export async function stufeSetzen(kv: KVNamespace, id: string, stufe: string, bis?: string, quelle?: string): Promise<Konto | null> {
   if (!STUFEN[stufe]) return null;
   if (bis !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(bis)) return null;
   const h = await kv.get(`kontoid.${id}`);
@@ -230,6 +230,7 @@ export async function stufeSetzen(kv: KVNamespace, id: string, stufe: string, bi
   konto.stufe = stufe;
   if (bis) konto.bis = bis;
   else delete konto.bis;
+  if (quelle) konto.quelle = quelle;
   await kv.put(`konto.${h}`, JSON.stringify(konto));
   return konto;
 }

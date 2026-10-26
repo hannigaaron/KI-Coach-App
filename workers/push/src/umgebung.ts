@@ -60,6 +60,10 @@ export interface Env {
    * bekommt jedes neue Konto sieben Tage ohne Abo, wie bisher.
    */
   TESTPHASE?: string;
+  /** Produkt Kennungen im App Store mit Stufe, etwa "de.daevo.plus.monat:plus". Ohne Liste zählt der Name. */
+  APPSTORE_PRODUKTE?: string;
+  /** Stripe Preise mit Stufe, etwa "price_123:plus". Ohne Liste zählen metadata.stufe oder lookup_key. */
+  STRIPE_PREISE?: string;
 }
 
 export interface ScheduledEvent {
