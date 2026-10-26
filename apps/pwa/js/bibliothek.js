@@ -62,6 +62,37 @@ export function tabellenSuche(begriff, { anzahl = 6, tabelle = FOODS } = {}) {
     .map(({ f }) => tabellenPosten(f));
 }
 
+/**
+ * Lebensmittel mit eigenem Foto unter `img/lebensmittel/<key>.jpg`. Alle
+ * Fotos sind gemeinfrei (CC0 oder Public Domain Mark), Quelle und Urheber je
+ * Datei in `img/lebensmittel/NACHWEIS.json`. Ohne Foto bleibt der
+ * Anfangsbuchstabe auf der Farbe des Hauptmakros.
+ */
+export const LEBENSMITTEL_BILDER = new Set([
+  "apfel", "avocado", "beeren", "bratwurst", "broetchen", "brokkoli", "burger", "butterbrot",
+  "cheeseburger", "cola", "croissant", "currywurst", "ei", "erdnussbutter", "falafel", "gurke",
+  "haferflocken", "honig", "huettenkaese", "kaffee", "kartoffeln", "kichererbsen", "kochschinken", "lachs",
+  "lasagne", "linsen", "milch", "mischbrot", "muesli", "nudeln_gekocht", "olivenoel", "paprika",
+  "pizza", "pommes", "putenbrust", "rinderhack", "suesskartoffel", "sushi", "toast", "tofu",
+  "tomate", "vollkornbrot", "wrap", "zwiebel",
+]);
+
+const bildFuerKey = (key) => (LEBENSMITTEL_BILDER.has(key) ? `img/lebensmittel/${key}.jpg` : undefined);
+
+/**
+ * Das Foto zu einem Posten, der keines trägt. Gesucht wird über den Namen
+ * gegen Bezeichnung und Synonyme der Tabelle, nur bei genauem Treffer: ein
+ * falsches Foto neben einem Posten ist schlimmer als ein Buchstabe.
+ */
+export function tabellenBild(name, tabelle = FOODS) {
+  const q = norm(name);
+  if (!q) return undefined;
+  for (const f of tabelle) {
+    if ([f.label, ...(f.aliases || [])].map(norm).includes(q)) return bildFuerKey(f.key);
+  }
+  return undefined;
+}
+
 /** Ein Posten aus der Tabelle, mit dem Stückgewicht als Menge, sonst 100 g. */
 export function tabellenPosten(f, gramm = f.pieceG ?? 100) {
   const anteil = gramm / 100;
@@ -73,6 +104,7 @@ export function tabellenPosten(f, gramm = f.pieceG ?? 100) {
     proteinG: r1(f.per100.proteinG),
     fatG: r1(f.per100.fatG),
     carbsG: r1(f.per100.carbsG),
+    ...(bildFuerKey(f.key) ? { bild: bildFuerKey(f.key) } : {}),
   };
 }
 

@@ -3636,3 +3636,110 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 }
 .bib-plus::after { transform: rotate(90deg); }
 .me-treffer .bib-knopf.me-treffer-knopf { display: flex; padding: var(--s-2) var(--s-3); }
+
+/* ---------- Mahlzeit Editor im Aufbau der guten Tracker ----------
+   Vorbild war die Aufteilung von YAZIO, nicht seine Farben: grosse
+   Suchleiste mit Lupe, Reiter als Pillen, jede Zeile eine eigene Karte mit
+   Bild links, Name fett, darunter die Kalorien in der Akzentfarbe und die
+   Menge in Grau. Zwischen den Karten Luft statt Linien. Das Blatt geht fast
+   über die ganze Höhe: wer sucht, will Treffer sehen und nicht den Tag
+   dahinter. */
+.me-blatt .blatt-innen { height: 96vh; max-height: 96vh; }
+.me-blatt .blatt-kopf h2 { font-size: var(--t-xl); }
+
+.me-summe {
+  display: block; margin: var(--s-4) 0 var(--s-3); padding: var(--s-4);
+  border: 0; border-radius: 20px; background: var(--flaeche); box-shadow: var(--haarlinie, none);
+}
+.me-kcal-zeile { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); flex-wrap: wrap; }
+.me-kcal b { font-family: Poppins, system-ui, sans-serif; font-size: 34px; font-weight: 600; letter-spacing: -0.02em; }
+.me-kcal span { font-size: var(--t-sm); color: var(--muted); margin-left: 4px; }
+.me-kcal-anteil { font-size: var(--t-sm); color: var(--muted); font-weight: 500; }
+.me-kcal-spur { display: block; height: 10px; margin-top: var(--s-3); border-radius: var(--r-pill); background: var(--spur); overflow: hidden; }
+.me-kcal-spur > span { display: block; height: 100%; width: 0; background: var(--accent); border-radius: inherit; transition: width var(--normal, 240ms) var(--kurve); }
+
+.me-anteile { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-2); margin: 0 0 var(--s-5, 20px); }
+.me-anteil {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; padding: var(--s-3) var(--s-2);
+  border-radius: 18px; background: var(--flaeche); --ton: var(--accent); text-align: center; min-width: 0;
+}
+.me-anteil[data-makro="protein"] { --ton: var(--makro-protein); }
+.me-anteil[data-makro="fett"] { --ton: var(--makro-fett); }
+.me-anteil[data-makro="kohlenhydrate"] { --ton: var(--makro-kohlenhydrate); }
+.me-anteil-name { font-size: var(--t-xs); font-weight: 600; color: var(--text); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.me-anteil-wert { font-size: var(--t-xs); color: var(--muted); }
+.me-anteil-wert b { font-size: var(--t-md); color: var(--text); font-weight: 600; }
+.me-ring { position: relative; width: 58px; height: 58px; display: grid; place-items: center; }
+.me-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.me-ring-spur { fill: none; stroke: var(--spur); stroke-width: 6; }
+.me-ring-wert { fill: none; stroke: var(--ton); stroke-width: 6; stroke-linecap: round; }
+.me-ring b { position: relative; font-family: Poppins, system-ui, sans-serif; font-size: var(--t-md); font-weight: 600; color: var(--ton); }
+.me-ring b small { font-size: 10px; vertical-align: super; margin-left: 1px; }
+
+.me-abschnitt { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-2); margin: var(--s-4) 0 var(--s-2); }
+.me-abschnitt h3 { margin: 0; font-family: Poppins, system-ui, sans-serif; font-size: var(--t-lg); font-weight: 600; letter-spacing: -0.01em; }
+.me-abschnitt-zahl { font-size: var(--t-sm); font-weight: 600; color: var(--accent-text); }
+
+.me-posten { gap: var(--s-2); }
+.me-posten > li.me-karte, .me-posten > li:last-child.me-karte {
+  display: flex; align-items: flex-start; gap: var(--s-3);
+  padding: var(--s-3); border: 0; border-radius: 18px; background: var(--flaeche);
+}
+.me-karte .me-bild, .bib-knopf .me-bild { width: 56px; height: 56px; border-radius: 12px; margin: 0; }
+.me-karte-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.me-karte .me-name, .bib-text .me-name { font-size: var(--t-md); font-weight: 600; line-height: 1.25; }
+.me-posten .me-werte { padding-left: 0; margin: 0; font-size: var(--t-sm); line-height: 1.45; }
+.me-kcal-text { color: var(--accent-text); font-weight: 600; }
+.me-tagesanteil { color: var(--muted); font-weight: 500; }
+.me-makro-text { font-size: var(--t-xs); color: var(--muted); }
+.me-karte .me-mengefeld { margin-top: 4px; }
+.me-karte .me-menge { width: 84px; padding: 8px 10px; border-radius: 12px; background: var(--bg); }
+.me-karte .me-weg { margin: -4px -4px 0 0; }
+
+.me-rezept-form { display: flex; gap: var(--s-2); margin-top: var(--s-2); }
+.me-rezept-form input { flex: 1; min-width: 0; border-radius: 14px; padding: 12px 14px; font-size: var(--t-md); }
+
+.me-suchfeld {
+  display: flex; align-items: center; gap: var(--s-2); padding: 0 6px 0 14px; height: 52px;
+  border-radius: 16px; background: var(--flaeche); box-shadow: var(--haarlinie, none);
+}
+.me-lupe { flex: none; width: 22px; height: 22px; fill: none; stroke: var(--muted); stroke-width: 2; stroke-linecap: round; }
+.me-suchfeld input#meSuche {
+  flex: 1; min-width: 0; height: 100%; border: 0; background: transparent; box-shadow: none; outline: none;
+  color: var(--text); font-size: var(--t-md); padding: 0;
+}
+.me-suchfeld input#meSuche::-webkit-search-cancel-button { display: none; }
+.me-feldknopf {
+  flex: none; width: 40px; height: 40px; display: grid; place-items: center; border: 0; border-radius: 12px;
+  background: transparent; box-shadow: none; color: var(--text); padding: 0;
+}
+.me-feldknopf svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.me-feldknopf:active { background: var(--flaeche-druck, var(--panel)); }
+
+.me-reiter { display: flex; gap: var(--s-2); margin: var(--s-3) 0 var(--s-2); overflow-x: auto; scrollbar-width: none; }
+.me-reiter::-webkit-scrollbar { display: none; }
+.me-reiter button {
+  flex: none; padding: 9px 16px; border-radius: var(--r-pill); border: 0; box-shadow: none;
+  background: transparent; color: var(--muted); font-weight: 600; font-size: var(--t-sm);
+}
+.me-reiter button.an { background: var(--accent); color: var(--on-accent); }
+
+.me-bibliothek { margin-top: var(--s-2); }
+.me-bibliothek .me-leer { padding: var(--s-4) var(--s-2); text-align: center; }
+.bib-liste { gap: var(--s-2); }
+.bib-zeile, .bib-zeile:last-child {
+  border: 0; border-radius: 18px; background: var(--flaeche); padding: 0 var(--s-2) 0 0;
+}
+.bib-knopf { padding: var(--s-3); gap: var(--s-3); }
+.bib-text .me-werte { font-size: var(--t-sm); color: var(--muted); }
+.bib-plus { width: 34px; height: 34px; }
+.me-treffer { gap: var(--s-2); }
+.me-treffer .bib-knopf.me-treffer-knopf { border: 0; border-radius: 18px; background: var(--flaeche); padding: var(--s-3); }
+/* Art und Uhrzeit in einer Zeile: die Arten wischen seitlich, die Uhrzeit
+   bleibt rechts stehen. Vorher brachen die Arten um, und die Uhrzeit stand
+   als eigenes Feld über die ganze Breite. */
+.me-blatt .me-kopf { flex-wrap: nowrap; align-items: center; }
+.me-blatt .me-kopf .pills { display: flex; flex-wrap: nowrap; overflow-x: auto; gap: var(--s-2); scrollbar-width: none; min-width: 0; }
+.me-blatt .me-kopf .pills::-webkit-scrollbar { display: none; }
+.me-blatt .me-kopf .pills button { flex: none; }
+.me-blatt #meZeit { flex: none; width: auto; min-width: 0; padding: 8px 10px; border-radius: var(--r-pill); }

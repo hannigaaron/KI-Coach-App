@@ -17,7 +17,7 @@ import {
   wannText,
 } from "@daevo/core";
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, PREISE_STAND, aktuellesModell, produktPerBarcode, produkteSuchen } from "@daevo/coach";
-import { Coach, AnthropicProvider } from "@daevo/coach";
+import { Coach, AnthropicProvider, FOODS } from "@daevo/coach";
 import { KONFIG, istDemo, istNativ } from "./konfig.js";
 import { uebungenStarten } from "./uebungen.js";
 import { planFuer as uebungsplanFuer, plaeneStarten } from "./plaene.js";
@@ -63,7 +63,7 @@ import { healthkitAbgleichen } from "./healthkit.js";
 import { mitteilungenPlanen } from "./mitteilungen.js";
 import { nativAufruf } from "./nativ.js";
 import { spueren } from "./haptik.js";
-import { anteilAmZiel, eigeneRezepte, hauptMakro, rezeptGrenze, rezeptLoeschen, rezeptSpeichern, summe as postenSumme, tabellenSuche, zuletztGegessen } from "./bibliothek.js";
+import { anteilAmZiel, eigeneRezepte, hauptMakro, rezeptGrenze, rezeptLoeschen, rezeptSpeichern, summe as postenSumme, tabellenBild, tabellenPosten, tabellenSuche, zuletztGegessen } from "./bibliothek.js";
 import { einwilligungOffen, einwilligungSetzen, einwilligungText, kiErlaubt } from "./einwilligung.js";
 import { ABO_STUFEN, ABO_TAKTE, aboPreis, ersparnisProzent, aboAnlass, aboAnlassLeer, aboLeiste, aboLink, kontoLoeschen, kontoSicherstellen, kontoStand, kontoText } from "./konto.js";
 
@@ -4398,16 +4398,16 @@ function mePostenZeichnen() {
                   value="${menge.zahl}" data-i="${i}" aria-label="Menge von ${escapeHtml(e.name)}">
            <span class="me-einheit">${escapeHtml(menge.einheit)}</span>`
         : `<span class="me-fest">${escapeHtml(e.quantity)}</span>`;
-      return `<li>
-        <div class="me-zeile">
-          ${postenBild(e)}
+      return `<li class="me-karte">
+        ${postenBild(e)}
+        <div class="me-karte-text">
           <div class="me-name">${escapeHtml(e.name)}</div>
+          <div class="me-werte">${postenWerte(e, ziel)}</div>
           <div class="me-mengefeld">${feld}</div>
-          <button type="button" class="me-weg" data-weg="${i}" aria-label="${escapeHtml(e.name)} entfernen">
-            <span class="kreuz"></span>
-          </button>
         </div>
-        <div class="me-werte">${postenWerte(e, ziel)}</div>
+        <button type="button" class="me-weg" data-weg="${i}" aria-label="${escapeHtml(e.name)} entfernen">
+          <span class="kreuz"></span>
+        </button>
       </li>`;
     }).join("");
   }
@@ -4426,17 +4426,37 @@ function meSummeZeichnen() {
   $("meFett").textContent = `${komma(runde1(summe.f))} g`;
   $("meKh").textContent = `${komma(runde1(summe.k))} g`;
   const ziel = dayNumbers(day).targets;
+  const kcalAnteil = anteilAmZiel(summe.kcal, ziel.kcal);
+  $("meKcalAnteil").textContent = kcalAnteil === null ? "" : `${kcalAnteil} % deines Tages`;
+  $("meKcalBalken").style.width = `${Math.min(100, kcalAnteil ?? 0)}%`;
+  $("mePostenZahl").textContent = mePosten.length ? `${Math.round(summe.kcal)} kcal` : "";
   const teile = [
-    ["Kalorien", summe.kcal, ziel.kcal, "kcal"],
     ["Eiweiß", summe.p, ziel.proteinG, "protein"],
     ["Fett", summe.f, ziel.fatG, "fett"],
     ["Kohlenhydrate", summe.k, ziel.carbsG, "kohlenhydrate"],
-  ].map(([name, wert, z, art]) => [name, anteilAmZiel(wert, z), art]).filter(([, a]) => a !== null);
-  $("meAnteile").hidden = mePosten.length === 0 || teile.length === 0;
-  $("meAnteile").innerHTML = teile.map(([name, a, art]) => `<div class="me-anteil" data-makro="${art}">
-      <span class="me-anteil-spur"><span style="width:${Math.min(100, a)}%"></span></span>
-      <span class="me-anteil-text"><b>${a} %</b> ${escapeHtml(name)}</span>
+  ].map(([name, wert, z, art]) => ({ name, wert, a: anteilAmZiel(wert, z), art }));
+  $("meAnteile").hidden = mePosten.length === 0;
+  $("meAnteile").innerHTML = teile.map((t) => `<div class="me-anteil" data-makro="${t.art}">
+      <span class="me-anteil-name">${escapeHtml(t.name)}</span>
+      ${ringKlein(t.a)}
+      <span class="me-anteil-wert"><b>${komma(runde1(t.wert))}</b> g</span>
     </div>`).join("");
+}
+
+/**
+ * Ein kleiner Ring mit dem Anteil am Tagesziel in der Mitte, wie in den
+ * Makrokarten der guten Tracker. Über hundert Prozent bleibt der Ring voll,
+ * die Zahl sagt den Rest.
+ */
+function ringKlein(prozent) {
+  const r = 22;
+  const umfang = 2 * Math.PI * r;
+  const voll = Math.min(100, Math.max(0, prozent ?? 0)) / 100;
+  const zahl = prozent === null ? "–" : `${prozent}<small>%</small>`;
+  return `<span class="me-ring"><svg viewBox="0 0 56 56" aria-hidden="true">
+      <circle cx="28" cy="28" r="${r}" class="me-ring-spur"/>
+      <circle cx="28" cy="28" r="${r}" class="me-ring-wert" stroke-dasharray="${(umfang * voll).toFixed(1)} ${umfang.toFixed(1)}" transform="rotate(-90 28 28)"/>
+    </svg><b>${zahl}</b></span>`;
 }
 
 /**
@@ -4446,7 +4466,8 @@ function meSummeZeichnen() {
  * und bringen eine fremde Farbigkeit in die Palette.
  */
 function postenBild(e) {
-  if (e.bild) return `<span class="me-bild"><img src="${escapeHtml(e.bild)}" alt="" loading="lazy" referrerpolicy="no-referrer"></span>`;
+  const bild = e.bild || tabellenBild(e.name);
+  if (bild) return `<span class="me-bild"><img src="${escapeHtml(bild)}" alt="" loading="lazy" referrerpolicy="no-referrer"></span>`;
   const buchstabe = (String(e.name || "?").trim()[0] || "?").toUpperCase();
   return `<span class="me-bild" data-makro="${hauptMakro(e)}" aria-hidden="true"><b>${escapeHtml(buchstabe)}</b></span>`;
 }
@@ -4454,9 +4475,9 @@ function postenBild(e) {
 /** Die Zeile unter einem Posten: Werte und, wenn ein Ziel da ist, der Anteil am Tag. */
 function postenWerte(e, ziel) {
   const a = anteilAmZiel(e.kcal, ziel?.kcal);
-  const anteil = a === null ? "" : ` · <b class="me-tagesanteil">${a} % des Tages</b>`;
-  return `${Math.round(e.kcal)} kcal${anteil}<br>${komma(runde1(e.proteinG))} g Eiweiß · `
-    + `${komma(runde1(e.fatG))} g Fett · ${komma(runde1(e.carbsG))} g Kohlenhydrate`;
+  const anteil = a === null ? "" : `<span class="me-tagesanteil"> · ${a} % des Tages</span>`;
+  return `<span class="me-kcal-text">${Math.round(e.kcal)} kcal</span>${anteil}<br>`
+    + `<span class="me-makro-text">E ${komma(runde1(e.proteinG))} g · F ${komma(runde1(e.fatG))} g · K ${komma(runde1(e.carbsG))} g</span>`;
 }
 
 /* ---------- Bibliothek: Rezepte, zuletzt gegessen, Nährwerttabelle ---------- */
@@ -4468,52 +4489,74 @@ function bibZeile(e, i, { loeschen = null, unter = "" } = {}) {
   const weg = loeschen
     ? `<button type="button" class="me-weg" data-rezept-weg="${escapeHtml(loeschen)}" aria-label="Rezept ${escapeHtml(e.name)} löschen"><span class="kreuz"></span></button>`
     : "";
+  const zeile = unter || `<span class="me-kcal-text">${Math.round(e.kcal)} kcal</span> · ${escapeHtml(e.quantity || "")}`;
   return `<li class="bib-zeile">
     <button type="button" class="bib-knopf" data-bib="${i}">
       ${postenBild(e)}
       <span class="bib-text"><span class="me-name">${escapeHtml(e.name)}</span>
-        <span class="me-werte">${unter || `${Math.round(e.kcal)} kcal · ${escapeHtml(e.quantity || "")}`}</span></span>
+        <span class="me-werte">${zeile}</span></span>
       <span class="bib-plus" aria-hidden="true"></span>
     </button>${weg}
   </li>`;
 }
 
+/** Welcher Reiter unter der Suche offen ist. Zuletzt zuerst: das ist, was man meistens wieder isst. */
+let meReiterWahl = "zuletzt";
+
 function meBibliothekZeichnen() {
   const box = $("meBibliothek");
   const begriff = $("meSuche").value.trim();
+  $("meSuchen").hidden = !begriff;
+  $("meReiter").hidden = Boolean(begriff);
+  for (const k of $("meReiter").querySelectorAll("[data-reiter]")) k.classList.toggle("an", k.dataset.reiter === meReiterWahl);
   meBibliothekPosten = [];
-  const teile = [];
+  const liste = (zeilen) => `<ul class="bib-liste">${zeilen.join("")}</ul>`;
+  const leer = (text) => `<p class="me-leer">${text}</p>`;
   if (begriff) {
     // Beim Tippen sofort die eigene Tabelle, ohne Netz. Open Food Facts kommt
     // erst mit Enter, sonst ginge bei jedem Buchstaben eine Anfrage raus.
     const treffer = tabellenSuche(begriff);
-    if (treffer.length) {
-      teile.push(`<h3 class="section-title">Aus der Nährwerttabelle</h3><ul class="bib-liste">${
-        treffer.map((e) => bibZeile(e, meBibliothekPosten.push({ art: "posten", e }) - 1)).join("")}</ul>`);
-    }
-    teile.push(`<p class="feld-hilfe">Enter sucht zusätzlich nach Marken und Produkten.</p>`);
-  } else {
+    box.innerHTML = (treffer.length
+      ? liste(treffer.map((e) => bibZeile(e, meBibliothekPosten.push({ art: "posten", e }) - 1)))
+      : leer("Nicht in der Nährwerttabelle."))
+      + `<p class="feld-hilfe">Enter sucht zusätzlich nach Marken und Produkten.</p>`;
+    return;
+  }
+  if (meReiterWahl === "rezepte") {
     const s = store.getSettings();
     const rezepte = eigeneRezepte(s);
     const grenze = rezeptGrenze(s, KONFIG);
-    const zaehler = grenze === Infinity ? "" : ` <span class="bib-zaehler">${rezepte.length} von ${grenze}</span>`;
-    if (rezepte.length) {
-      teile.push(`<h3 class="section-title">Meine Rezepte${zaehler}</h3><ul class="bib-liste">${rezepte.map((r) => {
+    const zaehler = grenze === Infinity ? "" : `<p class="feld-hilfe">${rezepte.length} von ${grenze} Rezepten gespeichert.</p>`;
+    box.innerHTML = rezepte.length
+      ? zaehler + liste(rezepte.map((r) => {
         const sum = postenSumme(r.posten);
         const e = { name: r.name, kcal: sum.kcal, proteinG: sum.proteinG, fatG: sum.fatG, carbsG: sum.carbsG, bild: r.posten.find((p) => p.bild)?.bild };
-        const unter = `${Math.round(sum.kcal)} kcal · ${r.posten.length} ${r.posten.length === 1 ? "Zutat" : "Zutaten"}`;
+        const unter = `<span class="me-kcal-text">${Math.round(sum.kcal)} kcal</span> · ${r.posten.length} ${r.posten.length === 1 ? "Zutat" : "Zutaten"}`;
         return bibZeile(e, meBibliothekPosten.push({ art: "rezept", r }) - 1, { loeschen: r.id, unter });
-      }).join("")}</ul>`);
-    }
-    const tage = store.allDays().slice(-30).map((d) => ({ ...store.getDay(d), date: d }));
-    const zuletzt = zuletztGegessen(tage, { anzahl: 12 });
-    if (zuletzt.length) {
-      teile.push(`<h3 class="section-title">Zuletzt gegessen</h3><ul class="bib-liste">${
-        zuletzt.map((e) => bibZeile(e, meBibliothekPosten.push({ art: "posten", e }) - 1)).join("")}</ul>`);
-    }
+      }))
+      : leer("Noch keine eigenen Rezepte. Stell oben eine Mahlzeit zusammen und speichere sie als Rezept.");
+    return;
   }
-  box.innerHTML = teile.join("");
+  if (meReiterWahl === "lexikon") {
+    // Die ganze Tabelle, nach Namen. Ein Lexikon zum Blättern, für alles,
+    // was man nicht beim Namen sucht.
+    const alle = [...FOODS].sort((x, y) => x.label.localeCompare(y.label, "de")).map((f) => tabellenPosten(f));
+    box.innerHTML = liste(alle.map((e) => bibZeile(e, meBibliothekPosten.push({ art: "posten", e }) - 1)));
+    return;
+  }
+  const tage = store.allDays().slice(-30).map((d) => ({ ...store.getDay(d), date: d }));
+  const zuletzt = zuletztGegessen(tage, { anzahl: 15 });
+  box.innerHTML = zuletzt.length
+    ? liste(zuletzt.map((e) => bibZeile(e, meBibliothekPosten.push({ art: "posten", e }) - 1)))
+    : leer("Hier stehen bald die Lebensmittel, die du zuletzt gegessen hast.");
 }
+
+$("meReiter").addEventListener("click", (event) => {
+  const k = event.target.closest("[data-reiter]");
+  if (!k) return;
+  meReiterWahl = k.dataset.reiter;
+  meBibliothekZeichnen();
+});
 
 function meRezeptHinweis(text) {
   $("meRezeptHinweis").textContent = text;
@@ -4574,7 +4617,7 @@ function meRezeptSichern() {
   spueren("erfolg");
   $("meRezeptForm").hidden = true;
   $("meRezeptName").value = "";
-  meRezeptHinweis(ergebnis.ersetzt ? `"${ergebnis.rezept.name}" aktualisiert.` : `"${ergebnis.rezept.name}" gespeichert. Es steht jetzt oben unter Meine Rezepte.`);
+  meRezeptHinweis(ergebnis.ersetzt ? `"${ergebnis.rezept.name}" aktualisiert.` : `"${ergebnis.rezept.name}" gespeichert. Du findest es unter Meine Rezepte.`);
   meBibliothekZeichnen();
 }
 
