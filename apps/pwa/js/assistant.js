@@ -1015,9 +1015,9 @@ export function kalenderUebersicht(tage = 7) {
  * Schlafenszeit gerechnet und das steht auch in der Begründung, damit niemand
  * eine gemessene Zahl vermutet, wo geschätzt wurde.
  */
-function zeitbudget() {
+function zeitbudget(jetzt = Date.now()) {
   const a = ablaufFuer(todayIso());
-  const rest = restDesTages(a, Date.now());
+  const rest = restDesTages(a, jetzt);
   const hatKalender = (store.getKalender().termine || []).length > 0;
   return {
     freieMinuten: hatKalender ? rest.freieMinuten : rest.restMinuten,
@@ -1068,8 +1068,10 @@ export async function todoistAktualisieren({ erzwingen = false, fetchImpl } = {}
   }
 }
 
-export function aufgabenPlan() {
-  const budget = zeitbudget();
+export function aufgabenPlan(jetzt = Date.now()) {
+  // Dieselbe Uhrzeit wie der Plan mit Zeiten. Rechnet die Priorisierung mit
+  // der echten Uhr und der Plan mit einer anderen, passen beide nicht zusammen.
+  const budget = zeitbudget(jetzt);
   const plan = priorisiere({
     aufgaben: alleAufgaben(),
     tag: todayIso(),
@@ -1116,7 +1118,7 @@ function belegtAusserKalender(tagIso, ablauf) {
 
 /** Der Tag mit Uhrzeiten: Reihenfolge aus `aufgabenPlan`, Zeiten aus dem Kalender. */
 export function tagesplan(jetzt = Date.now()) {
-  const plan = aufgabenPlan();
+  const plan = aufgabenPlan(jetzt);
   const tag = todayIso();
   const ablauf = ablaufFuer(tag);
   const luecken = lueckenOhne(ablauf.luecken, belegtAusserKalender(tag, ablauf));
