@@ -514,7 +514,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1191 Tests
+npm test           # 1213 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -549,10 +549,21 @@ Der Import läuft im Browser. Es geht keine Datei an einen Server. Gespeichert
 werden die gelesenen Termine, nicht die Datei: ein Jahr Kalender als ICS ist
 schnell ein Megabyte, und der localStorage ist bei rund fünf zu Ende.
 
-Offen: die geheime Adresse direkt abrufen statt eine Datei zu wählen. Das
-scheitert im Browser an CORS, dafür braucht es `apps/api` als Zwischenstelle.
-OAuth für Google und EventKit für Apple gehören in die native App, siehe
-`docs/ROADMAP.md`.
+### Kalender, die sich selbst abgleichen
+
+`apps/pwa/js/kalender-sync.js`. Die Datei ist der Ausweg, der Normalfall
+gleicht sich ab. In der iPhone App liest `KalenderPlugin.swift` über EventKit
+jeden Kalender, den iOS kennt, also auch Google und Outlook, sobald sie in
+den iOS Einstellungen als Account stehen. Für den Browser und ohne iPhone
+gibt es das Abo über die geheime iCal Adresse: der Worker holt sie über
+`/kalender`, weil Google und iCloud keinen CORS Kopf senden, nur von
+bekannten Diensten und nur mit Konto, sonst wäre er eine offene
+Weiterleitung. Gespeichert wird auf dem Server nichts.
+
+Abgleich beim Start und beim Zurückholen der App, höchstens alle 30
+Minuten. Alle drei Wege schreiben über `kalenderTermineSetzen`, und eine
+Quelle ersetzt nur sich selbst. Scheitert eine Quelle, bleiben ihre alten
+Termine stehen: lieber der Stand von gestern als ein leerer Tag.
 
 ## Jeder Start ist ein leeres Gespräch
 
@@ -1462,6 +1473,14 @@ Facts, `offBild` im Kern nimmt nur Adressen von images.openfoodfacts.org an:
 das Feld schreiben Freiwillige, und eine fremde Adresse wäre ein Abruf, den
 die Datenschutzerklärung nicht nennt. Ohne Foto steht der Anfangsbuchstabe
 auf der Farbe des Makros, der die meisten Kalorien trägt, `hauptMakro`.
+
+Für 44 Lebensmittel der eigenen Tabelle gibt es ein Foto unter
+`apps/pwa/img/lebensmittel/<key>.jpg`, 240 x 180. Nur CC0 und Public Domain
+Mark aus Openverse, Quelle, Urheber und Lizenz je Datei in `NACHWEIS.json`,
+ein Test prüft beides. Ohne Marken im Bild. Zugeordnet wird über
+`tabellenBild` nur bei genauem Namen: ein falsches Foto neben einem Posten
+ist schlimmer als ein Buchstabe. Die Lizenzangabe auf Flickr stammt vom
+Hochladenden und kann falsch sein, deshalb steht die Quelle je Datei fest.
 
 ## Eine Mahlzeit nachträglich ändern
 
@@ -2916,9 +2935,59 @@ Payment Link, mit der Kontokennung als `client_reference_id`. Fehlt der
 Link, geht eine Mail mit der Kennung an den Betreiber. In der iPhone App
 gibt es keinen Link: digitale Abos laufen dort über den Kauf im App Store.
 
-Die Stufe setzt bisher der Betreiber von Hand, `POST /konto/stufe` mit dem
-Anmeldewort und `{ konto, stufe, bis }`. Ein Kauf im App Store und Sign in
-with Apple kommen später an dieselbe Stelle.
+Die Stufe setzt der Betreiber von Hand, `POST /konto/stufe` mit dem
+Anmeldewort und `{ konto, stufe, bis }`, oder ein Kauf.
+
+### Testphase als Teil des Abos
+
+`TESTPHASE=abo` im Worker: ein neues Konto startet ohne KI, die sieben Tage
+sind das Einführungsangebot des Abos. Abgeschlossen wird am Anfang, gezahlt
+ab Tag 8, gekündigt bis Tag 7 kostenlos. Ohne den Wert bleibt die alte Form,
+sieben Tage ohne Abo. Umgestellt wird erst, wenn App Store oder Stripe
+eingerichtet sind, sonst kann niemand die Testphase starten. Schritte in
+`docs/ABO-EINRICHTEN.md`.
+
+Das Fenster dazu kommt direkt nach dem Fragebogen, `startAnlass` in
+`apps/pwa/js/kauf.js`, und die Einführung wartet, bis es zu ist. Ein Ausweg
+"Erst ohne KI umsehen" bleibt: alles ohne Modell ist in jeder Stufe frei.
+
+App Store: `AboPlugin.swift` mit StoreKit 2. Jede Transaktion geht als JWS
+an `/appstore`, `workers/push/src/apple-jws.ts` prüft die Kette gegen die
+Apple Root CA G3, festgelegt über ihren SHA-256 Fingerabdruck, abgerufen und
+nachgerechnet am 26. Oktober 2026. Ein Abo gehört genau einem Konto, über
+`appstore.orig.<originalTransactionId>`. Verlängerung, Kündigung und
+Erstattung kommen als Server Notification an `/appstore/meldung`. Der Test
+läuft gegen eine eigene Kette nach demselben Muster, mit openssl erzeugt.
+
+Stripe: Webhook `/stripe`, Signatur nach der Stripe Dokumentation über
+HMAC SHA-256, höchstens fünf Minuten alt. Checkout und Abo kommen in keiner
+festen Reihenfolge, deshalb wird der Stand des Abos gemerkt, bis die
+Zuordnung zum Konto da ist. Die Stufe kommt aus `metadata.stufe`, dem
+Lookup Key oder `STRIPE_PREISE`.
+
+Ein Tag Kulanz über das Ende hinaus: eine Verlängerung kommt manchmal
+Stunden später an, und in dieser Lücke soll niemand vor einer Schranke
+stehen.
+
+### Anmeldung mit Apple und Google
+
+`workers/push/src/anmeldung.ts`, `apps/pwa/js/anmeldung.js`,
+`AnmeldungPlugin.swift`. Freiwillig, vor dem Fragebogen und einmal bei
+allen, die die App schon haben. Gespeichert wird nur der Anbieter und ein
+Hash der Kennung. Zwei Zwecke: das Abo kommt nach einer Neuinstallation
+zurück, und die Testphase gibt es je Person einmal.
+
+Der Worker prüft das ID Token gegen die Schlüssel des Anbieters, mit
+Aussteller, Empfänger und Ablauf. Ein Token, das nur gelesen und nicht
+geprüft wird, kann jeder selbst schreiben. Google in der iPhone App über
+`ASWebAuthenticationSession` mit PKCE, weil Google in eingebetteten
+Web Ansichten keine Anmeldung zulässt, im Browser über Googles eigenen
+Knopf, dessen Skript erst lädt, wenn der Bildschirm erscheint.
+
+Ein Konto gilt auf einem Gerät. Meldet sich jemand auf einem zweiten an,
+wandert es dorthin, und ein anonymes Testkonto dort wird gelöscht. Mehrere
+Schlüssel je Konto hiessen Stufe und Verbrauch an mehreren Stellen gleich
+zu halten, und das kann der Schlüsselspeicher nicht zuverlässig.
 
 Offen: Lesen und Schreiben des Verbrauchs sind zwei Schritte im
 Schlüsselspeicher. Zwei gleichzeitige Nachrichten desselben Kontos können
@@ -2952,7 +3021,7 @@ Worker.
 
 ### Eigene Plugins statt fremder Pakete
 
-Vier Swift Plugins liegen im App Ziel unter `apps/ios/ios/App/App` und
+Die eigenen Swift Plugins liegen im App Ziel unter `apps/ios/ios/App/App` und
 werden in `DaevoBridge.swift` angemeldet. Die Web App spricht sie über
 `nativAufruf` in `apps/pwa/js/nativ.js` an, ohne `@capacitor/core`: sie hat
 keinen Bundler und soll dafür keine Abhängigkeit bekommen. Ein neues Plugin

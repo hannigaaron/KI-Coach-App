@@ -1,6 +1,6 @@
 # Vom Testmonat zum Start
 
-Stand: 25. Oktober 2026. Was in der App fertig ist, was nur du tun kannst,
+Stand: 27. Oktober 2026. Was in der App fertig ist, was nur du tun kannst,
 und in welcher Reihenfolge.
 
 ## Was in der App jetzt steht
@@ -16,13 +16,18 @@ und in welcher Reihenfolge.
   löschen" im Profil. Apple verlangt das für jede App, die ein Konto anlegt.
 - Der Build meldet bei jedem Lauf, wie viele Platzhalter in den
   Rechtstexten noch offen sind. Sie sind gelb markiert.
+- Anmeldung mit Apple und Google, Kauf im App Store mit StoreKit 2, Stripe
+  Webhook, Testphase als Teil des Abos, Kalender Abgleich. Was dafür in den
+  Konten bei Apple, Google und Stripe anzulegen ist, steht in
+  `docs/ABO-EINRICHTEN.md`.
 
 ## Teil 1: Der Testmonat, nur für dich
 
 1. PR mergen, am Mac Xcode mit Cmd+Q beenden.
 2. Im Terminal:
    `cd ~/KI-Coach-App && git stash && git pull && (git stash pop || true)`
-3. Worker neu ausrollen, sonst fehlt das Löschen des Kontos:
+3. Worker neu ausrollen, sonst fehlen Konto löschen, Kalender Abo,
+   Anmeldung und Kauf:
    `cd workers/push && npx wrangler deploy && cd ../..`
 4. `npm run ios`, iPhone anstecken, in Xcode auf Play.
 5. Beim ersten Gespräch "Zustimmen" tippen.
