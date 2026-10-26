@@ -205,7 +205,8 @@ test("die Auswahl im Profil deckt jedes bekannte Modell ab", () => {
 test("schnell deckelt die Denktiefe, gründlich hebt sie an", () => {
   const planung = { effort: "high", maxTokens: 8192, modus: "planung" } as const;
   assert.equal(tiefeAnheben(planung, "schnell").effort, "medium");
-  assert.equal(tiefeAnheben(planung, "normal").effort, "high");
+  // Die Voreinstellung denkt höchstens mittel, hoch nur auf Wunsch.
+  assert.equal(tiefeAnheben(planung, "normal").effort, "medium");
   assert.equal(tiefeAnheben(planung, "gruendlich").effort, "high");
 
   const erfassen = { effort: "low", maxTokens: 2048, modus: "erfassen" } as const;
@@ -214,12 +215,14 @@ test("schnell deckelt die Denktiefe, gründlich hebt sie an", () => {
   assert.equal(tiefeAnheben(erfassen, "gruendlich").effort, "high");
 });
 
-test("bei Scham und Schuld gilt schnell nicht", () => {
-  // Der eine Ort, an dem die App die Einstellung des Nutzers überstimmt. Eine
-  // hingeworfene Antwort auf so etwas ist schlimmer als eine langsame.
+test("bei Scham und Schuld bleibt die volle Länge, die Tiefe ist mittel und auf Wunsch hoch", () => {
+  // Hoch auf Opus dauerte im Betrieb 45 Sekunden bis zum ersten Wort. Die
+  // Antwort darf lang sein, das Denken davor nicht endlos.
   const psyche = { effort: "high", maxTokens: 8192, modus: "psyche" } as const;
-  assert.equal(tiefeAnheben(psyche, "schnell").effort, "high");
+  assert.equal(tiefeAnheben(psyche, "schnell").effort, "medium");
   assert.equal(tiefeAnheben(psyche, "schnell").maxTokens, 8192);
+  assert.equal(tiefeAnheben(psyche, "normal").effort, "medium");
+  assert.equal(tiefeAnheben(psyche, "gruendlich").effort, "high");
 });
 
 test("eine gespeicherte Einstellung aus der alten Fassung gilt weiter", () => {
@@ -230,11 +233,11 @@ test("eine gespeicherte Einstellung aus der alten Fassung gilt weiter", () => {
   assert.equal(tiefeAnheben(t, true).effort, "high");
 });
 
-test("schnell schickt Planung auf Sonnet, Psyche bleibt auf Opus", () => {
+test("Planung läuft auf Sonnet, ausser bei gründlich, Psyche bleibt auf Opus", () => {
   assert.equal(modellFuerTempo("planung", "schnell"), "claude-sonnet-5-5");
+  assert.equal(modellFuerTempo("planung", "normal"), "claude-sonnet-5-5");
   assert.equal(modellFuerTempo("psyche", "schnell"), null);
-  // Ohne schnell ändert sich nichts an der Tabelle.
-  assert.equal(modellFuerTempo("planung", "normal"), null);
+  assert.equal(modellFuerTempo("psyche", "normal"), null);
   assert.equal(modellFuerTempo("planung", "gruendlich"), null);
 });
 

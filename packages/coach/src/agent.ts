@@ -495,6 +495,13 @@ export function tiefeAnheben(tiefe: Tiefe, tempo: Tempo | boolean): Tiefe {
       maxTokens: Math.min(tiefe.maxTokens, 4096),
     };
   }
+  // Die Voreinstellung denkt höchstens mittel. Hohe Denktiefe auf Opus
+  // dauerte im Betrieb 45 Sekunden bis zum ersten Wort: das Denken kommt
+  // vor der Antwort, und jede Runde mit einem Werkzeug denkt neu. Eine
+  // Antwort, auf die man so lange wartet, wird nicht gelesen, sondern die
+  // App wird geschlossen. Hoch bleibt eine Wahl im Profil, "immer
+  // gründlich". Psyche bleibt auf Opus und behält die volle Länge.
+  if (tiefe.effort === "high") return { ...tiefe, effort: "medium" };
   return tiefe;
 }
 
@@ -507,7 +514,9 @@ export function tiefeAnheben(tiefe: Tiefe, tempo: Tempo | boolean): Tiefe {
  */
 export function modellFuerTempo(modus: Modus, tempo: Tempo | boolean): string | null {
   const stufe: Tempo = typeof tempo === "boolean" ? (tempo ? "gruendlich" : "normal") : tempo;
-  if (stufe !== "schnell") return null;
+  if (stufe === "gruendlich") return null;
+  // Planung auf Opus war der zweite Teil der 45 Sekunden. Eine Reihenfolge
+  // für den Tag braucht kein Modell, das über Zielkonflikte nachdenkt.
   if (modus === "planung") return SONNET;
   return null;
 }

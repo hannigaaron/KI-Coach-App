@@ -127,9 +127,13 @@ kurzes Profil, die Zahlen des Tages, drei Notizen und sechs Nachrichten
 Verlauf. Alles andere bekommt weiterhin alles. An der Antwortqualität wird
 nicht gespart, nur an dem, was beim Eintragen einer Mahlzeit niemand liest.
 
-Denktiefe: psyche und planung immer `high`. Fachfragen laufen auf `medium`,
-kurzes hin und her auf `low`. Der Schalter "immer gründlich denken" im Profil
-hebt alles auf `high`. `maxTokens` ist eine Notbremse gegen abgeschnittene
+Denktiefe: in der Voreinstellung höchstens `medium`, kurzes hin und her auf
+`low`. Vorher liefen psyche und planung auf `high` und Planung auf Opus, und
+bei einer Vorführung dauerte eine Antwort 45 Sekunden bis zum ersten Wort:
+das Denken kommt vor dem Text, und jede Runde mit einem Werkzeug denkt neu.
+Jetzt läuft Planung auf Sonnet, Psyche bleibt auf Opus mit voller Länge.
+"Immer gründlich" im Profil hebt alles auf `high` und Planung zurück auf
+Opus, `tiefeAnheben` und `modellFuerTempo` in `agent.ts`. `maxTokens` ist eine Notbremse gegen abgeschnittene
 Antworten, kein Sparhebel: bezahlt wird nur, was geschrieben wird.
 
 Die Antwort läuft als Datenstrom in die Blase, sobald das erste Wort da ist.
