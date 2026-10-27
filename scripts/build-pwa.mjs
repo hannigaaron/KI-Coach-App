@@ -9,6 +9,7 @@ import { cp, mkdir, rm, readdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
+import { satoshiHolen } from "./schrift-holen.mjs";
 
 const root = process.cwd();
 /*
@@ -44,6 +45,8 @@ await cp(join(root, "apps/pwa"), outDir, {
   recursive: true,
   filter: (quelle) => !quelle.endsWith(".test.js"),
 });
+// Satoshi kommt beim Bauen dazu und nie in den Baum, siehe schrift-holen.mjs.
+await satoshiHolen(join(outDir, "schrift"), join(root, "node_modules/.cache/daevo-schrift"));
 await mkdir(join(outDir, "lib/core"), { recursive: true });
 await mkdir(join(outDir, "lib/coach"), { recursive: true });
 

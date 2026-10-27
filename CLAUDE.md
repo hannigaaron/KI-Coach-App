@@ -3400,38 +3400,32 @@ Seite. Ein Knopf ohne Wirkung ist schlimmer als keiner.
 Dieselbe Aussage steht auch in der Ansicht und nicht nur in der Mitteilung.
 Wer sie weggewischt hat und später selbst nachsieht, soll dasselbe lesen.
 
-## Eine Schrift, die im Projekt liegt
+## Satoshi mit Serife als Akzent
 
-Poppins in zwei Schnitten, 500 und 600, als Datei unter `apps/pwa/schrift`.
-Zusammen 16 Kilobyte, nur die lateinische Teilmenge. Der Bereich U+0000 bis
-U+00FF deckt ä, ö, ü und ß ab.
+Satoshi trägt die ganze App, Text und Zahlen, als eine variable Datei von
+300 bis 900. Instrument Serif steht an genau zwei Stellen: beim Gruss auf
+dem Start und bei der grossen Kalorienzahl auf Heute. Gewählt vom Nutzer
+nach einem Vergleich von fünf Schriften in echten Aufnahmen. Poppins in der
+ganzen App las sich wie eine Vorlage, die Wortmarke bleibt Poppins und
+liegt als Pfad vor.
 
-Nicht von Google geladen, und dafür gibt es zwei Gründe. Die App muss ohne
-Netz starten, das ist der halbe Sinn einer installierten Web App, und eine
-Schrift von einem fremden Server bricht dort weg. Ausserdem verrät jeder Abruf
-an fonts.gstatic.com, wann jemand die App aufmacht, und bei einer App, in der
-Notizen über Therapie und Familie liegen, liefert man so etwas nicht nebenbei
-mit. Der Service Worker legt beide Dateien in den Cache.
+Eine Serife überall wirkt unentschieden und läuft unter 30 Pixeln gedrängt.
+Neue Stellen bekommen deshalb Satoshi, die Serife nur nach Absprache.
 
-300 fehlt bewusst. Das Light gibt es nur in der Wortmarke, und die liegt als
-Pfad vor. Eine dritte Datei für zwei Buchstaben wäre Ladezeit ohne Gegenwert.
+Satoshi steht unter der ITF Free Font License. Sie erlaubt die Auslieferung
+in der eigenen App, verbietet aber die Weitergabe über ein öffentliches
+Repository, Teilmengen und Formatwechsel. Deshalb liegt sie nicht im Baum:
+`scripts/schrift-holen.mjs` lädt beim Bauen das offizielle Archiv von
+Fontshare und legt die Datei unverändert mit dem Lizenztext in die Ausgabe.
+Zwischengespeichert in `node_modules/.cache/daevo-schrift`. Ohne Netz baut
+die App trotzdem und zeigt die Systemschrift. Im Vorab-Cache des Service
+Workers steht Satoshi deshalb nicht, `addAll` bräche ohne die Datei die
+ganze Installation ab. Sie landet beim ersten Laden im Cache.
 
-Zwei Rollen, nicht eine. Poppins trägt Überschriften und die Zahlen, die
-Systemschrift den Fliesstext. Eine geometrische Schrift ist auf 13 Pixeln
-Lauftext schlechter lesbar, weil ihre runden Formen eng laufen und die
-Unterschiede zwischen a, o und e kleiner werden. In einer Zahl von 48 Pixeln
-ist genau diese Geometrie der Grund, sie zu nehmen: die Null ist ein Kreis,
-wie der Ring, in dem sie steht. Eine Schrift überall einzusetzen macht sie
-ausserdem unsichtbar, sie fällt nur auf, wo daneben etwas anderes steht.
-
-Der Rückfall ist nicht beliebig: fehlt Poppins, kommt etwas Geometrisches und
-keine Voreinstellung mit Serifen. `font-display: swap`, damit ein fehlender
-Download keine leere Seite ergibt.
-
-Die Zahl im Wertungsring wird als SVG Text gesetzt und erbt die Schrift nicht
-über die üblichen Regeln, dafür steht eine eigene Zeile im Stylesheet.
-
-SIL Open Font License 1.1, der Text liegt neben den Dateien.
+Instrument Serif steht unter der SIL Open Font License 1.1 und liegt mit
+Lizenz in `apps/pwa/schrift`. Beide Schriften kommen vom eigenen Server und
+nie von Google: die App muss ohne Netz starten, und jeder Abruf verrät, wann
+jemand die App öffnet.
 
 ## Der Wechsel zwischen Ansichten
 

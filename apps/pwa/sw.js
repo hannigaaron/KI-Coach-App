@@ -6,13 +6,12 @@
  * ist der einzige Weg, den Nutzer zu erreichen, waehrend die App geschlossen
  * ist. Siehe workers/push.
  */
-const CACHE = "daevo-v88";
+const CACHE = "daevo-v89";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
-  "./schrift/poppins-500.woff2",
-  "./schrift/poppins-600.woff2",
+  "./schrift/instrument-serif-400.woff2",
   "./manifest.webmanifest",
   "./js/app.js",
   "./js/storage.js",

@@ -1,38 +1,36 @@
 /*
- * Poppins, als Datei im Projekt und nicht von Google geladen.
+ * Schriften liegen im Projekt und kommen nicht von Google. Die App muss ohne
+ * Netz starten, und jeder Abruf an fonts.gstatic.com verrät, wann jemand die
+ * App aufmacht. Bei einer App mit Notizen über Therapie und Familie liefert
+ * man das nicht nebenbei mit. Die Wortmarke liegt als Pfad vor und braucht
+ * keine Schriftdatei.
+ */
+
+/*
+ * Satoshi trägt die App, Text wie Zahlen, als eine variable Datei von 300 bis
+ * 900. Sie ist geometrisch wie die Wortmarke, aber enger als Poppins, und
+ * Poppins in der ganzen App las sich wie eine Vorlage. Die Datei kommt beim
+ * Bauen von Fontshare und liegt nicht im Repository, die Lizenz verbietet die
+ * Weitergabe über ein öffentliches. Siehe scripts/schrift-holen.mjs.
  *
- * Die App muss ohne Netz starten, das ist der halbe Sinn einer installierten
- * Web App. Eine Schrift von einem fremden Server bricht dort weg, und die
- * Seite springt beim ersten Öffnen ohne Empfang in die Systemschrift. Ausserdem
- * verrät jeder Abruf an fonts.gstatic.com, wann jemand die App aufmacht, und
- * bei einer App, in der Notizen über Therapie und Familie liegen, ist das
- * nichts, was man nebenbei mitliefert.
- *
- * Nur die lateinische Teilmenge, zwei Schnitte, zusammen 16 Kilobyte. Der
- * Bereich U+0000 bis U+00FF deckt ä, ö, ü und ß ab.
- *
- * 500 und 600, weil die Wortmarke auf dem Sprung zwischen den Gewichten
- * beruht. 300 fehlt hier bewusst: das Light gibt es nur in der Wortmarke, und
- * die liegt als Pfad vor. Eine dritte Datei für zwei Buchstaben wäre
- * Ladezeit ohne Gegenwert.
- *
- * SIL Open Font License 1.1, der Text liegt in apps/pwa/schrift/OFL.txt.
+ * Instrument Serif steht an genau zwei Stellen: Gruss und Kalorienzahl. Ein
+ * Akzent wirkt hochwertig, eine zweite Schrift überall unentschieden. Klein
+ * gesetzt läuft sie gedrängt, deshalb nie unter 30 Pixeln. SIL Open Font
+ * License 1.1, Text in apps/pwa/schrift/OFL-instrument-serif.txt.
  */
 @font-face {
-  font-family: "Poppins";
+  font-family: "Satoshi";
   font-style: normal;
-  font-weight: 500;
+  font-weight: 300 900;
   font-display: swap;
-  src: url("./schrift/poppins-500.woff2") format("woff2");
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
-    U+2000-206F, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD;
+  src: url("./schrift/satoshi-variable.woff2") format("woff2");
 }
 @font-face {
-  font-family: "Poppins";
+  font-family: "Instrument Serif";
   font-style: normal;
-  font-weight: 600;
+  font-weight: 400;
   font-display: swap;
-  src: url("./schrift/poppins-600.woff2") format("woff2");
+  src: url("./schrift/instrument-serif-400.woff2") format("woff2");
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
     U+2000-206F, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD;
 }
@@ -59,17 +57,13 @@
 
   /* ---------- Schrift ----------
    *
-   * Zwei Rollen. Poppins trägt Überschriften und Zahlen, die Systemschrift
-   * den Fliesstext. Eine geometrische Schrift wie Poppins ist auf 13 Pixeln
-   * Lauftext schlechter lesbar als die Systemschrift, weil ihre runden
-   * Formen eng laufen und die Unterschiede zwischen a, o und e kleiner
-   * werden. In einer Zahl von 48 Pixeln ist genau diese Geometrie der Grund,
-   * sie zu nehmen: die Null ist ein Kreis, wie der Ring, in dem sie steht.
-   *
-   * Der Rückfall ist nicht beliebig. Fehlt Poppins, soll etwas Geometrisches
-   * kommen und keine Serifenschrift aus der Voreinstellung. */
-  --schrift-display: "Poppins", ui-rounded, "Avenir Next", "Segoe UI Variable Display",
+   * Satoshi für Text und Zahlen, Instrument Serif als Akzent. Fehlt Satoshi,
+   * etwa bei einem Build ohne Netz, kommt etwas Geometrisches und keine
+   * Serifenschrift aus der Voreinstellung. */
+  --schrift-display: "Satoshi", "Avenir Next", "Segoe UI Variable Display",
     system-ui, -apple-system, sans-serif;
+  --schrift-text: "Satoshi", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --schrift-akzent: "Instrument Serif", "Iowan Old Style", Georgia, serif;
 
   /* ---------- Flächen ----------
    *
@@ -262,7 +256,7 @@ html, body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font: 16px/1.5 var(--schrift-text);
   overscroll-behavior-y: none;
 }
 
@@ -2307,13 +2301,9 @@ body.blatt-offen { overflow: hidden; }
 .punkte i.an { opacity: 1; width: 18px; border-radius: var(--r-pill); }
 @media (prefers-reduced-motion: reduce) { .punkte i { transition: none; } }
 
-/* ---------- Wo Poppins steht ----------
+/* ---------- Überschriften und Zahlen ----------
  *
- * Überschriften und Zahlen, nichts sonst. Eine Schrift überall einzusetzen
- * macht sie unsichtbar: sie fällt nur auf, wenn daneben etwas anderes steht.
- *
- * Die Laufweite geht enger, als die Systemschrift sie brauchte. Poppins läuft
- * von sich aus weiter, und bei gleicher Einstellung wirkt eine Überschrift
+ * Enger gesetzt als der Text. Grosse Schrift wirkt bei gleicher Laufweite
  * auseinandergezogen.
  */
 h1,
@@ -3182,7 +3172,7 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 .gk-flaeche { margin: 0 0 var(--s-4); }
 .gk-flaeche:empty { display: none; }
 .gk-kopf { margin: 0 0 var(--s-2); display: flex; align-items: baseline; gap: var(--s-2); flex-wrap: wrap; }
-.gk-kopf b { font-family: Poppins, var(--font-sans, system-ui); font-size: var(--t-xl, 22px); font-weight: 600; color: var(--text); }
+.gk-kopf b { font-family: var(--schrift-display); font-size: var(--t-xl, 22px); font-weight: 600; color: var(--text); }
 .gk-kopf span { color: var(--muted); font-size: var(--t-sm); }
 .gewicht-kurve { display: block; width: 100%; height: auto; overflow: visible; }
 .gk-raster { stroke: var(--linie, var(--border)); stroke-width: 1; }
@@ -3214,7 +3204,7 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 .hk-wahl { display: flex; margin-bottom: var(--s-4); }
 .hk-wahl button { flex: 1; }
 .hk-summe { margin: 0 0 var(--s-5); color: var(--muted); }
-.hk-summe b { font-family: Poppins, system-ui; font-size: var(--t-2xl, 24px); font-weight: 600; color: var(--text); margin-right: 6px; }
+.hk-summe b { font-family: var(--schrift-display); font-size: var(--t-2xl, 24px); font-weight: 600; color: var(--text); margin-right: 6px; }
 .hk-abschnitt {
   margin: var(--s-5) 0 var(--s-2); font-size: var(--t-xs, 12px); font-weight: 600;
   letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);
@@ -3781,3 +3771,8 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 .anmelde-fein { color: rgba(255, 255, 255, 0.5); font-size: var(--t-xs, 12px); line-height: 1.5; margin: var(--s-6) 0 0; }
 .anmelde-fein .link-knopf { color: rgba(255, 255, 255, 0.72); font-size: inherit; }
 #rechtBlatt { z-index: 95; }
+
+/* Die zwei Stellen mit Serife, siehe oben bei den Schriften. Am Ende, damit
+   keine spätere Regel für Zahlen sie wieder auf Satoshi setzt. */
+.orb-gruss { font-family: var(--schrift-akzent); font-weight: 400; font-size: 34px; letter-spacing: -0.005em; line-height: 1.1; }
+.held-zahl { font-family: var(--schrift-akzent); font-weight: 400; font-size: 64px; letter-spacing: -0.01em; }

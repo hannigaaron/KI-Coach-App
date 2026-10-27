@@ -92,8 +92,8 @@ Teil 2, nicht erst zum Start im App Store.
 
 ## Teil 3: Vor dem ersten verkauften Abo
 
-1. **Kauf im App Store mit StoreKit** einbauen. Apple verlangt für digitale
-   Abos in der iPhone App den Kauf über Apple.
+1. **Kauf im App Store:** eingebaut mit StoreKit 2. Offen ist nur die
+   Einrichtung in App Store Connect, siehe `docs/ABO-EINRICHTEN.md`.
 2. **Verkauf ausserhalb des App Stores**, etwa über Stripe: dafür fehlen
    Widerrufsbelehrung, Muster Widerrufsformular, Kündigungsknopf nach
    § 312k BGB und ein Abschnitt zu Stripe in der Datenschutzerklärung.
