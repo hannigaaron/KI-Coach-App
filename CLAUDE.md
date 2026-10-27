@@ -1474,13 +1474,16 @@ das Feld schreiben Freiwillige, und eine fremde Adresse wäre ein Abruf, den
 die Datenschutzerklärung nicht nennt. Ohne Foto steht der Anfangsbuchstabe
 auf der Farbe des Makros, der die meisten Kalorien trägt, `hauptMakro`.
 
-Für 44 Lebensmittel der eigenen Tabelle gibt es ein Foto unter
-`apps/pwa/img/lebensmittel/<key>.jpg`, 240 x 180. Nur CC0 und Public Domain
-Mark aus Openverse, Quelle, Urheber und Lizenz je Datei in `NACHWEIS.json`,
-ein Test prüft beides. Ohne Marken im Bild. Zugeordnet wird über
-`tabellenBild` nur bei genauem Namen: ein falsches Foto neben einem Posten
-ist schlimmer als ein Buchstabe. Die Lizenzangabe auf Flickr stammt vom
-Hochladenden und kann falsch sein, deshalb steht die Quelle je Datei fest.
+Für 185 Lebensmittel gibt es ein Foto unter
+`apps/pwa/img/lebensmittel/<key>.jpg`, 240 x 180, die Namen dazu in
+`lebensmittel-bilder.js`. Aus Openverse unter CC0, Public Domain Mark oder
+CC BY. Quelle, Urheber und Lizenz je Datei stehen in `NACHWEIS.json`, ein
+Test prüft beides. CC BY verlangt die Nennung, dafür gibt es die Seite
+`rechtliches/bildnachweis.html`. Ohne Marken und Personen im Bild.
+Zugeordnet wird über `tabellenBild` bei genauem Namen oder wenn der Name als
+ganze Wörter vorn steht: ein falsches Foto neben einem Posten ist schlimmer
+als ein Buchstabe. Die Lizenzangabe auf Flickr stammt vom Hochladenden und
+kann falsch sein, deshalb steht die Quelle je Datei fest.
 
 ## Eine Mahlzeit nachträglich ändern
 
