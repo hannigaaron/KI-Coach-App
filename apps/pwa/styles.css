@@ -3776,3 +3776,22 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
    keine spätere Regel für Zahlen sie wieder auf Satoshi setzt. */
 .orb-gruss { font-family: var(--schrift-akzent); font-weight: 400; font-size: 34px; letter-spacing: -0.005em; line-height: 1.1; }
 .held-zahl { font-family: var(--schrift-akzent); font-weight: 400; font-size: 64px; letter-spacing: -0.01em; }
+
+/* Knöpfe in Serife. Damit hebt sich, was man tippen kann, von dem ab, was
+   man liest. Ausgenommen sind Reiter, die gehören zur Kopfzeile ihrer Seite,
+   und alles, was in einem Knopf Daten trägt: Lebensmittelnamen, Werte,
+   Untertitel, Zahlen. Die Wahl des Nutzers nach einem Vergleich in echten
+   Aufnahmen. Eine Stufe grösser als Satoshi, weil Instrument Serif kleiner
+   zeichnet. */
+button, .chip, .pill {
+  font-family: var(--schrift-akzent); font-weight: 400; letter-spacing: 0.005em;
+  font-synthesis: none;
+}
+button:not(.seg-btn):not([role="tab"]):not(.bib-knopf):not(.balken-zeile):not(.icon-btn) { font-size: 1.15em; }
+.menu-zeile b, .menu-kachel b, .erfassen-titel, .weg-titel { font-family: var(--schrift-akzent); font-weight: 400; font-size: 1.1em; }
+.seg-btn, [role="tab"], .bib-knopf, .bib-knopf *, .balken-zeile, .balken-zeile *,
+button small, button .erfassen-sub, button .me-werte, button .me-werte *,
+.menu-zeile small, .menu-kachel small, .held, .held * {
+  font-family: var(--schrift-text); letter-spacing: normal;
+}
+.held-zahl { font-family: var(--schrift-akzent); }

@@ -3409,8 +3409,12 @@ nach einem Vergleich von fünf Schriften in echten Aufnahmen. Poppins in der
 ganzen App las sich wie eine Vorlage, die Wortmarke bleibt Poppins und
 liegt als Pfad vor.
 
-Eine Serife überall wirkt unentschieden und läuft unter 30 Pixeln gedrängt.
-Neue Stellen bekommen deshalb Satoshi, die Serife nur nach Absprache.
+Dazu tragen alle Knöpfe die Serife, eine Stufe grösser, damit sich
+abhebt, was man tippen kann. Ausgenommen sind Reiter und alles, was in
+einem Knopf Daten trägt: Lebensmittelnamen, Werte, Untertitel, Zahlen. Der
+Nutzer hat das nach Screenshots so festgelegt, Lebensmittelnamen in
+Serife wirkten im Vergleich falsch. Darüber hinaus bekommen neue Stellen
+Satoshi, die Serife nur nach Absprache.
 
 Satoshi steht unter der ITF Free Font License. Sie erlaubt die Auslieferung
 in der eigenen App, verbietet aber die Weitergabe über ein öffentliches
