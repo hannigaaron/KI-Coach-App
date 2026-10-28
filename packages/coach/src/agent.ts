@@ -1,4 +1,5 @@
-import { erinnerungAus, planAenderungAus, ARTEN } from "@daevo/core";
+import { erinnerungAus, planAenderungAus, kalenderAuftragAus, ARTEN } from "@daevo/core";
+import type { KalenderAuftrag } from "@daevo/core";
 import type { PlanAenderung, TrainingType } from "@daevo/core";
 import { fehlerErklaerung } from "./fehler.js";
 import { AGENT_TOOLS } from "./tools.js";
@@ -91,6 +92,12 @@ export interface AgentActions {
   erinnerungAnlegen(input: {
     text: string; uhrzeit?: string; bezug?: "schlafen" | "aufstehen"; versatz?: number; tage: number[];
   }): Promise<string>;
+  /**
+   * Trägt ein Training in den echten Kalender ein oder verschiebt eines. Den
+   * freien Platz rechnet die App, nicht das Modell. Fremde Termine nur mit
+   * `bestaetigt`, also nach einem Ja des Nutzers.
+   */
+  kalenderTermin(input: KalenderAuftrag & { bestaetigt?: boolean }): Promise<string>;
   widerspruechePruefen(): Promise<string>;
   mittagscheckSpeichern(input: {
     energie: number; konzentration: number; saettigung: number; notiz?: string;
@@ -695,6 +702,24 @@ async function execute(
           tage,
         });
         return { text, notiz: "Erinnerung angelegt" };
+      }
+      case "kalender_termin": {
+        const aktion = ["eintragen", "verschieben", "vorschlagen", "rueckgaengig"].includes(String(input.aktion))
+          ? input.aktion as KalenderAuftrag["aktion"] : "vorschlagen";
+        const tag = typeof input.tag === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.tag) ? input.tag : undefined;
+        const uhrzeit = typeof input.uhrzeit === "string" && /^\d{1,2}:\d{2}$/.test(input.uhrzeit) ? input.uhrzeit : undefined;
+        const minuten = Number(input.minuten);
+        const text = await actions.kalenderTermin({
+          aktion,
+          ...(typeof input.suche === "string" && input.suche.trim() ? { suche: input.suche.trim().slice(0, 60) } : {}),
+          ...(typeof input.titel === "string" && input.titel.trim() ? { titel: input.titel.trim().slice(0, 60) } : {}),
+          ...(tag ? { tag } : {}),
+          ...(uhrzeit ? { uhrzeit } : {}),
+          ...(Number.isFinite(minuten) && minuten >= 10 && minuten <= 300 ? { minuten: Math.round(minuten) } : {}),
+          bestaetigt: input.bestaetigt === true,
+        });
+        if (text.startsWith(NICHT_GESPEICHERT)) return { text, fehler: true };
+        return { text, notiz: aktion === "vorschlagen" ? "Freien Platz gesucht" : "Kalender geändert" };
       }
       case "tag_zu_ende_planen": {
         const erlaubt = ["fruehstueck", "mittagessen", "abendessen", "snack"];
@@ -1330,6 +1355,16 @@ export async function runOffline(
   const standardAntwort = await actions.standardAusSatz(nachricht);
   if (standardAntwort) {
     return { text: standardAntwort, ausgeführt: ["Mindeststandard geändert"], source: "offline" };
+  }
+
+  // Ein Termin im echten Kalender, vor der dauerhaften Planänderung und vor
+  // dem Eintragen. "Ich schaff's morgen nicht ins Training" ist weder ein
+  // neuer Wochenplan noch ein Training von heute.
+  const auftrag = kalenderAuftragAus(nachricht);
+  if (auftrag) {
+    const antwort = await actions.kalenderTermin(auftrag);
+    const nichts = antwort.startsWith(NICHT_GESPEICHERT) || auftrag.aktion === "vorschlagen";
+    return { text: antwort, ausgeführt: nichts ? [] : ["Kalender geändert"], source: "offline" };
   }
 
   // Eine dauerhafte Änderung der Trainingstage vor dem Eintragen eines

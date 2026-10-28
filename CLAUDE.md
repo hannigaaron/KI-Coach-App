@@ -79,7 +79,7 @@ Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
 
-Der Assistent hat achtundvierzig Werkzeuge und verändert die App wirklich. Zahlen
+Der Assistent hat neunundvierzig Werkzeuge und verändert die App wirklich. Zahlen
 über den Nutzer kommen immer aus Werkzeugen, nie aus dem Modell. Allgemeines
 Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
@@ -514,7 +514,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1213 Tests
+npm test           # 1225 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -564,6 +564,41 @@ Abgleich beim Start und beim Zurückholen der App, höchstens alle 30
 Minuten. Alle drei Wege schreiben über `kalenderTermineSetzen`, und eine
 Quelle ersetzt nur sich selbst. Scheitert eine Quelle, bleiben ihre alten
 Termine stehen: lieber der Stand von gestern als ein leerer Tag.
+
+### Trainings in den Kalender schreiben
+
+`apps/pwa/js/kalender-schreiben.js`, Werkzeug `kalender_termin`, freier
+Platz in `packages/core/src/kalenderplan.ts`, Schreiben über `anlegen`,
+`verschieben` und `loeschen` in `KalenderPlugin.swift`. Nur in der iPhone
+App mit verbundenem Apple Kalender, darin auch Google und Outlook. Im
+Browser nennt die App den freien Platz und sagt, dass sie dort nicht
+schreiben kann.
+
+"Ich schaff's morgen nicht ins Training, plan um" verschiebt den nächsten
+Trainingstermin an diesem Tag auf den frühesten Tag danach, dort so nah wie
+möglich an der alten Uhrzeit. Nachholen heisst bald, und wer um 18 Uhr
+trainiert, will nicht um 7. Den Platz rechnet die App: 15 Minuten Luft um
+jeden Termin, Beginn auf die Viertelstunde, Ende spätestens eine Stunde vor
+dem Schlafen (Stutz, Eiholzer und Spengler, Sports Medicine 2019). Ein
+Modell, das eine Uhrzeit nennt, kennt den Kalender nicht genau genug und
+legt das Training auf einen Kundentermin.
+
+Was daevo eingetragen hat, trägt `daevo://termin` als URL und wird ohne
+Rückfrage verschoben. Fremde Termine nur mit `bestaetigt`, also nach einem
+Ja, und gelöscht wird nur Eigenes. Beides prüft das Plugin selbst noch
+einmal, damit ein Fehler im Modell keinen Kundentermin verschiebt.
+Wiederkehrende Termine werden nur in diesem einen Vorkommen geändert.
+
+Eintragen mit fester Uhrzeit schreibt nur, wenn die Zeit frei ist, sonst
+kommt ein Vorschlag. Steht das Training nicht im Kalender, kommen Dauer
+und Uhrzeit aus der Einheit im Profil und stehen als übernommen in der
+Antwort. Jede Änderung liegt in `settings.kalenderAenderungen`, die letzten
+20, und "mach die Kalenderänderung rückgängig" nimmt genau die letzte
+zurück. Ohne Kalender oder Termin im Satz greift der Regelpfad nicht,
+sonst nähme "mach das rückgängig" nach einer Mahlzeit einen Termin zurück.
+
+Ungeprüft: der Swift Teil ist hier nicht kompiliert und nicht auf einem
+Gerät gelaufen.
 
 ## Jeder Start ist ein leeres Gespräch
 
@@ -1739,7 +1774,7 @@ Tippfehler darf die Ziele nicht kippen.
 
 ## Der Regelweg ist die kostenlose Stufe
 
-44 der 48 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
+45 der 49 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
 Das ist keine Notlösung für den Ausfall, sondern das Produkt: ein Weg, der
 kein Modell anfragt, kostet nichts je Nutzer und skaliert ohne Rechnung.
 

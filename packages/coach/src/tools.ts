@@ -420,13 +420,41 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: "kalender_termin",
+    description:
+      "Schreibt in den echten Kalender des Nutzers auf dem iPhone, also iCloud, Google oder Outlook. " +
+      "Nehmen, wenn eine einzelne Einheit nicht klappt und verschoben werden soll ('ich schaff's morgen " +
+      "nicht ins Training, plan um'), wenn ein Training eingetragen werden soll, oder um eine Änderung " +
+      "zurückzunehmen. Den freien Platz rechnet die App aus Kalender, Wachzeit und Luft um Termine, " +
+      "nenn nie selbst eine Uhrzeit als frei. Termine, die daevo selbst eingetragen hat, verschiebt " +
+      "die App ohne Rückfrage. Fremde Termine (Kunden, Familie, Meetings) nur mit bestaetigt true, und " +
+      "das erst, nachdem der Nutzer ausdrücklich ja gesagt hat. Ohne Uhrzeit beim Eintragen sucht die " +
+      "App den nächsten freien Platz. Für dauerhaft andere Trainingstage gibt es trainingsplan_aendern.",
+    input_schema: {
+      type: "object",
+      properties: {
+        aktion: {
+          type: "string", enum: ["eintragen", "verschieben", "vorschlagen", "rueckgaengig"],
+          description: "vorschlagen sucht nur einen Platz und schreibt nichts.",
+        },
+        suche: { type: "string", description: "Woran der bestehende Termin zu erkennen ist, etwa 'Training' oder 'Volleyball'." },
+        titel: { type: "string", description: "Titel eines neuen Termins." },
+        tag: { type: "string", description: "JJJJ-MM-TT. Beim Verschieben der Tag des alten Termins, beim Eintragen der neue." },
+        uhrzeit: { type: "string", description: "HH:MM, nur wenn der Nutzer sie genannt hat." },
+        minuten: { type: "number", description: "Dauer. Ohne Angabe die des alten Termins oder der Einheit im Profil." },
+        bestaetigt: { type: "boolean", description: "true nur nach einem Ja zu einem fremden Termin." },
+      },
+      required: ["aktion"],
+    },
+  },
+  {
     name: "trainingsplan_aendern",
     description:
       "Ändert die festen Trainingstage im Profil und speichert sie sofort. Nehmen, sobald der Nutzer "
       + "sagt, dass sich seine Trainingstage oder Zeiten dauerhaft ändern, etwa weil sein Arbeitsplan "
       + "anders ist: 'Volleyball ist jetzt donnerstags', 'ich trainiere ab jetzt Mo, Mi, Fr um 7', "
       + "'freitags fällt weg'. Nicht nach Erlaubnis fragen, speichern und sagen, was jetzt gilt. "
-      + "Nicht nehmen für eine einzelne verschobene Einheit diese Woche, dafür gibt es training_anpassen. "
+      + "Nicht nehmen für eine einzelne verschobene Einheit diese Woche, dafür gibt es kalender_termin. "
       + "Der bisherige Plan steht im Profil im Kontext. Was du nicht weisst, lässt du weg: fehlende "
       + "Uhrzeit oder Dauer nimmt die App aus der bisherigen Einheit derselben Art.",
     input_schema: {

@@ -50,6 +50,7 @@ function stubActions(log: string[]): AgentActions {
     async balanceAbrufen(i) { log.push(`balance:${i.tage ?? ""}`); return "Karriere 40 Stunden, Me Time 0 Minuten."; },
     async zeitEintragen(i) { log.push(`zeit:${i.bereich}:${i.minuten}`); return "Gebucht."; },
     async erinnerungAnlegen(i) { log.push(`erinnerung:${i.text}:${i.uhrzeit ?? i.bezug}`); return "Erinnerung angelegt."; },
+    async kalenderTermin(i) { log.push(`kalender:${i.aktion}:${i.tag ?? ""}`); return "Training verschoben."; },
     async trainingsplanAendern(i) {
       log.push(`plan:${i.modus}:${i.nurArt ?? ""}:${i.einheiten.map((e) => `${e.wochentag}@${e.uhrzeit ?? ""}`).join(",")}`);
       return "Trainingsplan gespeichert.";
@@ -905,4 +906,12 @@ test("lesende Werkzeuge laufen gleichzeitig, schreibende nacheinander", async ()
   assert.deepEqual(p.ergebnisse.map((b) => (b as { tool_use_id: string }).tool_use_id), ["a", "b"]);
   const s = await lauf(false);
   assert.deepEqual(s.log, ["stand-start", "stand-ende", "wasser:300"]);
+});
+
+test("Regelweg Kalender: verschieben vor Planänderung und Training", async () => {
+  const log: string[] = [];
+  const actions = stubActions(log);
+  const r = await runOffline("Ich schaff's morgen doch nicht ins Training, plan mal bitte um", actions);
+  assert.ok(log.some((l) => l.startsWith("kalender:verschieben:")), log.join(","));
+  assert.deepEqual(r.ausgeführt, ["Kalender geändert"]);
 });

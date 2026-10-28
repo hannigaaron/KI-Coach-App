@@ -76,6 +76,9 @@ export function appleTermine(roh) {
       von: t.von,
       bis: t.bis,
       ganztags: Boolean(t.ganztags),
+      // Zum Schreiben, `kalender-schreiben.js`. Fehlen sie, ist der Termin
+      // nur lesbar, etwa aus einer älteren Hülle.
+      ...(t.eid ? { eid: String(t.eid), daevo: t.daevo === true, schreibbar: t.schreibbar === true } : {}),
     }));
 }
 

@@ -2755,6 +2755,14 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       return ergebnis.text;
     },
 
+    async kalenderTermin(auftrag = {}) {
+      // Dynamisch, denn kalender-schreiben.js zieht kalender-sync.js, und das
+      // importiert diese Datei. Ein Kreis beim Laden lässt eine Seite leer.
+      const { kalenderTermin } = await import("./kalender-schreiben.js");
+      const text = await kalenderTermin(auftrag);
+      changed();
+      return text;
+    },
     async erinnerungAnlegen({ text, uhrzeit, bezug, versatz, tage = [] } = {}) {
       // "an mein Magnesium" wird "Magnesium". In der Mitteilung stand sonst
       // "Mein Magnesium", und das liest sich wie ein Fehler.

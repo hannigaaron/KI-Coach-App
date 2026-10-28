@@ -32,6 +32,7 @@ export * from "./health.js";
 export * from "./bericht.js";
 export * from "./schieflage.js";
 export * from "./zeitplan.js";
+export * from "./kalenderplan.js";
 export * from "./wochenplan.js";
 export * from "./trainingsanpassung.js";
 export * from "./trainingsplan.js";
