@@ -5135,6 +5135,16 @@ async function mitteilungenNativ() {
   try {
     const { antworten = [], geoeffnet = null } = await nativAufruf("Mitteilungen", "abholen");
     for (const eintrag of antworten) {
+      if (eintrag?.art === "kalender") {
+        // "Lassen" heisst nichts tun. "Umplanen" rechnet den Platz hier,
+        // denn die Mitteilung kam aus dem Hintergrund ohne Web Ansicht.
+        if (eintrag.aktion !== "umplanen" || !eintrag.eid) continue;
+        const { konfliktUmplanen } = await import("./kalender-schreiben.js");
+        const satz = await konfliktUmplanen({ eid: eintrag.eid, von: eintrag.von });
+        toast(satz.replace(/^Noch nicht gespeichert\. /, ""), 8000);
+        refreshAll();
+        continue;
+      }
       if (antwortVerarbeiten(eintrag, { store, brain })) toast("Antwort übernommen");
     }
     if (geoeffnet?.art === "luecke") lueckeFrageOeffnen();

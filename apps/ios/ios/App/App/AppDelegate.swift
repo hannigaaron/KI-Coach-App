@@ -10,6 +10,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Vor allem anderen: tippt jemand in einer Mitteilung auf eine Antwort,
         // startet iOS die App ohne Fenster, und die Antwort käme sonst nirgends an.
         MitteilungenZentrale.shared.einrichten()
+        // Muss vor dem Ende dieser Methode stehen, sonst lehnt iOS die Aufgabe ab.
+        KalenderWache.shared.registrieren()
         return true
     }
 
@@ -19,8 +21,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func applicationDidEnterBackground(_ application: UIApplication) {
-        // Use this method to release shared resources, save user data, invalidate timers, and store enough application state information to restore your application to its current state in case it is terminated later.
-        // If your application supports background execution, this method is called instead of applicationWillTerminate: when the user quits.
+        // Mit Szenen ruft iOS das nicht auf. Der Wechsel in den Hintergrund
+        // steht in SceneDelegate.sceneDidEnterBackground.
     }
 
     func applicationWillEnterForeground(_ application: UIApplication) {

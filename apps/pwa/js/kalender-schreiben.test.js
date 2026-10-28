@@ -113,3 +113,26 @@ test("ohne Bitte bleibt ein fremder Termin liegen, am Ziel liegt ein anderer Kun
   assert.match(ohneJa, /Sag ja/);
   assert.equal(aufrufe.filter((a) => a.methode === "verschieben").length, 0);
 });
+
+test("Umplanen aus der Mitteilung: am selben Tag ausweichen, und nichts tun, wenn der Konflikt weg ist", async () => {
+  const { konfliktUmplanen } = await import("./kalender-schreiben.js");
+  const training = { uid: "tr", titel: "Training", von: morgen("18:00"), bis: morgen("19:00"), eid: "et", daevo: true, schreibbar: true };
+  const kunde = { uid: "k", titel: "PT Alina", von: morgen("17:30"), bis: morgen("18:30") };
+  lage([training, kunde]);
+  // Der Abgleich liest über das Plugin neu, die Attrappe liefert dieselben Termine.
+  const roh = [training, kunde].map((t) => ({ ...t }));
+  globalThis.Capacitor.nativePromise = async (plugin, methode, daten) => {
+    aufrufe.push({ plugin, methode, daten });
+    if (methode === "termine") return { termine: roh };
+    return { ok: true };
+  };
+  const text = await konfliktUmplanen({ eid: "et", von: training.von });
+  assert.match(text, /^Verschoben/);
+  const v = aufrufe.find((a) => a.methode === "verschieben");
+  assert.equal(new Date(v.daten.von).getDate(), new Date(training.von).getDate(), "derselbe Tag");
+  assert.ok(v.daten.von >= morgen("18:45"), "nach dem Kunden mit Luft");
+
+  lage([training]);
+  globalThis.Capacitor.nativePromise = async (plugin, methode) => (methode === "termine" ? { termine: [{ ...training }] } : { ok: true });
+  assert.match(await konfliktUmplanen({ eid: "et", von: training.von }), /überschneidet sich nicht mehr/);
+});

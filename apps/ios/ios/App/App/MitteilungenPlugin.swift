@@ -24,7 +24,13 @@ final class MitteilungenZentrale: NSObject, UNUserNotificationCenterDelegate {
             UNNotificationAction(identifier: "krank", title: "Krank oder verletzt", options: []),
         ]
         let luecke = UNNotificationCategory(identifier: "luecke", actions: aktionen, intentIdentifiers: [], options: [])
-        center.setNotificationCategories([luecke])
+        // Umplanen öffnet die App, denn den freien Platz rechnet die App.
+        // Lassen bleibt zu: es gibt nichts zu tun.
+        let kalender = UNNotificationCategory(identifier: "kalender", actions: [
+            UNNotificationAction(identifier: "umplanen", title: "Umplanen", options: [.foreground]),
+            UNNotificationAction(identifier: "lassen", title: "Lassen", options: []),
+        ], intentIdentifiers: [], options: [])
+        center.setNotificationCategories([luecke, kalender])
     }
 
     // Auch bei offener App zeigen. Sonst geht die Erinnerung ans Runterfahren
@@ -58,6 +64,9 @@ final class MitteilungenZentrale: NSObject, UNUserNotificationCenterDelegate {
                 "frage": response.notification.request.content.title,
                 "frageText": response.notification.request.content.body,
                 "at": Date().timeIntervalSince1970 * 1000,
+                // Beim Kalender: welches Training gemeint ist.
+                "eid": info["eid"] as? String ?? "",
+                "von": info["von"] as? Double ?? 0,
             ])
             defaults.set(liste, forKey: Self.antwortenSchluessel)
         }

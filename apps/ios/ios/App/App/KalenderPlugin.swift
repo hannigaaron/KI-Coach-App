@@ -1,6 +1,8 @@
 import Foundation
 import EventKit
 import Capacitor
+import BackgroundTasks
+import UserNotifications
 
 /// Liest den Kalender des iPhones über EventKit.
 ///
@@ -155,5 +157,103 @@ public class KalenderPlugin: CAPPlugin, CAPBridgedPlugin {
         } catch {
             call.reject("Löschen ging nicht: \(error.localizedDescription)")
         }
+    }
+}
+
+/// Schaut im Hintergrund in den Kalender, auch wenn die App zu ist.
+///
+/// iOS lässt keine App dauerhaft laufen. Über BGAppRefreshTask weckt iOS
+/// daevo selbst, wann und wie oft entscheidet das System nach der Nutzung,
+/// meist einige Male am Tag, mit rund 30 Sekunden Zeit. Wird die App im
+/// Umschalter weggewischt, weckt iOS sie nicht mehr, bis sie wieder geöffnet
+/// wird. Eine Zusage über die Uhrzeit gibt es deshalb nicht.
+///
+/// Gesucht wird ein Training, das daevo eingetragen hat und das sich mit
+/// einem anderen Termin überschneidet, in den nächsten drei Tagen. Dann
+/// kommt eine Mitteilung mit "Umplanen" und "Lassen". Umplanen öffnet die
+/// App, und dort rechnet `kalender-schreiben.js` den Platz. Der Platz wird
+/// nicht hier gerechnet: eine zweite Fassung der Regeln in Swift läuft nach
+/// drei Monaten anders als die im Kern, und dann legt der Hintergrund das
+/// Training auf eine Zeit, die die App selbst nie wählen würde.
+///
+/// Fremde Termine fasst dieser Teil nie an, er liest nur.
+final class KalenderWache {
+    static let shared = KalenderWache()
+    static let kennung = "de.daevo.app.kalenderwache"
+    private static let gemeldetSchluessel = "daevo.kalender.gemeldet"
+    private let speicher = EKEventStore()
+
+    /// Im AppDelegate vor dem Ende von didFinishLaunching, sonst lehnt iOS ab.
+    func registrieren() {
+        BGTaskScheduler.shared.register(forTaskWithIdentifier: Self.kennung, using: nil) { aufgabe in
+            guard let aufgabe = aufgabe as? BGAppRefreshTask else { return }
+            self.ausfuehren(aufgabe)
+        }
+    }
+
+    /// Bittet iOS um den nächsten Lauf, frühestens in zwei Stunden.
+    func planen() {
+        let anfrage = BGAppRefreshTaskRequest(identifier: Self.kennung)
+        anfrage.earliestBeginDate = Date(timeIntervalSinceNow: 2 * 3600)
+        try? BGTaskScheduler.shared.submit(anfrage)
+    }
+
+    private func ausfuehren(_ aufgabe: BGAppRefreshTask) {
+        planen()
+        aufgabe.expirationHandler = { aufgabe.setTaskCompleted(success: false) }
+        pruefen { aufgabe.setTaskCompleted(success: true) }
+    }
+
+    private func darfLesen() -> Bool {
+        let stand = EKEventStore.authorizationStatus(for: .event)
+        if #available(iOS 17.0, *) { return stand == .fullAccess }
+        return stand == .authorized
+    }
+
+    /// Auch beim Wechsel in den Hintergrund aufgerufen: wer gerade einen
+    /// Termin eingetragen hat und die App verlässt, erfährt es sofort.
+    func pruefen(fertig: @escaping () -> Void = {}) {
+        guard darfLesen() else { fertig(); return }
+        speicher.refreshSourcesIfNecessary()
+        let jetzt = Date()
+        let praedikat = speicher.predicateForEvents(withStart: jetzt, end: jetzt.addingTimeInterval(3 * 86_400), calendars: nil)
+        let termine = speicher.events(matching: praedikat).filter { !$0.isAllDay && $0.availability != .free }
+        let eigene = termine.filter { $0.url?.scheme == "daevo" }
+        let andere = termine.filter { $0.url?.scheme != "daevo" }
+
+        let defaults = UserDefaults.standard
+        var gemeldet = defaults.dictionary(forKey: Self.gemeldetSchluessel) as? [String: Double] ?? [:]
+        // Alte Meldungen vergessen, sonst wächst die Liste unbegrenzt.
+        gemeldet = gemeldet.filter { $0.value > jetzt.timeIntervalSince1970 - 7 * 86_400 }
+
+        var meldungen = 0
+        for e in eigene {
+            guard meldungen < 2,
+                  let stoerer = andere.first(where: { $0.startDate < e.endDate && $0.endDate > e.startDate }),
+                  let eid = e.eventIdentifier else { continue }
+            // Je Training, Beginn und Störer genau einmal. Wer "Lassen" sagt,
+            // will dieselbe Meldung nicht alle zwei Stunden wieder sehen.
+            let schluessel = "\(eid)|\(Int(e.startDate.timeIntervalSince1970))|\(stoerer.calendarItemIdentifier)"
+            if gemeldet[schluessel] != nil { continue }
+            gemeldet[schluessel] = jetzt.timeIntervalSince1970
+            melden(training: e, stoerer: stoerer, eid: eid)
+            meldungen += 1
+        }
+        defaults.set(gemeldet, forKey: Self.gemeldetSchluessel)
+        fertig()
+    }
+
+    private func melden(training: EKEvent, stoerer: EKEvent, eid: String) {
+        let zeit = DateFormatter()
+        zeit.locale = Locale(identifier: "de_DE")
+        zeit.dateFormat = "EEE HH:mm"
+        let inhalt = UNMutableNotificationContent()
+        inhalt.title = "\(training.title ?? "Training") überschneidet sich"
+        inhalt.body = "\(zeit.string(from: training.startDate)) liegt jetzt auch \u{201E}\(stoerer.title ?? "ein Termin")\u{201C}. Soll ich dein Training umplanen?"
+        inhalt.sound = .default
+        inhalt.categoryIdentifier = "kalender"
+        inhalt.userInfo = ["art": "kalender", "eid": eid, "von": training.startDate.timeIntervalSince1970 * 1000]
+        let anfrage = UNNotificationRequest(identifier: "daevo.kalender.\(eid.hashValue)", content: inhalt, trigger: nil)
+        UNUserNotificationCenter.current().add(anfrage)
     }
 }

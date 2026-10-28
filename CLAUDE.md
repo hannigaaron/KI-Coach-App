@@ -514,7 +514,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1228 Tests
+npm test           # 1229 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -604,6 +604,32 @@ Antwort. Jede Änderung liegt in `settings.kalenderAenderungen`, die letzten
 20, und "mach die Kalenderänderung rückgängig" nimmt genau die letzte
 zurück. Ohne Kalender oder Termin im Satz greift der Regelpfad nicht,
 sonst nähme "mach das rückgängig" nach einer Mahlzeit einen Termin zurück.
+
+### Der Kalender im Hintergrund
+
+`KalenderWache` in `KalenderPlugin.swift`, `konfliktUmplanen` in
+`kalender-schreiben.js`. iOS lässt keine App dauerhaft laufen. Über
+`BGAppRefreshTask` weckt iOS daevo selbst, wann und wie oft entscheidet das
+System, meist einige Male am Tag, mit rund 30 Sekunden. Nach dem Wegwischen
+im App Umschalter weckt iOS die App nicht mehr, bis sie wieder offen war.
+Dazu prüft die App einmal beim Wechsel in den Hintergrund, in
+`sceneDidEnterBackground`: mit Szenen ruft iOS
+`applicationDidEnterBackground` nicht auf.
+
+Gesucht wird ein Training mit `daevo://termin`, das sich in den nächsten
+drei Tagen mit einem anderen Termin überschneidet. Ganztägiges und
+Termine mit Status frei zählen nicht. Je Training, Beginn und Störer kommt
+genau eine Mitteilung, höchstens zwei je Lauf, Art `kalender`, mit
+"Umplanen" und "Lassen". Wer "Lassen" sagt, will dieselbe Meldung nicht
+alle zwei Stunden wieder sehen.
+
+Umplanen öffnet die App, und erst dort wird der Platz gerechnet, mit
+denselben Regeln wie im Gespräch. Eine zweite Fassung der Regeln in Swift
+liefe nach drei Monaten anders als die im Kern. Vorher wird neu gelesen,
+denn die Mitteilung kann Stunden alt sein: ist der Konflikt weg, bleibt
+das Training. Ausgewichen wird am selben Tag, wenn dort Platz ist, das
+Training soll dem Termin weichen und nicht ausfallen. Fremde Termine liest
+dieser Teil nur.
 
 Ungeprüft: der Swift Teil ist hier nicht kompiliert und nicht auf einem
 Gerät gelaufen.

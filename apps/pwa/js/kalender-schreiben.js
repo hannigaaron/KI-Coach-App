@@ -169,7 +169,10 @@ export async function kalenderTermin(auftrag = {}, { jetzt = Date.now() } = {}) 
 
   const profile = store.getProfile();
   const termine = store.getKalender().termine || [];
-  const alt = aktion === "eintragen" ? null : terminFinden(termine, auftrag, jetzt);
+  const alt = aktion === "eintragen" ? null
+    : auftrag.eid ? termine.find((t) => t.eid === auftrag.eid && Math.abs(t.von - Number(auftrag.beginn)) < 60000) ?? null
+    : terminFinden(termine, auftrag, jetzt);
+  if (auftrag.eid && !alt) return `${NICHT_GESPEICHERT} Das Training steht nicht mehr im Kalender.`;
   const vorbild = alt ? null : (auftrag.tag ? einheitAmTag(profile, auftrag.tag) : null) ?? dauerAusProfil(profile);
   const minuten = auftrag.minuten
     ?? (alt ? Math.round((alt.bis - alt.von) / 60000) : (vorbild?.minutes ?? vorbild?.minuten));
@@ -199,7 +202,10 @@ export async function kalenderTermin(auftrag = {}, { jetzt = Date.now() } = {}) 
     platz = { tag, von, bis };
   } else {
     // Wer sagt, dass er es an einem Tag nicht schafft, will einen anderen Tag.
-    const ab = alt ? Math.max(jetzt, tagBeginn(tagIso(alt.von)) + 86400000)
+    // Bei einer Überschneidung zählt derselbe Tag noch: das Training soll
+    // nur dem neuen Termin ausweichen, nicht ausfallen.
+    const ab = alt && auftrag.konflikt ? Math.max(jetzt, tagBeginn(tagIso(alt.von)))
+      : alt ? Math.max(jetzt, tagBeginn(tagIso(alt.von)) + 86400000)
       : aktion === "verschieben" && auftrag.tag ? Math.max(jetzt, tagBeginn(auftrag.tag) + 86400000)
       : Math.max(jetzt, auftrag.tag ? tagBeginn(auftrag.tag) : jetzt);
     const uhrzeit = auftrag.uhrzeit || (alt ? uhr(alt.von) : vorbild?.startsAt ?? vorbild?.uhrzeit);
@@ -271,4 +277,20 @@ async function eineZuruecknehmen(letzte) {
   return letzte.art === "angelegt"
     ? `Zurückgenommen: „${letzte.titel}“ am ${platzText(letzte.nachher)} ist wieder aus dem Kalender.`
     : `Zurückgenommen: „${letzte.titel}“ steht wieder am ${platzText(letzte.vorher)}.`;
+}
+
+/**
+ * "Umplanen" aus der Mitteilung der Kalenderwache, `KalenderWache` in
+ * `KalenderPlugin.swift`. Erst neu lesen, denn die Mitteilung kann Stunden
+ * alt sein und der Störer längst verschoben. Steht das Training nicht mehr
+ * im Konflikt, bleibt es, wo es ist.
+ */
+export async function konfliktUmplanen({ eid, von }, { jetzt = Date.now() } = {}) {
+  await neuLesen();
+  const termine = store.getKalender().termine || [];
+  const training = termine.find((t) => t.eid === eid && Math.abs(t.von - Number(von)) < 60000);
+  if (!training) return `${NICHT_GESPEICHERT} Das Training steht nicht mehr im Kalender.`;
+  const stoerer = termine.find((t) => t.uid !== training.uid && !t.ganztags && t.von < training.bis && t.bis > training.von);
+  if (!stoerer) return `Dein \u201e${training.titel}\u201c überschneidet sich nicht mehr und bleibt am ${platzText(training)}.`;
+  return kalenderTermin({ aktion: "verschieben", eid, beginn: training.von, konflikt: true }, { jetzt });
 }
