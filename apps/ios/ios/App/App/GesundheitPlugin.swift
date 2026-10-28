@@ -36,11 +36,14 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
         if let schlaf = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) { typen.insert(schlaf) }
         typen.insert(HKObjectType.workoutType())
         // Ernährung, die andere Apps nach Health schreiben, etwa YAZIO oder
-        // MyFitnessPal. Die Mahlzeit als Ganzes steht als Korrelation da.
+        // MyFitnessPal. Die Mahlzeit als Ganzes steht als Korrelation da,
+        // nach der wird aber nicht gefragt: iOS wirft bei einem
+        // Korrelationstyp in dieser Liste eine Ausnahme, und die App blieb
+        // beim Start auf dem Startbild stehen. Lesen lässt sich die
+        // Korrelation trotzdem, sobald die Werte darin erlaubt sind.
         for (id, _, _) in GesundheitPlugin.naehrwerte {
             if let t = HKObjectType.quantityType(forIdentifier: id) { typen.insert(t) }
         }
-        if let essen = HKObjectType.correlationType(forIdentifier: .food) { typen.insert(essen) }
         return typen
     }
 

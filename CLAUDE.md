@@ -3143,6 +3143,11 @@ Apple Health übernehmen" auf der Kalenderseite entfernt beim Ausschalten
 die Mahlzeiten aus Health wieder. Eine ältere Hülle ohne das Feld
 `nahrung` lässt alles stehen, statt es als gelöscht zu lesen.
 
+Nach der Korrelation selbst wird nicht gefragt. iOS wirft bei einem
+Korrelationstyp in `requestAuthorization` eine Ausnahme, und beim ersten
+Start auf dem Gerät blieb die App deshalb auf dem Startbild stehen. Lesen
+lässt sie sich, sobald die Werte darin erlaubt sind.
+
 Die Leseberechtigung hat eine Fassung, `HEALTH_FASSUNG`. iOS fragt nur nach
 neuen Typen, wenn die App erneut fragt, und wer vorher zugestimmt hatte,
 wäre sonst nie nach der Ernährung gefragt worden.
