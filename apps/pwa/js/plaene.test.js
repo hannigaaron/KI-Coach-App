@@ -200,3 +200,16 @@ test("Beschwerden und Ort überleben das Prüfen eines gespeicherten Wunsches", 
   assert.equal(muster.has("knee_dominant"), false);
   assert.ok(ids.every((id) => ["dumbbell", "bodyweight", "resistance_band", "kettlebell"].includes(UEBUNGEN.find((u) => u.id === id).equipment)));
 });
+
+test("Training für heute: eine einzelne Übung tauschen, Dosis bleibt", async () => {
+  const { heuteEinheit, heuteTauschListe } = await import("./plaene.js");
+  const stand = { minuten: 45, gruppen: ["ruecken", "arme"], variante: 0 };
+  const e = heuteEinheit(stand, STANDARD_WUNSCH);
+  const pi = e.positionen.length - 1;
+  const liste = heuteTauschListe(e, pi, STANDARD_WUNSCH);
+  assert.ok(liste.length > 0, "es gibt eine andere Übung");
+  const neu = heuteEinheit({ ...stand, ersetzt: { [e.positionen[pi].id]: liste[0].id } }, STANDARD_WUNSCH);
+  assert.equal(neu.positionen[pi].id, liste[0].id);
+  assert.equal(neu.positionen[pi].saetze, e.positionen[pi].saetze);
+  assert.match(zeileHtml(e.positionen[0], { tauschAttr: 'data-heute-tausch="0"' }), /data-heute-tausch="0"/);
+});

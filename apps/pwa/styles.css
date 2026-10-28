@@ -2762,6 +2762,16 @@ h1,
 .pl-text span { font-size: 13px; line-height: 1.4; color: var(--muted); }
 .pl-text i::before { content: "·"; margin: 0 7px; font-style: normal; }
 .pl-zeile .chev-re { width: 8px; height: 8px; border-right: 2px solid var(--muted); border-top: 2px solid var(--muted); transform: rotate(45deg); }
+.pl-zeile-rahmen { display: flex; align-items: center; gap: var(--s-2); border-bottom: 1px solid var(--linie); }
+.pl-zeile-rahmen .pl-zeile { border-bottom: 0; grid-template-columns: 56px minmax(0, 1fr); }
+.pl-liste li:last-child .pl-zeile-rahmen { border-bottom: 0; }
+.pl-tausch-knopf {
+  flex-shrink: 0; width: 40px; height: 40px; border: 0; border-radius: 50%; padding: 0; cursor: pointer;
+  background: var(--flaeche); box-shadow: var(--haarlinie); display: flex; align-items: center; justify-content: center;
+}
+.pl-tausch-knopf[aria-expanded="true"] { background: var(--text); box-shadow: none; }
+.pl-tausch-knopf svg { width: 20px; height: 20px; fill: none; stroke: var(--muted); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.pl-tausch-knopf[aria-expanded="true"] svg { stroke: var(--bg); }
 
 #ueBereichPlaene .ue-abschnitt { margin-top: 34px; }
 .pl-saetze { display: grid; gap: 12px; margin-top: 14px; }
@@ -3407,11 +3417,19 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 .tr-ersatz span { font-size: var(--t-xs); color: var(--muted); }
 .tr-leer { margin: 0; font-size: var(--t-sm); color: var(--muted); }
 .tr-kopf, .tr-satz {
-  display: grid; grid-template-columns: 36px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 56px; gap: var(--s-2); align-items: center;
+  display: grid; grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 56px; gap: var(--s-2); align-items: center;
 }
 .tr-kopf { font-size: var(--t-xs); color: var(--muted); letter-spacing: var(--track-versal); text-align: center; padding-bottom: var(--s-2); }
 .tr-satz { margin-bottom: var(--s-2); }
-.tr-nr { text-align: center; font-weight: 600; font-size: var(--t-md); }
+.tr-nr { display: flex; align-items: center; justify-content: flex-end; gap: 2px; font-weight: 600; font-size: var(--t-md); padding-right: 6px; }
+/* Fast durchsichtig: Entfernen ist eine Ausnahme und soll neben der Zahl
+   nicht um Aufmerksamkeit konkurrieren. Die Trefferfläche bleibt gross. */
+.tr-satz-x {
+  width: 24px; height: 32px; margin-left: -6px; padding: 0; border: 0; background: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; opacity: 0.32;
+}
+.tr-satz-x:active { opacity: 0.7; }
+.tr-satz-x svg { width: 14px; height: 14px; fill: none; stroke: var(--muted); stroke-width: 2.4; stroke-linecap: round; }
 .tr-feld {
   width: 100%; min-width: 0; height: 48px; border: 0; border-radius: var(--r-pill); background: var(--flaeche);
   box-shadow: var(--haarlinie); color: var(--text); font: inherit; font-size: var(--t-md); font-weight: 600; text-align: center;
@@ -3426,7 +3444,17 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 .tr-satz.fertig .tr-haken { background: var(--good); box-shadow: none; }
 .tr-satz.fertig .tr-haken svg { stroke: #fff; }
 .tr-satz.fertig .tr-feld { background: transparent; box-shadow: none; color: var(--muted); }
-.tr-satzknoepfe { display: flex; gap: var(--s-2); margin: var(--s-2) 0 var(--s-4); }
+/* Dasselbe Raster wie die Sätze, das Plus steht unter den Wiederholungen. */
+.tr-satzknoepfe {
+  display: grid; grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 56px; gap: var(--s-2);
+  margin: var(--s-1) 0 var(--s-4);
+}
+.tr-satz-plus {
+  grid-column: 3; justify-self: center; width: 40px; height: 40px; border: 0; border-radius: 50%; padding: 0;
+  background: var(--flaeche); box-shadow: var(--haarlinie); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.tr-satz-plus svg { width: 18px; height: 18px; fill: none; stroke: var(--accent); stroke-width: 2.4; stroke-linecap: round; }
 .tr-vorher { padding: var(--s-4); border-radius: var(--r-karte); background: var(--karte); box-shadow: var(--tief-karte); }
 .tr-vorher p { margin: 0 0 var(--s-2); font-size: var(--t-sm); color: var(--muted); }
 .tr-vorher-kopf, .tr-vorher-zeile { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); text-align: center; font-variant-numeric: tabular-nums; }
@@ -3789,9 +3817,22 @@ button, .chip, .pill {
 }
 button:not(.seg-btn):not([role="tab"]):not(.bib-knopf):not(.balken-zeile):not(.icon-btn) { font-size: 1.15em; }
 .menu-zeile b, .menu-kachel b, .erfassen-titel, .weg-titel { font-family: var(--schrift-akzent); font-weight: 400; font-size: 1.1em; }
-.seg-btn, [role="tab"], .bib-knopf, .bib-knopf *, .balken-zeile, .balken-zeile *,
+.seg-btn, [role="tab"], .bib-knopf, .bib-knopf *, .pl-tausch .ue-tab, .tr-ersatz b, .balken-zeile, .balken-zeile *,
 button small, button .erfassen-sub, button .me-werte, button .me-werte *,
 .menu-zeile small, .menu-kachel small, .held, .held * {
   font-family: var(--schrift-text); letter-spacing: normal;
 }
 .held-zahl { font-family: var(--schrift-akzent); }
+
+/* Ein Knopf ohne Fläche, für die seltene, destruktive Handlung unter einem
+   Formular. Er soll da sein, aber nicht neben dem Speichern konkurrieren. */
+.text-knopf {
+  display: block; margin: var(--s-2) auto 0; padding: var(--s-2) var(--s-3); border: 0; background: none; box-shadow: none;
+  color: var(--muted); font-size: var(--t-sm); cursor: pointer;
+}
+
+/* Die Zugriffe beim ersten Start. Name fett, darunter wozu, ohne Rahmen. */
+.rechte-liste { list-style: none; margin: var(--s-3) 0 0; padding: 0; }
+.rechte-liste li { display: flex; flex-direction: column; gap: 2px; padding: var(--s-3) 0; border-top: 1px solid var(--linie); }
+.rechte-liste li:first-child { border-top: 0; }
+.rechte-liste span { color: var(--muted); font-size: var(--t-sm); line-height: 1.45; }

@@ -482,6 +482,29 @@ try {
     </div>
   </div>
 
+  <!-- Beim ersten Start in der iPhone App, einmal. Nur ein Knopf "Weiter":
+       Apple lehnt Vorabseiten ab, die vor der Frage von iOS ein eigenes Nein
+       anbieten. Ablehnen geht in der Frage von iOS selbst. -->
+  <div id="rechteBlatt" class="blatt" hidden>
+    <div class="blatt-innen" role="dialog" aria-modal="true" aria-labelledby="rechteTitel">
+      <header class="blatt-kopf">
+        <h2 id="rechteTitel">daevo verbinden</h2>
+      </header>
+      <div class="blatt-scroll ki-text">
+        <p>Gleich fragt iOS nacheinander nach vier Zugriffen. Jeder ist freiwillig, und du kannst ihn später in den iOS Einstellungen unter daevo ändern.</p>
+        <ul class="rechte-liste">
+          <li><b>Kalender</b><span>damit daevo Training und Mahlzeiten in deine freien Zeiten legt und Trainings einträgt</span></li>
+          <li><b>Apple Health</b><span>Schritte, Schlaf, Gewicht, Trainings aus Apple Fitness und Ernährung aus anderen Apps</span></li>
+          <li><b>Mitteilungen</b><span>Erinnerungen, Pausenende im Training und Hinweise bei Kalenderkonflikten</span></li>
+          <li><b>Mikrofon und Spracherkennung</b><span>damit du Essen und Fragen einfach sagen kannst</span></li>
+        </ul>
+      </div>
+      <div class="ki-knoepfe">
+        <button id="rechteWeiter" class="primary breit" type="button">Weiter</button>
+      </div>
+    </div>
+  </div>
+
   <div id="kiBlatt" class="blatt" hidden>
     <div class="blatt-innen" role="dialog" aria-modal="true" aria-labelledby="kiTitel">
       <header class="blatt-kopf">
@@ -1281,10 +1304,6 @@ try {
       </div>
       <button id="btnStimmProbe" class="ghost breit">Probe hören</button>
       <p id="e-stimmhilfe" class="feld-hilfe"></p>
-      <!-- Was das Gerät wirklich meldet. Ohne diese Liste ist jede Aussage
-           darüber, welche Stimme fehlt, eine Vermutung. -->
-      <button id="btnStimmenAlle" class="ghost breit">Alle Stimmen zeigen, die dein Gerät meldet</button>
-      <pre id="e-stimmenRoh" class="stimmen-roh" hidden></pre>
 
       <!-- Nur für den Betreiber. In der Fassung für Nutzer ausgeblendet:
            ein Kurzbefehl auf einen eigenen Worker ist nichts, was jemand
@@ -1437,6 +1456,7 @@ try {
         <div class="field"><label for="t-min">Dauer in Minuten</label><input id="t-min" type="number" inputmode="numeric" value="75"></div>
       </div>
       <button id="btnAddSession" class="ghost">Einheit hinzufügen</button>
+      <button id="btnDelSession" class="text-knopf" hidden>Diese Einheit entfernen</button>
 
       <h2 class="abschnitt" data-betreiber>Den echten Coach freischalten</h2>
       <!-- Der Schlüssel ist die Sache des Betreibers. In der Fassung für

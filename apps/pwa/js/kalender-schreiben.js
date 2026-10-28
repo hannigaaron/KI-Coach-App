@@ -294,3 +294,32 @@ export async function konfliktUmplanen({ eid, von }, { jetzt = Date.now() } = {}
   if (!stoerer) return `Dein \u201e${training.titel}\u201c überschneidet sich nicht mehr und bleibt am ${platzText(training)}.`;
   return kalenderTermin({ aktion: "verschieben", eid, beginn: training.von, konflikt: true }, { jetzt });
 }
+
+/**
+ * Eine feste Trainingseinheit im Profil wurde geändert, etwa Montag 17 Uhr
+ * auf Dienstag 18 Uhr. Die Termine, die daevo dafür in den nächsten vier
+ * Wochen eingetragen hat, wandern mit, jeweils in derselben Woche. Fremde
+ * Termine bleiben, wie bei jedem Schreiben ohne Bitte.
+ */
+export async function einheitImKalenderAnpassen(alt, neu, { jetzt = Date.now() } = {}) {
+  if (!kannSchreiben()) return { anzahl: 0, nurIphone: true };
+  const termine = store.getKalender().termine || [];
+  const ende = jetzt + 28 * 86400000;
+  const passend = termine.filter((t) => t.daevo && t.eid && !t.ganztags && t.von >= jetzt && t.von < ende
+    && new Date(t.von).getDay() === alt.weekday && uhr(t.von) === alt.startsAt);
+  // Montag als Wochenanfang: Sonntag liegt am Ende der Woche, nicht davor.
+  const wochenIndex = (tag) => (tag + 6) % 7;
+  const gruppe = gruppeNeu();
+  let anzahl = 0;
+  for (const t of passend) {
+    const tag = tagBeginn(tagIso(t.von)) + (wochenIndex(neu.weekday) - wochenIndex(alt.weekday)) * 86400000;
+    const [h, m] = neu.startsAt.split(":").map(Number);
+    const d = new Date(tag); d.setHours(h, m, 0, 0);
+    const von = d.getTime();
+    if (von < jetzt) continue;
+    const fehler = await verschiebenNativ(t, { von, bis: von + neu.minutes * 60000 }, false, gruppe);
+    if (!fehler) anzahl++;
+  }
+  if (anzahl) await neuLesen();
+  return { anzahl };
+}

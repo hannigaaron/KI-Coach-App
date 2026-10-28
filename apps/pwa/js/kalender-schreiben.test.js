@@ -136,3 +136,18 @@ test("Umplanen aus der Mitteilung: am selben Tag ausweichen, und nichts tun, wen
   globalThis.Capacitor.nativePromise = async (plugin, methode) => (methode === "termine" ? { termine: [{ ...training }] } : { ok: true });
   assert.match(await konfliktUmplanen({ eid: "et", von: training.von }), /überschneidet sich nicht mehr/);
 });
+
+test("eine geänderte Einheit im Profil nimmt die eigenen Termine mit", async () => {
+  const { einheitImKalenderAnpassen } = await import("./kalender-schreiben.js");
+  const mo = new Date(); mo.setDate(mo.getDate() + ((8 - mo.getDay()) % 7 || 7)); mo.setHours(17, 0, 0, 0);
+  const t = { uid: "m", titel: "Krafttraining", von: mo.getTime(), bis: mo.getTime() + 3600000, eid: "em", daevo: true, schreibbar: true };
+  const fremd = { ...t, uid: "f", eid: "ef", daevo: false };
+  lage([t, fremd]);
+  const r = await einheitImKalenderAnpassen({ weekday: 1, startsAt: "17:00" }, { weekday: 2, startsAt: "18:00", minutes: 75 });
+  assert.equal(r.anzahl, 1);
+  const v = aufrufe.find((a) => a.methode === "verschieben");
+  const di = new Date(mo); di.setDate(di.getDate() + 1); di.setHours(18, 0, 0, 0);
+  assert.equal(v.daten.eid, "em");
+  assert.equal(v.daten.von, di.getTime());
+  assert.equal(v.daten.bis - v.daten.von, 75 * 60000);
+});

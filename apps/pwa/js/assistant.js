@@ -2897,6 +2897,23 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
     },
 
     async kalenderAbrufen({ tage, stand } = {}) {
+      // In der iPhone App verbindet daevo den Kalender gleich selbst, statt
+      // auf das Menü zu verweisen. Wer im Gespräch nach seinem Kalender
+      // fragt, will ihn verbunden haben, und die Frage von iOS nach dem
+      // Zugriff kommt dann genau in diesem Moment.
+      if (istNativ() && store.getSettings().appleKalender !== true) {
+        try {
+          const { appleKalenderVerbinden } = await import("./kalender-sync.js");
+          const r = await appleKalenderVerbinden();
+          changed();
+          if (r?.fehler) return r.fehler;
+          const apple = (r?.ergebnisse || []).find((e) => e.name === "Apple Kalender");
+          if (apple?.fehler) return `Der Zugriff ist erlaubt, das Lesen ging aber nicht: ${apple.fehler}`;
+          return `Kalender verbunden, ${apple?.anzahl ?? 0} Termine gelesen. ${stand ? "" : kalenderUebersicht(tage || 7)}`.trim();
+        } catch (e) {
+          return `Den Kalender konnte ich nicht verbinden: ${e?.message || e}`;
+        }
+      }
       return stand ? kalenderStandText() : kalenderUebersicht(tage || 7);
     },
 

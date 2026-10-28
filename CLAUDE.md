@@ -426,6 +426,11 @@ nicht nachgetragen. Schliessen ist nicht beenden, beim Plan steht dann
 Tag, sonst fragt die Trainingslücke trotz Training. Nur abgehakte Sätze
 zählen, nicht gemacht ist nicht null. Das Protokoll hält 400 Tage.
 
+Neue Sätze kommen über ein kleines Plus unter der Spalte der
+Wiederholungen, entfernt wird über ein fast durchsichtiges Kreuz links
+neben der Satznummer, genau dieser Satz. Zwei beschriftete Knöpfe "Satz
+dazu" und "Satz weg" waren grösser als die Sätze selbst.
+
 Die drei Punkte neben dem Namen bieten drei Übungen für dieselbe Bewegung
 an, nach Ort, Niveau und Beschwerden, die erste als Vorschlag von daevo.
 Der Tausch gilt ab dann auch im Plan. Wer einen Plan startet, der noch
@@ -493,6 +498,17 @@ um zu wechseln, und der einfache Plan lebt davon, an denselben Übungen
 stärker zu werden. Die Karte darüber nennt Tausch, Prozent und die drei
 stärksten Übungen und bietet "Alten Plan behalten" an.
 
+### Eine einzelne Übung tauschen
+
+Rechts an jeder Zeile im Wochenplan und im Training für heute steht ein
+Tauschzeichen. Ein Tipp zeigt Übungen für dieselbe Bewegung, nach Ort,
+Niveau und Beschwerden, die Dosis bleibt. Vorher gab es nur "Andere
+Übungen" für die ganze Einheit, und wer nur die French Press nicht mag,
+bekam alles neu. Im gespeicherten Plan gilt ein Tausch ausserhalb von
+Bearbeiten sofort, im Training für heute steht er in `heuteStand.ersetzt`,
+über die ursprüngliche Kennung, und fällt mit neuen Minuten oder Partien
+wieder weg.
+
 ### Den Plan von Hand ändern
 
 Je Einheit ein Knopf "Bearbeiten". Dann stehen unter jeder Übung Sätze minus
@@ -514,7 +530,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1229 Tests
+npm test           # 1234 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -630,6 +646,18 @@ denn die Mitteilung kann Stunden alt sein: ist der Konflikt weg, bleibt
 das Training. Ausgewichen wird am selben Tag, wenn dort Platz ist, das
 Training soll dem Termin weichen und nicht ausfallen. Fremde Termine liest
 dieser Teil nur.
+
+Fragt jemand im Gespräch nach seinem Kalender und ist in der iPhone App
+noch keiner verbunden, verbindet `kalenderAbrufen` ihn selbst, mit der
+Frage von iOS genau in diesem Moment. Vorher kam der Verweis aufs Menü,
+und das ist auf "kannst du Zugriff auf meinen Kalender haben" die falsche
+Antwort.
+
+Die festen Trainingstage im Profil tragen "Ändern" statt "Weg". Das
+Formular darunter übernimmt die Einheit, Entfernen steht dort als leiser
+Knopf. Nach dem Speichern wandern die Termine, die daevo für diese Einheit
+in den nächsten vier Wochen eingetragen hat, mit, je in derselben Woche,
+`einheitImKalenderAnpassen`. Fremde Termine bleiben.
 
 Ungeprüft: der Swift Teil ist hier nicht kompiliert und nicht auf einem
 Gerät gelaufen.
@@ -945,10 +973,11 @@ Yannick sind für eine Web App damit nicht erreichbar, egal was installiert
 ist.
 
 Das stand hier vorher anders, und die App hat dem Nutzer entsprechend
-Hoffnung gemacht. Deshalb der Knopf "Alle Stimmen zeigen, die dein Gerät
-meldet" im Profil: er gibt jede gemeldete Stimme aus, mit Sprachkürzel und
-Vermerk lokal oder Netz. Eine Liste beendet eine Vermutung, ein Satz in einer
-Dokumentation nicht.
+Hoffnung gemacht. Eine Zeit lang gab es deshalb einen Knopf, der jede
+gemeldete Stimme auflistete. Er ist wieder weg: im ersten Test auf dem
+iPhone standen dort 182 Stimmen, von denen die meisten niemand wählen kann,
+und eine Liste, mit der man nichts tun kann, hilft dem Nutzer nicht. Die
+Auswahl selbst zeigt, was nutzbar ist.
 
 Das gilt für Safari und die Web App, nicht mehr für die iPhone App. Dort
 liefen Liste und Ausgabe zuerst ebenfalls über die Web Ansicht, und der
@@ -1664,8 +1693,10 @@ Einheit fällt jetzt weg, wenn dasselbe Lebensmittel mit Einheit dasteht.
 Markenprodukte wie Flexpresso bekommen keine erfundenen Werte in der Tabelle.
 
 Die Spracherkennung schickte nach 2,2 Sekunden Pause ab, mitten in der
-Aufzählung. Jetzt 3,2 Sekunden, und 6, solange der Satz auf "und", "mit",
-eine Zahl oder eine Einheit endet, `pauseFuer` in `voice.js`.
+Aufzählung. Auch 3,2 waren im ersten Test auf dem iPhone zu knapp. Jetzt 5
+Sekunden, und 8, solange der Satz auf "und", "mit", eine Zahl oder eine
+Einheit endet, `pauseFuer` in `voice.js`, Kopf leeren 9. Wer früher fertig
+ist, tippt auf Fertig.
 
 ## Doppelt eingetragenes Essen
 
@@ -3174,6 +3205,22 @@ deshalb ein Test und kein Betrieb.
 Rest der Datei. Vorher schrieb es die Hilfsfunktionen von Hand nach, und
 `istNativ` wäre in der Fassung für Nutzer gefehlt. Deren Import bricht dann
 das ganze Modul, und die App bleibt schwarz.
+
+## Zugriffe beim ersten Start
+
+`apps/pwa/js/berechtigungen.js`, das Blatt `#rechteBlatt`. In der iPhone
+App kommt nach Fragebogen oder erstem Öffnen einmal ein Blatt mit den vier
+Zugriffen und danach die Fragen von iOS, nacheinander: Kalender, Apple
+Health, Mitteilungen, Mikrofon mit Spracherkennung. Vorher kam jede Frage
+erst, wenn die Funktion gebraucht wurde, der Kalender also nie, solange
+niemand im Profil auf Verbinden tippte. Gesteuert über
+`settings.berechtigungenGefragt`, also auch einmal bei allen, die die App
+schon haben: iOS fragt nie zweimal nach demselben Zugriff.
+
+Das Blatt hat nur "Weiter". Apple lehnt Vorabseiten mit eigenem Nein ab,
+abgelehnt wird in der Frage von iOS. Einführung, Abo Fenster, Health
+Abgleich und Mitteilungen warten, bis alles beantwortet ist. Was fehlt,
+nennt danach eine Meldung mit dem Weg in die Einstellungen.
 
 ## Eigene Erinnerungen
 

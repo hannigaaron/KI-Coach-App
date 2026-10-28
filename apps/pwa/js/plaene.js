@@ -106,27 +106,37 @@ export function steuerHtml(wunsch) {
   return reihen.join("") + fokus + schmerz + deload;
 }
 
-export function zeileHtml(p, { bearbeiten = false, ei = 0, pi = 0, tausch = null } = {}) {
+/** Zwei Pfeile im Kreis, dieselbe Linienfamilie wie die übrigen Zeichen. */
+const TAUSCH_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9h12l-3-3M19 15H7l3 3"/></svg>';
+
+/**
+ * Eine Zeile der Liste. Rechts steht immer das Tauschzeichen: wer eine
+ * einzelne Übung nicht will, soll nicht die ganze Einheit neu würfeln
+ * müssen. `tauschAttr` sagt, welche Daten der Knopf trägt, denn der Plan
+ * und das Training für heute tauschen über verschiedene Wege.
+ */
+export function zeileHtml(p, { bearbeiten = false, ei = 0, pi = 0, tausch = null, tauschAttr = null } = {}) {
   const u = nachId.get(p.id);
   const bild = u ? `<img class="pl-bild" src="${esc(vorschauPfad(u))}" alt="" width="56" height="70" loading="lazy" decoding="async">` : "";
   const pause = p.pauseSek < 90 ? `${p.pauseSek} s` : `${String(p.pauseSek / 60).replace(".", ",")} min`;
-  const zeile = `<button type="button" class="pl-zeile" data-uebung="${esc(p.id)}">${bild}
-    <span class="pl-text"><b>${esc(p.name)}</b><span>${p.saetze} × ${esc(p.wdh)}<i></i>Pause ${pause}<i></i>${p.reserve} in Reserve</span></span>
-    <span class="chev-re" aria-hidden="true"></span></button>`;
-  if (!bearbeiten) return `<li>${zeile}</li>`;
   const ort = `data-ei="${ei}" data-pi="${pi}"`;
+  const attr = tauschAttr ?? `data-aktion="tauschen" ${ort}`;
+  const offen = tausch && tausch.ei === ei && tausch.pi === pi;
+  const zeile = `<div class="pl-zeile-rahmen"><button type="button" class="pl-zeile" data-uebung="${esc(p.id)}">${bild}
+    <span class="pl-text"><b>${esc(p.name)}</b><span>${p.saetze} × ${esc(p.wdh)}<i></i>Pause ${pause}<i></i>${p.reserve} in Reserve</span></span></button>
+    <button type="button" class="pl-tausch-knopf" ${attr} aria-expanded="${Boolean(offen)}" aria-label="${esc(p.name)} tauschen">${TAUSCH_SVG}</button></div>`;
+  const nehmenAttr = (a) => (tauschAttr ? `data-heute-nehmen="${esc(a.id)}" data-alt="${esc(p.id)}"` : `data-aktion="nehmen" data-id="${esc(a.id)}" ${ort}`);
+  const auswahl = offen
+    ? `<div class="pl-tausch">${tausch.liste.length
+      ? tausch.liste.map((a) => `<button type="button" class="ue-tab" ${nehmenAttr(a)}>${esc(a.name)}</button>`).join("")
+      : "<p>Für diese Bewegung gibt es hier keine andere Übung, die zu Ort und Beschwerden passt.</p>"}</div>`
+    : "";
+  if (!bearbeiten) return `<li${offen ? ' class="pl-offen"' : ""}>${zeile}${auswahl}</li>`;
   const werkzeug = `<div class="pl-werkzeug">
       <span class="pl-saetze-wahl"><button type="button" data-aktion="weniger" ${ort} aria-label="Ein Satz weniger">−</button>
       <b>${p.saetze} Sätze</b><button type="button" data-aktion="mehr" ${ort} aria-label="Ein Satz mehr">+</button></span>
-      <button type="button" class="pl-mini" data-aktion="tauschen" ${ort}>Tauschen</button>
       <button type="button" class="pl-mini" data-aktion="entfernen" ${ort}>Entfernen</button>
     </div>`;
-  const offen = tausch && tausch.ei === ei && tausch.pi === pi;
-  const auswahl = offen
-    ? `<div class="pl-tausch">${tausch.liste.length
-      ? tausch.liste.map((a) => `<button type="button" class="ue-tab" data-aktion="nehmen" data-id="${esc(a.id)}" ${ort}>${esc(a.name)}</button>`).join("")
-      : "<p>Für diese Bewegung gibt es hier keine andere Übung, die zu Ort und Beschwerden passt.</p>"}</div>`
-    : "";
   return `<li class="pl-bearbeiten">${zeile}${werkzeug}${auswahl}</li>`;
 }
 
@@ -267,7 +277,7 @@ export function heuteHtml(stand, einheit) {
   const ergebnis = einheit
     ? `<section class="pl-einheit pl-heute-einheit"><header><div><h3>${esc(einheit.fokus)}</h3><p>${einheit.positionen.length} Übungen · etwa ${einheit.dauerMin} Min.</p></div>
         <div class="pl-knoepfe"><button type="button" class="pl-mini pl-start" data-heute-start>Starten</button><button type="button" class="pl-mini" data-heute-andere>Andere Übungen</button></div></header>
-        <ol class="pl-liste">${einheit.positionen.map((p) => zeileHtml(p)).join("")}</ol></section>`
+        <ol class="pl-liste">${einheit.positionen.map((p, pi) => zeileHtml(p, { pi, tausch: stand.tausch ?? null, tauschAttr: `data-heute-tausch="${pi}"` })).join("")}</ol></section>`
     : stand.gruppen.length ? "" : '<p class="pl-legende">Wähl mindestens eine Partie.</p>';
   return `<h3 class="ue-abschnitt">Training für heute</h3>
     <p class="sub">Wenn der Plan heute nicht passt: wie viel Zeit du hast und was diese Woche noch fehlt.</p>
@@ -278,12 +288,36 @@ export function heuteHtml(stand, einheit) {
 }
 
 /** Die Einheit für heute, mit Erfahrung, Ziel, Ort, Beschwerden und Fokus aus dem Plan. */
-export function heuteEinheit(stand, wunsch) {
+function heuteRoh(stand, wunsch) {
   const w = wunschPruefen(wunsch);
   return einzeltrainingBauen({
     minuten: stand.minuten, gruppen: stand.gruppen, niveau: w.niveau, ziel: w.ziel, ort: w.ort,
     beschwerden: w.beschwerden, meiden: w.meiden, fokus: w.fokus, variante: stand.variante ?? 0,
   }, UEBUNGEN);
+}
+
+/**
+ * Die Einheit für heute mit den Übungen, die der Nutzer einzeln getauscht
+ * hat. Die Dosis bleibt, die Rolle in der Einheit ist dieselbe.
+ */
+export function heuteEinheit(stand, wunsch) {
+  const e = heuteRoh(stand, wunsch);
+  const ersetzt = stand.ersetzt ?? {};
+  if (!e || !Object.keys(ersetzt).length) return e;
+  return {
+    ...e,
+    positionen: e.positionen.map((p) => {
+      const neu = nachId.get(ersetzt[p.id]);
+      return neu ? { ...p, id: neu.id, name: neu.name } : p;
+    }),
+  };
+}
+
+/** Was für eine Übung des Trainings für heute in Frage kommt. */
+export function heuteTauschListe(einheit, pi, wunsch) {
+  const p = einheit?.positionen[pi];
+  if (!p) return [];
+  return alternativen({ wunsch: wunschPruefen(wunsch), einheiten: [einheit] }, 0, p.id, UEBUNGEN).slice(0, 8);
 }
 
 /**
@@ -414,12 +448,23 @@ export function plaeneStarten({ speicher, oeffne, melde, starte = () => {}, frei
   $("plHeute").addEventListener("click", (event) => {
     const k = (sel) => event.target.closest(sel);
     let x;
-    if ((x = k("[data-heute-min]"))) heuteStand = { ...heuteStand, minuten: Number(x.dataset.heuteMin), variante: 0 };
+    if ((x = k("[data-heute-tausch]"))) {
+      const pi = Number(x.dataset.heuteTausch);
+      const offen = heuteStand.tausch?.pi === pi;
+      heuteStand = { ...heuteStand, tausch: offen ? null : { ei: 0, pi, liste: heuteTauschListe(heuteEinheit(heuteStand, wunsch), pi, wunsch) } };
+    } else if ((x = k("[data-heute-nehmen]"))) {
+      // Getauscht wird über die ursprüngliche Kennung, damit ein zweiter
+      // Tausch derselben Zeile den ersten ersetzt und nicht verkettet.
+      const ersetzt = { ...(heuteStand.ersetzt ?? {}) };
+      const ursprung = Object.keys(ersetzt).find((alt) => ersetzt[alt] === x.dataset.alt) ?? x.dataset.alt;
+      ersetzt[ursprung] = x.dataset.heuteNehmen;
+      heuteStand = { ...heuteStand, ersetzt, tausch: null };
+    } else if ((x = k("[data-heute-min]"))) heuteStand = { ...heuteStand, minuten: Number(x.dataset.heuteMin), variante: 0, ersetzt: {}, tausch: null };
     else if ((x = k("[data-heute-gruppe]"))) {
       const g = x.dataset.heuteGruppe;
       const gruppen = heuteStand.gruppen.includes(g) ? heuteStand.gruppen.filter((y) => y !== g) : [...heuteStand.gruppen, g];
-      heuteStand = { ...heuteStand, gruppen, variante: 0 };
-    } else if (k("[data-heute-andere]")) heuteStand = { ...heuteStand, variante: heuteStand.variante + 1 };
+      heuteStand = { ...heuteStand, gruppen, variante: 0, ersetzt: {}, tausch: null };
+    } else if (k("[data-heute-andere]")) heuteStand = { ...heuteStand, variante: heuteStand.variante + 1, ersetzt: {}, tausch: null };
     else if (k("[data-heute-start]")) {
       const einheit = heuteEinheit(heuteStand, wunsch);
       if (einheit) starteEinheit(einheit);
@@ -478,7 +523,11 @@ export function plaeneStarten({ speicher, oeffne, melde, starte = () => {}, frei
         zeichnen();
       } else if (art === "nehmen") {
         tausch = null;
+        const warGespeichert = istGespeichert && bearbeitet !== ei;
         geaendert(uebungTauschen(plan, ei, pi, aktion.dataset.id));
+        // Ein einzelner Tausch ausserhalb von Bearbeiten gilt sofort. Wer
+        // eine Übung nicht mag, will dafür nicht noch Speichern suchen.
+        if (warGespeichert) { speicher.schreiben(plan); istGespeichert = true; zeichnen(); melde("Übung getauscht"); }
       }
       return;
     }

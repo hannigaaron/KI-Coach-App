@@ -171,8 +171,13 @@ export function satzDazu(entwurf, ui) {
   });
 }
 
-export function satzWeg(entwurf, ui) {
-  return mitUebung(entwurf, ui, (u) => (u.saetze.length > 1 ? { ...u, saetze: u.saetze.slice(0, -1) } : u));
+/** Ohne `si` fällt der letzte Satz weg, sonst genau dieser. Einer bleibt immer. */
+export function satzWeg(entwurf, ui, si) {
+  return mitUebung(entwurf, ui, (u) => {
+    if (u.saetze.length <= 1) return u;
+    const weg = Number.isInteger(si) && si >= 0 && si < u.saetze.length ? si : u.saetze.length - 1;
+    return { ...u, saetze: u.saetze.filter((_, i) => i !== weg) };
+  });
 }
 
 function mitUebung(entwurf, ui, aendern) {
@@ -273,7 +278,7 @@ export function trainingHtml(entwurf, log, { menue = false, vorschlaege = [], pa
   }).join("") + `<button type="button" class="tr-daumen tr-plus${waehlen ? " an" : ""}" data-tr-waehlen aria-label="Übung hinzufügen"><span>+</span></button>`;
   const geraet = info ? GERAETE[info.equipment] ?? info.equipment : "";
   const zeilen = u.saetze.map((s, si) => `<div class="tr-satz${s.fertig ? " fertig" : ""}">
-      <span class="tr-nr">${si + 1}</span>
+      <span class="tr-nr">${u.saetze.length > 1 ? `<button type="button" class="tr-satz-x" data-tr-satzweg="${si}" aria-label="Satz ${si + 1} entfernen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg></button>` : ""}${si + 1}</span>
       <input class="tr-feld" inputmode="decimal" enterkeyhint="next" aria-label="Kilo Satz ${si + 1}" placeholder="kg" value="${esc(komma(s.kg))}" data-tr-feld="kg" data-si="${si}">
       <input class="tr-feld" inputmode="numeric" enterkeyhint="next" aria-label="Wiederholungen Satz ${si + 1}" placeholder="Wdh" value="${esc(komma(s.wdh))}" data-tr-feld="wdh" data-si="${si}">
       <input class="tr-feld" inputmode="numeric" enterkeyhint="done" aria-label="Wiederholungen in Reserve Satz ${si + 1}" placeholder="RIR" value="${esc(komma(s.rir))}" data-tr-feld="rir" data-si="${si}">
@@ -311,7 +316,7 @@ export function trainingHtml(entwurf, log, { menue = false, vorschlaege = [], pa
     <div class="tr-tabelle">
       <div class="tr-kopf"><span>#</span><span>KG</span><span>WDH</span><span>RIR</span><span></span></div>
       ${zeilen}
-      <div class="tr-satzknoepfe"><button type="button" class="pl-mini" data-tr-satz="dazu">Satz dazu</button>${u.saetze.length > 1 ? '<button type="button" class="pl-mini" data-tr-satz="weg">Satz weg</button>' : ""}</div>
+      <div class="tr-satzknoepfe"><button type="button" class="tr-satz-plus" data-tr-satz="dazu" aria-label="Satz hinzufügen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v12M6 12h12"/></svg></button></div>
     </div>
     ${vorher}
     <p class="tr-rir-hilfe">RIR heißt Wiederholungen in Reserve: wie viele noch gegangen wären, bevor nichts mehr geht.</p>
@@ -470,6 +475,8 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
       const warFertig = entwurf.uebungen[entwurf.aktiv].saetze[si].fertig;
       entwurf = satzAbhaken(entwurf, entwurf.aktiv, si);
       if (!warFertig) { spueren("leicht"); pauseStart(entwurf.uebungen[entwurf.aktiv].ziel.pauseSek); }
+    } else if ((k = z("[data-tr-satzweg]"))) {
+      entwurf = satzWeg(entwurf, entwurf.aktiv, Number(k.dataset.trSatzweg));
     } else if ((k = z("[data-tr-satz]"))) {
       entwurf = k.dataset.trSatz === "dazu" ? satzDazu(entwurf, entwurf.aktiv) : satzWeg(entwurf, entwurf.aktiv);
     } else if (z("[data-tr-menue]")) menue = !menue;
