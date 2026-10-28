@@ -716,6 +716,8 @@ async function execute(
           ...(tag ? { tag } : {}),
           ...(uhrzeit ? { uhrzeit } : {}),
           ...(Number.isFinite(minuten) && minuten >= 10 && minuten <= 300 ? { minuten: Math.round(minuten) } : {}),
+          ...(typeof input.zielTag === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.zielTag) ? { zielTag: input.zielTag } : {}),
+          ...(typeof input.zielUhrzeit === "string" && /^\d{1,2}:\d{2}$/.test(input.zielUhrzeit) ? { zielUhrzeit: input.zielUhrzeit.padStart(5, "0") } : {}),
           bestaetigt: input.bestaetigt === true,
         });
         if (text.startsWith(NICHT_GESPEICHERT)) return { text, fehler: true };

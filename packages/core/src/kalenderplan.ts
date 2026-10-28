@@ -122,6 +122,21 @@ export interface KalenderAuftrag {
   /** HH:MM, nur beim Eintragen mit fester Uhrzeit. */
   uhrzeit?: string;
   minuten?: number;
+  /** Beim Verschieben: wohin genau. Ohne beides sucht die App einen Platz. */
+  zielTag?: string;
+  zielUhrzeit?: string;
+  /** Der Nutzer hat ausdrücklich um genau diese Änderung gebeten. */
+  bestaetigt?: boolean;
+}
+
+const UHRZEIT = /\b(?:um\s+(\d{1,2})(?:[:.](\d{2}))?(?:\s*uhr)?|(\d{1,2})(?:[:.](\d{2}))?\s*uhr)\b/;
+
+function uhrzeitAus(text: string): string | undefined {
+  const u = UHRZEIT.exec(text);
+  if (!u) return undefined;
+  const h = Number(u[1] ?? u[3]);
+  if (h > 23) return undefined;
+  return `${String(h).padStart(2, "0")}:${u[2] ?? u[4] ?? "00"}`;
 }
 
 const WOCHENTAGE = ["sonntag", "montag", "dienstag", "mittwoch", "donnerstag", "freitag", "samstag"];
@@ -151,6 +166,25 @@ export function kalenderAuftragAus(satz: string, heute = new Date()): KalenderAu
   if (/\b(rueckgaengig|zurueck ?setzen|setz\w* .{0,30}zurueck)\b/.test(text) && /\b(kalender\w*|termin\w*|training\w*|verschieb\w*)\b/.test(text)) {
     return { aktion: "rueckgaengig" };
   }
+  // "Verschieb meinen Termin mit Kunde XY auf Freitag 14 Uhr". Wer den
+  // Termin selbst nennt und das Ziel dazu, hat damit ja gesagt, auch bei
+  // einem Kundentermin. Gefragt wird nur, wenn daevo von sich aus an einen
+  // fremden Termin will.
+  const genau = /^(.*?)\bauf\s+(.+)$/.exec(text);
+  if (genau && /\b(verschieb\w*|verleg\w*|leg\w*)\b/.test(text)) {
+    const [, vorher, nachher] = genau as unknown as [string, string, string];
+    const zielTag = tagAusSatz(nachher, heute);
+    const zielUhrzeit = uhrzeitAus(nachher);
+    const name = /\bmit\s+(?:dem |der |meinem |meiner )?(?:kunden|kundin|kunde)?\s*([a-z0-9][\w .-]{1,40}?)\s*$/.exec(vorher.trim())?.[1];
+    const suche = name ?? (TRAININGSWORT.test(vorher) ? "training" : undefined);
+    if (suche && (zielTag || zielUhrzeit)) {
+      const tag = tagAusSatz(vorher, heute);
+      return {
+        aktion: "verschieben", suche, ...(tag ? { tag } : {}),
+        ...(zielTag ? { zielTag } : {}), ...(zielUhrzeit ? { zielUhrzeit } : {}), bestaetigt: true,
+      };
+    }
+  }
   if (!TRAININGSWORT.test(text)) return null;
   const tag = tagAusSatz(text, heute);
   const dauer = /(\d+)\s*(min|minuten)\b/.exec(text) ?? null;
@@ -163,9 +197,8 @@ export function kalenderAuftragAus(satz: string, heute = new Date()): KalenderAu
     return { aktion: "verschieben", suche: "training", ...(tag ? { tag } : {}) };
   }
   if (/\btrag\w*\b.{0,60}\bein\b|\beintragen\b|\bin (den|meinen) kalender\b/.test(text)) {
-    const u = /\bum\s+(\d{1,2})(?:[:.](\d{2}))?\s*(?:uhr)?/.exec(text);
-    if (!u || Number(u[1]) > 23) return null;
-    const uhrzeit = `${String(Number(u[1])).padStart(2, "0")}:${u[2] ?? "00"}`;
+    const uhrzeit = uhrzeitAus(text);
+    if (!uhrzeit) return null;
     return { aktion: "eintragen", titel: "Training", uhrzeit, ...(tag ? { tag } : {}), ...(minuten ? { minuten } : {}) };
   }
   return null;

@@ -82,3 +82,34 @@ test("im Browser wird nur vorgeschlagen", async () => {
   const text = await kalenderTermin({ aktion: "eintragen", titel: "Training" });
   assert.match(text, /^Noch nicht gespeichert\. Frei wäre .*iPhone App/);
 });
+
+test("Kunde auf Freitag 14 Uhr: die Bitte ist das Ja, das Training dort wandert mit, ein Satz nimmt beides zurück", async () => {
+  const kunde = { uid: "k1", titel: "PT Müller", von: morgen("10:00"), bis: morgen("11:00"), eid: "ek", daevo: false, schreibbar: true };
+  const training = { uid: "tr", titel: "Training", von: morgen("14:00", 2), bis: morgen("15:00", 2), eid: "et", daevo: true, schreibbar: true };
+  lage([kunde, training]);
+  const d = new Date(morgen("12:00", 2));
+  const zielTag = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const text = await kalenderTermin({ aktion: "verschieben", suche: "mueller", zielTag, zielUhrzeit: "14:00", bestaetigt: true });
+  assert.match(text, /^Verschoben: „PT Müller“/);
+  assert.match(text, /Training“ lag dort und steht jetzt/);
+  const bewegt = aufrufe.filter((a) => a.methode === "verschieben");
+  assert.equal(bewegt.length, 2);
+  assert.equal(bewegt[0].daten.von, morgen("14:00", 2));
+  assert.equal(bewegt[0].daten.bestaetigt, true);
+  assert.ok(bewegt[1].daten.von >= morgen("15:15", 2) || bewegt[1].daten.bis <= morgen("13:45", 2), "Training nicht im Kundentermin");
+  assert.equal(kalenderAenderungen().length, 2);
+  const zurueck = await kalenderTermin({ aktion: "rueckgaengig" });
+  assert.equal((zurueck.match(/Zurückgenommen/g) || []).length, 2);
+  assert.equal(kalenderAenderungen().length, 0);
+});
+
+test("ohne Bitte bleibt ein fremder Termin liegen, am Ziel liegt ein anderer Kunde: nichts geschrieben", async () => {
+  const kunde = { uid: "k1", titel: "PT Müller", von: morgen("10:00"), bis: morgen("11:00"), eid: "ek", daevo: false, schreibbar: true };
+  const anderer = { uid: "k2", titel: "PT Alina", von: morgen("14:00"), bis: morgen("15:00"), eid: "ea", daevo: false, schreibbar: true };
+  lage([kunde, anderer]);
+  const besetzt = await kalenderTermin({ aktion: "verschieben", suche: "mueller", zielUhrzeit: "14:00", bestaetigt: true });
+  assert.match(besetzt, /^Noch nicht gespeichert\. Um 14:00 liegt schon „PT Alina“/);
+  const ohneJa = await kalenderTermin({ aktion: "verschieben", suche: "mueller", zielUhrzeit: "16:00" });
+  assert.match(ohneJa, /Sag ja/);
+  assert.equal(aufrufe.filter((a) => a.methode === "verschieben").length, 0);
+});

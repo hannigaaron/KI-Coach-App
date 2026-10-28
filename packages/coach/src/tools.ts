@@ -427,8 +427,11 @@ export const AGENT_TOOLS: ToolDefinition[] = [
       "nicht ins Training, plan um'), wenn ein Training eingetragen werden soll, oder um eine Änderung " +
       "zurückzunehmen. Den freien Platz rechnet die App aus Kalender, Wachzeit und Luft um Termine, " +
       "nenn nie selbst eine Uhrzeit als frei. Termine, die daevo selbst eingetragen hat, verschiebt " +
-      "die App ohne Rückfrage. Fremde Termine (Kunden, Familie, Meetings) nur mit bestaetigt true, und " +
-      "das erst, nachdem der Nutzer ausdrücklich ja gesagt hat. Ohne Uhrzeit beim Eintragen sucht die " +
+      "die App ohne Rückfrage. Fremde Termine (Kunden, Familie, Meetings) nur mit bestaetigt true. " +
+      "Bittet der Nutzer selbst darum, einen bestimmten Termin zu verschieben ('verschieb den Termin mit " +
+      "Kunde Müller auf Freitag 14 Uhr'), ist das sein Ja: bestaetigt true, zielTag und zielUhrzeit setzen, " +
+      "nicht nachfragen. Liegt am Ziel ein Training, verlegt die App es selbst und sagt wohin. Nachfragen " +
+      "nur, wenn du von dir aus einen fremden Termin bewegen willst. Ohne Uhrzeit beim Eintragen sucht die " +
       "App den nächsten freien Platz. Für dauerhaft andere Trainingstage gibt es trainingsplan_aendern.",
     input_schema: {
       type: "object",
@@ -442,7 +445,12 @@ export const AGENT_TOOLS: ToolDefinition[] = [
         tag: { type: "string", description: "JJJJ-MM-TT. Beim Verschieben der Tag des alten Termins, beim Eintragen der neue." },
         uhrzeit: { type: "string", description: "HH:MM, nur wenn der Nutzer sie genannt hat." },
         minuten: { type: "number", description: "Dauer. Ohne Angabe die des alten Termins oder der Einheit im Profil." },
-        bestaetigt: { type: "boolean", description: "true nur nach einem Ja zu einem fremden Termin." },
+        zielTag: { type: "string", description: "JJJJ-MM-TT, wohin verschoben wird, wenn der Nutzer es nennt." },
+        zielUhrzeit: { type: "string", description: "HH:MM, wohin verschoben wird, wenn der Nutzer es nennt." },
+        bestaetigt: {
+          type: "boolean",
+          description: "true, wenn der Nutzer diesen fremden Termin selbst verschieben lassen will oder ja gesagt hat.",
+        },
       },
       required: ["aktion"],
     },

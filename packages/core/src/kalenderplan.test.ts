@@ -77,3 +77,15 @@ test("liest die Sätze, die im Alltag fallen", async () => {
   assert.equal(kalenderAuftragAus("Mach das rückgängig", mi), null, "ohne Kalender nicht");
   assert.deepEqual(kalenderAuftragAus("Mach die Kalenderänderung rückgängig", mi), { aktion: "rueckgaengig" });
 });
+
+test("ein genannter Termin mit Ziel ist ein Ja, auch beim Kunden", async () => {
+  const { kalenderAuftragAus } = await import("./kalenderplan.js");
+  const mi = new Date(2026, 9, 28, 9, 0);
+  assert.deepEqual(
+    kalenderAuftragAus("Kannst du bitte kurz meinen Termin mit dem Kunden Müller auf Freitag 14 Uhr verschieben und dann schauen, wann ich trainieren könnte", mi),
+    { aktion: "verschieben", suche: "mueller", zielTag: "2026-10-30", zielUhrzeit: "14:00", bestaetigt: true },
+  );
+  assert.deepEqual(kalenderAuftragAus("Leg mein Training von morgen auf Samstag um 10", mi),
+    { aktion: "verschieben", suche: "training", tag: "2026-10-29", zielTag: "2026-10-31", zielUhrzeit: "10:00", bestaetigt: true });
+  assert.equal(kalenderAuftragAus("Ich freu mich auf Freitag 14 Uhr", mi), null);
+});

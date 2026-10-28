@@ -40,6 +40,9 @@ export function kalenderAenderungen(settings = store.getSettings()) {
   return Array.isArray(settings.kalenderAenderungen) ? settings.kalenderAenderungen : [];
 }
 
+let gruppeZaehler = 0;
+const gruppeNeu = () => `${Date.now()}-${++gruppeZaehler}`;
+
 function merken(eintrag) {
   const s = store.getSettings();
   const stapel = [...kalenderAenderungen(s), { ...eintrag, am: new Date().toISOString() }].slice(-STAPEL_MAX);
@@ -85,6 +88,76 @@ async function neuLesen() {
   try { await kalenderAbgleichen({ zwang: true }); } catch { /* der Stand von vorher bleibt */ }
 }
 
+/** Gibt einen Satz zurück, wenn nicht verschoben werden darf, sonst null. */
+function darfVerschieben(t, auftrag) {
+  if (!t.eid || t.schreibbar === false) {
+    return `${NICHT_GESPEICHERT} \u201e${t.titel}\u201c liegt in einem Kalender, in den daevo nicht schreiben darf.`;
+  }
+  if (!t.daevo && auftrag.bestaetigt !== true) {
+    return `${NICHT_GESPEICHERT} \u201e${t.titel}\u201c hat nicht daevo eingetragen. Soll ich ihn verschieben? Sag ja, dann mache ich es.`;
+  }
+  return null;
+}
+
+async function verschiebenNativ(t, platz, bestaetigt, gruppe) {
+  try {
+    await nativAufruf("Kalender", "verschieben", { eid: t.eid, alt: t.von, von: platz.von, bis: platz.bis, bestaetigt });
+  } catch (e) {
+    return `${NICHT_GESPEICHERT} Verschieben ging nicht: ${e?.message || e}`;
+  }
+  merken({ art: "verschoben", eid: t.eid, titel: t.titel, vorher: { von: t.von, bis: t.bis }, nachher: { von: platz.von, bis: platz.bis }, gruppe });
+  return null;
+}
+
+/**
+ * "Verschieb den Termin mit Kunde XY auf Freitag 14 Uhr". Das Ziel nennt der
+ * Nutzer, also gilt es genau, auch bei einem fremden Termin: die Bitte ist
+ * das Ja. Liegt dort ein Training, wandert das Training an den nächsten
+ * freien Platz, denn genau das ist die zweite Hälfte dieses Satzes. Ein
+ * Training, das daevo eingetragen hat, ohne Rückfrage, ein fremdes nur mit
+ * Vorschlag. Liegt dort etwas anderes, wird nichts geschrieben: zwei
+ * Kundentermine übereinander legt daevo nicht still an.
+ */
+async function anGenauesZiel(alt, auftrag, { termine, profile, jetzt }) {
+  const dauer = alt.bis - alt.von;
+  const tag = auftrag.zielTag || tagIso(alt.von);
+  const zeit = auftrag.zielUhrzeit || uhr(alt.von);
+  const von = tagBeginn(tag) + (Number(zeit.slice(0, 2)) * 60 + Number(zeit.slice(3, 5))) * 60000;
+  const ziel = { tag, von, bis: von + dauer };
+  if (von < jetzt) return `${NICHT_GESPEICHERT} ${platzText(ziel)} liegt in der Vergangenheit.`;
+  const im = termine.filter((t) => !t.ganztags && t.uid !== alt.uid && t.von < ziel.bis && t.bis > ziel.von);
+  const fremd = im.find((t) => !passt(t, "training"));
+  if (fremd) {
+    return `${NICHT_GESPEICHERT} Um ${zeit} liegt schon \u201e${fremd.titel}\u201c. Soll ich \u201e${alt.titel}\u201c trotzdem dorthin legen oder eine andere Zeit nehmen?`;
+  }
+  if (!kannSchreiben()) return `${NICHT_GESPEICHERT} ${NUR_IPHONE}`;
+  const pruefung = darfVerschieben(alt, auftrag);
+  if (pruefung) return pruefung;
+  const gruppe = gruppeNeu();
+  const fehler = await verschiebenNativ(alt, ziel, auftrag.bestaetigt === true, gruppe);
+  if (fehler) return fehler;
+  const saetze = [`Verschoben: \u201e${alt.titel}\u201c von ${platzText(alt)} auf ${platzText(ziel)}.`];
+
+  const training = im.find((t) => passt(t, "training"));
+  if (training) {
+    const belegt = [...termine.filter((t) => t.uid !== alt.uid && t.uid !== training.uid), { ...alt, ...ziel }];
+    const platz = freienPlatzFinden({
+      termine: belegt, profile,
+      wunsch: { minuten: Math.round((training.bis - training.von) / 60000), ab: Math.max(jetzt, tagBeginn(tag)), uhrzeit: uhr(training.von) },
+    });
+    if (!platz) {
+      saetze.push(`Dein \u201e${training.titel}\u201c liegt jetzt darunter, und in den nächsten sieben Tagen finde ich keinen freien Platz dafür.`);
+    } else if (training.daevo && training.eid && training.schreibbar !== false) {
+      const f = await verschiebenNativ(training, platz, false, gruppe);
+      saetze.push(f ? `Dein Training liegt jetzt darunter. ${f}` : `Dein \u201e${training.titel}\u201c lag dort und steht jetzt am ${platzText(platz)}.`);
+    } else {
+      saetze.push(`Dort lag dein \u201e${training.titel}\u201c. Frei wäre ${platzText(platz)}. Soll ich es dorthin legen?`);
+    }
+  }
+  await neuLesen();
+  return `${saetze.join(" ")} ${RUECKNAHME}`;
+}
+
 /**
  * Führt einen Auftrag aus `kalenderAuftragAus` oder vom Modell aus. Gibt
  * immer einen Satz zurück. Hat er nichts geschrieben, beginnt er mit
@@ -105,6 +178,10 @@ export async function kalenderTermin(auftrag = {}, { jetzt = Date.now() } = {}) 
   }
   const uebernommen = !auftrag.minuten && !alt ? ` Die Dauer von ${minuten} Minuten ist aus deinem Trainingsplan übernommen.` : "";
   const titel = auftrag.titel || alt?.titel || ART_TITEL[vorbild?.type ?? vorbild?.art] || "Training";
+
+  if (alt && aktion === "verschieben" && (auftrag.zielTag || auftrag.zielUhrzeit)) {
+    return anGenauesZiel(alt, auftrag, { termine, profile, jetzt });
+  }
 
   // Fester Wunsch beim Eintragen: genau dort oder gar nicht, statt still
   // eine andere Zeit zu nehmen.
@@ -134,25 +211,17 @@ export async function kalenderTermin(auftrag = {}, { jetzt = Date.now() } = {}) 
   if (!kannSchreiben()) return `${NICHT_GESPEICHERT} Frei wäre ${platzText(platz)}. ${NUR_IPHONE}`;
 
   if (alt && aktion === "verschieben") {
-    if (!alt.eid || alt.schreibbar === false) {
-      return `${NICHT_GESPEICHERT} „${alt.titel}“ liegt in einem Kalender, in den daevo nicht schreiben darf. Frei wäre ${platzText(platz)}.`;
-    }
-    if (!alt.daevo && auftrag.bestaetigt !== true) {
-      return `${NICHT_GESPEICHERT} „${alt.titel}“ hat nicht daevo eingetragen. Soll ich ihn von ${platzText(alt)} auf ${platzText(platz)} verschieben? Sag ja, dann mache ich es.`;
-    }
-    try {
-      await nativAufruf("Kalender", "verschieben", { eid: alt.eid, alt: alt.von, von: platz.von, bis: platz.bis, bestaetigt: auftrag.bestaetigt === true });
-    } catch (e) {
-      return `${NICHT_GESPEICHERT} Verschieben ging nicht: ${e?.message || e}`;
-    }
-    merken({ art: "verschoben", eid: alt.eid, titel: alt.titel, vorher: { von: alt.von, bis: alt.bis }, nachher: { von: platz.von, bis: platz.bis } });
+    const pruefung = darfVerschieben(alt, auftrag);
+    if (pruefung) return `${pruefung} Frei wäre ${platzText(platz)}.`;
+    const fehler = await verschiebenNativ(alt, platz, auftrag.bestaetigt === true, gruppeNeu());
+    if (fehler) return fehler;
     await neuLesen();
-    return `Verschoben: „${alt.titel}“ von ${platzText(alt)} auf ${platzText(platz)}. ${RUECKNAHME}`;
+    return `Verschoben: \u201e${alt.titel}\u201c von ${platzText(alt)} auf ${platzText(platz)}. ${RUECKNAHME}`;
   }
 
   try {
     const r = await nativAufruf("Kalender", "anlegen", { titel, von: platz.von, bis: platz.bis });
-    merken({ art: "angelegt", eid: r?.eid || "", titel, nachher: { von: platz.von, bis: platz.bis } });
+    merken({ art: "angelegt", eid: r?.eid || "", titel, nachher: { von: platz.von, bis: platz.bis }, gruppe: gruppeNeu() });
     await neuLesen();
     return `Eingetragen: „${titel}“ am ${platzText(platz)}${r?.kalender ? ` im Kalender ${r.kalender}` : ""}.${uebernommen} ${RUECKNAHME}`;
   } catch (e) {
@@ -160,12 +229,33 @@ export async function kalenderTermin(auftrag = {}, { jetzt = Date.now() } = {}) 
   }
 }
 
-/** Nimmt die letzte Änderung zurück, genau eine. */
+/**
+ * Nimmt den letzten Auftrag zurück. Hat er zwei Termine bewegt, etwa den
+ * Kunden und das Training dahinter, kommen beide zurück: der Nutzer hat
+ * einen Satz gesagt und nimmt einen Satz zurück.
+ */
 export async function zuruecknehmen() {
   const stapel = kalenderAenderungen();
   const letzte = stapel[stapel.length - 1];
   if (!letzte) return `${NICHT_GESPEICHERT} daevo hat noch nichts im Kalender geändert, das ich zurücknehmen könnte.`;
   if (!kannSchreiben()) return `${NICHT_GESPEICHERT} ${NUR_IPHONE}`;
+  const saetze = [];
+  let rest = stapel;
+  while (rest.length) {
+    const e = rest[rest.length - 1];
+    if (e !== letzte && (!letzte.gruppe || e.gruppe !== letzte.gruppe)) break;
+    const satz = await eineZuruecknehmen(e);
+    if (satz.startsWith(NICHT_GESPEICHERT)) { saetze.push(satz); break; }
+    saetze.push(satz);
+    rest = rest.slice(0, -1);
+    const s = store.getSettings();
+    store.setSettings({ ...s, kalenderAenderungen: rest });
+  }
+  await neuLesen();
+  return saetze.join(" ");
+}
+
+async function eineZuruecknehmen(letzte) {
   try {
     if (letzte.art === "angelegt") {
       await nativAufruf("Kalender", "loeschen", { eid: letzte.eid, alt: letzte.nachher.von });
@@ -178,9 +268,6 @@ export async function zuruecknehmen() {
   } catch (e) {
     return `${NICHT_GESPEICHERT} Zurücknehmen ging nicht: ${e?.message || e}`;
   }
-  const s = store.getSettings();
-  store.setSettings({ ...s, kalenderAenderungen: kalenderAenderungen(s).slice(0, -1) });
-  await neuLesen();
   return letzte.art === "angelegt"
     ? `Zurückgenommen: „${letzte.titel}“ am ${platzText(letzte.nachher)} ist wieder aus dem Kalender.`
     : `Zurückgenommen: „${letzte.titel}“ steht wieder am ${platzText(letzte.vorher)}.`;

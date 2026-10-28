@@ -514,7 +514,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1225 Tests
+npm test           # 1228 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -584,8 +584,16 @@ Modell, das eine Uhrzeit nennt, kennt den Kalender nicht genau genug und
 legt das Training auf einen Kundentermin.
 
 Was daevo eingetragen hat, trägt `daevo://termin` als URL und wird ohne
-Rückfrage verschoben. Fremde Termine nur mit `bestaetigt`, also nach einem
-Ja, und gelöscht wird nur Eigenes. Beides prüft das Plugin selbst noch
+Rückfrage verschoben. Fremde Termine nur mit `bestaetigt`, und gelöscht
+wird nur Eigenes. Die Bitte des Nutzers ist das Ja: "verschieb den Termin
+mit Kunde Müller auf Freitag 14 Uhr" setzt `bestaetigt`, `zielTag` und
+`zielUhrzeit`, auch im Regelpfad, und daevo fragt nicht nach. Gefragt wird
+nur, wenn daevo von sich aus an einen fremden Termin will. Ein genanntes
+Ziel gilt genau, `anGenauesZiel`. Liegt dort ein Training, wandert es an
+den nächsten freien Platz, ein eigenes ohne Rückfrage, ein fremdes als
+Vorschlag. Liegt dort etwas anderes, schreibt daevo nichts und fragt:
+zwei Kundentermine übereinander legt es nicht still an. Beide Bewegungen
+tragen dieselbe `gruppe` und kommen mit einem Satz zusammen zurück. Beides prüft das Plugin selbst noch
 einmal, damit ein Fehler im Modell keinen Kundentermin verschiebt.
 Wiederkehrende Termine werden nur in diesem einen Vorkommen geändert.
 
