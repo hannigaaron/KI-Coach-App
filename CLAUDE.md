@@ -530,7 +530,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1231 Tests
+npm test           # 1234 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -3205,6 +3205,22 @@ deshalb ein Test und kein Betrieb.
 Rest der Datei. Vorher schrieb es die Hilfsfunktionen von Hand nach, und
 `istNativ` wäre in der Fassung für Nutzer gefehlt. Deren Import bricht dann
 das ganze Modul, und die App bleibt schwarz.
+
+## Zugriffe beim ersten Start
+
+`apps/pwa/js/berechtigungen.js`, das Blatt `#rechteBlatt`. In der iPhone
+App kommt nach Fragebogen oder erstem Öffnen einmal ein Blatt mit den vier
+Zugriffen und danach die Fragen von iOS, nacheinander: Kalender, Apple
+Health, Mitteilungen, Mikrofon mit Spracherkennung. Vorher kam jede Frage
+erst, wenn die Funktion gebraucht wurde, der Kalender also nie, solange
+niemand im Profil auf Verbinden tippte. Gesteuert über
+`settings.berechtigungenGefragt`, also auch einmal bei allen, die die App
+schon haben: iOS fragt nie zweimal nach demselben Zugriff.
+
+Das Blatt hat nur "Weiter". Apple lehnt Vorabseiten mit eigenem Nein ab,
+abgelehnt wird in der Frage von iOS. Einführung, Abo Fenster, Health
+Abgleich und Mitteilungen warten, bis alles beantwortet ist. Was fehlt,
+nennt danach eine Meldung mit dem Weg in die Einstellungen.
 
 ## Eigene Erinnerungen
 

@@ -482,6 +482,29 @@ try {
     </div>
   </div>
 
+  <!-- Beim ersten Start in der iPhone App, einmal. Nur ein Knopf "Weiter":
+       Apple lehnt Vorabseiten ab, die vor der Frage von iOS ein eigenes Nein
+       anbieten. Ablehnen geht in der Frage von iOS selbst. -->
+  <div id="rechteBlatt" class="blatt" hidden>
+    <div class="blatt-innen" role="dialog" aria-modal="true" aria-labelledby="rechteTitel">
+      <header class="blatt-kopf">
+        <h2 id="rechteTitel">daevo verbinden</h2>
+      </header>
+      <div class="blatt-scroll ki-text">
+        <p>Gleich fragt iOS nacheinander nach vier Zugriffen. Jeder ist freiwillig, und du kannst ihn später in den iOS Einstellungen unter daevo ändern.</p>
+        <ul class="rechte-liste">
+          <li><b>Kalender</b><span>damit daevo Training und Mahlzeiten in deine freien Zeiten legt und Trainings einträgt</span></li>
+          <li><b>Apple Health</b><span>Schritte, Schlaf, Gewicht, Trainings aus Apple Fitness und Ernährung aus anderen Apps</span></li>
+          <li><b>Mitteilungen</b><span>Erinnerungen, Pausenende im Training und Hinweise bei Kalenderkonflikten</span></li>
+          <li><b>Mikrofon und Spracherkennung</b><span>damit du Essen und Fragen einfach sagen kannst</span></li>
+        </ul>
+      </div>
+      <div class="ki-knoepfe">
+        <button id="rechteWeiter" class="primary breit" type="button">Weiter</button>
+      </div>
+    </div>
+  </div>
+
   <div id="kiBlatt" class="blatt" hidden>
     <div class="blatt-innen" role="dialog" aria-modal="true" aria-labelledby="kiTitel">
       <header class="blatt-kopf">

@@ -64,6 +64,7 @@ import { abosAbgleichen, kaufenNativ, startAnlass } from "./kauf.js";
 import { anmeldeWege, anmeldenApple, anmeldenGoogleNativ, anmeldungSenden, anmeldungText } from "./anmeldung.js";
 import { aboEntfernen, aboHinzufuegen, APPLE_QUELLE, appleKalenderTrennen, appleKalenderVerbinden, kalenderAbgleichen, kalenderAbos } from "./kalender-sync.js";
 import { mitteilungenPlanen } from "./mitteilungen.js";
+import { berechtigungenFragen, berechtigungenOffen, berechtigungenText } from "./berechtigungen.js";
 import { nativAufruf } from "./nativ.js";
 import { spueren } from "./haptik.js";
 import { anteilAmZiel, eigeneRezepte, hauptMakro, rezeptGrenze, rezeptLoeschen, rezeptSpeichern, summe as postenSumme, tabellenBild, tabellenPosten, tabellenSuche, zuletztGegessen } from "./bibliothek.js";
@@ -2635,20 +2636,22 @@ function startApp() {
   // Im Hintergrund, damit die erste Nachricht schon zählt. Scheitert es, wird
   // es vor der nächsten Nachricht nachgeholt.
   const aboGeprueft = kontoSicherstellen().then(() => aboBeimStart()).catch(() => {});
-  // Nacheinander: zwei Abfragen von iOS gleichzeitig, und die zweite geht
-  // unter der ersten verloren.
-  healthNativ().then(() => mitteilungenNativ());
-  kontoSicherstellen().then(() => kalenderStill());
+  // Erst die Zugriffe, dann alles, was sie braucht. Nacheinander: zwei
+  // Abfragen von iOS gleichzeitig, und die zweite geht unter der ersten
+  // verloren.
+  const rechte = rechteFragen();
+  rechte.then(() => healthNativ()).then(() => mitteilungenNativ());
+  Promise.all([kontoSicherstellen().catch(() => {}), rechte]).then(() => kalenderStill());
   anmeldungStandZeigen();
   // Wer die App schon benutzt, wird einmal gefragt, nicht vor jedem Start.
-  if (store.getSettings().einfuehrungGesehen) setTimeout(() => anmeldungFragen(), 1200);
+  if (store.getSettings().einfuehrungGesehen) rechte.then(() => setTimeout(() => anmeldungFragen(), 1200));
   // Die Einführung kommt einmal: nach dem Bogen, beim ersten Öffnen der Demo,
   // und einmal bei allen, die die App schon vorher benutzt haben. Danach steht
   // sie im Profil. Wer sie bei jedem Start sieht, tippt sie weg, ohne zu lesen.
   if (!store.getSettings().einfuehrungGesehen) {
-    aboGeprueft.then(() => setTimeout(() => aboFensterZu().then(() => einfuehrungStarten({ zeigeAnsicht: showView, beiEnde: einfuehrungGesehen })), 900));
+    Promise.all([aboGeprueft, rechte]).then(() => setTimeout(() => aboFensterZu().then(() => einfuehrungStarten({ zeigeAnsicht: showView, beiEnde: einfuehrungGesehen })), 900));
   }
-  else setTimeout(morgenVielleicht, 1000);
+  else rechte.then(() => setTimeout(morgenVielleicht, 1000));
   options = { ...options, ...(store.getSettings().voice || {}) };
   renderFeelings();
   ensureStandards();
@@ -5084,6 +5087,37 @@ function anmeldungStandZeigen() {
   $("btnAboVerwalten").hidden = !(KONFIG.chatUrl && (istNativ() || KONFIG.abo?.portalUrl));
 }
 
+/* ---------- Zugriffe beim ersten Start ---------- */
+
+let rechteOffen = false;
+
+/**
+ * Zeigt beim ersten Start in der iPhone App einmal das Blatt mit den vier
+ * Zugriffen und stellt danach die Fragen von iOS, siehe `berechtigungen.js`.
+ * Löst sich auf, wenn alles beantwortet ist, sonst sofort.
+ */
+function rechteFragen() {
+  if (!istNativ() || !berechtigungenOffen(store.getSettings())) return Promise.resolve();
+  rechteOffen = true;
+  $("rechteBlatt").hidden = false;
+  document.body.classList.add("blatt-offen");
+  return new Promise((fertig) => {
+    $("rechteWeiter").addEventListener("click", async () => {
+      $("rechteBlatt").hidden = true;
+      document.body.classList.remove("blatt-offen");
+      try {
+        const ergebnis = await berechtigungenFragen({ aufruf: nativAufruf, store });
+        const satz = berechtigungenText(ergebnis);
+        if (satz) toast(satz, 8000);
+      } catch {
+        // Ohne Hülle oder Plugin bleibt jede Funktion bei ihrer eigenen Frage.
+      }
+      rechteOffen = false;
+      fertig();
+    }, { once: true });
+  });
+}
+
 /* ---------- Apple Health in der iPhone App ---------- */
 
 let healthLaeuft = false;
@@ -5094,7 +5128,7 @@ let healthLaeuft = false;
  * über zwei Jahre und kann dauern.
  */
 async function healthNativ() {
-  if (!istNativ() || healthLaeuft) return;
+  if (!istNativ() || healthLaeuft || rechteOffen) return;
   healthLaeuft = true;
   try {
     const bericht = await healthkitAbgleichen({ aufruf: nativAufruf, store, heute: todayIso() });
@@ -5114,7 +5148,7 @@ async function healthNativ() {
  * Lücke.
  */
 async function mitteilungenNativ() {
-  if (!istNativ()) return;
+  if (!istNativ() || rechteOffen) return;
   try {
     const { antworten = [], geoeffnet = null } = await nativAufruf("Mitteilungen", "abholen");
     for (const eintrag of antworten) {

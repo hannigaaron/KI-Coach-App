@@ -3830,3 +3830,9 @@ button small, button .erfassen-sub, button .me-werte, button .me-werte *,
   display: block; margin: var(--s-2) auto 0; padding: var(--s-2) var(--s-3); border: 0; background: none; box-shadow: none;
   color: var(--muted); font-size: var(--t-sm); cursor: pointer;
 }
+
+/* Die Zugriffe beim ersten Start. Name fett, darunter wozu, ohne Rahmen. */
+.rechte-liste { list-style: none; margin: var(--s-3) 0 0; padding: 0; }
+.rechte-liste li { display: flex; flex-direction: column; gap: 2px; padding: var(--s-3) 0; border-top: 1px solid var(--linie); }
+.rechte-liste li:first-child { border-top: 0; }
+.rechte-liste span { color: var(--muted); font-size: var(--t-sm); line-height: 1.45; }
