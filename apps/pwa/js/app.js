@@ -518,7 +518,7 @@ $("btnDump").addEventListener("click", () => {
   listener?.stop?.();
 
   dumpListener = new Listener({
-    pauseMs: 6000,
+    pauseMs: 9000,
     maxMs: 300000,
     stilleMs: 12000,
     onPartial: (t) => { $("chatInput").value = t; },
@@ -1822,15 +1822,8 @@ async function renderStimmwahl() {
       + "und neu öffnen.");
   }
 
-  zeilen.push("Das Tempo stellst du darunter ein. Spass- und Eloquence-Stimmen wie Zarvox oder Grandpa "
-    + "stehen bewusst nicht in der Liste.");
-
-  // Was die Web Speech API kann, hat eine Obergrenze, und die liegt unter dem,
-  // was der Nutzer von Claude oder ChatGPT kennt. Das gehoert gesagt, sonst
-  // sucht er den Fehler bei sich.
-  zeilen.push("Auch eine Premium Stimme klingt nicht wie Claude oder ChatGPT. Die laufen auf "
-    + "einer Sprachsynthese im Netz, die daevo nicht eingebaut hat.");
-
+  // Nur Hinweise, die etwas ändern. Eine Liste aller Gerätestimmen und
+  // Sätze darüber, was nicht geht, standen hier vorher und halfen niemandem.
   $("e-stimmhilfe").textContent = zeilen.join(" ");
 }
 
@@ -2501,13 +2494,31 @@ function renderKosten() {
   $("kostenHinweis").textContent = zeilen.join(" ");
 }
 
+// Welche Einheit gerade im Formular steht. -1 heisst: das Formular legt
+// eine neue an.
+let sessionBearbeitet = -1;
+
+function sessionFormular(i) {
+  sessionBearbeitet = i;
+  const s = profile.sessions?.[i];
+  if (s) {
+    $("t-day").value = String(s.weekday);
+    $("t-time").value = s.startsAt;
+    $("t-type").value = s.type;
+    $("t-min").value = String(s.minutes);
+  }
+  $("btnAddSession").textContent = s ? "Änderung speichern" : "Einheit hinzufügen";
+  $("btnDelSession").hidden = !s;
+  renderSessions();
+}
+
 function renderSessions() {
   const sessions = profile.sessions || [];
   $("sessionList").innerHTML = sessions.length
     ? sessions.map((s, i) =>
         `<li><div class="li-main"><div class="li-title">${WEEKDAYS[s.weekday]} ${s.startsAt}</div>` +
         `<div class="li-sub">${TYPE_LABEL[s.type] || s.type}, ${s.minutes} Minuten</div></div>` +
-        `<div class="li-side"><button class="ghost" data-del="${i}">Weg</button></div></li>`).join("")
+        `<div class="li-side"><button class="ghost" data-edit="${i}" aria-pressed="${sessionBearbeitet === i}">${sessionBearbeitet === i ? "Wird geändert" : "Ändern"}</button></div></li>`).join("")
     : `<li><div class="li-main"><div class="li-sub">Noch keine Einheit eingetragen.</div></div></li>`;
 }
 
@@ -4288,35 +4299,7 @@ $("e-tempo").addEventListener("change", () => {
 });
 $("btnStimmProbe").addEventListener("click", stimmProbe);
 
-/**
- * Was das Gerät der App wirklich meldet, ungefiltert.
- *
- * Es gibt dafür einen konkreten Anlass. Auf dem iPhone lädt man unter
- * Bedienungshilfen, Gesprochene Inhalte, Stimmen weitere Stimmen herunter,
- * und die erscheinen trotzdem nicht zur Wahl. Der Grund ist, dass die Web
- * Speech API einen anderen Topf sieht als VoiceOver.
- *
- * Ohne diese Liste ist jede Aussage darüber eine Vermutung, meine
- * eingeschlossen. Hier steht, was tatsächlich da ist, mit Sprachkürzel und
- * Vermerk, ob die Stimme lokal liegt oder über das Netz kommt.
- */
-$("btnStimmenAlle").addEventListener("click", async () => {
-  const feld = $("e-stimmenRoh");
-  if (!feld.hidden) { feld.hidden = true; return; }
-  feld.hidden = false;
-  feld.textContent = "einen Moment";
-  await stimmenBereit();
-  const alle = alleStimmen();
-  if (alle.length === 0) {
-    feld.textContent = "Dieses Gerät meldet der App keine einzige Stimme.";
-    return;
-  }
-  const deutsch = alle.filter(istDeutsch).length;
-  const zeilen = alle.map((v) => v.nativ
-    ? `${v.name}  [${v.lang}]  ${["", "Basis", "Erweitert", "Premium"][stimmQualitaet(v)]}${v.geschlecht ? `  ${v.geschlecht}` : ""}`
-    : `${v.name}  [${v.lang}]  ${v.localService ? "lokal" : "Netz"}`);
-  feld.textContent = `${alle.length} Stimmen gemeldet, davon ${deutsch} deutsch.\n\n${zeilen.join("\n")}`;
-});
+
 
 /**
  * Die Adresse für den Siri Kurzbefehl.
@@ -5623,24 +5606,46 @@ window.addEventListener("daevo-stimmen", () => {
   if (profilView && !profilView.hidden) renderStimmwahl();
 });
 
-$("btnAddSession").addEventListener("click", () => {
+$("btnAddSession").addEventListener("click", async () => {
   const minutes = Number($("t-min").value);
   if (!(minutes >= 5 && minutes <= 480)) { toast("Dauer muss zwischen 5 und 480 Minuten liegen."); return; }
-  profile.sessions = [
-    ...(profile.sessions || []),
-    { type: $("t-type").value, minutes, weekday: Number($("t-day").value), startsAt: $("t-time").value },
-  ].slice(0, 21);
+  const neu = { type: $("t-type").value, minutes, weekday: Number($("t-day").value), startsAt: $("t-time").value };
+  const i = sessionBearbeitet;
+  const alt = profile.sessions?.[i];
+  if (!alt) {
+    profile.sessions = [...(profile.sessions || []), neu].slice(0, 21);
+    store.setProfile(profile);
+    renderSessions();
+    toast("Einheit hinzugefügt");
+    return;
+  }
+  profile.sessions = profile.sessions.map((s, k) => (k === i ? neu : s));
   store.setProfile(profile);
-  renderSessions();
-  toast("Einheit hinzugefügt");
+  sessionFormular(-1);
+  // Was daevo für diese Einheit schon in den Kalender geschrieben hat,
+  // wandert mit. Sonst stünde im Profil Dienstag und im Kalender Montag.
+  const { einheitImKalenderAnpassen } = await import("./kalender-schreiben.js");
+  const r = await einheitImKalenderAnpassen(alt, neu);
+  toast(r.anzahl
+    ? `Geändert, ${r.anzahl} ${r.anzahl === 1 ? "Termin" : "Termine"} im Kalender mitverschoben`
+    : "Geändert", 4000);
+  refreshAll();
+});
+
+$("btnDelSession").addEventListener("click", () => {
+  if (sessionBearbeitet < 0) return;
+  profile.sessions.splice(sessionBearbeitet, 1);
+  store.setProfile(profile);
+  sessionFormular(-1);
+  toast("Einheit entfernt");
 });
 
 $("sessionList").addEventListener("click", (event) => {
-  const button = event.target.closest("[data-del]");
+  const button = event.target.closest("[data-edit]");
   if (!button) return;
-  profile.sessions.splice(Number(button.dataset.del), 1);
-  store.setProfile(profile);
-  renderSessions();
+  const i = Number(button.dataset.edit);
+  sessionFormular(sessionBearbeitet === i ? -1 : i);
+  if (sessionBearbeitet === i) $("t-day").scrollIntoView({ behavior: "smooth", block: "center" });
 });
 
 /**

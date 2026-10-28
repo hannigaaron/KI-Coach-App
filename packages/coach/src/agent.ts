@@ -1538,7 +1538,7 @@ export async function runOffline(
   // als keine: sie sieht aus wie eine.
   // Zwei Listen, beide müssen treffen. Das Wort "aktuell" allein wäre zu
   // breit, zusammen mit "Kalender" ist es eindeutig.
-  if (pattern("verbunden", "verknüpft", "verknupft", "verbinden", "synchron", "sync",
+  if (pattern("verbunden", "verknüpft", "verknupft", "verbinden", "synchron", "sync", "zugriff",
     "aktualisiert", "aktuell", "veraltet", "falsch", "fehlen",
     "fehlt", "richtig drin", "eingelesen", "stimmt").test(text)
     && pattern("kalender", "termine", "google", "apple", "ical").test(text)) {

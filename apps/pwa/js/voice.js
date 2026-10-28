@@ -37,14 +37,16 @@ const Recognition = globalThis.SpeechRecognition || globalThis.webkitSpeechRecog
  * 2,2 Sekunden waren zu knapp. Wer eine Mahlzeit mit sechs Posten diktiert,
  * überlegt zwischen zwei Posten, und die Erkennung schickte dann mitten in
  * der Aufzählung ab. Der Rest kam als zweite Nachricht oder gar nicht an.
+ * Auch 3,2 Sekunden schnitten im ersten Test auf dem iPhone mitten im
+ * Gedanken ab. Wer schneller fertig ist, tippt auf Fertig.
  */
-const PAUSE_MS = 3200;
+const PAUSE_MS = 5000;
 /**
  * Längere Pause, wenn der Satz erkennbar noch nicht fertig ist: er endet auf
  * "und", "mit", eine Zahl oder eine Einheit. "80 Gramm Milchreis und" ist
  * kein Satzende, sondern ein Nachdenken über den nächsten Posten.
  */
-const PAUSE_OFFEN_MS = 6000;
+const PAUSE_OFFEN_MS = 8000;
 const OFFENES_ENDE = /(?:^|[\s,])(und|mit|oder|noch|dazu|plus|sowie|ein|eine|einen|einem|der|die|das|den|dem|von|vom|zum|zur|auf|aus|in|im|also|dann|aber|weil|dass|gramm|g|milliliter|ml|liter|l|löffel|teelöffel|esslöffel|gehäuft|gehäuften|gehäufter)\s*$|[\d,]\s*$/i;
 
 /** Die Pause, die zu diesem Stand des Satzes passt. */
