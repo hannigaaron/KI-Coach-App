@@ -266,3 +266,28 @@ test("die letzte erlaubte Nachricht bricht nicht im Werkzeug ab", async () => {
   const weiter = await chatWeiterreichen(folge, env, async () => new Response("{}"), () => {});
   assert.equal(weiter.status, 200);
 });
+
+test("DELETE /konto löscht Konto, Kennung und Verbrauch", async () => {
+  const env = umgebung();
+  const { token, konto } = await kontoAnlegen(env.ABOS);
+  await verbrauchBuchen(env.ABOS, konto.id, { nachrichten: 3, mikro: 500 });
+  const anfrage = new Request("https://w.dev/konto", {
+    method: "DELETE",
+    headers: { authorization: `Bearer ${token}`, origin: "https://example.org" },
+  });
+  const antwort = await worker.fetch(anfrage, env);
+  assert.equal(antwort.status, 200);
+  assert.equal([...env.ABOS.inhalt.keys()].filter((k) => k.includes(konto.id) || k.startsWith("konto.")).length, 0);
+  // Ein zweites Mal kennt der Server das Konto nicht mehr.
+  const nochmal = await worker.fetch(new Request("https://w.dev/konto", { method: "DELETE", headers: { authorization: `Bearer ${token}`, origin: "https://example.org" } }), env);
+  assert.equal(nochmal.status, 404);
+});
+
+test("DELETE /konto ohne Schlüssel löscht nichts", async () => {
+  const env = umgebung();
+  await kontoAnlegen(env.ABOS);
+  const vorher = env.ABOS.inhalt.size;
+  const antwort = await worker.fetch(new Request("https://w.dev/konto", { method: "DELETE", headers: { origin: "https://example.org" } }), env);
+  assert.equal(antwort.status, 404);
+  assert.equal(env.ABOS.inhalt.size, vorher);
+});

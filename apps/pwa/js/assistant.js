@@ -90,10 +90,13 @@ import {
   wochenplanText,
   trainingAnpassen,
   anpassungText,
+  letzteEinheit,
+  steigerung,
 } from "@daevo/core";
 import { brain } from "./brain.js";
 import { KONFIG, istNativ } from "./konfig.js";
 import { kontoSicherstellen, kontoToken } from "./konto.js";
+import { kiErlaubt } from "./einwilligung.js";
 import { NACHTRAG_TAGE, tageZurueck } from "./exif.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
 
@@ -105,6 +108,13 @@ function provider({ ohneZaehlung = false } = {}) {
   // eigenen Server. Der hält den Schlüssel als Geheimnis, im Browser liegt
   // keiner. Genau deshalb kann die Fassung für Nutzer ohne Eingabe reden.
   const ueberServer = Boolean(KONFIG.chatUrl);
+  // Ohne Einwilligung geht über den Server nichts an die KI. Ein Anbieter
+  // ohne Ziel meldet sich als nicht verfügbar, und der Agent nimmt den
+  // Regelweg. Eine Sperre an einer einzigen Stelle statt an jedem Aufruf:
+  // ein vergessener Aufruf wäre eine Übermittlung ohne Erlaubnis.
+  if (ueberServer && !kiErlaubt(settings, KONFIG)) {
+    return new AnthropicProvider({ model: settings.model || "claude-sonnet-5-5", onVerbrauch: zaehleVerbrauch });
+  }
   return new AnthropicProvider({
     apiKey: settings.apiKey || undefined,
     baseUrl: ueberServer ? KONFIG.chatUrl : undefined,
@@ -348,6 +358,43 @@ function profilKurz(profile) {
  * erst drei Werkzeuge aufrufen muss, um zu wissen, wie es gerade steht. Die
  * genauen Zahlen holt er trotzdem aus den Werkzeugen, bevor er sie nennt.
  */
+/**
+ * Die Messwerte aus Apple Health, die der Coach kennen soll: die letzte
+ * Nacht mit Phasen, Ruhepuls und HRV gegen den eigenen Schnitt, VO2max und
+ * Körperfett mit Datum. Ohne Vergleich sagt "HRV 42" nichts, und eine Zahl,
+ * die nichts sagt, verleitet das Modell zu einer Deutung.
+ */
+export function koerperText(heute = todayIso()) {
+  const tage = [];
+  for (let i = 0; i < 28; i++) {
+    const tag = new Date(Date.parse(`${heute}T00:00:00Z`) - i * 86400000).toISOString().slice(0, 10);
+    tage.push({ tag, g: store.getDay(tag).gesundheit || {} });
+  }
+  const zahl = (v) => v !== null && v !== undefined && Number.isFinite(Number(v)) && Number(v) > 0;
+  const teile = [];
+  const nacht = tage.slice(0, 2).find((t) => zahl(t.g.schlafMinuten));
+  if (nacht) {
+    const h = (m) => `${Math.floor(m / 60)} h ${String(Math.round(m % 60)).padStart(2, "0")}`;
+    const phasen = [
+      zahl(nacht.g.tiefschlafMinuten) ? `davon ${h(nacht.g.tiefschlafMinuten)} Tiefschlaf` : "",
+      zahl(nacht.g.remMinuten) ? `${h(nacht.g.remMinuten)} REM` : "",
+    ].filter(Boolean).join(", ");
+    teile.push(`Schlaf ${nacht.tag === heute ? "letzte Nacht" : "vorletzte Nacht"} ${h(nacht.g.schlafMinuten)}${phasen ? ` (${phasen})` : ""}`);
+  }
+  for (const [feld, name, einheit] of [["ruhepuls", "Ruhepuls", "bpm"], ["hrv", "HRV", "ms"]]) {
+    const werte = tage.map((t) => t.g[feld]).filter(zahl).map(Number);
+    if (!zahl(tage[0].g[feld]) && !zahl(tage[1].g[feld])) continue;
+    const jetzt = Number(zahl(tage[0].g[feld]) ? tage[0].g[feld] : tage[1].g[feld]);
+    const schnitt = werte.length >= 7 ? Math.round(mittelwert(werte)) : null;
+    teile.push(`${name} ${Math.round(jetzt)} ${einheit}${schnitt ? `, Schnitt 28 Tage ${schnitt}` : ""}`);
+  }
+  for (const [feld, name, einheit] of [["vo2max", "VO2max", "ml/kg/min"], ["koerperfett", "Körperfett", "%"]]) {
+    const t = tage.find((x) => zahl(x.g[feld]));
+    if (t) teile.push(`${name} ${String(t.g[feld]).replace(".", ",")} ${einheit} (${t.tag})`);
+  }
+  return teile.length ? `Apple Health: ${teile.join(". ")}.` : "";
+}
+
 function lageText() {
   const zeilen = [];
   const status = standardsUebersicht();
@@ -375,6 +422,9 @@ function lageText() {
     const einheiten = woche.reduce((sum, d) => sum + (d.data.trainings || []).length, 0);
     if (einheiten > 0) zeilen.push(`Absolvierte Trainingseinheiten in den letzten sieben Tagen: ${einheiten}.`);
   }
+
+  const koerper = koerperText();
+  if (koerper) zeilen.push(koerper);
 
   // Der heutige Tagesablauf, falls ein Kalender verbunden ist. Ohne das müsste
   // der Coach für jede Frage nach Zeit erst ein Werkzeug rufen, und für die
@@ -809,19 +859,30 @@ export function kalenderImportieren(icsText, quelle) {
   const fenster = kalenderFenster();
   const ergebnis = termineAusIcs(icsText, fenster, quelle);
   const name = quelle || ergebnis.kalendername || "Kalender";
-  const bestand = store.getKalender();
-
-  const andere = (bestand.termine || []).filter((t) => t.quelle !== name);
-  const quellen = (bestand.quellen || []).filter((q) => q.name !== name);
-  quellen.push({ name, anzahl: ergebnis.termine.length, stand: new Date().toISOString() });
-
-  const termine = [...andere, ...ergebnis.termine.map((t) => ({ ...t, quelle: name }))]
-    .filter((t) => t.bis > fenster.von && t.von < fenster.bis)
-    .sort((a, b) => a.von - b.von);
-
-  store.setKalender({ quellen, termine, stand: new Date().toISOString() });
+  kalenderTermineSetzen(name, ergebnis.termine, { art: "datei" });
   return { name, anzahl: ergebnis.termine.length, hinweise: ergebnis.hinweise };
 }
+
+/**
+ * Ersetzt die Termine einer Quelle. Gemeinsamer Weg für Datei, Abo Adresse
+ * und den Apple Kalender auf dem iPhone, damit alle drei dieselben Regeln
+ * haben: Fenster, Sortierung, und eine Quelle ersetzt nur sich selbst.
+ * `art` sagt der Oberfläche, ob die Quelle von selbst nachgeladen wird.
+ */
+export function kalenderTermineSetzen(name, neue, { art = "datei" } = {}) {
+  const fenster = kalenderFenster();
+  const bestand = store.getKalender();
+  const andere = (bestand.termine || []).filter((t) => t.quelle !== name);
+  const quellen = (bestand.quellen || []).filter((q) => q.name !== name);
+  quellen.push({ name, anzahl: neue.length, stand: new Date().toISOString(), art });
+  const termine = [...andere, ...neue.map((t) => ({ ...t, quelle: name }))]
+    .filter((t) => t.bis > fenster.von && t.von < fenster.bis)
+    .sort((a, b) => a.von - b.von);
+  store.setKalender({ quellen, termine, stand: new Date().toISOString() });
+  return neue.length;
+}
+
+export { kalenderFenster };
 
 /** Entfernt einen Kalender samt seiner Termine. */
 export function kalenderEntfernen(name) {
@@ -866,6 +927,12 @@ export function kalenderStandText() {
   else if (tageHer === 1) teile.push("Zuletzt eingelesen: gestern.");
   else teile.push(`Zuletzt eingelesen: vor ${tageHer} Tagen.`);
 
+  // Eine Quelle, die von selbst nachlädt, ist keine Kopie. Der Hinweis auf
+  // das Neuladen stimmt nur für Dateien.
+  if (st.quellen.length && st.quellen.every((q) => q.art === "abo" || q.art === "apple")) {
+    teile.push("Er gleicht sich beim Öffnen der App von selbst ab, höchstens alle 30 Minuten.");
+    return teile.join(" ");
+  }
   // Der eigentliche Grund, warum sich der Kalender falsch anfühlt. Der Import
   // ist eine Kopie, kein Abo. Was du seitdem eingetragen hast, fehlt hier.
   if (tageHer !== null && tageHer >= 2) {
@@ -948,9 +1015,9 @@ export function kalenderUebersicht(tage = 7) {
  * Schlafenszeit gerechnet und das steht auch in der Begründung, damit niemand
  * eine gemessene Zahl vermutet, wo geschätzt wurde.
  */
-function zeitbudget() {
+function zeitbudget(jetzt = Date.now()) {
   const a = ablaufFuer(todayIso());
-  const rest = restDesTages(a, Date.now());
+  const rest = restDesTages(a, jetzt);
   const hatKalender = (store.getKalender().termine || []).length > 0;
   return {
     freieMinuten: hatKalender ? rest.freieMinuten : rest.restMinuten,
@@ -1001,8 +1068,10 @@ export async function todoistAktualisieren({ erzwingen = false, fetchImpl } = {}
   }
 }
 
-export function aufgabenPlan() {
-  const budget = zeitbudget();
+export function aufgabenPlan(jetzt = Date.now()) {
+  // Dieselbe Uhrzeit wie der Plan mit Zeiten. Rechnet die Priorisierung mit
+  // der echten Uhr und der Plan mit einer anderen, passen beide nicht zusammen.
+  const budget = zeitbudget(jetzt);
   const plan = priorisiere({
     aufgaben: alleAufgaben(),
     tag: todayIso(),
@@ -1049,7 +1118,7 @@ function belegtAusserKalender(tagIso, ablauf) {
 
 /** Der Tag mit Uhrzeiten: Reihenfolge aus `aufgabenPlan`, Zeiten aus dem Kalender. */
 export function tagesplan(jetzt = Date.now()) {
-  const plan = aufgabenPlan();
+  const plan = aufgabenPlan(jetzt);
   const tag = todayIso();
   const ablauf = ablaufFuer(tag);
   const luecken = lueckenOhne(ablauf.luecken, belegtAusserKalender(tag, ablauf));
@@ -2421,9 +2490,14 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
 
       const data = store.getDay(day);
       const meals = data.meals || [];
-      const treffer = gesucht
-        ? [...meals].reverse().find((m) => (m.entries || []).some((e) => trifftPosten(e.name, gesucht)))
-        : meals[meals.length - 1];
+      // "Lösch das Frühstück": die jüngste Mahlzeit dieser Tageszeit, über
+      // dieselbe Uhrzeitregel wie überall sonst.
+      const tageszeit = { fruehstueck: "fruehstueck", "frühstück": "fruehstueck", mittagessen: "mittagessen", abendessen: "abendessen", snack: "snack" }[gesucht];
+      const treffer = tageszeit
+        ? [...meals].reverse().find((m) => artZurUhrzeit(m.at) === tageszeit)
+        : gesucht
+          ? [...meals].reverse().find((m) => (m.entries || []).some((e) => trifftPosten(e.name, gesucht)))
+          : meals[meals.length - 1];
       if (!treffer) {
         return gesucht
           ? (gesucht.split(/\s+/).length > 3 ? "Dazu finde ich heute keinen passenden Eintrag." : `Dazu finde ich heute keinen Eintrag mit ${suche}.`)
@@ -2681,6 +2755,14 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       return ergebnis.text;
     },
 
+    async kalenderTermin(auftrag = {}) {
+      // Dynamisch, denn kalender-schreiben.js zieht kalender-sync.js, und das
+      // importiert diese Datei. Ein Kreis beim Laden lässt eine Seite leer.
+      const { kalenderTermin } = await import("./kalender-schreiben.js");
+      const text = await kalenderTermin(auftrag);
+      changed();
+      return text;
+    },
     async erinnerungAnlegen({ text, uhrzeit, bezug, versatz, tage = [] } = {}) {
       // "an mein Magnesium" wird "Magnesium". In der Mitteilung stand sonst
       // "Mein Magnesium", und das liest sich wie ein Fehler.
@@ -2969,7 +3051,14 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
         const index = Math.max(0, kraft.findIndex((s) => s.weekday === wochentag));
         const einheit = plan.einheiten[index % plan.einheiten.length];
         zeilen.push(`Aus deinem Plan: ${einheit.titel}, ${einheit.fokus}, etwa ${einheit.dauerMin} Minuten.`);
-        for (const p of einheit.positionen) zeilen.push(`- ${p.name}: ${p.saetze} x ${p.wdh}, ${p.reserve} in Reserve`);
+        // Der Vorschlag für heute steht dabei, gerechnet aus dem Protokoll.
+        // Sonst rät der Coach ein Gewicht, und eine Zahl aus dem Modell ist
+        // in dieser App der eine Fehler, der nicht passieren darf.
+        const log = Array.isArray(store.getSettings().trainingslog) ? store.getSettings().trainingslog : [];
+        for (const p of einheit.positionen) {
+          const st = steigerung(letzteEinheit(log, p.id, todayIso()), p.wdh, p.reserve);
+          zeilen.push(`- ${p.name}: ${p.saetze} x ${p.wdh}, ${p.reserve} in Reserve${st ? `. ${st.text}` : ""}`);
+        }
       } else if (heute.some((s) => s.type === "strength")) {
         zeilen.push("Einen Plan mit Übungen hast du noch nicht gespeichert. Den rechnet dir die App unter Training, Trainingspläne.");
       }

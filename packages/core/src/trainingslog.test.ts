@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { uebungsplanBauen, zuSchwerZusammen, type PlanUebung, type Uebungsplan } from "./trainingsplan.js";
 import {
-  einheitHaeltZns, fortschritt, letzteEinheit, planAktualisieren, satzWert, type LogEintrag,
+  einheitHaeltZns, fortschritt, letzteEinheit, planAktualisieren, satzWert, steigerung, type LogEintrag,
 } from "./trainingslog.js";
 
 const u = (id: string, pattern: string, gruppe: string, equipment = "barbell", level: PlanUebung["level"] = "intermediate", mechanics: PlanUebung["mechanics"] = "compound"): PlanUebung => ({
@@ -92,4 +92,28 @@ test("Ohne Einträge wird nichts geraten", () => {
   const r = planAktualisieren(plan, [], LIB, tag(60));
   assert.equal(r.getauscht.length, 0);
   assert.ok(r.ohneDaten.length > 0);
+});
+
+test("Steigerung: erst Wiederholungen, dann Gewicht, zu hart heisst halten", () => {
+  const e = (saetze: Array<[number, number, number | null]>): LogEintrag => ({ datum: "2026-10-01", uebung: "x", saetze: saetze.map(([kg, wdh, rir]) => ({ kg, wdh, rir })) });
+  // Alle Arbeitssätze oben im Bereich: mehr Gewicht, wieder unten anfangen. Der Aufwärmsatz zählt nicht.
+  assert.deepEqual(
+    { ...steigerung(e([[40, 10, 3], [80, 10, 2], [80, 11, 2]]), "6-10", 2), text: "" },
+    { art: "gewicht", kg: 82.5, wdh: 6, text: "" },
+  );
+  // Unter 20 kg in Schritten von 1 kg.
+  assert.equal(steigerung(e([[12, 12, 2], [12, 12, 2]]), "10-12", 2)?.kg, 13);
+  // Noch nicht oben: eine Wiederholung mehr als der schwächste Satz.
+  const w = steigerung(e([[80, 8, 2], [80, 7, 2]]), "6-10", 2);
+  assert.equal(w?.art, "wdh");
+  assert.equal(w?.wdh, 8);
+  assert.equal(w?.kg, 80);
+  // Deutlich weniger Reserve als geplant: halten.
+  assert.equal(steigerung(e([[80, 10, 0], [80, 9, 0]]), "6-10", 2)?.art, "halten");
+  // Ohne Gewicht oben im Bereich: schwerer machen, kein Kilo raten.
+  assert.equal(steigerung(e([[0, 15, 2]]), "8-15", 2)?.art, "variante");
+  // Zeit statt Wiederholungen und kein letztes Mal: kein Vorschlag.
+  assert.equal(steigerung(e([[0, 30, null]]), "30-45 s", 2), null);
+  assert.equal(steigerung(null, "6-10", 2), null);
+  assert.ok(!/undefined|NaN/.test(w!.text));
 });

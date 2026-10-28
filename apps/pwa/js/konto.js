@@ -68,7 +68,13 @@ export async function kontoStand(holen = fetch) {
       return kontoStand(holen);
     }
     if (!antwort.ok) return { fehler: `Der Server antwortet mit ${antwort.status}.` };
-    return await antwort.json();
+    const stand = await antwort.json();
+    // Die Stufe bleibt auf dem Gerät, damit Grenzen ohne Netz gelten, etwa
+    // die Zahl der eigenen Rezepte. Der Server bleibt die Quelle.
+    if (stand?.stufe && stand.stufe !== store.getSettings().kontoStufe) {
+      store.setSettings({ ...store.getSettings(), kontoStufe: stand.stufe });
+    }
+    return stand;
   } catch {
     return { fehler: "Der Server ist gerade nicht erreichbar." };
   }
@@ -82,7 +88,10 @@ export function kontoText(stand) {
   const g = stand.grenze?.nachrichten ?? 0;
   const anteil = stand.grenze?.budgetMikro ? Math.min(100, Math.round(((stand.verbrauch?.mikro ?? 0) / stand.grenze.budgetMikro) * 100)) : 0;
   const bis = stand.bis ? ` bis ${stand.bis.split("-").reverse().join(".")}` : "";
-  return `Stufe ${stand.name}${bis}. Diesen Monat ${n} von ${g} Nachrichten an die KI, ${anteil} Prozent des Budgets.`;
+  // Die Kennung steht dabei, weil sie für jede Anfrage zum Konto gebraucht
+  // wird: Abo freischalten, Auskunft, Löschen über die Adresse im Impressum.
+  const kennung = stand.id ? ` Kontokennung ${stand.id}.` : "";
+  return `Stufe ${stand.name}${bis}. Diesen Monat ${n} von ${g} Nachrichten an die KI, ${anteil} Prozent des Budgets.${kennung}`;
 }
 
 /* ---------- Abo anbieten ---------- */
@@ -273,4 +282,22 @@ export function aboLeiste(stand, heute) {
     return { text: `${n} von ${g} Nachrichten verbraucht.`, knopf: "Pro ansehen", empfohlen: "pro" };
   }
   return null;
+}
+
+/**
+ * Löscht das Konto auf dem Server. Ohne Server oder ohne Konto gibt es nichts
+ * zu löschen, dann kommt null. Kennt der Server das Konto nicht mehr, ist es
+ * schon weg, und das zählt als gelöscht.
+ */
+export async function kontoLoeschen(holen = fetch) {
+  if (!basis() || !kontoToken()) return null;
+  try {
+    const antwort = await holen(`${basis()}/konto`, { method: "DELETE", headers: { authorization: `Bearer ${kontoToken()}` } });
+    if (!antwort.ok && antwort.status !== 404) return { ok: false, fehler: `Der Server antwortet mit ${antwort.status}.` };
+    const { kontoToken: _t, kontoId: _i, ...rest } = store.getSettings();
+    store.setSettings(rest);
+    return { ok: true };
+  } catch {
+    return { ok: false, fehler: "Der Server ist gerade nicht erreichbar." };
+  }
 }

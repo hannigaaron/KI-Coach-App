@@ -420,13 +420,49 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: "kalender_termin",
+    description:
+      "Schreibt in den echten Kalender des Nutzers auf dem iPhone, also iCloud, Google oder Outlook. " +
+      "Nehmen, wenn eine einzelne Einheit nicht klappt und verschoben werden soll ('ich schaff's morgen " +
+      "nicht ins Training, plan um'), wenn ein Training eingetragen werden soll, oder um eine Änderung " +
+      "zurückzunehmen. Den freien Platz rechnet die App aus Kalender, Wachzeit und Luft um Termine, " +
+      "nenn nie selbst eine Uhrzeit als frei. Termine, die daevo selbst eingetragen hat, verschiebt " +
+      "die App ohne Rückfrage. Fremde Termine (Kunden, Familie, Meetings) nur mit bestaetigt true. " +
+      "Bittet der Nutzer selbst darum, einen bestimmten Termin zu verschieben ('verschieb den Termin mit " +
+      "Kunde Müller auf Freitag 14 Uhr'), ist das sein Ja: bestaetigt true, zielTag und zielUhrzeit setzen, " +
+      "nicht nachfragen. Liegt am Ziel ein Training, verlegt die App es selbst und sagt wohin. Nachfragen " +
+      "nur, wenn du von dir aus einen fremden Termin bewegen willst. Ohne Uhrzeit beim Eintragen sucht die " +
+      "App den nächsten freien Platz. Für dauerhaft andere Trainingstage gibt es trainingsplan_aendern.",
+    input_schema: {
+      type: "object",
+      properties: {
+        aktion: {
+          type: "string", enum: ["eintragen", "verschieben", "vorschlagen", "rueckgaengig"],
+          description: "vorschlagen sucht nur einen Platz und schreibt nichts.",
+        },
+        suche: { type: "string", description: "Woran der bestehende Termin zu erkennen ist, etwa 'Training' oder 'Volleyball'." },
+        titel: { type: "string", description: "Titel eines neuen Termins." },
+        tag: { type: "string", description: "JJJJ-MM-TT. Beim Verschieben der Tag des alten Termins, beim Eintragen der neue." },
+        uhrzeit: { type: "string", description: "HH:MM, nur wenn der Nutzer sie genannt hat." },
+        minuten: { type: "number", description: "Dauer. Ohne Angabe die des alten Termins oder der Einheit im Profil." },
+        zielTag: { type: "string", description: "JJJJ-MM-TT, wohin verschoben wird, wenn der Nutzer es nennt." },
+        zielUhrzeit: { type: "string", description: "HH:MM, wohin verschoben wird, wenn der Nutzer es nennt." },
+        bestaetigt: {
+          type: "boolean",
+          description: "true, wenn der Nutzer diesen fremden Termin selbst verschieben lassen will oder ja gesagt hat.",
+        },
+      },
+      required: ["aktion"],
+    },
+  },
+  {
     name: "trainingsplan_aendern",
     description:
       "Ändert die festen Trainingstage im Profil und speichert sie sofort. Nehmen, sobald der Nutzer "
       + "sagt, dass sich seine Trainingstage oder Zeiten dauerhaft ändern, etwa weil sein Arbeitsplan "
       + "anders ist: 'Volleyball ist jetzt donnerstags', 'ich trainiere ab jetzt Mo, Mi, Fr um 7', "
       + "'freitags fällt weg'. Nicht nach Erlaubnis fragen, speichern und sagen, was jetzt gilt. "
-      + "Nicht nehmen für eine einzelne verschobene Einheit diese Woche, dafür gibt es training_anpassen. "
+      + "Nicht nehmen für eine einzelne verschobene Einheit diese Woche, dafür gibt es kalender_termin. "
       + "Der bisherige Plan steht im Profil im Kontext. Was du nicht weisst, lässt du weg: fehlende "
       + "Uhrzeit oder Dauer nimmt die App aus der bisherigen Einheit derselben Art.",
     input_schema: {
@@ -751,7 +787,8 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     description:
       "Liefert das Training eines Tages: Termin aus dem Wochenplan und die Einheit aus dem gespeicherten " +
       "Trainingsplan mit Übungen, Sätzen und Wiederholungen. Nehmen bei \"was trainiere ich heute\" oder " +
-      "\"welche Übungen morgen\". Übungen nie aus dem Gedächtnis nennen, sie stehen im Plan.",
+      "\"welche Übungen morgen\". Übungen nie aus dem Gedächtnis nennen, sie stehen im Plan. " +
+      "Je Übung steht, was heute dran ist, gerechnet aus dem Protokoll. Gewichte nur von dort nennen, nie schätzen.",
     input_schema: {
       type: "object",
       properties: {

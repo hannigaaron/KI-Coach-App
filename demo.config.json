@@ -13,6 +13,17 @@
     "plusUrl": "",
     "plusJahrUrl": "",
     "proUrl": "",
-    "proJahrUrl": ""
+    "proJahrUrl": "",
+    "appstore": {
+      "plusMonat": "de.daevo.plus.monat",
+      "plusJahr": "de.daevo.plus.jahr",
+      "proMonat": "de.daevo.pro.monat",
+      "proJahr": "de.daevo.pro.jahr"
+    },
+    "portalUrl": ""
+  },
+  "anmeldung": {
+    "googleWebClientId": "",
+    "googleIosClientId": ""
   }
 }

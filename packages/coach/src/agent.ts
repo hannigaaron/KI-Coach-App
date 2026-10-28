@@ -1,4 +1,5 @@
-import { erinnerungAus, planAenderungAus, ARTEN } from "@daevo/core";
+import { erinnerungAus, planAenderungAus, kalenderAuftragAus, ARTEN } from "@daevo/core";
+import type { KalenderAuftrag } from "@daevo/core";
 import type { PlanAenderung, TrainingType } from "@daevo/core";
 import { fehlerErklaerung } from "./fehler.js";
 import { AGENT_TOOLS } from "./tools.js";
@@ -91,6 +92,12 @@ export interface AgentActions {
   erinnerungAnlegen(input: {
     text: string; uhrzeit?: string; bezug?: "schlafen" | "aufstehen"; versatz?: number; tage: number[];
   }): Promise<string>;
+  /**
+   * Trägt ein Training in den echten Kalender ein oder verschiebt eines. Den
+   * freien Platz rechnet die App, nicht das Modell. Fremde Termine nur mit
+   * `bestaetigt`, also nach einem Ja des Nutzers.
+   */
+  kalenderTermin(input: KalenderAuftrag & { bestaetigt?: boolean }): Promise<string>;
   widerspruechePruefen(): Promise<string>;
   mittagscheckSpeichern(input: {
     energie: number; konzentration: number; saettigung: number; notiz?: string;
@@ -180,6 +187,14 @@ export class Agent {
     /** Nimmt die Antwort entgegen, während sie entsteht. */
     strom?: Strom;
   }): Promise<AgentReply> {
+    // Eindeutige Kurzbefehle gehen gar nicht erst ans Modell. Für "500 ml
+    // Wasser" rechnet die App ohnehin selbst, das Modell würde nur den Satz
+    // drumherum schreiben, für zwei bis vier Sekunden und eine Anfrage aus
+    // dem Kontingent. Greift der Regelweg doch nicht, läuft alles wie immer.
+    if (this.provider.available && !params.anhaenge?.length && schnellweg(params.nachricht)) {
+      const sofort = await runOffline(params.nachricht, params.aktionen);
+      if (sofort.ausgeführt.length) return sofort;
+    }
     if (this.provider.available) {
       try {
         return await this.runModel(params);
@@ -287,17 +302,28 @@ export class Agent {
       }
 
       messages.push({ role: "assistant", content: response.content });
-      const results: ContentBlock[] = [];
-      for (const call of toolUses) {
-        const outcome = await execute(call.name, call.input, params.aktionen);
+      // Werkzeuge, die nur lesen, laufen gleichzeitig. Fragt das Modell nach
+      // Tagesstand, Kalender und Belastung in einer Runde, wartete der Nutzer
+      // sonst auf drei Abrufe hintereinander, Produktsuche und Todoist gehen
+      // dabei übers Netz. Sobald ein Aufruf schreibt, bleibt die Reihenfolge:
+      // zwei Einträge in denselben Tag dürfen sich nicht überholen.
+      const nurLesen = toolUses.every((c) => NUR_LESEN.has(c.name));
+      const outcomes = nurLesen
+        ? await Promise.all(toolUses.map((c) => execute(c.name, c.input, params.aktionen)))
+        : [];
+      if (!nurLesen) {
+        for (const call of toolUses) outcomes.push(await execute(call.name, call.input, params.aktionen));
+      }
+      const results: ContentBlock[] = toolUses.map((call, i) => {
+        const outcome = outcomes[i]!;
         if (outcome.notiz) ausgeführt.push(outcome.notiz);
-        results.push({
+        return {
           type: "tool_result",
           tool_use_id: call.id,
           content: outcome.text,
           ...(outcome.fehler ? { is_error: true } : {}),
-        });
-      }
+        };
+      });
       messages.push({ role: "user", content: results });
     }
 
@@ -487,6 +513,13 @@ export function tiefeAnheben(tiefe: Tiefe, tempo: Tempo | boolean): Tiefe {
       maxTokens: Math.min(tiefe.maxTokens, 4096),
     };
   }
+  // Die Voreinstellung denkt höchstens mittel. Hohe Denktiefe auf Opus
+  // dauerte im Betrieb 45 Sekunden bis zum ersten Wort: das Denken kommt
+  // vor der Antwort, und jede Runde mit einem Werkzeug denkt neu. Eine
+  // Antwort, auf die man so lange wartet, wird nicht gelesen, sondern die
+  // App wird geschlossen. Hoch bleibt eine Wahl im Profil, "immer
+  // gründlich". Psyche bleibt auf Opus und behält die volle Länge.
+  if (tiefe.effort === "high") return { ...tiefe, effort: "medium" };
   return tiefe;
 }
 
@@ -499,7 +532,9 @@ export function tiefeAnheben(tiefe: Tiefe, tempo: Tempo | boolean): Tiefe {
  */
 export function modellFuerTempo(modus: Modus, tempo: Tempo | boolean): string | null {
   const stufe: Tempo = typeof tempo === "boolean" ? (tempo ? "gruendlich" : "normal") : tempo;
-  if (stufe !== "schnell") return null;
+  if (stufe === "gruendlich") return null;
+  // Planung auf Opus war der zweite Teil der 45 Sekunden. Eine Reihenfolge
+  // für den Tag braucht kein Modell, das über Zielkonflikte nachdenkt.
   if (modus === "planung") return SONNET;
   return null;
 }
@@ -517,6 +552,14 @@ interface ToolOutcome {
   notiz?: string;
   fehler?: boolean;
 }
+
+/** Werkzeuge ohne Schreibzugriff, die gleichzeitig laufen dürfen. */
+export const NUR_LESEN = new Set([
+  "tagesstand_abrufen", "verlauf_abrufen", "kalender_abrufen", "gespraeche_durchsuchen",
+  "produkt_nachschlagen", "balance_abrufen", "muster_erkennen", "bericht_erstellen",
+  "belastung_abrufen", "bereitschaft_abrufen", "widersprueche_pruefen",
+  "trainingsplan_abrufen", "standards_abrufen", "gedaechtnis_durchsuchen",
+]);
 
 async function execute(
   name: string,
@@ -659,6 +702,26 @@ async function execute(
           tage,
         });
         return { text, notiz: "Erinnerung angelegt" };
+      }
+      case "kalender_termin": {
+        const aktion = ["eintragen", "verschieben", "vorschlagen", "rueckgaengig"].includes(String(input.aktion))
+          ? input.aktion as KalenderAuftrag["aktion"] : "vorschlagen";
+        const tag = typeof input.tag === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.tag) ? input.tag : undefined;
+        const uhrzeit = typeof input.uhrzeit === "string" && /^\d{1,2}:\d{2}$/.test(input.uhrzeit) ? input.uhrzeit : undefined;
+        const minuten = Number(input.minuten);
+        const text = await actions.kalenderTermin({
+          aktion,
+          ...(typeof input.suche === "string" && input.suche.trim() ? { suche: input.suche.trim().slice(0, 60) } : {}),
+          ...(typeof input.titel === "string" && input.titel.trim() ? { titel: input.titel.trim().slice(0, 60) } : {}),
+          ...(tag ? { tag } : {}),
+          ...(uhrzeit ? { uhrzeit } : {}),
+          ...(Number.isFinite(minuten) && minuten >= 10 && minuten <= 300 ? { minuten: Math.round(minuten) } : {}),
+          ...(typeof input.zielTag === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.zielTag) ? { zielTag: input.zielTag } : {}),
+          ...(typeof input.zielUhrzeit === "string" && /^\d{1,2}:\d{2}$/.test(input.zielUhrzeit) ? { zielUhrzeit: input.zielUhrzeit.padStart(5, "0") } : {}),
+          bestaetigt: input.bestaetigt === true,
+        });
+        if (text.startsWith(NICHT_GESPEICHERT)) return { text, fehler: true };
+        return { text, notiz: aktion === "vorschlagen" ? "Freien Platz gesucht" : "Kalender geändert" };
       }
       case "tag_zu_ende_planen": {
         const erlaubt = ["fruehstueck", "mittagessen", "abendessen", "snack"];
@@ -963,7 +1026,7 @@ function enthaeltMarke(text: string, marke: string): boolean {
 function korrekturAus(text: string, nachricht: string): { posten?: string; neueMenge: number; mengeText?: string } | null {
   const richtigstellung = pattern("waren nur", "war nur", "waren blos", "nicht die ganze",
     "nicht die komplette", "nur ein", "nur eine", "nur zwei", "korrigier", "richtig waren",
-    "eigentlich nur", "stattdessen", "war falsch").test(text);
+    "eigentlich nur", "stattdessen", "war falsch", "und nicht", "nicht so viel").test(text);
   if (!richtigstellung) return null;
 
   // Löffel und Zahlwörter zählen mit. "Es war nur ein Teelöffel" ist im
@@ -1011,7 +1074,8 @@ function ruecknahmeAus(text: string): { art?: string; suche?: string } | null {
   // Ohne Gegenstand nichts tun. "Das stimmt nicht" ueber eine Aussage des
   // Coaches darf keinen Eintrag entfernen.
   const gegenstand = pattern("eintrag", "eintraege", "mahlzeit", "essen", "gegessen",
-    "letzte", "letzten", "wasser", "getrunken", "training", "einheit", "aufgabe").test(text)
+    "letzte", "letzten", "wasser", "getrunken", "training", "einheit", "aufgabe",
+    "fruehstueck", "mittagessen", "abendessen", "snack").test(text)
     || /\b(den|die|das) \w+ (hab|habe) ich (doch )?nicht\b/.test(text);
   if (!gegenstand) return null;
 
@@ -1024,7 +1088,10 @@ function ruecknahmeAus(text: string): { art?: string; suche?: string } | null {
       : pattern("aufgabe").test(text) ? "aufgabe"
         : "mahlzeit";
   if (art === "mahlzeit") {
-    const suche = getraenk?.[1] ?? parseMealOffline(text).entries[0]?.name;
+    // "Lösch das Frühstück" meint die Mahlzeit dieser Tageszeit und nicht die
+    // letzte. Die App sucht dann über die Uhrzeit des Eintrags.
+    const tageszeit = /\b(fruehstueck|mittagessen|abendessen|snack)\b/.exec(text)?.[1];
+    const suche = getraenk?.[1] ?? parseMealOffline(text).entries[0]?.name ?? tageszeit;
     return suche ? { art, suche } : { art };
   }
   return { art };
@@ -1099,6 +1166,7 @@ export function istAbsicht(roh: string): boolean {
   const absicht = pattern(
     "moechte", "will ich", "ich will", "wollte", "werde", "vorhaben",
     "plane", "geplant", "soll ich", "sollte ich", "was mache ich", "muss ich noch",
+    "esse gleich", "gleich esse", "esse nachher", "esse spaeter", "esse heute abend", "gleich gibt es", "nachher gibt es",
   ).test(text);
   if (!absicht) return false;
   const vergangenheit = pattern(
@@ -1189,6 +1257,15 @@ export async function runOffline(
   if (schicht) {
     const antwort = await actions.tageszeitenSetzen(schicht);
     return { text: antwort, ausgeführt: ["Tageszeiten eingetragen"], source: "offline" };
+  }
+
+  // Dauerhafte Änderungen am Profil nach dem einzelnen Tag: "ab jetzt um 6
+  // aufstehen" ist das Profil, "morgen um 6 aufstehen" der eine Tag.
+  const profil = profilAus(text);
+  if (profil) {
+    const antwort = await actions.profilAendern(profil);
+    const geaendert = !antwort.startsWith("Da war nichts");
+    return { text: antwort, ausgeführt: geaendert ? ["Profil geändert"] : [], source: "offline" };
   }
 
   // Markenprodukte vor der allgemeinen Mahlzeit pruefen. Ohne Schluessel raet
@@ -1282,6 +1359,16 @@ export async function runOffline(
     return { text: standardAntwort, ausgeführt: ["Mindeststandard geändert"], source: "offline" };
   }
 
+  // Ein Termin im echten Kalender, vor der dauerhaften Planänderung und vor
+  // dem Eintragen. "Ich schaff's morgen nicht ins Training" ist weder ein
+  // neuer Wochenplan noch ein Training von heute.
+  const auftrag = kalenderAuftragAus(nachricht);
+  if (auftrag) {
+    const antwort = await actions.kalenderTermin(auftrag);
+    const nichts = antwort.startsWith(NICHT_GESPEICHERT) || auftrag.aktion === "vorschlagen";
+    return { text: antwort, ausgeführt: nichts ? [] : ["Kalender geändert"], source: "offline" };
+  }
+
   // Eine dauerhafte Änderung der Trainingstage vor dem Eintragen eines
   // Trainings. "Volleyball ist jetzt donnerstags statt dienstags" ist kein
   // Training von heute, und ohne diesen Zweig blieb der alte Plan stehen.
@@ -1311,6 +1398,20 @@ export async function runOffline(
   if (zeit) {
     const antwort = await actions.zeitEintragen(zeit);
     return { text: antwort, ausgeführt: ["Zeit gebucht"], source: "offline" };
+  }
+
+  // Gekauftes vor den Aufgaben. "Milch gekauft, erledigt" meint die
+  // Einkaufsliste und nicht eine Aufgabe namens Milch.
+  const abhaken = listeAbhakenAus(nachricht);
+  if (abhaken) {
+    const antworten: string[] = [];
+    let gefunden = 0;
+    for (const posten of abhaken.posten) {
+      const a = await actions.einkaufslisteAbhaken({ posten, stand: abhaken.stand });
+      if (!/steht nicht auf der Liste|keine Einkaufsliste/.test(a)) gefunden++;
+      antworten.push(a);
+    }
+    return { text: antworten.join("\n"), ausgeführt: gefunden ? ["Einkaufsliste aktualisiert"] : [], source: "offline" };
   }
 
   // Abhaken vor dem Anlegen. "Angebot geschrieben, erledigt" enthaelt beides,
@@ -1361,6 +1462,34 @@ export async function runOffline(
     };
   }
 
+  // Schmerzen beim Training. Ohne Modell lässt sich nicht beurteilen, was
+  // los ist, aber merken lässt es sich, und der Plan kann die Stelle schonen.
+  const beschwerde = beschwerdeAus(text);
+  if (beschwerde) {
+    await actions.merken({ text: `Beschwerden: ${nachricht.trim()}`, art: "fakt", wichtigkeit: 5 });
+    return {
+      text: `Notiert, mit höchster Wichtigkeit: ${beschwerde}. Unter Training, Trainingspläne kannst du die Stelle als Beschwerde angeben, ` +
+        "dann fallen Übungen weg, die sie stark belasten. Lass weg, was weh tut. Bleibt der Schmerz, gehört er zu Arzt oder Physiotherapie.",
+      ausgeführt: ["Beschwerde gemerkt"],
+      source: "offline",
+    };
+  }
+
+  // "Ich esse gleich Lachs" ist noch kein Eintrag. Eine Antwort, die das
+  // sagt, ist besser als die allgemeine Hilfe.
+  if (istAbsicht(text) && /\b(gleich|nachher|spaeter|heute abend)\b/.test(text) && /\b(esse|essen|gibt es)\b/.test(text)) {
+    return { text: "Guten Appetit. Sag mir danach, was und wie viel es war, dann trage ich es ein.", ausgeführt, source: "offline" };
+  }
+
+  // Eine Frage nach dem eigenen Tag und ein "nichts gegessen" enthalten das
+  // Wort gegessen und trugen deshalb eine leere Mahlzeit ein.
+  if ((/\?\s*$/.test(text) || /^(was|wie ?viel\w*|welche\w*)\b/.test(text)) && /\b(gegessen|getrunken)\b/.test(text)) {
+    return { text: await actions.tagesstandAbrufen(), ausgeführt, source: "offline" };
+  }
+  if (/\b(nichts|nix|noch nichts|gar nichts)\b(\s+\w+){0,2}\s+(gegessen|getrunken)\b/.test(text)) {
+    return { text: `Dann ist heute noch alles offen. ${await actions.tagesstandAbrufen()}`, ausgeführt, source: "offline" };
+  }
+
   // Eindeutige Wörter reichen für den Versuch. "hatte" allein nicht, es steht
   // in jedem zweiten Satz, "ich hatte Stress" ist keine Mahlzeit. Mit einer
   // Menge davor ist es eine: "ich hatte ein Glas Cola". "esse" steckte
@@ -1370,7 +1499,10 @@ export async function runOffline(
     // "Und dazu einen Kaffee mit 100 ml Hafermilch": kein Verb, aber eine
     // Menge mit Einheit an einem Lebensmittel aus der Tabelle, und keine Frage.
     || (!text.trim().endsWith("?") && parseMealOffline(nachricht).entries.some((e) => /\d/.test(e.quantity)));
-  const mitMenge = /\bhatte\b/.test(text)
+  // Eine Dauer ohne Lebensmittel ist keine Mahlzeit. "Ich hatte heute ein
+  // Coaching, 2 Stunden" stand sonst als Essen im Tag.
+  const nurDauer = dauerAus(text) !== null && parseMealOffline(nachricht).entries.length === 0;
+  const mitMenge = /\bhatte\b/.test(text) && !nurDauer
     && /\b(\d+|ein|eine|einen|zwei|drei|glas|tasse|becher|flasche|portion|stueck|scheibe|schuessel|teller|riegel|dose)\b/.test(text);
   if (!istAbsicht(text) && (eindeutig || mitMenge)) {
     const antwort = await actions.mahlzeitErfassen(nachricht);
@@ -1529,13 +1661,19 @@ export async function runOffline(
     return { text: await actions.tagesstandAbrufen(), ausgeführt, source: "offline" };
   }
 
-  if (pattern("geschlafen", "energie", "fühle", "müde", "stress", "erschöpft", "kaputt").test(text)) {
+  // "fühl mich" ohne e ist die häufigere Form im Gesprochenen.
+  if (pattern("geschlafen", "energie", "fühl", "müde", "stress", "erschöpft", "kaputt", "ausgebrannt", "kraftlos",
+    "überfordert", "total leer", "so leer", "innerlich leer").test(text)) {
     const antwort = await actions.checkinSpeichern({
       notiz: nachricht,
       energie: extractScore(text, /energie\D{0,10}(\d{1,2})/),
       schlaf: extractScore(text, /schlaf\D{0,10}(\d{1,2})/),
     });
-    return { text: `${antwort} Was nimmst du dir für den Rest des Tages vor?`, ausgeführt: ["Check-in gespeichert"], source: "offline" };
+    // Wer sagt, dass er leer oder überfordert ist, braucht keine Frage nach
+    // seinen Vorhaben. Die klingt wie die nächste Aufgabe.
+    const schwer = pattern("leer", "ausgebrannt", "ueberfordert", "kraftlos", "stress mit").test(text);
+    const frage = schwer ? "Was würde dir heute ein Stück Druck nehmen?" : "Was nimmst du dir für den Rest des Tages vor?";
+    return { text: `${antwort} ${frage}`, ausgeführt: ["Check-in gespeichert"], source: "offline" };
   }
 
   const naehrwert = naehrwertFrage(nachricht);
@@ -1659,8 +1797,95 @@ export function naehrwertFrage(satz: string): string | null {
  * Liste, ob etwas eingetragen wird. "Bei meinen Eltern Kuchen gegessen"
  * ist ein Eintrag, "ich schäme mich fürs Essen" nicht.
  */
+/** Eine Körperstelle mit Schmerz, etwa "mir tut das Knie weh". Nur beides zusammen. */
+function beschwerdeAus(text: string): string | null {
+  if (!/\b(tut\w* (\w+ ){0,4}weh|schmerz\w*|zwickt|zieht (\w+ ){0,3}(im|in der)|verletzt|verzerrt|gezerrt)\b/.test(text)) return null;
+  // Auf Wortgrenzen, sonst wird aus "beim Kniebeugen" die Stelle Kniebeugen.
+  const stelle = /\b(knie|schultern?|ruecken|nacken|ellbogen|ellenbogen|handgelenk|huefte|leiste|knoechel|sprunggelenk|achillessehne|waden?|oberschenkel|brust)\b/.exec(text);
+  return stelle ? stelle[0].replace(/ue/g, "ü").replace(/oe/g, "ö").replace(/^./, (c) => c.toUpperCase()) : null;
+}
+
 function belastet(text: string): boolean {
   return /\b(scham|schaem\w*|schuld\w*|kontrolle\w*( \w+){0,3} verloren|fressattacke\w*|essattacke\w*|heisshunger\w*attacke|hasse mich|wertlos|versag\w*|depress\w*|panik\w*|traurig|einsam\w*|sinnlos|nicht mehr leben|suizid\w*|umbringen|selbst verletz\w*|mag mich nicht|ekel\w* mich)\b/.test(text);
+}
+
+/**
+ * Ob ein Satz so eindeutig ist, dass der Regelweg ihn ohne Modell erledigt.
+ *
+ * Nur Sätze, die fast nur aus der Angabe bestehen: eine Wassermenge, eine
+ * Wiegung, die drei Zahlen des Mittags Check-ins, Gekauftes. Sobald mehr
+ * dasteht, kann mehr gemeint sein, und dann antwortet das Modell. Eine
+ * Mahlzeit gehört nie hierher: dort schätzt das Modell Mengen und Posten,
+ * die keine Tabelle kennt.
+ */
+export function schnellweg(nachricht: string): boolean {
+  const t = foldUmlauts(nachricht.toLowerCase()).trim().replace(/[.!]+$/, "");
+  if (t.split(/\s+/).length > 8 || /\?/.test(t)) return false;
+  const zahl = "\\d+(?:[.,]\\d+)?";
+  if (new RegExp(`^(?:noch\\s+)?${zahl}\\s*(?:ml|l|liter)\\s*(?:wasser)?(?:\\s+getrunken)?$`).test(t)) return true;
+  if (new RegExp(`^(?:noch\\s+)?(?:ein|eine|zwei|drei|vier|\\d)\\s+(?:glas|glaeser|flasche|flaschen)\\s+wasser(?:\\s+getrunken)?$`).test(t)) return true;
+  if (new RegExp(`^(?:gewicht|gewogen|waage|heute)?\\s*:?\\s*${zahl}\\s*(?:kg|kilo)(?:\\s+gewogen)?$`).test(t)) return true;
+  if (/^\d{1,2}\s*[,/ ]\s*\d{1,2}\s*[,/ ]\s*\d{1,2}$/.test(t)) return true;
+  if (/^energie\D{0,4}\d{1,2}\W+konzentration\D{0,4}\d{1,2}\W+saettigung\D{0,4}\d{1,2}$/.test(t)) return true;
+  return listeAbhakenAus(nachricht) !== null;
+}
+
+/**
+ * Posten, die gekauft oder noch zu Hause sind: "Reis und Eier gekauft",
+ * "Milch hab ich noch zuhause". Nur mit einem eindeutigen Verb am Satzende
+ * oder direkt hinter den Posten. "Ich hab gestern Schuhe gekauft" landet
+ * zwar hier, findet aber nichts auf der Liste und trägt nichts ein.
+ */
+export function listeAbhakenAus(satz: string): { posten: string[]; stand: "gekauft" | "zuhause" } | null {
+  const t = satz.trim().replace(/[.!]+$/, "");
+  if (/\?$/.test(t)) return null;
+  const gekauft = /^(?:ich\s+)?(?:hab(?:e)?\s+)?(?:ich\s+)?(?:schon\s+|jetzt\s+|grad(?:e)?\s+)?(.+?)\s+(?:schon\s+)?(?:gekauft|eingekauft|besorgt|im wagen|in den wagen gelegt)(?:\s*,?\s*erledigt)?$/i.exec(t);
+  const zuhause = /^(?:ich\s+)?(.+?)\s+(?:hab(?:e)?\s+ich|habe?)\s+(?:noch\s+)?(?:zu\s*hause|daheim|da|im kühlschrank)$/i.exec(t);
+  const m = gekauft ?? zuhause;
+  if (!m) return null;
+  const posten = m[1]!
+    .replace(/^(?:die|den|das|der|noch|auch|bitte)\s+/i, "")
+    .split(/\s*,\s*|\s+und\s+|\s+sowie\s+/i)
+    .map((p) => p.replace(/^(?:die|den|das|der|noch|auch)\s+/i, "").trim())
+    .filter((p) => p.length >= 2 && p.length <= 40 && !/^(ich|was|alles|nichts|etwas)$/i.test(p));
+  if (!posten.length || posten.length > 15) return null;
+  return { posten, stand: gekauft ? "gekauft" : "zuhause" };
+}
+
+/**
+ * Dauerhafte Angaben fürs Profil aus einem Satz, ohne Modell.
+ *
+ * Jede Angabe braucht ein Zeichen, dass sich etwas dauerhaft ändert: "ab
+ * jetzt", "neuerdings", "mein Ziel ist". "Heute bin ich 15000 Schritte
+ * gelaufen" ist ein Tag und kein Durchschnitt, und eine falsch übernommene
+ * Schrittzahl verschiebt das Kalorienziel jeden Tag.
+ */
+export function profilAus(text: string): { ziel?: string; schritte?: number; aufstehen?: string; schlafen?: string } | null {
+  if (/\?\s*$/.test(text) || /\b(morgen|gestern|heute)\b/.test(text)) return null;
+  const aus: { ziel?: string; schritte?: number; aufstehen?: string; schlafen?: string } = {};
+  const dauerhaft = /\b(ab jetzt|ab sofort|neuerdings|in zukunft|kuenftig|jeden tag|immer|normalerweise|im schnitt|durchschnittlich)\b/.test(text);
+
+  const zielWechsel = /\b(mein ziel ist|ziel ist jetzt|neues ziel|ziel auf|ziel aendern|ich will (jetzt|ab jetzt|ab sofort|lieber)|ab (jetzt|sofort) (will|moechte) ich)\b/.test(text);
+  if (zielWechsel) {
+    if (/\b(abnehm\w*|fett (verlieren|abbauen|reduzieren)|fettabbau|definier\w*|diaet)\b/.test(text)) aus.ziel = "fat_loss";
+    else if (/\b(muskel\w* aufbauen|muskelaufbau|aufbau(en)?|zunehmen|masse|bulk\w*)\b/.test(text)) aus.ziel = "lean_bulk";
+    else if (/\b(halten|gewicht halten|erhalten)\b/.test(text)) aus.ziel = "maintain";
+  }
+
+  const schritte = /\b(\d{1,2}[.]\d{3}|\d{4,5})\s*schritte\b/.exec(text);
+  if (schritte && (dauerhaft || /\b(am tag|pro tag|taeglich)\b/.test(text))) {
+    const n = Number(schritte[1]!.replace(".", ""));
+    if (n >= 1000 && n <= 40000) aus.schritte = n;
+  }
+
+  if (dauerhaft) {
+    const aufstehen = uhrzeitNach(text, /(aufstehen|aufstehe|\bsteh\w*\b.{0,25}\bauf\b|wecker)/);
+    const schlafen = uhrzeitNach(text, /(schlafen|ins bett)/);
+    // Eine Uhrzeit, zwei Stichworte: dann ist unklar, welche gemeint ist.
+    if (aufstehen && !schlafen) aus.aufstehen = aufstehen;
+    if (schlafen && !aufstehen) aus.schlafen = schlafen;
+  }
+  return Object.keys(aus).length ? aus : null;
 }
 
 /**
@@ -1743,7 +1968,8 @@ function trainingAus(text: string): { art: string; minuten: number } | null {
   // "Ich war 2 Stunden Volleyball spielen" steht im Infinitiv, nicht im
   // Partizip. Beide Formen kommen vor, und ein Vorhaben faengt istAbsicht
   // oben schon ab, deshalb ist der Infinitiv hier ungefaehrlich.
-  const gemacht = pattern("trainiert", "training gemacht", "war im gym", "war trainieren",
+  const gemacht = pattern("trainiert", "training gemacht", "im gym", "im studio", "fitnessstudio", "war trainieren",
+    "krafttraining", "beintag", "oberkoerper", "unterkoerper", "ganzkoerper",
     "gespielt", "spielen", "workout", "einheit gemacht", "gedehnt",
     "dehnen", "joggen", "laufen", "gelaufen", "schwimmen", "geschwommen").test(text);
   if (!gemacht) return null;
@@ -1807,12 +2033,13 @@ function mittagscheckAus(text: string): { energie: number; konzentration: number
 function zeitAus(text: string): { bereich: string; minuten: number; was: string } | null {
   if (istAbsicht(text)) return null;
   const gebucht = pattern("verbracht", "gearbeitet", "zeit mit", "war mit", "gebraucht fuer",
+    "coaching", "kundentermin", "meeting", "besprechung",
     "beschaeftigt", "gelernt", "telefoniert", "entspannt", "spazieren", "meditiert",
     "gelesen", "gezockt").test(text);
   if (!gebucht) return null;
 
   const bereich = pattern("familie", "schwester", "eltern", "mutter", "vater", "freundin", "partnerin", "date").test(text) ? "beziehung"
-    : pattern("gelernt", "kunde", "kundin", "gearbeitet", "buero", "angebot", "content", "akquise").test(text) ? "karriere"
+    : pattern("gelernt", "kunde", "kundin", "gearbeitet", "buero", "angebot", "content", "akquise", "coaching", "meeting", "besprechung").test(text) ? "karriere"
       : pattern("meditiert", "therapie", "spaziergang", "spazieren", "entspannt", "geschlafen").test(text) ? "wellbeing"
         : pattern("gelesen", "gezockt", "serie", "film", "hobby", "fuer mich").test(text) ? "me_time"
           : null;

@@ -28,6 +28,7 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
         var typen = Set<HKObjectType>()
         let mengen: [HKQuantityTypeIdentifier] = [
             .stepCount, .activeEnergyBurned, .restingHeartRate, .heartRateVariabilitySDNN, .bodyMass,
+            .bodyFatPercentage, .vo2Max, .appleExerciseTime,
         ]
         for id in mengen {
             if let t = HKObjectType.quantityType(forIdentifier: id) { typen.insert(t) }
@@ -97,6 +98,10 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
             (.restingHeartRate, "ruhepuls", .discreteAverage, HKUnit.count().unitDivided(by: .minute()), 0),
             (.heartRateVariabilitySDNN, "hrv", .discreteAverage, .secondUnit(with: .milli), 0),
             (.bodyMass, "gewichtKg", .mostRecent, .gramUnit(with: .kilo), 1),
+            // Körperfett kommt als Anteil von 0 bis 1, die App rechnet in Prozent.
+            (.bodyFatPercentage, "koerperfett", .mostRecent, .percent(), 3),
+            (.vo2Max, "vo2max", .mostRecent, HKUnit(from: "ml/kg*min"), 1),
+            (.appleExerciseTime, "trainingsMinuten", .cumulativeSum, .minute(), 0),
         ]
 
         for (id, feld, option, einheit, stellen) in statistiken {
@@ -152,6 +157,21 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
                     } else {
                         zusammen.append((von, bis))
                     }
+                }
+                // Tief und REM getrennt, nur ab iOS 16, davor schreibt die Uhr
+                // keine Phasen. Phasen überlappen sich nicht, Doppeltes aus
+                // Uhr und iPhone gibt es hier nicht, denn nur die Uhr misst sie.
+                if #available(iOS 16.0, *) {
+                    var tief: [String: Double] = [:]
+                    var rem: [String: Double] = [:]
+                    for p in (proben as? [HKCategorySample] ?? []) where p.sourceRevision.source.bundleIdentifier.hasPrefix("com.apple.health") {
+                        let tag = GesundheitPlugin.tagText(p.endDate)
+                        let minuten = p.endDate.timeIntervalSince(p.startDate) / 60
+                        if p.value == HKCategoryValueSleepAnalysis.asleepDeep.rawValue { tief[tag, default: 0] += minuten }
+                        if p.value == HKCategoryValueSleepAnalysis.asleepREM.rawValue { rem[tag, default: 0] += minuten }
+                    }
+                    for (tag, m) in tief where tag >= GesundheitPlugin.tagText(anfang) { setzen(tag, "tiefschlafMinuten", m.rounded()) }
+                    for (tag, m) in rem where tag >= GesundheitPlugin.tagText(anfang) { setzen(tag, "remMinuten", m.rounded()) }
                 }
                 var jeTag: [String: Double] = [:]
                 for (von, bis) in zusammen {

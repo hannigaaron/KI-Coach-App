@@ -9,6 +9,7 @@ import { cp, mkdir, rm, readdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
+import { satoshiHolen } from "./schrift-holen.mjs";
 
 const root = process.cwd();
 /*
@@ -44,6 +45,8 @@ await cp(join(root, "apps/pwa"), outDir, {
   recursive: true,
   filter: (quelle) => !quelle.endsWith(".test.js"),
 });
+// Satoshi kommt beim Bauen dazu und nie in den Baum, siehe schrift-holen.mjs.
+await satoshiHolen(join(outDir, "schrift"), join(root, "node_modules/.cache/daevo-schrift"));
 await mkdir(join(outDir, "lib/core"), { recursive: true });
 await mkdir(join(outDir, "lib/coach"), { recursive: true });
 
@@ -179,5 +182,20 @@ for (const path of ["./lib/core/index.js", "./lib/coach/index.js"]) {
     process.exit(1);
   }
 }
+
+/**
+ * Offene Stellen in den Rechtstexten. Name, Anschrift und Behörde kann nur
+ * der Betreiber eintragen, und ein Impressum mit Platzhalter ist ein Verstoss
+ * gegen § 5 DDG. Der Build bricht nicht ab, damit die eigene Testfassung
+ * weiter baut, aber er sagt es bei jedem Lauf.
+ */
+const rechtOrdner = join(root, "apps/pwa/rechtliches");
+const offen = [];
+for (const name of await readdir(rechtOrdner)) {
+  if (!name.endsWith(".html")) continue;
+  const zahl = ((await readFile(join(rechtOrdner, name), "utf8")).match(/class="offen"/g) || []).length;
+  if (zahl) offen.push(`${name}: ${zahl}`);
+}
+if (offen.length) console.warn(`Achtung, offene Stellen in den Rechtstexten, vor dem Start ausfüllen: ${offen.join(", ")}.`);
 
 console.log(`${demo ? "dist-demo" : "dist-pages"} gebaut, ${files.length} Dateien.`);

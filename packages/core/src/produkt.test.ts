@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { produktAusOff, pruefeProdukt, naehrwerteFuer, portionsVorschlag, portionInGramm, produktText } from "./produkt.js";
+import { produktAusOff, pruefeProdukt, naehrwerteFuer, portionsVorschlag, portionInGramm, produktText, offBild } from "./produkt.js";
 
 /**
  * Der echte Datensatz von Open Food Facts, abgerufen am 07.09.2026.
@@ -135,4 +135,15 @@ test("der Text nennt Herkunft und Barcode", () => {
   assert.ok(t.includes("Auf 60 g: 208 kcal"));
   assert.ok(t.includes("4255719307476"));
   assert.ok(t.includes("Open Food Facts"));
+});
+
+test("ein Bild kommt nur von Open Food Facts selbst", () => {
+  const gut = "https://images.openfoodfacts.org/images/products/400/123/456/7890/front_de.4.200.jpg";
+  assert.equal(offBild(gut), gut);
+  assert.equal(offBild("https://example.com/bild.jpg"), undefined);
+  assert.equal(offBild("http://images.openfoodfacts.org/images/a.jpg"), undefined);
+  assert.equal(offBild("javascript:alert(1)"), undefined);
+  assert.equal(offBild(""), undefined);
+  const p = produktAusOff({ code: "4001234567890", product_name: "Skyr", nutriments: { "energy-kcal_100g": 63 }, image_front_small_url: gut });
+  assert.equal(p?.bild, gut);
 });

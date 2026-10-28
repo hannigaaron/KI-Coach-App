@@ -35,7 +35,7 @@ class SpeicherAttrappe {
 globalThis.localStorage = new SpeicherAttrappe();
 
 const { store, todayIso } = await import("./storage.js");
-const { buildActions, dayNumbers, kalenderStandText, plausibelHinweis, trifftPosten, nachtragZeit } = await import("./assistant.js");
+const { buildActions, dayNumbers, kalenderStandText, koerperText, plausibelHinweis, trifftPosten, nachtragZeit } = await import("./assistant.js");
 
 const PROFIL = {
   name: "Aaron", sex: "male", ageYears: 23, heightCm: 184, weightKg: 87,
@@ -686,4 +686,18 @@ test("eine Korrektur in einer anderen Einheit wird über Gramm umgerechnet", asy
   const e = store.getDay(day).meals[0].entries[0];
   assert.equal(e.quantity, "1 Teelöffel");
   assert.equal(e.kcal, 15, antwort);
+});
+
+test("Apple Health im Kontext: Nacht mit Phasen, HRV gegen den eigenen Schnitt", () => {
+  const heute = "2030-01-28";
+  for (let i = 0; i < 10; i++) {
+    const tag = new Date(Date.parse(`${heute}T00:00:00Z`) - i * 86400000).toISOString().slice(0, 10);
+    store.setDay(tag, { ...store.getDay(tag), gesundheit: { hrv: i === 0 ? 30 : 50, ruhepuls: 55 } });
+  }
+  store.setDay(heute, { ...store.getDay(heute), gesundheit: { hrv: 30, ruhepuls: 55, schlafMinuten: 400, tiefschlafMinuten: 50, vo2max: 47.5 } });
+  const t = koerperText(heute);
+  assert.match(t, /Schlaf letzte Nacht 6 h 40 \(davon 0 h 50 Tiefschlaf\)/);
+  assert.match(t, /HRV 30 ms, Schnitt 28 Tage 48/);
+  assert.match(t, /VO2max 47,5 ml\/kg\/min/);
+  assert.equal(koerperText("2031-06-01"), "");
 });

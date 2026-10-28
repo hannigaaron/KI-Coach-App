@@ -18,6 +18,7 @@ import {
   hash,
   kontoAnlegen,
   kontoAusAnfrage,
+  kontoLoeschen,
   monatVon,
   NEUE_KONTEN_JE_TAG,
   STUFEN,
@@ -25,6 +26,9 @@ import {
   verbrauchLesen,
 } from "./konto.js";
 import { gesundheitAbholen, gesundheitAblegen, tagPruefen, werteLesen } from "./gesundheit.js";
+import { anmeldungVerknuepfen, googleCodeTauschen, idTokenPruefen, pruefungFuer, type Anbieter } from "./anmeldung.js";
+import { appleJwsAnwenden, appleMeldung, stripeEreignis, stripeSignaturPruefen } from "./abo-kauf.js";
+import { kalenderHolen } from "./kalender.js";
 import { postAblegen, postAbholen, postMitteilung } from "./postfach.js";
 import type { Env, ScheduledEvent } from "./umgebung.js";
 
@@ -116,7 +120,7 @@ export default {
         // kostenloses Konto nach dem anderen anlegt, läuft hier auf.
         const neu = await zaehlen(env.ABOS, `konto.neu.${new Date().toISOString().slice(0, 10)}.${await hash(geraeteKennung(anfrage))}`, NEUE_KONTEN_JE_TAG, 60 * 60 * 26);
         if (!neu.erlaubt) return antwort({ fehler: "Von dieser Adresse wurden heute schon genug Konten angelegt." }, 429, kopf);
-        const { token, konto } = await kontoAnlegen(env.ABOS);
+        const { token, konto } = await kontoAnlegen(env.ABOS, new Date(), { testphase: env.TESTPHASE !== "abo" });
         return antwort({ ok: true, token, id: konto.id, stufe: konto.stufe }, 200, kopf);
       }
 
@@ -133,6 +137,9 @@ export default {
             stufe,
             name: s.name,
             bis: gefunden.konto.bis ?? null,
+            login: gefunden.konto.login ?? null,
+            quelle: gefunden.konto.quelle ?? null,
+            testphaseMitAbo: env.TESTPHASE === "abo",
             monat,
             verbrauch: await verbrauchLesen(env.ABOS, gefunden.konto.id, monat),
             grenze: { nachrichten: s.nachrichten, budgetMikro: s.budgetMikro },
@@ -140,6 +147,74 @@ export default {
           200,
           kopf,
         );
+      }
+
+      if (url.pathname === "/konto" && anfrage.method === "DELETE") {
+        // Nur mit dem eigenen Schlüssel. Wer ihn hat, hat auch das Gerät.
+        const gefunden = await kontoAusAnfrage(env.ABOS, anfrage);
+        if (!gefunden) return antwort({ fehler: "Dieses Konto kennt der Server nicht." }, 404, kopf);
+        await kontoLoeschen(env.ABOS, gefunden.h, gefunden.konto);
+        return antwort({ ok: true, geloescht: gefunden.konto.id }, 200, kopf);
+      }
+
+      if (url.pathname === "/anmeldung" && anfrage.method === "POST") {
+        const daten = (await anfrage.json()) as { anbieter?: string; idToken?: string; code?: string; verifier?: string; redirect?: string; nonce?: string };
+        const anbieter = daten.anbieter as Anbieter;
+        const pruefung = pruefungFuer(anbieter, env);
+        if (!pruefung) return antwort({ fehler: "Diese Anmeldung ist auf dem Server nicht eingerichtet." }, 400, kopf);
+        let idToken = daten.idToken || "";
+        if (!idToken && anbieter === "google" && daten.code && daten.verifier && daten.redirect && env.GOOGLE_IOS_CLIENT_ID) {
+          const t = await googleCodeTauschen({ code: daten.code, verifier: daten.verifier, redirect: daten.redirect, clientId: env.GOOGLE_IOS_CLIENT_ID });
+          if ("fehler" in t) return antwort({ fehler: t.fehler }, 401, kopf);
+          idToken = t.idToken;
+        }
+        const geprueft = await idTokenPruefen(idToken, pruefung, daten.nonce ? { nonce: daten.nonce } : {});
+        if ("fehler" in geprueft) return antwort({ fehler: geprueft.fehler }, 401, kopf);
+        const aktuell = await kontoAusAnfrage(env.ABOS, anfrage);
+        const r = await anmeldungVerknuepfen(env.ABOS, anbieter, geprueft.sub, aktuell, new Date(), { testphase: env.TESTPHASE !== "abo" });
+        return antwort({ ok: true, token: r.token, id: r.konto.id, login: anbieter, neu: r.neu, uebernommen: r.uebernommen }, 200, kopf);
+      }
+
+      if (url.pathname === "/appstore" && anfrage.method === "POST") {
+        // Die App schickt nach jedem Kauf und beim Start die Transaktion,
+        // die StoreKit ihr gegeben hat. Geprüft wird die Signatur von Apple.
+        const gefunden = await kontoAusAnfrage(env.ABOS, anfrage);
+        if (!gefunden) return antwort({ fehler: "Dafür braucht es ein Konto." }, 401, kopf);
+        const { jws } = (await anfrage.json()) as { jws?: string };
+        const r = await appleJwsAnwenden(env.ABOS, String(jws || ""), {
+          kontoId: gefunden.konto.id,
+          bundleId: env.APPLE_AUD || "de.daevo.app",
+          produkte: env.APPSTORE_PRODUKTE || "",
+        });
+        if (r.fehler) return antwort({ fehler: r.fehler }, r.status, kopf);
+        return antwort({ ok: true, stufe: r.konto?.stufe, bis: r.konto?.bis ?? null }, 200, kopf);
+      }
+
+      if (url.pathname === "/appstore/meldung" && anfrage.method === "POST") {
+        const { signedPayload } = (await anfrage.json()) as { signedPayload?: string };
+        const r = await appleMeldung(env.ABOS, String(signedPayload || ""), {
+          bundleId: env.APPLE_AUD || "de.daevo.app",
+          produkte: env.APPSTORE_PRODUKTE || "",
+        });
+        return antwort(r.fehler ? { fehler: r.fehler } : { ok: true }, r.status, kopf);
+      }
+
+      if (url.pathname === "/stripe" && anfrage.method === "POST") {
+        const roh = await anfrage.text();
+        if (!(await stripeSignaturPruefen(roh, anfrage.headers.get("stripe-signature") || "", env.STRIPE_WEBHOOK_SECRET || ""))) {
+          return antwort({ fehler: "Signatur ungültig." }, 400, kopf);
+        }
+        await stripeEreignis(env.ABOS, JSON.parse(roh), env.STRIPE_PREISE || "");
+        return antwort({ ok: true }, 200, kopf);
+      }
+
+      if (url.pathname === "/kalender" && anfrage.method === "POST") {
+        // Nur mit Konto: sonst ruft jeder über diesen Worker fremde Kalender ab.
+        if (!(await kontoAusAnfrage(env.ABOS, anfrage))) return antwort({ fehler: "Dafür braucht es ein Konto." }, 401, kopf);
+        const { url: adresse } = (await anfrage.json()) as { url?: string };
+        const r = await kalenderHolen(String(adresse || ""));
+        if (r.status !== 200) return antwort({ fehler: r.fehler }, r.status, kopf);
+        return new Response(r.text, { status: 200, headers: { ...kopf, "content-type": "text/calendar; charset=utf-8", "cache-control": "no-store" } });
       }
 
       if (url.pathname === "/konto/stufe" && anfrage.method === "POST") {

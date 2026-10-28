@@ -37,6 +37,8 @@ export interface Produkt {
   portionG?: number;
   /** Ballaststoffe je 100 g. Erklaeren die Luecke zwischen Etikett und Makrorechnung. */
   ballaststoffeG?: number;
+  /** Kleines Foto der Packung, nur von Open Food Facts selbst. */
+  bild?: string;
   quelle: "openfoodfacts";
 }
 
@@ -81,8 +83,18 @@ export function produktAusOff(roh: unknown): Produkt | null {
     per100,
     portionG: portionInGramm(text(p.serving_size)) ?? undefined,
     ballaststoffeG: zahl(n.fiber_100g) ?? undefined,
+    bild: offBild(text(p.image_front_small_url) || text(p.image_small_url)),
     quelle: "openfoodfacts",
   };
+}
+
+/**
+ * Nimmt eine Bildadresse nur an, wenn sie von Open Food Facts selbst kommt.
+ * Das Feld schreiben Freiwillige, und eine fremde Adresse in der App wäre
+ * ein Abruf an einen Server, den die Datenschutzerklärung nicht nennt.
+ */
+export function offBild(url: string): string | undefined {
+  return /^https:\/\/images\.openfoodfacts\.org\/[\w./-]+\.(?:jpg|jpeg|png|webp)$/i.test(url) ? url : undefined;
 }
 
 /**

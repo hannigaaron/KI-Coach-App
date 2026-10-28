@@ -20,6 +20,7 @@ const KENNUNG = "daevo/1.0 (https://github.com/hannigaaron/KI-Coach-App)";
 /** Nur diese Felder abrufen. Ein voller Datensatz ist rund 30 Kilobyte gross. */
 const FELDER = [
   "code", "product_name", "product_name_de", "brands", "quantity", "serving_size", "nutriments",
+  "image_front_small_url", "image_small_url",
 ].join(",");
 
 export interface OffTreffer {

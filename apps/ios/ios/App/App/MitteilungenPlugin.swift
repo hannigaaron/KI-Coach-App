@@ -24,13 +24,25 @@ final class MitteilungenZentrale: NSObject, UNUserNotificationCenterDelegate {
             UNNotificationAction(identifier: "krank", title: "Krank oder verletzt", options: []),
         ]
         let luecke = UNNotificationCategory(identifier: "luecke", actions: aktionen, intentIdentifiers: [], options: [])
-        center.setNotificationCategories([luecke])
+        // Umplanen öffnet die App, denn den freien Platz rechnet die App.
+        // Lassen bleibt zu: es gibt nichts zu tun.
+        let kalender = UNNotificationCategory(identifier: "kalender", actions: [
+            UNNotificationAction(identifier: "umplanen", title: "Umplanen", options: [.foreground]),
+            UNNotificationAction(identifier: "lassen", title: "Lassen", options: []),
+        ], intentIdentifiers: [], options: [])
+        center.setNotificationCategories([luecke, kalender])
     }
 
     // Auch bei offener App zeigen. Sonst geht die Erinnerung ans Runterfahren
     // genau dann verloren, wenn jemand gerade auf das Handy schaut.
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,
                                 withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        // Das Ende der Satzpause meldet bei offener App die Seite selbst.
+        // Beides zusammen wären zwei Meldungen für denselben Moment.
+        if notification.request.identifier == MitteilungenPlugin.pauseKennung {
+            completionHandler([])
+            return
+        }
         completionHandler([.banner, .list, .sound])
     }
 
@@ -52,6 +64,9 @@ final class MitteilungenZentrale: NSObject, UNUserNotificationCenterDelegate {
                 "frage": response.notification.request.content.title,
                 "frageText": response.notification.request.content.body,
                 "at": Date().timeIntervalSince1970 * 1000,
+                // Beim Kalender: welches Training gemeint ist.
+                "eid": info["eid"] as? String ?? "",
+                "von": info["von"] as? Double ?? 0,
             ])
             defaults.set(liste, forKey: Self.antwortenSchluessel)
         }
@@ -69,9 +84,35 @@ public class MitteilungenPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "berechtigen", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "planen", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "abholen", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "pauseStellen", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "pauseAbbrechen", returnType: CAPPluginReturnPromise),
     ]
 
     private static let praefix = "daevo-"
+    /// Ohne das Präfix oben, sonst löschte jedes neue Planen die laufende Pause.
+    static let pauseKennung = "pause.daevo"
+
+    /// Eine Mitteilung zum Ende der Satzpause. Es gibt immer nur eine, eine
+    /// neue Pause ersetzt die alte.
+    @objc func pauseStellen(_ call: CAPPluginCall) {
+        let sekunden = max(5, min(900, call.getDouble("sekunden") ?? 90))
+        let uebung = call.getString("uebung") ?? ""
+        let inhalt = UNMutableNotificationContent()
+        inhalt.title = "Pause vorbei"
+        inhalt.body = uebung.isEmpty ? "Nächster Satz." : "Nächster Satz: \(uebung)."
+        inhalt.sound = .default
+        inhalt.userInfo = ["art": "pause"]
+        let ausloeser = UNTimeIntervalNotificationTrigger(timeInterval: sekunden, repeats: false)
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: [Self.pauseKennung])
+        center.add(UNNotificationRequest(identifier: Self.pauseKennung, content: inhalt, trigger: ausloeser))
+        call.resolve()
+    }
+
+    @objc func pauseAbbrechen(_ call: CAPPluginCall) {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [Self.pauseKennung])
+        call.resolve()
+    }
 
     @objc func berechtigen(_ call: CAPPluginCall) {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { erlaubt, _ in

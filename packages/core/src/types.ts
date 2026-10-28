@@ -117,6 +117,8 @@ export interface FoodEntry {
   proteinG: number;
   fatG: number;
   carbsG: number;
+  /** Foto der Packung von Open Food Facts, wenn der Posten von dort kommt. */
+  bild?: string;
 }
 
 export interface DayTotals {

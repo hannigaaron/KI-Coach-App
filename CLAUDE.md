@@ -79,7 +79,7 @@ Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
 
-Der Assistent hat achtundvierzig Werkzeuge und verändert die App wirklich. Zahlen
+Der Assistent hat neunundvierzig Werkzeuge und verändert die App wirklich. Zahlen
 über den Nutzer kommen immer aus Werkzeugen, nie aus dem Modell. Allgemeines
 Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
@@ -127,9 +127,13 @@ kurzes Profil, die Zahlen des Tages, drei Notizen und sechs Nachrichten
 Verlauf. Alles andere bekommt weiterhin alles. An der Antwortqualität wird
 nicht gespart, nur an dem, was beim Eintragen einer Mahlzeit niemand liest.
 
-Denktiefe: psyche und planung immer `high`. Fachfragen laufen auf `medium`,
-kurzes hin und her auf `low`. Der Schalter "immer gründlich denken" im Profil
-hebt alles auf `high`. `maxTokens` ist eine Notbremse gegen abgeschnittene
+Denktiefe: in der Voreinstellung höchstens `medium`, kurzes hin und her auf
+`low`. Vorher liefen psyche und planung auf `high` und Planung auf Opus, und
+bei einer Vorführung dauerte eine Antwort 45 Sekunden bis zum ersten Wort:
+das Denken kommt vor dem Text, und jede Runde mit einem Werkzeug denkt neu.
+Jetzt läuft Planung auf Sonnet, Psyche bleibt auf Opus mit voller Länge.
+"Immer gründlich" im Profil hebt alles auf `high` und Planung zurück auf
+Opus, `tiefeAnheben` und `modellFuerTempo` in `agent.ts`. `maxTokens` ist eine Notbremse gegen abgeschnittene
 Antworten, kein Sparhebel: bezahlt wird nur, was geschrieben wird.
 
 Die Antwort läuft als Datenstrom in die Blase, sobald das erste Wort da ist.
@@ -339,6 +343,49 @@ ohne Knieübung wäre falsch. Übungen, die jemand im Freitext nennt, werden
 über den Namen gesucht, ab fünf Zeichen, damit "Bankdrücken" auch die
 Varianten trifft.
 
+### Fokus: was am wichtigsten ist, kommt zuerst
+
+`wunsch.fokus`, bis zu zwei Partien aus Beine, Po, Brust, Rücken,
+Schultern, Arme, Core, `FOKUS_PLAETZE` im Kern. Gefragt wird im Fragebogen
+und in der Auswahl über dem Wochenplan. In jeder Einheit stehen die
+Fokusübungen vorn, solange man frisch ist, untereinander schwer vor
+leicht, danach der Rest im bekannten Schema. Wer Arme aufbauen will,
+trainiert sie vor dem Bankdrücken. Ab 60 Minuten kommen bis zu zwei
+Fokusplätze als erste Zusatzübungen dazu, aber nur in Einheiten derselben
+Körperhälfte: Bizeps am Beintag hiesse, den Aufbau der Woche für eine
+Vorliebe zu vergessen. Beim Kürzen fällt eine Fokusübung als letzte
+Isolation weg. Core bleibt auch als Fokus am Ende, ein müder Rumpf macht
+jede schwere Übung danach unsicherer, das steht im Hinweis des Plans.
+
+Fokus Arme gilt auch bis 45 Minuten, `armFokus` im Kern: Bizeps und Trizeps
+kommen mit zwei bis drei Sätzen ganz vorn in jede Ganzkörpereinheit. Die
+Zeit kommt von den Beinen, die nicht im Fokus stehen: erst ein Satz weniger
+dort, dann fällt die zweite Beinübung weg, eine bleibt immer. Drücken und
+Ziehen behalten ihre Sätze. Wer Arme als Fokus angibt, will sie trainieren,
+und Drücken und Ziehen allein reichen dafür nicht. Eine Regel von Coach
+Aaron, keine Studie.
+
+### Training für heute
+
+`einzeltrainingBauen` im Kern, `heuteHtml` in `plaene.js`, oben in der
+Ansicht der Pläne. Für den Tag, an dem der Plan nicht passt: Minuten
+wählen, Partien wählen, daevo rechnet eine Einheit. Vorgewählt ist, was
+diese Woche ab Montag noch fehlt, `wocheTrainiert` und `fehlendePartien`
+aus dem Trainingsprotokoll. Nach Push und Pull sind das Beine, Po und Core.
+Ohne Eintrag in dieser Woche ist nichts vorgewählt, sieben Partien auf
+einmal wären keine Wahl. Trainings aus Apple Health tragen keine Übungen
+und zählen dort nicht.
+
+Gerechnet wird mit `einheitBauen`, derselben Funktion wie für jeden Tag
+des Wochenplans, mit Fokus, Schwere, ZNS Regel, Einsteigergeräten und dem
+Füllen der Zeit. Je Partie zuerst ihr schwerster Platz, dann reihum die
+nächsten, danach ein zweiter Durchgang mit anderen Übungen. Anders als im
+Wochenplan gibt es auch unter 45 Minuten Isolation, wenn jemand nur Arme
+wählt: für Arme gibt es keine Grundübung. 30 Minuten Beine und Core ergeben
+Kniebeuge, Rumänisches Kreuzheben und eine Rumpfübung. Gestartet läuft sie
+wie ein freies Training unter "Training für heute", Tauschen ändert den
+Plan nicht.
+
 ### Schweres Heben und Beugen nie am selben Tag
 
 `zuSchwerZusammen` im Kern. Kreuzheben, Sumo und Trap Bar Kreuzheben stehen
@@ -384,6 +431,29 @@ an, nach Ort, Niveau und Beschwerden, die erste als Vorschlag von daevo.
 Der Tausch gilt ab dann auch im Plan. Wer einen Plan startet, der noch
 nicht gespeichert ist, speichert ihn damit: ohne gespeicherten Plan gibt es
 nichts, woran nach acht Wochen gemessen wird.
+
+### Was heute dran ist
+
+`steigerung` in `trainingslog.ts`, angezeigt über dem letzten Mal, mit
+"Übernehmen" für die offenen Sätze. Doppelte Progression: erst die
+Wiederholungen bis ans obere Ende des Bereichs, dann Gewicht dazu und unten
+wieder anfangen. Gestützt auf ACSM, Progression Models in Resistance
+Training, 2009: 2 bis 10 Prozent mehr Last, sobald die Wiederholungen über
+dem Ziel liegen. Die Schritte, 2,5 kg und unter 20 kg 1 kg, sind eine Regel
+der App. Gezählt werden die Sätze mit dem höchsten Gewicht. Lag die Reserve
+mehr als eine Wiederholung unter dem Ziel, wird gehalten. Ohne Gewicht am
+oberen Ende rät die App kein Kilo, sondern sagt, wie es schwerer wird.
+
+Das Ende der Pause kommt in der iPhone App auch als Mitteilung, bei
+gesperrtem Handy: `pauseStellen` im `MitteilungenPlugin`, eine Kennung
+ohne das Präfix der geplanten Mitteilungen, sonst löschte das nächste
+Planen die laufende Pause. Ist die App vorn, unterdrückt iOS sie, und die
+Seite meldet selbst. Die Uhr rechnet gegen den Endzeitpunkt statt
+abzuzählen, denn im Hintergrund hält iOS die Uhr der Seite an.
+
+Die Felder bleiben mit dem letzten Mal vorbelegt, der Vorschlag ist ein
+Angebot. `trainingsplan_abrufen` gibt denselben Satz je Übung an den Coach,
+sonst nennt er ein Gewicht aus dem Modell.
 
 ### Freies Training
 
@@ -444,7 +514,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1157 Tests
+npm test           # 1229 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -479,10 +549,90 @@ Der Import läuft im Browser. Es geht keine Datei an einen Server. Gespeichert
 werden die gelesenen Termine, nicht die Datei: ein Jahr Kalender als ICS ist
 schnell ein Megabyte, und der localStorage ist bei rund fünf zu Ende.
 
-Offen: die geheime Adresse direkt abrufen statt eine Datei zu wählen. Das
-scheitert im Browser an CORS, dafür braucht es `apps/api` als Zwischenstelle.
-OAuth für Google und EventKit für Apple gehören in die native App, siehe
-`docs/ROADMAP.md`.
+### Kalender, die sich selbst abgleichen
+
+`apps/pwa/js/kalender-sync.js`. Die Datei ist der Ausweg, der Normalfall
+gleicht sich ab. In der iPhone App liest `KalenderPlugin.swift` über EventKit
+jeden Kalender, den iOS kennt, also auch Google und Outlook, sobald sie in
+den iOS Einstellungen als Account stehen. Für den Browser und ohne iPhone
+gibt es das Abo über die geheime iCal Adresse: der Worker holt sie über
+`/kalender`, weil Google und iCloud keinen CORS Kopf senden, nur von
+bekannten Diensten und nur mit Konto, sonst wäre er eine offene
+Weiterleitung. Gespeichert wird auf dem Server nichts.
+
+Abgleich beim Start und beim Zurückholen der App, höchstens alle 30
+Minuten. Alle drei Wege schreiben über `kalenderTermineSetzen`, und eine
+Quelle ersetzt nur sich selbst. Scheitert eine Quelle, bleiben ihre alten
+Termine stehen: lieber der Stand von gestern als ein leerer Tag.
+
+### Trainings in den Kalender schreiben
+
+`apps/pwa/js/kalender-schreiben.js`, Werkzeug `kalender_termin`, freier
+Platz in `packages/core/src/kalenderplan.ts`, Schreiben über `anlegen`,
+`verschieben` und `loeschen` in `KalenderPlugin.swift`. Nur in der iPhone
+App mit verbundenem Apple Kalender, darin auch Google und Outlook. Im
+Browser nennt die App den freien Platz und sagt, dass sie dort nicht
+schreiben kann.
+
+"Ich schaff's morgen nicht ins Training, plan um" verschiebt den nächsten
+Trainingstermin an diesem Tag auf den frühesten Tag danach, dort so nah wie
+möglich an der alten Uhrzeit. Nachholen heisst bald, und wer um 18 Uhr
+trainiert, will nicht um 7. Den Platz rechnet die App: 15 Minuten Luft um
+jeden Termin, Beginn auf die Viertelstunde, Ende spätestens eine Stunde vor
+dem Schlafen (Stutz, Eiholzer und Spengler, Sports Medicine 2019). Ein
+Modell, das eine Uhrzeit nennt, kennt den Kalender nicht genau genug und
+legt das Training auf einen Kundentermin.
+
+Was daevo eingetragen hat, trägt `daevo://termin` als URL und wird ohne
+Rückfrage verschoben. Fremde Termine nur mit `bestaetigt`, und gelöscht
+wird nur Eigenes. Die Bitte des Nutzers ist das Ja: "verschieb den Termin
+mit Kunde Müller auf Freitag 14 Uhr" setzt `bestaetigt`, `zielTag` und
+`zielUhrzeit`, auch im Regelpfad, und daevo fragt nicht nach. Gefragt wird
+nur, wenn daevo von sich aus an einen fremden Termin will. Ein genanntes
+Ziel gilt genau, `anGenauesZiel`. Liegt dort ein Training, wandert es an
+den nächsten freien Platz, ein eigenes ohne Rückfrage, ein fremdes als
+Vorschlag. Liegt dort etwas anderes, schreibt daevo nichts und fragt:
+zwei Kundentermine übereinander legt es nicht still an. Beide Bewegungen
+tragen dieselbe `gruppe` und kommen mit einem Satz zusammen zurück. Beides prüft das Plugin selbst noch
+einmal, damit ein Fehler im Modell keinen Kundentermin verschiebt.
+Wiederkehrende Termine werden nur in diesem einen Vorkommen geändert.
+
+Eintragen mit fester Uhrzeit schreibt nur, wenn die Zeit frei ist, sonst
+kommt ein Vorschlag. Steht das Training nicht im Kalender, kommen Dauer
+und Uhrzeit aus der Einheit im Profil und stehen als übernommen in der
+Antwort. Jede Änderung liegt in `settings.kalenderAenderungen`, die letzten
+20, und "mach die Kalenderänderung rückgängig" nimmt genau die letzte
+zurück. Ohne Kalender oder Termin im Satz greift der Regelpfad nicht,
+sonst nähme "mach das rückgängig" nach einer Mahlzeit einen Termin zurück.
+
+### Der Kalender im Hintergrund
+
+`KalenderWache` in `KalenderPlugin.swift`, `konfliktUmplanen` in
+`kalender-schreiben.js`. iOS lässt keine App dauerhaft laufen. Über
+`BGAppRefreshTask` weckt iOS daevo selbst, wann und wie oft entscheidet das
+System, meist einige Male am Tag, mit rund 30 Sekunden. Nach dem Wegwischen
+im App Umschalter weckt iOS die App nicht mehr, bis sie wieder offen war.
+Dazu prüft die App einmal beim Wechsel in den Hintergrund, in
+`sceneDidEnterBackground`: mit Szenen ruft iOS
+`applicationDidEnterBackground` nicht auf.
+
+Gesucht wird ein Training mit `daevo://termin`, das sich in den nächsten
+drei Tagen mit einem anderen Termin überschneidet. Ganztägiges und
+Termine mit Status frei zählen nicht. Je Training, Beginn und Störer kommt
+genau eine Mitteilung, höchstens zwei je Lauf, Art `kalender`, mit
+"Umplanen" und "Lassen". Wer "Lassen" sagt, will dieselbe Meldung nicht
+alle zwei Stunden wieder sehen.
+
+Umplanen öffnet die App, und erst dort wird der Platz gerechnet, mit
+denselben Regeln wie im Gespräch. Eine zweite Fassung der Regeln in Swift
+liefe nach drei Monaten anders als die im Kern. Vorher wird neu gelesen,
+denn die Mitteilung kann Stunden alt sein: ist der Konflikt weg, bleibt
+das Training. Ausgewichen wird am selben Tag, wenn dort Platz ist, das
+Training soll dem Termin weichen und nicht ausfallen. Fremde Termine liest
+dieser Teil nur.
+
+Ungeprüft: der Swift Teil ist hier nicht kompiliert und nicht auf einem
+Gerät gelaufen.
 
 ## Jeder Start ist ein leeres Gespräch
 
@@ -559,7 +709,7 @@ Kontext kosten mehr Token als die eigentliche Frage.
 
 ## Der Anamnesebogen
 
-Eine Frage pro Seite, 29 Seiten in acht Abschnitten. Die letzten Abschnitte
+Eine Frage pro Seite, 30 Seiten in acht Abschnitten. Die letzten Abschnitte
 sind der Unterschied zwischen einem Rechner und einem Coach: Essverhalten,
 Vorgeschichte, Umfeld, Antrieb.
 
@@ -715,6 +865,16 @@ Ergebnisses, und das Ergebnis zeigt ohnehin, dass gespeichert ist.
 
 Web Push über den Worker kennt die Aufstehzeit nicht, deshalb kommt die
 Mitteilung nur nativ. Im Browser ersetzt das Öffnen von selbst sie.
+
+## Zahlen von 1 bis 10 werden angetippt
+
+Der tägliche Check-in und der Mittags Check-in fragten Energie, Schlaf,
+Stimmung, Konzentration und Sättigung über Zahlenfelder ab. Ein Zahlenfeld
+öffnet die Tastatur, verdeckt die halbe Seite und will erst gelöscht werden.
+Jetzt zehn Stufen in einer Reihe wie beim Morgen Check-in,
+`stufenZeichnen` in `app.js` über `data-stufen`. Der Wert steht weiter im
+versteckten Feld mit derselben Kennung, Speichern liest unverändert. Die
+Enden stehen in Worten darunter.
 
 ## Die zwei Check-ins der Woche
 
@@ -924,6 +1084,33 @@ wird die Instanz weggeworfen und eine neue aufgesetzt. Nach dem vierten
 stummen Versuch bekommt der Nutzer eine Meldung statt eines toten Knopfes. Ein
 geglückter Start löscht die Bilanz, sonst summieren sich über eine lange
 Freihandsitzung vier einzelne Ausrutscher zu einem Abbruch.
+
+## Die Spracherkennung in der iPhone App
+
+`apps/ios/ios/App/App/DiktatPlugin.swift`, angesprochen aus `voice.js`,
+Wörter und Korrekturen in `apps/pwa/js/diktat.js`.
+
+Die Web Ansicht kennt nur `webkitSpeechRecognition`. Sie kennt keine
+Fachwörter und schrieb im Betrieb "zwei Sitze breite Umzüge" für "zwei
+Sätze breite Klimmzüge". In der iPhone App erkennt deshalb Apple selbst: ab
+iOS 26 `SpeechAnalyzer` mit `SpeechTranscriber`, dieselbe Erkennung, auf der
+Apps wie Yap aufbauen, für lange Aufnahmen gebaut und auf dem Gerät. Davor
+oder ohne deutsches Sprachpaket `SFSpeechRecognizer` mit der Wortliste als
+`contextualStrings`. Scheitert der native Start, bleibt die Erkennung der
+Web Ansicht.
+
+Die Web App fragt den Stand alle 220 Millisekunden ab, statt auf Ereignisse
+zu warten: Ereignisse bräuchten `@capacitor/core`, und die Web App hat keinen
+Bundler. Pause, Freihand und Abschicken laufen über denselben `Listener` wie
+im Browser.
+
+`diktatKorrektur` läuft auf jedem Weg. Jede Zeile stammt aus einer echten
+Ausgabe und greift nur im Zusammenhang: "Sitze" wird nur nach einer Zahl zu
+"Sätze", "Umzüge" nur nach "breite" oder "enge" zu Klimmzügen.
+
+Ungeprüft: der Swift Teil ist hier nicht kompiliert, es gibt kein Xcode. Der
+Weg über iOS 26 steht hinter `#if compiler(>=6.2)` und braucht Xcode 26. Ob
+Deutsch dort angeboten wird, fragt das Plugin bei iOS ab.
 
 ## Tagesränder
 
@@ -1330,6 +1517,43 @@ Geprüft wird nur der Aufruf mit fester Zeichenkette. Was aus einer Variablen
 kommt, lässt sich ohne Ausführen nicht auflösen, und eine Prüfung, die dort
 rät, meldet Fehler, die keine sind.
 
+## Die Bibliothek im Mahlzeit Editor
+
+`apps/pwa/js/bibliothek.js`, gezeichnet in `meBibliothekZeichnen` in
+`app.js`. Ohne Suchtext stehen unter dem Suchfeld die eigenen Rezepte und
+das zuletzt Gegessene, beim Tippen sofort die Treffer aus der eigenen
+Nährwerttabelle, Open Food Facts erst mit Enter. Wer drei Tage Tofu isst,
+sucht ihn am vierten nicht. Zuletzt gegessen bringt die zuletzt gegessene
+Menge mit, die isst man meistens wieder. Mahlzeiten aus Apple Health zählen
+dort nicht.
+
+Eigene Rezepte stehen in `settings.eigeneRezepte` und damit in der
+Sicherung. Ein Rezept geht als seine Zutaten in die Mahlzeit und nicht als
+Block: so lässt sich heute weniger Reis nehmen, ohne das Rezept zu ändern.
+Gleicher Name ersetzt, so ändert man ein Rezept. Die Grenze ist eine
+Entscheidung des Betreibers, `REZEPT_GRENZE`: Plus und Testphase fünf, Pro
+ohne Grenze, ohne Abo keines. Die Stufe merkt sich `kontoStand` in
+`settings.kontoStufe`, damit die Grenze ohne Netz gilt. Ohne eigenen Server
+gibt es keine Grenze.
+
+Jeder Posten trägt ein Bild und seinen Anteil am Tagesziel, die Mahlzeit
+oben den Anteil je Wert als Balken. Ein Foto gibt es nur von Open Food
+Facts, `offBild` im Kern nimmt nur Adressen von images.openfoodfacts.org an:
+das Feld schreiben Freiwillige, und eine fremde Adresse wäre ein Abruf, den
+die Datenschutzerklärung nicht nennt. Ohne Foto steht der Anfangsbuchstabe
+auf der Farbe des Makros, der die meisten Kalorien trägt, `hauptMakro`.
+
+Für 185 Lebensmittel gibt es ein Foto unter
+`apps/pwa/img/lebensmittel/<key>.jpg`, 240 x 180, die Namen dazu in
+`lebensmittel-bilder.js`. Aus Openverse unter CC0, Public Domain Mark oder
+CC BY. Quelle, Urheber und Lizenz je Datei stehen in `NACHWEIS.json`, ein
+Test prüft beides. CC BY verlangt die Nennung, dafür gibt es die Seite
+`rechtliches/bildnachweis.html`. Ohne Marken und Personen im Bild.
+Zugeordnet wird über `tabellenBild` bei genauem Namen oder wenn der Name als
+ganze Wörter vorn steht: ein falsches Foto neben einem Posten ist schlimmer
+als ein Buchstabe. Die Lizenzangabe auf Flickr stammt vom Hochladenden und
+kann falsch sein, deshalb steht die Quelle je Datei fest.
+
 ## Eine Mahlzeit nachträglich ändern
 
 `packages/core/src/portion.ts` rechnet, der Editor steht in `apps/pwa`.
@@ -1584,7 +1808,7 @@ Tippfehler darf die Ziele nicht kippen.
 
 ## Der Regelweg ist die kostenlose Stufe
 
-42 der 48 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
+45 der 49 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
 Das ist keine Notlösung für den Ausfall, sondern das Produkt: ein Weg, der
 kein Modell anfragt, kostet nichts je Nutzer und skaliert ohne Rechnung.
 
@@ -1614,6 +1838,74 @@ wie eine echte Antwort. Beschriftete Zahlen schlagen die Reihenfolge, denn wer
 "Energie 7, Sättigung 4" schreibt, meint nicht Konzentration 4. Steht viel
 Text um die Zahlen herum, greift der Zweig nicht: "ich hab 7 von 10 Stunden
 geschlafen und 2 Kaffee getrunken" ist kein Bogen.
+
+### Der zweite Durchlauf
+
+34 weitere Sätze aus dem Alltag ohne KI, jeder Fehler mit Test in
+`agent.test.ts`:
+
+- "War eben 60 min im Gym, Oberkörper" verstand der Regelweg nicht. Gym,
+  Studio, Beintag, Ober und Unterkörper zählen jetzt als Training.
+- "Ich hatte heute ein Coaching mit einem Kunden 2 Stunden" stand als
+  Mahlzeit im Tag. "hatte" mit einer Dauer und ohne Lebensmittel ist keine
+  Mahlzeit, Coaching und Meeting sind Arbeitszeit.
+- "Mir tut das Knie weh" wird als Beschwerde mit Wichtigkeit 5 gemerkt, mit
+  dem Weg zu den Beschwerden im Trainingsplan und dem Satz zu Arzt und
+  Physiotherapie. Die Stelle wird auf Wortgrenzen gesucht, sonst wird aus
+  "beim Kniebeugen" die Stelle Kniebeugen.
+- "Ich fühl mich total leer" fiel durch, weil nur "fühle" mit e galt. Es
+  wird ein Check-in, und die Rückfrage ist nicht die nach den Vorhaben des
+  Tages: die klingt wie die nächste Aufgabe.
+- "Mein Ziel ist jetzt Muskelaufbau" kannte nur das Verb aufbauen.
+
+Dazu 20 Sätze nur zum Essen:
+
+- "Das waren 300 g und nicht 200 g Reis" trug eine zweite Mahlzeit ein,
+  statt die erste zu korrigieren. Das ist der Fehler mit den 5172 Kalorien
+  in anderer Form. "und nicht" zählt jetzt als Richtigstellung.
+- "Was hab ich heute gegessen?" und "Ich hab heute noch nichts gegessen"
+  enthalten gegessen und legten eine leere Mahlzeit an. Beides bekommt
+  jetzt den Tagesstand.
+- "Ich esse gleich Lachs" ist ein Vorhaben, "gleich" und "nachher" zählen in
+  `istAbsicht`, die Antwort sagt, dass danach eingetragen wird.
+- "Lösch das Frühstück" fand keinen Gegenstand. Jetzt wird die jüngste
+  Mahlzeit dieser Tageszeit entfernt, über `artZurUhrzeit`, und nicht die
+  letzte des Tages.
+- Pizza, Döner, Pommes und belegte Brötchen kennt der Regelweg jetzt, mit
+  Werten aus dem Bundeslebensmittelschlüssel 4.0, siehe unten.
+  Proteinriegel nicht: den gibt es im BLS nicht, und die Marken liegen weit
+  auseinander. Dort bleibt die Rückfrage nach Barcode oder Etikett.
+
+### Gerichte aus dem Bundeslebensmittelschlüssel
+
+`packages/coach/src/foods.ts`. Der BLS 4.0 des Max Rubner-Instituts ist seit
+Dezember 2025 kostenfrei, blsdb.de. Daraus kommen 40 Gerichte und
+Zutaten, dazu 8 aus BLS Zutaten gerechnete, je 100 g essbarer Anteil,
+mit dem BLS Code über jeder Zeile: Döner
+in drei Arten, Lahmacun, Falafel, Pizza, Pommes, Mayo, Ketchup, Currywurst,
+Bratwurst, Burger, Schnitzel, Lasagne, Brötchen, Brezel, Croissant, Toast,
+Schinken, Salami, Cola und mehr. Butter und Gouda tragen jetzt ebenfalls
+BLS Werte.
+
+Die Portion in `pieceG` ist eine Annahme der App und kein BLS Wert: ein
+Döner 350 g, eine Pizza 400 g, Pommes 150 g. Die Antwort nennt die Menge,
+eine Angabe in Gramm schlägt sie. Belegte Brötchen, Käsebrot und Wurstbrot
+gibt es im BLS nicht als Gericht, sie sind aus BLS Zutaten gerechnet, die
+Mengen stehen im Kommentar.
+
+"Döner mit Hähnchen" wird vor dem Trennen am "mit" zu einem Gericht, sonst
+fiel Hähnchen als Posten ohne Menge heraus. Ein Test prüft für jede Zeile
+der Tabelle, dass Kalorien und Makros zusammenpassen.
+
+### Der Schnellweg
+
+`schnellweg` in `agent.ts`. Auch mit Schlüssel gehen eindeutige Kurzbefehle
+nicht ans Modell: eine Wassermenge, eine Wiegung, die drei Zahlen des
+Mittags Check-ins, Gekauftes. Die App rechnet dort ohnehin selbst, das
+Modell schrieb nur den Satz drumherum, für zwei bis vier Sekunden und eine
+Nachricht aus dem Kontingent. Höchstens acht Wörter, keine Frage, und nie
+eine Mahlzeit: dort schätzt das Modell Posten, die keine Tabelle kennt.
+Trägt der Regelweg nichts ein, läuft die Nachricht wie immer ans Modell.
 
 ### Der Regelweg nach dem Live-Test
 
@@ -1657,10 +1949,18 @@ Posten, die beim Neurechnen der Liste stehen bleiben, und
 `trainingsplan_abrufen`, das Training eines Tages mit den Übungen aus
 `settings.plan`. Vorher kannte der Coach die gespeicherten Übungen nicht.
 
-Offen bleiben sechs. Die beiden Fotowerkzeuge brauchen ein Modell, daran
-ändert kein Regelpfad etwas. `standard_bestaetigen` und `gespraech_einordnen` brauchen eine Kennung aus dem Zusammenhang, die ein
-Wortmuster nicht kennt. `profil_aendern` und `einkaufsliste_abhaken` sind
-machbar und stehen aus.
+Offen bleiben vier. Die beiden Fotowerkzeuge brauchen ein Modell, daran
+ändert kein Regelpfad etwas. `standard_bestaetigen` und `gespraech_einordnen`
+brauchen eine Kennung aus dem Zusammenhang, die ein Wortmuster nicht kennt.
+
+`einkaufsliste_abhaken` hat jetzt einen Regelpfad, `listeAbhakenAus`: "Reis
+und Eier gekauft", "Milch hab ich noch zuhause". Er steht vor dem Abhaken
+von Aufgaben, sonst wird "Milch gekauft, erledigt" zu einer Aufgabe namens
+Milch. `profil_aendern` über `profilAus`, nur mit einem Zeichen für Dauer:
+"mein Ziel ist jetzt abnehmen", "im Schnitt 12.000 Schritte", "ab jetzt um
+6 aufstehen". Ein Satz mit heute, morgen oder gestern ist ein einzelner Tag
+und ändert das Profil nicht, eine falsch übernommene Schrittzahl verschiebt
+das Kalorienziel an jedem Tag danach.
 
 ## Rezepte
 
@@ -2707,9 +3007,59 @@ Payment Link, mit der Kontokennung als `client_reference_id`. Fehlt der
 Link, geht eine Mail mit der Kennung an den Betreiber. In der iPhone App
 gibt es keinen Link: digitale Abos laufen dort über den Kauf im App Store.
 
-Die Stufe setzt bisher der Betreiber von Hand, `POST /konto/stufe` mit dem
-Anmeldewort und `{ konto, stufe, bis }`. Ein Kauf im App Store und Sign in
-with Apple kommen später an dieselbe Stelle.
+Die Stufe setzt der Betreiber von Hand, `POST /konto/stufe` mit dem
+Anmeldewort und `{ konto, stufe, bis }`, oder ein Kauf.
+
+### Testphase als Teil des Abos
+
+`TESTPHASE=abo` im Worker: ein neues Konto startet ohne KI, die sieben Tage
+sind das Einführungsangebot des Abos. Abgeschlossen wird am Anfang, gezahlt
+ab Tag 8, gekündigt bis Tag 7 kostenlos. Ohne den Wert bleibt die alte Form,
+sieben Tage ohne Abo. Umgestellt wird erst, wenn App Store oder Stripe
+eingerichtet sind, sonst kann niemand die Testphase starten. Schritte in
+`docs/ABO-EINRICHTEN.md`.
+
+Das Fenster dazu kommt direkt nach dem Fragebogen, `startAnlass` in
+`apps/pwa/js/kauf.js`, und die Einführung wartet, bis es zu ist. Ein Ausweg
+"Erst ohne KI umsehen" bleibt: alles ohne Modell ist in jeder Stufe frei.
+
+App Store: `AboPlugin.swift` mit StoreKit 2. Jede Transaktion geht als JWS
+an `/appstore`, `workers/push/src/apple-jws.ts` prüft die Kette gegen die
+Apple Root CA G3, festgelegt über ihren SHA-256 Fingerabdruck, abgerufen und
+nachgerechnet am 26. Oktober 2026. Ein Abo gehört genau einem Konto, über
+`appstore.orig.<originalTransactionId>`. Verlängerung, Kündigung und
+Erstattung kommen als Server Notification an `/appstore/meldung`. Der Test
+läuft gegen eine eigene Kette nach demselben Muster, mit openssl erzeugt.
+
+Stripe: Webhook `/stripe`, Signatur nach der Stripe Dokumentation über
+HMAC SHA-256, höchstens fünf Minuten alt. Checkout und Abo kommen in keiner
+festen Reihenfolge, deshalb wird der Stand des Abos gemerkt, bis die
+Zuordnung zum Konto da ist. Die Stufe kommt aus `metadata.stufe`, dem
+Lookup Key oder `STRIPE_PREISE`.
+
+Ein Tag Kulanz über das Ende hinaus: eine Verlängerung kommt manchmal
+Stunden später an, und in dieser Lücke soll niemand vor einer Schranke
+stehen.
+
+### Anmeldung mit Apple und Google
+
+`workers/push/src/anmeldung.ts`, `apps/pwa/js/anmeldung.js`,
+`AnmeldungPlugin.swift`. Freiwillig, vor dem Fragebogen und einmal bei
+allen, die die App schon haben. Gespeichert wird nur der Anbieter und ein
+Hash der Kennung. Zwei Zwecke: das Abo kommt nach einer Neuinstallation
+zurück, und die Testphase gibt es je Person einmal.
+
+Der Worker prüft das ID Token gegen die Schlüssel des Anbieters, mit
+Aussteller, Empfänger und Ablauf. Ein Token, das nur gelesen und nicht
+geprüft wird, kann jeder selbst schreiben. Google in der iPhone App über
+`ASWebAuthenticationSession` mit PKCE, weil Google in eingebetteten
+Web Ansichten keine Anmeldung zulässt, im Browser über Googles eigenen
+Knopf, dessen Skript erst lädt, wenn der Bildschirm erscheint.
+
+Ein Konto gilt auf einem Gerät. Meldet sich jemand auf einem zweiten an,
+wandert es dorthin, und ein anonymes Testkonto dort wird gelöscht. Mehrere
+Schlüssel je Konto hiessen Stufe und Verbrauch an mehreren Stellen gleich
+zu halten, und das kann der Schlüsselspeicher nicht zuverlässig.
 
 Offen: Lesen und Schreiben des Verbrauchs sind zwei Schritte im
 Schlüsselspeicher. Zwei gleichzeitige Nachrichten desselben Kontos können
@@ -2743,7 +3093,7 @@ Worker.
 
 ### Eigene Plugins statt fremder Pakete
 
-Vier Swift Plugins liegen im App Ziel unter `apps/ios/ios/App/App` und
+Die eigenen Swift Plugins liegen im App Ziel unter `apps/ios/ios/App/App` und
 werden in `DaevoBridge.swift` angemeldet. Die Web App spricht sie über
 `nativAufruf` in `apps/pwa/js/nativ.js` an, ohne `@capacitor/core`: sie hat
 keinen Bundler und soll dafür keine Abhängigkeit bekommen. Ein neues Plugin
@@ -2878,6 +3228,42 @@ für eine dauerhafte Änderung und einen Wochentag: "Volleyball am Donnerstag
 war super" ändert nichts. Der Standard braucht das Wort Standard, damit
 "dreimal die Woche Volleyball" keinen umschreibt. Ein Mindestwert wird nie
 geraten.
+
+## Rechtstexte, Einwilligung und Konto löschen
+
+`apps/pwa/rechtliches/` trägt Datenschutzerklärung, Nutzungsbedingungen und
+Impressum als eigene Seiten mit eigenem Stylesheet. Sie liegen öffentlich
+unter derselben Adresse wie die App, denn der App Store verlangt eine
+Adresse für die Datenschutzerklärung, und in der App öffnet sie das Blatt
+`#rechtBlatt` in einem Rahmen. Was der Betreiber eintragen muss, steht als
+`<span class="offen">` da, gelb markiert, und `build:pwa` zählt es bei jedem
+Lauf. Der Build bricht deshalb nicht ab: die eigene Testfassung muss weiter
+bauen. Wer am Code etwas ändert, das Daten an den Server oder an einen Dienst
+schickt, ändert die Datenschutzerklärung im selben Commit.
+
+`apps/pwa/js/einwilligung.js`. Über den eigenen Server gehen Gesundheitsdaten
+an Anthropic in den USA, und dafür braucht es nach Art. 9 DSGVO eine
+ausdrückliche Einwilligung vor der ersten Anfrage. Gesperrt wird an genau
+einer Stelle, in `provider()` in `assistant.js`: ohne Zustimmung bekommt der
+Anbieter kein Ziel, meldet sich als nicht verfügbar, und der Regelweg
+antwortet. Eine Sperre je Aufruf wäre eine Übermittlung ohne Erlaubnis,
+sobald jemand einen Aufruf vergisst. Gefragt wird vor der ersten Nachricht
+und vor dem ersten Foto, `#kiBlatt`, mit zwei gleich grossen Knöpfen. Nach
+einem Nein fragt die App nicht wieder: eine Frage, die nach jedem Nein
+wiederkommt, wird irgendwann weggedrückt, und das ist keine freiwillige
+Einwilligung. Ändert sich, was an die KI geht, steigt
+`EINWILLIGUNG_FASSUNG`, und die App fragt neu. Mit eigenem Schlüssel in der
+Entwicklerfassung fragt sie nicht, dort sind Nutzer und Betreiber dieselbe
+Person.
+
+`DELETE /konto` im Worker löscht Konto, Kennung und den Verbrauch dieses und
+des letzten Monats. Apple verlangt das Löschen in der App, sobald eine App
+ein Konto anlegt. In der App erst der Server, dann das Gerät: andersherum
+wäre der Schlüssel weg, und das Konto läge auf dem Server, ohne dass es
+jemand löschen kann. Die Kontokennung steht im Profil, weil jede Anfrage an
+den Betreiber sie braucht.
+
+Was vor dem Start nur der Betreiber tun kann, steht in `docs/LAUNCH.md`.
 
 ## Das Coaching Angebot
 
@@ -3083,38 +3469,36 @@ Seite. Ein Knopf ohne Wirkung ist schlimmer als keiner.
 Dieselbe Aussage steht auch in der Ansicht und nicht nur in der Mitteilung.
 Wer sie weggewischt hat und später selbst nachsieht, soll dasselbe lesen.
 
-## Eine Schrift, die im Projekt liegt
+## Satoshi mit Serife als Akzent
 
-Poppins in zwei Schnitten, 500 und 600, als Datei unter `apps/pwa/schrift`.
-Zusammen 16 Kilobyte, nur die lateinische Teilmenge. Der Bereich U+0000 bis
-U+00FF deckt ä, ö, ü und ß ab.
+Satoshi trägt die ganze App, Text und Zahlen, als eine variable Datei von
+300 bis 900. Instrument Serif steht an genau zwei Stellen: beim Gruss auf
+dem Start und bei der grossen Kalorienzahl auf Heute. Gewählt vom Nutzer
+nach einem Vergleich von fünf Schriften in echten Aufnahmen. Poppins in der
+ganzen App las sich wie eine Vorlage, die Wortmarke bleibt Poppins und
+liegt als Pfad vor.
 
-Nicht von Google geladen, und dafür gibt es zwei Gründe. Die App muss ohne
-Netz starten, das ist der halbe Sinn einer installierten Web App, und eine
-Schrift von einem fremden Server bricht dort weg. Ausserdem verrät jeder Abruf
-an fonts.gstatic.com, wann jemand die App aufmacht, und bei einer App, in der
-Notizen über Therapie und Familie liegen, liefert man so etwas nicht nebenbei
-mit. Der Service Worker legt beide Dateien in den Cache.
+Dazu tragen alle Knöpfe die Serife, eine Stufe grösser, damit sich
+abhebt, was man tippen kann. Ausgenommen sind Reiter und alles, was in
+einem Knopf Daten trägt: Lebensmittelnamen, Werte, Untertitel, Zahlen. Der
+Nutzer hat das nach Screenshots so festgelegt, Lebensmittelnamen in
+Serife wirkten im Vergleich falsch. Darüber hinaus bekommen neue Stellen
+Satoshi, die Serife nur nach Absprache.
 
-300 fehlt bewusst. Das Light gibt es nur in der Wortmarke, und die liegt als
-Pfad vor. Eine dritte Datei für zwei Buchstaben wäre Ladezeit ohne Gegenwert.
+Satoshi steht unter der ITF Free Font License. Sie erlaubt die Auslieferung
+in der eigenen App, verbietet aber die Weitergabe über ein öffentliches
+Repository, Teilmengen und Formatwechsel. Deshalb liegt sie nicht im Baum:
+`scripts/schrift-holen.mjs` lädt beim Bauen das offizielle Archiv von
+Fontshare und legt die Datei unverändert mit dem Lizenztext in die Ausgabe.
+Zwischengespeichert in `node_modules/.cache/daevo-schrift`. Ohne Netz baut
+die App trotzdem und zeigt die Systemschrift. Im Vorab-Cache des Service
+Workers steht Satoshi deshalb nicht, `addAll` bräche ohne die Datei die
+ganze Installation ab. Sie landet beim ersten Laden im Cache.
 
-Zwei Rollen, nicht eine. Poppins trägt Überschriften und die Zahlen, die
-Systemschrift den Fliesstext. Eine geometrische Schrift ist auf 13 Pixeln
-Lauftext schlechter lesbar, weil ihre runden Formen eng laufen und die
-Unterschiede zwischen a, o und e kleiner werden. In einer Zahl von 48 Pixeln
-ist genau diese Geometrie der Grund, sie zu nehmen: die Null ist ein Kreis,
-wie der Ring, in dem sie steht. Eine Schrift überall einzusetzen macht sie
-ausserdem unsichtbar, sie fällt nur auf, wo daneben etwas anderes steht.
-
-Der Rückfall ist nicht beliebig: fehlt Poppins, kommt etwas Geometrisches und
-keine Voreinstellung mit Serifen. `font-display: swap`, damit ein fehlender
-Download keine leere Seite ergibt.
-
-Die Zahl im Wertungsring wird als SVG Text gesetzt und erbt die Schrift nicht
-über die üblichen Regeln, dafür steht eine eigene Zeile im Stylesheet.
-
-SIL Open Font License 1.1, der Text liegt neben den Dateien.
+Instrument Serif steht unter der SIL Open Font License 1.1 und liegt mit
+Lizenz in `apps/pwa/schrift`. Beide Schriften kommen vom eigenen Server und
+nie von Google: die App muss ohne Netz starten, und jeder Abruf verrät, wann
+jemand die App öffnet.
 
 ## Der Wechsel zwischen Ansichten
 

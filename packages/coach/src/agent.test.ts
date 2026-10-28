@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Agent, aufgabeMitFrist, denktiefe, istAbsicht, naehrwertFrage, postenFuerListe, runOffline, type AgentActions } from "./agent.js";
+import { Agent, aufgabeMitFrist, denktiefe, istAbsicht, listeAbhakenAus, naehrwertFrage, postenFuerListe, profilAus, runOffline, schnellweg, type AgentActions } from "./agent.js";
 import type { ChatMessage, CoachProvider, ContentBlock, ConverseRequest, ConverseResponse, JsonRequest } from "./provider.js";
 import { standardAenderungAus } from "@daevo/core";
 
@@ -50,6 +50,7 @@ function stubActions(log: string[]): AgentActions {
     async balanceAbrufen(i) { log.push(`balance:${i.tage ?? ""}`); return "Karriere 40 Stunden, Me Time 0 Minuten."; },
     async zeitEintragen(i) { log.push(`zeit:${i.bereich}:${i.minuten}`); return "Gebucht."; },
     async erinnerungAnlegen(i) { log.push(`erinnerung:${i.text}:${i.uhrzeit ?? i.bezug}`); return "Erinnerung angelegt."; },
+    async kalenderTermin(i) { log.push(`kalender:${i.aktion}:${i.tag ?? ""}`); return "Training verschoben."; },
     async trainingsplanAendern(i) {
       log.push(`plan:${i.modus}:${i.nurArt ?? ""}:${i.einheiten.map((e) => `${e.wochentag}@${e.uhrzeit ?? ""}`).join(",")}`);
       return "Trainingsplan gespeichert.";
@@ -801,4 +802,116 @@ test("Steuererklärung ist keine Frage, Leere ist ein persönliches Thema", () =
   assert.equal(denktiefe("Steuererklärung erledigt").modus, "standard");
   assert.equal(denktiefe("Erklär mir Progression").modus, "coaching");
   assert.equal(denktiefe("Ich fühl mich heute irgendwie leer und weiß nicht, ob das alles Sinn hat").modus, "psyche");
+});
+
+test("Gekauftes wird auf der Einkaufsliste abgehakt, ohne KI", async () => {
+  const log: string[] = [];
+  const reply = await runOffline("Hab Reis und Eier gekauft", stubActions(log));
+  assert.deepEqual(log, ["einkauf:Reis=gekauft", "einkauf:Eier=gekauft"]);
+  assert.deepEqual(reply.ausgeführt, ["Einkaufsliste aktualisiert"]);
+  assert.deepEqual(listeAbhakenAus("Milch hab ich noch zuhause"), { posten: ["Milch"], stand: "zuhause" });
+  assert.deepEqual(listeAbhakenAus("Haferflocken gekauft, erledigt"), { posten: ["Haferflocken"], stand: "gekauft" });
+  // Eine Frage ist kein Abhaken.
+  assert.equal(listeAbhakenAus("Hab ich Reis gekauft?"), null);
+});
+
+test("Profil ändern ohne KI, nur mit Zeichen für eine dauerhafte Änderung", async () => {
+  const log: string[] = [];
+  await runOffline("Mein Ziel ist jetzt abnehmen", stubActions(log));
+  assert.deepEqual(log, ['profil:{"ziel":"fat_loss"}']);
+  assert.deepEqual(profilAus("ich will ab jetzt muskeln aufbauen"), { ziel: "lean_bulk" });
+  assert.deepEqual(profilAus("ich laufe im schnitt 12.000 schritte am tag"), { schritte: 12000 });
+  assert.deepEqual(profilAus("ab jetzt stehe ich um 6 uhr auf"), { aufstehen: "06:00" });
+  assert.deepEqual(profilAus("ich gehe neuerdings um 22:30 schlafen"), { schlafen: "22:30" });
+  // Ein einzelner Tag, eine Frage oder kein Zeichen für Dauer ändern nichts.
+  assert.equal(profilAus("heute bin ich 15000 schritte gelaufen"), null);
+  assert.equal(profilAus("soll ich mein ziel auf abnehmen stellen?"), null);
+  assert.equal(profilAus("ich stehe um 6 auf"), null);
+  assert.equal(profilAus("aendere mein zielgewicht auf 84 kg"), null);
+});
+
+test("Schnellweg: eindeutige Kurzbefehle ohne Modell, alles andere ans Modell", async () => {
+  for (const s of ["500 ml Wasser", "0,5 l", "2 Gläser Wasser getrunken", "86,4 kg", "Gewicht 87 kg", "7, 6, 8", "Reis gekauft"]) {
+    assert.ok(schnellweg(s), s);
+  }
+  for (const s of ["200 g Magerquark", "500 ml Wasser und ein Apfel, wie viel fehlt noch?", "Ich fühle mich heute schwer, 87 kg und keine Lust",
+    "Wie viel Wasser soll ich trinken?", "hi"]) {
+    assert.ok(!schnellweg(s), s);
+  }
+  // Mit Schlüssel fragt der Schnellweg das Modell gar nicht erst.
+  let gefragt = 0;
+  const provider = {
+    name: "zaehler", available: true,
+    async generateJson() { gefragt++; throw new Error("nie"); },
+    async converse() { gefragt++; throw new Error("nie"); },
+  } as unknown as CoachProvider;
+  const log: string[] = [];
+  const reply = await new Agent(provider).respond({ nachricht: "500 ml Wasser", verlauf: [], kontext: {} as never, aktionen: stubActions(log) });
+  assert.equal(gefragt, 0);
+  assert.deepEqual(log, ["wasser:500"]);
+  assert.equal(reply.source, "offline");
+});
+
+test("Regelweg nach dem zweiten Durchlauf: Gym, Kundentermin, Beschwerde, Befinden, Ziel als Wort", async () => {
+  const fall = async (satz: string) => { const log: string[] = []; const r = await runOffline(satz, stubActions(log)); return { log, r }; };
+  assert.deepEqual((await fall("War eben 60 min im Gym, Oberkörper")).log, ["training:strength/60"]);
+  // Ein Kundentermin ist Arbeitszeit und keine Mahlzeit.
+  const kunde = await fall("Ich hatte heute ein Coaching mit einem Kunden 2 Stunden");
+  assert.deepEqual(kunde.log, ["zeit:karriere:120"]);
+  const knie = await fall("Mir tut das Knie weh beim Kniebeugen");
+  assert.ok(knie.log[0]?.startsWith("merken:Beschwerden:"), knie.log.join(","));
+  assert.match(knie.r.text, /Knie\./);
+  assert.match(knie.r.text, /Arzt oder Physiotherapie/);
+  const leer = await fall("Ich fühl mich heute total leer");
+  assert.ok(leer.log[0]?.startsWith("checkin:"));
+  assert.doesNotMatch(leer.r.text, /Rest des Tages vor/);
+  assert.deepEqual((await fall("Mein Ziel ist jetzt Muskelaufbau")).log, ['profil:{"ziel":"lean_bulk"}']);
+});
+
+test("Regelweg beim Essen: Frage, nichts gegessen, gleich essen, Frühstück löschen, Menge richtigstellen", async () => {
+  const fall = async (satz: string) => { const log: string[] = []; const r = await runOffline(satz, stubActions(log)); return { log, r }; };
+  for (const satz of ["Was hab ich heute gegessen?", "Ich hab heute noch nichts gegessen", "Ich esse gleich Lachs mit Kartoffeln"]) {
+    const { log } = await fall(satz);
+    assert.ok(!log.some((e) => e.startsWith("mahlzeit:")), `${satz}: ${log.join(",")}`);
+  }
+  assert.deepEqual((await fall("Lösch das Frühstück")).log, ["zurueck:mahlzeit:fruehstueck"]);
+  // Eine Richtigstellung ist keine zweite Mahlzeit. Das wäre doppelt gezählt.
+  const richtig = await fall("Das waren 300 g und nicht 200 g Reis");
+  assert.ok(richtig.log.some((e) => e.startsWith("korrigieren:")), richtig.log.join(","));
+  assert.ok(!richtig.log.some((e) => e.startsWith("mahlzeit:")));
+});
+
+test("lesende Werkzeuge laufen gleichzeitig, schreibende nacheinander", async () => {
+  const warte = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  const lauf = (parallel: boolean) => {
+    const log: string[] = [];
+    const a = stubActions(log);
+    a.tagesstandAbrufen = async () => { log.push("stand-start"); await warte(30); log.push("stand-ende"); return "Stand."; };
+    a.widerspruechePruefen = async () => { log.push("wid-start"); await warte(5); log.push("wid-ende"); return "Nichts."; };
+    a.wasserEintragen = async (ml) => { log.push(`wasser:${ml}`); return "ok"; };
+    const blöcke: ContentBlock[] = [
+      { type: "tool_use", id: "a", name: "tagesstand_abrufen", input: {} },
+      { type: "tool_use", id: "b", name: parallel ? "widersprueche_pruefen" : "wasser_eintragen", input: { ml: 300 } },
+    ];
+    const provider = new ScriptedProvider([
+      { content: blöcke, stopReason: "tool_use" },
+      { content: text("Fertig."), stopReason: "end_turn" },
+    ]);
+    return new Agent(provider).respond({ nachricht: "Wie stehe ich?", verlauf: LEER, kontext: KONTEXT, aktionen: a })
+      .then(() => ({ log, ergebnisse: provider.seen[1]!.messages.at(-1)!.content as ContentBlock[] }));
+  };
+  const p = await lauf(true);
+  assert.deepEqual(p.log, ["stand-start", "wid-start", "wid-ende", "stand-ende"]);
+  // Die Reihenfolge der Ergebnisse folgt den Aufrufen, nicht dem Ende.
+  assert.deepEqual(p.ergebnisse.map((b) => (b as { tool_use_id: string }).tool_use_id), ["a", "b"]);
+  const s = await lauf(false);
+  assert.deepEqual(s.log, ["stand-start", "stand-ende", "wasser:300"]);
+});
+
+test("Regelweg Kalender: verschieben vor Planänderung und Training", async () => {
+  const log: string[] = [];
+  const actions = stubActions(log);
+  const r = await runOffline("Ich schaff's morgen doch nicht ins Training, plan mal bitte um", actions);
+  assert.ok(log.some((l) => l.startsWith("kalender:verschieben:")), log.join(","));
+  assert.deepEqual(r.ausgeführt, ["Kalender geändert"]);
 });

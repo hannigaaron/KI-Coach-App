@@ -1,38 +1,36 @@
 /*
- * Poppins, als Datei im Projekt und nicht von Google geladen.
+ * Schriften liegen im Projekt und kommen nicht von Google. Die App muss ohne
+ * Netz starten, und jeder Abruf an fonts.gstatic.com verrät, wann jemand die
+ * App aufmacht. Bei einer App mit Notizen über Therapie und Familie liefert
+ * man das nicht nebenbei mit. Die Wortmarke liegt als Pfad vor und braucht
+ * keine Schriftdatei.
+ */
+
+/*
+ * Satoshi trägt die App, Text wie Zahlen, als eine variable Datei von 300 bis
+ * 900. Sie ist geometrisch wie die Wortmarke, aber enger als Poppins, und
+ * Poppins in der ganzen App las sich wie eine Vorlage. Die Datei kommt beim
+ * Bauen von Fontshare und liegt nicht im Repository, die Lizenz verbietet die
+ * Weitergabe über ein öffentliches. Siehe scripts/schrift-holen.mjs.
  *
- * Die App muss ohne Netz starten, das ist der halbe Sinn einer installierten
- * Web App. Eine Schrift von einem fremden Server bricht dort weg, und die
- * Seite springt beim ersten Öffnen ohne Empfang in die Systemschrift. Ausserdem
- * verrät jeder Abruf an fonts.gstatic.com, wann jemand die App aufmacht, und
- * bei einer App, in der Notizen über Therapie und Familie liegen, ist das
- * nichts, was man nebenbei mitliefert.
- *
- * Nur die lateinische Teilmenge, zwei Schnitte, zusammen 16 Kilobyte. Der
- * Bereich U+0000 bis U+00FF deckt ä, ö, ü und ß ab.
- *
- * 500 und 600, weil die Wortmarke auf dem Sprung zwischen den Gewichten
- * beruht. 300 fehlt hier bewusst: das Light gibt es nur in der Wortmarke, und
- * die liegt als Pfad vor. Eine dritte Datei für zwei Buchstaben wäre
- * Ladezeit ohne Gegenwert.
- *
- * SIL Open Font License 1.1, der Text liegt in apps/pwa/schrift/OFL.txt.
+ * Instrument Serif steht an genau zwei Stellen: Gruss und Kalorienzahl. Ein
+ * Akzent wirkt hochwertig, eine zweite Schrift überall unentschieden. Klein
+ * gesetzt läuft sie gedrängt, deshalb nie unter 30 Pixeln. SIL Open Font
+ * License 1.1, Text in apps/pwa/schrift/OFL-instrument-serif.txt.
  */
 @font-face {
-  font-family: "Poppins";
+  font-family: "Satoshi";
   font-style: normal;
-  font-weight: 500;
+  font-weight: 300 900;
   font-display: swap;
-  src: url("./schrift/poppins-500.woff2") format("woff2");
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
-    U+2000-206F, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD;
+  src: url("./schrift/satoshi-variable.woff2") format("woff2");
 }
 @font-face {
-  font-family: "Poppins";
+  font-family: "Instrument Serif";
   font-style: normal;
-  font-weight: 600;
+  font-weight: 400;
   font-display: swap;
-  src: url("./schrift/poppins-600.woff2") format("woff2");
+  src: url("./schrift/instrument-serif-400.woff2") format("woff2");
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
     U+2000-206F, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD;
 }
@@ -59,17 +57,13 @@
 
   /* ---------- Schrift ----------
    *
-   * Zwei Rollen. Poppins trägt Überschriften und Zahlen, die Systemschrift
-   * den Fliesstext. Eine geometrische Schrift wie Poppins ist auf 13 Pixeln
-   * Lauftext schlechter lesbar als die Systemschrift, weil ihre runden
-   * Formen eng laufen und die Unterschiede zwischen a, o und e kleiner
-   * werden. In einer Zahl von 48 Pixeln ist genau diese Geometrie der Grund,
-   * sie zu nehmen: die Null ist ein Kreis, wie der Ring, in dem sie steht.
-   *
-   * Der Rückfall ist nicht beliebig. Fehlt Poppins, soll etwas Geometrisches
-   * kommen und keine Serifenschrift aus der Voreinstellung. */
-  --schrift-display: "Poppins", ui-rounded, "Avenir Next", "Segoe UI Variable Display",
+   * Satoshi für Text und Zahlen, Instrument Serif als Akzent. Fehlt Satoshi,
+   * etwa bei einem Build ohne Netz, kommt etwas Geometrisches und keine
+   * Serifenschrift aus der Voreinstellung. */
+  --schrift-display: "Satoshi", "Avenir Next", "Segoe UI Variable Display",
     system-ui, -apple-system, sans-serif;
+  --schrift-text: "Satoshi", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --schrift-akzent: "Instrument Serif", "Iowan Old Style", Georgia, serif;
 
   /* ---------- Flächen ----------
    *
@@ -262,7 +256,7 @@ html, body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font: 16px/1.5 var(--schrift-text);
   overscroll-behavior-y: none;
 }
 
@@ -720,6 +714,7 @@ button.messwert:active { opacity: 0.65; }
 .messwert-wert { font-size: var(--t-sm); color: var(--muted); font-variant-numeric: tabular-nums; }
 .messwert-wert b { color: var(--text); font-weight: 650; }
 .messwert-zusatz { color: var(--muted); font-weight: 500; }
+.messwert-quelle { margin: var(--s-2) 0 0; font-size: var(--t-xs); color: var(--muted); }
 .messwert.gross .messwert-name { font-size: var(--t-md); }
 .messwert.gross .messwert-wert b { font-size: var(--t-xl); letter-spacing: -0.02em; }
 /* Die Farbe kommt je Zeile über eine Variable, nicht über eine Klasse je
@@ -2306,13 +2301,9 @@ body.blatt-offen { overflow: hidden; }
 .punkte i.an { opacity: 1; width: 18px; border-radius: var(--r-pill); }
 @media (prefers-reduced-motion: reduce) { .punkte i { transition: none; } }
 
-/* ---------- Wo Poppins steht ----------
+/* ---------- Überschriften und Zahlen ----------
  *
- * Überschriften und Zahlen, nichts sonst. Eine Schrift überall einzusetzen
- * macht sie unsichtbar: sie fällt nur auf, wenn daneben etwas anderes steht.
- *
- * Die Laufweite geht enger, als die Systemschrift sie brauchte. Poppins läuft
- * von sich aus weiter, und bei gleicher Einstellung wirkt eine Überschrift
+ * Enger gesetzt als der Text. Grosse Schrift wirkt bei gleicher Laufweite
  * auseinandergezogen.
  */
 h1,
@@ -3181,7 +3172,7 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 .gk-flaeche { margin: 0 0 var(--s-4); }
 .gk-flaeche:empty { display: none; }
 .gk-kopf { margin: 0 0 var(--s-2); display: flex; align-items: baseline; gap: var(--s-2); flex-wrap: wrap; }
-.gk-kopf b { font-family: Poppins, var(--font-sans, system-ui); font-size: var(--t-xl, 22px); font-weight: 600; color: var(--text); }
+.gk-kopf b { font-family: var(--schrift-display); font-size: var(--t-xl, 22px); font-weight: 600; color: var(--text); }
 .gk-kopf span { color: var(--muted); font-size: var(--t-sm); }
 .gewicht-kurve { display: block; width: 100%; height: auto; overflow: visible; }
 .gk-raster { stroke: var(--linie, var(--border)); stroke-width: 1; }
@@ -3213,7 +3204,7 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 .hk-wahl { display: flex; margin-bottom: var(--s-4); }
 .hk-wahl button { flex: 1; }
 .hk-summe { margin: 0 0 var(--s-5); color: var(--muted); }
-.hk-summe b { font-family: Poppins, system-ui; font-size: var(--t-2xl, 24px); font-weight: 600; color: var(--text); margin-right: 6px; }
+.hk-summe b { font-family: var(--schrift-display); font-size: var(--t-2xl, 24px); font-weight: 600; color: var(--text); margin-right: 6px; }
 .hk-abschnitt {
   margin: var(--s-5) 0 var(--s-2); font-size: var(--t-xs, 12px); font-weight: 600;
   letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);
@@ -3528,3 +3519,279 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 .pl-verlauf-tag ul { list-style: none; margin: var(--s-2) 0 0; padding: 0; }
 .pl-verlauf-tag li { display: flex; flex-direction: column; padding: var(--s-1) 0; font-size: var(--t-sm); }
 .pl-verlauf-tag li span { color: var(--muted); font-variant-numeric: tabular-nums; }
+.pl-heute { margin: var(--s-4) 0 var(--s-6); }
+.pl-heute .sub { margin-top: 0; }
+.pl-heute > .pl-legende { margin: 0 0 var(--s-4); }
+.pl-heute-einheit { margin-top: var(--s-4); }
+
+/* Ein leerer Zustand ist ein Satz und kein Eintrag. Als Karte sah "Nichts,
+   was warten müsste" aus wie eine Aufgabe mit diesem Namen. */
+.list > li.empty {
+  background: none; box-shadow: none !important; padding: 0 2px var(--s-2);
+  color: var(--muted); font-size: var(--t-sm);
+}
+
+/* Der tägliche Check-in mit zehn Stufen in einer Reihe. Kleiner als die fünf
+   des Morgens, damit zehn auf 390 Pixel passen, ohne umzubrechen. */
+.ci-skala { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; }
+.ci-skala .mg-punkt { height: 40px; min-width: 0; padding: 0; font-size: var(--t-sm); }
+.sub + .ci-stufen { margin-top: var(--s-4); }
+
+/* Der Vorschlag für heute steht über dem letzten Mal, ohne eigene Karte:
+   ein Satz mit einem kleinen Knopf daneben. */
+.tr-steigern { display: flex; align-items: center; gap: var(--s-3); margin: 0 0 var(--s-3); }
+.tr-steigern p { flex: 1; margin: 0; font-size: var(--t-sm); color: var(--text); line-height: 1.45; }
+.tr-steigern .pl-mini { flex: none; }
+
+.pill-haken {
+  width: 14px; height: 14px; margin-left: 6px; vertical-align: -2px;
+  fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round;
+}
+
+/* Einwilligung und Rechtstexte. Das Blatt der Rechtstexte geht fast über die
+   ganze Höhe: ein Text von zwei Bildschirmen in einem halben Blatt liest
+   niemand. Die Knöpfe der Einwilligung stehen unten fest, beide gleich gross:
+   ein kleiner Nein Knopf neben einem grossen Ja wäre keine freie Wahl. */
+.ki-text p { margin: 0 0 var(--s-3); line-height: 1.55; }
+.ki-knoepfe {
+  display: flex; flex-direction: column; gap: var(--s-2);
+  padding: var(--s-3) var(--s-4) calc(var(--s-4) + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--linie);
+}
+.link-knopf {
+  background: none; border: 0; padding: var(--s-1) 0; box-shadow: none;
+  color: var(--accent-text); font: inherit; text-decoration: underline; cursor: pointer;
+}
+.recht-links { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-4); margin: var(--s-3) 0; }
+.recht-blatt .blatt-innen { height: 94vh; max-height: 94vh; }
+.recht-rahmen { flex: 1; width: 100%; border: 0; background: var(--panel-2); }
+
+/* Die Bibliothek im Mahlzeit Editor und die Posten mit Bild. Zeilen statt
+   Karten, ein Bild links, die Zahl darunter, wie in den guten Trackern. Das
+   Bild ist 44 Pixel gross: kleiner liest man es nicht, grösser nimmt es dem
+   Namen die Breite. */
+.me-bild {
+  flex: none; width: 44px; height: 44px; border-radius: var(--r-md); overflow: hidden;
+  display: grid; place-items: center; background: var(--flaeche);
+  --ton: var(--muted);
+}
+.me-bild img { width: 100%; height: 100%; object-fit: cover; display: block; background: #fff; }
+.me-bild b {
+  font-family: Poppins, var(--font-ui, system-ui), sans-serif; font-weight: 600; font-size: var(--t-md);
+  color: var(--ton);
+}
+.me-bild[data-makro="protein"] { --ton: var(--makro-protein); background: color-mix(in srgb, var(--makro-protein) 16%, transparent); }
+.me-bild[data-makro="fett"] { --ton: var(--makro-fett); background: color-mix(in srgb, var(--makro-fett) 16%, transparent); }
+.me-bild[data-makro="kohlenhydrate"] { --ton: var(--makro-kohlenhydrate); background: color-mix(in srgb, var(--makro-kohlenhydrate) 16%, transparent); }
+.me-zeile .me-bild { margin-right: var(--s-1); }
+/* Die Werte rücken unter den Namen, nicht unter das Bild. */
+.me-posten .me-werte { padding-left: calc(44px + var(--s-1) + var(--s-2)); line-height: 1.5; }
+.me-tagesanteil { color: var(--text); font-weight: 600; }
+
+.me-anteile { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-2) var(--s-4); margin: 0 0 var(--s-4); }
+.me-anteil { --ton: var(--accent); }
+.me-anteil[data-makro="protein"] { --ton: var(--makro-protein); }
+.me-anteil[data-makro="fett"] { --ton: var(--makro-fett); }
+.me-anteil[data-makro="kohlenhydrate"] { --ton: var(--makro-kohlenhydrate); }
+.me-anteil-spur { display: block; height: 6px; border-radius: var(--r-pill); background: var(--spur, var(--flaeche)); overflow: hidden; }
+.me-anteil-spur > span { display: block; height: 100%; background: var(--ton); border-radius: inherit; }
+.me-anteil-text { display: block; margin-top: 4px; font-size: var(--t-xs); color: var(--muted); }
+.me-anteil-text b { color: var(--text); font-weight: 600; }
+
+.me-rezept { margin: var(--s-3) 0 var(--s-4); }
+.me-rezept .me-suche { margin-top: var(--s-2); }
+.me-rezept .primary { flex: none; padding: 9px 14px; font-size: var(--t-sm); }
+
+.me-bibliothek .section-title { margin-top: var(--s-4); }
+.bib-zaehler { font-weight: 500; text-transform: none; letter-spacing: 0; margin-left: 6px; }
+.bib-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.bib-zeile { display: flex; align-items: center; gap: var(--s-1); border-bottom: 1px solid var(--linie); }
+.bib-zeile:last-child { border-bottom: none; }
+.bib-knopf {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--s-3); text-align: left;
+  background: none; border: 0; box-shadow: none; color: var(--text); padding: var(--s-2) 0; border-radius: 0;
+}
+.bib-knopf:active { opacity: 0.7; }
+.bib-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.bib-text .me-werte { margin-top: 2px; }
+.bib-plus {
+  flex: none; width: 30px; height: 30px; border-radius: var(--r-pill); display: grid; place-items: center;
+  background: var(--accent); position: relative;
+}
+/* Gebaut und kein Schriftzeichen, wie das Plus beim Erfassen: ein Plus aus
+   dem Zeichensatz sitzt je nach Schrift nie genau mittig. */
+.bib-plus::before, .bib-plus::after {
+  content: ""; position: absolute; width: 12px; height: 2px; border-radius: 2px;
+  background: var(--on-accent);
+}
+.bib-plus::after { transform: rotate(90deg); }
+.me-treffer .bib-knopf.me-treffer-knopf { display: flex; padding: var(--s-2) var(--s-3); }
+
+/* ---------- Mahlzeit Editor im Aufbau der guten Tracker ----------
+   Vorbild war die Aufteilung von YAZIO, nicht seine Farben: grosse
+   Suchleiste mit Lupe, Reiter als Pillen, jede Zeile eine eigene Karte mit
+   Bild links, Name fett, darunter die Kalorien in der Akzentfarbe und die
+   Menge in Grau. Zwischen den Karten Luft statt Linien. Das Blatt geht fast
+   über die ganze Höhe: wer sucht, will Treffer sehen und nicht den Tag
+   dahinter. */
+.me-blatt .blatt-innen { height: 96vh; max-height: 96vh; }
+.me-blatt .blatt-kopf h2 { font-size: var(--t-xl); }
+
+.me-summe {
+  display: block; margin: var(--s-4) 0 var(--s-3); padding: var(--s-4);
+  border: 0; border-radius: 20px; background: var(--flaeche); box-shadow: var(--haarlinie, none);
+}
+.me-kcal-zeile { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); flex-wrap: wrap; }
+.me-kcal b { font-family: Poppins, system-ui, sans-serif; font-size: 34px; font-weight: 600; letter-spacing: -0.02em; }
+.me-kcal span { font-size: var(--t-sm); color: var(--muted); margin-left: 4px; }
+.me-kcal-anteil { font-size: var(--t-sm); color: var(--muted); font-weight: 500; }
+.me-kcal-spur { display: block; height: 10px; margin-top: var(--s-3); border-radius: var(--r-pill); background: var(--spur); overflow: hidden; }
+.me-kcal-spur > span { display: block; height: 100%; width: 0; background: var(--accent); border-radius: inherit; transition: width var(--normal, 240ms) var(--kurve); }
+
+.me-anteile { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-2); margin: 0 0 var(--s-5, 20px); }
+.me-anteil {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; padding: var(--s-3) var(--s-2);
+  border-radius: 18px; background: var(--flaeche); --ton: var(--accent); text-align: center; min-width: 0;
+}
+.me-anteil[data-makro="protein"] { --ton: var(--makro-protein); }
+.me-anteil[data-makro="fett"] { --ton: var(--makro-fett); }
+.me-anteil[data-makro="kohlenhydrate"] { --ton: var(--makro-kohlenhydrate); }
+.me-anteil-name { font-size: var(--t-xs); font-weight: 600; color: var(--text); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.me-anteil-wert { font-size: var(--t-xs); color: var(--muted); }
+.me-anteil-wert b { font-size: var(--t-md); color: var(--text); font-weight: 600; }
+.me-ring { position: relative; width: 58px; height: 58px; display: grid; place-items: center; }
+.me-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.me-ring-spur { fill: none; stroke: var(--spur); stroke-width: 6; }
+.me-ring-wert { fill: none; stroke: var(--ton); stroke-width: 6; stroke-linecap: round; }
+.me-ring b { position: relative; font-family: Poppins, system-ui, sans-serif; font-size: var(--t-md); font-weight: 600; color: var(--ton); }
+.me-ring b small { font-size: 10px; vertical-align: super; margin-left: 1px; }
+
+.me-abschnitt { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-2); margin: var(--s-4) 0 var(--s-2); }
+.me-abschnitt h3 { margin: 0; font-family: Poppins, system-ui, sans-serif; font-size: var(--t-lg); font-weight: 600; letter-spacing: -0.01em; }
+.me-abschnitt-zahl { font-size: var(--t-sm); font-weight: 600; color: var(--accent-text); }
+
+.me-posten { gap: var(--s-2); }
+.me-posten > li.me-karte, .me-posten > li:last-child.me-karte {
+  display: flex; align-items: flex-start; gap: var(--s-3);
+  padding: var(--s-3); border: 0; border-radius: 18px; background: var(--flaeche);
+}
+.me-karte .me-bild, .bib-knopf .me-bild { width: 56px; height: 56px; border-radius: 12px; margin: 0; }
+.me-karte-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.me-karte .me-name, .bib-text .me-name { font-size: var(--t-md); font-weight: 600; line-height: 1.25; }
+.me-posten .me-werte { padding-left: 0; margin: 0; font-size: var(--t-sm); line-height: 1.45; }
+.me-kcal-text { color: var(--accent-text); font-weight: 600; }
+.me-tagesanteil { color: var(--muted); font-weight: 500; }
+.me-makro-text { font-size: var(--t-xs); color: var(--muted); }
+.me-karte .me-mengefeld { margin-top: 4px; }
+.me-karte .me-menge { width: 84px; padding: 8px 10px; border-radius: 12px; background: var(--bg); }
+.me-karte .me-weg { margin: -4px -4px 0 0; }
+
+.me-rezept-form { display: flex; gap: var(--s-2); margin-top: var(--s-2); }
+.me-rezept-form input { flex: 1; min-width: 0; border-radius: 14px; padding: 12px 14px; font-size: var(--t-md); }
+
+.me-suchfeld {
+  display: flex; align-items: center; gap: var(--s-2); padding: 0 6px 0 14px; height: 52px;
+  border-radius: 16px; background: var(--flaeche); box-shadow: var(--haarlinie, none);
+}
+.me-lupe { flex: none; width: 22px; height: 22px; fill: none; stroke: var(--muted); stroke-width: 2; stroke-linecap: round; }
+.me-suchfeld input#meSuche {
+  flex: 1; min-width: 0; height: 100%; border: 0; background: transparent; box-shadow: none; outline: none;
+  color: var(--text); font-size: var(--t-md); padding: 0;
+}
+.me-suchfeld input#meSuche::-webkit-search-cancel-button { display: none; }
+.me-feldknopf {
+  flex: none; width: 40px; height: 40px; display: grid; place-items: center; border: 0; border-radius: 12px;
+  background: transparent; box-shadow: none; color: var(--text); padding: 0;
+}
+.me-feldknopf svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.me-feldknopf:active { background: var(--flaeche-druck, var(--panel)); }
+
+.me-reiter { display: flex; gap: var(--s-2); margin: var(--s-3) 0 var(--s-2); overflow-x: auto; scrollbar-width: none; }
+.me-reiter::-webkit-scrollbar { display: none; }
+.me-reiter button {
+  flex: none; padding: 9px 16px; border-radius: var(--r-pill); border: 0; box-shadow: none;
+  background: transparent; color: var(--muted); font-weight: 600; font-size: var(--t-sm);
+}
+.me-reiter button.an { background: var(--accent); color: var(--on-accent); }
+
+.me-bibliothek { margin-top: var(--s-2); }
+.me-bibliothek .me-leer { padding: var(--s-4) var(--s-2); text-align: center; }
+.bib-liste { gap: var(--s-2); }
+.bib-zeile, .bib-zeile:last-child {
+  border: 0; border-radius: 18px; background: var(--flaeche); padding: 0 var(--s-2) 0 0;
+}
+.bib-knopf { padding: var(--s-3); gap: var(--s-3); }
+.bib-text .me-werte { font-size: var(--t-sm); color: var(--muted); }
+.bib-plus { width: 34px; height: 34px; }
+.me-treffer { gap: var(--s-2); }
+.me-treffer .bib-knopf.me-treffer-knopf { border: 0; border-radius: 18px; background: var(--flaeche); padding: var(--s-3); }
+/* Art und Uhrzeit in einer Zeile: die Arten wischen seitlich, die Uhrzeit
+   bleibt rechts stehen. Vorher brachen die Arten um, und die Uhrzeit stand
+   als eigenes Feld über die ganze Breite. */
+.me-blatt .me-kopf { flex-wrap: nowrap; align-items: center; }
+.me-blatt .me-kopf .pills { display: flex; flex-wrap: nowrap; overflow-x: auto; gap: var(--s-2); scrollbar-width: none; min-width: 0; }
+.me-blatt .me-kopf .pills::-webkit-scrollbar { display: none; }
+.me-blatt .me-kopf .pills button { flex: none; }
+.me-blatt #meZeit { flex: none; width: auto; min-width: 0; padding: 8px 10px; border-radius: var(--r-pill); }
+
+/* Kalender: Datei ist der Ausweg, Abo und Apple Kalender der Normalfall. */
+.kal-datei { margin-top: var(--s-6); }
+.kal-datei summary { cursor: pointer; padding: var(--s-2) 0; font-weight: 600; color: var(--accent-text); }
+.kal-datei summary::marker { color: var(--accent); }
+#kalQuellen .li-sub .kal-art { color: var(--accent-text); }
+
+/* Anmeldung beim ersten Start. Bleibt in beiden Modi dunkel wie das Abo
+   Fenster: der erste Eindruck ist die Marke auf ihrem eigenen Grund. */
+.anmelde-blatt {
+  position: fixed; inset: 0; z-index: 90;
+  background: radial-gradient(120% 70% at 50% 0%, #12303d 0%, #0b0d10 62%);
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  padding: max(var(--s-6), env(safe-area-inset-top)) var(--s-4) max(var(--s-6), env(safe-area-inset-bottom));
+  overflow-y: auto;
+}
+.anmelde-blatt[hidden] { display: none; }
+.anmelde-innen { width: 100%; max-width: 400px; display: flex; flex-direction: column; align-items: center; text-align: center; }
+.anmelde-marke { width: 200px; height: auto; margin-bottom: var(--s-8); }
+.anmelde-innen h2 { font-family: var(--schrift-display); font-size: var(--t-2xl); font-weight: 600; margin: 0 0 var(--s-2); letter-spacing: -0.01em; }
+.anmelde-sub { color: rgba(255, 255, 255, 0.72); font-size: var(--t-md); line-height: 1.5; margin: 0 0 var(--s-8); }
+.anmelde-knoepfe { width: 100%; display: flex; flex-direction: column; gap: var(--s-3); }
+.anmelde-knopf {
+  display: flex; align-items: center; justify-content: center; gap: var(--s-3);
+  width: 100%; min-height: 54px; border-radius: var(--r-pill, 999px); border: 0;
+  font-size: 17px; font-weight: 600; cursor: pointer;
+  transition: transform 0.12s var(--kurve, ease);
+}
+.anmelde-knopf:active { transform: scale(0.98); }
+.anmelde-knopf svg { width: 20px; height: 20px; flex: none; }
+.anmelde-knopf.apple { background: #fff; color: #000; }
+.anmelde-knopf.google { background: #1b2027; color: #fff; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14); }
+.anmelde-knopf[disabled] { opacity: 0.6; }
+#googleWebKnopf { display: flex; justify-content: center; min-height: 44px; }
+.anmelde-spaeter { color: rgba(255, 255, 255, 0.72) !important; margin-top: var(--s-2); padding: var(--s-3); }
+.anmelde-fein { color: rgba(255, 255, 255, 0.5); font-size: var(--t-xs, 12px); line-height: 1.5; margin: var(--s-6) 0 0; }
+.anmelde-fein .link-knopf { color: rgba(255, 255, 255, 0.72); font-size: inherit; }
+#rechtBlatt { z-index: 95; }
+
+/* Die zwei Stellen mit Serife, siehe oben bei den Schriften. Am Ende, damit
+   keine spätere Regel für Zahlen sie wieder auf Satoshi setzt. */
+.orb-gruss { font-family: var(--schrift-akzent); font-weight: 400; font-size: 34px; letter-spacing: -0.005em; line-height: 1.1; }
+.held-zahl { font-family: var(--schrift-akzent); font-weight: 400; font-size: 64px; letter-spacing: -0.01em; }
+
+/* Knöpfe in Serife. Damit hebt sich, was man tippen kann, von dem ab, was
+   man liest. Ausgenommen sind Reiter, die gehören zur Kopfzeile ihrer Seite,
+   und alles, was in einem Knopf Daten trägt: Lebensmittelnamen, Werte,
+   Untertitel, Zahlen. Die Wahl des Nutzers nach einem Vergleich in echten
+   Aufnahmen. Eine Stufe grösser als Satoshi, weil Instrument Serif kleiner
+   zeichnet. */
+button, .chip, .pill {
+  font-family: var(--schrift-akzent); font-weight: 400; letter-spacing: 0.005em;
+  font-synthesis: none;
+}
+button:not(.seg-btn):not([role="tab"]):not(.bib-knopf):not(.balken-zeile):not(.icon-btn) { font-size: 1.15em; }
+.menu-zeile b, .menu-kachel b, .erfassen-titel, .weg-titel { font-family: var(--schrift-akzent); font-weight: 400; font-size: 1.1em; }
+.seg-btn, [role="tab"], .bib-knopf, .bib-knopf *, .balken-zeile, .balken-zeile *,
+button small, button .erfassen-sub, button .me-werte, button .me-werte *,
+.menu-zeile small, .menu-kachel small, .held, .held * {
+  font-family: var(--schrift-text); letter-spacing: normal;
+}
+.held-zahl { font-family: var(--schrift-akzent); }

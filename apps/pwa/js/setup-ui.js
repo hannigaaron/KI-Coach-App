@@ -81,6 +81,11 @@ export class SetupFlow {
     if (zurueck) return this.zurueck();
     const ueberspringen = event.target.closest("[data-ueberspringen]");
     if (ueberspringen) return this.weiter(true);
+    if (event.target.closest("[data-kurzweg]")) {
+      clearTimeout(this.weiterTimer);
+      this.antworten.kurzweg = true;
+      return this.zusammenfassung();
+    }
 
     const budget = event.target.closest("[data-budget]");
     if (budget) return this.budgetAendern(budget.dataset.budget, Number(budget.dataset.schritt));
@@ -221,6 +226,17 @@ export class SetupFlow {
    * Antwort: wer bei seinem eigenen Trainingsplan bleibt, braucht keine
    * Fragen, aus denen ein neuer gebaut wird.
    */
+  /**
+   * Ab Geschmack ist alles da, was Kalorienziel und ersten Plan trägt. Wer
+   * jetzt anfangen will, soll nicht durch zwölf weitere Seiten müssen: eine
+   * Einrichtung, die zu lang ist, wird abgebrochen, und dann gibt es gar
+   * nichts. Was fehlt, fragt der Coach später im Gespräch.
+   */
+  kurzwegMoeglich() {
+    const ab = SCHRITTE.findIndex((x) => x.id === "ernaehrungsform");
+    return ab > 0 && this.index >= ab && !this.zeigtZusammenfassung;
+  }
+
   seiteSichtbar(s) {
     if (!s?.wenn) return true;
     const wert = this.antworten[s.wenn.id];
@@ -322,7 +338,9 @@ export class SetupFlow {
       ${auto ? "" : `<div class="setup-fuss">
         <button class="setup-knopf" data-weiter>${escapeHtml(this.knopfText())}</button>
         ${s.ueberspringbar ? '<button type="button" class="setup-link" data-ueberspringen>Überspringen</button>' : ""}
-      </div>`}`;
+        ${this.kurzwegMoeglich() ? '<button type="button" class="setup-link" data-kurzweg>Den Rest später, jetzt starten</button>' : ""}
+      </div>`}
+      ${auto && this.kurzwegMoeglich() ? '<div class="setup-fuss"><button type="button" class="setup-link" data-kurzweg>Den Rest später, jetzt starten</button></div>' : ""}`;
     this.updateWeiter();
     this.sicherungZeigen(this.index === 0);
     const neu = this.el.querySelector(".setup-body");
@@ -463,7 +481,7 @@ export class SetupFlow {
     const ziele = { ...macroTargets(profile), waterMl: waterTargetMl(profile, 0) };
     const schrittziel = Math.max(7000, Math.round((profile.dailySteps + 1500) / 500) * 500);
 
-    this.ergebnis = { ...ergebnis, ziele, energie, schrittziel };
+    this.ergebnis = { ...ergebnis, ziele, energie, schrittziel, kurzweg: Boolean(this.antworten.kurzweg) };
 
     this.sicherungZeigen(false);
     this.el.innerHTML = `

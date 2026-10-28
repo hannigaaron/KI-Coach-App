@@ -142,3 +142,116 @@ test("Der Verlauf zeigt gespeicherte Trainings mit Sätzen, neuestes zuerst", ()
   assert.ok(html.includes("1 Übung, 2 Sätze"));
   assert.equal(verlaufHtml([]), "");
 });
+
+/* ---------- Fokus und Training für heute, gegen die echte Datenbank ---------- */
+
+import { einzeltrainingBauen, fehlendePartien, uebungsplanBauen, wocheTrainiert } from "@daevo/core";
+import { heuteEinheit, heuteVorschlag } from "./plaene.js";
+
+const partieVon = (id) => {
+  const u = nachId.get(id);
+  if (u.pattern.startsWith("core_")) return "rumpf";
+  return { elbow_flexion: "arme", elbow_extension: "arme", hip_dominant: "po", hip_abd_add: "po" }[u.pattern] ?? u.gruppe;
+};
+
+test("Fokus Arme: in jeder Oberkörpereinheit kommen die Arme zuerst, danach schwer vor leicht", () => {
+  const plan = uebungsplanBauen({ tage: 4, minuten: 60, niveau: "intermediate", ziel: "muskel", fokus: ["arme"] }, UEBUNGEN);
+  for (const e of plan.einheiten.filter((x) => x.titel.startsWith("Oberkörper"))) {
+    const partien = e.positionen.map((p) => partieVon(p.id));
+    const letzteArm = partien.lastIndexOf("arme");
+    assert.ok(letzteArm >= 0, e.titel);
+    assert.ok(partien.slice(0, letzteArm + 1).every((x) => x === "arme"), `${e.titel}: ${partien.join(",")}`);
+    const rest = e.positionen.slice(letzteArm + 1).map((p) => nachId.get(p.id).mechanics);
+    const ersteIso = rest.indexOf("isolation");
+    if (ersteIso >= 0) assert.ok(!rest.slice(ersteIso).includes("compound"), e.titel);
+  }
+  // Am Beintag keine Armübung.
+  for (const e of plan.einheiten.filter((x) => x.titel.startsWith("Unterkörper"))) {
+    assert.ok(!e.positionen.some((p) => partieVon(p.id) === "arme"), e.titel);
+  }
+  assert.ok(plan.hinweise.some((h) => h.includes("Dein Fokus: Arme")));
+});
+
+test("Fokus Arme in 45 Minuten: Bizeps und Trizeps je 2 bis 3 Sätze vorn, die Beine geben die Zeit", () => {
+  for (const niveau of ["beginner", "intermediate", "advanced"]) {
+    for (const tage of [1, 2, 3]) {
+      const plan = uebungsplanBauen({ tage, minuten: 45, niveau, ziel: "muskel", fokus: ["arme"] }, UEBUNGEN);
+      const ohne = uebungsplanBauen({ tage, minuten: 45, niveau, ziel: "muskel" }, UEBUNGEN);
+      plan.einheiten.forEach((e, i) => {
+        const muster = e.positionen.map((p) => nachId.get(p.id).pattern);
+        const bizeps = e.positionen[muster.indexOf("elbow_flexion")];
+        const trizeps = e.positionen[muster.indexOf("elbow_extension")];
+        assert.ok(bizeps && trizeps, `${niveau} ${tage} ${e.titel}`);
+        for (const p of [bizeps, trizeps]) assert.ok(p.saetze >= 2 && p.saetze <= 3, `${p.name} ${p.saetze}`);
+        assert.deepEqual(e.positionen.slice(0, 2).map((p) => partieVon(p.id)), ["arme", "arme"]);
+        assert.ok(e.dauerMin <= 45, `${e.titel} ${e.dauerMin}`);
+        // Mindestens eine Beinübung bleibt, und Drücken und Ziehen behalten ihre Sätze.
+        assert.ok(e.positionen.some((p) => ["beine", "po"].includes(partieVon(p.id))), e.titel);
+        const satz = (pl, f) => pl.positionen.filter((p) => f(partieVon(p.id))).reduce((s, p) => s + p.saetze, 0);
+        const oben = (x) => ["brust", "ruecken", "schultern"].includes(x);
+        assert.ok(satz(e, oben) >= satz(ohne.einheiten[i], oben) - 1, e.titel);
+      });
+      assert.ok(plan.hinweise.some((h) => h.includes("Bizeps und Trizeps")));
+      assert.ok(!plan.hinweise.some((h) => h.includes("nur Grundübungen")));
+    }
+  }
+});
+
+test("Fokus Core bleibt am Ende", () => {
+  const plan = uebungsplanBauen({ tage: 3, minuten: 60, niveau: "intermediate", ziel: "muskel", fokus: ["rumpf"] }, UEBUNGEN);
+  for (const e of plan.einheiten) {
+    const partien = e.positionen.map((p) => partieVon(p.id));
+    const erste = partien.indexOf("rumpf");
+    if (erste >= 0) assert.ok(partien.slice(erste).every((x) => x === "rumpf"), e.titel);
+  }
+});
+
+test("30 Minuten Beine und Core: Grundübungen für die Beine, Core am Ende, passt in die Zeit", () => {
+  const e = einzeltrainingBauen({ minuten: 30, gruppen: ["beine", "rumpf"], niveau: "intermediate", ziel: "muskel" }, UEBUNGEN);
+  assert.ok(e.dauerMin <= 30);
+  const partien = e.positionen.map((p) => partieVon(p.id));
+  assert.equal(partien[partien.length - 1], "rumpf");
+  assert.ok(nachId.get(e.positionen[0].id).mechanics === "compound");
+  assert.ok(!partien.includes("brust") && !partien.includes("arme"));
+  assert.ok(einheitHaeltZns(e.positionen.map((p) => p.id)));
+});
+
+test("Jede Zeit und jede Partie ergibt eine Einheit, die in die Zeit passt und die Regeln hält", () => {
+  for (const minuten of [20, 30, 45, 60, 75, 90]) for (const g of ["beine", "po", "brust", "ruecken", "schultern", "arme", "rumpf"]) {
+    for (const niveau of ["beginner", "intermediate"]) {
+      const e = einzeltrainingBauen({ minuten, gruppen: [g], niveau, ziel: "muskel" }, UEBUNGEN);
+      assert.ok(e && e.positionen.length, `${minuten}/${g}/${niveau}`);
+      assert.ok(e.dauerMin <= minuten + 5, `${minuten}/${g}/${niveau}: ${e.dauerMin}`);
+      assert.ok(einheitHaeltZns(e.positionen.map((p) => p.id)));
+    }
+  }
+  assert.equal(einzeltrainingBauen({ minuten: 30, gruppen: [], niveau: "intermediate", ziel: "muskel" }, UEBUNGEN), null);
+});
+
+test("Nach Push und Pull schlägt daevo Beine, Po und Core vor", () => {
+  const log = [
+    { datum: "2026-10-19", uebung: "bankdruecken", saetze: [{}, {}, {}] },
+    { datum: "2026-10-19", uebung: "arnold-press", saetze: [{}] },
+    { datum: "2026-10-19", uebung: "trizeps-druecken-kabel", saetze: [{}] },
+    { datum: "2026-10-20", uebung: "klimmzug", saetze: [{}] },
+    { datum: "2026-10-20", uebung: "langhantel-curl", saetze: [{}] },
+    { datum: "2026-10-12", uebung: "kniebeuge-langhantel", saetze: [{}] },
+  ];
+  assert.deepEqual(fehlendePartien(wocheTrainiert(log, UEBUNGEN, HEUTE)), ["beine", "po", "rumpf"]);
+  const v = heuteVorschlag(log, HEUTE);
+  assert.deepEqual(v.gruppen, ["beine", "po", "rumpf"]);
+  assert.ok(v.text.includes("Noch offen: Beine, Po, Core"));
+  assert.deepEqual(heuteVorschlag([], HEUTE).gruppen, []);
+  const e = heuteEinheit({ minuten: 30, gruppen: v.gruppen, variante: 0 }, { niveau: "intermediate", ziel: "muskel" });
+  assert.ok(e.dauerMin <= 30);
+});
+
+test("Steigerung übernehmen setzt nur offene Sätze", async () => {
+  const { steigerungUebernehmen } = await import("./training.js");
+  const entwurf = { aktiv: 0, uebungen: [{ id: "x", saetze: [{ kg: 80, wdh: 10, rir: 2, fertig: true }, { kg: 80, wdh: 10, rir: 2, fertig: false }] }] };
+  const neu = steigerungUebernehmen(entwurf, 0, { art: "gewicht", kg: 82.5, wdh: 6, text: "" });
+  assert.deepEqual(neu.uebungen[0].saetze.map((x) => [x.kg, x.wdh]), [[80, 10], [82.5, 6]]);
+  // Ohne Kilo im Vorschlag bleibt das Gewicht.
+  const ohne = steigerungUebernehmen(entwurf, 0, { art: "wdh", kg: null, wdh: 11, text: "" });
+  assert.deepEqual(ohne.uebungen[0].saetze[1], { kg: 80, wdh: 11, rir: 2, fertig: false });
+});

@@ -6,13 +6,12 @@
  * ist der einzige Weg, den Nutzer zu erreichen, waehrend die App geschlossen
  * ist. Siehe workers/push.
  */
-const CACHE = "daevo-v72";
+const CACHE = "daevo-v90";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
-  "./schrift/poppins-500.woff2",
-  "./schrift/poppins-600.woff2",
+  "./schrift/instrument-serif-400.woff2",
   "./manifest.webmanifest",
   "./js/app.js",
   "./js/storage.js",
@@ -20,6 +19,15 @@ const ASSETS = [
   "./js/brain.js",
   "./js/orb.js",
   "./js/voice.js",
+  "./js/diktat.js",
+  "./js/haptik.js",
+  "./js/einwilligung.js",
+  "./js/bibliothek.js",
+  "./js/kalender-sync.js",
+  "./js/kalender-schreiben.js",
+  "./js/anmeldung.js",
+  "./js/kauf.js",
+  "./js/lebensmittel-bilder.js",
   "./js/anamnese.js",
   "./js/silhouette.js",
   "./js/setup-ui.js",

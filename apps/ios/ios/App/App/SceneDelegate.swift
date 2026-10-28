@@ -14,6 +14,12 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         SceneDelegateProxy.shared.scene(scene, willConnectTo: session, options: connectionOptions)
     }
 
+    func sceneDidEnterBackground(_ scene: UIScene) {
+        // Einmal sofort prüfen und den nächsten Lauf im Hintergrund anfragen.
+        KalenderWache.shared.pruefen()
+        KalenderWache.shared.planen()
+    }
+
     func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
         SceneDelegateProxy.shared.scene(scene, openURLContexts: URLContexts)
     }

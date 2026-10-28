@@ -17,7 +17,7 @@ import {
   wannText,
 } from "@daevo/core";
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, PREISE_STAND, aktuellesModell, produktPerBarcode, produkteSuchen } from "@daevo/coach";
-import { Coach, AnthropicProvider } from "@daevo/coach";
+import { Coach, AnthropicProvider, FOODS } from "@daevo/coach";
 import { KONFIG, istDemo, istNativ } from "./konfig.js";
 import { uebungenStarten } from "./uebungen.js";
 import { planFuer as uebungsplanFuer, plaeneStarten } from "./plaene.js";
@@ -60,9 +60,15 @@ import { symbol } from "./symbole.js";
 import { NATIV_PUSH, gesundheitHolen, postfachHolen, pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
 import { kodierungReparieren, newId, nowTime, store, todayIso } from "./storage.js";
 import { healthkitAbgleichen } from "./healthkit.js";
+import { abosAbgleichen, kaufenNativ, startAnlass } from "./kauf.js";
+import { anmeldeWege, anmeldenApple, anmeldenGoogleNativ, anmeldungSenden, anmeldungText } from "./anmeldung.js";
+import { aboEntfernen, aboHinzufuegen, APPLE_QUELLE, appleKalenderTrennen, appleKalenderVerbinden, kalenderAbgleichen, kalenderAbos } from "./kalender-sync.js";
 import { mitteilungenPlanen } from "./mitteilungen.js";
 import { nativAufruf } from "./nativ.js";
-import { ABO_STUFEN, ABO_TAKTE, aboPreis, ersparnisProzent, aboAnlass, aboAnlassLeer, aboLeiste, aboLink, kontoSicherstellen, kontoStand, kontoText } from "./konto.js";
+import { spueren } from "./haptik.js";
+import { anteilAmZiel, eigeneRezepte, hauptMakro, rezeptGrenze, rezeptLoeschen, rezeptSpeichern, summe as postenSumme, tabellenBild, tabellenPosten, tabellenSuche, zuletztGegessen } from "./bibliothek.js";
+import { einwilligungOffen, einwilligungSetzen, einwilligungText, kiErlaubt } from "./einwilligung.js";
+import { ABO_STUFEN, ABO_TAKTE, aboPreis, ersparnisProzent, aboAnlass, aboAnlassLeer, aboLeiste, aboLink, kontoLoeschen, kontoSicherstellen, kontoStand, kontoText } from "./konto.js";
 
 const $ = (id) => document.getElementById(id);
 const WEEKDAYS = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
@@ -328,6 +334,9 @@ async function send(text) {
   const mit = anhaenge.filter((a) => !a.fehler && !a.laedt);
   if ((!nachricht && mit.length === 0) || busy) return;
   if (anhaenge.some((a) => a.laedt)) { toast("Ein Anhang wird noch verarbeitet."); return; }
+  // Vor der ersten Antwort mit KI fragt die App. Die Nachricht wartet so
+  // lange im Feld, und danach geht sie mit oder ohne KI raus.
+  if (einwilligungOffen(store.getSettings(), KONFIG)) await kiFreigabe();
   busy = true;
   stopSpeaking();
   $("chatInput").value = "";
@@ -712,6 +721,11 @@ function setupAssistant() {
     onState: (state, detail) => {
       $("btnMic").setAttribute("aria-pressed", state === "listening" ? "true" : "false");
       if (state === "listening") {
+        // Spürbar, dass das Mikrofon offen ist, auch wer nicht hinsieht.
+        // Nicht im Weckwortmodus und nicht beim Neustart im Freihandbetrieb:
+        // dort startet das Mikrofon nach jedem Satz neu, und ein Summen nach
+        // jedem Satz im Raum wäre Lärm.
+        if (!weckwortLaeuft && !listener.handsFree) spueren("leicht");
         orb.setState("listening");
         // Im Weckwortmodus heisst zuhören etwas anderes als beim Diktieren:
         // dort wartet die App auf die Anrede, hier auf den Satz. Ohne den
@@ -865,7 +879,24 @@ function showView(name) {
   if (name === "empfehlungen") { renderRecommendations(); zeigeAngebot("empfehlungenAngebot"); }
   if (name === "profil") { renderProfile(); healthStandZeigen(); eigeneErinnerungenZeigen(); }
   if (name === "assistant") renderTranscript();
+  // Werte, die beim Öffnen gesetzt werden, etwa der Vorrat, lösen kein input
+  // aus. Ohne das hier stand die zweite Zeile halb abgeschnitten im Feld.
+  requestAnimationFrame(() => document.querySelectorAll(`.view[data-view="${name}"] textarea`).forEach(feldWachsen));
 }
+
+/**
+ * Ein Textfeld wächst mit dem Inhalt, bis zu vier Zehnteln des Bildschirms.
+ * Darüber scrollt es: eine Sicherung als Text wäre sonst so hoch wie die
+ * Seite. Ein abgeschnittener Satz sieht aus wie ein verlorener.
+ */
+function feldWachsen(el) {
+  if (!el || el.offsetParent === null) return;
+  el.style.height = "auto";
+  el.style.height = `${Math.min(el.scrollHeight + 2, Math.round(innerHeight * 0.4))}px`;
+}
+document.addEventListener("input", (event) => {
+  if (event.target instanceof HTMLTextAreaElement) feldWachsen(event.target);
+});
 
 function refreshAll() {
   const visible = document.querySelector(".view:not([hidden])");
@@ -1377,11 +1408,27 @@ function renderBereitschaft() {
   // Nur der Rat, nicht der ganze Text. Die Teile stehen darunter als Liste,
   // und die Grenze der Zahl steht fest im HTML.
   $("bereitschaftSub").textContent = bereitschaftText(b).split("\n").filter(Boolean).slice(-2)[0];
-  teile.innerHTML = b.teile
-    .map((t) => `<li><div class="li-main"><div class="li-title">${escapeHtml(t.name)} ${t.wert} von 100</div>`
-      + `<div class="li-sub">aus ${escapeHtml(t.quelle)}</div></div></li>`)
-    .join("");
+  // Dieselben Balken wie auf Heute und Balance. Vorher standen die Teile als
+  // gerahmte Karten mit "78 von 100" im Titel, eine dritte Form für dieselbe
+  // Aussage: wie voll ist dieser Teil.
+  teile.innerHTML = "";
+  for (const t of b.teile) {
+    const zeile = messwert({ name: t.name, wert: t.wert, zusatz: "von 100", anteil: t.wert / 100, ton: TEIL_TON[t.name] });
+    const quelle = document.createElement("p");
+    quelle.className = "messwert-quelle";
+    quelle.textContent = `aus ${t.quelle}`;
+    zeile.appendChild(quelle);
+    teile.appendChild(zeile);
+  }
 }
+
+/** Die Farbe je Teil der Bereitschaft, aus den Farben, die es schon gibt. */
+const TEIL_TON = {
+  Schlaf: "var(--bereich-wellbeing)",
+  Energie: "var(--makro-kohlenhydrate)",
+  Belastung: "var(--bereich-fitness)",
+  Ruhe: "var(--bereich-me_time)",
+};
 
 function renderHeuteBalance() {
   const el = $("heuteBalance");
@@ -1808,7 +1855,9 @@ function renderRestDesTages() {
     const an = gewaehlt.includes(m.art);
     const schon = gegessen.includes(m.art);
     return `<button type="button" class="pill${an ? " on" : ""}" data-mahlzeit="${m.art}">`
-      + `${escapeHtml(m.name)}${schon ? " ✓" : ""}</button>`;
+      // Ein gezeichneter Haken statt des Schriftzeichens, das je nach Schrift
+      // anders sitzt. Dieselbe Linie wie der Haken im Trainingsmodus.
+      + `${escapeHtml(m.name)}${schon ? '<svg class="pill-haken" viewBox="0 0 24 24" role="img" aria-label="schon gegessen"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>' : ""}</button>`;
   }).join("");
 }
 
@@ -2492,6 +2541,16 @@ function anamneseFertig(ergebnis) {
   for (const notiz of ergebnis.notizen) {
     brain.add({ text: notiz.text, art: notiz.art, wichtigkeit: notiz.wichtigkeit, schlagworte: notiz.schlagworte });
   }
+  // Wer den Bogen abgekürzt hat, wird später gefragt, aber einzeln und im
+  // passenden Moment, nicht mit zwölf Fragen auf einmal.
+  if (ergebnis.kurzweg) {
+    brain.add({
+      text: "Fragebogen abgekürzt. Es fehlen Ernährungsform, Allergien, Geschmack, Gesundheit, Essverhalten, "
+        + "Vorgeschichte, Umfeld, Antrieb und Tagesränder. Frag einzeln danach, wenn es zum Gespräch passt, "
+        + "vor allem nach Allergien, bevor du ein Rezept vorschlägst.",
+      art: "hinweis", wichtigkeit: 5, schlagworte: ["anamnese", "allergie", "rezept"],
+    });
+  }
   brain.add({
     text: `Trainingsvorschlag zum Start: ${ergebnis.kraft.titel}.`,
     art: "hinweis", wichtigkeit: 3, schlagworte: ["training"],
@@ -2564,15 +2623,19 @@ function startApp() {
   konfigAnwenden();
   // Im Hintergrund, damit die erste Nachricht schon zählt. Scheitert es, wird
   // es vor der nächsten Nachricht nachgeholt.
-  kontoSicherstellen().then(() => aboBeimStart());
+  const aboGeprueft = kontoSicherstellen().then(() => aboBeimStart()).catch(() => {});
   // Nacheinander: zwei Abfragen von iOS gleichzeitig, und die zweite geht
   // unter der ersten verloren.
   healthNativ().then(() => mitteilungenNativ());
+  kontoSicherstellen().then(() => kalenderStill());
+  anmeldungStandZeigen();
+  // Wer die App schon benutzt, wird einmal gefragt, nicht vor jedem Start.
+  if (store.getSettings().einfuehrungGesehen) setTimeout(() => anmeldungFragen(), 1200);
   // Die Einführung kommt einmal: nach dem Bogen, beim ersten Öffnen der Demo,
   // und einmal bei allen, die die App schon vorher benutzt haben. Danach steht
   // sie im Profil. Wer sie bei jedem Start sieht, tippt sie weg, ohne zu lesen.
   if (!store.getSettings().einfuehrungGesehen) {
-    setTimeout(() => einfuehrungStarten({ zeigeAnsicht: showView, beiEnde: einfuehrungGesehen }), 900);
+    aboGeprueft.then(() => setTimeout(() => aboFensterZu().then(() => einfuehrungStarten({ zeigeAnsicht: showView, beiEnde: einfuehrungGesehen })), 900));
   }
   else setTimeout(morgenVielleicht, 1000);
   options = { ...options, ...(store.getSettings().voice || {}) };
@@ -2639,6 +2702,7 @@ function startApp() {
 
 $("composer").addEventListener("submit", (event) => {
   event.preventDefault();
+  if ($("chatInput").value.trim()) spueren("leicht");
   send($("chatInput").value);
 });
 /**
@@ -2774,6 +2838,13 @@ const plaene = plaeneStarten({
       return;
     }
     training.frei();
+  },
+  starteEinheit: (einheit) => {
+    if (trainingGestrichen(store, todayIso())) {
+      toast("Heute ist dein Training gestrichen, der Tag gehört der Erholung. Geht es dir besser, sag es unter Check-ins.", 5000);
+      return;
+    }
+    training.einheit(einheit);
   },
   log: trainingslog,
   heute: todayIso,
@@ -2973,6 +3044,10 @@ $("fotoBlatt").addEventListener("click", (event) => {
 });
 
 $("fbAuswerten").addEventListener("click", async () => {
+  if (!(await kiFreigabe())) {
+    toast("Fotos auswerten braucht die KI. Du kannst sie im Profil unter Datenschutz erlauben.");
+    return;
+  }
   if (!fotoDatei) return;
   const hinweis = $("fbDetails").value.trim().slice(0, 500);
   const feedback = $("fbFeedback");
@@ -3252,6 +3327,32 @@ $("btnSuggest").addEventListener("click", async () => {
     button.textContent = "Mahlzeit vorschlagen";
   }
 });
+
+/**
+ * Stufen von 1 bis 10 zum Antippen statt eines Zahlenfelds. Ein Zahlenfeld
+ * öffnet die Tastatur, verdeckt die halbe Seite und will gelöscht werden,
+ * bevor man tippt. Der Wert bleibt im versteckten Feld, damit Speichern
+ * unverändert liest.
+ */
+function stufenZeichnen() {
+  for (const reihe of document.querySelectorAll("[data-stufen]")) {
+    const feld = $(reihe.dataset.stufen);
+    const wert = Number(feld.value);
+    reihe.innerHTML = Array.from({ length: 10 }, (_, i) => i + 1)
+      .map((v) => `<button type="button" class="mg-punkt${v === wert ? " an" : ""}" role="radio" aria-checked="${v === wert}" data-stufe="${v}">${v}</button>`)
+      .join("");
+    reihe.setAttribute("role", "radiogroup");
+    reihe.setAttribute("aria-label", reihe.closest("fieldset")?.querySelector("legend")?.textContent ?? "");
+  }
+}
+document.addEventListener("click", (event) => {
+  const knopf = event.target.closest("[data-stufen] [data-stufe]");
+  if (!knopf) return;
+  $(knopf.closest("[data-stufen]").dataset.stufen).value = knopf.dataset.stufe;
+  spueren("leicht");
+  stufenZeichnen();
+});
+stufenZeichnen();
 
 $("btnCheckin").addEventListener("click", async () => {
   await buildActions({ onChange: refreshAll }).checkinSpeichern({
@@ -3707,6 +3808,9 @@ function renderKalender() {
   renderTodoist();
   $("kalTag").value = kalenderTag;
   $("kalAnleitung").textContent = KALENDER_ANLEITUNG;
+  const sync = store.getSettings();
+  $("btnAppleKalender").hidden = Boolean(sync.appleKalender);
+  $("btnKalAbgleich").hidden = !(sync.appleKalender || kalenderAbos(sync).length);
 
   const stand = kalenderStand();
   const quellen = $("kalQuellen");
@@ -3716,16 +3820,25 @@ function renderKalender() {
   } else {
     for (const q of stand.quellen) {
       const li = document.createElement("li");
-      const datum = q.stand ? new Date(q.stand).toLocaleDateString("de-DE") : "";
+      const stand = q.stand ? new Date(q.stand) : null;
+      const wann = stand
+        ? (todayIso(stand) === todayIso() ? `heute ${uhrzeit(stand.getTime())}` : stand.toLocaleDateString("de-DE"))
+        : "";
+      const art = q.art === "apple" ? "gleicht sich ab, vom iPhone" : q.art === "abo" ? "gleicht sich ab, Abo" : "einmalig eingelesen";
       li.innerHTML =
         `<div class="li-main"><div class="li-title">${escapeHtml(q.name)}</div>` +
-        `<div class="li-sub">${q.anzahl} Termine, eingelesen am ${escapeHtml(datum)}</div></div>`;
+        `<div class="li-sub">${q.anzahl} Termine, Stand ${escapeHtml(wann)} · <span class="kal-art">${art}</span></div></div>`;
       const weg = document.createElement("button");
       weg.className = "ghost";
       weg.textContent = "Entfernen";
       weg.addEventListener("click", () => {
-        kalenderEntfernen(q.name);
+        if (q.name === APPLE_QUELLE) appleKalenderTrennen();
+        else {
+          store.setSettings(aboEntfernen(store.getSettings(), q.name));
+          kalenderEntfernen(q.name);
+        }
         renderKalender();
+        refreshAll();
         toast("Kalender entfernt");
       });
       li.appendChild(weg);
@@ -3856,6 +3969,55 @@ $("btnTodoistTrennen").addEventListener("click", () => {
   renderTodoist();
   refreshAll();
 });
+
+/** Zeigt das Ergebnis eines Abgleichs in einer Meldung, Fehler zuerst. */
+function abgleichMelden(r) {
+  const fehler = (r?.ergebnisse || []).filter((e) => e.fehler);
+  if (fehler.length) { toast(`${fehler[0].name}: ${fehler[0].fehler}`, 5000); return; }
+  const summe = (r?.ergebnisse || []).reduce((n, e) => n + (e.anzahl || 0), 0);
+  toast(`Kalender abgeglichen, ${summe} Termine`);
+}
+
+$("btnAppleKalender").addEventListener("click", async () => {
+  try {
+    const r = await appleKalenderVerbinden();
+    if (r.fehler) { toast(r.fehler, 6000); return; }
+    abgleichMelden(r);
+  } catch (e) {
+    toast(`Kalender nicht lesbar: ${e.message}`, 5000);
+  }
+  renderKalender();
+  refreshAll();
+});
+
+$("btnKalAbo").addEventListener("click", async () => {
+  const r = aboHinzufuegen(store.getSettings(), $("kalAboUrl").value);
+  if (r.fehler) { toast(r.fehler, 5000); return; }
+  store.setSettings(r.settings);
+  $("kalAboUrl").value = "";
+  await kontoSicherstellen();
+  abgleichMelden(await kalenderAbgleichen({ zwang: true }));
+  renderKalender();
+  refreshAll();
+});
+
+$("btnKalAbgleich").addEventListener("click", async () => {
+  abgleichMelden(await kalenderAbgleichen({ zwang: true }));
+  renderKalender();
+  refreshAll();
+});
+
+/** Still im Hintergrund, beim Start und beim Zurückholen der App. */
+async function kalenderStill() {
+  const s = store.getSettings();
+  if (!s.appleKalender && !kalenderAbos(s).length) return;
+  try {
+    const r = await kalenderAbgleichen();
+    if (!r.uebersprungen && r.ergebnisse.some((e) => e.anzahl !== undefined)) refreshAll();
+  } catch {
+    // Ohne Netz bleibt der letzte Stand. Der Kalender sagt im Profil, von wann er ist.
+  }
+}
 
 $("btnKalDatei").addEventListener("click", () => $("kalDatei").click());
 
@@ -4241,8 +4403,11 @@ function mahlzeitOeffnen(id) {
   $("meTreffer").hidden = true;
   $("meSuchHinweis").textContent = "";
   $("meHandHinweis").textContent = "";
+  $("meRezeptForm").hidden = true;
+  $("meRezeptHinweis").textContent = "";
   meArtenZeichnen();
   mePostenZeichnen();
+  meBibliothekZeichnen();
   $("mahlzeitEditor").hidden = false;
   document.body.classList.add("blatt-offen");
 }
@@ -4300,6 +4465,7 @@ function mePostenZeichnen() {
       ? `<li class="me-leer">Noch nichts drin. Such unten ein Lebensmittel oder scann einen Barcode.</li>`
       : `<li class="me-leer">Kein Posten mehr drin. Speichern löscht die Mahlzeit.</li>`;
   } else {
+    const ziel = dayNumbers(day).targets;
     liste.innerHTML = mePosten.map((e, i) => {
       const menge = mengeLesen(e.quantity);
       const kann = skalierbar(e);
@@ -4310,16 +4476,16 @@ function mePostenZeichnen() {
                   value="${menge.zahl}" data-i="${i}" aria-label="Menge von ${escapeHtml(e.name)}">
            <span class="me-einheit">${escapeHtml(menge.einheit)}</span>`
         : `<span class="me-fest">${escapeHtml(e.quantity)}</span>`;
-      return `<li>
-        <div class="me-zeile">
+      return `<li class="me-karte">
+        ${postenBild(e)}
+        <div class="me-karte-text">
           <div class="me-name">${escapeHtml(e.name)}</div>
+          <div class="me-werte">${postenWerte(e, ziel)}</div>
           <div class="me-mengefeld">${feld}</div>
-          <button type="button" class="me-weg" data-weg="${i}" aria-label="${escapeHtml(e.name)} entfernen">
-            <span class="kreuz"></span>
-          </button>
         </div>
-        <div class="me-werte">${Math.round(e.kcal)} kcal, ${komma(runde1(e.proteinG))} g Eiweiß,
-          ${komma(runde1(e.fatG))} g Fett, ${komma(runde1(e.carbsG))} g Kohlenhydrate</div>
+        <button type="button" class="me-weg" data-weg="${i}" aria-label="${escapeHtml(e.name)} entfernen">
+          <span class="kreuz"></span>
+        </button>
       </li>`;
     }).join("");
   }
@@ -4337,7 +4503,206 @@ function meSummeZeichnen() {
   $("meProtein").textContent = `${komma(runde1(summe.p))} g`;
   $("meFett").textContent = `${komma(runde1(summe.f))} g`;
   $("meKh").textContent = `${komma(runde1(summe.k))} g`;
+  const ziel = dayNumbers(day).targets;
+  const kcalAnteil = anteilAmZiel(summe.kcal, ziel.kcal);
+  $("meKcalAnteil").textContent = kcalAnteil === null ? "" : `${kcalAnteil} % deines Tages`;
+  $("meKcalBalken").style.width = `${Math.min(100, kcalAnteil ?? 0)}%`;
+  $("mePostenZahl").textContent = mePosten.length ? `${Math.round(summe.kcal)} kcal` : "";
+  const teile = [
+    ["Eiweiß", summe.p, ziel.proteinG, "protein"],
+    ["Fett", summe.f, ziel.fatG, "fett"],
+    ["Kohlenhydrate", summe.k, ziel.carbsG, "kohlenhydrate"],
+  ].map(([name, wert, z, art]) => ({ name, wert, a: anteilAmZiel(wert, z), art }));
+  $("meAnteile").hidden = mePosten.length === 0;
+  $("meAnteile").innerHTML = teile.map((t) => `<div class="me-anteil" data-makro="${t.art}">
+      <span class="me-anteil-name">${escapeHtml(t.name)}</span>
+      ${ringKlein(t.a)}
+      <span class="me-anteil-wert"><b>${komma(runde1(t.wert))}</b> g</span>
+    </div>`).join("");
 }
+
+/**
+ * Ein kleiner Ring mit dem Anteil am Tagesziel in der Mitte, wie in den
+ * Makrokarten der guten Tracker. Über hundert Prozent bleibt der Ring voll,
+ * die Zahl sagt den Rest.
+ */
+function ringKlein(prozent) {
+  const r = 22;
+  const umfang = 2 * Math.PI * r;
+  const voll = Math.min(100, Math.max(0, prozent ?? 0)) / 100;
+  const zahl = prozent === null ? "–" : `${prozent}<small>%</small>`;
+  return `<span class="me-ring"><svg viewBox="0 0 56 56" aria-hidden="true">
+      <circle cx="28" cy="28" r="${r}" class="me-ring-spur"/>
+      <circle cx="28" cy="28" r="${r}" class="me-ring-wert" stroke-dasharray="${(umfang * voll).toFixed(1)} ${umfang.toFixed(1)}" transform="rotate(-90 28 28)"/>
+    </svg><b>${zahl}</b></span>`;
+}
+
+/**
+ * Das Bild eines Postens. Ein Foto gibt es nur von Open Food Facts, für
+ * alles andere steht der Anfangsbuchstabe auf der Farbe des Makros, der die
+ * meisten Kalorien trägt. Kein Emoji: die sehen auf jedem Gerät anders aus
+ * und bringen eine fremde Farbigkeit in die Palette.
+ */
+function postenBild(e) {
+  const bild = e.bild || tabellenBild(e.name);
+  if (bild) return `<span class="me-bild"><img src="${escapeHtml(bild)}" alt="" loading="lazy" referrerpolicy="no-referrer"></span>`;
+  const buchstabe = (String(e.name || "?").trim()[0] || "?").toUpperCase();
+  return `<span class="me-bild" data-makro="${hauptMakro(e)}" aria-hidden="true"><b>${escapeHtml(buchstabe)}</b></span>`;
+}
+
+/** Die Zeile unter einem Posten: Werte und, wenn ein Ziel da ist, der Anteil am Tag. */
+function postenWerte(e, ziel) {
+  const a = anteilAmZiel(e.kcal, ziel?.kcal);
+  const anteil = a === null ? "" : `<span class="me-tagesanteil"> · ${a} % des Tages</span>`;
+  return `<span class="me-kcal-text">${Math.round(e.kcal)} kcal</span>${anteil}<br>`
+    + `<span class="me-makro-text">E ${komma(runde1(e.proteinG))} g · F ${komma(runde1(e.fatG))} g · K ${komma(runde1(e.carbsG))} g</span>`;
+}
+
+/* ---------- Bibliothek: Rezepte, zuletzt gegessen, Nährwerttabelle ---------- */
+
+/** Was gerade in der Bibliothek steht, damit ein Tipp den richtigen Posten findet. */
+let meBibliothekPosten = [];
+
+function bibZeile(e, i, { loeschen = null, unter = "" } = {}) {
+  const weg = loeschen
+    ? `<button type="button" class="me-weg" data-rezept-weg="${escapeHtml(loeschen)}" aria-label="Rezept ${escapeHtml(e.name)} löschen"><span class="kreuz"></span></button>`
+    : "";
+  const zeile = unter || `<span class="me-kcal-text">${Math.round(e.kcal)} kcal</span> · ${escapeHtml(e.quantity || "")}`;
+  return `<li class="bib-zeile">
+    <button type="button" class="bib-knopf" data-bib="${i}">
+      ${postenBild(e)}
+      <span class="bib-text"><span class="me-name">${escapeHtml(e.name)}</span>
+        <span class="me-werte">${zeile}</span></span>
+      <span class="bib-plus" aria-hidden="true"></span>
+    </button>${weg}
+  </li>`;
+}
+
+/** Welcher Reiter unter der Suche offen ist. Zuletzt zuerst: das ist, was man meistens wieder isst. */
+let meReiterWahl = "zuletzt";
+
+function meBibliothekZeichnen() {
+  const box = $("meBibliothek");
+  const begriff = $("meSuche").value.trim();
+  $("meSuchen").hidden = !begriff;
+  $("meReiter").hidden = Boolean(begriff);
+  for (const k of $("meReiter").querySelectorAll("[data-reiter]")) k.classList.toggle("an", k.dataset.reiter === meReiterWahl);
+  meBibliothekPosten = [];
+  const liste = (zeilen) => `<ul class="bib-liste">${zeilen.join("")}</ul>`;
+  const leer = (text) => `<p class="me-leer">${text}</p>`;
+  if (begriff) {
+    // Beim Tippen sofort die eigene Tabelle, ohne Netz. Open Food Facts kommt
+    // erst mit Enter, sonst ginge bei jedem Buchstaben eine Anfrage raus.
+    const treffer = tabellenSuche(begriff);
+    box.innerHTML = (treffer.length
+      ? liste(treffer.map((e) => bibZeile(e, meBibliothekPosten.push({ art: "posten", e }) - 1)))
+      : leer("Nicht in der Nährwerttabelle."))
+      + `<p class="feld-hilfe">Enter sucht zusätzlich nach Marken und Produkten.</p>`;
+    return;
+  }
+  if (meReiterWahl === "rezepte") {
+    const s = store.getSettings();
+    const rezepte = eigeneRezepte(s);
+    const grenze = rezeptGrenze(s, KONFIG);
+    const zaehler = grenze === Infinity ? "" : `<p class="feld-hilfe">${rezepte.length} von ${grenze} Rezepten gespeichert.</p>`;
+    box.innerHTML = rezepte.length
+      ? zaehler + liste(rezepte.map((r) => {
+        const sum = postenSumme(r.posten);
+        const e = { name: r.name, kcal: sum.kcal, proteinG: sum.proteinG, fatG: sum.fatG, carbsG: sum.carbsG, bild: r.posten.find((p) => p.bild)?.bild };
+        const unter = `<span class="me-kcal-text">${Math.round(sum.kcal)} kcal</span> · ${r.posten.length} ${r.posten.length === 1 ? "Zutat" : "Zutaten"}`;
+        return bibZeile(e, meBibliothekPosten.push({ art: "rezept", r }) - 1, { loeschen: r.id, unter });
+      }))
+      : leer("Noch keine eigenen Rezepte. Stell oben eine Mahlzeit zusammen und speichere sie als Rezept.");
+    return;
+  }
+  if (meReiterWahl === "lexikon") {
+    // Die ganze Tabelle, nach Namen. Ein Lexikon zum Blättern, für alles,
+    // was man nicht beim Namen sucht.
+    const alle = [...FOODS].sort((x, y) => x.label.localeCompare(y.label, "de")).map((f) => tabellenPosten(f));
+    box.innerHTML = liste(alle.map((e) => bibZeile(e, meBibliothekPosten.push({ art: "posten", e }) - 1)));
+    return;
+  }
+  const tage = store.allDays().slice(-30).map((d) => ({ ...store.getDay(d), date: d }));
+  const zuletzt = zuletztGegessen(tage, { anzahl: 15 });
+  box.innerHTML = zuletzt.length
+    ? liste(zuletzt.map((e) => bibZeile(e, meBibliothekPosten.push({ art: "posten", e }) - 1)))
+    : leer("Hier stehen bald die Lebensmittel, die du zuletzt gegessen hast.");
+}
+
+$("meReiter").addEventListener("click", (event) => {
+  const k = event.target.closest("[data-reiter]");
+  if (!k) return;
+  meReiterWahl = k.dataset.reiter;
+  meBibliothekZeichnen();
+});
+
+function meRezeptHinweis(text) {
+  $("meRezeptHinweis").textContent = text;
+}
+
+$("meBibliothek").addEventListener("click", (event) => {
+  const weg = event.target.closest("[data-rezept-weg]");
+  if (weg) {
+    const r = eigeneRezepte(store.getSettings()).find((x) => x.id === weg.dataset.rezeptWeg);
+    if (!r || !confirm(`Rezept "${r.name}" löschen?`)) return;
+    store.setSettings(rezeptLoeschen(store.getSettings(), r.id));
+    meBibliothekZeichnen();
+    return;
+  }
+  const knopf = event.target.closest("[data-bib]");
+  if (!knopf) return;
+  const eintrag = meBibliothekPosten[Number(knopf.dataset.bib)];
+  if (!eintrag) return;
+  spueren("leicht");
+  // Ein Rezept kommt als seine Zutaten in die Mahlzeit, nicht als ein Block:
+  // so lässt sich heute weniger Reis nehmen, ohne das Rezept zu ändern.
+  const neu = eintrag.art === "rezept" ? eintrag.r.posten : [eintrag.e];
+  for (const e of neu) mePostenAnhaengen({ ...e });
+  if (eintrag.art === "rezept") meRezeptHinweis(`"${eintrag.r.name}" eingefügt. Mengen lassen sich oben ändern.`);
+  $("meSuche").value = "";
+  $("meTreffer").hidden = true;
+  meBibliothekZeichnen();
+});
+
+$("meSuche").addEventListener("input", () => {
+  if (!$("meSuche").value.trim()) $("meTreffer").hidden = true;
+  meBibliothekZeichnen();
+});
+
+$("meAlsRezept").addEventListener("click", () => {
+  if (mePosten.length === 0) { meRezeptHinweis("Füg erst Lebensmittel hinzu, dann lässt sich das Ganze als Rezept speichern."); return; }
+  const grenze = rezeptGrenze(store.getSettings(), KONFIG);
+  if (grenze === 0) {
+    aboOeffnen({ marke: "Plus und Pro", titel: "Eigene Rezepte speichern", empfohlen: "plus",
+      text: "Mit Plus speicherst du fünf eigene Rezepte, mit Pro so viele du willst. Einmal zusammengestellt, mit einem Tipp eingetragen." });
+    return;
+  }
+  $("meRezeptForm").hidden = false;
+  $("meRezeptName").focus();
+});
+
+function meRezeptSichern() {
+  const s = store.getSettings();
+  const grenze = rezeptGrenze(s, KONFIG);
+  const ergebnis = rezeptSpeichern(s, $("meRezeptName").value, mePosten, { grenze, id: newId });
+  if (ergebnis.fehler === "grenze") {
+    aboOeffnen({ marke: "Pro", titel: "Mehr eigene Rezepte", empfohlen: "pro",
+      text: `In deiner Stufe sind ${grenze} eigene Rezepte möglich. Mit Pro speicherst du so viele du willst. Ein bestehendes Rezept ersetzt du, indem du es unter demselben Namen speicherst.` });
+    return;
+  }
+  if (ergebnis.fehler) { meRezeptHinweis(ergebnis.fehler); return; }
+  store.setSettings(ergebnis.settings);
+  spueren("erfolg");
+  $("meRezeptForm").hidden = true;
+  $("meRezeptName").value = "";
+  meRezeptHinweis(ergebnis.ersetzt ? `"${ergebnis.rezept.name}" aktualisiert.` : `"${ergebnis.rezept.name}" gespeichert. Du findest es unter Meine Rezepte.`);
+  meBibliothekZeichnen();
+}
+
+$("meRezeptOk").addEventListener("click", meRezeptSichern);
+$("meRezeptName").addEventListener("keydown", (event) => {
+  if (event.key === "Enter") { event.preventDefault(); meRezeptSichern(); }
+});
 
 function runde1(wert) {
   return Math.round((Number(wert) || 0) * 10) / 10;
@@ -4402,10 +4767,13 @@ function meTrefferZeichnen(treffer) {
     const n = naehrwerteFuer(p, gramm);
     const warnung = t.einwaende.length ? `<div class="me-warnung">${escapeHtml(t.einwaende.join(" "))}</div>` : "";
     return `<li>
-      <button type="button" class="me-treffer-knopf" data-treffer="${i}">
+      <button type="button" class="me-treffer-knopf bib-knopf" data-treffer="${i}">
+        ${postenBild({ name: titel || "?", bild: p.bild, kcal: n.kcal, proteinG: n.proteinG, fatG: n.fatG, carbsG: n.carbsG })}
+        <span class="bib-text">
         <div class="me-name">${escapeHtml(titel || "Ohne Namen")}</div>
         <div class="me-werte">${gramm} g, ${Math.round(n.kcal)} kcal, ${komma(runde1(n.proteinG))} g Eiweiß</div>
         ${warnung}
+        </span>
       </button>
     </li>`;
   }).join("");
@@ -4417,6 +4785,7 @@ function meTrefferZeichnen(treffer) {
       name: [t.produkt.marke, t.produkt.name].filter(Boolean).join(" ") || "Ohne Namen",
       gramm,
       kcal: n.kcal, proteinG: n.proteinG, fatG: n.fatG, carbsG: n.carbsG,
+      bild: t.produkt.bild,
     };
   }));
 }
@@ -4459,10 +4828,7 @@ $("mePosten").addEventListener("input", (event) => {
   // dem Nutzer mitten im Tippen den Fokus aus dem Feld nehmen.
   const zeile = feld.closest("li")?.querySelector(".me-werte");
   const e = mePosten[i];
-  if (zeile) {
-    zeile.textContent = `${Math.round(e.kcal)} kcal, ${komma(runde1(e.proteinG))} g Eiweiß, `
-      + `${komma(runde1(e.fatG))} g Fett, ${komma(runde1(e.carbsG))} g Kohlenhydrate`;
-  }
+  if (zeile) zeile.innerHTML = postenWerte(e, dayNumbers(day).targets);
   meSummeZeichnen();
 });
 
@@ -4491,9 +4857,11 @@ $("meTreffer").addEventListener("click", (event) => {
     proteinG: runde1(t.proteinG),
     fatG: runde1(t.fatG),
     carbsG: runde1(t.carbsG),
+    ...(t.bild ? { bild: t.bild } : {}),
   });
   $("meTreffer").hidden = true;
   $("meSuche").value = "";
+  meBibliothekZeichnen();
 });
 
 $("meHandAdd").addEventListener("click", () => {
@@ -4633,6 +5001,106 @@ async function renderKonto() {
   $("kontoId").textContent = stand?.id || store.getSettings().kontoId || "-";
 }
 
+/* ---------- Anmeldung mit Apple oder Google ---------- */
+
+let anmeldungWartet = null;
+
+/**
+ * Zeigt den Anmeldebildschirm, wenn es einen Weg gibt und noch nicht
+ * gefragt wurde. Löst auf, sobald angemeldet oder übersprungen ist. Nach
+ * "Ohne Anmeldung weiter" fragt die App nicht wieder, im Profil bleibt der
+ * Knopf.
+ */
+function anmeldungFragen({ immer = false } = {}) {
+  const wege = anmeldeWege();
+  const s = store.getSettings();
+  if (!wege.apple && !wege.google) return Promise.resolve(false);
+  if (!immer && (s.login || s.anmeldungGefragt)) return Promise.resolve(false);
+  $("btnAnmeldenApple").hidden = !wege.apple;
+  $("btnAnmeldenGoogle").hidden = !(wege.google && istNativ());
+  $("googleWebKnopf").hidden = !(wege.google && !istNativ());
+  if (wege.google && !istNativ()) googleWebLaden();
+  $("anmeldeBlatt").hidden = false;
+  return new Promise((resolve) => { anmeldungWartet = resolve; });
+}
+
+function anmeldungSchliessen(ergebnis) {
+  $("anmeldeBlatt").hidden = true;
+  store.setSettings({ ...store.getSettings(), anmeldungGefragt: true });
+  anmeldungStandZeigen();
+  const w = anmeldungWartet;
+  anmeldungWartet = null;
+  w?.(ergebnis);
+}
+
+async function anmeldungAusfuehren(weg, knopf) {
+  if (knopf) knopf.disabled = true;
+  try {
+    const r = await weg();
+    if (r?.fehler) { toast(r.fehler, 5000); return; }
+    toast(r.uebernommen ? "Angemeldet. Dein Konto ist wieder da." : "Angemeldet.");
+    kontoStand().catch(() => {});
+    anmeldungSchliessen(true);
+  } catch (e) {
+    if (String(e?.message || e) !== "abgebrochen") toast(`Anmeldung gescheitert: ${e?.message || e}`, 5000);
+  } finally {
+    if (knopf) knopf.disabled = false;
+  }
+}
+
+$("btnAnmeldenApple").addEventListener("click", (e) => anmeldungAusfuehren(() => anmeldenApple(), e.currentTarget));
+$("btnAnmeldenGoogle").addEventListener("click", (e) => anmeldungAusfuehren(() => anmeldenGoogleNativ(), e.currentTarget));
+$("btnAnmeldenSpaeter").addEventListener("click", () => anmeldungSchliessen(false));
+$("btnAnmeldungProfil").addEventListener("click", () => anmeldungFragen({ immer: true }));
+
+/**
+ * Kündigen muss so leicht sein wie abschliessen. In der iPhone App öffnet
+ * das die Abos der Apple ID, im Browser das Kundenportal von Stripe.
+ */
+$("btnAboVerwalten").addEventListener("click", async () => {
+  if (istNativ()) {
+    try { await nativAufruf("Abo", "verwalten", {}); } catch (e) { toast(e.message, 5000); }
+    return;
+  }
+  if (KONFIG.abo?.portalUrl) window.open(KONFIG.abo.portalUrl, "_blank", "noopener");
+});
+
+let googleGeladen = false;
+
+/**
+ * Im Browser zeichnet Google seinen eigenen Knopf. Das Skript kommt erst,
+ * wenn der Bildschirm wirklich erscheint: vorher verrät kein Abruf an Google,
+ * dass jemand daevo öffnet.
+ */
+function googleWebLaden() {
+  const zeichnen = () => {
+    const g = globalThis.google?.accounts?.id;
+    if (!g) return;
+    g.initialize({
+      client_id: KONFIG.anmeldung?.googleWebClientId,
+      callback: (antwort) => anmeldungAusfuehren(() => anmeldungSenden({ anbieter: "google", idToken: antwort.credential })),
+    });
+    $("googleWebKnopf").innerHTML = "";
+    g.renderButton($("googleWebKnopf"), { theme: "filled_black", size: "large", shape: "pill", text: "signin_with", width: 320, locale: "de" });
+  };
+  if (googleGeladen) { zeichnen(); return; }
+  const skript = document.createElement("script");
+  skript.src = "https://accounts.google.com/gsi/client";
+  skript.async = true;
+  skript.onload = () => { googleGeladen = true; zeichnen(); };
+  document.head.appendChild(skript);
+}
+
+function anmeldungStandZeigen() {
+  const wege = anmeldeWege();
+  const da = wege.apple || wege.google;
+  const s = store.getSettings();
+  $("anmeldungStand").hidden = !da;
+  $("anmeldungStand").textContent = anmeldungText(s);
+  $("btnAnmeldungProfil").hidden = !da || Boolean(s.login);
+  $("btnAboVerwalten").hidden = !(KONFIG.chatUrl && (istNativ() || KONFIG.abo?.portalUrl));
+}
+
 /* ---------- Apple Health in der iPhone App ---------- */
 
 let healthLaeuft = false;
@@ -4667,6 +5135,16 @@ async function mitteilungenNativ() {
   try {
     const { antworten = [], geoeffnet = null } = await nativAufruf("Mitteilungen", "abholen");
     for (const eintrag of antworten) {
+      if (eintrag?.art === "kalender") {
+        // "Lassen" heisst nichts tun. "Umplanen" rechnet den Platz hier,
+        // denn die Mitteilung kam aus dem Hintergrund ohne Web Ansicht.
+        if (eintrag.aktion !== "umplanen" || !eintrag.eid) continue;
+        const { konfliktUmplanen } = await import("./kalender-schreiben.js");
+        const satz = await konfliktUmplanen({ eid: eintrag.eid, von: eintrag.von });
+        toast(satz.replace(/^Noch nicht gespeichert\. /, ""), 8000);
+        refreshAll();
+        continue;
+      }
       if (antwortVerarbeiten(eintrag, { store, brain })) toast("Antwort übernommen");
     }
     if (geoeffnet?.art === "luecke") lueckeFrageOeffnen();
@@ -4681,7 +5159,10 @@ async function mitteilungenNativ() {
 }
 
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") healthNativ().then(() => mitteilungenNativ()).then(morgenVielleicht);
+  if (document.visibilityState === "visible") {
+    kalenderStill();
+    healthNativ().then(() => mitteilungenNativ()).then(morgenVielleicht);
+  }
 });
 
 /* ---------- Guten Morgen Check-in ---------- */
@@ -4829,19 +5310,26 @@ function aboStufenZeigen() {
   }
   const p = aboPreis(s, aboTakt);
   const link = aboLink(aboWahl, store.getSettings().kontoId, KONFIG, istNativ(), aboTakt);
-  $("aboKaufen").textContent = `${s.name} holen, ${p.preis} ${p.zeitraum}`;
-  $("aboKaufen").hidden = !link;
-  $("aboHinweis").textContent = istNativ()
-    ? "Der Kauf in der App kommt mit dem App Store. Bis dahin läuft alles ohne KI weiter."
+  $("aboKaufen").textContent = aboAnlassJetzt?.testphase ? `${aboAnlassJetzt.knopf}, danach ${p.preis} ${p.zeitraum}` : `${s.name} holen, ${p.preis} ${p.zeitraum}`;
+  $("aboKaufen").hidden = !link && !(istNativ() && KONFIG.chatUrl);
+  $("aboHinweis").textContent = aboAnlassJetzt?.testphase
+    ? `Die ersten 7 Tage kosten nichts. Ab Tag 8 ${p.preis} ${p.zeitraum}, bis Tag 7 kostenlos kündbar${istNativ() ? " in den Einstellungen deiner Apple ID" : " über den Link in der Bestätigungsmail"}. Ohne Abo läuft alles weiter, was keine KI braucht.`
+    : istNativ()
+    ? "Abgerechnet über deine Apple ID, kündbar in deren Einstellungen. Alles ohne KI bleibt in jeder Stufe frei."
     : aboTakt === "jahr"
       ? "Einmal im Jahr abgerechnet. Das Kontingent an Nachrichten gilt je Monat. Alles ohne KI bleibt in jeder Stufe frei."
       : "Monatlich abgerechnet. Alles ohne KI bleibt in jeder Stufe frei: Essen eintragen, Pläne, Erinnerungen, Balance Board.";
 }
 
+let aboAnlassJetzt = null;
+let nachAbo = null;
+
 function aboOeffnen(anlass = null) {
+  aboAnlassJetzt = anlass;
   aboWahl = anlass?.empfohlen || "plus";
   $("aboMarke").textContent = anlass?.marke || "Plus und Pro";
   $("aboTitel").textContent = anlass?.titel || "Deinen Coach freischalten";
+  $("aboSpaeter").textContent = anlass?.testphase ? "Erst ohne KI umsehen" : "Später";
   $("aboText").textContent = anlass?.text || "Mit Abo denkt daevo mit: Fotos auswerten, deinen Tag planen, mit dir reden.";
   aboStufenZeigen();
   aboMerken(anlass?.merken);
@@ -4853,13 +5341,36 @@ function aboOeffnen(anlass = null) {
 function aboSchliessen() {
   $("aboBlatt").hidden = true;
   document.body.classList.remove("blatt-offen");
+  aboAnlassJetzt = null;
+  const weiter = nachAbo;
+  nachAbo = null;
+  weiter?.();
+}
+
+/** Wartet, bis das Abo Fenster zu ist. Die Einführung kommt danach, nicht darüber. */
+function aboFensterZu() {
+  if ($("aboBlatt").hidden) return Promise.resolve();
+  return new Promise((r) => { nachAbo = r; });
 }
 
 $("aboSchliessen").addEventListener("click", aboSchliessen);
 $("aboSpaeter").addEventListener("click", aboSchliessen);
 $("aboBlatt").addEventListener("click", (event) => { if (event.target === $("aboBlatt")) aboSchliessen(); });
 $("btnAboZeigen").addEventListener("click", () => aboOeffnen());
-$("aboKaufen").addEventListener("click", () => {
+$("aboKaufen").addEventListener("click", async () => {
+  if (istNativ()) {
+    const knopf = $("aboKaufen");
+    knopf.disabled = true;
+    const r = await kaufenNativ(aboWahl, aboTakt).catch((e) => ({ fehler: e.message }));
+    knopf.disabled = false;
+    if (r.abgebrochen) return;
+    if (r.fehler) { toast(r.fehler, 6000); return; }
+    if (r.wartet) toast("Der Kauf wartet auf eine Freigabe, etwa durch die Familienfreigabe.", 6000);
+    else toast(aboAnlassJetzt?.testphase ? "Testphase läuft. Viel Spaß mit daevo." : "Abo aktiv.");
+    aboSchliessen();
+    kontoStand().then(aboLeisteZeigen).catch(() => {});
+    return;
+  }
   const link = aboLink(aboWahl, store.getSettings().kontoId, KONFIG, istNativ(), aboTakt);
   if (link) window.open(link, "_blank", "noopener");
   aboSchliessen();
@@ -4885,8 +5396,14 @@ $("aboLeiste").addEventListener("click", () => aboOeffnen(aboLeisteEmpfohlen ? {
 
 async function aboBeimStart() {
   if (!KONFIG.chatUrl) return;
+  // Ein Abo, das im App Store gilt und dem Server fehlt, kommt zuerst an.
+  if (istNativ()) await abosAbgleichen().catch(() => null);
   const stand = await kontoStand();
   aboLeisteZeigen(stand);
+  // Startet die Testphase erst mit dem Abo, kommt das Fenster direkt nach
+  // dem Fragebogen und vor der Einführung.
+  const start = startAnlass(stand, store.getSettings().aboHinweise);
+  if (start) { aboOeffnen(start); return; }
   const anlass = aboAnlass(stand, store.getSettings().aboHinweise, todayIso());
   if (!anlass) return;
   if (!store.getSettings().einfuehrungGesehen) return;
@@ -5319,11 +5836,94 @@ $("btnWiederherstellenStart").addEventListener("click", () => {
   }
 });
 
-$("btnReset").addEventListener("click", () => {
-  if (!confirm("Wirklich alle Daten auf diesem Gerät löschen? Das kann nicht rückgängig gemacht werden.")) return;
+$("btnReset").addEventListener("click", async () => {
+  if (!confirm("Wirklich dein Konto und alle Daten auf diesem Gerät löschen? Das kann nicht rückgängig gemacht werden.")) return;
+  // Erst der Server, dann das Gerät. Andersherum wäre der Schlüssel weg, und
+  // das Konto bliebe auf dem Server liegen, ohne dass es jemand löschen kann.
+  const server = await kontoLoeschen();
+  if (server && !server.ok
+    && !confirm(`${server.fehler} Trotzdem alles auf diesem Gerät löschen? Dein Konto auf dem Server bleibt dann, bis du an die Adresse im Impressum schreibst.`)) return;
   store.clearAll();
   location.reload();
 });
+
+/* ---------- Einwilligung und Rechtstexte ---------- */
+
+let kiWartet = null;
+
+/**
+ * Ist die KI erlaubt? Steht die Frage noch offen, öffnet sich das Blatt, und
+ * die Antwort kommt erst nach dem Tipp. Nach einem Nein fragt die App nicht
+ * wieder, das geht nur über das Profil.
+ */
+function kiFreigabe() {
+  const s = store.getSettings();
+  if (kiErlaubt(s, KONFIG)) return Promise.resolve(true);
+  if (!einwilligungOffen(s, KONFIG)) return Promise.resolve(false);
+  return new Promise((resolve) => {
+    kiWartet = resolve;
+    $("kiBlatt").hidden = false;
+    document.body.classList.add("blatt-offen");
+  });
+}
+
+function kiEntscheiden(ja) {
+  store.setSettings(einwilligungSetzen(store.getSettings(), ja));
+  $("kiBlatt").hidden = true;
+  if ($("rechtBlatt").hidden) document.body.classList.remove("blatt-offen");
+  kiStandZeigen();
+  const warten = kiWartet;
+  kiWartet = null;
+  warten?.(ja);
+}
+
+function kiStandZeigen() {
+  const s = store.getSettings();
+  $("kiStand").textContent = einwilligungText(s, KONFIG);
+  const gefragt = Boolean(KONFIG.chatUrl);
+  $("btnKiEinwilligung").hidden = !gefragt;
+  $("btnKiEinwilligung").textContent = kiErlaubt(s, KONFIG) ? "Einwilligung widerrufen" : "KI erlauben";
+}
+
+$("kiJa").addEventListener("click", () => kiEntscheiden(true));
+$("kiNein").addEventListener("click", () => kiEntscheiden(false));
+$("btnKiEinwilligung").addEventListener("click", () => {
+  const erlaubt = kiErlaubt(store.getSettings(), KONFIG);
+  if (erlaubt && !confirm("Einwilligung widerrufen? Danach antwortet daevo nur noch mit dem, was ohne KI geht.")) return;
+  if (!erlaubt) {
+    // Erlauben geht über dasselbe Blatt wie beim ersten Mal, damit niemand
+    // zustimmt, ohne gelesen zu haben, wozu.
+    $("kiBlatt").hidden = false;
+    document.body.classList.add("blatt-offen");
+    return;
+  }
+  store.setSettings(einwilligungSetzen(store.getSettings(), false));
+  kiStandZeigen();
+  toast("Widerrufen. Ab jetzt geht nichts mehr an die KI.");
+});
+
+const RECHT_TITEL = { datenschutz: "Datenschutz", nutzungsbedingungen: "Nutzungsbedingungen", impressum: "Impressum", bildnachweis: "Bildnachweis" };
+
+function rechtOeffnen(seite) {
+  $("rechtTitel").textContent = RECHT_TITEL[seite] || "Rechtliches";
+  $("rechtRahmen").src = `rechtliches/${seite}.html`;
+  $("rechtBlatt").hidden = false;
+  document.body.classList.add("blatt-offen");
+}
+
+function rechtSchliessen() {
+  $("rechtBlatt").hidden = true;
+  if ($("kiBlatt").hidden) document.body.classList.remove("blatt-offen");
+}
+
+document.addEventListener("click", (event) => {
+  const knopf = event.target.closest?.("[data-recht]");
+  if (!knopf) return;
+  event.preventDefault();
+  rechtOeffnen(knopf.dataset.recht);
+});
+$("rechtSchliessen").addEventListener("click", rechtSchliessen);
+kiStandZeigen();
 
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "visible" || !profile) return;
@@ -5398,9 +5998,12 @@ async function demoVorbereiten() {
   return Boolean(profile);
 }
 
-demoVorbereiten().then((gefuellt) => {
-  if (profile || gefuellt) startApp();
-  else new SetupFlow($("setupFlow"), { onFertig: anamneseFertig });
+demoVorbereiten().then(async (gefuellt) => {
+  if (profile || gefuellt) { startApp(); return; }
+  // Wer neu ist, meldet sich vor dem Fragebogen an: dann kommt ein schon
+  // gekauftes Abo sofort zurück, und die Testphase gilt je Person einmal.
+  await anmeldungFragen();
+  new SetupFlow($("setupFlow"), { onFertig: anamneseFertig });
 });
 
 if ("serviceWorker" in navigator) {

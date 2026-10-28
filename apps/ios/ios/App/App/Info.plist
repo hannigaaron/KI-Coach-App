@@ -55,6 +55,18 @@
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>de.daevo.app.kalenderwache</string>
+	</array>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>daevo liest deine Termine, um Mahlzeiten, Training und Aufgaben in deine freien Zeiten zu legen, und trägt auf deinen Wunsch Trainings ein oder verschiebt sie. Die Termine bleiben auf deinem iPhone.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>daevo liest deine Termine, um Mahlzeiten, Training und Aufgaben in deine freien Zeiten zu legen, und trägt auf deinen Wunsch Trainings ein oder verschiebt sie. Die Termine bleiben auf deinem iPhone.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>daevo hört zu, wenn du Mahlzeiten, Training oder Gedanken einsprichst.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
