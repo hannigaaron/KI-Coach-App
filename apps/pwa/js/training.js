@@ -21,7 +21,7 @@ import { alternativen, letzteEinheit, positionFuer, steigerung, uebungErlaubt } 
 import { UEBUNGEN } from "./uebungen-daten.js";
 import { spueren } from "./haptik.js";
 import { pauseMitteilung, pauseMitteilungAus } from "./nativ.js";
-import { GERAETE, uebungenFiltern, vorschauPfad } from "./uebungen.js";
+import { fotoPfad, GERAETE, uebungenFiltern, vorschauPfad } from "./uebungen.js";
 import { STANDARD_WUNSCH, tauschListe, uebungTauschen } from "./plaene.js";
 
 const nachId = new Map(UEBUNGEN.map((u) => [u.id, u]));
@@ -308,11 +308,21 @@ export function trainingHtml(entwurf, log, { menue = false, vorschlaege = [], pa
       </div>`
     : "";
   if (waehlen) return `<div class="tr-leiste">${leiste}</div>${auswahlHtml(auswahl, suche)}`;
-  return `<div class="tr-leiste">${leiste}</div>
-    <div class="tr-titelzeile"><h2 class="tr-name">${esc(u.name)}</h2>
+  // Wo man in der Einheit steht, als Zahl und als Balken. Die Daumen allein
+  // sagen das nicht, sobald die Leiste breiter als der Bildschirm ist.
+  const n = entwurf.uebungen.length;
+  const fortschritt = `<div class="tr-fortschritt"><span>Übung ${entwurf.aktiv + 1} von ${n}</span><i style="--anteil:${((entwurf.aktiv + 1) / n).toFixed(3)}"></i></div>`;
+  const titel = `<div class="tr-titelzeile"><h2 class="tr-name">${esc(u.name)}</h2>
       <button type="button" class="tr-mehr" data-tr-menue aria-expanded="${menue}" aria-label="Übung ersetzen oder Anleitung"><i></i><i></i><i></i></button></div>
+    <p class="tr-ziel">${esc(geraet)}${geraet ? " · " : ""}${u.ziel.saetze} × ${esc(u.ziel.wdh)} Wdh · ${u.ziel.reserve} RIR</p>`;
+  // Das Foto trägt die Übung, Name und Ziel stehen darauf. Ohne Foto in der
+  // Datenbank bleibt die Zeile ohne Bild, ein leerer Kasten wäre schlimmer.
+  const kopf = info
+    ? `<div class="tr-held"><img src="${esc(fotoPfad(info))}" alt="" decoding="async"><div class="tr-held-text">${titel}</div></div>`
+    : titel;
+  return `${fortschritt}<div class="tr-leiste">${leiste}</div>
+    ${kopf}
     ${menueHtml}
-    <p class="tr-ziel">${esc(geraet)}${geraet ? " · " : ""}${u.ziel.saetze} × ${esc(u.ziel.wdh)} Wdh · ${u.ziel.reserve} RIR</p>
     <div class="tr-tabelle">
       <div class="tr-kopf"><span>#</span><span>KG</span><span>WDH</span><span>RIR</span><span></span></div>
       ${zeilen}

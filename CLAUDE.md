@@ -404,9 +404,11 @@ Ziehen. Keine Isolation.
 ### Der Trainingsmodus
 
 `apps/pwa/js/training.js`, das Blatt `#trainingBlatt`. Je Einheit steht im
-Plan "Starten". Oben die Daumen aller Übungen, darunter die eine Übung mit
-Gerät, Ziel und RIR, je Satz eine Zeile mit Kilo, Wiederholungen, RIR und
-Haken. Der Haken startet die Pause mit der Pausenzeit aus dem Plan. Darunter
+Plan "Starten". Oben "Übung 2 von 5" mit Balken, darunter die Übungen als
+runde Daumen. Die aktive Übung steht als Foto bis an den Rand, Name in der
+Serife und Ziel darauf. Je Satz eine Zeile mit Kilo, Wiederholungen, RIR
+und rundem Haken, Linien statt Kästen. Gewählt vom Nutzer aus drei
+Entwürfen: Foto und Kreise aus dem ersten, der Balken aus dem zweiten. Der Haken startet die Pause mit der Pausenzeit aus dem Plan. Darunter
 steht das letzte Mal mit Datum und Einheit.
 
 RIR statt einer geschätzten Maximalkraft in der Tabelle. Die App steuert

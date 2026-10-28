@@ -3836,3 +3836,32 @@ button small, button .erfassen-sub, button .me-werte, button .me-werte *,
 .rechte-liste li { display: flex; flex-direction: column; gap: 2px; padding: var(--s-3) 0; border-top: 1px solid var(--linie); }
 .rechte-liste li:first-child { border-top: 0; }
 .rechte-liste span { color: var(--muted); font-size: var(--t-sm); line-height: 1.45; }
+
+/* Der Trainingsmodus, gewählt nach drei Entwürfen: das Foto trägt die Übung,
+   Name und Ziel stehen darauf, die Sätze sind Zeilen mit Linie statt Kästen.
+   Dazu der Balken, wo man in der Einheit steht. */
+.tr-fortschritt { display: flex; align-items: center; gap: var(--s-3); margin-top: var(--s-2); font-size: var(--t-xs); color: var(--muted); letter-spacing: .04em; }
+.tr-fortschritt i { flex: 1; height: 4px; border-radius: 4px; background: linear-gradient(90deg, var(--accent) calc(var(--anteil) * 100%), var(--flaeche) 0); }
+.tr-daumen { width: 52px; height: 52px; border-radius: 50%; }
+.tr-daumen.fertig::after { right: 2px; bottom: 2px; }
+.tr-held { position: relative; margin: 0 calc(-1 * var(--s-4)) var(--s-4); height: 230px; overflow: hidden; background: #0e1116; }
+.tr-held img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tr-held::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(8,12,18,0) 35%, rgba(8,12,18,.82) 100%); }
+.tr-held-text { position: absolute; left: var(--s-4); right: var(--s-4); bottom: var(--s-3); z-index: 1; }
+.tr-held .tr-titelzeile { margin-top: 0; }
+.tr-held .tr-name { color: #fff; font-family: var(--schrift-akzent); font-weight: 400; font-size: 34px; letter-spacing: 0; line-height: 1.05; }
+.tr-held .tr-mehr { background: rgba(255,255,255,.16); box-shadow: none; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.tr-held .tr-mehr i { background: #fff; }
+.tr-held .tr-ziel { color: rgba(255,255,255,.82); margin: var(--s-1) 0 0; }
+.tr-kopf { padding-bottom: 0; }
+.tr-satz { margin: 0; padding: 6px 0; border-bottom: 1px solid var(--linie); }
+/* Über die Kennung, sonst gewinnt die allgemeine Regel für Felder. */
+#trainingInhalt .tr-feld { background: transparent; box-shadow: none; height: 44px; font-size: 22px; font-weight: 500; padding: 0 2px; }
+#trainingInhalt .tr-feld:focus { box-shadow: inset 0 -2px 0 var(--accent); }
+.tr-feld::placeholder { color: var(--linie); }
+.tr-haken { width: 40px; height: 40px; padding: 0; justify-self: center; background: transparent; box-shadow: inset 0 0 0 1.5px var(--linie); }
+.tr-haken svg { flex: none; width: 20px; height: 20px; }
+.tr-satz.fertig .tr-haken { background: var(--accent); box-shadow: none; }
+.tr-satz.fertig .tr-haken svg { stroke: var(--bg); }
+#trainingInhalt .tr-satz.fertig .tr-feld { color: var(--text); opacity: .45; }
+.tr-satzknoepfe { margin-top: var(--s-2); }
