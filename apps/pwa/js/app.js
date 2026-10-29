@@ -4987,6 +4987,20 @@ async function renderKonto() {
   $("kontoId").textContent = stand?.id || store.getSettings().kontoId || "-";
 }
 
+// Die Kennung stand vorher als Wert einer Zeile "Konto", rechts und
+// abgeschnitten, und wurde auf dem iPhone nicht gefunden. Kopieren über
+// einen Knopf, weil eine lange Zeichenkette niemand abtippt.
+$("btnKontoKopieren").addEventListener("click", async () => {
+  const id = store.getSettings().kontoId || "";
+  if (!id) { toast("Noch kein Konto. Prüf deine Verbindung und öffne das Profil erneut."); return; }
+  try {
+    await navigator.clipboard.writeText(id);
+    toast("Kennung kopiert");
+  } catch {
+    toast(`Kennung: ${id}`, 10000);
+  }
+});
+
 /* ---------- Anmeldung mit Apple oder Google ---------- */
 
 let anmeldungWartet = null;

@@ -3865,3 +3865,6 @@ button small, button .erfassen-sub, button .me-werte, button .me-werte *,
 .tr-satz.fertig .tr-haken svg { stroke: var(--bg); }
 #trainingInhalt .tr-satz.fertig .tr-feld { color: var(--text); opacity: .45; }
 .tr-satzknoepfe { margin-top: var(--s-2); }
+
+/* Die Kennung des Kontos: ganz, umbrechbar und markierbar statt abgeschnitten. */
+.konto-kennung { margin: 0 0 var(--s-3); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--t-sm); word-break: break-all; user-select: all; -webkit-user-select: all; }
