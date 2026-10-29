@@ -1994,7 +1994,9 @@ function neuesGespraech() {
   renderTranscript();
   $("chatInput")?.focus();
 }
-$("btnNeuesGespraech").addEventListener("click", neuesGespraech);
+// Ein neues Gespräch beginnt über die Liste der Gespräche oder von selbst
+// nach einer halben Stunde. Das Plus in der Kopfzeile tat nichts, was man
+// dort sucht, und sah neben Liste und Lautsprecher nach einem Fehler aus.
 $("btnNeuAusListe").addEventListener("click", neuesGespraech);
 
 /* ---------- Wochen Check-in ---------- */
