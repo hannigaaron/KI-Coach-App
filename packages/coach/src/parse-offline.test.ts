@@ -84,3 +84,13 @@ test("Jeder Eintrag der Tabelle geht in der Makrorechnung auf", () => {
     assert.ok(Math.abs(kcal - gerechnet) <= Math.max(25, kcal * 0.1), `${f.key}: ${kcal} gegen ${Math.round(gerechnet)}`);
   }
 });
+
+test("ein diktierter Satz mit Bitte am Ende: Pute erkannt, die Bitte ist kein Posten", () => {
+  const { entries, unresolved } = parseMealOffline(
+    "Hab grad 400g putengeschnetzeltes (ohne Soße), 300g Bio TK Sommergemüsemix von gutbio und 500g Kartoffeln gegessen. Makros und Nährwerte bitte",
+  );
+  assert.deepEqual(entries.map((e) => e.name), ["Putenbrust", "Kartoffeln"]);
+  assert.equal(entries[0]!.quantity, "400 g");
+  // Ohne "Hab grad" vorn und ohne die Bitte als offenen Posten.
+  assert.deepEqual(unresolved, ["300g Bio TK Sommergemüsemix von gutbio"]);
+});

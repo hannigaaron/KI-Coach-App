@@ -84,6 +84,19 @@ export class AnthropicProvider implements CoachProvider {
   private readonly standardModell: string;
   /** Ob über diese Instanz schon eine Anfrage an den eigenen Server ging. */
   private angefragt = false;
+  // Hat der eigene Server einmal 402 gesagt, ist das Kontingent für diese
+  // Nachricht leer. Die nächste Anfrage derselben Nachricht, etwa das
+  // Auslesen der Mahlzeit nach dem gescheiterten Gespräch, geht dann nicht
+  // mehr raus. Auf dem iPhone kam sie als "Load failed" zurück, und die
+  // Antwort sagte "Ich komme nicht ins Netz", obwohl das Kontingent der Grund
+  // war.
+  private gesperrt: Error | null = null;
+
+  private apiFehler(status: number, text: string): Error {
+    const fehler = new Error(`Anthropic API ${status}: ${text.slice(0, 500)}`);
+    if (status === 402) this.gesperrt = fehler;
+    return fehler;
+  }
 
   constructor(private readonly options: AnthropicOptions) {
     this.standardModell = aktuellesModell(options.model);
@@ -174,6 +187,7 @@ export class AnthropicProvider implements CoachProvider {
       // this.fetchImpl(...) direkt auf, ist this die Instanz und nicht
       // globalThis. Browser werfen dann "Illegal invocation", und es geht
       // keine einzige Anfrage raus.
+      if (this.gesperrt) throw this.gesperrt;
       const holen = this.fetchImpl;
       const response = await holen(this.ziel(), {
         method: "POST",
@@ -183,7 +197,7 @@ export class AnthropicProvider implements CoachProvider {
       });
       if (!response.ok) {
         const text = await response.text();
-        throw new Error(`Anthropic API ${response.status}: ${text.slice(0, 500)}`);
+        throw this.apiFehler(response.status, text);
       }
       return await response.json();
     } finally {
@@ -254,6 +268,7 @@ export class AnthropicProvider implements CoachProvider {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.options.timeoutMs ?? 90000);
     try {
+      if (this.gesperrt) throw this.gesperrt;
       const holen = this.fetchImpl;
       const response = await holen(this.ziel(), {
         method: "POST",
@@ -263,7 +278,7 @@ export class AnthropicProvider implements CoachProvider {
       });
       if (!response.ok || !response.body) {
         const text = response.body ? await response.text() : "";
-        throw new Error(`Anthropic API ${response.status}: ${text.slice(0, 500)}`);
+        throw this.apiFehler(response.status, text);
       }
 
       const blöcke: ContentBlock[] = [];
@@ -494,6 +509,7 @@ export class AnthropicProvider implements CoachProvider {
     // ein Modell ohne Denken und brachen jetzt mitten in der Auswertung ab.
     const timeout = setTimeout(() => controller.abort(), this.options.timeoutMs ?? 60000);
     try {
+      if (this.gesperrt) throw this.gesperrt;
       const holen = this.fetchImpl;
       const response = await holen(this.ziel(), {
         method: "POST",
@@ -536,7 +552,7 @@ export class AnthropicProvider implements CoachProvider {
 
       if (!response.ok) {
         const body = await response.text();
-        throw new Error(`Anthropic API ${response.status}: ${body.slice(0, 500)}`);
+        throw this.apiFehler(response.status, body);
       }
 
       const payload = (await response.json()) as {

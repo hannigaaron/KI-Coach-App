@@ -318,3 +318,23 @@ test("die Fehlermeldung der API wird lesbar gekürzt", async () => {
   assert.ok(e.meldung.includes("rate limit exceeded"));
   assert.equal(e.meldung.includes("{"), false);
 });
+
+test("nach 402 geht in derselben Nachricht keine Anfrage mehr raus", async () => {
+  let anfragen = 0;
+  const provider = new AnthropicProvider({
+    apiKey: "",
+    baseUrl: "https://worker.example",
+    model: "claude-opus-5",
+    fetchImpl: async () => {
+      anfragen++;
+      return new Response(JSON.stringify({ error: { type: "kontingent", message: "leer" } }), { status: 402 });
+    },
+  });
+  await assert.rejects(provider.converse({ system: "s", messages: [{ role: "user", content: "hi" }], tools: [] }), /402/);
+  // Das Auslesen der Mahlzeit danach meldet denselben Grund und kein Netzproblem.
+  await assert.rejects(
+    provider.generateJson({ system: "s", user: "u", schema: {}, schemaName: "x" }),
+    /Anthropic API 402/,
+  );
+  assert.equal(anfragen, 1);
+});

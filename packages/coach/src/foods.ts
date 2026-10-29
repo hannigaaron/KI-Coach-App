@@ -28,8 +28,8 @@ export interface FoodRef {
 }
 
 export const FOODS: FoodRef[] = [
-  { key: "haehnchenbrust", label: "Hähnchenbrust", aliases: ["hähnchenbrust", "hähnchenbrust", "hähnchen", "hühnerbrust", "chicken"], per100: { kcal: 120, proteinG: 23, fatG: 2.6, carbsG: 0 }, state: "roh" },
-  { key: "putenbrust", label: "Putenbrust", aliases: ["putenbrust", "pute", "truthahn"], per100: { kcal: 110, proteinG: 24, fatG: 1, carbsG: 0 }, state: "roh" },
+  { key: "haehnchenbrust", label: "Hähnchenbrust", aliases: ["hähnchenbrust", "hähnchen", "hühnerbrust", "chicken", "hähnchengeschnetzeltes", "hähnchenstreifen", "hähnchenbrustfilet"], per100: { kcal: 120, proteinG: 23, fatG: 2.6, carbsG: 0 }, state: "roh" },
+  { key: "putenbrust", label: "Putenbrust", aliases: ["putenbrust", "pute", "truthahn", "putengeschnetzeltes", "putengeschnetzeltem", "putenstreifen", "putenfleisch", "putenbrustfilet"], per100: { kcal: 110, proteinG: 24, fatG: 1, carbsG: 0 }, state: "roh" },
   { key: "rinderhack", label: "Rinderhack", aliases: ["rinderhack", "hackfleisch", "hack"], per100: { kcal: 137, proteinG: 21.5, fatG: 5, carbsG: 0 }, state: "roh" },
   { key: "lachs", label: "Lachs", aliases: ["lachs", "salmon"], per100: { kcal: 208, proteinG: 20, fatG: 13, carbsG: 0 }, state: "roh" },
   { key: "thunfisch", label: "Thunfisch", aliases: ["thunfisch", "tuna"], per100: { kcal: 116, proteinG: 26, fatG: 1, carbsG: 0 }, state: "zubereitet" },

@@ -2217,9 +2217,12 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       // Lief das Modell nicht, steht das in der Antwort, mit Grund. Vorher
       // fiel die App still auf die Tabelle zurück, und ein Satz mit sechs
       // Lebensmitteln kam mit zweien an, ohne dass jemand es merkte.
-      const ohneModell = parsed.modellFehler !== undefined
-        ? `Die KI hat nicht geantwortet, deshalb nur nach der eingebauten Tabelle. ${fehlerErklaerung(parsed.modellFehler).text}`
-        : "";
+      // Beim leeren Kontingent steht der Grund schon unter der Antwort. Ein
+      // zweiter Absatz dazu sagte dasselbe noch einmal.
+      const deutung = parsed.modellFehler !== undefined ? fehlerErklaerung(parsed.modellFehler) : null;
+      const ohneModell = !deutung ? ""
+        : deutung.art === "kontingent" ? "Ohne KI, nach der eingebauten Tabelle."
+        : `Die KI hat nicht geantwortet, deshalb nur nach der eingebauten Tabelle. ${deutung.text}`;
       if (parsed.entries.length === 0) {
         // Kein erkanntes Lebensmittel heisst fast immer: das war keine
         // Mahlzeit. Eine Rückfrage nach Mengen wirkt dann, als hätte die App
