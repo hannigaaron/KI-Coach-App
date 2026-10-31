@@ -368,7 +368,18 @@ body { padding-top: env(safe-area-inset-top); }
 /* Onboarding */
 /* Spalte, nicht Zeile. Der Einstieg über eine Sicherung steht unter dem
    Fragebogen, nicht daneben: als zweite Spalte ragte er aus dem Bild. */
-.setup { min-height: 100dvh; display: flex; flex-direction: column; align-items: stretch; padding: 0; }
+/* Der Bogen ist sein eigener Scrollbereich und nicht die Seite. In der
+   iPhone App ist das Scrollen der Seite abgeschaltet (`scrollEnabled: false`
+   in capacitor.config.json, sonst federt die ganze App). Scrollte hier die
+   Seite, stand der Bogen still, und unter "Ich habe eine Sicherung" war der
+   Knopf zum Einspielen nicht erreichbar. Die App selbst macht es genauso:
+   #app ist fest, gescrollt wird in `.scroll`. */
+.setup {
+  position: fixed; inset: 0; z-index: 1;
+  overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain;
+  display: flex; flex-direction: column; align-items: stretch; padding: 0;
+}
+.setup > * { flex: none; }
 .setup-inner { width: 100%; }
 
 /*
