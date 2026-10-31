@@ -52,3 +52,17 @@ test("offen nur, solange nicht gefragt wurde", () => {
   assert.equal(berechtigungenOffen({}), true);
   assert.equal(berechtigungenOffen({ berechtigungenGefragt: true }), false);
 });
+
+test("Blätter vor dem Fragebogen liegen nicht im versteckten #app", async () => {
+  // Lag die Anmeldung in #app, war sie bei neuen Nutzern offen und
+  // unsichtbar, und die iPhone App blieb schwarz.
+  const { readFile } = await import("node:fs/promises");
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  const appAnfang = html.indexOf('<main id="app"');
+  const appEnde = html.indexOf("</main>", appAnfang);
+  for (const id of ["anmeldeBlatt", "rechtBlatt"]) {
+    const stelle = html.indexOf(`id="${id}"`);
+    assert.ok(stelle > 0, `${id} fehlt`);
+    assert.ok(stelle < appAnfang || stelle > appEnde, `${id} liegt in #app`);
+  }
+});
