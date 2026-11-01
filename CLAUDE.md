@@ -585,7 +585,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1292 Tests
+npm test           # 1293 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -825,6 +825,17 @@ teilte der Tagesablauf das Ziel gleich auf vier Zeiten, und jede Zeile hiess
 
 Die Kalenderseite zeigt sie als Karten mit Foto, Grund und aufklappbaren
 Zutaten, das Briefing und der Coach als Zeilen über `tagesessenText`.
+
+Ein Tipp auf einen Vorschlag, im Briefing oder auf der Karte, öffnet
+`#rezeptBlatt`: Foto, alle vier Werte, Zutaten in der gerechneten Portion
+und die Zubereitung, dazu "Für heute eintragen" und "Für morgen
+eintragen". Dafür trägt `rezept` in `tagesessen` jetzt `posten` und
+`schritte`. Eintragen öffnet den Mahlzeit Editor mit den Zutaten, noch
+nicht gespeichert: wer weniger Reis nimmt, ändert die Menge vorher, wer
+abbricht, hinterlässt nichts. Der Editor kennt dafür seinen eigenen Tag,
+`meTag`, denn ein Rezept für morgen gehört nicht in den Tag, der auf Heute
+steht. Gelöscht wird beim Schliessen, was im Tag noch keine Posten hat, und
+nicht mehr, was im Editor leer ist.
 
 ## Jeder Start ist ein leeres Gespräch
 
@@ -1461,6 +1472,12 @@ Aufgabe zu und hängt am unteren Rand halb aus dem Bildschirm.
 
 Todoist Aufgaben haben nur den Haken. Verschieben gehört dort nach Todoist,
 ein hier gesetzter Tag wäre beim nächsten Lesen weg.
+
+Jedes Abhaken, auf Dein Tag und im Briefing der Kalenderseite, zeigt sechs
+Sekunden "Abgehakt" mit "Rückgängig", `toastAktion` in `app.js`. Der Haken
+liegt unter dem Daumen, und ein Fehltipp hakte vorher endgültig ab, in
+Todoist gleich mit. `aufgabeWiederOeffnen` holt eine Todoist Aufgabe über
+`reopen` zurück, erst dort und dann hier.
 
 ## Todoist
 

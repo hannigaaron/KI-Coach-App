@@ -544,6 +544,20 @@ try {
     </div>
   </div>
 
+  <div id="rezeptBlatt" class="blatt" hidden>
+    <div class="blatt-innen" role="dialog" aria-modal="true" aria-labelledby="rbTitel">
+      <header class="blatt-kopf">
+        <h2 id="rbTitel">Rezept</h2>
+        <button id="rbSchliessen" class="icon-btn" aria-label="Schließen"><span class="kreuz"></span></button>
+      </header>
+      <div class="blatt-scroll" id="rbInhalt"></div>
+      <div class="rb-knoepfe">
+        <button type="button" id="rbHeute" class="primary breit">Für heute eintragen</button>
+        <button type="button" id="rbMorgen" class="ghost breit">Für morgen eintragen</button>
+      </div>
+    </div>
+  </div>
+
   <div id="herkunftBlatt" class="blatt" hidden>
     <div class="blatt-innen" role="dialog" aria-modal="true" aria-labelledby="hkTitel">
       <header class="blatt-kopf">

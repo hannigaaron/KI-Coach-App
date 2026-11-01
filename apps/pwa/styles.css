@@ -994,6 +994,26 @@ button.messwert:active { opacity: 0.65; }
   z-index: 40; max-width: 90vw; text-align: center;
   box-shadow: var(--schatten-3);
 }
+/* Rezept hinter einem Vorschlag, Blatt #rezeptBlatt. */
+[data-rezept] { cursor: pointer; }
+.rb-bild { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--r-lg, 16px); display: block; }
+.rb-werte { margin: var(--s-3) 0 var(--s-1); font-weight: 600; }
+.rb-grund { margin: 0 0 var(--s-4); color: var(--muted); font-size: var(--t-sm); }
+.rb-kopf { margin: var(--s-4) 0 var(--s-2); font-size: var(--t-md, 17px); }
+.rb-zutaten { list-style: none; padding: 0; margin: 0; }
+.rb-zutaten li { display: flex; justify-content: space-between; gap: var(--s-3); padding: 9px 0; border-bottom: 1px solid var(--border); }
+.rb-zutaten li:last-child { border-bottom: 0; }
+.rb-zutaten b { font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rb-schritte { padding-left: 1.3em; margin: 0; }
+.rb-schritte li { padding: 6px 0; line-height: 1.5; }
+.rb-schritte li::marker { color: var(--accent); font-weight: 700; }
+.rb-knoepfe { display: grid; gap: var(--s-2); padding: var(--s-3) var(--s-4) calc(env(safe-area-inset-bottom) + var(--s-3)); }
+.toast { display: flex; align-items: center; justify-content: center; gap: var(--s-3); }
+.toast[hidden] { display: none; }
+.toast-aktion {
+  background: none; border: 0; padding: 0; min-height: 0; box-shadow: none;
+  color: var(--accent); font: inherit; font-weight: 700; cursor: pointer;
+}
 body:has([data-view="assistant"]:not([hidden])) .toast {
   bottom: calc(var(--composer) + env(safe-area-inset-bottom) + 18px);
 }

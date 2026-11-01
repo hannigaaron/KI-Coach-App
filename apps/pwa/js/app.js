@@ -43,7 +43,7 @@ import {
   kostenUebersicht, recommendations, standardsUebersicht, tagesErinnerungen, verlaufPunkte,
   berichtFuer,
   berichtZeitraeume,
-  aufgabeErledigen, todoistAktualisieren, todoistVerbunden,
+  aufgabeErledigen, aufgabeWiederOeffnen, todoistAktualisieren, todoistVerbunden,
   erinnerungenAufgeraeumt, heuteGetauscht,
   vorausblickePlan,
   vorausblickFuer,
@@ -132,6 +132,37 @@ function toast(message, ms = 2600) {
   el.hidden = false;
   clearTimeout(toast.timer);
   toast.timer = setTimeout(() => { el.hidden = true; }, ms);
+}
+
+/**
+ * Eine Meldung mit Knopf, etwa "Abgehakt" mit "Rückgängig". Sechs Sekunden,
+ * länger als die normale Meldung: wer sich vertippt hat, merkt es nicht sofort.
+ */
+function toastAktion(message, label, aktion, ms = 6000) {
+  const el = $("toast");
+  el.innerHTML = "";
+  const text = document.createElement("span");
+  text.textContent = message;
+  const knopf = document.createElement("button");
+  knopf.type = "button";
+  knopf.className = "toast-aktion";
+  knopf.textContent = label;
+  knopf.addEventListener("click", () => { el.hidden = true; aktion(); }, { once: true });
+  el.append(text, knopf);
+  el.hidden = false;
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => { el.hidden = true; }, ms);
+}
+
+/** Abgehakt, mit dem Weg zurück. Gilt auf Dein Tag und auf der Kalenderseite. */
+function abgehaktMelden(ergebnis, nachher) {
+  if (!ergebnis.ok) { toast(ergebnis.text, 4200); return; }
+  if (!ergebnis.rueck) { toast("Abgehakt"); return; }
+  toastAktion("Abgehakt", "Rückgängig", async () => {
+    const r = await aufgabeWiederOeffnen(ergebnis.rueck);
+    toast(r.text, r.ok ? 2600 : 4200);
+    nachher();
+  });
 }
 
 function escapeHtml(text) {
@@ -3804,7 +3835,7 @@ function fuelleAufgaben(id, aufgaben, leerText) {
       const ergebnis = await aufgabeErledigen(a.id);
       renderTag();
       refreshAll();
-      toast(ergebnis.ok ? "Abgehakt" : ergebnis.text, ergebnis.ok ? 2600 : 4200);
+      abgehaktMelden(ergebnis, () => { renderTag(); refreshAll(); });
     });
     // Streichen und Verschieben nur bei eigenen Aufgaben. Eine Aufgabe in
     // Todoist auf einen Tipp hin zu löschen wäre ein Eingriff in eine fremde
@@ -4119,7 +4150,7 @@ function briefingZeichnen() {
   if (haupt) {
     const bild = haupt.foto && haupt.rezeptId
       ? `<img class="kb-bild" src="img/rezepte/${encodeURIComponent(haupt.rezeptId)}.jpg" alt="" loading="lazy">` : "";
-    html += `<section class="kb-jetzt kb-${haupt.art}">
+    html += `<section class="kb-jetzt kb-${haupt.art}"${haupt.art === "essen" && haupt.rezeptId ? ` data-rezept="${escapeHtml(haupt.rezeptId)}" role="button" tabindex="0"` : ""}>
       <span class="kb-label">${heute ? "Als Nächstes" : "Morgen zuerst"} · ${zeit(haupt)}</span>
       <div class="kb-jetzt-zeile">${bild}<div class="kb-jetzt-text"><h3>${escapeHtml(haupt.titel)}</h3>
       <p>${escapeHtml(haupt.unter)}</p></div>${haken(haupt, true)}</div>
@@ -4133,7 +4164,7 @@ function briefingZeichnen() {
 
   if (rest.length) {
     const sichtbar = briefingAlles ? rest : rest.slice(0, 4);
-    html += `<h3 class="kb-danach">Danach</h3><ol class="kb-liste">${sichtbar.map((p) => `<li class="kb-${p.art}">
+    html += `<h3 class="kb-danach">Danach</h3><ol class="kb-liste">${sichtbar.map((p) => `<li class="kb-${p.art}"${p.art === "essen" && p.rezeptId ? ` data-rezept="${escapeHtml(p.rezeptId)}" role="button" tabindex="0"` : ""}>
       <span class="kb-zeit">${zeit(p)}</span><span class="kb-was"><b>${escapeHtml(p.titel)}</b><small>${escapeHtml(PUNKT_ART[p.art])}${p.art === "essen" ? `, ${escapeHtml(p.unter.split(", ").slice(1).join(", "))}` : ""}</small></span>${haken(p, false)}</li>`).join("")}</ol>`;
     if (rest.length > 4) {
       html += `<button type="button" class="kb-mehr" data-mehr>${briefingAlles ? "Weniger zeigen" : `Noch ${rest.length - 4} weitere`}</button>`;
@@ -4149,6 +4180,13 @@ function briefingZeichnen() {
 }
 $("kalBriefing").addEventListener("click", async (event) => {
   if (event.target.closest("[data-mehr]")) { briefingAlles = !briefingAlles; briefingZeichnen(); return; }
+  const rezept = event.target.closest("[data-rezept]");
+  if (rezept && !event.target.closest("[data-erledigt]")) {
+    const tag = briefingArt === "morgen" ? todayIso() : folgetag(todayIso());
+    const m = vorschlagFuer(tag, rezept.dataset.rezept);
+    if (m) rezeptBlattOeffnen(m);
+    return;
+  }
   const knopf = event.target.closest("[data-erledigt]");
   if (!knopf) return;
   knopf.disabled = true;
@@ -4157,7 +4195,7 @@ $("kalBriefing").addEventListener("click", async (event) => {
   const ergebnis = await aufgabeErledigen(knopf.dataset.erledigt);
   // Kurz stehen lassen, damit der Haken zu sehen ist, dann rückt das Nächste nach.
   setTimeout(() => { briefingZeichnen(); refreshAll(); }, 450);
-  if (!ergebnis.ok) toast(ergebnis.text, 4200);
+  abgehaktMelden(ergebnis, () => { briefingZeichnen(); refreshAll(); });
 });
 document.querySelectorAll("#kalBriefingWahl [data-briefing]").forEach((k) => {
   k.addEventListener("click", () => {
@@ -4175,7 +4213,16 @@ document.querySelectorAll("#kalBriefingWahl [data-briefing]").forEach((k) => {
  * und warum genau dann. Die Zutaten klappen auf. Gleiche Kalorien für jede
  * Mahlzeit, wie vorher, sagen nichts darüber, was man essen soll.
  */
+let essenTag = todayIso();
+$("kalEssen").addEventListener("click", (ev) => {
+  const k = ev.target.closest("[data-rezept]");
+  if (!k) return;
+  const m = vorschlagFuer(essenTag, k.dataset.rezept);
+  if (m) rezeptBlattOeffnen(m);
+});
+
 function essenZeichnen(tag) {
+  essenTag = tag;
   const liste = $("kalEssen");
   let t;
   try { t = tagesessenFuer(tag); } catch (e) { liste.innerHTML = `<li class="empty">Kein Vorschlag möglich.</li>`; console.error(e); return; }
@@ -4195,7 +4242,7 @@ function essenZeichnen(tag) {
     return `<li class="ke">
       <div class="ke-zeit"><b>${uhrzeit(m.um)}</b><span>${escapeHtml(m.name)}</span></div>
       <div class="ke-karte">
-        <div class="ke-kopf">${bild}<div class="ke-text">
+        <div class="ke-kopf"${r ? ` data-rezept="${escapeHtml(r.id)}" role="button" tabindex="0"` : ""}>${bild}<div class="ke-text">
           <b>${escapeHtml(r ? r.name : "Freie Wahl")}</b>
           <span class="ke-werte">${m.kcal} kcal · ${m.proteinG} g Protein${marke ? ` · <em>${escapeHtml(marke)}</em>` : ""}</span>
           <span class="ke-grund">${escapeHtml(m.grund)}</span>
@@ -4642,6 +4689,8 @@ $("btnPostfach").addEventListener("click", () => {
  * ohne es zu wollen.
  */
 let meMahlzeit = null;
+/** Der Tag, an dem die offene Mahlzeit steht. Ein Rezept für morgen gehört nicht in den Tag, der gerade auf Heute steht. */
+let meTag = todayIso();
 let mePosten = [];
 let meArt = "";
 let meScanLaeuft = false;
@@ -4650,8 +4699,9 @@ let meScanLaeuft = false;
 /** Ob die offene Mahlzeit gerade erst für diesen Editor angelegt wurde. */
 let meNeu = false;
 
-function mahlzeitOeffnen(id) {
-  const mahlzeit = store.getDay(day).meals.find((m) => m.id === id);
+function mahlzeitOeffnen(id, tag = day) {
+  meTag = tag;
+  const mahlzeit = store.getDay(meTag).meals.find((m) => m.id === id);
   if (!mahlzeit) return;
   meMahlzeit = mahlzeit;
   meNeu = false;
@@ -4676,7 +4726,11 @@ function mahlzeitSchliessen() {
   // Eine leer angelegte Mahlzeit verschwindet beim Schliessen wieder. Sie
   // entsteht nur, damit der Editor etwas zum Anfassen hat: wer den Weg
   // abbricht, darf keine Zeile mit null Kalorien im Verlauf zurücklassen.
-  if (meMahlzeit && meNeu && mePosten.length === 0) store.removeMeal(day, meMahlzeit.id);
+  // Gezählt wird, was gespeichert ist: ein vorbelegtes Rezept hat Posten im
+  // Editor, aber noch keine im Tag, und Abbrechen darf es nicht stehen lassen.
+  if (meMahlzeit && meNeu && !store.getDay(meTag).meals.find((m) => m.id === meMahlzeit.id)?.entries?.length) {
+    store.removeMeal(meTag, meMahlzeit.id);
+  }
   meNeu = false;
   $("mahlzeitEditor").hidden = true;
   document.body.classList.remove("blatt-offen");
@@ -4708,6 +4762,82 @@ function mahlzeitNeu(fokus) {
   if (fokus === "barcode") meScanStarten();
 }
 
+/* ---------- Ein vorgeschlagenes Rezept öffnen und eintragen ---------- */
+
+/** Der Tag nach `tag`, als ISO Datum in Ortszeit. */
+function folgetag(tag) {
+  const d = new Date(`${tag}T12:00:00`);
+  d.setDate(d.getDate() + 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+let rbMahlzeit = null;
+
+/**
+ * Das Rezept hinter einem Vorschlag auf der Kalenderseite: Foto, Zutaten in
+ * der gerechneten Portion, Zubereitung, darunter Eintragen für heute oder
+ * morgen. Vorher stand dort nur der Name, und wer kochen wollte, musste das
+ * Rezept unter Ernährung suchen.
+ */
+function rezeptBlattOeffnen(m) {
+  const r = m?.rezept;
+  if (!r) return;
+  rbMahlzeit = m;
+  $("rbTitel").textContent = r.name;
+  const bild = r.foto ? `<img class="rb-bild" src="img/rezepte/${encodeURIComponent(r.id)}.jpg" alt="">` : "";
+  const summe = (r.posten || []).reduce((s, p) => ({ f: s.f + p.fatG, k: s.k + p.carbsG }), { f: 0, k: 0 });
+  $("rbInhalt").innerHTML = `${bild}
+    <p class="rb-werte">${r.kcal} kcal · ${r.proteinG} g Protein · ${Math.round(summe.f)} g Fett · ${Math.round(summe.k)} g Kohlenhydrate · ${r.minuten} Minuten</p>
+    <p class="rb-grund">${escapeHtml(m.name)} um ${uhrzeit(m.um)}${m.grund ? `, ${escapeHtml(m.grund.replace(/\.$/, ""))}` : ""}.</p>
+    <h3 class="rb-kopf">Zutaten</h3>
+    <ul class="rb-zutaten">${(r.posten || []).map((p) => `<li><span>${escapeHtml(p.name)}</span><b>${escapeHtml(p.menge)}</b></li>`).join("")}</ul>
+    ${r.schritte?.length ? `<h3 class="rb-kopf">Zubereitung</h3><ol class="rb-schritte">${r.schritte.map((s) => `<li>${escapeHtml(s)}</li>`).join("")}</ol>` : ""}
+    <p class="fineprint">Mengen für deine Portion gerechnet. Beim Eintragen kannst du jede Menge ändern, wenn du es anders machst.</p>`;
+  $("rezeptBlatt").hidden = false;
+  document.body.classList.add("blatt-offen");
+}
+
+function rezeptBlattSchliessen() {
+  $("rezeptBlatt").hidden = true;
+  if ($("mahlzeitEditor").hidden) document.body.classList.remove("blatt-offen");
+}
+
+/**
+ * Öffnet den Mahlzeit Editor mit den Zutaten des Rezepts, noch nicht
+ * gespeichert. Wer weniger Reis nimmt, ändert die Menge und speichert, wer
+ * abbricht, hinterlässt nichts im Tag.
+ */
+function rezeptInEditor(m, tag) {
+  const r = m.rezept;
+  const id = newId();
+  store.addMeal(tag, { id, text: r.name, at: uhrzeit(m.um), source: "rezept", entries: [], feeling: null, art: m.art });
+  mahlzeitOeffnen(id, tag);
+  meNeu = true;
+  mePosten = (r.posten || []).map((p) => ({
+    name: p.name, quantity: p.menge,
+    kcal: Math.round(p.kcal), proteinG: Math.round(p.proteinG * 10) / 10,
+    fatG: Math.round(p.fatG * 10) / 10, carbsG: Math.round(p.carbsG * 10) / 10,
+  }));
+  meArt = m.art || "";
+  meArtenZeichnen();
+  mePostenZeichnen();
+  if (tag !== todayIso()) {
+    const wann = new Date(`${tag}T12:00:00`).toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" });
+    $("meSuchHinweis").textContent = `Wird für ${wann} eingetragen.`;
+    toast(`Für ${wann}. Mengen anpassen, dann speichern.`, 3600);
+  }
+}
+
+$("rbSchliessen").addEventListener("click", rezeptBlattSchliessen);
+$("rezeptBlatt").addEventListener("click", (ev) => { if (ev.target === $("rezeptBlatt")) rezeptBlattSchliessen(); });
+$("rbHeute").addEventListener("click", () => { const m = rbMahlzeit; rezeptBlattSchliessen(); if (m) rezeptInEditor(m, todayIso()); });
+$("rbMorgen").addEventListener("click", () => { const m = rbMahlzeit; rezeptBlattSchliessen(); if (m) rezeptInEditor(m, folgetag(todayIso())); });
+
+/** Sucht den Vorschlag mit diesem Rezept an diesem Tag. */
+function vorschlagFuer(tag, rezeptId) {
+  try { return tagesessenFuer(tag).mahlzeiten.find((x) => x.rezept?.id === rezeptId) || null; } catch { return null; }
+}
+
 function meArtenZeichnen() {
   // Die Art ist freiwillig. Eine Mahlzeit ohne Zuordnung ist kein Fehler, und
   // ein Pflichtfeld würde beim dritten Mal auf gut Glück gefüllt.
@@ -4725,7 +4855,7 @@ function mePostenZeichnen() {
       ? `<li class="me-leer">Noch nichts drin. Such unten ein Lebensmittel oder scann einen Barcode.</li>`
       : `<li class="me-leer">Kein Posten mehr drin. Speichern löscht die Mahlzeit.</li>`;
   } else {
-    const ziel = dayNumbers(day).targets;
+    const ziel = dayNumbers(meTag).targets;
     liste.innerHTML = mePosten.map((e, i) => {
       const menge = mengeLesen(e.quantity);
       const kann = skalierbar(e);
@@ -4763,7 +4893,7 @@ function meSummeZeichnen() {
   $("meProtein").textContent = `${komma(runde1(summe.p))} g`;
   $("meFett").textContent = `${komma(runde1(summe.f))} g`;
   $("meKh").textContent = `${komma(runde1(summe.k))} g`;
-  const ziel = dayNumbers(day).targets;
+  const ziel = dayNumbers(meTag).targets;
   const kcalAnteil = anteilAmZiel(summe.kcal, ziel.kcal);
   $("meKcalAnteil").textContent = kcalAnteil === null ? "" : `${kcalAnteil} % deines Tages`;
   $("meKcalBalken").style.width = `${Math.min(100, kcalAnteil ?? 0)}%`;
@@ -5088,7 +5218,7 @@ $("mePosten").addEventListener("input", (event) => {
   // dem Nutzer mitten im Tippen den Fokus aus dem Feld nehmen.
   const zeile = feld.closest("li")?.querySelector(".me-werte");
   const e = mePosten[i];
-  if (zeile) zeile.innerHTML = postenWerte(e, dayNumbers(day).targets);
+  if (zeile) zeile.innerHTML = postenWerte(e, dayNumbers(meTag).targets);
   meSummeZeichnen();
 });
 
@@ -5146,7 +5276,7 @@ $("meHandAdd").addEventListener("click", () => {
 $("meLoeschen").addEventListener("click", () => {
   if (!meMahlzeit) return;
   if (!confirm("Diese Mahlzeit wirklich löschen?")) return;
-  store.removeMeal(day, meMahlzeit.id);
+  store.removeMeal(meTag, meMahlzeit.id);
   mahlzeitSchliessen();
   refreshAll();
   toast("Mahlzeit gelöscht");
@@ -5157,14 +5287,14 @@ $("meSpeichern").addEventListener("click", () => {
   // Eine Mahlzeit ohne Posten ist keine Mahlzeit. Sie stehen zu lassen hiesse,
   // eine Zeile mit null Kalorien im Verlauf zu führen.
   if (mePosten.length === 0) {
-    store.removeMeal(day, meMahlzeit.id);
+    store.removeMeal(meTag, meMahlzeit.id);
     mahlzeitSchliessen();
     refreshAll();
     toast("Mahlzeit gelöscht, es war nichts mehr drin");
     return;
   }
   const zeit = $("meZeit").value || meMahlzeit.at;
-  store.updateMeal(day, meMahlzeit.id, {
+  store.updateMeal(meTag, meMahlzeit.id, {
     entries: mePosten,
     at: zeit,
     art: meArt || undefined,

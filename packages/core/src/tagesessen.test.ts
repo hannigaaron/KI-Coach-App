@@ -23,6 +23,12 @@ test("die Mahlzeiten sind verschieden gross und haben ein Rezept", () => {
   const kcal = p.mahlzeiten.map((m) => m.kcal);
   assert.ok(new Set(kcal).size > 1, `alle gleich: ${kcal}`);
   assert.ok(p.mahlzeiten.every((m) => m.rezept), "jede Mahlzeit hat ein Rezept");
+  // Zum Öffnen und Eintragen: Zutaten mit Werten und die Zubereitung.
+  for (const m of p.mahlzeiten) {
+    const summe = m.rezept!.posten.reduce((x, q) => x + q.kcal, 0);
+    assert.ok(Math.abs(summe - m.rezept!.kcal) <= 2, `${m.rezept!.name}: ${summe} gegen ${m.rezept!.kcal}`);
+    assert.ok(m.rezept!.schritte.length > 0, `${m.rezept!.name} ohne Zubereitung`);
+  }
   assert.equal(new Set(p.mahlzeiten.map((m) => m.rezept!.id)).size, p.mahlzeiten.length, "kein Rezept doppelt");
   const summe = p.mahlzeiten.reduce((s, m) => s + m.kcal, 0);
   assert.ok(Math.abs(summe - ZIELE.kcal) / ZIELE.kcal < 0.2, `Summe ${summe}`);

@@ -2,7 +2,7 @@ import {
   Agent, AnthropicProvider, Coach, addiere, buildShoppingList, cacheQuote, denktiefe, dollarText,
   einstufeAufgabe, einstufungText, ersparnis, extractGrams, NICHT_GESPEICHERT, fehlerErklaerung, hochrechnung, kopfLeeren, kopfText, leereSumme,
   mahlzeitAusFoto, modellFuerBilder, produktPerBarcode, produkteSuchen, summiere, vorratAusFoto,
-  todoistAbhaken, todoistAufgaben, todoistIdVon,
+  todoistAbhaken, todoistAufgaben, todoistIdVon, todoistWiederOeffnen,
 } from "@daevo/coach";
 import { vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, einzeltrainingBauen, FOKUS_NAME } from "@daevo/core";
 import { UEBUNGEN } from "./uebungen-daten.js";
@@ -1365,7 +1365,7 @@ export async function aufgabeErledigen(id, { fetchImpl } = {}) {
   const todoistId = todoistIdVon(id);
   if (!todoistId) {
     aufgabeAbhaken(id);
-    return { ok: true, text: `Abgehakt: ${a.text}.` };
+    return { ok: true, text: `Abgehakt: ${a.text}.`, rueck: { id } };
   }
   try {
     await todoistAbhaken(todoistId, { token: store.getSettings().todoistToken, fetchImpl });
@@ -1373,8 +1373,37 @@ export async function aufgabeErledigen(id, { fetchImpl } = {}) {
     return { ok: false, text: `In Todoist konnte ich "${a.text}" nicht abhaken. ${e?.message || ""}`.trim() };
   }
   const stand = store.getTodoist();
+  const alt = (stand.aufgaben || []).find((x) => x.id === id);
   store.setTodoist({ ...stand, aufgaben: (stand.aufgaben || []).filter((x) => x.id !== id) });
-  return { ok: true, text: `Abgehakt, auch in Todoist: ${a.text}.` };
+  return { ok: true, text: `Abgehakt, auch in Todoist: ${a.text}.`, rueck: { id, todoistId, aufgabe: alt } };
+}
+
+/**
+ * Nimmt ein Abhaken zurück. Ein Haken liegt auf dem Handy direkt unter dem
+ * Daumen, und ein Fehltipp hakte bisher endgültig ab, in Todoist gleich mit.
+ * Todoist zuerst und dann der lokale Stand, aus demselben Grund wie beim
+ * Abhaken: sonst stünde die Aufgabe hier offen und dort erledigt.
+ */
+export async function aufgabeWiederOeffnen(rueck, { fetchImpl } = {}) {
+  if (!rueck?.id) return { ok: false, text: "Da gibt es nichts zurückzunehmen." };
+  if (rueck.todoistId) {
+    try {
+      await todoistWiederOeffnen(rueck.todoistId, { token: store.getSettings().todoistToken, fetchImpl });
+    } catch (e) {
+      return { ok: false, text: `In Todoist ging das Zurückholen nicht. ${e?.message || ""}`.trim() };
+    }
+    const stand = store.getTodoist();
+    const liste = stand.aufgaben || [];
+    if (rueck.aufgabe && !liste.some((x) => x.id === rueck.id)) store.setTodoist({ ...stand, aufgaben: [...liste, rueck.aufgabe] });
+    return { ok: true, text: "Wieder offen, auch in Todoist." };
+  }
+  const aufgaben = store.getAufgaben();
+  const a = aufgaben.find((x) => x.id === rueck.id);
+  if (!a) return { ok: false, text: "Die Aufgabe gibt es nicht mehr." };
+  a.erledigt = false;
+  delete a.erledigtAm;
+  store.setAufgaben(aufgaben);
+  return { ok: true, text: "Wieder offen." };
 }
 
 export function aufgabeAbhaken(id) {

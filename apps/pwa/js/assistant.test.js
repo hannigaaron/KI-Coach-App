@@ -741,3 +741,23 @@ test("Training für heute: dieselben Partien bringen dieselben Übungen samt Tau
   assert.notDeepEqual(neu, wieder);
   store.setSettings(s0);
 });
+
+test("Abhaken lässt sich zurücknehmen, in Todoist und lokal", async () => {
+  frischerTag();
+  store.setSettings({ ...store.getSettings(), todoistToken: "abc" });
+  store.setTodoist({ abgerufen: new Date().toISOString(), aufgaben: [{ id: "todoist:9", text: "Angebot", minuten: 30, wichtigkeit: 2, erledigt: false, erstellt: todayIso(), quelle: "todoist" }] });
+  const ok = await planung.aufgabeErledigen("todoist:9", { fetchImpl: async () => antwortJson(204) });
+  assert.equal(planung.alleAufgaben().length, 0);
+  let ziel = "";
+  const zurueck = await planung.aufgabeWiederOeffnen(ok.rueck, { fetchImpl: async (url) => { ziel = url; return antwortJson(204); } });
+  assert.equal(zurueck.ok, true);
+  assert.match(ziel, /tasks\/9\/reopen/);
+  assert.deepEqual(planung.alleAufgaben().map((a) => a.text), ["Angebot"]);
+
+  store.setSettings({ ...store.getSettings(), todoistToken: "" });
+  store.setAufgaben([{ id: "a1", text: "Steuer", minuten: 30, wichtigkeit: 2, erledigt: false, erstellt: todayIso() }]);
+  const lokal = await planung.aufgabeErledigen("a1");
+  assert.equal(store.getAufgaben()[0].erledigt, true);
+  await planung.aufgabeWiederOeffnen(lokal.rueck);
+  assert.equal(store.getAufgaben()[0].erledigt, false);
+});

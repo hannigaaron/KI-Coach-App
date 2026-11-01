@@ -125,6 +125,11 @@ export async function todoistAbhaken(todoistId: string, o: TodoistOptionen): Pro
   await anfrage(`${BASIS}/tasks/${encodeURIComponent(todoistId)}/close`, "POST", o);
 }
 
+/** Holt eine abgehakte Aufgabe zurück, für "Rückgängig" nach einem Fehltipp. */
+export async function todoistWiederOeffnen(todoistId: string, o: TodoistOptionen): Promise<void> {
+  await anfrage(`${BASIS}/tasks/${encodeURIComponent(todoistId)}/reopen`, "POST", o);
+}
+
 async function anfrage(url: string, methode: "GET" | "POST", o: TodoistOptionen): Promise<any> {
   const token = o.token.trim();
   if (!token) throw new TodoistFehler("Kein Todoist Token hinterlegt.");

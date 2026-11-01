@@ -1,7 +1,7 @@
 import { uhrzeit } from "./ical.js";
 import type { Termin } from "./ical.js";
 import { REZEPTE, type Rezept } from "./rezepte-daten.js";
-import { postenText, rezeptEmpfehlungen, type Ernaehrung } from "./rezepte.js";
+import { postenText, rezeptEmpfehlungen, type Ernaehrung, type Posten } from "./rezepte.js";
 import type { Tagesablauf } from "./tagesablauf.js";
 import type { MacroTargets } from "./types.js";
 import { mahlzeitInfo, verteileRest, type MahlzeitArt } from "./verteilung.js";
@@ -43,6 +43,10 @@ export interface GeplanteMahlzeit {
     kcal: number;
     proteinG: number;
     zutaten: string[];
+    /** Die Zutaten in der gerechneten Portion, mit Werten, zum Eintragen. */
+    posten: Posten[];
+    /** Die Zubereitung des Rezepts. */
+    schritte: string[];
   };
 }
 
@@ -264,6 +268,7 @@ export function tagesessen(p: {
       rezept: wahl ? {
         id: wahl.rezept.id, name: wahl.rezept.name, minuten: wahl.rezept.minuten, foto: Boolean(wahl.rezept.foto),
         kcal: wahl.summe.kcal, proteinG: wahl.summe.proteinG, zutaten: wahl.posten.map(postenText),
+        posten: wahl.posten, schritte: Array.isArray(wahl.rezept.schritte) ? wahl.rezept.schritte : [],
       } : null,
     });
   }
