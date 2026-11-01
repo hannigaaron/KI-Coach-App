@@ -321,13 +321,72 @@ const K_C: Tagesvorlage = { titel: "Ganzkörper C", fokus: KURZ_FOKUS, plaetze: 
 const K_D: Tagesvorlage = { titel: "Ganzkörper D", fokus: KURZ_FOKUS, plaetze: ["huefte", "einbein", "druecken_v", "ziehen_h", "rumpf"] };
 const K_E: Tagesvorlage = { ...K_A, titel: "Ganzkörper E" };
 
+// Ab vier Tagen gibt es keinen Ganzkörperplan mehr, auch nicht in kurzen
+// Einheiten. Viermal die Woche jede Partie heisst viermal Beine und Rücken,
+// und die zweite Hälfte der Woche trainiert auf müden Muskeln. Eine Regel von
+// Coach Aaron. Kurz bleibt dabei kurz: nur Grundübungen und Rumpf.
+const K_OBER_A: Tagesvorlage = { titel: "Oberkörper A", fokus: "Brust und Rücken", plaetze: ["druecken_h", "ziehen_h", "druecken_v", "ziehen_v", "rumpf"] };
+const K_OBER_B: Tagesvorlage = { titel: "Oberkörper B", fokus: "Rücken und Schulter", plaetze: ["ziehen_v", "druecken_h", "ziehen_h", "druecken_v", "rumpf"] };
+const K_UNTER_A: Tagesvorlage = { titel: "Unterkörper A", fokus: "Kniebeuge und Hüfte", plaetze: ["kniebeuge", "huefte", "einbein", "rumpf"] };
+const K_UNTER_B: Tagesvorlage = { titel: "Unterkörper B", fokus: "Hüfte und Einbein", plaetze: ["huefte", "kniebeuge", "einbein", "rumpf"] };
+const K_PUSH: Tagesvorlage = { titel: "Push", fokus: "Brust und Schulter", plaetze: ["druecken_h", "druecken_v", "druecken_h", "rumpf"] };
+const K_PULL: Tagesvorlage = { titel: "Pull", fokus: "Rücken", plaetze: ["ziehen_v", "ziehen_h", "ziehen_h", "rumpf"] };
+const K_BEINE: Tagesvorlage = { titel: "Beine", fokus: "Beine und Hüfte", plaetze: ["kniebeuge", "huefte", "einbein", "rumpf"] };
+const K_OBER: Tagesvorlage = { ...K_OBER_B, titel: "Oberkörper" };
+const K_UNTER: Tagesvorlage = { ...K_UNTER_B, titel: "Unterkörper" };
+
 const KURZ_VORLAGEN: Record<PlanTage, Tagesvorlage[]> = {
   1: [K_A],
   2: [K_A, K_B],
   3: [K_A, K_B, K_C],
-  4: [K_A, K_B, K_C, K_D],
-  5: [K_A, K_B, K_C, K_D, K_E],
+  4: [K_OBER_A, K_UNTER_A, K_OBER_B, K_UNTER_B],
+  5: [K_PUSH, K_PULL, K_BEINE, K_OBER, K_UNTER],
 };
+
+// Vier Tage mit angegebenen Schwachstellen: Torso, Beine und Arme, Torso,
+// und der vierte Tag gehört nur den Schwachstellen. Torso heisst Brust,
+// Rücken und Schulter ohne Arme, die Arme laufen mit den Beinen. So hat es
+// Coach Aaron festgelegt.
+const TORSO_A: Tagesvorlage = {
+  titel: "Torso A", fokus: "Brust, Rücken, Schulter",
+  plaetze: ["druecken_h", "ziehen_h", "druecken_v", "ziehen_v", "seitlich", "hintere"],
+  extra: ["brust_iso", "rumpf"],
+};
+const TORSO_B: Tagesvorlage = {
+  titel: "Torso B", fokus: "Rücken, Brust, Schulter",
+  plaetze: ["ziehen_v", "druecken_h", "ziehen_h", "druecken_v", "brust_iso", "hintere"],
+  extra: ["seitlich", "rumpf"],
+};
+const LIMBS: Tagesvorlage = {
+  titel: "Beine und Arme", fokus: "Beine, Bizeps, Trizeps",
+  plaetze: ["kniebeuge", "huefte", "einbein", "beinbeuger", "bizeps", "trizeps"],
+  extra: ["waden", "beinstrecker", "rumpf"],
+};
+const K_TORSO_A: Tagesvorlage = { titel: "Torso A", fokus: "Brust, Rücken, Schulter", plaetze: ["druecken_h", "ziehen_h", "druecken_v", "ziehen_v", "rumpf"] };
+const K_TORSO_B: Tagesvorlage = { titel: "Torso B", fokus: "Rücken, Brust, Schulter", plaetze: ["ziehen_v", "druecken_h", "ziehen_h", "druecken_v", "rumpf"] };
+// Arme sind Isolation, auch in kurzen Einheiten. Ohne sie wäre der Tag nur
+// Beine, und der Name stimmte nicht.
+const K_LIMBS: Tagesvorlage = { titel: "Beine und Arme", fokus: "Beine, Bizeps, Trizeps", plaetze: ["kniebeuge", "huefte", "einbein", "bizeps", "trizeps"] };
+
+export const SCHWACHSTELLEN_TITEL = "Schwachstellen";
+
+/**
+ * Der Tag nur für die Schwachstellen. Je Partie zuerst ihr schwerster Platz,
+ * dann reihum die nächsten, wie im Training für heute. Der Rumpf am Ende,
+ * wenn er dazugehört.
+ */
+function schwachstellenVorlage(fokus: FokusGruppe[]): Tagesvorlage {
+  const gruppen = [...new Set(fokus)].filter((g) => FOKUS_PLAETZE[g]);
+  const listen = gruppen.filter((g) => g !== "rumpf").map((g) => FOKUS_PLAETZE[g]);
+  const plaetze: Platz[] = [];
+  const extra: Platz[] = [];
+  for (const l of listen) if (l[0] && !plaetze.includes(l[0])) plaetze.push(l[0]);
+  const tiefe = Math.max(0, ...listen.map((l) => l.length));
+  for (let i = 1; i < tiefe; i++) for (const l of listen) { const p = l[i]; if (p && !plaetze.includes(p) && !extra.includes(p)) extra.push(p); }
+  for (const l of listen) for (const p of l) extra.push(p);
+  if (gruppen.includes("rumpf")) plaetze.push("rumpf");
+  return { titel: SCHWACHSTELLEN_TITEL, fokus: gruppen.map((g) => FOKUS_NAME[g]).join(", "), plaetze, extra };
+}
 
 // Pro Tag ein Hauptplatz für die Beine, ein Drücken, ein Ziehen, danach Zubehör. Mehr
 // Beinplätze ließen die Beine auf das Doppelte der Brust kommen, und der Plan wäre
@@ -644,8 +703,24 @@ export function uebungsplanBauen(wunsch: PlanWunsch, uebungen: PlanUebung[]): Ue
   const kurz = wunsch.minuten <= KURZ_BIS_MIN;
   const einsteiger = wunsch.niveau === "beginner";
 
-  for (const vorlage of (kurz ? KURZ_VORLAGEN : VORLAGEN)[wunsch.tage]) {
-    einheiten.push(einheitBauen(vorlage, { wunsch, erlaubt, imPlan, kurz, einsteiger, variante }));
+  const fokus = (wunsch.fokus ?? []).filter((g) => FOKUS_PLAETZE[g]);
+  if (wunsch.tage === 4 && fokus.length) {
+    // Die drei Tage davor bleiben ohne Fokus. Die Schwachstellen haben ihren
+    // eigenen Tag, und Schulterdrücken am Beintag wäre die Folge, sie
+    // zusätzlich überall voranzustellen.
+    const ohneFokus = { ...wunsch, fokus: [] };
+    for (const vorlage of kurz ? [K_TORSO_A, K_LIMBS, K_TORSO_B] : [TORSO_A, LIMBS, TORSO_B]) {
+      einheiten.push(einheitBauen(vorlage, { wunsch: ohneFokus, erlaubt, imPlan, kurz, einsteiger, variante }));
+    }
+    // Der Schwachstellentag füllt seine Zeit wie ein langer Tag, auch bei 45
+    // Minuten: er besteht oft nur aus Isolation, und zwei Übungen Bizeps in
+    // einer Dreiviertelstunde wären zu wenig.
+    const schwach = einheitBauen(schwachstellenVorlage(fokus), { wunsch, erlaubt, imPlan, kurz: false, einsteiger, variante });
+    if (schwach.positionen.length) einheiten.push(schwach);
+  } else {
+    for (const vorlage of (kurz ? KURZ_VORLAGEN : VORLAGEN)[wunsch.tage]) {
+      einheiten.push(einheitBauen(vorlage, { wunsch, erlaubt, imPlan, kurz, einsteiger, variante }));
+    }
   }
 
   const nachId = new Map(uebungen.map((e) => [e.id, e]));

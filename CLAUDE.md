@@ -262,10 +262,23 @@ gleicher Eingabe immer derselbe und jede Zahl hängt an einer Regel im Code.
 Eingaben: Tage pro Woche (1 bis 5), Minuten je Einheit (30 bis 90), Erfahrung, Ziel,
 Entlastungswoche.
 
-Bis 45 Minuten gibt es keine Isolation. Jede Einheit hat genau fünf
-Bewegungen: Knie (Kniebeuge oder Einbein), Hüfte, Drücken, Ziehen und eine
-Rumpfübung, in vier Varianten A bis D, die zwischen waagerecht und senkrecht
-wechseln. Seitheben in einer halben Stunde Ganzkörper heisst, dass dafür eine
+Ganzkörper gibt es nur bis drei Tage die Woche. Ab vier Tagen ist es immer
+ein Split, auch in kurzen Einheiten: vier Tage Oberkörper und Unterkörper im
+Wechsel, fünf Tage Push, Pull, Beine, Oberkörper, Unterkörper. Viermal die
+Woche jede Partie hiesse, die zweite Hälfte der Woche auf müden Muskeln zu
+trainieren. Eine Regel von Coach Aaron. Bei vier Tagen mit angegebenen
+Schwachstellen (`wunsch.fokus`) lautet die Woche Torso A, Beine und Arme,
+Torso B, Schwachstellen. Torso heisst Brust, Rücken, Schulter ohne Arme. Die
+drei Tage davor bauen ohne Fokus, der vierte Tag gehört nur den
+Schwachstellen und füllt seine Zeit auch bei 45 Minuten,
+`schwachstellenVorlage` im Kern.
+
+Bis 45 Minuten gibt es keine Isolation, ausser den Armen am Tag Beine und
+Arme. Jede Ganzkörpereinheit hat genau fünf Bewegungen: Knie (Kniebeuge
+oder Einbein), Hüfte, Drücken, Ziehen und eine Rumpfübung, in den Varianten
+A bis C, die zwischen waagerecht und senkrecht wechseln. Ein kurzer
+Oberkörpertag hat zwei Drück und zwei Zugübungen und Rumpf, ein kurzer
+Unterkörpertag Knie, Hüfte, Einbein und Rumpf. Seitheben in einer halben Stunde Ganzkörper heisst, dass dafür eine
 Grundbewegung fehlt. Passt die Zeit nicht, kürzt der Plan erst die Pausen,
 dann die Sätze, nie eine Bewegung und nie unter zwei Sätze. Das ist eine Regel
 der App, keine Studie, und so steht es auch im Hinweis.
@@ -285,8 +298,8 @@ Einbein, dann Drücken und Ziehen, Isolation, Rumpf zuletzt. Eine Hüftübung
 ohne Last von aussen rückt hinter die Beinpresse.
 
 Ab 60 Minuten gilt der Aufbau: zwei Tage Ganzkörper A und B, drei Tage Ganzkörper A,
-B und C, vier Tage Ober und Unterkörper zweimal, fünf Tage Push, Pull, Beine,
-Oberkörper, Unterkörper. Je Tag ein Hauptplatz für die Beine, ein Drücken, ein
+B und C, vier Tage Ober und Unterkörper zweimal oder mit Schwachstellen wie
+oben, fünf Tage Push, Pull, Beine, Oberkörper, Unterkörper. Je Tag ein Hauptplatz für die Beine, ein Drücken, ein
 Ziehen, danach Zubehör. Mehr Beinplätze ließen die Beine auf das Doppelte der
 Brust kommen, und der Plan wäre beim Zählen der Sätze schief gewesen, obwohl
 jeder einzelne Tag vernünftig aussah.
@@ -532,7 +545,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1255 Tests
+npm test           # 1257 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
