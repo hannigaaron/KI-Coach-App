@@ -3,7 +3,7 @@ import {
   BEREICHE, BEREICH_NAME, CHECKIN_BOEGEN, CHECKIN_MITTE, STANDARD_ZIELE, WOCHENTAGE,
   MAHLZEITEN, bogenAmTag, bogenFuer, eintragAus100g, energyBreakdown, hatAngebot, mengeLesen,
   ORDNER, mengeSetzen, nachOrdnern, naehrwerteFuer, offeneMahlzeiten, portionsVorschlag, skalierbar,
-  impulseFuerTag, planFuer, saubereUrl, uhrzeit, undListe, weckwortGehoert, weightTrend,
+  impulseFuerTag, naechsterPunkt, planFuer, saubereUrl, uhrzeit, undListe, weckwortGehoert, weightTrend,
   belastung,
   belastungText,
   bereitschaft,
@@ -523,6 +523,7 @@ $("btnDump").addEventListener("click", () => {
   listener?.stop?.();
 
   dumpListener = new Listener({
+    bisStopp: true,
     pauseMs: 9000,
     maxMs: 300000,
     stilleMs: 12000,
@@ -715,16 +716,26 @@ function startListening() {
 function setupAssistant() {
   orb = new Orb($("orb"));
   listener = new Listener({
-    onPartial: (text) => { $("chatInput").value = text; },
+    // Diktieren endet nur auf Senden, Stopp oder einen Tipp auf den Kreis,
+    // nie durch eine Sprechpause. Freihand und Weckwort schalten das über
+    // `handsFree` selbst wieder auf das Ende durch Stille.
+    bisStopp: true,
+    onPartial: (text) => {
+      $("chatInput").value = text;
+      const vorschau = $("diktatText");
+      vorschau.textContent = text;
+      vorschau.scrollTop = vorschau.scrollHeight;
+    },
     onFinal: (text) => {
       // Im Weckwortmodus ist nicht alles Gesagte an daevo gerichtet. Erst das
       // Weckwort macht aus einem Satz im Raum eine Frage an die App.
       if (weckwortLaeuft) { weckwortPruefen(text); return; }
       send(text);
     },
-    onLevel: (level) => orb.setLevel(level),
+    onLevel: (level) => { orb.setLevel(level); welle.pegel = level; },
     onState: (state, detail) => {
       $("btnMic").setAttribute("aria-pressed", state === "listening" ? "true" : "false");
+      diktatAnzeige(state === "listening" && listener.ohneStille && !weckwortLaeuft);
       if (state === "listening") {
         // Spürbar, dass das Mikrofon offen ist, auch wer nicht hinsieht.
         // Nicht im Weckwortmodus und nicht beim Neustart im Freihandbetrieb:
@@ -741,8 +752,8 @@ function setupAssistant() {
             ? "Sag jetzt, was du willst."
             : "Sag Hey daevo, dann deine Frage.";
         } else {
-          setStatus("hört zu, tipp auf Fertig");
-          $("orbHint").textContent = "Sprich in Ruhe. Tipp auf den Kreis, wenn du fertig bist.";
+          setStatus("hört zu");
+          $("orbHint").textContent = "Sprich in Ruhe, Pausen sind in Ordnung. Senden schickt ab, das Viereck hält an zum Bearbeiten.";
         }
         $("btnMic").classList.add("hoert");
       }
@@ -772,6 +783,41 @@ function setupAssistant() {
   begruessungZeigen();
   renderTranscript();
   setStatus("bereit");
+}
+
+/**
+ * Die Balken beim Diktieren. Jeder Balken ist ein Moment, der neueste rechts,
+ * gefüttert mit dem Pegel aus dem Mikrofon. In der iPhone App ist das der
+ * echte Pegel aus `DiktatPlugin.swift`, im Browser auf iOS eine erzeugte
+ * Welle, weil dort Erkennung und Pegelmesser sich das Mikrofon nicht teilen.
+ */
+const welle = { pegel: 0, verlauf: [], takt: 0 };
+const WELLE_BALKEN = 34;
+function diktatAnzeige(an) {
+  const form = $("composer");
+  const vorschau = $("diktatText");
+  const war = form.classList.contains("diktiert");
+  form.classList.toggle("diktiert", an);
+  vorschau.hidden = !an;
+  if (an && !war) {
+    vorschau.textContent = "";
+    const box = $("diktatWelle");
+    box.innerHTML = "<i></i>".repeat(WELLE_BALKEN);
+    welle.verlauf = Array(WELLE_BALKEN).fill(0);
+    clearInterval(welle.takt);
+    welle.takt = setInterval(() => {
+      welle.verlauf.push(welle.pegel);
+      welle.verlauf.shift();
+      const balken = box.children;
+      for (let i = 0; i < balken.length; i++) {
+        balken[i].style.height = `${4 + Math.round(welle.verlauf[i] * 30)}px`;
+      }
+    }, 80);
+  }
+  if (!an && war) {
+    clearInterval(welle.takt);
+    welle.takt = 0;
+  }
 }
 
 /**
@@ -2725,6 +2771,12 @@ function startApp() {
 
 $("composer").addEventListener("submit", (event) => {
   event.preventDefault();
+  // Senden beim Diktieren: anhalten und abschicken, was verstanden wurde.
+  if (listener?.active && listener.ohneStille && !weckwortLaeuft) {
+    spueren("leicht");
+    listener.stop();
+    return;
+  }
   if ($("chatInput").value.trim()) spueren("leicht");
   send($("chatInput").value);
 });
@@ -2790,6 +2842,16 @@ document.addEventListener("visibilitychange", () => {
 });
 
 $("btnMic").addEventListener("click", startListening);
+// Das Viereck: anhalten, der Text bleibt im Feld und lässt sich korrigieren.
+$("btnDiktatStopp").addEventListener("click", async () => {
+  if (!listener?.active) return;
+  spueren("leicht");
+  const text = await listener.beenden();
+  const feld = $("chatInput");
+  feld.value = text;
+  feld.focus();
+  try { feld.setSelectionRange(text.length, text.length); } catch { /* nicht jedes Feld kann das */ }
+});
 $("btnWeckwort").addEventListener("click", () => {
   if (weckwortLaeuft) weckwortStoppen("Weckwort aus");
   else weckwortStarten();
@@ -3297,15 +3359,37 @@ $("erfassenBlatt").addEventListener("click", (event) => {
   }
 });
 
-$("btnVoice").addEventListener("click", () => {
-  if (!listener?.supported) { toast("Dieser Browser kann keine Spracherkennung."); return; }
-  const einmal = new Listener({
-    onPartial: (t) => { $("mealText").value = t; },
-    onFinal: (t) => { $("mealText").value = t; toast("Aufnahme übernommen"); },
+/**
+ * Ein Knopf zum Diktieren in ein Feld. Er hört zu, bis er noch einmal
+ * gedrückt wird, und heisst solange "Fertig". Pausen beenden nichts: wer
+ * aufzählt, was er gegessen hat, überlegt zwischen den Posten.
+ */
+function diktatKnopf(knopfId, feldId, hinweis) {
+  let laufend = null;
+  const knopf = $(knopfId);
+  const ruhe = knopf.textContent;
+  knopf.addEventListener("click", () => {
+    if (laufend?.active) { laufend.stop(); return; }
+    if (!listener?.supported) { toast("Dieser Browser kann keine Spracherkennung."); return; }
+    stopSpeaking();
+    const vorher = $(feldId).value.trim();
+    const mit = (t) => (vorher ? `${vorher} ${t}` : t);
+    laufend = new Listener({
+      bisStopp: true,
+      onPartial: (t) => { $(feldId).value = mit(t); },
+      onFinal: (t) => { $(feldId).value = mit(t); },
+      onState: (state, detail) => {
+        const an = state === "listening";
+        knopf.textContent = an ? "Fertig" : ruhe;
+        knopf.classList.toggle("hoert", an);
+        if (state === "error") toast(`Mikrofon: ${detail}`, 5000);
+      },
+    });
+    laufend.start();
+    toast(hinweis);
   });
-  einmal.start();
-  toast("Sprich jetzt");
-});
+}
+diktatKnopf("btnVoice", "mealText", "Sprich in Ruhe. Tipp auf Fertig, wenn du durch bist.");
 
 $("feelingRow").addEventListener("click", (event) => {
   const button = event.target.closest("[data-feel]");
@@ -3753,15 +3837,7 @@ $("btnKopf").addEventListener("click", async () => {
   }
 });
 
-$("btnKopfDiktat").addEventListener("click", () => {
-  if (!listener?.supported) { toast("Dieser Browser kann keine Spracherkennung."); return; }
-  const einmal = new Listener({
-    onPartial: (t) => { $("kopfText").value = t; },
-    onFinal: (t) => { $("kopfText").value = t; toast("Aufnahme übernommen"); },
-  });
-  einmal.start();
-  toast("Sprich in Ruhe. Alles, was dir im Kopf herumgeht.");
-});
+diktatKnopf("btnKopfDiktat", "kopfText", "Sprich in Ruhe. Tipp auf Fertig, wenn du durch bist.");
 
 $("btnBriefingMorgen").addEventListener("click", () => { $("briefingText").textContent = briefing("morgen"); });
 $("btnBriefingAbend").addEventListener("click", () => { $("briefingText").textContent = briefing("abend"); });
@@ -3942,17 +4018,84 @@ $("kalTag").addEventListener("change", (event) => {
  * die beantwortete keine Frage, die jemand morgens hat.
  */
 let briefingArt = "morgen";
+/** Ob die blassen Punkte nach den ersten vier aufgeklappt sind. */
+let briefingAlles = false;
+const PUNKT_ART = { aufgabe: "Aufgabe", termin: "Termin", essen: "Essen", training: "Training" };
+
+/**
+ * Das Briefing als ein Blick: oben gross, was jetzt dran ist, darunter der
+ * Rest des Tages blass als Zeitachse. Vorher fünf Abschnitte mit allen
+ * Terminen, Aufgaben und Mahlzeiten untereinander, und ein Tag mit vier
+ * Aufgaben sah aus wie dreissig Punkte. Wer nur das Nächste sieht, fängt an.
+ * Aufgaben lassen sich direkt abhaken, dann rückt das Nächste nach oben.
+ */
 function briefingZeichnen() {
   const ziel = $("kalBriefing");
   let b;
   try { b = tagesbriefingFuer(briefingArt); } catch (e) { ziel.textContent = "Das Briefing liess sich nicht rechnen."; console.error(e); return; }
-  ziel.innerHTML = b.abschnitte.map((a) =>
-    `<section class="kb-teil${a.titel === "Fokus" ? " kb-fokus" : ""}"><h3>${escapeHtml(a.titel)}</h3>`
-    + (a.zeilen.length > 1 && a.titel !== "Fokus"
-      ? `<ul>${a.zeilen.map((z) => `<li>${escapeHtml(z)}</li>`).join("")}</ul>`
-      : `<p>${escapeHtml(a.zeilen.join(" "))}</p>`)
-    + "</section>").join("");
+  const heute = briefingArt === "morgen";
+  const abschnitt = (titel) => b.abschnitte.find((x) => x.titel === titel);
+  const punkte = b.punkte;
+  // Morgen beginnt mit dem ersten Punkt des Tages, heute mit dem, der noch
+  // nicht vorbei ist.
+  const i = heute ? naechsterPunkt(punkte, Date.now()) : (punkte.length ? 0 : -1);
+  const vorbei = heute && i > 0 ? i : (heute && i < 0 ? punkte.length : 0);
+  const haupt = i >= 0 ? punkte[i] : null;
+  const rest = i >= 0 ? punkte.slice(i + 1) : [];
+  const zeit = (p) => (p.um === null ? "offen" : uhrzeit(p.um));
+  const haken = (p, gross) => (p.art === "aufgabe" && p.id
+    ? `<button type="button" class="kb-haken${gross ? " gross" : ""}" data-erledigt="${escapeHtml(p.id)}" aria-label="Erledigt: ${escapeHtml(p.titel)}"><svg viewBox="0 0 24 24" width="${gross ? 22 : 16}" height="${gross ? 22 : 16}" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>`
+    : "");
+
+  let html = "";
+  const stand = !heute ? abschnitt("Heute") : null;
+  if (stand) html += `<p class="kb-stand">Heute: ${escapeHtml(stand.zeilen[0])}</p>`;
+  const ganz = (abschnitt(heute ? "Dein Tag" : "Morgen")?.zeilen || []).find((z) => z.startsWith("Ganztägig:"));
+  if (ganz) html += `<p class="kb-ganz">${escapeHtml(ganz.replace(/\.$/, ""))}</p>`;
+
+  if (haupt) {
+    const bild = haupt.foto && haupt.rezeptId
+      ? `<img class="kb-bild" src="img/rezepte/${encodeURIComponent(haupt.rezeptId)}.jpg" alt="" loading="lazy">` : "";
+    html += `<section class="kb-jetzt kb-${haupt.art}">
+      <span class="kb-label">${heute ? "Als Nächstes" : "Morgen zuerst"} · ${zeit(haupt)}</span>
+      <div class="kb-jetzt-zeile">${bild}<div class="kb-jetzt-text"><h3>${escapeHtml(haupt.titel)}</h3>
+      <p>${escapeHtml(haupt.unter)}</p></div>${haken(haupt, true)}</div>
+    </section>`;
+  } else {
+    html += `<section class="kb-jetzt"><span class="kb-label">${heute ? "Heute" : "Morgen"}</span><div class="kb-jetzt-text"><h3>${heute ? "Für heute ist nichts mehr offen." : "Morgen steht noch nichts an."}</h3></div></section>`;
+  }
+
+  const achtung = abschnitt("Achtung") || abschnitt("Heute Abend vorbereiten");
+  if (achtung) html += `<p class="kb-achtung"><b>${escapeHtml(achtung.titel)}:</b> ${escapeHtml(achtung.zeilen[0])}</p>`;
+
+  if (rest.length) {
+    const sichtbar = briefingAlles ? rest : rest.slice(0, 4);
+    html += `<h3 class="kb-danach">Danach</h3><ol class="kb-liste">${sichtbar.map((p) => `<li class="kb-${p.art}">
+      <span class="kb-zeit">${zeit(p)}</span><span class="kb-was"><b>${escapeHtml(p.titel)}</b><small>${escapeHtml(PUNKT_ART[p.art])}${p.art === "essen" ? `, ${escapeHtml(p.unter.split(", ").slice(1).join(", "))}` : ""}</small></span>${haken(p, false)}</li>`).join("")}</ol>`;
+    if (rest.length > 4) {
+      html += `<button type="button" class="kb-mehr" data-mehr>${briefingAlles ? "Weniger zeigen" : `Noch ${rest.length - 4} weitere`}</button>`;
+    }
+  }
+  if (vorbei > 0) html += `<p class="kb-vorbei">${vorbei} ${vorbei === 1 ? "Punkt ist" : "Punkte sind"} heute schon vorbei.</p>`;
+
+  const grenze = abschnitt("Deine Untergrenze");
+  if (grenze) {
+    html += `<details class="kb-grenze"><summary>Deine Untergrenze, ${grenze.zeilen.length} offen</summary><ul>${grenze.zeilen.map((z) => `<li>${escapeHtml(z)}</li>`).join("")}</ul></details>`;
+  }
+  ziel.innerHTML = html;
 }
+$("kalBriefing").addEventListener("click", async (event) => {
+  if (event.target.closest("[data-mehr]")) { briefingAlles = !briefingAlles; briefingZeichnen(); return; }
+  const knopf = event.target.closest("[data-erledigt]");
+  if (!knopf) return;
+  knopf.disabled = true;
+  knopf.classList.add("an");
+  spueren("erfolg");
+  const ergebnis = await aufgabeErledigen(knopf.dataset.erledigt);
+  // Kurz stehen lassen, damit der Haken zu sehen ist, dann rückt das Nächste nach.
+  setTimeout(() => { briefingZeichnen(); refreshAll(); }, 450);
+  if (!ergebnis.ok) toast(ergebnis.text, 4200);
+});
 document.querySelectorAll("#kalBriefingWahl [data-briefing]").forEach((k) => {
   k.addEventListener("click", () => {
     briefingArt = k.dataset.briefing;

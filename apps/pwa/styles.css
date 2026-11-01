@@ -2651,6 +2651,32 @@ h1,
 .composer-bar:has(#chatInput:not(:placeholder-shown)) .co-send { display: grid; }
 .composer-bar:has(#chatInput:not(:placeholder-shown)) .co-mic:not([aria-pressed="true"]) { display: none; }
 
+/* Diktieren wie bei Claude: solange das Mikrofon offen ist, zeigt die Pille
+   Balken statt Feld, ein Viereck zum Anhalten und Bearbeiten und Senden. Das
+   Ende bestimmt der Nutzer, nicht eine Sprechpause. Der verstandene Text
+   steht darüber, damit man sieht, ob die Erkennung mitkommt. */
+.diktat-welle, .co-stopp { display: none; }
+.composer-bar.diktiert #chatInput,
+.composer-bar.diktiert #btnAnhang,
+.composer-bar.diktiert #btnMic { display: none; }
+.composer-bar.diktiert .diktat-welle {
+  flex: 1; min-width: 0; height: 42px; display: flex; align-items: center; justify-content: flex-end;
+  gap: 3px; padding: 0 10px; overflow: hidden;
+}
+.diktat-welle i {
+  flex: 0 0 3px; width: 3px; height: 4px; border-radius: 2px; background: var(--text);
+  opacity: 0.85; transition: height 90ms linear;
+}
+.composer-bar.diktiert .co-stopp {
+  display: grid; background: color-mix(in srgb, var(--text) 9%, transparent); color: var(--text); margin-right: 4px;
+}
+.composer-bar.diktiert .co-send { display: grid; }
+.diktat-text {
+  margin: 0 18px 2px; max-height: 6.2em; overflow-y: auto;
+  font-size: 15.5px; line-height: 1.5; color: var(--text); opacity: 0.88;
+}
+.diktat-text:empty::before { content: "Ich höre zu …"; color: var(--muted); }
+
 /* Ein Punkt am Plus, solange eine Betriebsart läuft oder etwas anhängt. */
 #btnAnhang[aria-pressed="true"]::after,
 #assistant:has(.modus[aria-pressed="true"]) #btnAnhang::after {
@@ -3907,24 +3933,61 @@ button small, button .erfassen-sub, button .me-werte, button .me-werte *,
 .ep-sperre h2 { margin: 0 0 var(--s-2); }
 .ep-sperre p { color: var(--muted); margin: 0 0 var(--s-5); }
 
-/* Das Briefing auf der Kalenderseite. Abschnitte ohne Kästen, nur Luft und
-   eine Überschrift je Frage. Der Fokus trägt als einziger die Markenfarbe,
-   weil er die eine Zeile ist, die man behalten soll. */
-.kb { display: flex; flex-direction: column; gap: var(--s-5); margin: 0 0 var(--s-6); }
-.kb-teil h3 {
-  margin: 0 0 var(--s-2); font-size: var(--t-xs); font-weight: 600; letter-spacing: 0.06em;
+/* Das Briefing auf der Kalenderseite. Ein Punkt gross, der Rest blass:
+   wer den ganzen Tag gleich laut sieht, sieht dreissig Aufgaben und fängt
+   keine an. Das Nächste trägt Fläche, Markenfarbe und den grossen Haken,
+   alles danach steht leiser auf einer Zeitachse ohne Kästen. */
+.kb { display: flex; flex-direction: column; gap: var(--s-4); margin: 0 0 var(--s-6); }
+.kb-stand, .kb-ganz, .kb-vorbei { margin: 0; font-size: var(--t-xs, 13px); color: var(--muted); line-height: 1.45; }
+.kb-jetzt {
+  padding: var(--s-5); border-radius: var(--r-lg, 22px);
+  background: color-mix(in srgb, var(--brand-text, var(--accent)) 12%, var(--flaeche, var(--panel)));
+  box-shadow: var(--haarlinie, none);
+}
+.kb-label {
+  display: block; margin-bottom: var(--s-2); font-size: var(--t-xs, 13px); font-weight: 600;
+  letter-spacing: 0.04em; color: var(--brand-text, var(--accent)); font-variant-numeric: tabular-nums;
+}
+.kb-jetzt-zeile { display: flex; align-items: center; gap: var(--s-3); }
+.kb-jetzt-text { flex: 1; min-width: 0; }
+.kb-jetzt h3 {
+  margin: 0; font-family: var(--schrift-display); font-weight: 400;
+  font-size: var(--t-2xl, 26px); line-height: 1.2; color: var(--text); overflow-wrap: anywhere;
+}
+.kb-jetzt p { margin: var(--s-1) 0 0; font-size: var(--t-sm, 15px); color: var(--muted); line-height: 1.4; }
+.kb-bild { flex: 0 0 auto; width: 64px; height: 64px; border-radius: 14px; object-fit: cover; }
+.kb-haken {
+  flex: 0 0 auto; display: grid; place-items: center; width: 30px; height: 30px; padding: 0;
+  border-radius: 50%; border: 1.6px solid color-mix(in srgb, var(--muted) 70%, transparent);
+  background: none; color: transparent; transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+.kb-haken.gross { width: 46px; height: 46px; border-width: 2px; border-color: var(--brand-text, var(--accent)); color: var(--brand-text, var(--accent)); }
+.kb-haken.an { background: var(--brand-text, var(--accent)); border-color: var(--brand-text, var(--accent)); color: var(--bg); }
+.kb-achtung {
+  margin: 0; padding-left: var(--s-3); border-left: 2px solid var(--warn, #c9a227);
+  font-size: var(--t-sm, 15px); line-height: 1.45; color: var(--text);
+}
+.kb-danach {
+  margin: var(--s-2) 0 0; font-size: var(--t-xs, 13px); font-weight: 600; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--muted);
 }
-.kb-teil p { margin: 0; font-size: var(--t-md, 16px); line-height: 1.5; color: var(--text); }
-.kb-teil ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
-.kb-teil li { font-size: var(--t-sm, 15px); line-height: 1.45; color: var(--text); padding-left: 14px; position: relative; }
-.kb-teil li::before {
-  content: ""; position: absolute; left: 0; top: 0.6em; width: 5px; height: 5px; border-radius: 50%;
-  background: var(--muted); opacity: 0.6;
+.kb-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.kb-liste li {
+  display: flex; align-items: center; gap: var(--s-3); padding: 10px 0;
+  border-top: 1px solid var(--linie, var(--border)); opacity: 0.55;
 }
-.kb-fokus { padding: var(--s-4); border-radius: var(--r-md); background: var(--flaeche, var(--panel)); }
-.kb-fokus h3 { color: var(--brand-text, var(--accent)); }
-.kb-fokus p { font-family: var(--schrift-display); font-size: var(--t-lg, 18px); line-height: 1.4; }
+.kb-liste li:first-child { border-top: 0; opacity: 0.8; }
+.kb-zeit { flex: 0 0 46px; font-size: var(--t-sm, 15px); font-variant-numeric: tabular-nums; color: var(--muted); }
+.kb-was { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.kb-was b { font-size: var(--t-sm, 15px); font-weight: 500; color: var(--text); overflow-wrap: anywhere; }
+.kb-was small { font-size: var(--t-2xs, 12px); color: var(--muted); }
+.kb-mehr {
+  align-self: flex-start; padding: 6px 0; border: 0; background: none; box-shadow: none;
+  font-size: var(--t-sm, 15px) !important; color: var(--brand-text, var(--accent));
+}
+.kb-grenze { font-size: var(--t-xs, 13px); color: var(--muted); }
+.kb-grenze summary { cursor: pointer; }
+.kb-grenze ul { margin: var(--s-2) 0 0; padding-left: 18px; line-height: 1.5; }
 
 /* Mahlzeiten nach Kalender: Uhrzeit links, Karte mit Gericht rechts. */
 .kal-essen { list-style: none; margin: 0 0 var(--s-6); padding: 0; display: flex; flex-direction: column; gap: var(--s-4); }
@@ -3944,3 +4007,17 @@ button small, button .erfassen-sub, button .me-werte, button .me-werte *,
 .ke-zutaten summary { font-size: var(--t-xs, 13px); color: var(--brand-text, var(--accent)); cursor: pointer; }
 .ke-zutaten ul { margin: var(--s-2) 0 0; padding-left: 18px; font-size: var(--t-xs, 13px); line-height: 1.5; color: var(--text); }
 .ke-hinweis { font-size: var(--t-xs, 13px); color: var(--muted); line-height: 1.45; }
+
+/* Ein Diktierknopf im Formular, solange er zuhört: gefüllt, mit dem Ring,
+   der atmet, wie das Mikrofon in der Eingabe. */
+button.hoert:not(.co-btn) { background: var(--stark); color: var(--auf-stark); animation: co-atmen 1.8s ease-out infinite; }
+
+/* Dein Tag: die oberste offene Aufgabe ist die nächste und steht gross auf
+   einer Fläche, alle danach blass. Eine Liste, in der alles gleich laut ist,
+   sieht aus wie dreissig Pflichten, und mit dreissig fängt niemand an. */
+#aufgabenHeute > li:first-child:not(.empty) {
+  padding: var(--s-4); border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--brand-text, var(--accent)) 12%, var(--flaeche, var(--panel)));
+}
+#aufgabenHeute > li:first-child:not(.empty) .li-title { font-size: var(--t-lg, 18px); font-weight: 600; }
+#aufgabenHeute > li:not(:first-child), #aufgabenMorgen > li { opacity: 0.45; }

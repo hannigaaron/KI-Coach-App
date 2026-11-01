@@ -1702,12 +1702,12 @@ export function tagesbriefingFuer(art = "morgen", jetzt = Date.now(), fuerTag) {
   if (art === "morgen") {
     const { plan, zeiten } = tagesplan(jetzt);
     const um = new Map(zeiten.bloecke.map((b) => [b.aufgabe.id ?? b.aufgabe.text, uhrzeitVon(b.von)]));
-    aufgaben = plan.heute.map((a) => ({ text: a.text, um: um.get(a.id ?? a.text), wichtig: a.wichtigkeit >= 3 }));
+    aufgaben = plan.heute.map((a) => ({ id: a.id, text: a.text, um: um.get(a.id ?? a.text), wichtig: a.wichtigkeit >= 3 }));
   } else if (tag === morgenIso) {
     // Für übermorgen kennt die Priorisierung keine Reihenfolge, dann lieber
     // keine Aufgabe als die falsche.
     const plan = aufgabenPlan(jetzt);
-    aufgaben = plan.morgen.map((a) => ({ text: a.text, wichtig: a.wichtigkeit >= 3 }));
+    aufgaben = plan.morgen.map((a) => ({ id: a.id, text: a.text, wichtig: a.wichtigkeit >= 3 }));
   }
 
   const status = standardsUebersicht();

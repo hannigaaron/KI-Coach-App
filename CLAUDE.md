@@ -545,7 +545,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1279 Tests
+npm test           # 1280 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -726,6 +726,16 @@ Der Fokus ist ein Satz, und die Reihenfolge ist die Entscheidung: eine
 wichtige Aufgabe schlägt das Training, das Training den freien Block. Ab 70
 Prozent verplanter Wachzeit heisst der Fokus nur noch "eins zählt" oder die
 Mindeststandards.
+
+Auf der Kalenderseite steht es nicht als Text, sondern als ein Blick:
+`briefingPunkte` legt Termine, Aufgaben, Mahlzeiten und Training auf eine
+Zeitachse, `naechsterPunkt` findet, was jetzt dran ist. Das steht gross auf
+einer Fläche, mit Foto beim Essen und grossem Haken bei einer Aufgabe, der
+Rest blass darunter, vier Punkte und "Noch n weitere". Ein Tag mit vier
+Aufgaben sah vorher aus wie dreissig Punkte, und mit dreissig fängt niemand
+an. Abgehakt wird direkt dort, dann rückt das Nächste nach oben. Dieselbe
+Regel gilt unter Dein Tag: die oberste offene Aufgabe gross, alle danach
+blass.
 
 Drei Wege nach draussen. Oben auf der Kalenderseite mit den Reitern Heute
 und Morgen, dort stand vorher "Die nächsten Tage" als Textblock mit
@@ -1199,6 +1209,30 @@ nur nach einem Kurzbefehl Sinn ergibt und sonst verwirrt, gehört nicht auf
 den Startbildschirm. Der Weg aus Siri läuft über das Postfach.
 
 `?sag=` bleibt ebenfalls, in Safari und auf dem Rechner funktioniert es.
+
+## Diktieren bis zum Stopp
+
+`bisStopp` am `Listener` in `voice.js`, die Anzeige in `diktatAnzeige` in
+`app.js`. Wer diktiert, überlegt, schluckt, atmet durch. Jede Grenze aus
+Sekunden hat im Betrieb mitten im Gedanken abgebrochen, zuletzt nach zwei
+Sekunden, als die native Erkennung nach fünf leeren Abschnitten aufgab.
+Jetzt endet eine Aufnahme nur, wenn der Nutzer sie beendet: Senden schickt
+ab, das Viereck hält an und legt den Text zum Korrigieren ins Feld, ein
+Tipp auf den Kreis schickt ebenfalls ab. Obergrenze 15 Minuten, damit ein
+vergessenes Mikrofon nicht den Akku leert.
+
+Endet die Erkennung von selbst, startet sie neu, ohne Zählgrenze. In langer
+Stille mit etwas Abstand, damit sie nicht im Kreis startet. Das gilt auch
+nativ: `AltMotor` in `DiktatPlugin.swift` gibt nach leeren Abschnitten nicht
+mehr auf, er wartet nur länger. Freihand und Weckwort brauchen weiter das
+Ende durch Stille, denn dort tippt niemand, `ohneStille` prüft beides.
+
+Während der Aufnahme zeigt die Pille wie bei Claude Balken statt Feld, das
+Viereck und Senden, darüber steht der verstandene Text. Die Balken laufen
+auf dem echten Pegel, den das Plugin aus den Puffern des Mikrofons misst,
+logarithmisch und geglättet, im Browser auf iOS auf der erzeugten Welle. Die
+Knöpfe Diktieren bei Essen und Kopf leeren hören genauso bis zum zweiten
+Druck und heissen solange "Fertig", `diktatKnopf`.
 
 ## Das Mikrofon, das nur einmal ging
 
@@ -1795,10 +1829,9 @@ Einheit fällt jetzt weg, wenn dasselbe Lebensmittel mit Einheit dasteht.
 Markenprodukte wie Flexpresso bekommen keine erfundenen Werte in der Tabelle.
 
 Die Spracherkennung schickte nach 2,2 Sekunden Pause ab, mitten in der
-Aufzählung. Auch 3,2 waren im ersten Test auf dem iPhone zu knapp. Jetzt 5
-Sekunden, und 8, solange der Satz auf "und", "mit", eine Zahl oder eine
-Einheit endet, `pauseFuer` in `voice.js`, Kopf leeren 9. Wer früher fertig
-ist, tippt auf Fertig.
+Aufzählung. Auch 3,2, 5 und 8 Sekunden waren im Betrieb zu knapp. Beim
+Diktieren gibt es deshalb gar kein Ende durch Stille mehr, siehe "Diktieren
+bis zum Stopp". `pauseFuer` gilt nur noch für Freihand und Weckwort.
 
 ## Doppelt eingetragenes Essen
 

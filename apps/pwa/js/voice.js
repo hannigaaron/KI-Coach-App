@@ -20,9 +20,14 @@
  *
  * Deshalb gilt hier: der Nutzer bestimmt, wann Schluss ist, nicht die
  * Erkennung. Beendet sich die Erkennung von selbst, wird sie sofort neu
- * gestartet und der bisherige Text bleibt erhalten. Abgeschickt wird erst,
- * wenn der Nutzer wirklich fertig ist, erkannt an einer Sprechpause von
- * PAUSE_MS, oder wenn er selbst auf Fertig tippt.
+ * gestartet und der bisherige Text bleibt erhalten.
+ *
+ * Beim Diktieren (`bisStopp`) gibt es gar kein Ende durch Stille. Jede
+ * Grenze aus Sekunden war im Betrieb zu kurz: wer aufzählt, was er gegessen
+ * hat, überlegt, schluckt, atmet durch, und die Aufnahme brach mitten im
+ * Gedanken ab. Schluss ist erst, wenn der Nutzer absendet oder auf Stopp
+ * tippt. Nur Freihand und Weckwort, wo niemand tippen kann, enden nach einer
+ * Sprechpause von PAUSE_MS.
  */
 
 import { istNativ } from "./konfig.js";
@@ -57,6 +62,11 @@ export function pauseFuer(text, grundMs = PAUSE_MS) {
 const STILLE_MS = 9000;
 /** Obergrenze für eine einzelne Aufnahme. Schützt vor einem offenen Mikrofon. */
 const MAX_MS = 120000;
+/**
+ * Obergrenze beim Diktieren bis zum Stopp. Lang genug für jeden Gedanken,
+ * kurz genug, dass ein vergessenes Mikrofon nicht den Akku leert.
+ */
+const MAX_DIKTAT_MS = 15 * 60000;
 /** Pause vor einem Neustart. Ohne die lehnt Safari den Start ab. */
 const NEUSTART_MS = 220;
 /** So lange darf der Start brauchen, bis onstart kommt. Danach gilt er als tot. */
@@ -73,7 +83,7 @@ const IST_IOS = /iPad|iPhone|iPod/.test(globalThis.navigator?.userAgent || "")
   || (globalThis.navigator?.platform === "MacIntel" && (globalThis.navigator?.maxTouchPoints || 0) > 1);
 
 /** So oft fragt die Web App in der iPhone App den Stand der Erkennung ab. */
-const ABFRAGE_MS = 220;
+const ABFRAGE_MS = 120;
 
 export const voiceSupport = {
   // In der iPhone App erkennt `DiktatPlugin.swift`, auch wenn die Web
@@ -92,7 +102,7 @@ export class Listener {
    * sondern eine Denkpause. Wird dort abgeschickt, zerfällt ein Gedanke in
    * fünf Nachrichten, und genau das soll die Funktion ja verhindern.
    */
-  constructor({ onPartial, onFinal, onState, onLevel, pauseMs, maxMs, stilleMs }) {
+  constructor({ onPartial, onFinal, onState, onLevel, pauseMs, maxMs, stilleMs, bisStopp }) {
     this.onPartial = onPartial ?? (() => {});
     this.onFinal = onFinal ?? (() => {});
     this.onState = onState ?? (() => {});
@@ -121,10 +131,17 @@ export class Listener {
     this.pauseMs = pauseMs ?? PAUSE_MS;
     this.maxMs = maxMs ?? MAX_MS;
     this.stilleMs = stilleMs ?? STILLE_MS;
+    /** Kein Ende durch Stille, nur durch `stop()` oder `beenden()`. */
+    this.bisStopp = Boolean(bisStopp);
   }
 
   get supported() {
     return voiceSupport.erkennung;
+  }
+
+  /** Diktieren bis zum Stopp. Freihand und Weckwort brauchen das Ende durch Stille. */
+  get ohneStille() {
+    return this.bisStopp && !this.handsFree;
   }
 
   /** Alles, was bisher verstanden wurde, inklusive des laufenden Teilstücks. */
@@ -142,7 +159,7 @@ export class Listener {
     this.onState("listening");
     await this.startMeter();
 
-    this.maxTimer = setTimeout(() => this.fertig("zeit"), this.maxMs);
+    this.maxTimer = setTimeout(() => this.fertig("zeit"), this.ohneStille ? Math.max(this.maxMs, MAX_DIKTAT_MS) : this.maxMs);
     this.planePause(this.stilleMs);
     if (istNativ() && !this.nativAus) this.starteNativ();
     else this.starteErkennung();
@@ -174,12 +191,16 @@ export class Listener {
     }
     if (!this.active) { nativAufruf("Diktat", "stoppen").catch(() => {}); return; }
     this.nativLaeuft = true;
+    // Ab hier liefert das Plugin den echten Pegel, die erzeugte Welle stört nur.
+    cancelAnimationFrame(this.raf);
     let zuletzt = "";
     this.abfrage = setInterval(async () => {
       if (!this.nativLaeuft) return;
       let stand;
       try { stand = await nativAufruf("Diktat", "stand"); } catch { return; }
       if (!this.nativLaeuft) return;
+      // Der echte Pegel aus dem Mikrofon, für die Balken beim Diktieren.
+      if (typeof stand?.pegel === "number") this.onLevel(Math.min(1, Math.max(0, stand.pegel)));
       if (stand?.fehler) {
         this.onState("error", stand.fehler);
         this.fertig("fehler");
@@ -269,11 +290,15 @@ export class Listener {
         this.startMeter();
       }
 
-      if (this.neustarts > 40) {
+      if (this.neustarts > 40 && !this.ohneStille) {
         this.fertig("zu viele Neustarts");
         return;
       }
-      setTimeout(() => this.starteErkennung(), NEUSTART_MS);
+      // Beim Diktieren hört die Erkennung nie auf. Endet sie wieder und
+      // wieder ohne ein Wort, etwa in langer Stille, mit etwas Abstand, damit
+      // sie nicht im Kreis startet.
+      const warte = this.ohneStille && !hatEtwasGehoert && this.neustarts > 3 ? 900 : NEUSTART_MS;
+      setTimeout(() => this.starteErkennung(), warte);
     };
 
     /**
@@ -319,6 +344,7 @@ export class Listener {
   /** Setzt die Uhr neu, nach deren Ablauf die Eingabe als beendet gilt. */
   planePause(ms) {
     clearTimeout(this.pauseTimer);
+    if (this.ohneStille) return;
     this.pauseTimer = setTimeout(() => this.fertig("pause"), ms);
   }
 
@@ -326,6 +352,21 @@ export class Listener {
   stop() {
     this.handsFree = false;
     this.fertig("nutzer");
+  }
+
+  /**
+   * Hält an und gibt den Text zurück, ohne ihn abzuschicken. Für den Stopp
+   * beim Diktieren: der Text steht danach im Feld und lässt sich korrigieren,
+   * bevor er rausgeht.
+   */
+  async beenden() {
+    if (!this.active) return "";
+    let text = "";
+    const alt = this.onFinal;
+    this.onFinal = (t) => { text = t; };
+    this.handsFree = false;
+    try { await this.fertig("bearbeiten"); } finally { this.onFinal = alt; }
+    return text;
   }
 
   /**

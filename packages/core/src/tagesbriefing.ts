@@ -32,6 +32,23 @@ export interface TagesBriefing {
   abschnitte: BriefingAbschnitt[];
   /** Alles als Text, für Chat und Teilen. */
   text: string;
+  /** Der Tag als eine Liste nach Uhrzeit, für die Ansicht, siehe `briefingPunkte`. */
+  punkte: BriefingPunkt[];
+}
+
+export interface BriefingPunkt {
+  art: "aufgabe" | "termin" | "essen" | "training";
+  /** Zeitpunkt in Millisekunden, null für eine Aufgabe ohne Platz im Tag. */
+  um: number | null;
+  /** Ende, wo es eines gibt, damit ein laufender Termin noch als jetzt gilt. */
+  bis?: number;
+  titel: string;
+  unter: string;
+  /** Kennung der Aufgabe, zum Abhaken. */
+  id?: string;
+  wichtig?: boolean;
+  rezeptId?: string;
+  foto?: boolean;
 }
 
 export interface BriefingEingaben {
@@ -45,7 +62,7 @@ export interface BriefingEingaben {
   /** Das Training an diesem Tag, wenn eines geplant ist. */
   training: null | { titel: string; um?: string; minuten?: number; gestrichen?: boolean; uebungen?: number };
   /** Aufgaben für diesen Tag, wichtigste zuerst, mit Uhrzeit, wenn sie einen Platz hat. */
-  aufgaben: Array<{ text: string; um?: string; wichtig?: boolean }>;
+  aufgaben: Array<{ id?: string; text: string; um?: string; wichtig?: boolean }>;
   ziele: { kcal: number; proteinG: number };
   /** Nur abends: wie der heutige Tag stand. */
   heute?: { kcal: number; zielKcal: number; proteinG: number; zielProteinG: number; erledigt: number };
@@ -81,7 +98,7 @@ function fokus(e: BriefingEingaben, tagWort: string): string {
       ? `Der Tag ist voll. Nur eins zählt: ${wichtig.text}${wichtig.um ? ` um ${wichtig.um}` : ""}. Alles andere darf warten.`
       : "Der Tag ist voll. Halte deine Mindeststandards, mehr nicht.";
   }
-  if (wichtig) return `${wichtig.text}${wichtig.um ? `, eingeplant um ${wichtig.um}` : ""}. Das zuerst, bevor das Handy dich hat.`;
+  if (wichtig) return `${wichtig.text}${wichtig.um ? `, eingeplant um ${wichtig.um}` : ""}. Das zuerst, alles andere danach.`;
   if (e.training && !e.training.gestrichen) return `Dein ${e.training.titel}${e.training.um ? ` um ${e.training.um}` : ""}. Das ist ${tagWort} der feste Punkt.`;
   const block = e.ablauf?.fokusblock;
   if (block) return `Dein längster freier Block ist ${uhrzeit(block.von)} bis ${uhrzeit(block.bis)}. Leg dort hinein, was dich wirklich weiterbringt.`;
@@ -180,5 +197,59 @@ export function tagesbriefing(e: BriefingEingaben): TagesBriefing {
     ...abschnitte.map((a) => `\n${a.titel}\n${a.zeilen.map((z) => (a.zeilen.length > 1 ? `- ${z}` : z)).join("\n")}`),
   ].join("\n");
 
-  return { art: e.art, titel, kurz, abschnitte, text };
+  return { art: e.art, titel, kurz, abschnitte, text, punkte: briefingPunkte(e) };
+}
+
+function amTag(tag: string, hhmm: string): number | null {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm || "");
+  if (!m) return null;
+  return new Date(`${tag}T00:00:00`).getTime() + (Number(m[1]) * 60 + Number(m[2])) * 60000;
+}
+
+/**
+ * Der Tag als eine Liste: Termine, Aufgaben, Mahlzeiten und Training, nach
+ * Uhrzeit. Vorher standen sie in fünf Abschnitten untereinander, und der Tag
+ * sah aus wie dreissig Punkte. Eine Zeitachse beantwortet die eine Frage, die
+ * zählt: was kommt als Nächstes. Aufgaben ohne Platz im Tag stehen am Ende.
+ */
+export function briefingPunkte(e: BriefingEingaben): BriefingPunkt[] {
+  const tag = e.ablauf?.tag ?? (e.essen?.mahlzeiten[0] ? new Date(e.essen.mahlzeiten[0].um).toISOString().slice(0, 10) : "");
+  const punkte: BriefingPunkt[] = [];
+  for (const t of e.ablauf?.termine ?? []) {
+    punkte.push({ art: "termin", um: t.von, bis: t.bis, titel: t.titel, unter: `Termin bis ${uhrzeit(t.bis)}` });
+  }
+  for (const a of e.aufgaben) {
+    punkte.push({ art: "aufgabe", um: tag && a.um ? amTag(tag, a.um) : null, titel: a.text, unter: a.wichtig ? "Aufgabe, wichtig" : "Aufgabe", id: a.id, wichtig: a.wichtig });
+  }
+  for (const m of e.essen?.mahlzeiten ?? []) {
+    const rolle = m.mitnehmen ? ", zum Mitnehmen" : m.training === "davor" ? ", vor dem Training" : m.training === "danach" ? ", nach dem Training" : "";
+    punkte.push({
+      art: "essen", um: m.um, titel: m.rezept ? m.rezept.name : m.name,
+      unter: `${m.name}, ${m.kcal} kcal, ${m.proteinG} g Protein${rolle}`,
+      rezeptId: m.rezept?.id, foto: m.rezept?.foto,
+    });
+  }
+  // Das Training nur, wenn es nicht schon als Termin im Kalender steht.
+  const tr = e.training;
+  if (tr && !tr.gestrichen) {
+    const um = tag && tr.um ? amTag(tag, tr.um) : null;
+    const schonDa = um !== null && (e.ablauf?.training ?? []).some((t) => Math.abs(t.von - um) < 30 * 60000);
+    if (!schonDa) {
+      punkte.push({
+        art: "training", um, bis: um !== null && tr.minuten ? um + tr.minuten * 60000 : undefined, titel: tr.titel,
+        unter: [tr.minuten ? `${tr.minuten} Minuten` : "", tr.uebungen ? `${tr.uebungen} Übungen` : ""].filter(Boolean).join(", ") || "Training",
+      });
+    }
+  }
+  return punkte.sort((x, y) => (x.um ?? Infinity) - (y.um ?? Infinity));
+}
+
+/**
+ * Was jetzt dran ist: der erste Punkt, der noch nicht vorbei ist. Ein Termin
+ * gilt bis zu seinem Ende, alles andere eine Viertelstunde über seine Zeit
+ * hinaus. Aufgaben ohne Uhrzeit kommen erst, wenn der Tag nichts mehr hat.
+ */
+export function naechsterPunkt(punkte: BriefingPunkt[], jetzt: number): number {
+  const i = punkte.findIndex((p) => p.um === null || (p.bis ?? p.um + 15 * 60000) > jetzt);
+  return i;
 }

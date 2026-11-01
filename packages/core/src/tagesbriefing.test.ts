@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { tagesablauf } from "./tagesablauf.js";
 import { tagesessen, trainingAusProfil } from "./tagesessen.js";
-import { tagesbriefing } from "./tagesbriefing.js";
+import { naechsterPunkt, tagesbriefing } from "./tagesbriefing.js";
 import { vorausblick } from "./vorausblick.js";
 import type { Termin } from "./ical.js";
 import type { MacroTargets, UserProfile } from "./types.js";
@@ -63,4 +63,18 @@ test("ohne Kalender sagt das Briefing das", () => {
   });
   assert.match(b.text, /Kein Kalender verbunden/);
   assert.ok(b.kurz.length > 0);
+});
+
+test("die Punkte stehen nach Uhrzeit, und das Nächste ist das erste, das noch nicht vorbei ist", () => {
+  const b = briefing("morgen", [t("09:00", "12:00", "Kunde Müller")], [{ text: "Angebot schreiben", um: "13:30", wichtig: true }, { text: "Steuer" }]);
+  const zeiten = b.punkte.map((p) => p.um);
+  const mitZeit = zeiten.filter((z) => z !== null) as number[];
+  assert.deepEqual(mitZeit, [...mitZeit].sort((a, c) => a - c));
+  assert.equal(b.punkte[b.punkte.length - 1]!.titel, "Steuer");
+  assert.ok(b.punkte.some((p) => p.art === "essen" && p.rezeptId));
+  assert.ok(b.punkte.some((p) => p.art === "training"));
+  const um10 = new Date(`${TAG}T10:00:00`).getTime();
+  assert.equal(b.punkte[naechsterPunkt(b.punkte, um10)]!.titel, "Kunde Müller");
+  const um13 = new Date(`${TAG}T13:20:00`).getTime();
+  assert.notEqual(b.punkte[naechsterPunkt(b.punkte, um13)]!.titel, "Kunde Müller");
 });
