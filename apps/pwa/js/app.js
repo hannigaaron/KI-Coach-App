@@ -15,6 +15,7 @@ import {
   MAX_EIGENE,
   erinnerungZeile,
   istEinmalig,
+  vorausblickText,
 } from "@daevo/core";
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, PREISE_STAND, aktuellesModell, produktPerBarcode, produkteSuchen } from "@daevo/coach";
 import { Coach, AnthropicProvider, FOODS } from "@daevo/coach";
@@ -43,6 +44,8 @@ import {
   berichtZeitraeume,
   aufgabeErledigen, todoistAktualisieren, todoistVerbunden,
   erinnerungenAufgeraeumt,
+  vorausblickePlan,
+  vorausblickFuer,
 } from "./assistant.js";
 import { brain } from "./brain.js";
 import { Orb } from "./orb.js";
@@ -5192,7 +5195,9 @@ async function mitteilungenNativ() {
 
     const d = new Date();
     const jetzt = { tag: todayIso(d), uhrzeit: `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}` };
-    await mitteilungenPlanen({ aufruf: nativAufruf, store, jetzt });
+    let vorausblicke = [];
+    try { vorausblicke = vorausblickePlan(jetzt.tag); } catch { /* ohne Kalender keiner */ }
+    await mitteilungenPlanen({ aufruf: nativAufruf, store, jetzt, vorausblicke });
   } catch {
     // Ohne Erlaubnis plant iOS nichts. Die App läuft trotzdem.
   }
@@ -5544,7 +5549,11 @@ function impulsOeffnen(daten) {
   if (art === "morgen") { morgen.oeffnen(); return; }
   if (art === "nachfrage") { morgen.nachfrage(); return; }
   showView("assistant");
-  const impuls = impulseFuerTag(todayIso()).find((i) => i.art === art);
+  // Der Blick auf morgen: im Chat steht alles, nicht nur der eine Satz aus
+  // der Mitteilung, und eine Antwort wie "ja, trag es um 19:15 ein" geht
+  // direkt an den Coach.
+  const voraus = art === "vorausblick" ? vorausblickText(vorausblickFuer(tagNach(todayIso()))) : "";
+  const impuls = voraus ? { text: voraus } : impulseFuerTag(todayIso()).find((i) => i.art === art);
   if (!impuls) return;
 
   const chat = store.getChat();
@@ -6074,4 +6083,11 @@ if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("./sw.js").catch(() => {});
   });
+}
+
+/** Der Tag nach `iso`, in Ortszeit. */
+function tagNach(iso) {
+  const d = new Date(`${iso}T12:00:00`);
+  d.setDate(d.getDate() + 1);
+  return todayIso(d);
 }

@@ -231,3 +231,19 @@ test("Wer vor der Ernährung schon zugestimmt hat, wird für die neuen Typen noc
   await healthkitAbgleichen({ aufruf, store, heute: HEUTE });
   assert.deepEqual(aufrufe, ["berechtigen", "lesen", "lesen"]);
 });
+
+test("der Blick auf morgen kommt abends und geht vor die Impulse", async () => {
+  frisch();
+  const { mitteilungsPlan, MAX_GEPLANT } = await import("./mitteilungen.js");
+  const vorausblicke = [{ tag: HEUTE, uhrzeit: "20:00", titel: "Für morgen vorkochen", text: "Koch heute eine Portion mehr." }];
+  const plan = mitteilungsPlan({ store, jetzt: { tag: HEUTE, uhrzeit: "12:00" }, vorausblicke });
+  const v = plan.find((m) => m.art === "vorausblick");
+  assert.equal(v.id, `voraus-${HEUTE}`);
+  assert.equal(v.uhrzeit, "20:00");
+  // Vorbei ist vorbei, wie bei allen anderen.
+  assert.equal(mitteilungsPlan({ store, jetzt: { tag: HEUTE, uhrzeit: "21:00" }, vorausblicke }).some((m) => m.art === "vorausblick"), false);
+  // Ausgeschaltet heisst ausgeschaltet.
+  store.setSettings({ ...store.getSettings(), mitteilungenAus: { vorausblick: true } });
+  assert.equal(mitteilungsPlan({ store, jetzt: { tag: HEUTE, uhrzeit: "12:00" }, vorausblicke }).some((m) => m.art === "vorausblick"), false);
+  assert.ok(MAX_GEPLANT >= 1);
+});

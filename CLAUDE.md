@@ -545,7 +545,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1258 Tests
+npm test           # 1267 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -676,6 +676,42 @@ in den nächsten vier Wochen eingetragen hat, mit, je in derselben Woche,
 
 Ungeprüft: der Swift Teil ist hier nicht kompiliert und nicht auf einem
 Gerät gelaufen.
+
+## Der Blick auf morgen
+
+`packages/core/src/vorausblick.ts`, `vorausblickFuer` und
+`vorausblickePlan` in `assistant.js`. `tagesablauf` las einen Tag, aber nur
+auf Frage. Ein Coach sagt es am Vorabend von selbst, denn am Morgen ist es
+zum Vorkochen zu spät.
+
+Vier Punkte, jeder gerechnet. Keine Lücke von 20 Minuten zwischen 11 und
+15 Uhr: heute eine Portion mehr kochen. Keine halbe Stunde zwischen 17 und
+21 Uhr: das Abendessen vorbereiten, beides zusammen: doppelt kochen. Das
+Krafttraining aus dem Profil liegt mit 15 Minuten Luft auf einem Termin:
+der Ausweichplatz am selben Tag über `freienPlatzFinden`, so nah an der
+alten Uhrzeit wie möglich, sonst 30 Minuten, sonst der Satz, es bewusst auf
+einen anderen Tag zu legen. Mannschaftstraining wird nicht verschoben, die
+Halle hat feste Zeiten, und ein Training im Kalender schlägt das Profil.
+Der erste Termin in der ersten Stunde nach dem Aufstehen: Frühstück und
+Tasche am Abend bereitlegen. Ab 60 Prozent verplanter Wachzeit steht
+"Morgen ist voll" mit den Stunden davor, aber allein erst ab 75 Prozent:
+ein voller Tag ohne etwas zu tun ist eine Zahl und keine Aufgabe. Ohne
+Termine gibt es nichts, ein leerer Kalender sagt über morgen nichts.
+
+Drei Wege nach draussen. Nativ eine Mitteilung der Art `vorausblick` am
+Abend davor, 20 Uhr, aber spätestens 90 Minuten vor der Schlafenszeit,
+`vorausblickUhrzeit`, für die nächsten drei Abende, bei jedem Öffnen neu
+geplant. Beim Kürzen geht sie nach den eigenen Erinnerungen und vor der
+Lücke. Ein Tipp darauf schreibt den ganzen Ausblick in den Chat, eine
+Antwort wie "ja, trag es ein" geht dann an den Coach. Im Kontext jeder
+Nachricht stehen "Heute laut Kalender" und "Morgen laut Kalender", und die
+Persona sagt, es einmal von sich aus anzusprechen. Der Abendabschluss nennt
+ihn ebenfalls. Abschalten über `mitteilungenAus.vorausblick`.
+
+Was offen ist: die Mitteilung ist so alt wie das letzte Öffnen der App.
+Ändert sich der Kalender danach, ohne dass die App offen war, kommt der
+alte Stand. Die `KalenderWache` im Hintergrund prüft nur Überschneidungen
+mit eingetragenen Trainings, nicht den Ausblick.
 
 ## Jeder Start ist ein leeres Gespräch
 

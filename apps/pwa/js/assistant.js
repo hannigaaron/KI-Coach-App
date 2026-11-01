@@ -4,6 +4,7 @@ import {
   mahlzeitAusFoto, modellFuerBilder, produktPerBarcode, produkteSuchen, summiere, vorratAusFoto,
   todoistAbhaken, todoistAufgaben, todoistIdVon,
 } from "@daevo/coach";
+import { vorausblick, vorausblickText, vorausblickUhrzeit } from "@daevo/core";
 import {
   MAX_EIGENE,
   planAendern,
@@ -431,6 +432,15 @@ function lageText() {
 
   const koerper = koerperText();
   if (koerper) zeilen.push(koerper);
+
+  // Was der Kalender für heute und morgen verlangt, gerechnet. Damit spricht
+  // der Coach es von selbst an, auch wenn die Frage eine andere war: wer
+  // abends nach einem Rezept fragt, soll hören, dass morgen mittags keine
+  // Lücke ist.
+  const heuteBlick = vorausblickText(vorausblickFuer(todayIso()));
+  if (heuteBlick) zeilen.push(`Heute laut Kalender, gerechnet: ${heuteBlick}`);
+  const morgenBlick = vorausblickText(vorausblickFuer(tagPlusIso(todayIso(), 1)));
+  if (morgenBlick) zeilen.push(`Morgen laut Kalender, gerechnet: ${morgenBlick}`);
 
   // Der heutige Tagesablauf, falls ein Kalender verbunden ist. Ohne das müsste
   // der Coach für jede Frage nach Zeit erst ein Werkzeug rufen, und für die
@@ -987,6 +997,35 @@ export function ablaufFuer(tagIso) {
     ziele: macroTargets(profile),
     mahlzeiten: 4,
   });
+}
+
+/**
+ * Was für einen Tag vorzubereiten ist, aus Kalender und Profil. Null ohne
+ * Kalender oder wenn nichts zu tun ist, siehe `vorausblick` im Kern.
+ */
+export function vorausblickFuer(tagIso) {
+  const termine = store.getKalender().termine || [];
+  if (!termine.length) return null;
+  const profile = profilFuerTag(tagIso) || store.getProfile();
+  if (!profile) return null;
+  return vorausblick({ morgen: ablaufFuer(tagIso), termine, profile });
+}
+
+/**
+ * Die Abendmitteilungen für die nächsten Tage: am Abend vor jedem Tag, an dem
+ * etwas vorzubereiten ist. Geplant wird bei jedem Öffnen neu, ändert sich der
+ * Kalender, ändert sich auch die Mitteilung.
+ */
+export function vorausblickePlan(heute = todayIso(), tage = 3) {
+  const profile = store.getProfile();
+  if (!profile) return [];
+  const plan = [];
+  for (let i = 0; i < tage; i++) {
+    const abend = tagPlusIso(heute, i);
+    const v = vorausblickFuer(tagPlusIso(abend, 1));
+    if (v) plan.push({ tag: abend, uhrzeit: vorausblickUhrzeit(profile, abend), titel: v.titel, text: v.text });
+  }
+  return plan;
 }
 
 /** Der Tagesablauf in Worten. Leer, solange kein Kalender verbunden ist. */
@@ -1607,6 +1646,7 @@ export function briefing(art = "morgen") {
       standards: status.map((s) => s.satz),
       morgen: (store.getKalender().termine || []).length
         ? `${m.termine.length + m.ganztags.length} Termine, ${m.belegtMinuten} Minuten verplant.`
+          + (vorausblickText(vorausblickFuer(morgenIso)) ? ` ${vorausblickText(vorausblickFuer(morgenIso))}` : "")
         : "kein Kalender verbunden.",
     });
   }

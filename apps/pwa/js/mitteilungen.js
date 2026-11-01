@@ -18,7 +18,9 @@ import { lueckeAusSpeicher, trainingAutomatischErfasst } from "./luecke.js";
 
 export const MAX_GEPLANT = 60;
 
-const rang = (m) => (m.art === "eigene" ? 2 : m.art === "luecke" ? 1 : 0);
+// Eigene Erinnerungen zuerst, dann die zwei, die etwas über diesen Nutzer
+// wissen: der Blick auf morgen und die Lücke. Die Impulse sind für alle gleich.
+const rang = (m) => (m.art === "eigene" ? 3 : m.art === "vorausblick" ? 2 : m.art === "luecke" ? 1 : 0);
 const TAGE_VORAUS = 7;
 
 function tagPlus(tag, n) {
@@ -44,7 +46,7 @@ function uhrzeitAus(min) {
  * weg: eine Mitteilung von heute Morgen, die abends nachgereicht wird, ist
  * keine Erinnerung mehr, sondern Lärm.
  */
-export function mitteilungsPlan({ store, jetzt, luecke = null }) {
+export function mitteilungsPlan({ store, jetzt, luecke = null, vorausblicke = [] }) {
   const profil = store.getProfile();
   const aus = store.getSettings().mitteilungenAus || {};
   const plan = [];
@@ -100,6 +102,15 @@ export function mitteilungsPlan({ store, jetzt, luecke = null }) {
     }
   }
 
+  // Am Abend vor einem Tag, an dem etwas vorzubereiten ist: vorkochen,
+  // Training verlegen, früh los. Der Text kommt aus `vorausblick` im Kern,
+  // gerechnet aus Kalender und Profil.
+  if (!aus.vorausblick) {
+    for (const v of vorausblicke) {
+      plan.push({ id: `voraus-${v.tag}`, tag: v.tag, uhrzeit: v.uhrzeit, titel: v.titel, text: v.text, art: "vorausblick" });
+    }
+  }
+
   if (luecke) {
     const tag = minuten(jetzt.uhrzeit) < minuten(LUECKE_UHRZEIT) ? jetzt.tag : tagPlus(jetzt.tag, 1);
     plan.push({ id: `luecke-${tag}`, tag, uhrzeit: LUECKE_UHRZEIT, titel: luecke.titel, text: luecke.text, art: "luecke", kategorie: "luecke" });
@@ -140,13 +151,13 @@ export function lueckeFuerPlan(store, heute) {
 }
 
 /** Plant alles neu bei iOS. Gibt die Zahl der geplanten Mitteilungen zurück. */
-export async function mitteilungenPlanen({ aufruf, store, jetzt }) {
+export async function mitteilungenPlanen({ aufruf, store, jetzt, vorausblicke = [] }) {
   const settings = store.getSettings();
   if (!settings.mitteilungenGefragt) {
     const { erlaubt } = await aufruf("Mitteilungen", "berechtigen");
     store.setSettings({ ...store.getSettings(), mitteilungenGefragt: true, mitteilungenErlaubt: Boolean(erlaubt) });
   }
-  const plan = mitteilungsPlan({ store, jetzt, luecke: lueckeFuerPlan(store, jetzt.tag) });
+  const plan = mitteilungsPlan({ store, jetzt, luecke: lueckeFuerPlan(store, jetzt.tag), vorausblicke });
   await aufruf("Mitteilungen", "planen", { eintraege: plan });
   return plan.length;
 }
