@@ -585,7 +585,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1285 Tests
+npm test           # 1290 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -4221,6 +4221,19 @@ Stylesheet, jeder für sich plausibel und zusammen unruhig.
 Die Eingabe ist eine Pille statt einer Zeile mit Knöpfen daneben. Alles sitzt in
 einem Element, dadurch fällt die Trennlinie über die ganze Breite weg und der
 Verlauf läuft bis nach unten durch.
+
+Aufzählungen stehen als Tabelle da, `chatHtml` in `apps/pwa/js/chat-format.js`.
+Acht Zeilen mit einem Strich davor lasen sich im Betrieb als Textwand, der
+Nutzer will jede Aufzählung als Übersicht. Ab zwei Zeilen mit Strich oder
+Nummer: Übungszeilen "Name: 3 x 6-10, 2 in Reserve" werden eine Tabelle mit
+Übung, Sätze, Wdh und RIR, die Steigerung klein unter dem Namen, "Name:
+Detail" zwei Spalten, alles andere eine Liste mit Linien. Tabellen mit
+senkrechten Strichen werden echte Tabellen. Eine Uhrzeit trennt nicht, "14:00
+Kunde: Angebot" bleibt eine Zeile. Die Persona verlangt dieses Format für
+jede Aufzählung ab zwei Punkten, und die Sprachausgabe liest Tabellenzeilen
+als Sätze ohne Striche, `chatSprechbar`. Während die Antwort strömt, steht
+sie als Text da, die Tabelle kommt mit dem letzten Wort: eine Tabelle, die
+beim Schreiben umspringt, ist unruhiger als ein Satz.
 
 `resize()` im Orb misst nur die Breite und leitet die Höhe daraus ab. Liest man
 beide Seiten aus dem Element, hält sich eine einmal zu gross gesetzte Höhe für

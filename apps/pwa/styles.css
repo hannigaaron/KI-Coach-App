@@ -1274,6 +1274,38 @@ img.only-light { display: none; }
 }
 .msg.assistant + .msg.user { margin-top: 8px; }
 .msg.pending .msg-text { color: var(--muted); font-style: italic; font-size: 15px; }
+/*
+ * Aufzählungen im Chat als Tabelle, chat-format.js. Linien statt Kästen,
+ * Zahlen rechtsbündig und tabellarisch, der Name trägt die Zeile.
+ */
+.msg-text .cp { margin: 0 0 var(--s-3); }
+.msg-text .cp:last-child { margin-bottom: 0; }
+.msg-text .ct, .msg-text .cl { margin: var(--s-1) 0 var(--s-4); }
+.msg-text .ct {
+  width: 100%; border-collapse: collapse; white-space: normal;
+  font-size: 15px; line-height: 1.4;
+}
+.msg-text .ct th, .msg-text .ct td {
+  padding: 9px 8px 9px 0; text-align: left; vertical-align: top;
+  border-bottom: 1px solid var(--border);
+}
+.msg-text .ct thead th {
+  font-size: var(--t-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--muted); padding-top: 0;
+}
+.msg-text .ct tbody tr:last-child > * { border-bottom: 0; }
+.msg-text .ct-paare th { font-weight: 600; width: 38%; padding-right: var(--s-3); }
+.msg-text .ct-name { font-weight: 600; }
+.msg-text .ct td.ct-zahl { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; width: 3.4em; }
+.msg-text .ct-training thead th:not(:first-child) { text-align: right; }
+.msg-text .ct-zusatz { display: block; font-weight: 400; color: var(--muted); font-size: var(--t-xs); margin-top: 2px; }
+.msg-text .cl { list-style: none; padding: 0; white-space: normal; }
+.msg-text .cl li { padding: 9px 0 9px 18px; border-bottom: 1px solid var(--border); position: relative; font-size: 15.5px; line-height: 1.45; }
+.msg-text .cl li:last-child { border-bottom: 0; }
+.msg-text .cl li::before {
+  content: ""; position: absolute; left: 2px; top: 1.05em; width: 6px; height: 6px;
+  border-radius: 50%; background: var(--accent);
+}
 .msg-done { display: block; margin-top: 9px; font-size: 12px; color: var(--muted); }
 .msg-aktionen { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-3); }
 

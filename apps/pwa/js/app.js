@@ -1,4 +1,5 @@
 import "./nativ.js";
+import { chatHtml } from "./chat-format.js";
 import {
   BEREICHE, BEREICH_NAME, CHECKIN_BOEGEN, CHECKIN_MITTE, STANDARD_ZIELE, WOCHENTAGE,
   MAHLZEITEN, bogenAmTag, bogenFuer, eintragAus100g, energyBreakdown, hatAngebot, mengeLesen,
@@ -270,7 +271,7 @@ function renderTranscript() {
           `<button type="button" class="ghost" data-heute-neu>Neue Übungen</button></div>`
         : "";
       return `<div class="msg assistant">${markeSvg()}` +
-        `<div class="msg-text">${bilder}${dateien}${escapeHtml(m.text)}${done}${knopf}</div></div>`;
+        `<div class="msg-text">${bilder}${dateien}${chatHtml(m.text)}${done}${knopf}</div></div>`;
     })
     .join("");
   // Erst wenn der Nutzer selbst etwas gesagt hat, schrumpft der Kreis. Die

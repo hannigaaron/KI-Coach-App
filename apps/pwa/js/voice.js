@@ -1,3 +1,4 @@
+import { chatSprechbar } from "./chat-format.js";
 /**
  * Sprache: zuhören, antworten, Pegel messen.
  *
@@ -789,7 +790,7 @@ export function stopSpeaking() {
  * ist der billigste und wirksamste Hebel, den es hier gibt.
  */
 export function stripForSpeech(text) {
-  return text
+  return chatSprechbar(text)
     // Aufzählungszeichen am Zeilenanfang raus, dafür eine Pause dahinter.
     .replace(/^\s*[-*•]\s*/gm, "")
     // Zeilen ohne Satzzeichen am Ende bekommen einen Punkt, sonst hetzt die
