@@ -122,19 +122,21 @@ const BELASTET: Record<Beschwerde, (e: PlanUebung) => boolean> = {
   knie: (e) => e.pattern === "knee_dominant" || e.pattern === "unilateral_legs" || e.pattern === "plyometric",
   unterer_ruecken: (e) =>
     (e.pattern === "hip_dominant" && ["barbell", "trap_bar", "kettlebell"].includes(e.equipment))
-    || ["kniebeuge-langhantel", "frontkniebeuge", "rudern-langhantel", "t-bar-rudern", "good-morning"].includes(e.id),
+    || ["kniebeuge-langhantel", "frontkniebeuge", "kniebeuge-multipresse", "rudern-langhantel", "t-bar-rudern", "good-morning"].includes(e.id),
   schulter: (e) =>
     e.pattern === "vertical_push"
-    || ["dips", "bankdruecken", "schraegbankdruecken", "fliegende-kurzhantel", "klimmzug-breit", "seitheben"].includes(e.id),
+    || ["dips", "bankdruecken", "schraegbankdruecken", "bankdruecken-multipresse", "schraegbankdruecken-multipresse",
+      "fliegende-kurzhantel", "butterfly-schraegbank-kurzhantel", "klimmzug-breit", "seitheben"].includes(e.id),
   ellbogen: (e) =>
     e.pattern === "elbow_flexion" || e.pattern === "elbow_extension" || ["dips", "enges-bankdruecken"].includes(e.id),
   handgelenk: (e) =>
     ["liegestuetz", "dips", "bankdruecken", "schraegbankdruecken", "enges-bankdruecken", "schulterdruecken-langhantel",
-      "frontkniebeuge", "langhantel-curl", "french-press"].includes(e.id),
-  nacken: (e) => ["kurzhantel-shrug", "kniebeuge-langhantel", "schulterdruecken-langhantel", "good-morning"].includes(e.id),
+      "frontkniebeuge", "langhantel-curl", "french-press", "bankdruecken-multipresse", "schraegbankdruecken-multipresse",
+      "schulterdruecken-multipresse", "curl-kabel-stange"].includes(e.id),
+  nacken: (e) => ["kurzhantel-shrug", "kniebeuge-langhantel", "kniebeuge-multipresse", "schulterdruecken-langhantel", "good-morning"].includes(e.id),
   huefte: (e) =>
     e.pattern === "unilateral_legs" || e.pattern === "plyometric" || e.pattern === "hip_abd_add"
-    || (e.pattern === "hip_dominant" && e.equipment === "barbell"),
+    || (e.pattern === "hip_dominant" && (e.equipment === "barbell" || e.equipment === "smith_machine")),
   sprunggelenk: (e) => e.pattern === "unilateral_legs" || e.pattern === "plyometric" || e.id === "wadenheben-stehend" || e.id === "farmers-walk",
 };
 
@@ -308,7 +310,8 @@ const EINSTEIGER_ERSATZ: Partial<Record<Platz, Platz>> = { druecken_v: "druecken
 
 /** 0 geführt, 1 eigenes Körpergewicht, 2 freie Gewichte. */
 function fuehrung(e: PlanUebung): number {
-  if (e.equipment === "machine" || e.equipment === "cable") return 0;
+  // Die Multipresse führt die Stange auf einer Schiene, gilt also als geführt.
+  if (e.equipment === "machine" || e.equipment === "cable" || e.equipment === "smith_machine") return 0;
   if (e.equipment === "bodyweight") return 1;
   return 2;
 }

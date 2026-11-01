@@ -1,7 +1,7 @@
 /**
  * Die Übungsdatenbank.
  *
- * 80 verbreitete Übungen, eigenständig verfasst. Namen und Abläufe sind
+ * Rund 100 verbreitete Übungen, eigenständig verfasst. Namen und Abläufe sind
  * allgemeines Trainingswissen. Übernommen wurde nichts aus der Datenbank einer
  * anderen App, weder Text noch Bild. Das Foto je Übung liegt unter
  * `img/uebungen/<id>.jpg` und `img/uebungen/klein/<id>.jpg`. Es ist für daevo
@@ -936,8 +936,8 @@ export const UEBUNGEN = [
  },
  {
   "id": "cable-crossover",
-  "name": "Cable Crossover",
-  "nameEn": "Cable Crossover",
+  "name": "Cable Crossover von oben nach unten",
+  "nameEn": "High to Low Cable Crossover",
   "pattern": "chest_isolation",
   "primaryMuscles": [
    "Brust"
@@ -959,7 +959,11 @@ export const UEBUNGEN = [
    "titel": "CABLE CROSS richtige Ausführung (Technik Tutorial) | So triffst du deine BRUST richtig!",
    "kanal": "Coach Stef",
    "dauer": "5:35"
-  }
+  },
+  "alias": [
+   "Butterfly Kabel stehend",
+   "Fliegende Kabel"
+  ]
  },
  {
   "id": "butterfly-maschine",
@@ -1107,8 +1111,8 @@ export const UEBUNGEN = [
  },
  {
   "id": "seitheben-kabel",
-  "name": "Seitheben am Kabel",
-  "nameEn": "Cable Lateral Raise",
+  "name": "Einarmiges Seitheben am Kabel",
+  "nameEn": "Single Arm Cable Lateral Raise",
   "pattern": "shoulder_isolation",
   "primaryMuscles": [
    "seitliche Schulter"
@@ -1130,7 +1134,10 @@ export const UEBUNGEN = [
    "titel": "Einarmiges Seitheben am Kabelzug - Ausführung",
    "kanal": "Crimefood",
    "dauer": "0:55"
-  }
+  },
+  "alias": [
+   "Seitheben einarmig"
+  ]
  },
  {
   "id": "reverse-fly",
@@ -1865,7 +1872,7 @@ export const UEBUNGEN = [
  },
  {
   "id": "trizeps-druecken-kabel",
-  "name": "Trizepsdrücken am Kabel",
+  "name": "Trizepsdrücken am Kabel (beidarmig)",
   "nameEn": "Cable Triceps Pushdown",
   "pattern": "elbow_extension",
   "primaryMuscles": [
@@ -1888,7 +1895,11 @@ export const UEBUNGEN = [
    "titel": "Trizepsdrücken am Kabel (Technik Tutorial) | Mit dem Seil | Überkopf | Hinteren Trizeps trainieren",
    "kanal": "Coach Stef",
    "dauer": "3:00"
-  }
+  },
+  "alias": [
+   "Pushdown",
+   "Trizeps Pushdown"
+  ]
  },
  {
   "id": "french-press",
@@ -1919,8 +1930,8 @@ export const UEBUNGEN = [
  },
  {
   "id": "overhead-trizeps",
-  "name": "Trizepsstrecken über Kopf",
-  "nameEn": "Overhead Triceps Extension",
+  "name": "Trizepsstrecken über Kopf am Kabel",
+  "nameEn": "Cable Overhead Triceps Extension",
   "pattern": "elbow_extension",
   "primaryMuscles": [
    "Trizeps (langer Kopf)"
@@ -1942,7 +1953,11 @@ export const UEBUNGEN = [
    "titel": "Überkopf-Trizepsdrücken mit dem Seil richtige Ausführung am Kabelzug",
    "kanal": "Peter Burianek",
    "dauer": "1:03"
-  }
+  },
+  "alias": [
+   "Trizeps Extension",
+   "Overhead Extension"
+  ]
  },
  {
   "id": "enges-bankdruecken",
@@ -2414,5 +2429,710 @@ export const UEBUNGEN = [
    "kanal": "Nico Airone",
    "dauer": "0:48"
   }
+ },
+ {
+  "id": "bankdruecken-multipresse",
+  "name": "Bankdrücken (Multipresse)",
+  "nameEn": "Smith Machine Bench Press",
+  "pattern": "horizontal_push",
+  "primaryMuscles": [
+   "Brust"
+  ],
+  "secondaryMuscles": [
+   "Trizeps",
+   "vordere Schulter"
+  ],
+  "equipment": "smith_machine",
+  "level": "beginner",
+  "mechanics": "compound",
+  "repRange": "6-12",
+  "steps": [
+   "Flachbank so unter die Stange stellen, dass sie über der unteren Brust läuft",
+   "Schulterblätter zusammen, Füße fest am Boden",
+   "Stange aushaken und kontrolliert zur unteren Brust senken",
+   "Hoch drücken, oben wieder einhaken"
+  ],
+  "gruppe": "brust",
+  "video": {
+   "id": "GtWOl6TpuUk",
+   "titel": "Bankdrücken an der Multipresse - Ausführung",
+   "kanal": "Crimefood",
+   "dauer": "1:01"
+  },
+  "alias": [
+   "Smith Machine",
+   "Bankdrücken"
+  ]
+ },
+ {
+  "id": "schraegbankdruecken-multipresse",
+  "name": "Schrägbankdrücken (Multipresse)",
+  "nameEn": "Smith Machine Incline Press",
+  "pattern": "incline_push",
+  "primaryMuscles": [
+   "obere Brust"
+  ],
+  "secondaryMuscles": [
+   "vordere Schulter",
+   "Trizeps"
+  ],
+  "equipment": "smith_machine",
+  "level": "beginner",
+  "mechanics": "compound",
+  "repRange": "6-12",
+  "steps": [
+   "Bank auf 30 Grad, Stange läuft über der oberen Brust",
+   "Schulterblätter zusammen, Füße fest am Boden",
+   "Stange kontrolliert zur oberen Brust senken",
+   "Hoch drücken, ohne die Ellbogen ganz durchzustrecken"
+  ],
+  "gruppe": "brust",
+  "video": {
+   "id": "CF_8Kgp6Rq8",
+   "titel": "Schrägbankdrücken Multipresse - die richtige Ausführung",
+   "kanal": "Crimefood",
+   "dauer": "0:48"
+  },
+  "alias": [
+   "Smith Machine",
+   "Schrägbank"
+  ]
+ },
+ {
+  "id": "schulterdruecken-multipresse",
+  "name": "Schulterdrücken sitzend (Multipresse)",
+  "nameEn": "Seated Smith Machine Shoulder Press",
+  "pattern": "vertical_push",
+  "primaryMuscles": [
+   "vordere Schulter"
+  ],
+  "secondaryMuscles": [
+   "seitliche Schulter",
+   "Trizeps"
+  ],
+  "equipment": "smith_machine",
+  "level": "beginner",
+  "mechanics": "compound",
+  "repRange": "8-12",
+  "steps": [
+   "Bank senkrecht stellen, Stange läuft knapp vor dem Gesicht",
+   "Rücken an der Lehne, Füße fest am Boden",
+   "Stange bis etwa Kinnhöhe senken",
+   "Über den Kopf drücken, ohne ins Hohlkreuz zu gehen"
+  ],
+  "gruppe": "schultern",
+  "video": {
+   "id": "1CpPJ_9tIFY",
+   "titel": "Schulterdrücken an der Multipresse - Ausführung",
+   "kanal": "Crimefood",
+   "dauer": "0:48"
+  },
+  "alias": [
+   "Smith Machine",
+   "Overhead Press"
+  ]
+ },
+ {
+  "id": "kniebeuge-multipresse",
+  "name": "Kniebeuge (Multipresse)",
+  "nameEn": "Smith Machine Squat",
+  "pattern": "knee_dominant",
+  "primaryMuscles": [
+   "Quadrizeps",
+   "Gluteus"
+  ],
+  "secondaryMuscles": [
+   "Adduktoren",
+   "Rumpf"
+  ],
+  "equipment": "smith_machine",
+  "level": "beginner",
+  "mechanics": "compound",
+  "repRange": "8-12",
+  "steps": [
+   "Stange auf dem oberen Rücken, Füße schulterbreit und leicht vor der Stange",
+   "Bauch anspannen, Brust hoch",
+   "Bis mindestens parallel in die Hocke, Knie folgen den Zehen",
+   "Über die ganze Fußsohle aufstehen"
+  ],
+  "gruppe": "beine",
+  "video": {
+   "id": "GN4hv-UYHnM",
+   "titel": "Kniebeugen an der Multipresse - Ausführung",
+   "kanal": "Crimefood",
+   "dauer": "1:20"
+  },
+  "alias": [
+   "Smith Machine",
+   "Squat"
+  ]
+ },
+ {
+  "id": "bulgarian-split-squat-multipresse",
+  "name": "Bulgarian Split Squat (Multipresse)",
+  "nameEn": "Smith Machine Bulgarian Split Squat",
+  "pattern": "unilateral_legs",
+  "primaryMuscles": [
+   "Quadrizeps",
+   "Gluteus"
+  ],
+  "secondaryMuscles": [
+   "Adduktoren"
+  ],
+  "equipment": "smith_machine",
+  "level": "intermediate",
+  "mechanics": "compound",
+  "repRange": "8-12",
+  "steps": [
+   "Flachbank hinter die Multipresse, hinterer Fußrücken auf der Bank",
+   "Stange auf dem oberen Rücken, vorderer Fuß weit vorn",
+   "Senkrecht nach unten, bis das hintere Knie fast den Boden berührt",
+   "Über die vordere Ferse hochdrücken, dann Seite wechseln"
+  ],
+  "gruppe": "beine",
+  "video": {
+   "id": "AQCLkIBfo1Y",
+   "titel": "Bulgarian Split Squats Multipresse MATRIX",
+   "kanal": "DAVID Fitness & Health",
+   "dauer": "1:04"
+  },
+  "alias": [
+   "Smith Machine",
+   "Bulgarische Kniebeuge"
+  ]
+ },
+ {
+  "id": "ausfallschritt-multipresse",
+  "name": "Ausfallschritt (Multipresse)",
+  "nameEn": "Smith Machine Split Squat",
+  "pattern": "unilateral_legs",
+  "primaryMuscles": [
+   "Quadrizeps",
+   "Gluteus"
+  ],
+  "secondaryMuscles": [
+   "Adduktoren"
+  ],
+  "equipment": "smith_machine",
+  "level": "intermediate",
+  "mechanics": "compound",
+  "repRange": "8-12",
+  "steps": [
+   "Stange auf dem oberen Rücken, großer Schritt in den Ausfallschritt",
+   "Oberkörper aufrecht, Gewicht auf dem vorderen Fuß",
+   "Senkrecht absenken, bis beide Knie etwa 90 Grad haben",
+   "Hochdrücken, nach dem Satz Seite wechseln"
+  ],
+  "gruppe": "beine",
+  "video": {
+   "id": "uGRjDuytJeE",
+   "titel": "Multipresse: Ausfallschritt stationär",
+   "kanal": "Katharina FitGlam",
+   "dauer": "1:00"
+  },
+  "alias": [
+   "Smith Machine",
+   "Lunges"
+  ]
+ },
+ {
+  "id": "hip-thrust-multipresse",
+  "name": "Hip Thrust (Multipresse)",
+  "nameEn": "Smith Machine Hip Thrust",
+  "pattern": "hip_dominant",
+  "primaryMuscles": [
+   "Gluteus"
+  ],
+  "secondaryMuscles": [
+   "Beinbeuger"
+  ],
+  "equipment": "smith_machine",
+  "level": "beginner",
+  "mechanics": "compound",
+  "repRange": "8-12",
+  "steps": [
+   "Bank quer unter die Multipresse, oberer Rücken an der Bankkante",
+   "Stange mit Polster auf der Hüftbeuge, Füße hüftbreit",
+   "Hüfte nach oben strecken, bis Oberkörper und Oberschenkel eine Linie bilden",
+   "Oben das Gesäß 1 Sekunde anspannen, kontrolliert absenken"
+  ],
+  "gruppe": "beine",
+  "video": {
+   "id": "s3N-i46gR8o",
+   "titel": "Anleitung: Hüftheben an der Smith-Maschine",
+   "kanal": "Courtneyofitness",
+   "dauer": "2:26"
+  },
+  "alias": [
+   "Smith Machine",
+   "Hüftheben"
+  ]
+ },
+ {
+  "id": "trizeps-pushdown-einarmig",
+  "name": "Einarmiges Trizepsdrücken am Kabel",
+  "nameEn": "Single Arm Cable Triceps Pushdown",
+  "pattern": "elbow_extension",
+  "primaryMuscles": [
+   "Trizeps"
+  ],
+  "secondaryMuscles": [],
+  "equipment": "cable",
+  "level": "beginner",
+  "mechanics": "isolation",
+  "repRange": "10-15",
+  "steps": [
+   "Einzelgriff am oberen Kabel, Oberarm fest am Körper",
+   "Aufrecht stehen, freie Hand an der Hüfte",
+   "Unterarm nach unten strecken, bis der Arm gerade ist",
+   "Kontrolliert zurück, nach dem Satz Seite wechseln"
+  ],
+  "gruppe": "arme",
+  "video": {
+   "id": "uXhwcA_ZCDQ",
+   "titel": "Trizepsdrücken Kabel einarmig - Anleitung durch Personal Trainer #trizeps",
+   "kanal": "Elite Body",
+   "dauer": "0:44"
+  },
+  "alias": [
+   "Pushdown einarmig",
+   "Triceps Pushdown"
+  ]
+ },
+ {
+  "id": "trizeps-pushdown-abgelegt",
+  "name": "Trizepsdrücken am Kabel mit Ablage",
+  "nameEn": "Supported Cable Triceps Pushdown",
+  "pattern": "elbow_extension",
+  "primaryMuscles": [
+   "Trizeps"
+  ],
+  "secondaryMuscles": [],
+  "equipment": "cable",
+  "level": "intermediate",
+  "mechanics": "isolation",
+  "repRange": "10-15",
+  "steps": [
+   "Bank steil vor das obere Kabel stellen, Lehne zum Kabel",
+   "Auf die Sitzfläche knien, Brust und Oberarme auf der Lehne ablegen",
+   "Seil nach unten drücken, bis die Arme gestreckt sind",
+   "Langsam zurück, die Oberarme bleiben auf der Lehne"
+  ],
+  "gruppe": "arme",
+  "video": {
+   "id": "R9F_28Bnveg",
+   "titel": "Trizeps Pushdown mit Ablage",
+   "kanal": "kraftfanadi",
+   "dauer": "2:08"
+  },
+  "alias": [
+   "Pushdown abgelegt",
+   "Pushdown auf der Bank"
+  ]
+ },
+ {
+  "id": "reverse-butterfly-kabel",
+  "name": "Reverse Butterfly am Kabel",
+  "nameEn": "Cable Reverse Fly",
+  "pattern": "shoulder_isolation",
+  "primaryMuscles": [
+   "hintere Schulter"
+  ],
+  "secondaryMuscles": [
+   "Rhomboiden",
+   "Trapez"
+  ],
+  "equipment": "cable",
+  "level": "beginner",
+  "mechanics": "isolation",
+  "repRange": "12-20",
+  "steps": [
+   "Beide Rollen auf Schulterhöhe, Kabel über Kreuz greifen",
+   "Mittig stehen, Arme vorn, Ellbogen leicht gebeugt",
+   "Arme seitlich nach hinten öffnen bis in eine Linie mit den Schultern",
+   "Kontrolliert zurück vor die Brust"
+  ],
+  "gruppe": "schultern",
+  "video": {
+   "id": "qHV_Hl2MH3o",
+   "titel": "Reverse Butterfly am Kabelzug, tolle Übung für die hintere Schulter! richtige Ausführung und Technik",
+   "kanal": "Muscle Man Fitness by Shaun",
+   "dauer": "1:06"
+  },
+  "alias": [
+   "Reverse Fly Kabel",
+   "Rear Delt Fly"
+  ]
+ },
+ {
+  "id": "kickback-kabel",
+  "name": "Einbeiniger Kickback am Kabel",
+  "nameEn": "Cable Glute Kickback",
+  "pattern": "hip_dominant",
+  "primaryMuscles": [
+   "Gluteus"
+  ],
+  "secondaryMuscles": [
+   "Beinbeuger"
+  ],
+  "equipment": "cable",
+  "level": "beginner",
+  "mechanics": "isolation",
+  "repRange": "12-15",
+  "steps": [
+   "Fußschlaufe am unteren Kabel, mit beiden Händen am Turm festhalten",
+   "Oberkörper leicht vorgeneigt, Rücken gerade",
+   "Bein aus der Hüfte nach hinten strecken, ohne ins Hohlkreuz zu gehen",
+   "Oben kurz halten, langsam zurück, dann Seite wechseln"
+  ],
+  "gruppe": "beine",
+  "video": {
+   "id": "Sb9i3u4A1YI",
+   "titel": "Kickbacks am Kabelzug I Mach diese 2 Fehler nicht! Booty Workout für einen knackigen Po 🍑",
+   "kanal": "HERO Workout",
+   "dauer": "0:59"
+  },
+  "alias": [
+   "Glute Kickback",
+   "Po Kickback"
+  ]
+ },
+ {
+  "id": "kickback-seitlich-kabel",
+  "name": "Seitlicher Kickback am Kabel",
+  "nameEn": "Cable Glute Medius Kickback",
+  "pattern": "hip_abd_add",
+  "primaryMuscles": [
+   "Gluteus medius"
+  ],
+  "secondaryMuscles": [
+   "Gluteus"
+  ],
+  "equipment": "cable",
+  "level": "beginner",
+  "mechanics": "isolation",
+  "repRange": "12-20",
+  "steps": [
+   "Fußschlaufe am unteren Kabel, mit einer Hand am Turm festhalten",
+   "Hüfte gerade, Standbein leicht gebeugt",
+   "Gestrecktes Bein schräg nach hinten außen führen, etwa 45 Grad",
+   "Kontrolliert zurück, nach dem Satz Seite wechseln"
+  ],
+  "gruppe": "beine",
+  "video": {
+   "id": "aHeJeVadIsA",
+   "titel": "Gluteus-Medius-Kickbacks",
+   "kanal": "Sophie VanSurksum",
+   "dauer": "1:07"
+  },
+  "alias": [
+   "Glute Medius",
+   "Abduktion Kabel"
+  ]
+ },
+ {
+  "id": "hammer-curl-kabel-seil",
+  "name": "Hammer Curl am Kabel (Seil)",
+  "nameEn": "Cable Rope Hammer Curl",
+  "pattern": "elbow_flexion",
+  "primaryMuscles": [
+   "Brachialis",
+   "Bizeps"
+  ],
+  "secondaryMuscles": [
+   "Unterarm"
+  ],
+  "equipment": "cable",
+  "level": "beginner",
+  "mechanics": "isolation",
+  "repRange": "10-15",
+  "steps": [
+   "Seil am unteren Kabel, Daumen zeigen nach oben",
+   "Aufrecht stehen, Ellbogen am Körper",
+   "Seil bis auf Brusthöhe curlen",
+   "Langsam strecken, ohne die Ellbogen nach vorn zu nehmen"
+  ],
+  "gruppe": "arme",
+  "video": {
+   "id": "rp3uEeLZavo",
+   "titel": "Hammer Curls am Kabel mit dem Seil für einen dicken Brachialis",
+   "kanal": "Mischa Janiec",
+   "dauer": "3:03"
+  },
+  "alias": [
+   "Hammercurl Seil",
+   "Rope Curl"
+  ]
+ },
+ {
+  "id": "hammer-curl-kabel-einarmig",
+  "name": "Einarmiger Hammer Curl am Kabel",
+  "nameEn": "Single Arm Cable Hammer Curl",
+  "pattern": "elbow_flexion",
+  "primaryMuscles": [
+   "Brachialis",
+   "Bizeps"
+  ],
+  "secondaryMuscles": [
+   "Unterarm"
+  ],
+  "equipment": "cable",
+  "level": "beginner",
+  "mechanics": "isolation",
+  "repRange": "10-15",
+  "steps": [
+   "Seilende oder Einzelgriff am unteren Kabel, Daumen nach oben",
+   "Seitlich zum Turm stehen, Ellbogen am Körper",
+   "Unterarm nach oben curlen",
+   "Langsam strecken, nach dem Satz Seite wechseln"
+  ],
+  "gruppe": "arme",
+  "video": {
+   "id": "PS41VHqLQzs",
+   "titel": "HammerCurls am Kabelzug, richtige Ausführung und Technik, Pump die Arme auf!",
+   "kanal": "Muscle Man Fitness by Shaun",
+   "dauer": "0:50"
+  },
+  "alias": [
+   "Hammercurl einarmig"
+  ]
+ },
+ {
+  "id": "curl-kabel-stange",
+  "name": "Bizeps Curl am Kabel (Stange)",
+  "nameEn": "Cable Bar Curl",
+  "pattern": "elbow_flexion",
+  "primaryMuscles": [
+   "Bizeps"
+  ],
+  "secondaryMuscles": [
+   "Brachialis",
+   "Unterarm"
+  ],
+  "equipment": "cable",
+  "level": "beginner",
+  "mechanics": "isolation",
+  "repRange": "10-15",
+  "steps": [
+   "Gerade Stange am unteren Kabel, Untergriff schulterbreit",
+   "Aufrecht stehen, Ellbogen am Körper",
+   "Stange bis auf Brusthöhe curlen",
+   "Langsam strecken, ohne Schwung aus dem Rücken"
+  ],
+  "gruppe": "arme",
+  "video": {
+   "id": "ON69FICj354",
+   "titel": "Bizepstraining richtig/falsch ► Curls am Kabel gerade Stange",
+   "kanal": "Andreas Trienbacher",
+   "dauer": "0:32"
+  },
+  "alias": [
+   "Kabelcurl",
+   "Cable Curl"
+  ]
+ },
+ {
+  "id": "rudern-schraegbank-eng",
+  "name": "Rudern auf der Schrägbank eng (Kurzhantel)",
+  "nameEn": "Chest Supported Dumbbell Row (narrow)",
+  "pattern": "horizontal_pull",
+  "primaryMuscles": [
+   "Latissimus",
+   "mittlerer Rücken"
+  ],
+  "secondaryMuscles": [
+   "Bizeps",
+   "hintere Schulter"
+  ],
+  "equipment": "dumbbell",
+  "level": "beginner",
+  "mechanics": "compound",
+  "repRange": "8-12",
+  "steps": [
+   "Bauchlings auf die Schrägbank, etwa 30 Grad, Brust auf dem Polster",
+   "Kurzhanteln im Neutralgriff, Arme hängen gestreckt",
+   "Ellbogen eng am Körper zur Hüfte ziehen",
+   "Schulterblätter zusammen, langsam ablassen"
+  ],
+  "gruppe": "ruecken",
+  "video": {
+   "id": "N-A43HjF3wM",
+   "titel": "Kurzhantel Rudern liegend - Anleitung durch Personal Trainer #rückentraining",
+   "kanal": "Elite Body",
+   "dauer": "1:20"
+  },
+  "alias": [
+   "Brustgestütztes Rudern",
+   "Chest Supported Row"
+  ]
+ },
+ {
+  "id": "rudern-schraegbank-breit",
+  "name": "Rudern auf der Schrägbank breit (Kurzhantel)",
+  "nameEn": "Chest Supported Dumbbell Row (wide)",
+  "pattern": "horizontal_pull",
+  "primaryMuscles": [
+   "oberer Rücken",
+   "hintere Schulter"
+  ],
+  "secondaryMuscles": [
+   "Rhomboiden",
+   "Trapez",
+   "Bizeps"
+  ],
+  "equipment": "dumbbell",
+  "level": "beginner",
+  "mechanics": "compound",
+  "repRange": "10-15",
+  "steps": [
+   "Bauchlings auf die Schrägbank, etwa 30 Grad, Brust auf dem Polster",
+   "Kurzhanteln im Obergriff, Arme hängen gestreckt",
+   "Ellbogen breit nach außen ziehen, bis die Oberarme etwa 70 Grad vom Körper abstehen",
+   "Schulterblätter zusammen, langsam ablassen"
+  ],
+  "gruppe": "ruecken",
+  "video": {
+   "id": "VllEj_q4NnA",
+   "titel": "Kurzhantel-Rudern auf Schrägbank",
+   "kanal": "Nico Airone",
+   "dauer": "0:43"
+  },
+  "alias": [
+   "Brustgestütztes Rudern breit"
+  ]
+ },
+ {
+  "id": "reverse-fly-schraegbank",
+  "name": "Reverse Fly auf der Schrägbank (Kurzhantel)",
+  "nameEn": "Incline Bench Reverse Fly",
+  "pattern": "shoulder_isolation",
+  "primaryMuscles": [
+   "hintere Schulter"
+  ],
+  "secondaryMuscles": [
+   "Rhomboiden",
+   "Trapez"
+  ],
+  "equipment": "dumbbell",
+  "level": "beginner",
+  "mechanics": "isolation",
+  "repRange": "12-20",
+  "steps": [
+   "Bauchlings auf die Schrägbank, etwa 30 Grad",
+   "Leichte Kurzhanteln, Ellbogen leicht gebeugt",
+   "Arme seitlich öffnen bis auf Schulterhöhe",
+   "Kurz halten, langsam zurück"
+  ],
+  "gruppe": "schultern",
+  "video": {
+   "id": "bMD474hAjDE",
+   "titel": "Reverse Fly mit Kurzhanteln auf der Schrägbank",
+   "kanal": "Shane Niemeyer",
+   "dauer": "0:24"
+  },
+  "alias": [
+   "Reverse Butterfly Kurzhantel",
+   "Butterfly reverse"
+  ]
+ },
+ {
+  "id": "butterfly-schraegbank-kurzhantel",
+  "name": "Fliegende auf der Schrägbank (Kurzhantel)",
+  "nameEn": "Incline Dumbbell Fly",
+  "pattern": "chest_isolation",
+  "primaryMuscles": [
+   "obere Brust"
+  ],
+  "secondaryMuscles": [
+   "vordere Schulter"
+  ],
+  "equipment": "dumbbell",
+  "level": "intermediate",
+  "mechanics": "isolation",
+  "repRange": "10-15",
+  "steps": [
+   "Bank auf 30 Grad, Kurzhanteln über der Brust, Handflächen zueinander",
+   "Ellbogen leicht gebeugt und so halten",
+   "Arme im Bogen seitlich senken, bis die Brust gedehnt ist",
+   "Im selben Bogen über der Brust zusammenführen"
+  ],
+  "gruppe": "brust",
+  "video": {
+   "id": "fJahpFBPe9E",
+   "titel": "Fliegende auf der Schrägbank mit Kurzhanteln! Richtige Ausführung und Technik, Chest Day! Brustübung",
+   "kanal": "Muscle Man Fitness by Shaun",
+   "dauer": "1:46"
+  },
+  "alias": [
+   "Butterfly Schrägbank",
+   "Incline Fly"
+  ]
+ },
+ {
+  "id": "butterfly-kabel-sitzend",
+  "name": "Butterfly sitzend am Kabel",
+  "nameEn": "Seated Cable Fly",
+  "pattern": "chest_isolation",
+  "primaryMuscles": [
+   "Brust"
+  ],
+  "secondaryMuscles": [
+   "vordere Schulter"
+  ],
+  "equipment": "cable",
+  "level": "beginner",
+  "mechanics": "isolation",
+  "repRange": "10-15",
+  "steps": [
+   "Bank senkrecht mittig zwischen beide Kabeltürme, Rollen auf Schulterhöhe",
+   "Rücken an der Lehne, Griffe seitlich, Ellbogen leicht gebeugt",
+   "Arme im Bogen vor der Brust zusammenführen",
+   "Kontrolliert öffnen, bis die Brust gedehnt ist"
+  ],
+  "gruppe": "brust",
+  "video": {
+   "id": "529ZD_BfEkE",
+   "titel": "FLIEGENDE am KABELTURM - SITZEND | SUPER Brustübung! | MAXIMALER PUMP | Cable Flys seated",
+   "kanal": "Gotti Fitness",
+   "dauer": "7:08"
+  },
+  "alias": [
+   "Cable Fly sitzend",
+   "Fliegende Kabel"
+  ]
+ },
+ {
+  "id": "cable-fly-unten-oben",
+  "name": "Cable Fly von unten nach oben",
+  "nameEn": "Low to High Cable Fly",
+  "pattern": "chest_isolation",
+  "primaryMuscles": [
+   "obere Brust"
+  ],
+  "secondaryMuscles": [
+   "vordere Schulter"
+  ],
+  "equipment": "cable",
+  "level": "beginner",
+  "mechanics": "isolation",
+  "repRange": "12-15",
+  "steps": [
+   "Rollen ganz unten, mittig stehen, ein Fuß vor",
+   "Griffe neben der Hüfte, Ellbogen leicht gebeugt",
+   "Arme im Bogen nach vorn oben auf Kinnhöhe zusammenführen",
+   "Kontrolliert zurück nach unten"
+  ],
+  "gruppe": "brust",
+  "video": {
+   "id": "eQ_NBB6OBH4",
+   "titel": "ANLEITUNG: Kabelzug „von unten nach oben“ (GRÖSSERE OBERE BRUST) || PERFEKTE FORM",
+   "kanal": "ScottHermanFitness",
+   "dauer": "3:08"
+  },
+  "alias": [
+   "Cable Crossover von unten",
+   "Low to High",
+   "Butterfly Kabel"
+  ]
  }
 ];

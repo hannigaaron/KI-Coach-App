@@ -161,3 +161,27 @@ test("Jede Übung mit zweitem Aufbau hat ihn vollständig", () => {
     assert.doesNotMatch([u.alternative.titel, ...u.alternative.steps].join(" "), /[–—]/);
   }
 });
+
+test("Die Suche findet, was im Studio gesagt wird", () => {
+  const findet = (text, id) => assert.ok(uebungenFiltern({ text }).some((u) => u.id === id), `${text} findet ${id} nicht`);
+  for (const id of ["bankdruecken-multipresse", "schraegbankdruecken-multipresse", "schulterdruecken-multipresse", "kniebeuge-multipresse",
+    "bulgarian-split-squat-multipresse", "ausfallschritt-multipresse", "hip-thrust-multipresse"]) findet("Multipresse", id);
+  findet("Trizeps Extensions überkopf", "overhead-trizeps");
+  findet("Trizeps Pushdowns einarmig", "trizeps-pushdown-einarmig");
+  findet("Pushdown abgelegt", "trizeps-pushdown-abgelegt");
+  findet("Seitheben einarmig", "seitheben-kabel");
+  findet("Reverse Butterfly Kabel", "reverse-butterfly-kabel");
+  findet("Kickback", "kickback-seitlich-kabel");
+  findet("Hammer Curl Seil", "hammer-curl-kabel-seil");
+  findet("Hammer Curl einarmig", "hammer-curl-kabel-einarmig");
+  findet("Curl Stange Kabel", "curl-kabel-stange");
+  findet("Rudern Schrägbank breit", "rudern-schraegbank-breit");
+  findet("Rudern Schrägbank eng", "rudern-schraegbank-eng");
+  findet("Reverse Fly Schrägbank", "reverse-fly-schraegbank");
+  findet("Butterfly Schrägbank", "butterfly-schraegbank-kurzhantel");
+  findet("Butterfly sitzend Kabel", "butterfly-kabel-sitzend");
+  findet("von unten nach oben", "cable-fly-unten-oben");
+  findet("von oben nach unten", "cable-crossover");
+  assert.ok(uebungenFiltern({ geraet: "smith_machine" }).length >= 7);
+  assert.equal(GERAETE.smith_machine, "Multipresse");
+});

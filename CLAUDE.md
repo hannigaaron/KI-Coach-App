@@ -251,6 +251,23 @@ Strichfiguren, keine Clip Art, keine Karten mit Rahmen um Text.
   was er hat.
 - `pattern` ist das Bewegungsmuster. Der Trainingsplan wählt darüber die Übung je
   Platz.
+- Multipresse ist ein eigenes Gerät, `smith_machine`, mit Bankdrücken,
+  Schrägbankdrücken, Schulterdrücken sitzend, Kniebeuge, Bulgarian Split
+  Squat, Ausfallschritt und Hip Thrust. Für den Plan gilt sie als geführt wie
+  Maschine und Kabel: die Stange läuft auf einer Schiene. Einsteiger bekommen
+  sie deshalb auch für Grundübungen, ausser dem Ausfallschritt, der Gleichgewicht
+  braucht. Bei Beschwerden zählt sie wie die Langhantel derselben Übung.
+- `alias` trägt Suchwörter, die im Studio fallen und nicht im Namen stehen:
+  "Pushdown", "Trizeps Extension", "Smith Machine". Die Suche trifft ein Wort
+  auch ohne Leerzeichen im Namen ("überkopf" findet "über Kopf") und ohne
+  Plural-s ("Pushdowns"), `trifft` in `uebungen.js`. Vorher fand "Multipresse"
+  nichts und "Trizeps Extensions überkopf" nicht das Trizepsstrecken über Kopf.
+- Am Kabel gibt es Pushdown beidarmig, einarmig und mit Ablage auf der Bank,
+  Curl mit Stange, Hammer Curl mit Seil und einarmig, Seitheben einarmig,
+  Reverse Butterfly, Butterfly sitzend, Cable Fly von unten nach oben und von
+  oben nach unten, Kickback einbeinig und seitlich für den Gluteus medius. Auf
+  der Schrägbank mit Kurzhanteln Rudern eng und breit, Reverse Fly und
+  Fliegende.
 
 ### Trainingspläne
 
@@ -585,7 +602,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1293 Tests
+npm test           # 1294 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
