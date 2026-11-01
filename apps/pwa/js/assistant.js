@@ -4,7 +4,8 @@ import {
   mahlzeitAusFoto, modellFuerBilder, produktPerBarcode, produkteSuchen, summiere, vorratAusFoto,
   todoistAbhaken, todoistAufgaben, todoistIdVon,
 } from "@daevo/coach";
-import { vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing } from "@daevo/core";
+import { vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, einzeltrainingBauen, FOKUS_NAME } from "@daevo/core";
+import { UEBUNGEN } from "./uebungen-daten.js";
 import {
   MAX_EIGENE,
   planAendern,
@@ -3262,6 +3263,41 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       const tag = plan.tage.find((t) => t.datum === tagPlusIso(todayIso(), inTagen));
       if (!tag) return "Der Plan reicht nicht so weit. Unter Rezepte, Wochenplan, rechnet daevo einen neuen ab heute.";
       return essensplanTagText(tag) + (plan.hinweise.length ? `\n${plan.hinweise.join(" ")}` : "");
+    },
+
+    async trainingHeute({ gruppen = [], minuten = 60 } = {}) {
+      const tag = todayIso();
+      const morgens = (store.getDay(tag).checkins || []).filter((c) => c.kind === "morning" && c.morgen).pop();
+      if (morgens?.trainingGestrichen) {
+        return `${NICHT_GESPEICHERT} Heute ist das Training nach der Nachfrage am Mittag gestrichen. Fühlst du dich besser, beantworte unter Check-ins die Nachfrage neu, dann rechne ich dir die Einheit.`;
+      }
+      const partien = [...new Set(gruppen.map(String))].filter((g) => FOKUS_NAME[g]);
+      if (!partien.length) return `${NICHT_GESPEICHERT} Welche Partien willst du heute trainieren? Etwa Push, Pull, Beine oder Oberkörper.`;
+      const min = Math.max(20, Math.min(120, Math.round(Number(minuten) || 60)));
+      // Erfahrung, Ort, Beschwerden und Fokus kommen aus dem gespeicherten
+      // Plan. Ohne Plan gelten dieselben Vorgaben wie in der Planansicht.
+      const w = store.getSettings().plan?.wunsch || {};
+      const NIVEAUS = ["beginner", "intermediate", "advanced"];
+      const einheit = einzeltrainingBauen({
+        minuten: min, gruppen: partien,
+        niveau: NIVEAUS.includes(w.niveau) ? w.niveau : "intermediate",
+        ziel: typeof w.ziel === "string" ? w.ziel : "muskel",
+        ort: typeof w.ort === "string" ? w.ort : "studio",
+        beschwerden: Array.isArray(w.beschwerden) ? w.beschwerden : [],
+        meiden: Array.isArray(w.meiden) ? w.meiden : [],
+        fokus: Array.isArray(w.fokus) ? w.fokus : [],
+        variante: 0,
+      }, UEBUNGEN);
+      if (!einheit) return `${NICHT_GESPEICHERT} Für diese Partien findet die App mit deinen Beschwerden und deinem Ort keine passende Übung.`;
+      store.setSettings({ ...store.getSettings(), heuteTraining: { tag, gruppen: partien, minuten: min, einheit, erstellt: new Date().toISOString() } });
+      changed();
+      const log = Array.isArray(store.getSettings().trainingslog) ? store.getSettings().trainingslog : [];
+      const zeilen = [`Training für heute steht: ${einheit.fokus}, etwa ${einheit.dauerMin} Minuten. Tipp auf "Training starten", dann läuft es im Trainingsmodus.`];
+      for (const p of einheit.positionen) {
+        const st = steigerung(letzteEinheit(log, p.id, tag), p.wdh, p.reserve);
+        zeilen.push(`- ${p.name}: ${p.saetze} x ${p.wdh}, ${p.reserve} in Reserve${st ? `. ${st.text}` : ""}`);
+      }
+      return zeilen.join("\n");
     },
 
     async trainingsplanAbrufen({ inTagen = 0 } = {}) {

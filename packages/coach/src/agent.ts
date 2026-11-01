@@ -57,6 +57,12 @@ export interface AgentActions {
   einkaufslisteAbhaken(input: { posten: string; stand: "gekauft" | "zuhause" | "offen" }): Promise<string>;
   einkaufslisteErgaenzen(input: { posten: string[] }): Promise<string>;
   trainingsplanAbrufen(input: { inTagen?: number }): Promise<string>;
+  /**
+   * Rechnet eine Einheit für heute aus Partien und Minuten, speichert sie und
+   * macht sie im Chat startbar. Die Übungen kommen aus dem Rechenkern, nie aus
+   * dem Modell.
+   */
+  trainingHeute?(input: { gruppen: string[]; minuten?: number }): Promise<string>;
   essensplanAbrufen?(input: { inTagen?: number }): Promise<string>;
   standardsAbrufen(): Promise<string>;
   standardSetzen(input: {
@@ -865,6 +871,14 @@ async function execute(
         });
         return { text, notiz: "Einkaufsliste aktualisiert" };
       }
+      case "training_heute": {
+        const gruppen = Array.isArray(input.gruppen) ? input.gruppen.map(String) : [];
+        const minuten = Number.isFinite(Number(input.minuten)) ? clamp(Number(input.minuten), 20, 120) : 60;
+        if (!actions.trainingHeute) return { text: "Das gibt es in dieser Fassung nicht.", fehler: true };
+        const text = await actions.trainingHeute({ gruppen, minuten });
+        const ok = !text.startsWith("NICHT_GESPEICHERT");
+        return ok ? { text, notiz: "Training für heute bereit" } : { text, fehler: true };
+      }
       case "trainingsplan_abrufen": {
         const inTagen = Number.isFinite(Number(input.inTagen)) ? clamp(Number(input.inTagen), 0, 6) : 0;
         return { text: await actions.trainingsplanAbrufen({ inTagen }) };
@@ -1061,6 +1075,41 @@ function korrekturAus(text: string, nachricht: string): { posten?: string; neueM
     stueck: "Stück", st: "Stück", scheibe: "Scheibe", scheiben: "Scheiben", portion: "Portion", portionen: "Portionen",
   };
   return { posten: nachricht, neueMenge: zahl, ...(umrechnen ? { mengeText: `${zahl} ${schoen[einheit] ?? einheit}` } : {}) };
+}
+
+/** Welche Partien ein Wort meint. Push und Pull wie im Studio gemeint. */
+const PARTIE_WOERTER: Array<[RegExp, string[]]> = [
+  [/\bpush\b/, ["brust", "schultern", "arme"]],
+  [/\bpull\b/, ["ruecken", "arme"]],
+  [/\b(oberkoerper|upper|torso)\b/, ["brust", "ruecken", "schultern"]],
+  [/\b(unterkoerper|lower)\b/, ["beine", "po"]],
+  [/\b(ganzkoerper|full ?body)\b/, ["beine", "brust", "ruecken"]],
+  [/\b(beine?|bein\w*|legs?|leg day|beintag)\b/, ["beine", "po"]],
+  [/\b(po|glutes?|gesaess)\b/, ["po"]],
+  [/\bbrust\w*\b/, ["brust"]],
+  [/\b(ruecken\w*|lat)\b/, ["ruecken"]],
+  [/\b(schulter\w*|delts?)\b/, ["schultern"]],
+  [/\b(arme?|bizeps|trizeps)\b/, ["arme"]],
+  [/\b(core|bauch|rumpf)\b/, ["rumpf"]],
+];
+
+/**
+ * Ob jemand eine Einheit für heute bestellt, und welche. Nur mit einem Wort
+ * der Absicht und einer Partie, nie in der Vergangenheit: "war eben 60 min
+ * Oberkörper" ist ein Eintrag und keine Bestellung.
+ */
+export function trainingHeuteAus(text: string): { gruppen: string[]; minuten: number } | null {
+  if (/\b(war|warst|hab|habe|hatte|gewesen|trainiert|gemacht)\b/.test(text)) return null;
+  const absicht = /\b(trainiere|trainier|trainieren|stell mir|erstell|bau mir|plan mir|plane mir|mach mir|zusammenstellen|gleich ins|geh gleich|gehe gleich|will heute|moechte heute)\b/.test(text);
+  const bezug = /\b(heute|gleich|jetzt|nachher|training|einheit|workout|gym|studio)\b/.test(text);
+  if (!absicht || !bezug) return null;
+  const gruppen: string[] = [];
+  for (const [muster, g] of PARTIE_WOERTER) if (muster.test(text)) for (const x of g) if (!gruppen.includes(x)) gruppen.push(x);
+  if (!gruppen.length) return null;
+  const min = /(\d{2,3})\s*(min|minuten)\b/.exec(text);
+  const std = /(\d(?:[.,]5)?)\s*(h|std|stunden?)\b/.exec(text);
+  const minuten = min ? Number(min[1]) : std ? Math.round(Number((std[1] ?? "1").replace(",", ".")) * 60) : 60;
+  return { gruppen, minuten: Math.max(20, Math.min(120, minuten)) };
 }
 
 /**
@@ -1320,6 +1369,16 @@ export async function runOffline(
     : null;
   if (essenTag !== null && actions.essensplanAbrufen) {
     return { text: await actions.essensplanAbrufen({ inTagen: essenTag }), ausgeführt, source: "offline" };
+  }
+
+  // Eine Einheit für heute bestellen: "heute trainiere ich Push, 60 Minuten",
+  // "stell mir ein Beintraining zusammen". Vor der Frage nach dem Plan und vor
+  // dem Eintragen, denn "Training" steht in allen dreien.
+  const heute = trainingHeuteAus(text);
+  if (heute && actions.trainingHeute) {
+    const antwort = await actions.trainingHeute(heute);
+    const ok = !antwort.startsWith("NICHT_GESPEICHERT");
+    return { text: antwort, ausgeführt: ok ? [...ausgeführt, "Training für heute bereit"] : ausgeführt, source: "offline" };
   }
 
   // "Was soll ich morgen trainieren" ist eine Frage nach dem Plan, nicht nach

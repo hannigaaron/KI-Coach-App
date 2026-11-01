@@ -361,7 +361,7 @@ const $ = (id) => document.getElementById(id);
  * eine kurze Rückmeldung. Alle drei kommen von außen, damit diese Datei weder
  * den Speicher noch die Oberfläche der App kennen muss.
  */
-export function plaeneStarten({ speicher, oeffne, melde, starte = () => {}, frei = () => {}, starteEinheit = () => {}, log = () => [], heute = () => new Date().toISOString().slice(0, 10) }) {
+export function plaeneStarten({ speicher, oeffne, melde, starte = () => {}, frei = () => {}, starteEinheit = () => {}, log = () => [], heute = () => new Date().toISOString().slice(0, 10), heuteBestellt = () => null }) {
   // Acht Wochen um: Fortschritt prüfen, bevor irgendetwas gezeigt wird.
   const geprueft = planPruefen(gespeicherterPlan(speicher.lesen()), log(), heute());
   if (geprueft) speicher.schreiben(geprueft);
@@ -374,6 +374,11 @@ export function plaeneStarten({ speicher, oeffne, melde, starte = () => {}, frei
   // denn was diese Woche fehlt, ändert sich mit jedem Training.
   const vorschlag = heuteVorschlag(log(), heute());
   let heuteStand = { minuten: 30, gruppen: vorschlag.gruppen, text: vorschlag.text, variante: 0 };
+  // Hat der Coach heute schon eine Einheit gerechnet, steht genau die hier.
+  const bestellt = heuteBestellt();
+  if (bestellt?.tag === heute() && Array.isArray(bestellt.gruppen) && bestellt.gruppen.length) {
+    heuteStand = { minuten: bestellt.minuten, gruppen: bestellt.gruppen, text: "Im Gespräch mit daevo zusammengestellt.", variante: 0 };
+  }
   const heuteZeichnen = () => {
     $("plHeute").innerHTML = heuteHtml(heuteStand, heuteStand.gruppen.length ? heuteEinheit(heuteStand, wunsch) : null);
   };

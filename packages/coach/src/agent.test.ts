@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Agent, aufgabeMitFrist, denktiefe, istAbsicht, listeAbhakenAus, naehrwertFrage, postenFuerListe, profilAus, runOffline, schnellweg, type AgentActions } from "./agent.js";
+import { Agent, aufgabeMitFrist, trainingHeuteAus, denktiefe, istAbsicht, listeAbhakenAus, naehrwertFrage, postenFuerListe, profilAus, runOffline, schnellweg, type AgentActions } from "./agent.js";
 import type { ChatMessage, CoachProvider, ContentBlock, ConverseRequest, ConverseResponse, JsonRequest } from "./provider.js";
 import { standardAenderungAus } from "@daevo/core";
 
@@ -24,6 +24,7 @@ function stubActions(log: string[]): AgentActions {
     async einkaufslisteAbrufen() { log.push("einkauf:abrufen"); return "14 Posten, 3 davon zu Hause."; },
     async einkaufslisteAbhaken(i) { log.push(`einkauf:${i.posten}=${i.stand}`); return "Notiert."; },
     async trainingsplanAbrufen(i) { log.push(`planTag:${i.inTagen}`); return "Morgen Kraft."; },
+    async trainingHeute(i) { log.push(`heute:${i.gruppen.join("+")}:${i.minuten}`); return "Training für heute steht."; },
     async einkaufslisteErgaenzen(i) { log.push(`einkaufDazu:${i.posten.join("|")}`); return "Auf der Liste."; },
     async standardsAbrufen() { log.push("standards"); return "Protein: an 5 von 7 Tagen gehalten."; },
     async standardSetzen(i) { log.push(`standard:${i.text}`); return "Standard steht."; },
@@ -934,4 +935,18 @@ test("was ich heute gegessen habe, liest nicht den Essensplan", async () => {
   const a: AgentActions = { ...stubActions(log), async essensplanAbrufen() { log.push("essen"); return "Plan."; } };
   await runOffline("Was hab ich heute gegessen?", a);
   assert.ok(!log.includes("essen"), log.join(","));
+});
+
+test("eine Einheit für heute wird bestellt und nicht als Training eingetragen", async () => {
+  const log: string[] = [];
+  const r = await runOffline("Ich trainiere heute Push, so 60 Minuten", stubActions(log));
+  assert.deepEqual(log, ["heute:brust+schultern+arme:60"]);
+  assert.ok(r.ausgeführt?.includes("Training für heute bereit"));
+});
+
+test("welche Partien ein Satz für heute meint", () => {
+  assert.deepEqual(trainingHeuteAus("stell mir ein beintraining fuer heute zusammen")?.gruppen, ["beine", "po"]);
+  assert.deepEqual(trainingHeuteAus("ich geh gleich ins gym, pull und bauch, 45 min"), { gruppen: ["ruecken", "arme", "rumpf"], minuten: 45 });
+  assert.equal(trainingHeuteAus("war eben 60 min im gym, oberkoerper"), null);
+  assert.equal(trainingHeuteAus("was soll ich morgen trainieren"), null);
 });

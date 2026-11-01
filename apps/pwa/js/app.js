@@ -261,8 +261,13 @@ function renderTranscript() {
       if (m.role === "user") {
         return `<div class="msg user">${bilder}${dateien}${escapeHtml(m.text)}${done}</div>`;
       }
+      // Eine Einheit, die der Coach für heute gerechnet hat, startet direkt
+      // aus dem Gespräch. Nur heute: gestern gerechnet ist heute Geschichte.
+      const ht = store.getSettings().heuteTraining;
+      const startbar = m.ausgeführt?.includes("Training für heute bereit") && ht?.tag === todayIso();
+      const knopf = startbar ? `<button type="button" class="primary msg-aktion" data-heute-starten>Training starten</button>` : "";
       return `<div class="msg assistant">${markeSvg()}` +
-        `<div class="msg-text">${bilder}${dateien}${escapeHtml(m.text)}${done}</div></div>`;
+        `<div class="msg-text">${bilder}${dateien}${escapeHtml(m.text)}${done}${knopf}</div></div>`;
     })
     .join("");
   // Erst wenn der Nutzer selbst etwas gesagt hat, schrumpft der Kreis. Die
@@ -2937,8 +2942,23 @@ const plaene = plaeneStarten({
   },
   log: trainingslog,
   heute: todayIso,
+  heuteBestellt: () => store.getSettings().heuteTraining,
 });
 $("plOffen").hidden = !training.offen();
+// "Training starten" unter der Antwort des Coaches. Läuft die Einheit
+// schon, geht es dort weiter, statt die abgehakten Sätze zu verwerfen.
+$("transcript").addEventListener("click", (ev) => {
+  if (!ev.target.closest("[data-heute-starten]")) return;
+  const ht = store.getSettings().heuteTraining;
+  if (!ht?.einheit || ht.tag !== todayIso()) { toast("Diese Einheit war für einen anderen Tag. Sag mir, was du heute trainierst."); return; }
+  if (trainingGestrichen(store, todayIso())) {
+    toast("Heute ist dein Training gestrichen, der Tag gehört der Erholung. Geht es dir besser, sag es unter Check-ins.", 5000);
+    return;
+  }
+  const offen = training.offen();
+  if (offen && offen.titel === ht.einheit.titel && (offen.uebungen?.length ?? 0) > 0) training.fortsetzen();
+  else training.einheit(ht.einheit);
+});
 $("plFortsetzen").addEventListener("click", () => training.fortsetzen());
 
 // Täglicher Check-in und Wochenbogen sind zwei Ansichten, aber ein Menüpunkt.

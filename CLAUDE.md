@@ -79,7 +79,7 @@ Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
 
-Der Assistent hat fünfzig Werkzeuge und verändert die App wirklich. Zahlen
+Der Assistent hat einundfünfzig Werkzeuge und verändert die App wirklich. Zahlen
 über den Nutzer kommen immer aus Werkzeugen, nie aus dem Modell. Allgemeines
 Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
@@ -399,6 +399,24 @@ Kniebeuge, Rumänisches Kreuzheben und eine Rumpfübung. Gestartet läuft sie
 wie ein freies Training unter "Training für heute", Tauschen ändert den
 Plan nicht.
 
+### Training für heute aus dem Gespräch
+
+Werkzeug `training_heute`, Regelpfad `trainingHeuteAus` in `agent.ts`,
+`trainingHeute` in `assistant.js`. "Ich trainiere heute Push, 60 Minuten"
+ergab vorher eine Liste, die das Modell selbst geschrieben hatte, und im
+Studio gab es nichts zum Abhaken. Jetzt rechnet `einzeltrainingBauen` die
+Einheit, mit Erfahrung, Ort, Beschwerden und Fokus aus `settings.plan`, und
+sie liegt in `settings.heuteTraining`. Unter der Antwort steht "Training
+starten" und öffnet den Trainingsmodus, eine laufende Einheit wird dort
+fortgesetzt statt verworfen. Die Ansicht Trainingspläne zeigt unter
+Training für heute dieselben Partien und Minuten.
+
+Push heisst Brust, Schultern, Arme, Pull Rücken und Arme, Oberkörper Brust,
+Rücken, Schultern, Unterkörper Beine und Po. Ohne Minuten 60. Die Persona
+verbietet, Übungen selbst aufzuschreiben. Erkannt wird nur mit einem Wort
+der Absicht und nie in der Vergangenheit: "war eben 60 min Oberkörper" ist
+ein Eintrag. Am gestrichenen Tag wird nichts gerechnet.
+
 ### Schweres Heben und Beugen nie am selben Tag
 
 `zuSchwerZusammen` im Kern. Kreuzheben, Sumo und Trap Bar Kreuzheben stehen
@@ -545,7 +563,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1280 Tests
+npm test           # 1282 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1978,7 +1996,7 @@ Tippfehler darf die Ziele nicht kippen.
 
 ## Der Regelweg ist die kostenlose Stufe
 
-46 der 50 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
+47 der 51 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
 Das ist keine Notlösung für den Ausfall, sondern das Produkt: ein Weg, der
 kein Modell anfragt, kostet nichts je Nutzer und skaliert ohne Rechnung.
 

@@ -786,6 +786,27 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: "training_heute",
+    description:
+      "Rechnet eine Einheit für heute aus Partien und Minuten, mit Erfahrung, Ort, Beschwerden und Fokus aus dem " +
+      "Trainingsplan, speichert sie und zeigt im Chat einen Knopf zum Starten. Nehmen, sobald der Nutzer sagt, was " +
+      "er heute trainieren will, etwa \"heute Push, 60 Minuten\" oder \"stell mir ein Beintraining zusammen\". " +
+      "Übungen, Sätze und Wiederholungen nie selbst schreiben, sie kommen aus diesem Werkzeug. Push ist Brust, " +
+      "Schultern, Arme, Pull ist Rücken und Arme.",
+    input_schema: {
+      type: "object",
+      properties: {
+        gruppen: {
+          type: "array",
+          items: { type: "string", enum: ["beine", "po", "brust", "ruecken", "schultern", "arme", "rumpf"] },
+          description: "Die Partien der Einheit.",
+        },
+        minuten: { type: "number", description: "Dauer in Minuten, 20 bis 120. Ohne Angabe 60." },
+      },
+      required: ["gruppen"],
+    },
+  },
+  {
     name: "trainingsplan_abrufen",
     description:
       "Liefert das Training eines Tages: Termin aus dem Wochenplan und die Einheit aus dem gespeicherten " +
