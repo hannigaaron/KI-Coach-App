@@ -10,7 +10,7 @@
  * fasst `document` an.
  */
 import {
-  BESCHWERDE_NAME, FOKUS_NAME, einzeltrainingBauen, fehlendePartien, wocheTrainiert, alternativen, planAktualisieren, planNachrechnen, positionFuer, uebungErlaubt, uebungsplanBauen, uebungsplanText,
+  BESCHWERDE_NAME, FOKUS_NAME, FOKUS_PARTIEN, PARTIEN, einzeltrainingBauen, fehlendePartien, wocheTrainiert, alternativen, planAktualisieren, planNachrechnen, positionFuer, uebungErlaubt, uebungsplanBauen, uebungsplanText,
 } from "@daevo/core";
 import { UEBUNGEN } from "./uebungen-daten.js";
 import { GRUPPEN, vorschauPfad } from "./uebungen.js";
@@ -20,7 +20,7 @@ export const STANDARD_WUNSCH = {
   ort: "studio", beschwerden: [], meiden: [], fokus: [],
 };
 
-export const FOKUS = Object.keys(FOKUS_NAME);
+export const FOKUS = FOKUS_PARTIEN;
 /** Mehr als zwei Partien zuerst heisst: keine zuerst. */
 export const FOKUS_MAX = 2;
 
@@ -270,7 +270,7 @@ export function heuteVorschlag(log, heute) {
 
 export function heuteHtml(stand, einheit) {
   const minuten = HEUTE_MINUTEN.map((m) => `<button type="button" class="ue-tab${stand.minuten === m ? " on" : ""}" data-heute-min="${m}" aria-pressed="${stand.minuten === m}">${m}</button>`).join("");
-  const gruppen = FOKUS.map((g) => {
+  const gruppen = PARTIEN.map((g) => {
     const an = stand.gruppen.includes(g);
     return `<button type="button" class="ue-tab${an ? " on" : ""}" data-heute-gruppe="${g}" aria-pressed="${an}">${esc(FOKUS_NAME[g])}</button>`;
   }).join("");
@@ -377,7 +377,7 @@ export function plaeneStarten({ speicher, oeffne, melde, starte = () => {}, frei
   // Hat der Coach heute schon eine Einheit gerechnet, steht genau die hier.
   const bestellt = heuteBestellt();
   if (bestellt?.tag === heute() && Array.isArray(bestellt.gruppen) && bestellt.gruppen.length) {
-    heuteStand = { minuten: bestellt.minuten, gruppen: bestellt.gruppen, text: "Im Gespräch mit daevo zusammengestellt.", variante: 0 };
+    heuteStand = { minuten: bestellt.minuten, gruppen: bestellt.gruppen.flatMap((g) => (g === "arme" ? ["bizeps", "trizeps"] : [g])), text: "Im Gespräch mit daevo zusammengestellt.", variante: 0 };
   }
   const heuteZeichnen = () => {
     $("plHeute").innerHTML = heuteHtml(heuteStand, heuteStand.gruppen.length ? heuteEinheit(heuteStand, wunsch) : null);

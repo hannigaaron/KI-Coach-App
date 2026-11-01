@@ -86,11 +86,22 @@ export interface PlanWunsch {
  * obwohl die Datenbank sie unter Beine führt: wer Po sagt, meint Hüftstrecken
  * und nicht Beinstrecker.
  */
-export type FokusGruppe = "beine" | "po" | "brust" | "ruecken" | "schultern" | "arme" | "rumpf";
+export type FokusGruppe = "beine" | "po" | "brust" | "ruecken" | "schultern" | "arme" | "bizeps" | "trizeps" | "rumpf";
 
 export const FOKUS_NAME: Record<FokusGruppe, string> = {
-  beine: "Beine", po: "Po", brust: "Brust", ruecken: "Rücken", schultern: "Schultern", arme: "Arme", rumpf: "Core",
+  beine: "Beine", po: "Po", brust: "Brust", ruecken: "Rücken", schultern: "Schultern", arme: "Arme",
+  bizeps: "Bizeps", trizeps: "Trizeps", rumpf: "Core",
 };
+
+/**
+ * Die Partien für ein einzelnes Training. Bizeps und Trizeps getrennt: Push
+ * trifft den Trizeps, Pull den Bizeps, und "Arme" an einem Push Tag brachte
+ * einen Curl zwischen die Drückübungen.
+ */
+export const PARTIEN: FokusGruppe[] = ["beine", "po", "brust", "ruecken", "schultern", "bizeps", "trizeps", "rumpf"];
+
+/** Die Partien für den Fokus im Wochenplan. Dort bleibt Arme eine Wahl, wer Arme aufbauen will, meint beide. */
+export const FOKUS_PARTIEN: FokusGruppe[] = ["beine", "po", "brust", "ruecken", "schultern", "arme", "rumpf"];
 
 export type PlanOrt = "studio" | "zuhause" | "ohne";
 export type Beschwerde =
@@ -216,6 +227,8 @@ export const FOKUS_PLAETZE: Record<FokusGruppe, Platz[]> = {
   ruecken: ["ziehen_v", "ziehen_h"],
   schultern: ["druecken_v", "seitlich", "hintere"],
   arme: ["bizeps", "trizeps"],
+  bizeps: ["bizeps"],
+  trizeps: ["trizeps"],
   rumpf: ["rumpf"],
 };
 
@@ -581,7 +594,9 @@ function einheitBauen(vorlage: Tagesvorlage, { wunsch, erlaubt, imPlan, kurz, ei
     // der Plan den Aufbau der Woche vergisst, um eine Vorliebe zu bedienen.
     const haelfte = (p: Platz) => (OBEN.has(p) ? OBEN : UNTEN.has(p) ? UNTEN : null);
     const fokusExtra = (wunsch.fokus ?? []).flatMap((f) => FOKUS_PLAETZE[f] ?? [])
-      .filter((p) => p !== "rumpf" && !vorlage.plaetze.includes(p) && vorlage.plaetze.some((v) => haelfte(p)?.has(v)))
+      // Steht der Platz schon in den Zusatzplätzen, käme er sonst doppelt:
+      // zwei Flys oder zweimal Seitheben in einer Einheit.
+      .filter((p) => p !== "rumpf" && !vorlage.plaetze.includes(p) && !(vorlage.extra ?? []).includes(p) && vorlage.plaetze.some((v) => haelfte(p)?.has(v)))
       .filter((p, i, a) => a.indexOf(p) === i)
       .slice(0, 2);
     for (const vorlagePlatz of [...fokusExtra, ...(vorlage.extra ?? [])]) {
@@ -871,6 +886,12 @@ export interface EinzelWunsch {
   meiden?: string[];
   fokus?: FokusGruppe[];
   variante?: number;
+  /**
+   * Übungen vom letzten Mal, die bei "Neue Übungen" hinten anstehen. Nur
+   * die Variante zu ändern tauschte zwei von sieben, weil der Abstand zum
+   * eigenen Niveau schwerer wiegt als der Streuwert.
+   */
+  zuletzt?: string[];
 }
 
 export const EINZEL_TITEL = "Training für heute";
@@ -895,7 +916,12 @@ export function einzeltrainingBauen(w: EinzelWunsch, uebungen: PlanUebung[]): Pl
   const gruppen = [...new Set(w.gruppen)].filter((g) => FOKUS_PLAETZE[g]);
   if (!gruppen.length) return null;
   const ohneRumpf = gruppen.filter((g) => g !== "rumpf");
-  const listen = ohneRumpf.map((g) => FOKUS_PLAETZE[g]);
+  // Die hintere Schulter ist eine Zugbewegung. Mit Brust und ohne Rücken ist
+  // es ein Drücktag, dort fällt sie weg. Mit Rücken und ohne Schultern ist es
+  // ein Zugtag, dort kommt sie dazu. Eine Regel von Coach Aaron.
+  const drueckTag = gruppen.includes("brust") && !gruppen.includes("ruecken");
+  const listen = ohneRumpf.map((g) => FOKUS_PLAETZE[g].filter((p) => !(drueckTag && p === "hintere")));
+  if (gruppen.includes("ruecken") && !gruppen.includes("schultern") && !drueckTag) listen.push(["hintere"]);
   const plaetze: Platz[] = [];
   const extra: Platz[] = [];
   const nehmen = (ziel: Platz[], p: Platz | undefined) => { if (p && !plaetze.includes(p) && !extra.includes(p)) ziel.push(p); };
@@ -904,7 +930,13 @@ export function einzeltrainingBauen(w: EinzelWunsch, uebungen: PlanUebung[]): Pl
   for (let i = 1; i < tiefe; i++) for (const l of listen) nehmen(extra, l[i]);
   // Ein zweiter Durchgang mit denselben Plätzen und anderen Übungen, falls
   // noch Zeit ist. Sonst wären 30 Minuten Arme nach zwei Übungen zu Ende.
-  for (const l of listen) for (const p of l) extra.push(p);
+  // Im zweiten Durchgang nur der Hauptplatz je Partie. Zweimal Seitheben
+  // oder zwei Flys in einer Einheit sind derselbe Reiz zweimal, eine zweite
+  // Drückübung oder ein zweiter Trizeps nicht. Kleine Partien zuerst: nach
+  // zwei Drückübungen bringt ein zweiter Trizeps mehr als ein zweites
+  // Schulterdrücken. Eine Regel von Coach Aaron.
+  const einmal: ReadonlySet<Platz> = new Set<Platz>(["seitlich", "hintere", "brust_iso"]);
+  for (const l of [...listen].sort((a, b) => a.length - b.length)) if (l[0] && !einmal.has(l[0])) extra.push(l[0]);
   if (gruppen.includes("rumpf")) plaetze.push("rumpf");
   const wunsch: PlanWunsch = {
     tage: 1, minuten: w.minuten, niveau: w.niveau, ziel: w.ziel, ort: w.ort, beschwerden: w.beschwerden,
@@ -913,7 +945,7 @@ export function einzeltrainingBauen(w: EinzelWunsch, uebungen: PlanUebung[]): Pl
   const erlaubt = uebungen.filter((e) => RANG[e.level] <= RANG[w.niveau] && uebungErlaubt(e, wunsch));
   const vorlage: Tagesvorlage = { titel: EINZEL_TITEL, fokus: gruppen.map((g) => FOKUS_NAME[g]).join(", "), plaetze, extra };
   const einheit = einheitBauen(vorlage, {
-    wunsch, erlaubt, imPlan: new Map(), kurz: false, einsteiger: w.niveau === "beginner", variante: w.variante ?? 0,
+    wunsch, erlaubt, imPlan: new Map((w.zuletzt ?? []).map((id) => [id, 1])), kurz: false, einsteiger: w.niveau === "beginner", variante: w.variante ?? 0,
   });
   return einheit.positionen.length ? einheit : null;
 }
@@ -925,7 +957,7 @@ const MUSTER_PARTIE: Record<string, FokusGruppe> = {
   horizontal_push: "brust", incline_push: "brust", chest_isolation: "brust",
   vertical_push: "schultern", shoulder_isolation: "schultern",
   horizontal_pull: "ruecken", vertical_pull: "ruecken",
-  elbow_flexion: "arme", elbow_extension: "arme",
+  elbow_flexion: "bizeps", elbow_extension: "trizeps",
 };
 
 /**
@@ -954,5 +986,5 @@ export function wocheTrainiert(
 
 /** Was diese Woche noch fehlt, in der festen Reihenfolge der Partien. */
 export function fehlendePartien(trainiert: Partial<Record<FokusGruppe, number>>): FokusGruppe[] {
-  return (Object.keys(FOKUS_NAME) as FokusGruppe[]).filter((g) => !trainiert[g]);
+  return PARTIEN.filter((g) => !trainiert[g]);
 }

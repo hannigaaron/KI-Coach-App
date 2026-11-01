@@ -367,7 +367,7 @@ export function gewichtWeitergeben(entwurf, ui, si) {
  * `entwurfSpeicher` die laufende Einheit. `fertig` bekommt Titel und Minuten,
  * damit die App das Training in den Tag schreibt.
  */
-export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfSpeicher, heute, oeffne, melde, fertig, geaendert }) {
+export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfSpeicher, heute, oeffne, melde, fertig, geaendert, getauscht }) {
   const blatt = document.getElementById("trainingBlatt");
   const inhalt = document.getElementById("trainingInhalt");
   const fuss = document.getElementById("trainingFuss");
@@ -498,8 +498,10 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
     else if ((k = z("[data-tr-ersatz]"))) {
       const plan = planSpeicher.lesen();
       if (plan || entwurf.frei) {
+        const altId = entwurf.uebungen[entwurf.aktiv]?.id;
         const r = entwurfTauschen(entwurf, plan, entwurf.aktiv, k.dataset.trErsatz, logSpeicher.lesen());
         entwurf = r.entwurf;
+        if (entwurf.frei && altId && entwurf.uebungen[entwurf.aktiv]?.id !== altId) getauscht?.(entwurf.titel, altId, entwurf.uebungen[entwurf.aktiv].id);
         if (!entwurf.frei) { planSpeicher.schreiben(r.plan); geaendert?.(); }
         melde(`Ersetzt durch ${entwurf.uebungen[entwurf.aktiv].name}`);
       }

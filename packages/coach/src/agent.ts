@@ -62,7 +62,7 @@ export interface AgentActions {
    * macht sie im Chat startbar. Die Übungen kommen aus dem Rechenkern, nie aus
    * dem Modell.
    */
-  trainingHeute?(input: { gruppen: string[]; minuten?: number }): Promise<string>;
+  trainingHeute?(input: { gruppen: string[]; minuten?: number; neu?: boolean }): Promise<string>;
   essensplanAbrufen?(input: { inTagen?: number }): Promise<string>;
   standardsAbrufen(): Promise<string>;
   standardSetzen(input: {
@@ -873,10 +873,10 @@ async function execute(
       }
       case "training_heute": {
         const gruppen = Array.isArray(input.gruppen) ? input.gruppen.map(String) : [];
-        const minuten = Number.isFinite(Number(input.minuten)) ? clamp(Number(input.minuten), 20, 120) : 60;
+        const minuten = input.minuten != null && Number.isFinite(Number(input.minuten)) ? clamp(Number(input.minuten), 20, 120) : undefined;
         if (!actions.trainingHeute) return { text: "Das gibt es in dieser Fassung nicht.", fehler: true };
-        const text = await actions.trainingHeute({ gruppen, minuten });
-        const ok = !text.startsWith("NICHT_GESPEICHERT");
+        const text = await actions.trainingHeute({ gruppen, minuten, neu: input.neu === true });
+        const ok = !text.startsWith(NICHT_GESPEICHERT);
         return ok ? { text, notiz: "Training für heute bereit" } : { text, fehler: true };
       }
       case "trainingsplan_abrufen": {
@@ -1079,8 +1079,8 @@ function korrekturAus(text: string, nachricht: string): { posten?: string; neueM
 
 /** Welche Partien ein Wort meint. Push und Pull wie im Studio gemeint. */
 const PARTIE_WOERTER: Array<[RegExp, string[]]> = [
-  [/\bpush\b/, ["brust", "schultern", "arme"]],
-  [/\bpull\b/, ["ruecken", "arme"]],
+  [/\bpush\b/, ["brust", "schultern", "trizeps"]],
+  [/\bpull\b/, ["ruecken", "bizeps"]],
   [/\b(oberkoerper|upper|torso)\b/, ["brust", "ruecken", "schultern"]],
   [/\b(unterkoerper|lower)\b/, ["beine", "po"]],
   [/\b(ganzkoerper|full ?body)\b/, ["beine", "brust", "ruecken"]],
@@ -1089,7 +1089,9 @@ const PARTIE_WOERTER: Array<[RegExp, string[]]> = [
   [/\bbrust\w*\b/, ["brust"]],
   [/\b(ruecken\w*|lat)\b/, ["ruecken"]],
   [/\b(schulter\w*|delts?)\b/, ["schultern"]],
-  [/\b(arme?|bizeps|trizeps)\b/, ["arme"]],
+  [/\barme?\b/, ["bizeps", "trizeps"]],
+  [/\b(bizeps|biceps)\b/, ["bizeps"]],
+  [/\b(trizeps|triceps)\b/, ["trizeps"]],
   [/\b(core|bauch|rumpf)\b/, ["rumpf"]],
 ];
 
@@ -1098,7 +1100,7 @@ const PARTIE_WOERTER: Array<[RegExp, string[]]> = [
  * der Absicht und einer Partie, nie in der Vergangenheit: "war eben 60 min
  * Oberkörper" ist ein Eintrag und keine Bestellung.
  */
-export function trainingHeuteAus(text: string): { gruppen: string[]; minuten: number } | null {
+export function trainingHeuteAus(text: string): { gruppen: string[]; minuten?: number } | null {
   if (/\b(war|warst|hab|habe|hatte|gewesen|trainiert|gemacht)\b/.test(text)) return null;
   const absicht = /\b(trainiere|trainier|trainieren|stell mir|erstell|bau mir|plan mir|plane mir|mach mir|zusammenstellen|gleich ins|geh gleich|gehe gleich|will heute|moechte heute)\b/.test(text);
   const bezug = /\b(heute|gleich|jetzt|nachher|training|einheit|workout|gym|studio)\b/.test(text);
@@ -1108,8 +1110,8 @@ export function trainingHeuteAus(text: string): { gruppen: string[]; minuten: nu
   if (!gruppen.length) return null;
   const min = /(\d{2,3})\s*(min|minuten)\b/.exec(text);
   const std = /(\d(?:[.,]5)?)\s*(h|std|stunden?)\b/.exec(text);
-  const minuten = min ? Number(min[1]) : std ? Math.round(Number((std[1] ?? "1").replace(",", ".")) * 60) : 60;
-  return { gruppen, minuten: Math.max(20, Math.min(120, minuten)) };
+  const minuten = min ? Number(min[1]) : std ? Math.round(Number((std[1] ?? "1").replace(",", ".")) * 60) : undefined;
+  return { gruppen, minuten: minuten === undefined ? undefined : Math.max(20, Math.min(120, minuten)) };
 }
 
 /**
@@ -1374,10 +1376,13 @@ export async function runOffline(
   // Eine Einheit für heute bestellen: "heute trainiere ich Push, 60 Minuten",
   // "stell mir ein Beintraining zusammen". Vor der Frage nach dem Plan und vor
   // dem Eintragen, denn "Training" steht in allen dreien.
-  const heute = trainingHeuteAus(text);
+  // "Neue Übungen" nach einer Einheit für heute, auch als Knopf unter der
+  // Antwort. Kurz oder mit heute, sonst ist es eine Frage zum Wochenplan.
+  const neuWunsch = /\b(neue|andere)\s+uebungen\b/.test(text) && (text.split(/\s+/).length <= 6 || /\bheute\b/.test(text));
+  const heute = neuWunsch ? { ...(trainingHeuteAus(text) ?? { gruppen: [] }), neu: true } : trainingHeuteAus(text);
   if (heute && actions.trainingHeute) {
     const antwort = await actions.trainingHeute(heute);
-    const ok = !antwort.startsWith("NICHT_GESPEICHERT");
+    const ok = !antwort.startsWith(NICHT_GESPEICHERT);
     return { text: antwort, ausgeführt: ok ? [...ausgeführt, "Training für heute bereit"] : ausgeführt, source: "offline" };
   }
 

@@ -35,7 +35,7 @@ class SpeicherAttrappe {
 globalThis.localStorage = new SpeicherAttrappe();
 
 const { store, todayIso } = await import("./storage.js");
-const { buildActions, erinnerungenAufgeraeumt, dayNumbers, kalenderStandText, koerperText, plausibelHinweis, trifftPosten, nachtragZeit } = await import("./assistant.js");
+const { buildActions, heuteGetauscht, erinnerungenAufgeraeumt, dayNumbers, kalenderStandText, koerperText, plausibelHinweis, trifftPosten, nachtragZeit } = await import("./assistant.js");
 
 const PROFIL = {
   name: "Aaron", sex: "male", ageYears: 23, heightCm: 184, weightKg: 87,
@@ -717,4 +717,27 @@ test("einmalige Erinnerung wird angelegt, vorbei heisst abgelehnt und weggeräum
   const offen = erinnerungenAufgeraeumt();
   assert.ok(offen.some((e) => e.text === "Die Wäsche"));
   assert.ok(!offen.some((e) => e.id === "alt"));
+});
+
+test("Training für heute: dieselben Partien bringen dieselben Übungen samt Tausch, neu bringt andere", async () => {
+  const a = buildActions({});
+  const s0 = store.getSettings();
+  store.setSettings({ ...s0, heuteTraining: undefined, heuteVerlauf: [] });
+  await a.trainingHeute({ gruppen: ["brust", "schultern", "trizeps"], minuten: 60 });
+  const erst = store.getSettings().heuteTraining.einheit.positionen.map((p) => p.id);
+  // Getauscht im Training: die erste Übung gegen eine andere für dieselbe Bewegung.
+  heuteGetauscht(erst[0], "liegestuetz");
+  // Der Eintrag rückt einen Tag zurück, als wäre das letzte Woche gewesen.
+  const s = store.getSettings();
+  const gestern = { ...s.heuteVerlauf[0], tag: "2000-01-01" };
+  store.setSettings({ ...s, heuteTraining: undefined, heuteVerlauf: [gestern] });
+  const text = await a.trainingHeute({ gruppen: ["trizeps", "brust", "schultern"] });
+  assert.match(text, /Dieselben Übungen wie am/);
+  const wieder = store.getSettings().heuteTraining.einheit.positionen.map((p) => p.id);
+  assert.deepEqual(wieder, ["liegestuetz", ...erst.slice(1)]);
+  const neuText = await a.trainingHeute({ gruppen: [], neu: true });
+  assert.match(neuText, /Neue Übungen/);
+  const neu = store.getSettings().heuteTraining.einheit.positionen.map((p) => p.id);
+  assert.notDeepEqual(neu, wieder);
+  store.setSettings(s0);
 });

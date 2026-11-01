@@ -43,7 +43,7 @@ import {
   berichtFuer,
   berichtZeitraeume,
   aufgabeErledigen, todoistAktualisieren, todoistVerbunden,
-  erinnerungenAufgeraeumt,
+  erinnerungenAufgeraeumt, heuteGetauscht,
   vorausblickePlan,
   vorausblickFuer,
 } from "./assistant.js";
@@ -265,7 +265,10 @@ function renderTranscript() {
       // aus dem Gespräch. Nur heute: gestern gerechnet ist heute Geschichte.
       const ht = store.getSettings().heuteTraining;
       const startbar = m.ausgeführt?.includes("Training für heute bereit") && ht?.tag === todayIso();
-      const knopf = startbar ? `<button type="button" class="primary msg-aktion" data-heute-starten>Training starten</button>` : "";
+      const knopf = startbar
+        ? `<div class="msg-aktionen"><button type="button" class="primary" data-heute-starten>Training starten</button>` +
+          `<button type="button" class="ghost" data-heute-neu>Neue Übungen</button></div>`
+        : "";
       return `<div class="msg assistant">${markeSvg()}` +
         `<div class="msg-text">${bilder}${dateien}${escapeHtml(m.text)}${done}${knopf}</div></div>`;
     })
@@ -2912,6 +2915,8 @@ const training = trainingStarten({
     refreshAll();
   },
   geaendert: () => plaene.laden(),
+  // Getauscht im Training für heute gilt auch beim nächsten Mal mit denselben Partien.
+  getauscht: (titel, altId, neueId) => { if (titel === "Training für heute") heuteGetauscht(altId, neueId); },
 });
 const plaene = plaeneStarten({
   speicher: planSpeicher,
@@ -2948,6 +2953,9 @@ $("plOffen").hidden = !training.offen();
 // "Training starten" unter der Antwort des Coaches. Läuft die Einheit
 // schon, geht es dort weiter, statt die abgehakten Sätze zu verwerfen.
 $("transcript").addEventListener("click", (ev) => {
+  // "Neue Übungen" geht als Satz an den Coach, damit es im Gespräch steht
+  // und derselbe Weg rechnet wie beim Tippen.
+  if (ev.target.closest("[data-heute-neu]")) { send("Neue Übungen für heute"); return; }
   if (!ev.target.closest("[data-heute-starten]")) return;
   const ht = store.getSettings().heuteTraining;
   if (!ht?.einheit || ht.tag !== todayIso()) { toast("Diese Einheit war für einen anderen Tag. Sag mir, was du heute trainierst."); return; }

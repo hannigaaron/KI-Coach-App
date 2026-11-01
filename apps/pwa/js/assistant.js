@@ -3265,20 +3265,27 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       return essensplanTagText(tag) + (plan.hinweise.length ? `\n${plan.hinweise.join(" ")}` : "");
     },
 
-    async trainingHeute({ gruppen = [], minuten = 60 } = {}) {
+    async trainingHeute({ gruppen = [], minuten, neu = false } = {}) {
       const tag = todayIso();
       const morgens = (store.getDay(tag).checkins || []).filter((c) => c.kind === "morning" && c.morgen).pop();
       if (morgens?.trainingGestrichen) {
         return `${NICHT_GESPEICHERT} Heute ist das Training nach der Nachfrage am Mittag gestrichen. Fühlst du dich besser, beantworte unter Check-ins die Nachfrage neu, dann rechne ich dir die Einheit.`;
       }
-      const partien = [...new Set(gruppen.map(String))].filter((g) => FOKUS_NAME[g]);
+      const s = store.getSettings();
+      const jetzt = s.heuteTraining?.tag === tag ? s.heuteTraining : null;
+      // "Neue Übungen" ohne Partien meint die Einheit von heute.
+      let partien = [...new Set(gruppen.map(String).flatMap((g) => (g === "arme" ? ["bizeps", "trizeps"] : [g])))].filter((g) => FOKUS_NAME[g]);
+      if (!partien.length && neu && jetzt) partien = jetzt.gruppen;
       if (!partien.length) return `${NICHT_GESPEICHERT} Welche Partien willst du heute trainieren? Etwa Push, Pull, Beine oder Oberkörper.`;
-      const min = Math.max(20, Math.min(120, Math.round(Number(minuten) || 60)));
+      const schluessel = [...partien].sort().join("+");
+      const verlauf = Array.isArray(s.heuteVerlauf) ? s.heuteVerlauf : [];
+      const frueher = [...verlauf].reverse().find((v) => v.schluessel === schluessel && v.tag <= tag);
+      const min = Math.max(20, Math.min(120, Math.round(Number(minuten ?? (neu ? jetzt?.minuten : frueher?.minuten) ?? 60) || 60)));
       // Erfahrung, Ort, Beschwerden und Fokus kommen aus dem gespeicherten
       // Plan. Ohne Plan gelten dieselben Vorgaben wie in der Planansicht.
-      const w = store.getSettings().plan?.wunsch || {};
+      const w = s.plan?.wunsch || {};
       const NIVEAUS = ["beginner", "intermediate", "advanced"];
-      const einheit = einzeltrainingBauen({
+      const bauen = (variante, zuletzt = []) => einzeltrainingBauen({
         minuten: min, gruppen: partien,
         niveau: NIVEAUS.includes(w.niveau) ? w.niveau : "intermediate",
         ziel: typeof w.ziel === "string" ? w.ziel : "muskel",
@@ -3286,13 +3293,54 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
         beschwerden: Array.isArray(w.beschwerden) ? w.beschwerden : [],
         meiden: Array.isArray(w.meiden) ? w.meiden : [],
         fokus: Array.isArray(w.fokus) ? w.fokus : [],
-        variante: 0,
+        variante, zuletzt,
       }, UEBUNGEN);
+      // Dieselben Partien wie schon einmal heisst dieselben Übungen, mit den
+      // Tauschen von damals. Fortschritt lässt sich nur an Übungen ablesen,
+      // die man wiederholt, und wer jede Woche neue nimmt, fängt jede Woche
+      // bei den Gewichten von vorn an. Eine Regel von Coach Aaron. Gestützt
+      // auf Kassiano und andere, J Strength Cond Res 2022: Abwechslung bringt
+      // für Muskelaufbau nicht mehr, zu viel davon kann ihn bremsen.
+      let variante = 0;
+      let ersetzt = {};
+      let wiederholt = false;
+      if (neu) variante = ((jetzt?.schluessel === schluessel ? jetzt.variante : frueher?.variante) ?? 0) + 1;
+      else if (frueher) {
+        variante = frueher.variante ?? 0; ersetzt = frueher.ersetzt ?? {}; wiederholt = true;
+        // Die Reihenfolge der Partien entscheidet mit, welche Übung welchen
+        // Platz bekommt. "Trizeps, Brust" muss dieselbe Einheit ergeben wie
+        // "Brust, Trizeps".
+        partien = frueher.gruppen;
+      }
+      // Gleiche Dauer heisst genau die Einheit von damals, auch wenn sich die
+      // Datenbank seitdem geändert hat. Erst bei anderer Dauer wird gerechnet.
+      const damals = wiederholt && Math.abs((frueher.minuten ?? 0) - min) <= 10 && frueher.einheit?.positionen?.length ? frueher.einheit : null;
+      // Neue Übungen heisst: was zuletzt dran war, steht hinten an.
+      const vorher = neu ? ((jetzt?.schluessel === schluessel ? jetzt : frueher)?.einheit?.positionen ?? []).map((p) => p.id) : [];
+      let einheit = damals ?? bauen(variante, vorher);
+      if (!einheit && variante > 0) { variante = 0; einheit = bauen(0); }
       if (!einheit) return `${NICHT_GESPEICHERT} Für diese Partien findet die App mit deinen Beschwerden und deinem Ort keine passende Übung.`;
-      store.setSettings({ ...store.getSettings(), heuteTraining: { tag, gruppen: partien, minuten: min, einheit, erstellt: new Date().toISOString() } });
+      const nachId = new Map(UEBUNGEN.map((u) => [u.id, u]));
+      if (!damals) einheit = {
+        ...einheit,
+        positionen: einheit.positionen.map((p) => {
+          const u = nachId.get(ersetzt[p.id]);
+          return u ? { ...p, id: u.id, name: u.name } : p;
+        }),
+      };
+      const eintrag = { tag, schluessel, gruppen: partien, minuten: min, variante, ersetzt, einheit, erstellt: new Date().toISOString() };
+      const ohneHeute = verlauf.filter((v) => !(v.schluessel === schluessel && v.tag === tag));
+      store.setSettings({ ...store.getSettings(), heuteTraining: eintrag, heuteVerlauf: [...ohneHeute, eintrag].slice(-20) });
       changed();
-      const log = Array.isArray(store.getSettings().trainingslog) ? store.getSettings().trainingslog : [];
-      const zeilen = [`Training für heute steht: ${einheit.fokus}, etwa ${einheit.dauerMin} Minuten. Tipp auf "Training starten", dann läuft es im Trainingsmodus.`];
+      const log = Array.isArray(s.trainingslog) ? s.trainingslog : [];
+      const zeilen = [];
+      if (wiederholt && frueher.tag < tag) {
+        const wann = new Date(`${frueher.tag}T12:00:00`).toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" });
+        zeilen.push(`Dieselben Übungen wie am ${wann}. Bleib dabei, solange du dich steigerst: Fortschritt siehst du nur an Übungen, die du wiederholst. Willst du trotzdem andere, tipp auf "Neue Übungen".`);
+      } else if (neu) {
+        zeilen.push("Neue Übungen für dieselben Partien. Nimm sie die nächsten Male wieder, dann siehst du, ob du stärker wirst.");
+      }
+      zeilen.push(`Training für heute steht: ${einheit.fokus}, etwa ${einheit.dauerMin} Minuten. Tipp auf "Training starten", dann läuft es im Trainingsmodus. Jede Übung lässt sich dort über die drei Punkte tauschen.`);
       for (const p of einheit.positionen) {
         const st = steigerung(letzteEinheit(log, p.id, tag), p.wdh, p.reserve);
         zeilen.push(`- ${p.name}: ${p.saetze} x ${p.wdh}, ${p.reserve} in Reserve${st ? `. ${st.text}` : ""}`);
@@ -3744,4 +3792,20 @@ export function erinnerungenAufgeraeumt(jetzt = { tag: todayIso(), uhrzeit: nowT
   const offen = alle.filter((e) => !erinnerungVorbei(e, jetzt));
   if (offen.length !== alle.length) store.setSettings({ ...s, eigeneErinnerungen: offen });
   return offen;
+}
+
+/** Ein Tausch im Training für heute gilt auch beim nächsten Mal mit denselben Partien. */
+export function heuteGetauscht(altId, neueId) {
+  const s = store.getSettings();
+  const ht = s.heuteTraining;
+  const u = UEBUNGEN.find((x) => x.id === neueId);
+  if (!ht?.einheit || ht.tag !== todayIso() || !u) return;
+  // Kennung der ursprünglich gerechneten Übung, damit ein zweiter Tausch
+  // denselben Platz trifft und nicht ins Leere zeigt.
+  const ursprung = Object.entries(ht.ersetzt ?? {}).find(([, v]) => v === altId)?.[0] ?? altId;
+  const ersetzt = { ...(ht.ersetzt ?? {}), [ursprung]: neueId };
+  const einheit = { ...ht.einheit, positionen: ht.einheit.positionen.map((p) => (p.id === altId ? { ...p, id: u.id, name: u.name } : p)) };
+  const neu = { ...ht, ersetzt, einheit };
+  const verlauf = (Array.isArray(s.heuteVerlauf) ? s.heuteVerlauf : []).map((v) => (v.tag === ht.tag && v.schluessel === ht.schluessel ? neu : v));
+  store.setSettings({ ...s, heuteTraining: neu, heuteVerlauf: verlauf });
 }

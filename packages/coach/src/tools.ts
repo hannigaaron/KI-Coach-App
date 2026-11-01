@@ -792,18 +792,21 @@ export const AGENT_TOOLS: ToolDefinition[] = [
       "Trainingsplan, speichert sie und zeigt im Chat einen Knopf zum Starten. Nehmen, sobald der Nutzer sagt, was " +
       "er heute trainieren will, etwa \"heute Push, 60 Minuten\" oder \"stell mir ein Beintraining zusammen\". " +
       "Übungen, Sätze und Wiederholungen nie selbst schreiben, sie kommen aus diesem Werkzeug. Push ist Brust, " +
-      "Schultern, Arme, Pull ist Rücken und Arme.",
+      "Schultern, Trizeps, Pull ist Rücken und Bizeps, Arme sind Bizeps und Trizeps. Gab es dieselben Partien schon " +
+      "einmal, nimmt das Werkzeug dieselben Übungen wie letztes Mal und empfiehlt das. neu nur, wenn der Nutzer " +
+      "ausdrücklich neue Übungen will.",
     input_schema: {
       type: "object",
       properties: {
         gruppen: {
           type: "array",
-          items: { type: "string", enum: ["beine", "po", "brust", "ruecken", "schultern", "arme", "rumpf"] },
+          items: { type: "string", enum: ["beine", "po", "brust", "ruecken", "schultern", "bizeps", "trizeps", "rumpf"] },
           description: "Die Partien der Einheit.",
         },
         minuten: { type: "number", description: "Dauer in Minuten, 20 bis 120. Ohne Angabe 60." },
+        neu: { type: "boolean", description: "true, wenn der Nutzer andere Übungen als letztes Mal will. Ohne Partien gilt die Einheit von heute." },
       },
-      required: ["gruppen"],
+      required: [],
     },
   },
   {

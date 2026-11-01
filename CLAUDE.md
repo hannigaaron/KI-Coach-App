@@ -411,11 +411,33 @@ starten" und öffnet den Trainingsmodus, eine laufende Einheit wird dort
 fortgesetzt statt verworfen. Die Ansicht Trainingspläne zeigt unter
 Training für heute dieselben Partien und Minuten.
 
-Push heisst Brust, Schultern, Arme, Pull Rücken und Arme, Oberkörper Brust,
-Rücken, Schultern, Unterkörper Beine und Po. Ohne Minuten 60. Die Persona
-verbietet, Übungen selbst aufzuschreiben. Erkannt wird nur mit einem Wort
-der Absicht und nie in der Vergangenheit: "war eben 60 min Oberkörper" ist
-ein Eintrag. Am gestrichenen Tag wird nichts gerechnet.
+Push heisst Brust, Schultern, Trizeps, Pull Rücken und Bizeps, Arme Bizeps
+und Trizeps, Oberkörper Brust, Rücken, Schultern, Unterkörper Beine und Po.
+Bizeps und Trizeps sind eigene Partien, `PARTIEN` im Kern. Vorher stand an
+einem Push Tag ein Curl zwischen den Drückübungen. Im Fokus des Wochenplans
+bleibt Arme eine Wahl, `FOKUS_PARTIEN`. Die hintere Schulter ist ein Zug:
+am Drücktag fällt sie weg, am Zugtag kommt sie dazu. Im zweiten Durchgang
+von `einzeltrainingBauen` kommt je Partie nur der Hauptplatz, kleine
+Partien zuerst, und eine Fokuspartie wird nicht ein zweites Mal Zusatzplatz:
+vorher standen zwei Flys und zweimal Seitheben in einer Einheit.
+
+Ohne Minuten 60. Die Persona verbietet, Übungen selbst aufzuschreiben.
+Erkannt wird nur mit einem Wort der Absicht und nie in der Vergangenheit:
+"war eben 60 min Oberkörper" ist ein Eintrag. Am gestrichenen Tag wird
+nichts gerechnet.
+
+Dieselben Partien wie schon einmal bringen dieselben Übungen, aus
+`settings.heuteVerlauf`, die letzten 20. Die Antwort sagt das und
+empfiehlt es: Fortschritt zeigt sich nur an Übungen, die man wiederholt.
+Eine Regel von Coach Aaron, gestützt auf Kassiano und andere, J Strength
+Cond Res 2022: Abwechslung bringt für den Muskelaufbau nicht mehr. Bei
+gleicher Dauer, bis 10 Minuten Abstand, kommt genau die Einheit von damals,
+sonst wird mit Variante und Tauschen von damals neu gerechnet, in der
+Reihenfolge der Partien von damals. Ein Tausch im Trainingsmodus gilt über
+`heuteGetauscht` auch beim nächsten Mal. Unter der Antwort steht neben
+"Training starten" der Knopf "Neue Übungen". Er schickt den Satz an den
+Coach, und die Übungen vom letzten Mal stehen dann hinten an, `zuletzt` im
+`EinzelWunsch`: nur die Variante zu erhöhen tauschte zwei von sieben.
 
 ### Schweres Heben und Beugen nie am selben Tag
 
@@ -563,7 +585,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1282 Tests
+npm test           # 1285 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages

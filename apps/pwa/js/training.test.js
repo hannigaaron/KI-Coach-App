@@ -255,3 +255,14 @@ test("Steigerung übernehmen setzt nur offene Sätze", async () => {
   const ohne = steigerungUebernehmen(entwurf, 0, { art: "wdh", kg: null, wdh: 11, text: "" });
   assert.deepEqual(ohne.uebungen[0].saetze[1], { kg: 80, wdh: 11, rir: 2, fertig: false });
 });
+
+test("Push ohne Curl und hintere Schulter, Pull mit hinterer Schulter und ohne Trizeps", () => {
+  const W = { minuten: 75, niveau: "advanced", ziel: "muskel", ort: "studio", beschwerden: [], meiden: [], fokus: [] };
+  const muster = (e) => e.positionen.map((p) => UEBUNGEN.find((u) => u.id === p.id).pattern);
+  const push = einzeltrainingBauen({ ...W, gruppen: ["brust", "schultern", "trizeps"] }, UEBUNGEN);
+  const pull = einzeltrainingBauen({ ...W, gruppen: ["ruecken", "bizeps"] }, UEBUNGEN);
+  assert.ok(!muster(push).includes("elbow_flexion"), muster(push).join(","));
+  assert.ok(!push.positionen.some((p) => p.id === "face-pull"), push.positionen.map((p) => p.id).join(","));
+  assert.ok(!muster(pull).includes("elbow_extension"), muster(pull).join(","));
+  assert.ok(pull.positionen.some((p) => UEBUNGEN.find((u) => u.id === p.id).primaryMuscles.some((m) => /hintere Schulter/.test(m)) || p.id === "face-pull"));
+});
