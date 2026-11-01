@@ -1234,6 +1234,10 @@ logarithmisch und geglättet, im Browser auf iOS auf der erzeugten Welle. Die
 Knöpfe Diktieren bei Essen und Kopf leeren hören genauso bis zum zweiten
 Druck und heissen solange "Fertig", `diktatKnopf`.
 
+Die Erklärung "Sprich in Ruhe, Pausen sind in Ordnung" steht nur beim
+allerersten Diktat, `diktatErklaert` in den Einstellungen. Ein Satz, der bei
+jeder Aufnahme dasteht, wird zur Tapete und liest niemand mehr.
+
 ## Das Mikrofon, das nur einmal ging
 
 Auf iOS teilen sich Spracherkennung und `getUserMedia` dasselbe Mikrofon, und

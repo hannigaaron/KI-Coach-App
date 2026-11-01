@@ -753,7 +753,11 @@ function setupAssistant() {
             : "Sag Hey daevo, dann deine Frage.";
         } else {
           setStatus("hört zu");
-          $("orbHint").textContent = "Sprich in Ruhe, Pausen sind in Ordnung. Senden schickt ab, das Viereck hält an zum Bearbeiten.";
+          // Die Erklärung nur beim allerersten Diktat. Danach weiss man es,
+          // und ein Satz, der jedes Mal dasteht, wird zur Tapete.
+          $("orbHint").textContent = diktatErstesMal()
+            ? "Sprich in Ruhe, Pausen sind in Ordnung. Senden schickt ab, das Viereck hält an zum Bearbeiten."
+            : "";
         }
         $("btnMic").classList.add("hoert");
       }
@@ -3359,6 +3363,14 @@ $("erfassenBlatt").addEventListener("click", (event) => {
   }
 });
 
+/** Ob heute zum ersten Mal überhaupt diktiert wird. Merkt es sich sofort. */
+function diktatErstesMal() {
+  const settings = store.getSettings();
+  if (settings.diktatErklaert) return false;
+  store.setSettings({ ...settings, diktatErklaert: true });
+  return true;
+}
+
 /**
  * Ein Knopf zum Diktieren in ein Feld. Er hört zu, bis er noch einmal
  * gedrückt wird, und heisst solange "Fertig". Pausen beenden nichts: wer
@@ -3386,7 +3398,7 @@ function diktatKnopf(knopfId, feldId, hinweis) {
       },
     });
     laufend.start();
-    toast(hinweis);
+    if (diktatErstesMal()) toast(hinweis);
   });
 }
 diktatKnopf("btnVoice", "mealText", "Sprich in Ruhe. Tipp auf Fertig, wenn du durch bist.");
