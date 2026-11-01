@@ -13,7 +13,7 @@ class SpeicherAttrappe {
 globalThis.localStorage = new SpeicherAttrappe();
 
 const { store } = await import("./storage.js");
-const { kalenderTermin, kalenderAenderungen } = await import("./kalender-schreiben.js");
+const { kalenderTermin, kalenderAenderungen, kalenderWahlText } = await import("./kalender-schreiben.js");
 
 /** Morgen, Ortszeit, um hh:mm. */
 const morgen = (hhmm, plusTage = 1) => {
@@ -150,4 +150,17 @@ test("eine geänderte Einheit im Profil nimmt die eigenen Termine mit", async ()
   assert.equal(v.daten.eid, "em");
   assert.equal(v.daten.von, di.getTime());
   assert.equal(v.daten.bis - v.daten.von, 75 * 60000);
+});
+
+test("der gewählte Kalender geht beim Eintragen mit", async () => {
+  lage([]);
+  store.setSettings({ ...store.getSettings(), zielKalender: "google-haupt" });
+  const tag = new Date(morgen("12:00")); const iso = `${tag.getFullYear()}-${String(tag.getMonth() + 1).padStart(2, "0")}-${String(tag.getDate()).padStart(2, "0")}`;
+  await kalenderTermin({ aktion: "eintragen", tag: iso, uhrzeit: "07:30", titel: "Training" });
+  assert.equal(aufrufe.find((a) => a.methode === "anlegen").daten.kalender, "google-haupt");
+});
+
+test("die Auswahl nennt Art und Kalender", () => {
+  assert.equal(kalenderWahlText({ art: "google", titel: "aaron@example.com", quelle: "Gmail" }), "Google, aaron@example.com");
+  assert.equal(kalenderWahlText({ art: "icloud", titel: "Privat", quelle: "iCloud" }), "iCloud, Privat");
 });

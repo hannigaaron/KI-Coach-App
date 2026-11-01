@@ -585,7 +585,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1290 Tests
+npm test           # 1292 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -667,6 +667,18 @@ zwei Kundentermine übereinander legt es nicht still an. Beide Bewegungen
 tragen dieselbe `gruppe` und kommen mit einem Satz zusammen zurück. Beides prüft das Plugin selbst noch
 einmal, damit ein Fehler im Modell keinen Kundentermin verschiebt.
 Wiederkehrende Termine werden nur in diesem einen Vorkommen geändert.
+
+In welchen Kalender geschrieben wird, entscheidet `zielKalender` im Plugin.
+Vorher immer der Standardkalender von iOS, und der steht ab Werk auf
+iCloud: im Betrieb stand das Training im Apple Kalender, den der Nutzer nie
+ansieht, und im Google Kalender fehlte es. Jetzt gilt eine eigene Wahl aus
+`settings.zielKalender`, auf der Kalenderseite unter "daevo trägt ein in",
+`schreibKalender` im Plugin. Ohne Wahl der Standard, wenn er Google oder
+Outlook ist, sonst der Google Hauptkalender, der wie die Adresse heisst,
+dann Outlook, dann der Standard. Google muss dafür unter Einstellungen,
+Apps, Kalender, Accounts stehen: EventKit schreibt nur in Kalender, die iOS
+kennt, und iOS gleicht sie selbst mit Google ab. Termine, die schon im
+falschen Kalender stehen, bleiben dort.
 
 Eintragen mit fester Uhrzeit schreibt nur, wenn die Zeit frei ist, sonst
 kommt ein Vorschlag. Steht das Training nicht im Kalender, kommen Dauer

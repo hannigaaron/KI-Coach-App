@@ -77,6 +77,30 @@ function dauerAusProfil(profile) {
   return kraft ? { minuten: kraft.minutes, uhrzeit: kraft.startsAt, art: kraft.type } : null;
 }
 
+/** Der Kalender, den der Nutzer auf der Kalenderseite gewählt hat. Leer heisst: das Plugin wählt, Google vor iCloud. */
+export function zielKalenderId(settings = store.getSettings()) {
+  return typeof settings.zielKalender === "string" ? settings.zielKalender : "";
+}
+
+/** Die Kalender, in die daevo schreiben darf, mit dem, in den es gerade schreibt. Ohne Hülle leer. */
+export async function schreibKalender() {
+  if (!kannSchreiben()) return [];
+  try {
+    const r = await nativAufruf("Kalender", "schreibKalender", { kalender: zielKalenderId() });
+    return Array.isArray(r?.kalender) ? r.kalender : [];
+  } catch {
+    return [];
+  }
+}
+
+const ART_NAME = { google: "Google", icloud: "iCloud", outlook: "Outlook", lokal: "Auf dem iPhone", andere: "Kalender" };
+
+/** Eine Zeile je Kalender für die Auswahl: "Google, aaron@…". */
+export function kalenderWahlText(k) {
+  const art = ART_NAME[k.art] || "Kalender";
+  return k.titel && k.titel !== k.quelle ? `${art}, ${k.titel}` : `${art}, ${k.quelle || k.titel}`;
+}
+
 function kannSchreiben() {
   return istNativ() && store.getSettings().appleKalender === true;
 }
@@ -226,7 +250,7 @@ export async function kalenderTermin(auftrag = {}, { jetzt = Date.now() } = {}) 
   }
 
   try {
-    const r = await nativAufruf("Kalender", "anlegen", { titel, von: platz.von, bis: platz.bis });
+    const r = await nativAufruf("Kalender", "anlegen", { titel, von: platz.von, bis: platz.bis, kalender: zielKalenderId() });
     merken({ art: "angelegt", eid: r?.eid || "", titel, nachher: { von: platz.von, bis: platz.bis }, gruppe: gruppeNeu() });
     await neuLesen();
     return `Eingetragen: „${titel}“ am ${platzText(platz)}${r?.kalender ? ` im Kalender ${r.kalender}` : ""}.${uebernommen} ${RUECKNAHME}`;
@@ -336,7 +360,7 @@ export async function erinnerungEintragen({ text, datum, uhrzeit }) {
   const von = tagBeginn(datum) + (Number(uhrzeit.slice(0, 2)) * 60 + Number(uhrzeit.slice(3, 5))) * 60000;
   try {
     const r = await nativAufruf("Kalender", "anlegen", {
-      titel: `Erinnerung: ${text}`, von, bis: von + 15 * 60000, notiz: "Erinnerung von daevo.",
+      titel: `Erinnerung: ${text}`, von, bis: von + 15 * 60000, notiz: "Erinnerung von daevo.", kalender: zielKalenderId(),
     });
     await neuLesen();
     return { eid: r?.eid || "", von, kalender: r?.kalender || "" };

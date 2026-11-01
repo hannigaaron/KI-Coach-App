@@ -2953,6 +2953,11 @@ const plaene = plaeneStarten({
 $("plOffen").hidden = !training.offen();
 // "Training starten" unter der Antwort des Coaches. Läuft die Einheit
 // schon, geht es dort weiter, statt die abgehakten Sätze zu verwerfen.
+$("kalZiel").addEventListener("change", (ev) => {
+  store.setSettings({ ...store.getSettings(), zielKalender: ev.target.value });
+  toast(`daevo trägt ab jetzt in ${ev.target.selectedOptions[0]?.textContent || "diesen Kalender"} ein.`);
+});
+
 $("transcript").addEventListener("click", (ev) => {
   // "Neue Übungen" geht als Satz an den Coach, damit es im Gespräch steht
   // und derselbe Weg rechnet wie beim Tippen.
@@ -3944,6 +3949,22 @@ const KALENDER_ANLEITUNG = [
   "Nichts davon geht an einen Server. Die Datei wird im Browser gelesen und nur die Termine bleiben liegen.",
 ].join(" ");
 
+/**
+ * Wohin daevo Trainings und Erinnerungen schreibt. Vorher immer der
+ * Standardkalender von iOS, und der steht ab Werk auf iCloud: das Training
+ * stand im Apple Kalender, im Google Kalender des Nutzers fehlte es. Jetzt
+ * wählt das Plugin Google vor iCloud, und hier lässt es sich festlegen.
+ */
+async function zielKalenderZeigen() {
+  const { schreibKalender, kalenderWahlText } = await import("./kalender-schreiben.js");
+  const liste = await schreibKalender();
+  $("kalZielFeld").hidden = liste.length < 2;
+  if (liste.length < 2) return;
+  $("kalZiel").innerHTML = liste
+    .map((k) => `<option value="${escapeHtml(k.id)}"${k.ziel ? " selected" : ""}>${escapeHtml(kalenderWahlText(k))}</option>`)
+    .join("");
+}
+
 function renderKalender() {
   renderTodoist();
   $("kalTag").value = kalenderTag;
@@ -3951,6 +3972,7 @@ function renderKalender() {
   const sync = store.getSettings();
   $("btnAppleKalender").hidden = Boolean(sync.appleKalender);
   $("kalKonten").textContent = sync.appleKalender ? kontenText(sync.kalenderKonten) : "";
+  zielKalenderZeigen();
   $("btnKalAbgleich").hidden = !(sync.appleKalender || kalenderAbos(sync).length);
 
   const stand = kalenderStand();
