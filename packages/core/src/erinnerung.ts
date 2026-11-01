@@ -286,7 +286,7 @@ function einmaligAus(roh: string, text: string, jetzt: { tag: string; uhrzeit: s
 const ZAHLWORTE: Record<string, number> = { eine: 1, einer: 1, ein: 1, zwei: 2, drei: 3, halbe: 0.5 };
 
 /** Der Teil "eine Stunde vor dem Schlafengehen" im Original, zum Herausschneiden. */
-const RELATIV_ROH = /,?\s*((eine?r?|zwei|drei|eine halbe|\d{1,3})\s+(stunden?|std|minuten|min)\s+)?(vor|nach)\s+(dem\s+)?(schlafen(gehen)?|zubettgehen|insbettgehen|ins bett gehen|aufstehen|aufwachen)\b/gi;
+const RELATIV_ROH = /,?\s*((eine?r?|zwei|drei|eine halbe|\d{1,3})\s+(stunden?|std|minuten|min)\s+)?((vor|nach)\s+(dem\s+|der\s+|meiner\s+)?(schlafen(gehen)?|schlafenszeit|zubettgehen|insbettgehen|ins bett gehen|bett|aufstehen|aufwachen)|bevor ich (schlafen|ins bett) gehe)\b/gi;
 
 /**
  * "eine Stunde vor dem Schlafengehen", "30 Minuten nach dem Aufstehen",
@@ -294,7 +294,9 @@ const RELATIV_ROH = /,?\s*((eine?r?|zwei|drei|eine halbe|\d{1,3})\s+(stunden?|st
  * Schlafen" heisst dann zur Schlafenszeit, nicht eine geratene halbe Stunde.
  */
 function relativAus(text: string): { bezug: "schlafen" | "aufstehen"; versatz: number } | null {
-  const m = /\b(?:((?:eine halbe)|eine?r?|zwei|drei|\d{1,3})\s+(stunden?|std|minuten|min)\s+)?(vor|nach)\s+(?:dem\s+)?(schlafen(?:gehen)?|zubettgehen|insbettgehen|ins bett gehen|aufstehen|aufwachen)\b/.exec(text);
+  // "bevor ich schlafen gehe" heisst dasselbe wie "vor dem Schlafen".
+  const t = text.replace(/\bbevor ich (schlafen|ins bett) gehe\b/g, "vor dem schlafen");
+  const m = /\b(?:((?:eine halbe)|eine?r?|zwei|drei|\d{1,3})\s+(stunden?|std|minuten|min)\s+)?(vor|nach)\s+(?:dem\s+|der\s+|meiner\s+)?(schlafen(?:gehen)?|schlafenszeit|zubettgehen|insbettgehen|ins bett gehen|bett|aufstehen|aufwachen)\b/.exec(t);
   if (!m) return null;
   const bezug = /aufsteh|aufwach/.test(m[4] ?? "") ? "aufstehen" : "schlafen";
   let minuten = 0;

@@ -165,6 +165,24 @@ export function istSchlafMarker(titel: string): boolean {
   return /^(sleep|schlaf|schlafen|schlafenszeit|bett|bettzeit|ins bett|nachtruhe|bedtime)$/.test(kern);
 }
 
+/**
+ * Die Schlafenszeit eines Abends aus dem Kalender, wenn dort ein Eintrag wie
+ * "SLEEP" steht. Wer sie so plant, plant sie je Tag, und eine Erinnerung
+ * "eine Stunde vor dem Schlafen" soll dann an genau diesem Abend kommen und
+ * nicht zur Zeit aus dem Profil. Gezählt wird ein Beginn zwischen 15 Uhr und
+ * 5 Uhr früh danach, denn eine Nacht beginnt auch nach Mitternacht.
+ */
+export function schlafenszeitAusKalender(termine: { titel: string; von: number; ganztags?: boolean }[], tagIso: string): string | null {
+  const von = new Date(`${tagIso}T15:00:00`).getTime();
+  const bis = von + 14 * 3600_000;
+  const treffer = (termine ?? [])
+    .filter((t) => !t.ganztags && istSchlafMarker(t.titel) && t.von >= von && t.von < bis)
+    .sort((a, b) => a.von - b.von)[0];
+  if (!treffer) return null;
+  const d = new Date(treffer.von);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
 function zeitAmTag(tagIso: string, hhmm: string): number {
   const [h, m] = (hhmm || "00:00").split(":");
   return new Date(`${tagIso}T00:00:00`).getTime() + (Number(h) * 60 + Number(m)) * 60000;

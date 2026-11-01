@@ -608,7 +608,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1294 Tests
+npm test           # 1296 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -3522,6 +3522,15 @@ ein Text, eine feste Uhrzeit oder ein Bezug auf den eigenen Tag, und die
 Wochentage, 1 Montag bis 7 Sonntag, leer heisst täglich. "Eine Stunde vor
 dem Schlafen" hängt an `tagesrandFuer` und wandert je Tag mit, auch am
 Wochenende mit späterer Schlafenszeit.
+
+Steht abends ein Eintrag wie SLEEP im Kalender, gilt sein Beginn als
+Schlafenszeit dieses Tages, `schlafenszeitAusKalender` im Kern und
+`randMitKalender` in `mitteilungen.js`, auch für das Runterfahren. Ein Beginn
+zwischen 15 Uhr und 5 Uhr früh danach zählt zu diesem Abend. Nur eine für
+genau diesen Tag gesagte Schlafenszeit wiegt mehr. Nach jedem Abgleich des
+Kalenders wird neu geplant. Erkannt werden auch "vor Schlafenszeit" und
+"bevor ich schlafen gehe". Eine wiederkehrende Erinnerung mit demselben
+Text ersetzt die alte und sagt das, vorher kamen dann beide.
 
 Der Regelpfad nimmt nur, was eindeutig ist: "erinnere" und eine echte
 Uhrzeit oder ein Bezug. "Erinnere mich später" bekommt eine Rückfrage, keine

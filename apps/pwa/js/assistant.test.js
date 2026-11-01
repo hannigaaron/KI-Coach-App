@@ -719,6 +719,17 @@ test("einmalige Erinnerung wird angelegt, vorbei heisst abgelehnt und weggeräum
   assert.ok(!offen.some((e) => e.id === "alt"));
 });
 
+test("eine wiederkehrende Erinnerung mit gleichem Text ersetzt die alte, statt doppelt zu kommen", async () => {
+  const aktionen = buildActions({});
+  const s = store.getSettings();
+  store.setSettings({ ...s, eigeneErinnerungen: [{ id: "fest", text: "Schlaf Supplements", uhrzeit: "21:54", tage: [] }] });
+  const antwort = await aktionen.erinnerungAnlegen({ text: "meine Schlaf Supplements", bezug: "schlafen", versatz: -60, tage: [] });
+  assert.match(antwort, /^Erinnerung angelegt: Schlaf Supplements, täglich, 1 Stunde vor dem Schlafen\. Die bisherige \(täglich, 21:54\) ist ersetzt\./);
+  const liste = store.getSettings().eigeneErinnerungen.filter((e) => /supplements/i.test(e.text));
+  assert.equal(liste.length, 1);
+  assert.equal(liste[0].bezug, "schlafen");
+});
+
 test("Training für heute: dieselben Partien bringen dieselben Übungen samt Tausch, neu bringt andere", async () => {
   const a = buildActions({});
   const s0 = store.getSettings();

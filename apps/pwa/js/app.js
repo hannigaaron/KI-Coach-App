@@ -4348,7 +4348,12 @@ async function kalenderStill() {
   if (!s.appleKalender && !kalenderAbos(s).length) return;
   try {
     const r = await kalenderAbgleichen();
-    if (!r.uebersprungen && r.ergebnisse.some((e) => e.anzahl !== undefined)) refreshAll();
+    if (!r.uebersprungen && r.ergebnisse.some((e) => e.anzahl !== undefined)) {
+      refreshAll();
+      // Ein SLEEP Eintrag im Kalender verschiebt die Erinnerungen vor dem
+      // Schlafen. Ohne neues Planen kämen sie zur Zeit von vor dem Abgleich.
+      mitteilungenNativ();
+    }
   } catch {
     // Ohne Netz bleibt der letzte Stand. Der Kalender sagt im Profil, von wann er ist.
   }

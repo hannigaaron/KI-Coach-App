@@ -13,7 +13,20 @@
  *
  * Kein `document`, kein `window`: das Modul läuft auch in den Tests.
  */
-import { LUECKE_UHRZEIT, NACHFRAGE_UHRZEIT, erinnerungAmTag, erinnerungUhrzeit, impulseFuerTag, morgenUhrzeit, nachfrageNoetig, tagesrandFuer } from "@daevo/core";
+import { LUECKE_UHRZEIT, NACHFRAGE_UHRZEIT, erinnerungAmTag, erinnerungUhrzeit, impulseFuerTag, morgenUhrzeit, nachfrageNoetig, schlafenszeitAusKalender, tagesrandFuer } from "@daevo/core";
+
+/**
+ * Aufsteh und Schlafenszeit eines Tages für die Mitteilungen. Steht abends ein
+ * Eintrag wie "SLEEP" im Kalender, gilt dessen Beginn, denn wer seinen Schlaf
+ * so plant, plant ihn je Tag. Nur eine Ausnahme, die für genau diesen Tag
+ * gesagt wurde ("heute gehe ich um 23 Uhr ins Bett"), wiegt mehr.
+ */
+export function randMitKalender(profil, tag, termine = []) {
+  const rand = tagesrandFuer(profil, tag);
+  if (profil.tagesausnahmen?.[tag]?.sleepTime) return rand;
+  const ausKalender = schlafenszeitAusKalender(termine, tag);
+  return ausKalender ? { ...rand, sleepTime: ausKalender } : rand;
+}
 import { lueckeAusSpeicher, trainingAutomatischErfasst } from "./luecke.js";
 
 export const MAX_GEPLANT = 60;
@@ -52,13 +65,14 @@ export function mitteilungsPlan({ store, jetzt, luecke = null, vorausblicke = []
   const plan = [];
 
   const eigene = store.getSettings().eigeneErinnerungen || [];
+  const termine = store.getKalender?.().termine || [];
   for (let i = 0; i < TAGE_VORAUS; i++) {
     const tag = tagPlus(jetzt.tag, i);
     for (const e of eigene) {
       if (!erinnerungAmTag(e, tag)) continue;
       // Ohne Profil gibt es keine Schlafenszeit. Eine Erinnerung, die daran
       // hängt, fällt dann aus, statt auf eine geratene Uhrzeit zu rutschen.
-      const rand = profil ? tagesrandFuer(profil, tag) : null;
+      const rand = profil ? randMitKalender(profil, tag, termine) : null;
       const uhrzeit = e.bezug ? (rand ? erinnerungUhrzeit(e, rand) : null) : e.uhrzeit;
       if (!uhrzeit) continue;
       plan.push({ id: `eigene-${e.id}-${tag}`, tag, uhrzeit, titel: "Erinnerung", text: e.text, art: "eigene" });
@@ -90,7 +104,7 @@ export function mitteilungsPlan({ store, jetzt, luecke = null, vorausblicke = []
     if (!aus.runterfahren && profil) {
       // Dieselbe Zeit wie im Erinnerungsplan, siehe reminders.ts: 45 Minuten
       // vor der Schlafenszeit dieses Tages, mit Wochentag und Ausnahmen.
-      const { sleepTime } = tagesrandFuer(profil, tag);
+      const { sleepTime } = randMitKalender(profil, tag, termine);
       plan.push({
         id: `runterfahren-${tag}`,
         tag,

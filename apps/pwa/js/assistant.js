@@ -4,7 +4,7 @@ import {
   mahlzeitAusFoto, modellFuerBilder, produktPerBarcode, produkteSuchen, summiere, vorratAusFoto,
   todoistAbhaken, todoistAufgaben, todoistIdVon, todoistWiederOeffnen,
 } from "@daevo/coach";
-import { vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, einzeltrainingBauen, FOKUS_NAME } from "@daevo/core";
+import { foldUmlauts, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, einzeltrainingBauen, FOKUS_NAME } from "@daevo/core";
 import { UEBUNGEN } from "./uebungen-daten.js";
 import {
   MAX_EIGENE,
@@ -3001,7 +3001,13 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       const jetzt = { tag: todayIso(), uhrzeit: nowTime() };
       if (erinnerungVorbei(eintrag, jetzt)) return `${eintrag.uhrzeit} ist heute schon vorbei. Für wann soll ich sie stellen?`;
       // Vorbei ist vorbei: einmalige von gestern räumen sich hier selbst weg.
-      const liste = erinnerungenAufgeraeumt(jetzt);
+      // Eine wiederkehrende mit demselben Text wird ersetzt und nicht
+      // verdoppelt: "Schlaf Supplements eine Stunde vor dem Schlafen" heisst,
+      // die alte um 21:54 soll weg, nicht dass beide kommen.
+      const gleicherText = (e) => foldUmlauts(String(e.text || "").toLowerCase().replace(/^(mein|meine|meinen|meinem|meiner)\s+/, "").trim());
+      const bisher = erinnerungenAufgeraeumt(jetzt);
+      const alt = istEinmalig(eintrag) ? null : bisher.find((e) => !istEinmalig(e) && gleicherText(e) === gleicherText(eintrag));
+      const liste = bisher.filter((e) => e !== alt);
       const gleicheArt = liste.filter((e) => istEinmalig(e) === istEinmalig(eintrag)).length;
       if (!istEinmalig(eintrag) && gleicheArt >= MAX_EIGENE) {
         return `Du hast schon ${MAX_EIGENE} wiederkehrende Erinnerungen. Lösch eine im Profil unter Benachrichtigungen, dann geht die nächste.`;
@@ -3026,7 +3032,8 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       const hinweis = istNativ()
         ? " Du siehst und löschst sie im Profil unter Benachrichtigungen."
         : " Mitteilungen dafür kommen nur in der iPhone App, hier im Browser erinnere ich dich nicht.";
-      return `Erinnerung angelegt: ${eintrag.text}, ${wann}.${imKalender}${hinweis}`;
+      const vorher = alt ? ` Die bisherige (${erinnerungZeile(alt, jetzt.tag)}) ist ersetzt.` : "";
+      return `Erinnerung angelegt: ${eintrag.text}, ${wann}.${vorher}${imKalender}${hinweis}`;
     },
 
     async zeitEintragen({ bereich, minuten, was, tag } = {}) {
