@@ -168,9 +168,21 @@ export function ergebnisHtml(r) {
     </div>`;
 }
 
+/**
+ * Das Tagesbriefing unter dem Ergebnis. Der Morgen Check-in ist der Moment,
+ * in dem jemand ohnehin auf den Tag schaut, und eine zweite Mitteilung zur
+ * selben Zeit wäre Lärm. Ohne Briefing bleibt der Teil leer.
+ */
+export function briefingHtml(b) {
+  if (!b?.abschnitte?.length) return "";
+  const teile = b.abschnitte.filter((a) => a.titel !== "Deine Untergrenze");
+  return `<div class="mg-ergebnis mg-tag">${teile.map((a) => `<h3 class="mg-titel">${esc(a.titel)}</h3>`
+    + (a.zeilen.length > 1 ? `<ul class="mg-liste">${a.zeilen.map((z) => `<li>${esc(z)}</li>`).join("")}</ul>` : `<p class="mg-warum">${esc(a.zeilen[0] || "")}</p>`)).join("")}</div>`;
+}
+
 /* ---------- Oberfläche ---------- */
 
-export function morgenStarten({ store, heute, melde, gespeichert }) {
+export function morgenStarten({ store, heute, melde, gespeichert, tagesbriefing }) {
   const blatt = document.getElementById("morgenBlatt");
   const inhalt = document.getElementById("morgenInhalt");
   const knopf = document.getElementById("morgenAuswerten");
@@ -223,7 +235,7 @@ export function morgenStarten({ store, heute, melde, gespeichert }) {
     if (!r) return;
     fertig = true;
     spueren("erfolg");
-    inhalt.innerHTML = ergebnisHtml(r);
+    inhalt.innerHTML = ergebnisHtml(r) + briefingHtml(modus === "morgen" ? tagesbriefing?.() : null);
     inhalt.scrollTop = 0;
     knopf.textContent = "Fertig";
     knopf.disabled = false;

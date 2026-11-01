@@ -34,6 +34,8 @@ export * from "./schieflage.js";
 export * from "./zeitplan.js";
 export * from "./kalenderplan.js";
 export * from "./vorausblick.js";
+export * from "./tagesessen.js";
+export * from "./tagesbriefing.js";
 export * from "./wochenplan.js";
 export * from "./trainingsanpassung.js";
 export * from "./trainingsplan.js";

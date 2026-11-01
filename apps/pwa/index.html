@@ -1010,13 +1010,14 @@ try {
   <section class="view" data-view="kalender" hidden>
     <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Kalender</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
-      <p class="sub">Dein Tag mit deinen Terminen. daevo legt die Mahlzeiten in deine Lücken statt in dein Meeting.</p>
-
-      <div class="field-row">
-        <div class="field"><label for="kalTag">Tag</label><input id="kalTag" type="date"></div>
-        <div class="field"><label for="kalTage">Vorschau in Tagen</label>
-          <input id="kalTage" type="number" inputmode="numeric" min="1" max="14" value="7"></div>
+      <div class="seg" id="kalBriefingWahl" role="tablist">
+        <button class="seg-btn is-on" role="tab" aria-selected="true" data-briefing="morgen">Heute</button>
+        <button class="seg-btn" role="tab" aria-selected="false" data-briefing="abend">Morgen</button>
       </div>
+      <div class="kb" id="kalBriefing"></div>
+
+      <h2 class="abschnitt">Tag im Detail</h2>
+      <div class="field"><label for="kalTag">Tag</label><input id="kalTag" type="date"></div>
 
       <div class="card" id="kalTagKarte">
         <div class="kv"><span>Verplant</span><b id="kalBelegt">0 Minuten</b></div>
@@ -1024,17 +1025,15 @@ try {
         <div class="kv"><span>Längster freier Block</span><b id="kalFokus">keiner</b></div>
       </div>
 
-      <h2 class="abschnitt">Termine</h2>
+      <h2 class="section-title">Termine</h2>
       <ul class="list" id="kalListe"></ul>
 
-      <h2 class="abschnitt">Vorschlag für die Mahlzeiten</h2>
-      <ul class="list" id="kalEssen"></ul>
+      <h2 class="section-title">Mahlzeiten nach deinem Kalender</h2>
+      <p class="sub" id="kalEssenSub">Zeit und Grösse richten sich nach deinen Terminen und deinem Training. Tipp auf ein Gericht für die Zutaten.</p>
+      <ul class="kal-essen" id="kalEssen"></ul>
 
-      <h2 class="abschnitt">Was auffällt</h2>
+      <h2 class="section-title">Was auffällt</h2>
       <ul class="list" id="kalHinweise"></ul>
-
-      <h2 class="abschnitt">Die nächsten Tage</h2>
-      <pre class="pre" id="kalWoche"></pre>
 
       <h2 class="abschnitt">Trainingsplan aus dem Kalender</h2>
       <p class="sub" id="planVorschlagSub">Was seit mindestens drei Wochen zur selben Zeit stattfindet, ist dein Plan. Egal, was im Profil steht.</p>

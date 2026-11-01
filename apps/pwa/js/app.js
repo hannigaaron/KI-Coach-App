@@ -38,7 +38,7 @@ import {
   aufgabenPlanText, energieCheck, kopfSortieren, mittagscheck, mittagscheckText, musterUebersicht,
   schluesselPruefen, tagesnutzungFuer,
   trainingsplanUebernehmen, trainingsplanVorschlag, widerspruchListe,
-  kalenderEntfernen, kalenderImportieren, kalenderStand, kalenderUebersicht,
+  kalenderEntfernen, kalenderImportieren, kalenderStand, tagesbriefingFuer, tagesessenFuer,
   kostenUebersicht, recommendations, standardsUebersicht, tagesErinnerungen, verlaufPunkte,
   berichtFuer,
   berichtZeitraeume,
@@ -3885,15 +3885,11 @@ function renderKalender() {
     seite: t.quelle || "",
   })), "Keine Termine an diesem Tag.");
 
-  fuelleListe("kalEssen", a.essensfenster.map((e) => ({
-    titel: `${uhrzeit(e.um)} Mahlzeit ${e.nummer}`,
-    sub: e.grund,
-    seite: `${e.kcal} kcal\n${e.proteinG} g Protein`,
-  })), (kalenderStand().anzahl === 0 ? "Ohne Kalender kein Vorschlag." : "Keine freie Lücke gefunden."));
+  essenZeichnen(kalenderTag);
 
   fuelleListe("kalHinweise", a.hinweise.map((h) => ({ titel: h, sub: "", seite: "" })), "Nichts Auffälliges.");
 
-  $("kalWoche").textContent = kalenderUebersicht(Number($("kalTage").value) || 7);
+  briefingZeichnen();
 
   const vorschlag = trainingsplanVorschlag();
   fuelleListe("planVorschlag", vorschlag.map((v) => ({
@@ -3939,7 +3935,69 @@ $("kalTag").addEventListener("change", (event) => {
   renderKalender();
 });
 
-$("kalTage").addEventListener("change", renderKalender);
+/**
+ * Das Briefing oben auf der Kalenderseite. Heute ist der Morgen, Morgen der
+ * Vorabend: dieselben Abschnitte, die auch als Mitteilung und im Chat kommen.
+ * Vorher stand dort eine Woche als Textblock mit Minutenzahlen je Tag, und
+ * die beantwortete keine Frage, die jemand morgens hat.
+ */
+let briefingArt = "morgen";
+function briefingZeichnen() {
+  const ziel = $("kalBriefing");
+  let b;
+  try { b = tagesbriefingFuer(briefingArt); } catch (e) { ziel.textContent = "Das Briefing liess sich nicht rechnen."; console.error(e); return; }
+  ziel.innerHTML = b.abschnitte.map((a) =>
+    `<section class="kb-teil${a.titel === "Fokus" ? " kb-fokus" : ""}"><h3>${escapeHtml(a.titel)}</h3>`
+    + (a.zeilen.length > 1 && a.titel !== "Fokus"
+      ? `<ul>${a.zeilen.map((z) => `<li>${escapeHtml(z)}</li>`).join("")}</ul>`
+      : `<p>${escapeHtml(a.zeilen.join(" "))}</p>`)
+    + "</section>").join("");
+}
+document.querySelectorAll("#kalBriefingWahl [data-briefing]").forEach((k) => {
+  k.addEventListener("click", () => {
+    briefingArt = k.dataset.briefing;
+    document.querySelectorAll("#kalBriefingWahl [data-briefing]").forEach((x) => {
+      x.classList.toggle("is-on", x === k);
+      x.setAttribute("aria-selected", String(x === k));
+    });
+    briefingZeichnen();
+  });
+});
+
+/**
+ * Die Mahlzeiten des Tages als Karten: Uhrzeit, Gericht mit Foto, Grösse,
+ * und warum genau dann. Die Zutaten klappen auf. Gleiche Kalorien für jede
+ * Mahlzeit, wie vorher, sagen nichts darüber, was man essen soll.
+ */
+function essenZeichnen(tag) {
+  const liste = $("kalEssen");
+  let t;
+  try { t = tagesessenFuer(tag); } catch (e) { liste.innerHTML = `<li class="empty">Kein Vorschlag möglich.</li>`; console.error(e); return; }
+  if (!t.mahlzeiten.length) {
+    liste.innerHTML = `<li class="empty">${escapeHtml(t.hinweise[0] || "Für heute ist nichts mehr offen.")}</li>`;
+    return;
+  }
+  liste.innerHTML = t.mahlzeiten.map((m) => {
+    const r = m.rezept;
+    const bild = r?.foto
+      ? `<img class="ke-bild" src="img/rezepte/${encodeURIComponent(r.id)}.jpg" alt="" loading="lazy">`
+      : `<span class="ke-bild ke-leer" aria-hidden="true"></span>`;
+    const marke = m.mitnehmen ? "zum Mitnehmen" : m.training === "davor" ? "vor dem Training" : m.training === "danach" ? "nach dem Training" : "";
+    const zutaten = r?.zutaten?.length
+      ? `<details class="ke-zutaten"><summary>Zutaten, ${r.minuten} Minuten</summary><ul>${r.zutaten.map((z) => `<li>${escapeHtml(z)}</li>`).join("")}</ul></details>`
+      : "";
+    return `<li class="ke">
+      <div class="ke-zeit"><b>${uhrzeit(m.um)}</b><span>${escapeHtml(m.name)}</span></div>
+      <div class="ke-karte">
+        <div class="ke-kopf">${bild}<div class="ke-text">
+          <b>${escapeHtml(r ? r.name : "Freie Wahl")}</b>
+          <span class="ke-werte">${m.kcal} kcal · ${m.proteinG} g Protein${marke ? ` · <em>${escapeHtml(marke)}</em>` : ""}</span>
+          <span class="ke-grund">${escapeHtml(m.grund)}</span>
+        </div></div>${zutaten}
+      </div>
+    </li>`;
+  }).join("") + (t.hinweise.length ? `<li class="ke-hinweis">${escapeHtml(t.hinweise.join(" "))}</li>` : "");
+}
 
 /**
  * Der Stand der Todoist Verbindung.
@@ -5217,6 +5275,7 @@ const morgen = morgenStarten({
   // Neu planen: nach Fitheit 1 oder 2 kommt die Nachfrage am Mittag dazu,
   // nach der Nachfrage fällt sie wieder weg.
   gespeichert: () => { refreshAll(); mitteilungenNativ(); },
+  tagesbriefing: () => { try { return tagesbriefingFuer("morgen"); } catch { return null; } },
 });
 
 /**
@@ -5552,7 +5611,9 @@ function impulsOeffnen(daten) {
   // Der Blick auf morgen: im Chat steht alles, nicht nur der eine Satz aus
   // der Mitteilung, und eine Antwort wie "ja, trag es um 19:15 ein" geht
   // direkt an den Coach.
-  const voraus = art === "vorausblick" ? vorausblickText(vorausblickFuer(tagNach(todayIso()))) : "";
+  // Das ganze Briefing für morgen, nicht nur der eine Satz aus der Mitteilung.
+  let voraus = "";
+  if (art === "vorausblick") { try { voraus = tagesbriefingFuer("abend").text; } catch { voraus = vorausblickText(vorausblickFuer(tagNach(todayIso()))); } }
   const impuls = voraus ? { text: voraus } : impulseFuerTag(todayIso()).find((i) => i.art === art);
   if (!impuls) return;
 

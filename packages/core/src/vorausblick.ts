@@ -78,8 +78,17 @@ export function vorausblick(p: {
   morgen: Tagesablauf;
   termine: Termin[];
   profile: UserProfile;
+  /**
+   * Von wann aus gesprochen wird. "morgen" ist der Vorabend, "heute" das
+   * Morgenbriefing: dann heisst es nicht "koch heute Abend vor", sondern
+   * "nimm dir etwas mit".
+   */
+  fuer?: "morgen" | "heute";
 }): Vorausblick | null {
   const { morgen, termine, profile } = p;
+  const heute = p.fuer === "heute";
+  const Tag = heute ? "Heute" : "Morgen";
+  const tag = heute ? "heute" : "morgen";
   // Ohne einen einzigen Termin weiss der Kalender nichts über morgen. Ein
   // leerer Tag ist hier keine Aussage, ein nicht verbundener Kalender auch
   // nicht.
@@ -92,20 +101,26 @@ export function vorausblick(p: {
   if (ohneMittag && ohneAbend) {
     punkte.push({
       art: "vorkochen",
-      text: "Morgen hast du weder mittags noch abends eine Lücke zum Essen. Koch heute Abend doppelt und pack "
-        + "zwei Portionen ein, sonst fallen beide Mahlzeiten aus und der späte Abend wird zu groß.",
+      text: heute
+        ? "Heute hast du weder mittags noch abends eine Lücke zum Essen. Pack dir zwei Mahlzeiten ein, bevor du losgehst."
+        : "Morgen hast du weder mittags noch abends eine Lücke zum Essen. Koch heute Abend doppelt und pack "
+          + "zwei Portionen ein, sonst fallen beide Mahlzeiten aus und der späte Abend wird zu groß.",
     });
   } else if (ohneMittag) {
     punkte.push({
       art: "vorkochen",
-      text: "Morgen hast du zwischen 11 und 15 Uhr keine 20 Minuten frei. Koch heute Abend eine Portion mehr "
-        + "und nimm sie mit.",
+      text: heute
+        ? "Heute hast du zwischen 11 und 15 Uhr keine 20 Minuten frei. Nimm dir etwas mit oder iss vor 11 Uhr."
+        : "Morgen hast du zwischen 11 und 15 Uhr keine 20 Minuten frei. Koch heute Abend eine Portion mehr "
+          + "und nimm sie mit.",
     });
   } else if (ohneAbend) {
     punkte.push({
       art: "vorkochen",
-      text: "Morgen hast du zwischen 17 und 21 Uhr keine halbe Stunde frei. Bereite das Abendessen heute vor, "
-        + "dann steht es morgen in fünf Minuten auf dem Tisch.",
+      text: heute
+        ? "Heute hast du zwischen 17 und 21 Uhr keine halbe Stunde frei. Iss vorher etwas Richtiges oder nimm dir etwas mit."
+        : "Morgen hast du zwischen 17 und 21 Uhr keine halbe Stunde frei. Bereite das Abendessen heute vor, "
+          + "dann steht es morgen in fünf Minuten auf dem Tisch.",
     });
   }
 
@@ -129,7 +144,7 @@ export function vorausblick(p: {
       if (platz) {
         punkte.push({
           art: "training",
-          text: `Dein ${art} um ${s.startsAt} liegt morgen auf „${stoerer.titel}“. Frei wäre ${uhrzeit(platz.von)} `
+          text: `Dein ${art} um ${s.startsAt} liegt ${tag} auf „${stoerer.titel}“. Frei wäre ${uhrzeit(platz.von)} `
             + `bis ${uhrzeit(platz.bis)}. Sag Bescheid, dann trage ich es dort ein.`,
         });
         continue;
@@ -141,10 +156,10 @@ export function vorausblick(p: {
       punkte.push({
         art: "training",
         text: kurzPlatz
-          ? `Für dein ${art} über ${s.minutes} Minuten ist morgen kein Platz, „${stoerer.titel}“ liegt um ${s.startsAt}. `
+          ? `Für dein ${art} über ${s.minutes} Minuten ist ${tag} kein Platz, „${stoerer.titel}“ liegt um ${s.startsAt}. `
             + `Für ${kurz} Minuten wäre ${uhrzeit(kurzPlatz.von)} frei, nur Grundübungen, unter Training für heute.`
-          : `Für dein ${art} ist morgen kein Platz, auch keine halbe Stunde. Plan es lieber bewusst auf einen anderen `
-            + "Tag, statt es morgen ausfallen zu lassen.",
+          : `Für dein ${art} ist ${tag} kein Platz, auch keine halbe Stunde. Plan es lieber bewusst auf einen anderen `
+            + `Tag, statt es ${tag} ausfallen zu lassen.`,
       });
     }
   }
@@ -158,10 +173,10 @@ export function vorausblick(p: {
     punkte.push({
       art: "frueh",
       text: erster.von < aufstehen
-        ? `Morgen beginnt „${erster.titel}“ schon um ${uhrzeit(erster.von)}, vor deiner Aufstehzeit ${rand.wakeTime}. `
-          + "Stell den Wecker früher und geh heute entsprechend früher ins Bett."
-        : `Morgen beginnt „${erster.titel}“ um ${uhrzeit(erster.von)}, eine Stunde nach dem Aufstehen. `
-          + "Leg Frühstück und Tasche heute Abend bereit.",
+        ? `${Tag} beginnt „${erster.titel}“ schon um ${uhrzeit(erster.von)}, vor deiner Aufstehzeit ${rand.wakeTime}. `
+          + (heute ? "Iss unterwegs etwas mit Protein." : "Stell den Wecker früher und geh heute entsprechend früher ins Bett.")
+        : `${Tag} beginnt „${erster.titel}“ um ${uhrzeit(erster.von)}, eine Stunde nach dem Aufstehen. `
+          + (heute ? "Frühstück zuerst, bevor das Handy dich hat." : "Leg Frühstück und Tasche heute Abend bereit."),
     });
   }
 
@@ -172,16 +187,16 @@ export function vorausblick(p: {
     const wach = Math.round((morgen.wachBis - morgen.wachVon) / 60000);
     punkte.unshift({
       art: "voll",
-      text: `Morgen ist voll: ${dauerText(morgen.belegtMinuten)} von ${dauerText(wach)} Wachzeit sind verplant.`,
+      text: `${Tag} ist voll: ${dauerText(morgen.belegtMinuten)} von ${dauerText(wach)} Wachzeit sind verplant.`,
     });
   }
 
   if (!punkte.length) return null;
   const haupt = punkte.find((x) => x.art !== "voll") ?? punkte[0]!;
-  const titel = haupt.art === "vorkochen" ? "Für morgen vorkochen"
-    : haupt.art === "training" ? "Training morgen"
-    : haupt.art === "frueh" ? "Morgen geht es früh los"
-    : "Morgen ist voll";
+  const titel = haupt.art === "vorkochen" ? (heute ? "Essen mitnehmen" : "Für morgen vorkochen")
+    : haupt.art === "training" ? `Training ${tag}`
+    : haupt.art === "frueh" ? `${Tag} geht es früh los`
+    : `${Tag} ist voll`;
   return { tag: morgen.tag, punkte, titel, text: haupt.text };
 }
 

@@ -545,7 +545,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1267 Tests
+npm test           # 1279 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -712,6 +712,57 @@ Was offen ist: die Mitteilung ist so alt wie das letzte Öffnen der App.
 Ändert sich der Kalender danach, ohne dass die App offen war, kommt der
 alte Stand. Die `KalenderWache` im Hintergrund prüft nur Überschneidungen
 mit eingetragenen Trainings, nicht den Ausblick.
+
+## Das Tagesbriefing
+
+`packages/core/src/tagesbriefing.ts`, `tagesbriefingFuer` in `assistant.js`.
+Morgens für heute, abends für morgen, in festen Abschnitten: Dein Tag,
+Fokus, Achtung oder Heute Abend vorbereiten, Zu tun, Essen, Untergrenze.
+Abends steht davor eine Zeile, wie heute lief. Vorher gab es zwei Textblöcke
+mit jedem Termin und den Zielen als Zahlen, und keiner sagte, worauf es
+ankommt.
+
+Der Fokus ist ein Satz, und die Reihenfolge ist die Entscheidung: eine
+wichtige Aufgabe schlägt das Training, das Training den freien Block. Ab 70
+Prozent verplanter Wachzeit heisst der Fokus nur noch "eins zählt" oder die
+Mindeststandards.
+
+Drei Wege nach draussen. Oben auf der Kalenderseite mit den Reitern Heute
+und Morgen, dort stand vorher "Die nächsten Tage" als Textblock mit
+Minutenzahlen, und das Feld "Vorschau in Tagen" ist mit weg. Abends jeden
+Tag als Mitteilung, `vorausblickePlan`: steht etwas vorzubereiten an, trägt
+sie genau das, sonst Termine und Fokus. Ein Tipp schreibt das ganze
+Briefing in den Chat. Morgens unter dem Ergebnis des Guten Morgen Check-ins,
+`briefingHtml` in `morgen.js`, und nicht als zweite Mitteilung zur selben
+Zeit. `briefing()` für Coach und Regelpfad gibt denselben Text.
+
+Termine mit Titeln wie SLEEP oder Schlafenszeit sind Marker und keine
+Termine, `istSchlafMarker`. Derselbe Termin aus zwei Kalendern zählt einmal,
+etwa ein Feiertag in iCloud und Google.
+
+## Mahlzeiten nach dem Kalender
+
+`packages/core/src/tagesessen.ts`, `tagesessenFuer` in `assistant.js`. Vorher
+teilte der Tagesablauf das Ziel gleich auf vier Zeiten, und jede Zeile hiess
+"787 kcal" ohne Gericht. Jetzt:
+
+- Grössen aus `verteileRest` über das, was nach dem Gegessenen noch offen
+  ist. Gegessenes und Vorbeigegangenes fällt weg.
+- Zeiten in den Lücken des Kalenders auf der Viertelstunde, je Mahlzeit in
+  einem Fenster, Frühstück ab dem Aufstehen. Trainings aus Kalender und
+  Profil sind mit 15 Minuten Luft belegt.
+- Ums letzte Training: davor eine leichte Mahlzeit etwa 90 Minuten vorher,
+  danach die grösste Portion Protein, zehn Prozent des Proteins wandern.
+- Kein Platz im Fenster heisst zum Mitnehmen, mit einem schnellen Rezept.
+- Ist abends noch über 900 kcal je Mahlzeit offen, kommt ein später Snack
+  dazu, wenn bis zum Schlafen Zeit ist. Ein Teller mit 1200 kcal und
+  darunter der Hinweis, dass das zu viel ist, half niemandem.
+- Jede Mahlzeit hat ein Rezept aus `rezeptEmpfehlungen` mit allen
+  Ausschlüssen und dem Vorrat, keines zweimal am Tag. Kalorien und Protein
+  sind die des Rezepts in der gerechneten Portion.
+
+Die Kalenderseite zeigt sie als Karten mit Foto, Grund und aufklappbaren
+Zutaten, das Briefing und der Coach als Zeilen über `tagesessenText`.
 
 ## Jeder Start ist ein leeres Gespräch
 

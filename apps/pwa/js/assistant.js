@@ -4,7 +4,7 @@ import {
   mahlzeitAusFoto, modellFuerBilder, produktPerBarcode, produkteSuchen, summiere, vorratAusFoto,
   todoistAbhaken, todoistAufgaben, todoistIdVon,
 } from "@daevo/coach";
-import { vorausblick, vorausblickText, vorausblickUhrzeit } from "@daevo/core";
+import { vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing } from "@daevo/core";
 import {
   MAX_EIGENE,
   planAendern,
@@ -1012,9 +1012,10 @@ export function vorausblickFuer(tagIso) {
 }
 
 /**
- * Die Abendmitteilungen für die nächsten Tage: am Abend vor jedem Tag, an dem
- * etwas vorzubereiten ist. Geplant wird bei jedem Öffnen neu, ändert sich der
- * Kalender, ändert sich auch die Mitteilung.
+ * Die Abendmitteilungen für die nächsten Tage: jeden Abend das Briefing für
+ * den Tag danach. Steht etwas vorzubereiten an, trägt die Mitteilung genau
+ * das, sonst Termine und Fokus. Geplant wird bei jedem Öffnen neu, ändert
+ * sich der Kalender, ändert sich auch die Mitteilung.
  */
 export function vorausblickePlan(heute = todayIso(), tage = 3) {
   const profile = store.getProfile();
@@ -1022,8 +1023,8 @@ export function vorausblickePlan(heute = todayIso(), tage = 3) {
   const plan = [];
   for (let i = 0; i < tage; i++) {
     const abend = tagPlusIso(heute, i);
-    const v = vorausblickFuer(tagPlusIso(abend, 1));
-    if (v) plan.push({ tag: abend, uhrzeit: vorausblickUhrzeit(profile, abend), titel: v.titel, text: v.text });
+    const b = tagesbriefingFuer("abend", Date.now(), tagPlusIso(abend, 1));
+    if (b?.kurz) plan.push({ tag: abend, uhrzeit: vorausblickUhrzeit(profile, abend), titel: b.titel, text: b.kurz });
   }
   return plan;
 }
@@ -1033,7 +1034,7 @@ export function tagesablaufUebersicht(tagIso = todayIso()) {
   if ((store.getKalender().termine || []).length === 0) {
     return "Kein Kalender verbunden. Ohne Termine kann ich den Tagesablauf nicht beurteilen.";
   }
-  return tagesablaufText(ablaufFuer(tagIso));
+  return tagesablaufText(ablaufFuer(tagIso), tagesessenText(tagesessenFuer(tagIso)) || undefined);
 }
 
 /** Die nächsten Tage in je einer Zeile. */
@@ -1620,50 +1621,120 @@ export function herausforderungSpeichern(text) {
   return true;
 }
 
-/** Morgenbriefing und Tagesabschluss. Beides ohne Modellaufruf. */
-export function briefing(art = "morgen") {
-  const day = todayIso();
-  const n = dayNumbers(day);
-  const jetzt = new Date();
-  const datum = `${WEEKDAYS[jetzt.getDay()]}, ${jetzt.getDate()}. ${jetzt.toLocaleString("de-DE", { month: "long" })} ${jetzt.getFullYear()}`;
-  const status = standardsUebersicht();
+/**
+ * Die Mahlzeiten eines Tages, an den Kalender gelegt, mit Rezept.
+ *
+ * Vorher teilte der Tagesablauf das Ziel gleichmässig auf vier Zeiten, und
+ * jede Zeile hiess "787 kcal". Jetzt rechnet `tagesessen` im Kern: was schon
+ * gegessen ist, zählt ab, das Training verschiebt Zeit und Grösse, und jede
+ * Mahlzeit bekommt ein Gericht, das zu Ausschlüssen und Vorrat passt.
+ */
+export function tagesessenFuer(tagIso = todayIso(), jetzt = Date.now()) {
+  const n = dayNumbers(tagIso);
+  const profile = n.profile || PROFIL_NOTFALL;
+  const heute = tagIso === todayIso();
+  const gegessen = (n.data.meals || []).map((m) => {
+    const s = { kcal: 0, proteinG: 0, fatG: 0, carbsG: 0 };
+    for (const e of m.entries || []) for (const k of Object.keys(s)) s[k] += Number(e[k]) || 0;
+    return { at: m.at, ...s };
+  });
+  return tagesessen({
+    ablauf: ablaufFuer(tagIso),
+    ziele: n.targets,
+    gegessen: heute ? gegessen : [],
+    jetzt: heute ? jetzt : undefined,
+    trainings: trainingAusProfil(profile.sessions, tagIso),
+    ernaehrung: profile.ernaehrung || {},
+    vorrat: store.getFridge(),
+  });
+}
 
-  if (art === "abend") {
-    const aufgaben = store.getAufgaben();
-    const heute = day;
-    const erledigt = aufgaben.filter((a) => a.erledigt && (a.erledigtAm || "").slice(0, 10) === heute).map((a) => a.text);
-    const offen = aufgabenPlan().heute.map((a) => a.text);
-    const morgenTag = new Date(`${day}T12:00:00`);
-    morgenTag.setDate(morgenTag.getDate() + 1);
-    const morgenIso = morgenTag.toISOString().slice(0, 10);
-    const m = ablaufFuer(morgenIso);
-    return abendAbschluss({
-      datum,
-      stand: `${Math.round(n.totals.kcal)} von ${n.targets.kcal} kcal, ${Math.round(n.totals.proteinG)} von ${n.targets.proteinG} g Protein, ` +
-        `${n.totals.waterMl} von ${n.targets.waterMl} ml Wasser.`,
-      offen,
-      erledigt,
-      standards: status.map((s) => s.satz),
-      morgen: (store.getKalender().termine || []).length
-        ? `${m.termine.length + m.ganztags.length} Termine, ${m.belegtMinuten} Minuten verplant.`
-          + (vorausblickText(vorausblickFuer(morgenIso)) ? ` ${vorausblickText(vorausblickFuer(morgenIso))}` : "")
-        : "kein Kalender verbunden.",
-    });
+function datumLang(tagIso) {
+  const d = new Date(`${tagIso}T12:00:00`);
+  return `${WEEKDAYS[d.getDay()]}, ${d.getDate()}. ${d.toLocaleString("de-DE", { month: "long" })}`;
+}
+
+/** Das Training eines Tages für das Briefing, mit der Einheit aus dem gespeicherten Plan. */
+function trainingFuerBriefing(tagIso) {
+  const profile = store.getProfile();
+  const wochentag = new Date(`${tagIso}T12:00:00`).getDay();
+  const sessions = (profile?.sessions || []).filter((s) => s.weekday === wochentag)
+    .sort((a, b) => String(a.startsAt).localeCompare(String(b.startsAt)));
+  const kalender = ablaufFuer(tagIso).training[0];
+  if (!sessions.length && !kalender) return null;
+  const s = sessions.find((x) => x.type === "strength") ?? sessions[0];
+  let titel = kalender ? kalender.titel
+    : ({ strength: "Krafttraining", team_sport: "Mannschaftstraining", cardio: "Ausdauer", mobility: "Mobilität" }[s.type] || "Training");
+  let uebungen;
+  const plan = store.getSettings().plan;
+  if (s?.type === "strength" && plan?.einheiten?.length) {
+    const kraft = (profile.sessions || []).filter((x) => x.type === "strength")
+      .sort((a, b) => ((a.weekday + 6) % 7) - ((b.weekday + 6) % 7));
+    const index = Math.max(0, kraft.findIndex((x) => x.weekday === wochentag));
+    const einheit = plan.einheiten[index % plan.einheiten.length];
+    if (einheit) { titel = `Krafttraining, ${einheit.titel}`; uebungen = einheit.positionen?.length; }
+  }
+  const morgens = tagIso === todayIso()
+    ? (store.getDay(tagIso).checkins || []).filter((c) => c.kind === "morning" && c.morgen).pop()
+    : null;
+  return {
+    titel,
+    um: kalender ? uhrzeitVon(kalender.von) : s?.startsAt,
+    minuten: kalender ? Math.round((kalender.bis - kalender.von) / 60000) : s?.minutes,
+    uebungen,
+    gestrichen: Boolean(morgens?.trainingGestrichen),
+  };
+}
+
+/**
+ * Das Briefing als Struktur, morgens für heute, abends für morgen.
+ * Abschnitte für die Ansicht, `kurz` für die Mitteilung, `text` für den Chat.
+ */
+export function tagesbriefingFuer(art = "morgen", jetzt = Date.now(), fuerTag) {
+  const heute = todayIso();
+  const morgenIso = tagPlusIso(heute, 1);
+  const tag = fuerTag || (art === "abend" ? morgenIso : heute);
+  const hatKalender = (store.getKalender().termine || []).length > 0;
+  const n = dayNumbers(tag);
+  const profile = profilFuerTag(tag) || store.getProfile();
+
+  let aufgaben = [];
+  if (art === "morgen") {
+    const { plan, zeiten } = tagesplan(jetzt);
+    const um = new Map(zeiten.bloecke.map((b) => [b.aufgabe.id ?? b.aufgabe.text, uhrzeitVon(b.von)]));
+    aufgaben = plan.heute.map((a) => ({ text: a.text, um: um.get(a.id ?? a.text), wichtig: a.wichtigkeit >= 3 }));
+  } else if (tag === morgenIso) {
+    // Für übermorgen kennt die Priorisierung keine Reihenfolge, dann lieber
+    // keine Aufgabe als die falsche.
+    const plan = aufgabenPlan(jetzt);
+    aufgaben = plan.morgen.map((a) => ({ text: a.text, wichtig: a.wichtigkeit >= 3 }));
   }
 
-  const trend = weightTrend(verlaufPunkte(56));
-  return morgenBriefing({
-    datum,
-    tagesablauf: (store.getKalender().termine || []).length ? tagesablaufText(ablaufFuer(day)) : "",
-    ziele: n.targets,
-    // Morgens mit Uhrzeiten. "Erst das Angebot" hilft wenig, wenn unklar
-    // ist, ob es zwischen die Termine überhaupt passt.
-    aufgaben: tagesplanText(),
-    standards: status.filter((s) => !s.aktuell).map((s) => s.satz),
-    trend: trend.belastbar
-      ? `Gewicht: ${trend.aktuellKg} kg geglättet, ${trend.kgProWoche > 0 ? "plus" : "minus"} ${Math.abs(trend.kgProWoche).toFixed(2).replace(".", ",")} kg je Woche.`
+  const status = standardsUebersicht();
+  const h = dayNumbers(heute);
+  const erledigt = store.getAufgaben().filter((a) => a.erledigt && (a.erledigtAm || "").slice(0, 10) === heute).length;
+
+  return tagesbriefing({
+    art,
+    datum: datumLang(tag),
+    ablauf: hatKalender ? ablaufFuer(tag) : null,
+    essen: tagesessenFuer(tag, jetzt),
+    vorausblick: hatKalender && profile
+      ? vorausblick({ morgen: ablaufFuer(tag), termine: store.getKalender().termine, profile, fuer: art === "abend" ? "morgen" : "heute" })
+      : null,
+    training: trainingFuerBriefing(tag),
+    aufgaben,
+    ziele: { kcal: n.targets.kcal, proteinG: n.targets.proteinG },
+    heute: art === "abend"
+      ? { kcal: h.totals.kcal, zielKcal: h.targets.kcal, proteinG: h.totals.proteinG, zielProteinG: h.targets.proteinG, erledigt }
       : undefined,
+    standards: status.filter((s) => !s.aktuell).map((s) => s.satz),
   });
+}
+
+/** Morgenbriefing und Tagesabschluss als Text. Ohne Modellaufruf. */
+export function briefing(art = "morgen") {
+  return tagesbriefingFuer(art === "abend" ? "abend" : "morgen").text;
 }
 
 /**
