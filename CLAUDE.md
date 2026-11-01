@@ -262,7 +262,8 @@ Strichfiguren, keine Clip Art, keine Karten mit Rahmen um Text.
   auch ohne Leerzeichen im Namen ("überkopf" findet "über Kopf") und ohne
   Plural-s ("Pushdowns"), `trifft` in `uebungen.js`. Vorher fand "Multipresse"
   nichts und "Trizeps Extensions überkopf" nicht das Trizepsstrecken über Kopf.
-- Am Kabel gibt es Pushdown beidarmig, einarmig und mit Ablage auf der Bank,
+- Am Kabel gibt es Pushdown beidarmig, einarmig und liegend auf der Bank (Kopf zum Turm,
+  schulterbreite Stange am Oberkörper entlang bis zur Streckung),
   Curl mit Stange, Hammer Curl mit Seil und einarmig, Seitheben einarmig,
   Reverse Butterfly, Butterfly sitzend, Cable Fly von unten nach oben und von
   oben nach unten, Kickback einbeinig und seitlich für den Gluteus medius. Auf

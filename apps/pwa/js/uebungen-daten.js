@@ -2701,8 +2701,8 @@ export const UEBUNGEN = [
  },
  {
   "id": "trizeps-pushdown-abgelegt",
-  "name": "Trizepsdrücken am Kabel mit Ablage",
-  "nameEn": "Supported Cable Triceps Pushdown",
+  "name": "Trizeps Pushdown liegend auf der Bank",
+  "nameEn": "Lying Cable Triceps Pushdown",
   "pattern": "elbow_extension",
   "primaryMuscles": [
    "Trizeps"
@@ -2713,21 +2713,23 @@ export const UEBUNGEN = [
   "mechanics": "isolation",
   "repRange": "10-15",
   "steps": [
-   "Bank steil vor das obere Kabel stellen, Lehne zum Kabel",
-   "Auf die Sitzfläche knien, Brust und Oberarme auf der Lehne ablegen",
-   "Seil nach unten drücken, bis die Arme gestreckt sind",
-   "Langsam zurück, die Oberarme bleiben auf der Lehne"
+   "Flachbank vor den Kabelturm, auf den Rücken legen, Kopf zum Turm, Kabel oben",
+   "Schulterbreite Stange im Obergriff auf Kinnhöhe, Ellbogen eng am Körper",
+   "Stange parallel zum Oberkörper nach unten drücken, bis die Arme gestreckt sind",
+   "Eng am Oberkörper entlang zurück bis auf Kinnhöhe führen"
   ],
   "gruppe": "arme",
   "video": {
-   "id": "R9F_28Bnveg",
-   "titel": "Trizeps Pushdown mit Ablage",
-   "kanal": "kraftfanadi",
-   "dauer": "2:08"
+   "id": "BetlNLcfj70",
+   "titel": "Trizeps liegend auf der Flachbank mit dem Seilzug",
+   "kanal": "Masterfitness Academy",
+   "dauer": "0:33"
   },
   "alias": [
    "Pushdown abgelegt",
-   "Pushdown auf der Bank"
+   "Pushdown auf der Bank",
+   "Pushdown liegend",
+   "Trizepsdrücken liegend"
   ]
  },
  {
