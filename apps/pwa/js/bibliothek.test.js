@@ -38,6 +38,18 @@ test("die Tabellensuche findet Wortanfänge vor Teilwörtern und rechnet die Por
   assert.ok(banane && banane.kcal > 0);
 });
 
+test("ein kurzer Begriff trifft nicht mitten im Wort", () => {
+  // Im Betrieb: wer Ei suchte, bekam Reis und Leberkäse.
+  const ei = tabellenSuche("ei").map((p) => p.name);
+  assert.equal(ei[0], "Ei");
+  assert.ok(!ei.includes("Reis"), ei.join(", "));
+  assert.ok(!ei.includes("Leberkäse"), ei.join(", "));
+  // Am Wortende zählt auch ein kurzer Begriff: Olivenöl ist ein Öl.
+  assert.ok(tabellenSuche("öl").some((p) => p.name === "Olivenöl"));
+  // Ab vier Zeichen zählt auch die Mitte.
+  assert.ok(tabellenSuche("milch").some((p) => p.name === "Hafermilch"));
+});
+
 test("Rezepte: Plus fünf, Pro ohne Grenze, ohne Abo keines, ohne Server frei", () => {
   const server = { chatUrl: "https://w.dev" };
   assert.equal(rezeptGrenze({ kontoStufe: "plus" }, server), 5);

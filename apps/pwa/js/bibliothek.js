@@ -54,7 +54,11 @@ export function tabellenSuche(begriff, { anzahl = 6, tabelle = FOODS } = {}) {
     let rang = 0;
     if (namen.some((n) => n === q)) rang = 3;
     else if (namen.some((n) => n.startsWith(q) || n.split(" ").some((w) => w.startsWith(q)))) rang = 2;
-    else if (namen.some((n) => n.includes(q))) rang = 1;
+    // Mitten im Wort zählt erst ab vier Zeichen. "Ei" steckt in Reis und
+    // Leberkäse, und wer Ei sucht, will kein Reis. Am Wortende zählt es
+    // immer: im Deutschen steht dort das Grundwort, Olivenöl ist ein Öl.
+    else if (namen.some((n) => n.split(" ").some((w) => w.endsWith(q)))) rang = 1;
+    else if (q.length >= 4 && namen.some((n) => n.includes(q))) rang = 0.5;
     if (rang) treffer.push({ f, rang });
   }
   return treffer
