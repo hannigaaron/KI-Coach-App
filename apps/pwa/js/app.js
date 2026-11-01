@@ -13,8 +13,8 @@ import {
   restText,
   makroHerkunft,
   MAX_EIGENE,
-  tageText,
-  wannText,
+  erinnerungZeile,
+  istEinmalig,
 } from "@daevo/core";
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, PREISE_STAND, aktuellesModell, produktPerBarcode, produkteSuchen } from "@daevo/coach";
 import { Coach, AnthropicProvider, FOODS } from "@daevo/coach";
@@ -42,6 +42,7 @@ import {
   berichtFuer,
   berichtZeitraeume,
   aufgabeErledigen, todoistAktualisieren, todoistVerbunden,
+  erinnerungenAufgeraeumt,
 } from "./assistant.js";
 import { brain } from "./brain.js";
 import { Orb } from "./orb.js";
@@ -5235,14 +5236,14 @@ const ER_KREUZ = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" st
   + 'stroke-linecap="round" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg>';
 
 function eigeneErinnerungenZeigen() {
-  const liste = store.getSettings().eigeneErinnerungen || [];
+  const liste = erinnerungenAufgeraeumt();
   $("eigeneListe").innerHTML = liste.length
     ? liste.map((e) => `<li><div class="li-main"><div class="li-title">${escapeHtml(e.text)}</div>`
-      + `<div class="li-sub">${escapeHtml(`${tageText(e.tage)}, ${wannText(e)}`)}</div></div>`
+      + `<div class="li-sub">${escapeHtml(erinnerungZeile(e, todayIso()))}</div></div>`
       + `<div class="li-side"><button class="aufgabe-knopf" data-er-weg="${e.id}" title="Löschen" `
       + `aria-label="Erinnerung löschen">${ER_KREUZ}</button></div></li>`).join("")
     : "";
-  $("btnErinnerungNeu").disabled = liste.length >= MAX_EIGENE;
+  $("btnErinnerungNeu").disabled = liste.filter((e) => !istEinmalig(e)).length >= MAX_EIGENE;
 }
 
 $("erWann").addEventListener("change", () => {
@@ -5258,7 +5259,9 @@ $("eigeneListe").addEventListener("click", (event) => {
   const b = event.target.closest("[data-er-weg]");
   if (!b) return;
   const s = store.getSettings();
+  const weg = (s.eigeneErinnerungen || []).find((e) => e.id === b.dataset.erWeg);
   store.setSettings({ ...s, eigeneErinnerungen: (s.eigeneErinnerungen || []).filter((e) => e.id !== b.dataset.erWeg) });
+  if (weg?.kalender) import("./kalender-schreiben.js").then((m) => m.erinnerungAustragen(weg.kalender));
   eigeneErinnerungenZeigen();
   mitteilungenNativ();
 });

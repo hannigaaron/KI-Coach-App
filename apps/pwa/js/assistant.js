@@ -10,6 +10,10 @@ import {
   trainingsplanText,
   standardAenderungAus,
   erinnerungFehler,
+  erinnerungVorbei,
+  erinnerungZeile,
+  istEinmalig,
+  MAX_EINMALIG,
   tageText,
   wannText,
   MAHLZEITEN,
@@ -2843,28 +2847,45 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       changed();
       return text;
     },
-    async erinnerungAnlegen({ text, uhrzeit, bezug, versatz, tage = [] } = {}) {
+    async erinnerungAnlegen({ text, uhrzeit, bezug, versatz, tage = [], datum } = {}) {
       // "an mein Magnesium" wird "Magnesium". In der Mitteilung stand sonst
       // "Mein Magnesium", und das liest sich wie ein Fehler.
       const sauber = String(text || "").trim().replace(/^(mein|meine|meinen|meinem|meiner)\s+/i, "");
       const eintrag = { id: newId(), text: sauber ? sauber.charAt(0).toUpperCase() + sauber.slice(1) : sauber, tage };
       if (bezug) Object.assign(eintrag, { bezug, versatz: Number(versatz) || 0 });
       else eintrag.uhrzeit = uhrzeit;
+      if (datum) Object.assign(eintrag, { datum, tage: [] });
       const fehler = erinnerungFehler(eintrag);
       if (fehler) return fehler;
-      const liste = store.getSettings().eigeneErinnerungen || [];
-      if (liste.length >= MAX_EIGENE) {
-        return `Du hast schon ${MAX_EIGENE} eigene Erinnerungen. Lösch eine im Profil unter Benachrichtigungen, dann geht die nächste.`;
+      const jetzt = { tag: todayIso(), uhrzeit: nowTime() };
+      if (erinnerungVorbei(eintrag, jetzt)) return `${eintrag.uhrzeit} ist heute schon vorbei. Für wann soll ich sie stellen?`;
+      // Vorbei ist vorbei: einmalige von gestern räumen sich hier selbst weg.
+      const liste = erinnerungenAufgeraeumt(jetzt);
+      const gleicheArt = liste.filter((e) => istEinmalig(e) === istEinmalig(eintrag)).length;
+      if (!istEinmalig(eintrag) && gleicheArt >= MAX_EIGENE) {
+        return `Du hast schon ${MAX_EIGENE} wiederkehrende Erinnerungen. Lösch eine im Profil unter Benachrichtigungen, dann geht die nächste.`;
+      }
+      if (istEinmalig(eintrag) && gleicheArt >= MAX_EINMALIG) {
+        return `Du hast schon ${MAX_EINMALIG} offene einmalige Erinnerungen. Lösch eine im Profil unter Benachrichtigungen.`;
+      }
+      let imKalender = "";
+      if (istEinmalig(eintrag)) {
+        const { erinnerungEintragen } = await import("./kalender-schreiben.js");
+        const k = await erinnerungEintragen(eintrag);
+        if (k?.eid) {
+          eintrag.kalender = { eid: k.eid, von: k.von };
+          imKalender = ` Sie steht auch als Termin im Kalender${k.kalender ? ` ${k.kalender}` : ""}.`;
+        }
       }
       store.setSettings({ ...store.getSettings(), eigeneErinnerungen: [...liste, eintrag] });
       changed();
-      const wann = `${tageText(eintrag.tage)}, ${wannText(eintrag)}`;
+      const wann = erinnerungZeile(eintrag, jetzt.tag);
       // Im Browser plant niemand diese Mitteilung ein. Das gehört gesagt,
       // gerade wenn es um ein Medikament geht.
       const hinweis = istNativ()
         ? " Du siehst und löschst sie im Profil unter Benachrichtigungen."
         : " Mitteilungen dafür kommen nur in der iPhone App, hier im Browser erinnere ich dich nicht.";
-      return `Erinnerung angelegt: ${eintrag.text}, ${wann}.${hinweis}`;
+      return `Erinnerung angelegt: ${eintrag.text}, ${wann}.${imKalender}${hinweis}`;
     },
 
     async zeitEintragen({ bereich, minuten, was, tag } = {}) {
@@ -3564,3 +3585,16 @@ function mittelwert(werte) {
 }
 
 export { buildDailyReminders, daySummaryText, profileText };
+
+/**
+ * Die eigenen Erinnerungen ohne die einmaligen, die schon vorbei sind. Was
+ * wegfällt, wird gleich mitgespeichert, sonst wüchse die Liste mit jeder
+ * Wäsche von letzter Woche.
+ */
+export function erinnerungenAufgeraeumt(jetzt = { tag: todayIso(), uhrzeit: nowTime() }) {
+  const s = store.getSettings();
+  const alle = s.eigeneErinnerungen || [];
+  const offen = alle.filter((e) => !erinnerungVorbei(e, jetzt));
+  if (offen.length !== alle.length) store.setSettings({ ...s, eigeneErinnerungen: offen });
+  return offen;
+}

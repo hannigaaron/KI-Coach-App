@@ -532,7 +532,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1251 Tests
+npm test           # 1255 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -3285,9 +3285,20 @@ Wochenende mit späterer Schlafenszeit.
 
 Der Regelpfad nimmt nur, was eindeutig ist: "erinnere" und eine echte
 Uhrzeit oder ein Bezug. "Erinnere mich später" bekommt eine Rückfrage, keine
-geratene Uhrzeit, und "morgen um 8" ist eine Aufgabe, keine wiederkehrende
-Erinnerung. Er steht vor Training und Aufgaben, sonst wird "erinnere mich um
-8 an das Training" zu einem Eintrag.
+geratene Uhrzeit. Er steht vor Training und Aufgaben, sonst wird "erinnere
+mich um 8 an das Training" zu einem Eintrag.
+
+Einmalige Erinnerungen tragen `datum`: "heute um 22:30", "morgen um 8",
+"übermorgen um 9", "in 20 Minuten". Vorher wurde daraus eine Aufgabe ohne
+Mitteilung, und der Coach sagte trotzdem "angelegt". Eine Uhrzeit, die heute
+schon vorbei ist, wird abgelehnt statt still auf morgen geschoben. Sie zählen
+getrennt, `MAX_EINMALIG` 12, denn jede kostet nur eine Mitteilung. Vorbei
+heisst weg, `erinnerungenAufgeraeumt` in `assistant.js`. In der iPhone App
+mit verbundenem Kalender steht eine einmalige zusätzlich als Termin von 15
+Minuten im Standardkalender von iOS, also im Google Kalender, wenn der dort
+Standard ist, `erinnerungEintragen` in `kalender-schreiben.js`. Löschen im
+Profil nimmt den Termin mit. Der Vermerk "angelegt" steht nur noch unter
+einer Antwort, die mit "Erinnerung angelegt" beginnt.
 
 Beim Kürzen auf 60 Mitteilungen gehen eigene Erinnerungen vor, dann die
 Lücke, dann die Impulse. Höchstens sechs eigene, `MAX_EIGENE`, damit sieben

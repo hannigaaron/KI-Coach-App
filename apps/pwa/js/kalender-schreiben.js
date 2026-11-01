@@ -323,3 +323,33 @@ export async function einheitImKalenderAnpassen(alt, neu, { jetzt = Date.now() }
   if (anzahl) await neuLesen();
   return { anzahl };
 }
+
+/**
+ * Eine einmalige Erinnerung zusätzlich als Termin von 15 Minuten in den
+ * Standardkalender des iPhones, also dorthin, wo auch die Trainings landen.
+ * Wer seinen Tag im Google Kalender liest, sieht sie dort, und die Mitteilung
+ * von daevo kommt trotzdem. Ohne verbundenen Kalender null, still: die
+ * Mitteilung ist das Wesentliche, der Termin eine Zugabe.
+ */
+export async function erinnerungEintragen({ text, datum, uhrzeit }) {
+  if (!kannSchreiben() || !datum || !uhrzeit) return null;
+  const von = tagBeginn(datum) + (Number(uhrzeit.slice(0, 2)) * 60 + Number(uhrzeit.slice(3, 5))) * 60000;
+  try {
+    const r = await nativAufruf("Kalender", "anlegen", {
+      titel: `Erinnerung: ${text}`, von, bis: von + 15 * 60000, notiz: "Erinnerung von daevo.",
+    });
+    await neuLesen();
+    return { eid: r?.eid || "", von, kalender: r?.kalender || "" };
+  } catch {
+    return null;
+  }
+}
+
+/** Nimmt den Termin einer gelöschten Erinnerung wieder aus dem Kalender. */
+export async function erinnerungAustragen(kalender) {
+  if (!kalender?.eid || !istNativ()) return;
+  try {
+    await nativAufruf("Kalender", "loeschen", { eid: kalender.eid, alt: kalender.von });
+    await neuLesen();
+  } catch { /* schon weg oder kein Zugriff, die Erinnerung ist trotzdem gelöscht */ }
+}

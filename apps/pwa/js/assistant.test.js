@@ -35,7 +35,7 @@ class SpeicherAttrappe {
 globalThis.localStorage = new SpeicherAttrappe();
 
 const { store, todayIso } = await import("./storage.js");
-const { buildActions, dayNumbers, kalenderStandText, koerperText, plausibelHinweis, trifftPosten, nachtragZeit } = await import("./assistant.js");
+const { buildActions, erinnerungenAufgeraeumt, dayNumbers, kalenderStandText, koerperText, plausibelHinweis, trifftPosten, nachtragZeit } = await import("./assistant.js");
 
 const PROFIL = {
   name: "Aaron", sex: "male", ageYears: 23, heightCm: 184, weightKg: 87,
@@ -700,4 +700,21 @@ test("Apple Health im Kontext: Nacht mit Phasen, HRV gegen den eigenen Schnitt",
   assert.match(t, /HRV 30 ms, Schnitt 28 Tage 48/);
   assert.match(t, /VO2max 47,5 ml\/kg\/min/);
   assert.equal(koerperText("2031-06-01"), "");
+});
+
+test("einmalige Erinnerung wird angelegt, vorbei heisst abgelehnt und weggeräumt", async () => {
+  const aktionen = buildActions({});
+  const morgen = new Date(Date.now() + 86400000);
+  const z = (n) => String(n).padStart(2, "0");
+  const datum = `${morgen.getFullYear()}-${z(morgen.getMonth() + 1)}-${z(morgen.getDate())}`;
+  const ok = await aktionen.erinnerungAnlegen({ text: "die Wäsche", uhrzeit: "22:30", tage: [], datum });
+  assert.match(ok, /^Erinnerung angelegt: Die Wäsche, morgen, 22:30, einmalig\./);
+  const vorbei = await aktionen.erinnerungAnlegen({ text: "Ofen", uhrzeit: "00:00", tage: [], datum: "2020-01-01" });
+  assert.doesNotMatch(vorbei, /angelegt/);
+  // Eine einmalige von gestern fällt beim nächsten Lesen aus der Liste.
+  const s = store.getSettings();
+  store.setSettings({ ...s, eigeneErinnerungen: [...s.eigeneErinnerungen, { id: "alt", text: "Alt", uhrzeit: "08:00", tage: [], datum: "2020-01-01" }] });
+  const offen = erinnerungenAufgeraeumt();
+  assert.ok(offen.some((e) => e.text === "Die Wäsche"));
+  assert.ok(!offen.some((e) => e.id === "alt"));
 });

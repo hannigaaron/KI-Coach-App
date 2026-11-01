@@ -89,9 +89,12 @@ export interface AgentActions {
   bereitschaftAbrufen(): Promise<string>;
   balanceAbrufen(input: { tage?: number }): Promise<string>;
   zeitEintragen(input: { bereich: string; minuten: number; was: string; tag?: string }): Promise<string>;
-  /** Eine eigene, wiederkehrende Erinnerung, etwa für Medikamente. */
+  /**
+   * Eine eigene Erinnerung, wiederkehrend etwa für Medikamente, oder mit
+   * `datum` einmalig an genau einem Tag.
+   */
   erinnerungAnlegen(input: {
-    text: string; uhrzeit?: string; bezug?: "schlafen" | "aufstehen"; versatz?: number; tage: number[];
+    text: string; uhrzeit?: string; bezug?: "schlafen" | "aufstehen"; versatz?: number; tage: number[]; datum?: string;
   }): Promise<string>;
   /**
    * Trägt ein Training in den echten Kalender ein oder verschiebt eines. Den
@@ -694,15 +697,20 @@ async function execute(
         const tage = Array.isArray(input.tage) ? input.tage.map(Number).filter((n) => n >= 1 && n <= 7) : [];
         const bezug = input.bezug === "schlafen" || input.bezug === "aufstehen" ? input.bezug : undefined;
         const uhrzeit = typeof input.uhrzeit === "string" ? input.uhrzeit : undefined;
+        const datum = typeof input.datum === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.datum) ? input.datum : undefined;
         if (!bezug && !uhrzeit) return { text: "Um wie viel Uhr, oder wann im Tag?", fehler: true };
         const text = await actions.erinnerungAnlegen({
           text: String(input.text ?? "").trim().slice(0, 120),
           uhrzeit: bezug ? undefined : uhrzeit,
           bezug,
           versatz: bezug ? Math.round(Number(input.versatz) || 0) : undefined,
-          tage,
+          tage: datum ? [] : tage,
+          ...(datum ? { datum } : {}),
         });
-        return { text, notiz: "Erinnerung angelegt" };
+        // Nur ein angelegter Eintrag trägt den Vermerk. Vorher stand er auch
+        // unter "Um wie viel Uhr?", und der Coach sagte "angelegt".
+        const ok = text.startsWith("Erinnerung angelegt");
+        return ok ? { text, notiz: "Erinnerung angelegt" } : { text, fehler: true };
       }
       case "kalender_termin": {
         const aktion = ["eintragen", "verschieben", "vorschlagen", "rueckgaengig"].includes(String(input.aktion))
@@ -1366,7 +1374,8 @@ export async function runOffline(
   const erinnerung = erinnerungAus(nachricht);
   if (erinnerung) {
     const antwort = await actions.erinnerungAnlegen(erinnerung);
-    return { text: antwort, ausgeführt: ["Erinnerung angelegt"], source: "offline" };
+    const ok = antwort.startsWith("Erinnerung angelegt");
+    return { text: antwort, ausgeführt: ok ? ["Erinnerung angelegt"] : [], source: "offline" };
   }
 
   // Ein geänderter Mindeststandard. Braucht das Wort Standard, damit "dreimal

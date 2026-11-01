@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { erinnerungAmTag, erinnerungAus, erinnerungFehler, erinnerungUhrzeit, tageText, wannText, wochentagIso } from "./erinnerung.js";
+import { datumText, erinnerungAmTag, erinnerungAus, erinnerungFehler, erinnerungVorbei, erinnerungZeile, erinnerungUhrzeit, tageText, wannText, wochentagIso } from "./erinnerung.js";
 
 test("ein Satz wird zur Erinnerung, ohne Tage heisst täglich", () => {
   assert.deepEqual(erinnerungAus("Erinnere mich jeden Tag um 8 an meine Tabletten"),
@@ -17,7 +17,6 @@ test("ein Satz wird zur Erinnerung, ohne Tage heisst täglich", () => {
 test("ohne echte Uhrzeit oder für heute wird nichts geraten", () => {
   assert.equal(erinnerungAus("Erinnere mich später an meine Tabletten"), null);
   assert.equal(erinnerungAus("Erinnere mich an meine Tabletten"), null);
-  assert.equal(erinnerungAus("Erinnere mich morgen um 8 an den Zahnarzt"), null);
   assert.equal(erinnerungAus("Ich nehme um 8 meine Tabletten"), null);
   assert.equal(erinnerungAus("Erinnere mich um 25 Uhr an etwas"), null);
   assert.ok(erinnerungAus("Erinnere mich jeden Morgen um 7 an Wasser"));
@@ -55,4 +54,40 @@ test("am eigenen Tag: vor dem Schlafen, nach dem Aufstehen", () => {
   assert.equal(wannText({ id: "b", ...f! }), "30 Minuten nach dem Aufstehen");
   assert.equal(erinnerungAus("Erinnere mich vor dem Schlafen an Magnesium")?.versatz, 0);
   assert.equal(erinnerungFehler({ text: "Magnesium", bezug: "schlafen", versatz: -60, tage: [] }), null);
+});
+
+const JETZT = { tag: "2026-11-01", uhrzeit: "12:20" };
+
+test("einmalige Erinnerung für heute, morgen und in einer Stunde", () => {
+  assert.deepEqual(erinnerungAus("Erinnere mich heute um 22:30 an die Wäsche", JETZT),
+    { text: "Die Wäsche", uhrzeit: "22:30", tage: [], datum: "2026-11-01" });
+  assert.deepEqual(erinnerungAus("Erinnere mich morgen um 8 an den Zahnarzt", JETZT),
+    { text: "Den Zahnarzt", uhrzeit: "08:00", tage: [], datum: "2026-11-02" });
+  assert.equal(erinnerungAus("erinner mich übermorgen um 9 Uhr an die Steuer", JETZT)?.datum, "2026-11-03");
+  assert.equal(erinnerungAus("Erinnere mich heute abend um 9 an Magnesium", JETZT)?.uhrzeit, "21:00");
+  assert.deepEqual(erinnerungAus("Erinnere mich in 20 Minuten an den Ofen", JETZT),
+    { text: "Den Ofen", uhrzeit: "12:40", tage: [], datum: "2026-11-01" });
+  // Über Mitternacht wandert der Tag mit.
+  assert.deepEqual(erinnerungAus("Erinnere mich in 2 Stunden an das Licht", { tag: "2026-11-01", uhrzeit: "23:30" }),
+    { text: "Das Licht", uhrzeit: "01:30", tage: [], datum: "2026-11-02" });
+});
+
+test("einmalig ohne Uhrzeit oder in der Vergangenheit wird nicht geraten", () => {
+  assert.equal(erinnerungAus("Erinnere mich heute an die Wäsche", JETZT), null);
+  assert.equal(erinnerungAus("Erinnere mich heute um 9 an die Wäsche", JETZT), null);
+  assert.equal(erinnerungAus("Erinnere mich gleich an die Wäsche", JETZT), null);
+});
+
+test("einmalige Erinnerung kommt nur an ihrem Tag und fällt danach weg", () => {
+  const e = { id: "a", text: "Wäsche", uhrzeit: "22:30", tage: [], datum: "2026-11-01" };
+  assert.equal(erinnerungAmTag(e, "2026-11-01"), true);
+  assert.equal(erinnerungAmTag(e, "2026-11-08"), false);
+  assert.equal(erinnerungVorbei(e, JETZT), false);
+  assert.equal(erinnerungVorbei(e, { tag: "2026-11-01", uhrzeit: "22:31" }), true);
+  assert.equal(erinnerungVorbei(e, { tag: "2026-11-02", uhrzeit: "08:00" }), true);
+  assert.equal(erinnerungVorbei({ ...e, datum: undefined }, { tag: "2027-01-01", uhrzeit: "08:00" }), false);
+  assert.equal(erinnerungZeile(e, "2026-11-01"), "heute, 22:30, einmalig");
+  assert.equal(datumText("2026-11-14", "2026-11-01"), "am 14. Nov.");
+  assert.equal(erinnerungFehler(e), null);
+  assert.equal(erinnerungFehler({ ...e, datum: "morgen" }), "An welchem Tag?");
 });

@@ -397,13 +397,15 @@ export const AGENT_TOOLS: ToolDefinition[] = [
   {
     name: "erinnerung_anlegen",
     description:
-      "Legt eine eigene, wiederkehrende Erinnerung an, die als Mitteilung auf dem iPhone kommt. " +
-      "Nehmen, wenn der Nutzer sagt, dass er an etwas Regelmässiges erinnert werden will: Medikamente, " +
-      "Supplemente, Dehnen, Abendroutine. Entweder eine feste Uhrzeit oder ein Bezug auf den eigenen Tag: " +
-      "'eine Stunde vor dem Schlafen' ist bezug schlafen mit versatz -60, 'nach dem Aufstehen' bezug " +
-      "aufstehen mit versatz 0. Die Zeiten des Nutzers kommen dann aus seinem Profil, je Tag. " +
-      "Nicht nehmen für einmalige Dinge wie einen Termin morgen, das ist eine Aufgabe. " +
-      "Fehlt die Uhrzeit, frag danach, statt eine zu raten.",
+      "Legt eine eigene Erinnerung an, die als Mitteilung auf dem iPhone kommt. Wiederkehrend für " +
+      "Regelmässiges: Medikamente, Supplemente, Dehnen, Abendroutine. Entweder eine feste Uhrzeit oder " +
+      "ein Bezug auf den eigenen Tag: 'eine Stunde vor dem Schlafen' ist bezug schlafen mit versatz -60, " +
+      "'nach dem Aufstehen' bezug aufstehen mit versatz 0. Die Zeiten kommen dann aus dem Profil, je Tag. " +
+      "Einmalig mit datum und fester uhrzeit: 'erinnere mich heute um 22:30 an die Wäsche', 'morgen um 8 " +
+      "an den Zahnarzt', 'in 20 Minuten an den Ofen' (rechne die Uhrzeit aus der aktuellen Zeit). Eine " +
+      "einmalige steht zusätzlich als kurzer Termin im Standardkalender des iPhones, sofern verbunden. " +
+      "Fehlt die Uhrzeit, frag danach, statt eine zu raten. Sag nur 'angelegt', wenn die Antwort des " +
+      "Werkzeugs mit 'Erinnerung angelegt' beginnt.",
     input_schema: {
       type: "object",
       properties: {
@@ -413,8 +415,9 @@ export const AGENT_TOOLS: ToolDefinition[] = [
         versatz: { type: "number", description: "Minuten zum Bezug, negativ heisst davor." },
         tage: {
           type: "array", items: { type: "number" },
-          description: "Wochentage 1 Montag bis 7 Sonntag. Leer heisst täglich.",
+          description: "Wochentage 1 Montag bis 7 Sonntag. Leer heisst täglich. Bei datum leer lassen.",
         },
+        datum: { type: "string", description: "JJJJ-MM-TT, nur bei einer einmaligen Erinnerung." },
       },
       required: ["text", "tage"],
     },
