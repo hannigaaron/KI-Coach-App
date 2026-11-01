@@ -268,6 +268,11 @@ Strichfiguren, keine Clip Art, keine Karten mit Rahmen um Text.
   oben nach unten, Kickback einbeinig und seitlich für den Gluteus medius. Auf
   der Schrägbank mit Kurzhanteln Rudern eng und breit, Reverse Fly und
   Fliegende.
+- Fotos an der Multipresse oder mit Langhantel werden von vorn oder schräg
+  vorn erzeugt. In der Seitenansicht legte das Bildmodell die Stange bei sechs
+  von sieben Übungen längs zum Körper statt quer über Schultern, Brust oder
+  Hüfte, und das fiel erst dem Nutzer auf. Beim Prüfen eines neuen Fotos
+  zuerst nachsehen, wie die Stange zum Körper liegt, dann die Gelenkwinkel.
 
 ### Trainingspläne
 
