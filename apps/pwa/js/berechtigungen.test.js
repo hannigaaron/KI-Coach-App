@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { berechtigungenFragen, berechtigungenOffen, berechtigungenText } from "./berechtigungen.js";
+import { berechtigungenFragen, berechtigungenOffen, berechtigungenText, kontenAus, kontenText } from "./berechtigungen.js";
 import { HEALTH_FASSUNG } from "./healthkit.js";
 
 function speicher(start = {}) {
@@ -22,8 +22,8 @@ test("fragt alle vier nacheinander, in fester Reihenfolge", async () => {
     return { erlaubt: true };
   };
   const r = await berechtigungenFragen({ aufruf, store });
-  assert.deepEqual(reihe, ["Kalender.berechtigen", "Gesundheit.berechtigen", "Mitteilungen.berechtigen", "Diktat.berechtigen"]);
-  assert.deepEqual(r, { kalender: true, gesundheit: true, mitteilungen: true, sprache: true });
+  assert.deepEqual(reihe, ["Kalender.berechtigen", "Kalender.konten", "Gesundheit.berechtigen", "Mitteilungen.berechtigen", "Diktat.berechtigen"]);
+  assert.deepEqual(r, { kalender: true, konten: [], gesundheit: true, mitteilungen: true, sprache: true });
   const s = store.getSettings();
   assert.equal(s.appleKalender, true);
   assert.equal(s.healthNativFassung, HEALTH_FASSUNG);
@@ -65,4 +65,28 @@ test("Blätter vor dem Fragebogen liegen nicht im versteckten #app", async () =>
     assert.ok(stelle > 0, `${id} fehlt`);
     assert.ok(stelle < appAnfang || stelle > appEnde, `${id} liegt in #app`);
   }
+});
+
+test("nach dem Ja zum Kalender: was gefunden wurde, und der Weg zu Google", async () => {
+  const store = speicher();
+  const aufruf = async (plugin, methode) => {
+    if (plugin === "Kalender" && methode === "konten") {
+      return { konten: [{ name: "Auf meinem iPhone", art: "lokal", kalender: 1 }, { name: "iCloud", art: "icloud", kalender: 3 }] };
+    }
+    if (plugin === "Diktat") return { mikrofon: true, erkennung: true };
+    return { erlaubt: true };
+  };
+  const r = await berechtigungenFragen({ aufruf, store });
+  assert.equal(r.konten[0].art, "icloud");
+  assert.deepEqual(store.getSettings().kalenderKonten, r.konten);
+  const text = kontenText(r.konten);
+  assert.match(text, /^Verbunden: iCloud mit 3 Kalendern, Auf dem iPhone \(Auf meinem iPhone\) mit 1 Kalender\./);
+  assert.match(text, /Account hinzufügen/);
+  const mitGoogle = kontenText(kontenAus({ konten: [{ name: "aaron@gmail.com", art: "google", kalender: 2 }] }));
+  assert.equal(mitGoogle, "Verbunden: Google (aaron@gmail.com) mit 2 Kalendern.");
+  assert.match(kontenText([]), /noch kein Kalender eingerichtet.*Account hinzufügen/);
+  // Eine ältere Hülle ohne die Methode hält nichts auf.
+  const alt = await berechtigungenFragen({ aufruf: async (p, m) => { if (m === "konten") throw new Error("fehlt"); return p === "Diktat" ? { mikrofon: true, erkennung: true } : { erlaubt: true }; }, store: speicher() });
+  assert.equal(alt.kalender, true);
+  assert.equal(alt.konten, undefined);
 });

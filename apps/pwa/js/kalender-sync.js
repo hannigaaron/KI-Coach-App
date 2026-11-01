@@ -102,6 +102,13 @@ export async function kalenderAbgleichen({ zwang = false, holen = fetch, jetzt =
         const roh = await nativAufruf("Kalender", "termine", { von: f.von, bis: f.bis });
         const anzahl = kalenderTermineSetzen(APPLE_QUELLE, appleTermine(roh?.termine), { art: "apple" });
         ergebnisse.push({ name: APPLE_QUELLE, anzahl });
+        // Die Konten mitlesen: fügt jemand Google in iOS hinzu, steht es beim
+        // nächsten Abgleich auf der Kalenderseite, ohne dass er etwas tippt.
+        try {
+          const { kontenAus } = await import("./berechtigungen.js");
+          const konten = kontenAus(await nativAufruf("Kalender", "konten", {}));
+          store.setSettings({ ...store.getSettings(), kalenderKonten: konten });
+        } catch { /* ältere Hülle, die Liste bleibt, wie sie war */ }
       } catch (e) {
         ergebnisse.push({ name: APPLE_QUELLE, fehler: e?.message || String(e) });
       }

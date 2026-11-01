@@ -65,7 +65,7 @@ import { abosAbgleichen, kaufenNativ, startAnlass } from "./kauf.js";
 import { anmeldeWege, anmeldenApple, anmeldenGoogleNativ, anmeldungSenden, anmeldungText } from "./anmeldung.js";
 import { aboEntfernen, aboHinzufuegen, APPLE_QUELLE, appleKalenderTrennen, appleKalenderVerbinden, kalenderAbgleichen, kalenderAbos } from "./kalender-sync.js";
 import { mitteilungenPlanen } from "./mitteilungen.js";
-import { berechtigungenFragen, berechtigungenOffen, berechtigungenText } from "./berechtigungen.js";
+import { berechtigungenFragen, berechtigungenOffen, berechtigungenText, kontenText } from "./berechtigungen.js";
 import { nativAufruf } from "./nativ.js";
 import { spueren } from "./haptik.js";
 import { anteilAmZiel, eigeneRezepte, essensplanFrei, hauptMakro, rezeptGrenze, rezeptLoeschen, rezeptSpeichern, summe as postenSumme, tabellenBild, tabellenPosten, tabellenSuche, zuletztGegessen } from "./bibliothek.js";
@@ -3830,6 +3830,7 @@ function renderKalender() {
   $("kalAnleitung").textContent = KALENDER_ANLEITUNG;
   const sync = store.getSettings();
   $("btnAppleKalender").hidden = Boolean(sync.appleKalender);
+  $("kalKonten").textContent = sync.appleKalender ? kontenText(sync.kalenderKonten) : "";
   $("btnKalAbgleich").hidden = !(sync.appleKalender || kalenderAbos(sync).length);
 
   const stand = kalenderStand();
@@ -5127,8 +5128,10 @@ function rechteFragen() {
       document.body.classList.remove("blatt-offen");
       try {
         const ergebnis = await berechtigungenFragen({ aufruf: nativAufruf, store });
-        const satz = berechtigungenText(ergebnis);
-        if (satz) toast(satz, 8000);
+        // Was fehlt zuerst, dann welche Kalender gefunden wurden. Fehlt
+        // Google, steht der Weg dorthin gleich dabei.
+        const satz = [berechtigungenText(ergebnis), ergebnis.konten ? kontenText(ergebnis.konten) : ""].filter(Boolean).join(" ");
+        if (satz) toast(satz, 12000);
       } catch {
         // Ohne Hülle oder Plugin bleibt jede Funktion bei ihrer eigenen Frage.
       }

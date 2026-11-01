@@ -38,7 +38,15 @@ export async function berechtigungenFragen({ aufruf, store }) {
     ergebnis.kalender = Boolean(r?.erlaubt);
     // Nur ein Ja verbindet. Ein Nein lässt eine bestehende Verbindung in
     // Ruhe, die trennt man im Profil.
-    if (ergebnis.kalender) merken({ appleKalender: true });
+    if (ergebnis.kalender) {
+      merken({ appleKalender: true });
+      // Gleich nachsehen, welche Konten iOS kennt. Eine ältere Hülle ohne
+      // diese Methode wirft, dann fehlt nur der Hinweis.
+      try {
+        ergebnis.konten = kontenAus(await aufruf("Kalender", "konten", {}));
+        merken({ kalenderKonten: ergebnis.konten });
+      } catch { /* ohne Liste kein Hinweis */ }
+    }
   } catch { ergebnis.kalender = false; }
 
   try {
@@ -71,4 +79,35 @@ export function berechtigungenText(ergebnis) {
   const fehlt = ZUGRIFFE.filter((z) => ergebnis[z] === false).map((z) => namen[z]);
   if (!fehlt.length) return "";
   return `Ohne Zugriff: ${fehlt.join(", ")}. Ändern kannst du das in den iOS Einstellungen unter daevo.`;
+}
+
+const ART_NAME = { google: "Google", icloud: "iCloud", outlook: "Outlook", abo: "Abos", lokal: "Auf dem iPhone", andere: "" };
+
+/** Die Antwort des Plugins in eine saubere Liste, Google und iCloud vorn. */
+export function kontenAus(antwort) {
+  const rang = { google: 0, icloud: 1, outlook: 2, andere: 3, abo: 4, lokal: 5 };
+  return (Array.isArray(antwort?.konten) ? antwort.konten : [])
+    .filter((k) => k && typeof k.name === "string" && Number(k.kalender) > 0)
+    .map((k) => ({ name: k.name, art: ART_NAME[k.art] !== undefined ? k.art : "andere", kalender: Number(k.kalender) }))
+    .sort((a, b) => rang[a.art] - rang[b.art] || a.name.localeCompare(b.name));
+}
+
+/**
+ * Was gefunden wurde, und wenn kein Google oder Outlook dabei ist, wie man es
+ * hinzufügt. Eine App darf in iOS keinen Account anlegen. Wer Google nur im
+ * Browser nutzt, hat sonst einen leeren Kalender in daevo und weiss nicht,
+ * warum.
+ */
+export function kontenText(konten) {
+  if (!Array.isArray(konten)) return "";
+  const teile = konten.map((k) => {
+    const art = ART_NAME[k.art];
+    const name = art && art !== k.name && !k.name.toLowerCase().includes(art.toLowerCase()) ? `${art} (${k.name})` : (art || k.name);
+    return `${name} mit ${k.kalender} ${k.kalender === 1 ? "Kalender" : "Kalendern"}`;
+  });
+  const gefunden = teile.length ? `Verbunden: ${teile.join(", ")}.` : "Auf diesem iPhone ist noch kein Kalender eingerichtet.";
+  const fremd = konten.some((k) => k.art === "google" || k.art === "outlook");
+  const weg = " Nutzt du Google oder Outlook? Füg das Konto in den iOS Einstellungen hinzu: Apps, Kalender, "
+    + "Kalender-Accounts, Account hinzufügen. daevo liest es danach von selbst.";
+  return gefunden + (fremd ? "" : weg);
 }

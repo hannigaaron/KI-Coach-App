@@ -33,6 +33,7 @@ public class KalenderPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "anlegen", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "verschieben", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "loeschen", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "konten", returnType: CAPPluginReturnPromise),
     ]
 
     static let markierung = URL(string: "daevo://termin")!
@@ -45,6 +46,39 @@ public class KalenderPlugin: CAPPlugin, CAPBridgedPlugin {
             return stand == .fullAccess
         }
         return stand == .authorized
+    }
+
+    /// Welche Konten iOS für Termine kennt, mit der Zahl ihrer Kalender.
+    /// Damit sagt die App nach dem Ja zum Kalender, was sie gefunden hat, und
+    /// wenn kein Google oder Outlook dabei ist, wie man es hinzufügt. Eine App
+    /// darf in iOS keinen Account anlegen, das muss die Person selbst tun.
+    ///
+    /// Die Art kommt aus dem Typ der Quelle und ihrem Namen: Google läuft in
+    /// iOS über CalDAV und heisst dort "Gmail" oder trägt die Adresse, Outlook
+    /// über Exchange. Geburtstage sind keine Quelle, die jemand verbindet.
+    @objc func konten(_ call: CAPPluginCall) {
+        guard darfLesen() else { call.reject("Kein Zugriff auf den Kalender."); return }
+        var zaehler: [String: (name: String, art: String, kalender: Int)] = [:]
+        for kalender in speicher.calendars(for: .event) {
+            guard let quelle = kalender.source, quelle.sourceType != .birthdays else { continue }
+            let name = quelle.title
+            let klein = name.lowercased()
+            let art: String
+            switch quelle.sourceType {
+            case .exchange: art = "outlook"
+            case .local: art = "lokal"
+            case .subscribed: art = "abo"
+            case .calDAV, .mobileMe:
+                if klein.contains("gmail") || klein.contains("google") { art = "google" }
+                else if klein.contains("icloud") || quelle.sourceType == .mobileMe { art = "icloud" }
+                else if klein.contains("outlook") || klein.contains("hotmail") || klein.contains("live.") { art = "outlook" }
+                else { art = "andere" }
+            default: art = "andere"
+            }
+            let alt = zaehler[quelle.sourceIdentifier]
+            zaehler[quelle.sourceIdentifier] = (name, art, (alt?.kalender ?? 0) + 1)
+        }
+        call.resolve(["konten": zaehler.values.map { ["name": $0.name, "art": $0.art, "kalender": $0.kalender] }])
     }
 
     @objc func berechtigen(_ call: CAPPluginCall) {

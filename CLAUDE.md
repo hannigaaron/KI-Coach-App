@@ -545,7 +545,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1257 Tests
+npm test           # 1258 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -3277,6 +3277,17 @@ erst, wenn die Funktion gebraucht wurde, der Kalender also nie, solange
 niemand im Profil auf Verbinden tippte. Gesteuert über
 `settings.berechtigungenGefragt`, also auch einmal bei allen, die die App
 schon haben: iOS fragt nie zweimal nach demselben Zugriff.
+
+Nach dem Ja zum Kalender fragt die App das Plugin nach den Konten,
+`konten` in `KalenderPlugin.swift`, und nennt, was gefunden wurde: iCloud,
+Google, Outlook mit der Zahl der Kalender. Ist kein Google und kein Outlook
+dabei, steht der Weg zum Hinzufügen in iOS dabei. Eine App darf in iOS
+keinen Account anlegen, und wer Google nur im Browser nutzt, hätte sonst
+einen leeren Kalender in daevo, ohne zu wissen, warum. Dieselbe Zeile steht
+auf der Kalenderseite, `kontenText` in `berechtigungen.js`, und jeder
+Abgleich liest die Konten neu: wer Google später hinzufügt, sieht es dort
+ohne weiteren Schritt. Google erkennt das Plugin am Namen der CalDAV Quelle,
+Outlook an Exchange.
 
 Das Blatt hat nur "Weiter". Apple lehnt Vorabseiten mit eigenem Nein ab,
 abgelehnt wird in der Frage von iOS. Einführung, Abo Fenster, Health
