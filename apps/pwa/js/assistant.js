@@ -92,6 +92,8 @@ import {
   anpassungText,
   letzteEinheit,
   steigerung,
+  essensplanBauen,
+  essensplanText,
 } from "@daevo/core";
 import { brain } from "./brain.js";
 import { KONFIG, istNativ } from "./konfig.js";
@@ -1680,6 +1682,81 @@ export function rezeptVorschlaege({ art, jetzt = new Date() } = {}) {
 }
 
 /**
+ * Der Essensplan für sieben Tage, aus dem Rechenkern.
+ *
+ * Gespeichert werden nur Beginn und Variante, nicht der Plan. Bei gleicher
+ * Eingabe rechnet der Kern denselben Plan, und ändert sich das Gewicht oder
+ * die Allergieliste, stimmt der Plan danach mit den neuen Angaben überein,
+ * statt mit denen vom Montag. Ein Plan, der älter als sechs Tage ist, beginnt
+ * neu ab heute.
+ */
+export function essensplanRechnen({ neu = false, andere = false, heute = todayIso() } = {}) {
+  const s = store.getSettings();
+  let stand = s.essensplan;
+  const alt = stand?.start ? (Date.parse(`${heute}T12:00:00`) - Date.parse(`${stand.start}T12:00:00`)) / 86400000 : Infinity;
+  if (neu || !stand || alt < 0 || alt > 6) stand = { start: heute, variante: 0 };
+  if (andere) stand = { ...stand, variante: (stand.variante || 0) + 1 };
+  if (stand !== s.essensplan) store.setSettings({ ...store.getSettings(), essensplan: stand });
+  const profil = store.getProfile() || {};
+  const ziel = (tag) => {
+    const t = dayNumbers(tag).targets;
+    return { kcal: t.kcal, proteinG: t.proteinG, fatG: t.fatG, carbsG: t.carbsG };
+  };
+  return essensplanBauen({
+    ziel: ziel(stand.start), zielFuer: ziel, start: stand.start, variante: stand.variante || 0,
+    ernaehrung: profil.ernaehrung || {}, vorrat: store.getFridge(),
+  });
+}
+
+/** Ein Tag des Essensplans als Text für den Coach und den Regelweg. */
+export function essensplanTagText(tag) {
+  const wt = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
+  const kopf = `${wt[new Date(`${tag.datum}T12:00:00`).getDay()]}, ${tag.summe.kcal} von ${tag.ziel.kcal} kcal, ${tag.summe.proteinG} von ${tag.ziel.proteinG} g Protein.`;
+  const zeilen = tag.mahlzeiten.map((m) => {
+    const e = m.empfehlung;
+    const vk = m.vorkochen === "doppelt" ? " Doppelt kochen, morgen gibt es das noch einmal."
+      : m.vorkochen === "vorgekocht" ? " Vom Vortag aufwärmen." : "";
+    return `${m.name}: ${e.rezept.name}, ${e.summe.kcal} kcal, ${e.summe.proteinG} g Protein. ${e.posten.map((p) => `${p.menge}${p.menge.endsWith(" g") ? ` ${p.name}` : ""}`).join(", ")}.${vk}`;
+  });
+  const erg = tag.ergaenzung.length ? [`Dazu: ${tag.ergaenzung.map((p) => `${p.menge} ${p.name}`).join(" und ")}.`] : [];
+  return [kopf, ...zeilen, ...erg].join("\n");
+}
+
+/** Ob der Coach den Plan zeigen darf, dieselbe Regel wie die Ansicht. */
+function essensplanFreiFuerCoach() {
+  if (!KONFIG.chatUrl) return true;
+  return ["pro", "test"].includes(store.getSettings().kontoStufe || "test");
+}
+
+function tagPlusIso(iso, n) {
+  const d = new Date(`${iso}T12:00:00`);
+  d.setDate(d.getDate() + n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * Schreibt die Zutaten des Plans in die Einkaufsliste.
+ *
+ * Posten aus einem früheren Plan werden ersetzt und nicht addiert: wer zweimal
+ * auf den Knopf drückt, braucht nicht doppelt so viel Reis. Eigene Posten und
+ * die aus der Tagesrechnung bleiben stehen. Was im Vorrat liegt, kommt als
+ * "zuhause" hinein, damit es sichtbar bleibt und nicht gekauft wird.
+ */
+export function essensplanEinkauf(plan) {
+  const alt = store.getShoppingList();
+  const liste = alt ?? { tage: 7, items: [], hinweis: "", gemieden: [], erstelltAm: new Date().toISOString() };
+  liste.items = liste.items.filter((i) => !i.ausPlan);
+  for (const p of plan.einkauf) {
+    liste.items.push({
+      key: `plan-${p.key}`, name: p.name, menge: p.menge, kategorie: "sonstiges",
+      grund: "Für deinen Essensplan", stand: p.imVorrat ? "zuhause" : "offen", ausPlan: true,
+    });
+  }
+  store.setShoppingList(liste);
+  return plan.einkauf.length;
+}
+
+/**
  * Trägt eine Rezeptempfehlung als Mahlzeit ein, Posten für Posten.
  *
  * Als einzelne Posten und nicht als eine Zeile "Chili, 750 kcal": nur so lässt
@@ -3013,7 +3090,7 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
         // "Liste rechnen" weg.
         items: [
           ...roh.items.map((item) => ({ ...item, stand: alterStand.get(item.key) || "offen" })),
-          ...(alt?.items || []).filter((i) => i.eigen && !roh.items.some((r) => r.name.toLowerCase() === i.name.toLowerCase())),
+          ...(alt?.items || []).filter((i) => (i.eigen || i.ausPlan) && !roh.items.some((r) => r.name.toLowerCase() === i.name.toLowerCase())),
         ],
       };
       store.setShoppingList(liste);
@@ -3043,6 +3120,16 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       const offen = liste.items.filter((i) => i.stand === "offen").length;
       const wort = { gekauft: "gekauft", zuhause: "hast du noch", offen: "wieder offen" }[stand];
       return `${treffer.name}: ${wort}. Noch ${offen} Posten offen.`;
+    },
+
+    async essensplanAbrufen({ inTagen = 0 } = {}) {
+      if (!essensplanFreiFuerCoach()) {
+        return "NICHT_GESPEICHERT: Der Essensplan für die Woche gehört zu Pro. Einzelne Rezepte passend zum Rest des Tages gibt es unter Rezepte.";
+      }
+      const plan = essensplanRechnen();
+      const tag = plan.tage.find((t) => t.datum === tagPlusIso(todayIso(), inTagen));
+      if (!tag) return "Der Plan reicht nicht so weit. Unter Rezepte, Wochenplan, rechnet daevo einen neuen ab heute.";
+      return essensplanTagText(tag) + (plan.hinweise.length ? `\n${plan.hinweise.join(" ")}` : "");
     },
 
     async trainingsplanAbrufen({ inTagen = 0 } = {}) {

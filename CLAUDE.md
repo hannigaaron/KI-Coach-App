@@ -79,7 +79,7 @@ Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
 
-Der Assistent hat neunundvierzig Werkzeuge und verändert die App wirklich. Zahlen
+Der Assistent hat fünfzig Werkzeuge und verändert die App wirklich. Zahlen
 über den Nutzer kommen immer aus Werkzeugen, nie aus dem Modell. Allgemeines
 Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
@@ -532,7 +532,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1238 Tests
+npm test           # 1251 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1841,7 +1841,7 @@ Tippfehler darf die Ziele nicht kippen.
 
 ## Der Regelweg ist die kostenlose Stufe
 
-45 der 49 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
+46 der 50 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
 Das ist keine Notlösung für den Ausfall, sondern das Produkt: ein Weg, der
 kein Modell anfragt, kostet nichts je Nutzer und skaliert ohne Rechnung.
 
@@ -2032,6 +2032,52 @@ eine Datei hat. Alle 55 Rezepte haben ein Foto. Ohne Foto trägt die Karte ein Z
 auf einem Verlauf. Die Karte steht im Verhältnis 4 zu 3 und ist auf breiten
 Bildschirmen gedeckelt, vorher füllte sie auf dem Laptop den halben
 Bildschirm.
+
+## Der Essensplan für die Woche
+
+`packages/core/src/essensplan.ts` rechnet, `rezepte-ui.js` zeigt, Reiter
+"Wochenplan" unter Rezepte. Werkzeug `essensplan_abrufen` mit Regelpfad.
+Gehört zu Pro und ist in der Testphase dabei, `essensplanFrei` in
+`bibliothek.js`: wer ihn nie gesehen hat, weiss nicht, wofür er Pro nehmen
+soll. Ohne eigenen Server gibt es keine Grenze.
+
+Kein Modell schreibt das Menü. Das Ziel je Tag kommt aus `dayNumbers`, also
+aus `macroTargets` mit Gewicht, Grösse, Ziel, Schritten, Trainingstagen und
+der Korrektur aus dem Fragebogen, an Trainingstagen höher. Allergien,
+Unverträglichkeiten, Ernährungsform und Ausschlüsse filtern hart wie bei den
+Rezepten.
+
+Je Tag werden die besten acht Rezepte jeder Mahlzeit gegeneinander
+kombiniert, und es gewinnt der Tag, der als Ganzes trifft, `tagesfehler`.
+Einzeln gewählt lag ein Tag bis zu 50 Prozent über dem Protein und 60 über
+dem Fett, obwohl jede Mahlzeit für sich passte. Zu viel Protein zählt
+anderthalbfach, über 4 Prozent neben den Kalorien zählt jeder Punkt
+fünffach. Fehlt danach Protein, kommt eine Ergänzung dazu, Magerquark,
+laktosefreier Quark, Skyr, Whey oder Tofu, was die Angaben erlauben, höchstens
+20 Prozent der Tageskalorien, danach Kohlenhydrate und Fett. Ist kein Platz,
+werden die Gerichte um bis zu 20 Prozent kleiner, aus den Zutaten neu
+gerechnet. Gemessen über Diät, Erhalt, Aufbau, vegetarisch und Laktose: fast
+jeder Tag bei Kalorien und Protein innerhalb von 5 Prozent, ein Test hält
+jeden Tag auf 6 Prozent Kalorien und 92 bis 125 Prozent Protein. Vegan
+reicht das Protein in der Diät nicht, dafür gibt es in der Tabelle kein
+Pulver, und der Plan sagt das, statt Werte zu erfinden.
+
+Das Abendessen kommt als Paar, Tag 1 und 2, 3 und 4, 5 und 6: einmal kochen,
+zweimal essen, eine Regel von Coach Aaron. Am ersten Tag steht die Menge für
+beide Tage zusammen, die Portion je Tag ist einzeln gerechnet. Das Mittagessen
+ist jeden Tag ein anderes, solange die Auswahl reicht, und nie dasselbe wie am
+Vortag. Gespeichert werden nur Beginn und Variante, `settings.essensplan`,
+der Plan wird gerechnet: ändert sich das Gewicht, passt er danach zu den neuen
+Angaben. "Zutaten in die Einkaufsliste" ersetzt Posten aus einem früheren
+Plan statt sie zu addieren, was im Vorrat liegt, kommt als zuhause hinein.
+
+## Protein nie unter 1,6 g je kg
+
+`PROTEIN_MIN_G_JE_KG` und `PROTEIN_DIAET_G_JE_KG` in `energy.ts`. Eine Regel
+von Coach Aaron: 1,6 g je kg Körpergewicht in jedem Ziel und nach jeder
+Korrektur, in der Diät 2,0 g. Vorher konnte die Rechnung über die fettfreie
+Masse oder eine Minuskorrektur im Fragebogen darunter fallen. Die fettfreie
+Masse zählt nur noch, wenn sie mehr ergibt, also bei schlanken Menschen.
 
 ## Nährwerte von Markenprodukten
 

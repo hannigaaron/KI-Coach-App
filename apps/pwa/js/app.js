@@ -67,7 +67,7 @@ import { mitteilungenPlanen } from "./mitteilungen.js";
 import { berechtigungenFragen, berechtigungenOffen, berechtigungenText } from "./berechtigungen.js";
 import { nativAufruf } from "./nativ.js";
 import { spueren } from "./haptik.js";
-import { anteilAmZiel, eigeneRezepte, hauptMakro, rezeptGrenze, rezeptLoeschen, rezeptSpeichern, summe as postenSumme, tabellenBild, tabellenPosten, tabellenSuche, zuletztGegessen } from "./bibliothek.js";
+import { anteilAmZiel, eigeneRezepte, essensplanFrei, hauptMakro, rezeptGrenze, rezeptLoeschen, rezeptSpeichern, summe as postenSumme, tabellenBild, tabellenPosten, tabellenSuche, zuletztGegessen } from "./bibliothek.js";
 import { einwilligungOffen, einwilligungSetzen, einwilligungText, kiErlaubt } from "./einwilligung.js";
 import { ABO_STUFEN, ABO_TAKTE, aboPreis, ersparnisProzent, aboAnlass, aboAnlassLeer, aboLeiste, aboLink, kontoLoeschen, kontoSicherstellen, kontoStand, kontoText } from "./konto.js";
 
@@ -2600,6 +2600,9 @@ const rezepte = rezepteAnsicht({
   wurzel: document.querySelector('[data-view="rezepte"]'),
   toast,
   beiEintrag: () => refreshAll(),
+  planFrei: () => essensplanFrei(store.getSettings(), KONFIG),
+  proOeffnen: () => aboOeffnen({ marke: "Pro", titel: "Dein Essensplan für die Woche", empfohlen: "pro",
+    text: "Sieben Tage aus den Rezepten, gerechnet auf deine Kalorien und Makros, mit Abendessen zum Vorkochen und fertiger Einkaufsliste." }),
 });
 
 function einfuehrungGesehen() {

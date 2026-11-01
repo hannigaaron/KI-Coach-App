@@ -50,10 +50,17 @@ test("Protein rechnet auf die fettfreie Masse, wenn der Körperfettanteil bekann
   const basis = { ...aaron, goal: "fat_loss" as const };
   const ohne = macroTargets(basis).proteinG;
   const mit = macroTargets({ ...basis, bodyFatPercent: 30 }).proteinG;
-  // 87 kg mal 1.8 sind 157 g. Bei 30 Prozent Fett bleiben 60.9 kg fettfreie
-  // Masse, mal 2.4 sind 146 g.
-  assert.equal(ohne, 157);
-  assert.equal(mit, 146);
+  // 87 kg mal 2.0 sind 174 g. Bei 30 Prozent Fett bleiben 60.9 kg fettfreie
+  // Masse, mal 2.4 sind 146 g, das läge unter der Regel je kg Körpergewicht.
+  assert.equal(ohne, 174);
+  assert.equal(mit, 174);
+  // Schlank zählt die fettfreie Masse: 8 Prozent Fett, 80 kg mal 2.4 sind 192 g.
+  assert.equal(macroTargets({ ...basis, bodyFatPercent: 8 }).proteinG, 192);
+});
+
+test("Protein fällt nie unter 1.6 g je kg, auch nicht mit Minuskorrektur", () => {
+  assert.equal(macroTargets({ ...aaron, bodyFatPercent: 35 }).proteinG, Math.round(87 * 1.6));
+  assert.equal(macroTargets({ ...aaron, zielKorrektur: { proteinG: -60 } }).proteinG, Math.round(87 * 1.6));
 });
 
 test("unsinnige Körperfettwerte werden ignoriert", () => {
@@ -89,9 +96,9 @@ test("Makros ergeben in Summe die Zielkalorien", () => {
   assert.equal(t.fatG, Math.round(87 * 0.8));
 });
 
-test("Protein steigt im Defizit auf 1.8 g pro kg", () => {
+test("Protein steigt im Defizit auf 2.0 g pro kg", () => {
   const t = macroTargets({ ...aaron, goal: "fat_loss" });
-  assert.equal(t.proteinG, Math.round(87 * 1.8));
+  assert.equal(t.proteinG, Math.round(87 * 2.0));
 });
 
 test("Trinkmenge steigt mit Trainingsdauer", () => {

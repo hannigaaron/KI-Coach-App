@@ -40,6 +40,7 @@ export * from "./trainingslog.js";
 export * from "./morgencheck.js";
 export * from "./rezepte.js";
 export * from "./rezepte-daten.js";
+export * from "./essensplan.js";
 export * from "./herkunft.js";
 export * from "./erinnerung.js";
 export * from "./wochentraining.js";

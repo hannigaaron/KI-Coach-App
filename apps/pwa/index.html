@@ -841,6 +841,22 @@ try {
   <section class="view" data-view="rezepte" hidden>
     <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Rezepte</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
+      <div class="ue-modus" role="tablist" aria-label="Rezepte">
+        <button type="button" class="on" role="tab" aria-selected="true" data-rz-modus="einzeln">Einzeln</button>
+        <button type="button" class="" role="tab" aria-selected="false" data-rz-modus="woche">Wochenplan</button>
+      </div>
+      <!-- Der Essensplan über sieben Tage, gerechnet in packages/core/src/essensplan.ts. -->
+      <div id="rzWoche" hidden>
+        <p class="sub" id="epZiel"></p>
+        <div class="pills ep-tage" id="epTage" role="tablist" aria-label="Tag"></div>
+        <div id="epTag"></div>
+        <div class="ep-aktionen">
+          <button type="button" id="epEinkauf" class="primary breit">Zutaten in die Einkaufsliste</button>
+          <button type="button" id="epAnders" class="ghost breit">Anderer Plan</button>
+        </div>
+        <p class="fineprint" id="epHinweis"></p>
+      </div>
+      <div id="rzEinzeln">
       <div class="rz-rest" id="rzRest"></div>
       <div class="pills rz-arten" id="rzArten"></div>
       <p class="sub" id="rzFuerMorgen" hidden>Diese Mahlzeit ist für heute vorbei. Gerechnet wird mit deinem vollen Tagesziel, also für morgen.</p>
@@ -856,6 +872,7 @@ try {
       </div>
       <div id="rzDetail"></div>
       <p class="fineprint" id="rzHinweis"></p>
+      </div>
     </div>
   </section>
 

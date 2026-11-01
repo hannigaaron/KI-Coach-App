@@ -46,6 +46,11 @@ export const ZUTATEN = {
   milch: { name: "Milch 1,5 %", per100: { kcal: 47, proteinG: 3.4, fatG: 1.5, carbsG: 4.9 }, allergene: ["Milch"], unvertraeglich: ["Laktose"], herkunft: "milch" },
   haferdrink: { name: "Haferdrink", per100: { kcal: 46, proteinG: 0.3, fatG: 1.5, carbsG: 7 }, allergene: ["Gluten"] },
   magerquark: { name: "Magerquark", per100: { kcal: 67, proteinG: 12, fatG: 0.3, carbsG: 4.1 }, allergene: ["Milch"], unvertraeglich: ["Laktose"], herkunft: "milch" },
+  // Laktosefrei heisst: die Laktose ist in Glukose und Galaktose gespalten.
+  // Die Makros bleiben dieselben, deshalb dieselben Werte wie oben. Nur als
+  // Ergänzung im Essensplan, für alle, die Laktose meiden und sonst kein
+  // Protein ohne Soja und ohne Pulver bekämen.
+  magerquarkLf: { name: "Magerquark, laktosefrei", per100: { kcal: 67, proteinG: 12, fatG: 0.3, carbsG: 4.1 }, allergene: ["Milch"], herkunft: "milch" },
   skyr: { name: "Skyr", per100: { kcal: 63, proteinG: 11, fatG: 0.2, carbsG: 4 }, allergene: ["Milch"], unvertraeglich: ["Laktose"], herkunft: "milch" },
   joghurt: { name: "Griechischer Joghurt 2 %", per100: { kcal: 73, proteinG: 9, fatG: 2, carbsG: 4 }, allergene: ["Milch"], unvertraeglich: ["Laktose"], herkunft: "milch" },
   sojajoghurt: { name: "Sojajoghurt natur", per100: { kcal: 50, proteinG: 4, fatG: 2.3, carbsG: 2.1 }, allergene: ["Soja"] },

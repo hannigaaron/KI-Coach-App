@@ -99,7 +99,7 @@ export function energyBreakdown(profile: UserProfile): EnergyBreakdown {
 /**
  * Makroverteilung.
  *
- * Protein: 1.8 g pro kg Körpergewicht im Defizit, 1.6 g sonst.
+ * Protein: 2.0 g pro kg Körpergewicht im Defizit, 1.6 g sonst, nie darunter.
  * Quelle: Morton RW et al. A systematic review, meta-analysis and meta-regression
  * of the effect of protein supplementation on resistance training-induced gains in
  * muscle mass and strength. Br J Sports Med. 2018;52(6):376-384. Der Zugewinn
@@ -112,7 +112,11 @@ export function energyBreakdown(profile: UserProfile): EnergyBreakdown {
  */
 export function macroTargets(profile: UserProfile): MacroTargets {
   const energy = energyBreakdown(profile);
-  const proteinG = Math.max(0, proteinTarget(profile) + korrektur(profile, "proteinG", KORREKTUR_GRENZE.proteinG));
+  // Eine Korrektur nach unten endet an der Untergrenze, nie darunter.
+  const proteinG = Math.max(
+    round(profile.weightKg * PROTEIN_MIN_G_JE_KG),
+    proteinTarget(profile) + korrektur(profile, "proteinG", KORREKTUR_GRENZE.proteinG),
+  );
   const fatG = Math.max(0, round(profile.weightKg * 0.8) + korrektur(profile, "fatG", KORREKTUR_GRENZE.fatG));
   const remainingKcal = energy.targetKcal - proteinG * 4 - fatG * 9;
   const carbsG = Math.max(0, round(remainingKcal / 4));
@@ -144,9 +148,10 @@ function korrektur(profile: UserProfile, feld: "kcal" | "proteinG" | "fatG", gre
 /**
  * Proteinziel in Gramm.
  *
- * Ohne Angabe zum Körperfett wird auf das Gesamtgewicht gerechnet, 1.8 g je kg
- * im Defizit und 1.6 g sonst. Ist der Körperfettanteil bekannt, wird auf die
- * fettfreie Masse gerechnet, 2.4 g je kg im Defizit und 2.2 g sonst.
+ * Ohne Angabe zum Körperfett wird auf das Gesamtgewicht gerechnet, 2.0 g je kg
+ * im Defizit und 1.6 g sonst. Ist der Körperfettanteil bekannt, zählt
+ * zusätzlich die fettfreie Masse, 2.4 g je kg im Defizit und 2.2 g sonst, und
+ * der höhere Wert gilt. Unter die Werte je kg Körpergewicht fällt das Ziel nie.
  *
  * Der zweite Weg ist bei höherem Körperfettanteil der sinnvollere: Fettgewebe
  * braucht kein Protein. Bei einem schlanken Menschen liefern beide Wege fast
@@ -155,13 +160,32 @@ function korrektur(profile: UserProfile, feld: "kcal" | "proteinG" | "fatG", gre
  */
 export function proteinTarget(profile: UserProfile): number {
   const cutting = profile.goal === "fat_loss";
+  const gesamt = profile.weightKg * (cutting ? PROTEIN_DIAET_G_JE_KG : PROTEIN_MIN_G_JE_KG);
   const bodyFat = profile.bodyFatPercent;
   if (typeof bodyFat === "number" && bodyFat > 3 && bodyFat < 60) {
     const leanMass = profile.weightKg * (1 - bodyFat / 100);
-    return round(leanMass * (cutting ? 2.4 : 2.2));
+    return round(Math.max(gesamt, leanMass * (cutting ? 2.4 : 2.2)));
   }
-  return round(profile.weightKg * (cutting ? 1.8 : 1.6));
+  return round(gesamt);
 }
+
+/**
+ * Untergrenze für Protein, in jedem Ziel und nach jeder Korrektur: 1,6 g je kg
+ * Körpergewicht. Eine Regel von Coach Aaron, gestützt auf Morton und andere
+ * 2018, wo der Zugewinn an Muskelmasse um diesen Wert abflacht. Vorher konnte
+ * die Rechnung über die fettfreie Masse oder eine Minuskorrektur darunter
+ * fallen.
+ */
+export const PROTEIN_MIN_G_JE_KG = 1.6;
+
+/**
+ * Protein in der Diät, 2,0 g je kg Körpergewicht. Im Defizit schützt mehr
+ * Protein die Muskelmasse: Helms und andere 2014 nennen für schlanke
+ * Trainierende 2,3 bis 3,1 g je kg fettfreier Masse, das ISSN Positionspapier
+ * (Jäger und andere 2017) 1,4 bis 2,0 g je kg und im Defizit eher mehr. Die
+ * 2,0 sind eine Regel von Coach Aaron innerhalb dieser Spanne.
+ */
+export const PROTEIN_DIAET_G_JE_KG = 2.0;
 
 /**
  * Trinkmenge. 35 ml pro kg Körpergewicht plus 600 ml je Trainingsstunde am Tag.

@@ -57,6 +57,7 @@ export interface AgentActions {
   einkaufslisteAbhaken(input: { posten: string; stand: "gekauft" | "zuhause" | "offen" }): Promise<string>;
   einkaufslisteErgaenzen(input: { posten: string[] }): Promise<string>;
   trainingsplanAbrufen(input: { inTagen?: number }): Promise<string>;
+  essensplanAbrufen?(input: { inTagen?: number }): Promise<string>;
   standardsAbrufen(): Promise<string>;
   standardSetzen(input: {
     text: string; kadenz: string; art: string; ziel: number; id?: string; uhrzeit?: string; entfernen?: boolean;
@@ -558,7 +559,7 @@ export const NUR_LESEN = new Set([
   "tagesstand_abrufen", "verlauf_abrufen", "kalender_abrufen", "gespraeche_durchsuchen",
   "produkt_nachschlagen", "balance_abrufen", "muster_erkennen", "bericht_erstellen",
   "belastung_abrufen", "bereitschaft_abrufen", "widersprueche_pruefen",
-  "trainingsplan_abrufen", "standards_abrufen", "gedaechtnis_durchsuchen",
+  "trainingsplan_abrufen", "essensplan_abrufen", "standards_abrufen", "gedaechtnis_durchsuchen",
 ]);
 
 async function execute(
@@ -859,6 +860,11 @@ async function execute(
       case "trainingsplan_abrufen": {
         const inTagen = Number.isFinite(Number(input.inTagen)) ? clamp(Number(input.inTagen), 0, 6) : 0;
         return { text: await actions.trainingsplanAbrufen({ inTagen }) };
+      }
+      case "essensplan_abrufen": {
+        const inTagen = Number.isFinite(Number(input.inTagen)) ? clamp(Number(input.inTagen), 0, 6) : 0;
+        if (!actions.essensplanAbrufen) return { text: "Den Essensplan gibt es in dieser Fassung nicht.", fehler: true };
+        return { text: await actions.essensplanAbrufen({ inTagen }) };
       }
       case "einkaufsliste_ergaenzen": {
         const posten = Array.isArray(input.posten) ? input.posten.map(String).filter((p) => p.trim()) : [];
@@ -1295,6 +1301,17 @@ export async function runOffline(
       erfassen: pattern("gegessen", "esse", "hatte", "getrunken", "eintragen").test(text),
     });
     return { text: antwort, ausgeführt, source: "offline" };
+  }
+
+  // "Was esse ich morgen laut Plan" und "was soll ich heute essen" lesen den
+  // Essensplan. "Was hab ich heute gegessen" ist eine Frage nach dem Tag und
+  // landet hier nicht: verlangt wird "soll", "laut Plan" oder das Wort selbst.
+  const essenTag = (/\bessensplan\b/.test(text) || /\blaut plan\b/.test(text) && /\b(esse|essen|koche|kochen)\b/.test(text)
+    || /\b(was|welches)\b.*\b(soll|sollte)\b.*\b(essen|kochen)\b/.test(text))
+    ? (/\buebermorgen\b/.test(text) ? 2 : /\bmorgen\b/.test(text) ? 1 : 0)
+    : null;
+  if (essenTag !== null && actions.essensplanAbrufen) {
+    return { text: await actions.essensplanAbrufen({ inTagen: essenTag }), ausgeführt, source: "offline" };
   }
 
   // "Was soll ich morgen trainieren" ist eine Frage nach dem Plan, nicht nach

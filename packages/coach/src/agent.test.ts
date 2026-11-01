@@ -915,3 +915,23 @@ test("Regelweg Kalender: verschieben vor Planänderung und Training", async () =
   assert.ok(log.some((l) => l.startsWith("kalender:verschieben:")), log.join(","));
   assert.deepEqual(r.ausgeführt, ["Kalender geändert"]);
 });
+
+test("der Essensplan im Regelweg: laut Plan und soll ich essen, nicht was ich gegessen habe", async () => {
+  for (const [satz, erwartet] of [
+    ["Was esse ich morgen laut Plan?", 1],
+    ["Was soll ich heute essen", 0],
+    ["zeig mir den Essensplan für übermorgen", 2],
+  ] as const) {
+    const log: string[] = [];
+    const a: AgentActions = { ...stubActions(log), async essensplanAbrufen(i) { log.push(`essen:${i.inTagen}`); return "Plan."; } };
+    await runOffline(satz, a);
+    assert.ok(log.includes(`essen:${erwartet}`), `${satz}: ${log.join(",")}`);
+  }
+});
+
+test("was ich heute gegessen habe, liest nicht den Essensplan", async () => {
+  const log: string[] = [];
+  const a: AgentActions = { ...stubActions(log), async essensplanAbrufen() { log.push("essen"); return "Plan."; } };
+  await runOffline("Was hab ich heute gegessen?", a);
+  assert.ok(!log.includes("essen"), log.join(","));
+});

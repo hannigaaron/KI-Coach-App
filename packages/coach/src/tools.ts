@@ -797,6 +797,20 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: "essensplan_abrufen",
+    description:
+      "Liefert den Essensplan eines Tages aus dem Wochenplan unter Rezepte: Gerichte je Mahlzeit mit Kalorien " +
+      "und Protein, die Ergänzung des Tages und welches Abendessen doppelt gekocht oder vom Vortag ist. Nehmen bei " +
+      "\"was esse ich heute laut Plan\" oder \"was koche ich morgen\". Gerichte und Mengen nie selbst erfinden, " +
+      "sie stehen im Plan und sind auf das Tagesziel gerechnet.",
+    input_schema: {
+      type: "object",
+      properties: {
+        inTagen: { type: "number", description: "0 heute, 1 morgen, bis 6." },
+      },
+    },
+  },
+  {
     name: "einkaufsliste_ergaenzen",
     description:
       "Setzt Posten auf die Einkaufsliste, die der Nutzer selbst nennt: \"setz Reis und Brokkoli auf die Liste\". " +

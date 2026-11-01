@@ -134,6 +134,16 @@ export function rezeptGrenze(settings, konfig) {
   return REZEPT_GRENZE[stufe] ?? 0;
 }
 
+/**
+ * Ob der Wochenplan offen ist. Er gehört zu Pro und ist in der Testphase zum
+ * Ausprobieren dabei: wer ihn nie gesehen hat, weiss nicht, wofür er Pro
+ * nehmen soll. Ohne eigenen Server gibt es keine Grenze, wie bei den Rezepten.
+ */
+export function essensplanFrei(settings, konfig) {
+  if (!konfig?.chatUrl) return true;
+  return ["pro", "test"].includes(settings?.kontoStufe || "test");
+}
+
 export function eigeneRezepte(settings) {
   return Array.isArray(settings?.eigeneRezepte) ? settings.eigeneRezepte : [];
 }
