@@ -4509,6 +4509,9 @@ $("btnSaveProfile").addEventListener("click", () => {
   store.setProfile(profile);
   renderProfile();
   refreshAll();
+  // Neue Schlafenszeiten verschieben die Erinnerungen vor dem Schlafen und das
+  // Runterfahren. Ohne neues Planen kämen sie bis zum nächsten Öffnen zur alten Zeit.
+  mitteilungenNativ();
   toast("Gespeichert");
 });
 

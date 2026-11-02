@@ -157,6 +157,21 @@ test("vor dem Schlafen folgt der Schlafenszeit des Tages, auch aus einem SLEEP E
   assert.equal(plan.find((m) => m.id === `runterfahren-${HEUTE}`).uhrzeit, "23:00", "Runterfahren 45 Minuten vor 23:45");
 });
 
+test("die Schlafenszeit je Wochentag aus daevo geht dem Kalender vor", async () => {
+  frisch();
+  const { mitteilungsPlan } = await import("./mitteilungen.js");
+  const ms = (tag, hhmm) => new Date(`${tag}T${hhmm}:00`).getTime();
+  store.setSettings({ ...store.getSettings(), eigeneErinnerungen: [{ id: "sup", text: "Schlaf Supplements", bezug: "schlafen", versatz: -60, tage: [] }] });
+  store.setKalender({ termine: [{ uid: "s1", titel: "SLEEP", ort: "", von: ms(HEUTE, "23:45"), bis: ms("2026-10-20", "07:00"), ganztags: false }] });
+  // 2026-10-19 ist ein Montag.
+  store.setProfile({ ...store.getProfile(), randModus: "wochentag", wochenraender: { "1": { sleepTime: "22:30" }, "2": { sleepTime: "00:15" } } });
+  const plan = mitteilungsPlan({ store, jetzt: { tag: HEUTE, uhrzeit: "06:00" } });
+  const zeit = (tag) => plan.find((m) => m.id === `eigene-sup-${tag}`)?.uhrzeit;
+  assert.equal(zeit(HEUTE), "21:30", "Montag laut daevo 22:30, der Kalender zählt nicht");
+  assert.equal(zeit("2026-10-20"), "23:15", "Dienstag laut daevo 00:15");
+  assert.equal(zeit("2026-10-21"), "22:00", "Mittwoch ohne Eintrag: Schnitt 23:00");
+});
+
 /* ---------- Ernährung aus Apple Health ---------- */
 
 const { ernaehrungSchreiben, nahrungZusammenlegen, NAHRUNG_GLEICH_MINUTEN } = await import("./healthkit.js");

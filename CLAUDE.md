@@ -262,8 +262,9 @@ Strichfiguren, keine Clip Art, keine Karten mit Rahmen um Text.
   auch ohne Leerzeichen im Namen ("überkopf" findet "über Kopf") und ohne
   Plural-s ("Pushdowns"), `trifft` in `uebungen.js`. Vorher fand "Multipresse"
   nichts und "Trizeps Extensions überkopf" nicht das Trizepsstrecken über Kopf.
-- Am Kabel gibt es Pushdown beidarmig, einarmig und liegend auf der Bank (Kopf zum Turm,
-  schulterbreite Stange am Oberkörper entlang bis zur Streckung),
+- Am Kabel gibt es Pushdown beidarmig, einarmig und liegend auf der Schrägbank
+  (rücklings, Kopf zum Turm, die Lehne im Winkel des Kabels, gerade Stange
+  wie beim Curl am Oberkörper entlang bis zur Streckung und zurück bis Kinnhöhe),
   Curl mit Stange, Hammer Curl mit Seil und einarmig, Seitheben einarmig,
   Reverse Butterfly, Butterfly sitzend, Cable Fly von unten nach oben und von
   oben nach unten, Kickback einbeinig und seitlich für den Gluteus medius. Auf
@@ -274,6 +275,13 @@ Strichfiguren, keine Clip Art, keine Karten mit Rahmen um Text.
   von sieben Übungen längs zum Körper statt quer über Schultern, Brust oder
   Hüfte, und das fiel erst dem Nutzer auf. Beim Prüfen eines neuen Fotos
   zuerst nachsehen, wie die Stange zum Körper liegt, dann die Gelenkwinkel.
+- Am Kabel steht die Person zum Turm gedreht und nah davor, das Kabel läuft
+  gerade von der Rolle zur Hand. Weit weg vom Turm oder seitlich dazu lief
+  es schräg durchs Bild, und der Griff hing neben der Hand. Ein Foto, das
+  anatomisch oder biomechanisch nicht stimmt, kommt nicht hinein, auch wenn
+  es sonst gut aussieht: lieber neu erzeugen, je zwei Fassungen, und die
+  bessere nehmen. Beim Hip Thrust half das vorhandene Foto mit Langhantel als
+  Vorlage, mit der Anweisung, nur das Gerät zu tauschen.
 
 ### Trainingspläne
 
@@ -608,7 +616,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1296 Tests
+npm test           # 1297 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages

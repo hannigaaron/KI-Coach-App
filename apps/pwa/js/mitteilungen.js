@@ -13,17 +13,21 @@
  *
  * Kein `document`, kein `window`: das Modul läuft auch in den Tests.
  */
-import { LUECKE_UHRZEIT, NACHFRAGE_UHRZEIT, erinnerungAmTag, erinnerungUhrzeit, impulseFuerTag, morgenUhrzeit, nachfrageNoetig, schlafenszeitAusKalender, tagesrandFuer } from "@daevo/core";
+import { LUECKE_UHRZEIT, NACHFRAGE_UHRZEIT, erinnerungAmTag, erinnerungUhrzeit, impulseFuerTag, morgenUhrzeit, nachfrageNoetig, schlafenszeitAusKalender, tagesrandFuer, wochentagVon } from "@daevo/core";
 
 /**
- * Aufsteh und Schlafenszeit eines Tages für die Mitteilungen. Steht abends ein
- * Eintrag wie "SLEEP" im Kalender, gilt dessen Beginn, denn wer seinen Schlaf
- * so plant, plant ihn je Tag. Nur eine Ausnahme, die für genau diesen Tag
- * gesagt wurde ("heute gehe ich um 23 Uhr ins Bett"), wiegt mehr.
+ * Aufsteh und Schlafenszeit eines Tages für die Mitteilungen. Was der Nutzer
+ * in daevo eingetragen hat, gilt zuerst: die Ausnahme für genau diesen Tag,
+ * dann die Zeit je Wochentag aus dem Profil. Erst wenn dort für diesen Tag
+ * nichts steht, zählt ein Eintrag wie "SLEEP" im Kalender, und danach der
+ * Schnitt. Der Betreiber pflegt seine Zeiten je Tag in der App, und ein
+ * Kalendereintrag darf sie nicht still überschreiben.
  */
 export function randMitKalender(profil, tag, termine = []) {
   const rand = tagesrandFuer(profil, tag);
   if (profil.tagesausnahmen?.[tag]?.sleepTime) return rand;
+  const wt = wochentagVon(tag);
+  if (profil.randModus === "wochentag" && wt !== null && profil.wochenraender?.[String(wt)]?.sleepTime) return rand;
   const ausKalender = schlafenszeitAusKalender(termine, tag);
   return ausKalender ? { ...rand, sleepTime: ausKalender } : rand;
 }
