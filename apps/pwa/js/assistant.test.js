@@ -708,14 +708,14 @@ test("einmalige Erinnerung wird angelegt, vorbei heisst abgelehnt und weggeräum
   const z = (n) => String(n).padStart(2, "0");
   const datum = `${morgen.getFullYear()}-${z(morgen.getMonth() + 1)}-${z(morgen.getDate())}`;
   const ok = await aktionen.erinnerungAnlegen({ text: "die Wäsche", uhrzeit: "22:30", tage: [], datum });
-  assert.match(ok, /^Erinnerung angelegt: Die Wäsche, morgen, 22:30, einmalig\./);
+  assert.match(ok, /^Erinnerung angelegt: Wäsche, morgen, 22:30, einmalig\./);
   const vorbei = await aktionen.erinnerungAnlegen({ text: "Ofen", uhrzeit: "00:00", tage: [], datum: "2020-01-01" });
   assert.doesNotMatch(vorbei, /angelegt/);
   // Eine einmalige von gestern fällt beim nächsten Lesen aus der Liste.
   const s = store.getSettings();
   store.setSettings({ ...s, eigeneErinnerungen: [...s.eigeneErinnerungen, { id: "alt", text: "Alt", uhrzeit: "08:00", tage: [], datum: "2020-01-01" }] });
   const offen = erinnerungenAufgeraeumt();
-  assert.ok(offen.some((e) => e.text === "Die Wäsche"));
+  assert.ok(offen.some((e) => e.text === "Wäsche"));
   assert.ok(!offen.some((e) => e.id === "alt"));
 });
 

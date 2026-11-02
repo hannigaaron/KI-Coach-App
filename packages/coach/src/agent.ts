@@ -64,6 +64,7 @@ export interface AgentActions {
    */
   trainingHeute?(input: { gruppen: string[]; minuten?: number; neu?: boolean }): Promise<string>;
   essensplanAbrufen?(input: { inTagen?: number }): Promise<string>;
+  uebungenSuchen?(input: { suche?: string; ersatzFuer?: string }): Promise<string>;
   standardsAbrufen(): Promise<string>;
   standardSetzen(input: {
     text: string; kadenz: string; art: string; ziel: number; id?: string; uhrzeit?: string; entfernen?: boolean;
@@ -568,7 +569,7 @@ export const NUR_LESEN = new Set([
   "tagesstand_abrufen", "verlauf_abrufen", "kalender_abrufen", "gespraeche_durchsuchen",
   "produkt_nachschlagen", "balance_abrufen", "muster_erkennen", "bericht_erstellen",
   "belastung_abrufen", "bereitschaft_abrufen", "widersprueche_pruefen",
-  "trainingsplan_abrufen", "essensplan_abrufen", "standards_abrufen", "gedaechtnis_durchsuchen",
+  "trainingsplan_abrufen", "essensplan_abrufen", "standards_abrufen", "gedaechtnis_durchsuchen", "uebungen_suchen",
 ]);
 
 async function execute(
@@ -888,6 +889,10 @@ async function execute(
         if (!actions.essensplanAbrufen) return { text: "Den Essensplan gibt es in dieser Fassung nicht.", fehler: true };
         return { text: await actions.essensplanAbrufen({ inTagen }) };
       }
+      case "uebungen_suchen": {
+        if (!actions.uebungenSuchen) return { text: "Die Übungsdatenbank gibt es in dieser Fassung nicht.", fehler: true };
+        return { text: await actions.uebungenSuchen({ suche: input.suche ? String(input.suche) : undefined, ersatzFuer: input.ersatzFuer ? String(input.ersatzFuer) : undefined }) };
+      }
       case "einkaufsliste_ergaenzen": {
         const posten = Array.isArray(input.posten) ? input.posten.map(String).filter((p) => p.trim()) : [];
         if (posten.length === 0) return { text: "Es fehlt, was auf die Liste soll.", fehler: true };
@@ -1101,8 +1106,12 @@ const PARTIE_WOERTER: Array<[RegExp, string[]]> = [
  * Oberkörper" ist ein Eintrag und keine Bestellung.
  */
 export function trainingHeuteAus(text: string): { gruppen: string[]; minuten?: number } | null {
-  if (/\b(war|warst|hab|habe|hatte|gewesen|trainiert|gemacht)\b/.test(text)) return null;
-  const absicht = /\b(trainiere|trainier|trainieren|stell mir|erstell|bau mir|plan mir|plane mir|mach mir|zusammenstellen|gleich ins|geh gleich|gehe gleich|will heute|moechte heute)\b/.test(text);
+  if (/\b(war|warst|hab|habe|hatte|gewesen|trainiert|gemacht|gegessen|getrunken|esse|essen|isst)\b/.test(text)) return null;
+  const absicht = /\b(trainiere|trainier|trainieren|stell mir|erstell|bau mir|plan mir|plane mir|mach mir|zusammenstellen|gleich ins|geh gleich|gehe gleich|will heute|moechte heute)\b/.test(text)
+    // "Heute Pull, 45 min" und "ich mach heute Beine" sind dieselbe Absicht,
+    // nur kürzer gesagt. Ohne das kam darauf der Satz, der Regelweg verstehe
+    // nur einfache Sätze.
+    || (/\bheute\b/.test(text) && /\b(mach|mache|machen|steht|ist|gibt'?s|gibt es)\b|\d{2,3}\s*(min|minuten)\b/.test(text));
   const bezug = /\b(heute|gleich|jetzt|nachher|training|einheit|workout|gym|studio)\b/.test(text);
   if (!absicht || !bezug) return null;
   const gruppen: string[] = [];
@@ -1370,7 +1379,16 @@ export async function runOffline(
     ? (/\buebermorgen\b/.test(text) ? 2 : /\bmorgen\b/.test(text) ? 1 : 0)
     : null;
   if (essenTag !== null && actions.essensplanAbrufen) {
-    return { text: await actions.essensplanAbrufen({ inTagen: essenTag }), ausgeführt, source: "offline" };
+    const plan = await actions.essensplanAbrufen({ inTagen: essenTag });
+    // "Was soll ich heute Abend essen" fragt nach einer Mahlzeit und nicht
+    // nach dem ganzen Tag. Dann bleibt die Kopfzeile und genau diese Zeile.
+    const klein = nachricht.toLowerCase();
+    const mahlzeit = /abend/.test(klein) ? "Abendessen" : /mittag/.test(klein) ? "Mittagessen"
+      : /(frühstück|fruehstueck)/.test(klein) ? "Frühstück" : /snack/.test(klein) ? "Snack" : null;
+    const zeilen = plan.split("\n");
+    const treffer = mahlzeit ? zeilen.filter((z) => z.startsWith(`${mahlzeit}:`)) : [];
+    const text2 = treffer.length ? [zeilen[0], ...treffer].join("\n") : plan;
+    return { text: text2, ausgeführt, source: "offline" };
   }
 
   // Eine Einheit für heute bestellen: "heute trainiere ich Push, 60 Minuten",
@@ -1384,6 +1402,24 @@ export async function runOffline(
     const antwort = await actions.trainingHeute(heute);
     const ok = !antwort.startsWith(NICHT_GESPEICHERT);
     return { text: antwort, ausgeführt: ok ? [...ausgeführt, "Training für heute bereit"] : ausgeführt, source: "offline" };
+  }
+
+  // "Zeig mir Übungen an der Multipresse", "welche Übung ersetzt Bankdrücken".
+  // Die Datenbank kennt Gerät, Muskel und Bewegung, dafür braucht es kein Modell.
+  if (actions.uebungenSuchen) {
+    const ersatz = /\b(ersetz\w*|alternative\w*|statt|anstatt|anstelle)\b/.test(text) && /\buebung\w*\b|\bbesetzt\b/.test(text);
+    const liste = /\buebungen\b/.test(text) && /\b(zeig\w*|welche|liste|gibt es|gibts|gibt's|alle)\b/.test(text);
+    if (ersatz || liste) {
+      const roh = nachricht.replace(/[?!.]/g, " ");
+      const ersatzName = ersatz
+        ? (/(?:ersetzt|ersetze|ersetzen|alternative zu|statt|anstatt|anstelle von)\s+(?:die\s+|den\s+|das\s+)?([A-Za-zÄÖÜäöüß -]+?)(?:\s+wenn|\s+weil|,|$)/i.exec(roh)?.[1] ?? "")
+        : "";
+      const suche = liste
+        ? text.replace(/[?!.,']/g, " ").replace(/\b(zeig|zeige|mir|welche|liste|gibt|gibts|es|alle|uebungen|an|am|der|die|das|den|dem|mit|fuer|ich|kann|machen|eine|einer|bitte|von|im|in|fuer den)\b/g, " ").replace(/\s+/g, " ").trim()
+        : "";
+      const antwort = await actions.uebungenSuchen({ suche: suche || undefined, ersatzFuer: ersatzName.trim() || undefined });
+      return { text: antwort, ausgeführt, source: "offline" };
+    }
   }
 
   // "Was soll ich morgen trainieren" ist eine Frage nach dem Plan, nicht nach
@@ -1716,7 +1752,9 @@ export async function runOffline(
     return { text: await actions.briefingErstellen({ art: "morgen" }), ausgeführt, source: "offline" };
   }
 
-  if (pattern("tagesabschluss", "tag abschliessen", "tag abschließen", "gute nacht", "feierabend").test(text)) {
+  if (pattern("tagesabschluss", "tag abschliessen", "tag abschließen", "gute nacht", "feierabend",
+    "was steht morgen an", "wie sieht morgen aus", "wie sieht mein morgen aus", "wie sieht der morgige tag aus",
+    "was hab ich morgen", "was habe ich morgen", "was ist morgen los").test(text)) {
     return { text: await actions.briefingErstellen({ art: "abend" }), ausgeführt, source: "offline" };
   }
 

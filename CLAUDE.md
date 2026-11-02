@@ -79,7 +79,7 @@ Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
 
-Der Assistent hat einundfünfzig Werkzeuge und verändert die App wirklich. Zahlen
+Der Assistent hat zweiundfünfzig Werkzeuge und verändert die App wirklich. Zahlen
 über den Nutzer kommen immer aus Werkzeugen, nie aus dem Modell. Allgemeines
 Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
@@ -621,7 +621,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1298 Tests
+npm test           # 1302 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -2083,7 +2083,7 @@ Tippfehler darf die Ziele nicht kippen.
 
 ## Der Regelweg ist die kostenlose Stufe
 
-47 der 51 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
+48 der 52 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
 Das ist keine Notlösung für den Ausfall, sondern das Produkt: ein Weg, der
 kein Modell anfragt, kostet nichts je Nutzer und skaliert ohne Rechnung.
 
@@ -4358,3 +4358,18 @@ falscher.
 Offen: Apple Health live und Wearables, Weckwort im Hintergrund, Anmeldung über
 Apple.
 Siehe `docs/ROADMAP.md`.
+
+## Übungen im Gespräch suchen
+
+Werkzeug `uebungen_suchen`, `uebungenSuchenText` in `assistant.js`, Regelpfad
+in `agent.ts`. "Zeig mir Übungen an der Multipresse" oder "welche Übung
+ersetzt Bankdrücken" bekam vorher eine Liste aus dem Modell, und die nannte
+Übungen, die es in daevo nicht gibt und die man deshalb weder starten noch
+tauschen kann. Jetzt kommt die Liste aus der Datenbank, höchstens zwölf
+Treffer. Ein Ersatz hat dieselbe Bewegung und Gruppe und ist nach Ort und
+Beschwerden aus `settings.plan` gefiltert, `uebungErlaubt` im Kern.
+
+Im Regelweg zählen dazu: "heute Pull, 45 min" und "ich mach heute Beine" als
+Training für heute, nie mit gegessen oder getrunken im Satz. "Was steht
+morgen an" ist das Briefing für morgen. "Was soll ich heute Abend essen"
+zeigt aus dem Essensplan nur das Abendessen.

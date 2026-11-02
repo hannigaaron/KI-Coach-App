@@ -958,3 +958,33 @@ test("neue Übungen für heute gehen an dieselbe Einheit", async () => {
   assert.equal(trainingHeuteAus("war eben 60 min im gym, oberkoerper"), null);
   assert.equal(trainingHeuteAus("was soll ich morgen trainieren"), null);
 });
+
+test("kurze Sätze für heute sind auch eine Bestellung, ein Essen nie", () => {
+  assert.deepEqual(trainingHeuteAus("heute pull, 45 min"), { gruppen: ["ruecken", "bizeps"], minuten: 45 });
+  assert.deepEqual(trainingHeuteAus("ich mach heute beine an der multipresse")?.gruppen, ["beine", "po"]);
+  assert.equal(trainingHeuteAus("heute 200 g haehnchenbrust gegessen"), null);
+  assert.equal(trainingHeuteAus("heute war beintag, 60 min"), null);
+});
+
+test("Übungen werden in der Datenbank gesucht, ein Ersatz nach der Bewegung", async () => {
+  const gefragt: Array<{ suche?: string; ersatzFuer?: string }> = [];
+  const a: AgentActions = { ...stubActions([]), async uebungenSuchen(e) { gefragt.push(e); return "Liste."; } };
+  await runOffline("Zeig mir Übungen an der Multipresse", a);
+  await runOffline("Welche Übung ersetzt Bankdrücken, wenn die Bank besetzt ist?", a);
+  assert.equal(gefragt[0]?.suche, "multipresse");
+  assert.equal(gefragt[1]?.ersatzFuer, "Bankdrücken");
+});
+
+test("eine Frage nach einer Mahlzeit zeigt aus dem Essensplan nur diese", async () => {
+  const plan = "Montag, 2300 von 2300 kcal.\nFrühstück: Skyr.\nMittagessen: Pizza.\nAbendessen: Lachs Bowl.";
+  const a: AgentActions = { ...stubActions([]), async essensplanAbrufen() { return plan; } };
+  const r = await runOffline("Was soll ich heute Abend essen?", a);
+  assert.equal(r.text, "Montag, 2300 von 2300 kcal.\nAbendessen: Lachs Bowl.");
+});
+
+test("was morgen ansteht, kommt aus dem Briefing für morgen", async () => {
+  let art = "";
+  const a: AgentActions = { ...stubActions([]), async briefingErstellen(e) { art = e.art; return "Morgen."; } };
+  await runOffline("Was steht morgen an?", a);
+  assert.equal(art, "abend");
+});

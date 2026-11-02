@@ -4,8 +4,9 @@ import {
   mahlzeitAusFoto, modellFuerBilder, produktPerBarcode, produkteSuchen, summiere, vorratAusFoto,
   todoistAbhaken, todoistAufgaben, todoistIdVon, todoistWiederOeffnen,
 } from "@daevo/coach";
-import { foldUmlauts, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, einzeltrainingBauen, FOKUS_NAME } from "@daevo/core";
+import { foldUmlauts, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, einzeltrainingBauen, FOKUS_NAME } from "@daevo/core";
 import { UEBUNGEN } from "./uebungen-daten.js";
+import { GERAETE, uebungenFiltern } from "./uebungen.js";
 import {
   MAX_EIGENE,
   planAendern,
@@ -2991,7 +2992,8 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
     async erinnerungAnlegen({ text, uhrzeit, bezug, versatz, tage = [], datum } = {}) {
       // "an mein Magnesium" wird "Magnesium". In der Mitteilung stand sonst
       // "Mein Magnesium", und das liest sich wie ein Fehler.
-      const sauber = String(text || "").trim().replace(/^(mein|meine|meinen|meinem|meiner)\s+/i, "");
+      // "an den Physio Termin" wird "Physio Termin", der Artikel gehört nicht in die Mitteilung.
+      const sauber = String(text || "").trim().replace(/^(mein|meine|meinen|meinem|meiner|den|die|das|der|dem)\s+/i, "");
       const eintrag = { id: newId(), text: sauber ? sauber.charAt(0).toUpperCase() + sauber.slice(1) : sauber, tage };
       if (bezug) Object.assign(eintrag, { bezug, versatz: Number(versatz) || 0 });
       else eintrag.uhrzeit = uhrzeit;
@@ -3291,6 +3293,9 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       return `${treffer.name}: ${wort}. Noch ${offen} Posten offen.`;
     },
 
+    async uebungenSuchen({ suche, ersatzFuer } = {}) {
+      return uebungenSuchenText({ suche, ersatzFuer });
+    },
     async essensplanAbrufen({ inTagen = 0 } = {}) {
       if (!essensplanFreiFuerCoach()) {
         return "NICHT_GESPEICHERT: Der Essensplan für die Woche gehört zu Pro. Einzelne Rezepte passend zum Rest des Tages gibt es unter Rezepte.";
@@ -3844,4 +3849,34 @@ export function heuteGetauscht(altId, neueId) {
   const neu = { ...ht, ersetzt, einheit };
   const verlauf = (Array.isArray(s.heuteVerlauf) ? s.heuteVerlauf : []).map((v) => (v.tag === ht.tag && v.schluessel === ht.schluessel ? neu : v));
   store.setSettings({ ...s, heuteTraining: neu, heuteVerlauf: verlauf });
+}
+
+/**
+ * Übungen aus der Datenbank, als Antwort im Gespräch. Mit `ersatzFuer`
+ * kommen Übungen für dieselbe Bewegung, nach Ort und Beschwerden aus dem
+ * gespeicherten Plan. Nur was in der Datenbank steht, hat in der App Foto,
+ * Schritte und Video, deshalb nennt der Coach keine Übung aus dem Gedächtnis.
+ */
+export function uebungenSuchenText({ suche, ersatzFuer } = {}) {
+  const zeile = (u) => `- ${u.name}: ${GERAETE[u.equipment] ?? u.equipment}, ${u.primaryMuscles.join(", ")}`;
+  const w = store.getSettings().plan?.wunsch || {};
+  const erlaubt = (u) => uebungErlaubt(u, { ort: w.ort, beschwerden: w.beschwerden, meiden: w.meiden });
+  if (ersatzFuer) {
+    const f = (t) => foldUmlauts(String(t).toLowerCase()).trim();
+    const ziel = f(ersatzFuer);
+    const quelle = UEBUNGEN.find((u) => f(u.name) === ziel)
+      ?? UEBUNGEN.find((u) => f(u.name).startsWith(ziel))
+      ?? uebungenFiltern({ text: ersatzFuer })[0];
+    if (!quelle) return `"${ersatzFuer}" finde ich nicht in der Übungsdatenbank. Unter Training, Übungen kannst du suchen.`;
+    const andere = UEBUNGEN.filter((u) => u.id !== quelle.id && u.pattern === quelle.pattern && u.gruppe === quelle.gruppe && erlaubt(u))
+      .sort((a, b) => (a.equipment === quelle.equipment) - (b.equipment === quelle.equipment) || (a.mechanics !== quelle.mechanics) - (b.mechanics !== quelle.mechanics))
+      .slice(0, 6);
+    if (!andere.length) return `Für ${quelle.name} kenne ich keine Übung mit derselben Bewegung, die zu deinem Ort und deinen Beschwerden passt.`;
+    return `Statt ${quelle.name}, dieselbe Bewegung:\n${andere.map(zeile).join("\n")}\nIm Trainingsmodus tauschst du sie über die drei Punkte neben dem Namen.`;
+  }
+  const treffer = uebungenFiltern({ text: suche || "" });
+  if (!treffer.length) return `Zu "${suche}" finde ich keine Übung. Unter Training, Übungen kannst du nach Muskel und Gerät filtern.`;
+  const gezeigt = treffer.slice(0, 12);
+  const rest = treffer.length - gezeigt.length;
+  return `${treffer.length} Übungen${suche ? ` zu "${suche}"` : ""}:\n${gezeigt.map(zeile).join("\n")}${rest > 0 ? `\nUnd ${rest} weitere unter Training, Übungen.` : ""}`;
 }

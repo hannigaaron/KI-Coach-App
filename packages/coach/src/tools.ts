@@ -915,4 +915,19 @@ export const AGENT_TOOLS: ToolDefinition[] = [
       required: ["frage"],
     },
   },
+  {
+    name: "uebungen_suchen",
+    description:
+      "Sucht in der Übungsdatenbank von daevo nach Name, Muskel, Gerät oder Suchwort, etwa \"Übungen an der " +
+      "Multipresse\", \"was gibt es für den Trizeps am Kabel\". Mit ersatzFuer kommen Übungen für dieselbe Bewegung, " +
+      "nach Ort, Niveau und Beschwerden gefiltert, etwa wenn die Bank besetzt ist. Übungen nur von hier nennen, " +
+      "nie aus dem Gedächtnis: nur was in der Datenbank steht, hat Foto, Schritte und Video in der App.",
+    input_schema: {
+      type: "object",
+      properties: {
+        suche: { type: "string", description: "Suchwörter, etwa \"Multipresse\", \"Trizeps Kabel\", \"hintere Schulter\"." },
+        ersatzFuer: { type: "string", description: "Name der Übung, für die ein Ersatz gesucht wird, etwa \"Bankdrücken\"." },
+      },
+    },
+  },
 ];
