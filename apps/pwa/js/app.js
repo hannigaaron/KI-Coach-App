@@ -73,7 +73,7 @@ import { mitteilungenPlanen } from "./mitteilungen.js";
 import { berechtigungenFragen, berechtigungenOffen, berechtigungenText, kontenText } from "./berechtigungen.js";
 import { nativAufruf } from "./nativ.js";
 import { spueren } from "./haptik.js";
-import { anteilAmZiel, eigeneRezepte, essensplanFrei, hauptMakro, rezeptGrenze, rezeptLoeschen, rezeptSpeichern, summe as postenSumme, tabellenBild, tabellenPosten, tabellenSuche, zuletztGegessen } from "./bibliothek.js";
+import { anteilAmZiel, eigeneLebensmittel, eigeneSuche, eigenerPosten, lebensmittelLoeschen, lebensmittelSpeichern, eigeneRezepte, essensplanFrei, hauptMakro, rezeptGrenze, rezeptLoeschen, rezeptSpeichern, summe as postenSumme, tabellenBild, tabellenPosten, tabellenSuche, zuletztGegessen } from "./bibliothek.js";
 import { einwilligungOffen, einwilligungSetzen, einwilligungText, kiErlaubt } from "./einwilligung.js";
 import { ABO_STUFEN, ABO_TAKTE, aboPreis, ersparnisProzent, aboAnlass, aboAnlassLeer, aboLeiste, aboLink, kontoLoeschen, kontoSicherstellen, kontoStand, kontoText } from "./konto.js";
 
@@ -4962,9 +4962,9 @@ function postenWerte(e, ziel) {
 /** Was gerade in der Bibliothek steht, damit ein Tipp den richtigen Posten findet. */
 let meBibliothekPosten = [];
 
-function bibZeile(e, i, { loeschen = null, unter = "" } = {}) {
+function bibZeile(e, i, { loeschen = null, unter = "", loeschenArt = "rezept" } = {}) {
   const weg = loeschen
-    ? `<button type="button" class="me-weg" data-rezept-weg="${escapeHtml(loeschen)}" aria-label="Rezept ${escapeHtml(e.name)} löschen"><span class="kreuz"></span></button>`
+    ? `<button type="button" class="me-weg" data-${loeschenArt}-weg="${escapeHtml(loeschen)}" aria-label="${loeschenArt === "rezept" ? "Rezept" : "Lebensmittel"} ${escapeHtml(e.name)} löschen"><span class="kreuz"></span></button>`
     : "";
   const zeile = unter || `<span class="me-kcal-text">${Math.round(e.kcal)} kcal</span> · ${escapeHtml(e.quantity || "")}`;
   return `<li class="bib-zeile">
@@ -4992,10 +4992,13 @@ function meBibliothekZeichnen() {
   if (begriff) {
     // Beim Tippen sofort die eigene Tabelle, ohne Netz. Open Food Facts kommt
     // erst mit Enter, sonst ginge bei jedem Buchstaben eine Anfrage raus.
-    const treffer = tabellenSuche(begriff);
+    // Eigene Lebensmittel zuerst: wer etwas selbst angelegt hat, meint fast
+    // immer genau das und nicht den Eintrag aus der Tabelle.
+    const eigene = eigeneSuche(begriff, store.getSettings()).map((l) => eigenerPosten(l));
+    const treffer = [...eigene, ...tabellenSuche(begriff)];
     box.innerHTML = (treffer.length
-      ? liste(treffer.map((e) => bibZeile(e, meBibliothekPosten.push({ art: "posten", e }) - 1)))
-      : leer("Nicht in der Nährwerttabelle."))
+      ? liste(treffer.map((e) => bibZeile(e, meBibliothekPosten.push({ art: "posten", e }) - 1, e.eigen ? { unter: `<span class="me-kcal-text">${Math.round(e.kcal)} kcal</span> · ${e.quantity} · eigenes` } : undefined)))
+      : leer("Weder in deinen Lebensmitteln noch in der Nährwerttabelle. Unten kannst du es anlegen."))
       + `<p class="feld-hilfe">Enter sucht zusätzlich nach Marken und Produkten.</p>`;
     return;
   }
@@ -5012,6 +5015,17 @@ function meBibliothekZeichnen() {
         return bibZeile(e, meBibliothekPosten.push({ art: "rezept", r }) - 1, { loeschen: r.id, unter });
       }))
       : leer("Noch keine eigenen Rezepte. Stell oben eine Mahlzeit zusammen und speichere sie als Rezept.");
+    return;
+  }
+  if (meReiterWahl === "eigene") {
+    const liste_ = eigeneLebensmittel(store.getSettings());
+    box.innerHTML = liste_.length
+      ? liste(liste_.map((l) => {
+        const e = eigenerPosten(l);
+        const unter = `<span class="me-kcal-text">${l.per100.kcal} kcal je 100 g</span> · ${l.per100.proteinG} g Eiweiß`;
+        return bibZeile(e, meBibliothekPosten.push({ art: "posten", e }) - 1, { loeschen: l.id, unter, loeschenArt: "lebensmittel" });
+      }))
+      : leer("Noch keine eigenen Lebensmittel. Leg unten eines an, mit den Werten je 100 g von der Packung.");
     return;
   }
   if (meReiterWahl === "lexikon") {
@@ -5040,6 +5054,14 @@ function meRezeptHinweis(text) {
 }
 
 $("meBibliothek").addEventListener("click", (event) => {
+  const lmWeg = event.target.closest("[data-lebensmittel-weg]");
+  if (lmWeg) {
+    const l = eigeneLebensmittel(store.getSettings()).find((x) => x.id === lmWeg.dataset.lebensmittelWeg);
+    if (!l || !confirm(`"${l.name}" aus deinen Lebensmitteln löschen? Eingetragene Mahlzeiten bleiben.`)) return;
+    store.setSettings(lebensmittelLoeschen(store.getSettings(), l.id));
+    meBibliothekZeichnen();
+    return;
+  }
   const weg = event.target.closest("[data-rezept-weg]");
   if (weg) {
     const r = eigeneRezepte(store.getSettings()).find((x) => x.id === weg.dataset.rezeptWeg);
@@ -5143,7 +5165,9 @@ async function meSuchen() {
     }
     const treffer = await produkteSuchen(begriff, { anzahl: 8, ...offOptionen() });
     if (treffer.length === 0) {
-      hinweis.textContent = "Nichts gefunden. Scann den Barcode oder trag es von Hand ein.";
+      hinweis.textContent = "Nichts gefunden. Scann den Barcode oder leg es unten als eigenes Lebensmittel an.";
+      $("meHandName").value = begriff;
+      document.querySelector(".me-hand")?.setAttribute("open", "");
       return;
     }
     meTrefferZeichnen(treffer);
@@ -5271,15 +5295,27 @@ $("meHandAdd").addEventListener("click", () => {
   if (!name) { hinweis.textContent = "Ohne Namen findest du den Posten später nicht wieder."; return; }
   if (!Number.isFinite(gramm) || gramm <= 0) { hinweis.textContent = "Die Menge fehlt."; return; }
   if (!Number.isFinite(kcal) || kcal < 0) { hinweis.textContent = "Die Kalorien je 100 g fehlen."; return; }
-  mePostenAnhaengen(eintragAus100g(name, gramm, {
+  const werte = {
     kcal,
-    proteinG: Number($("meHandP").value) || 0,
-    fatG: Number($("meHandF").value) || 0,
-    carbsG: Number($("meHandK").value) || 0,
-  }));
+    proteinG: Number(String($("meHandP").value).replace(",", ".")) || 0,
+    fatG: Number(String($("meHandF").value).replace(",", ".")) || 0,
+    carbsG: Number(String($("meHandK").value).replace(",", ".")) || 0,
+  };
+  let satz = "Hinzugefügt.";
+  if ($("meHandMerken").checked) {
+    // Gespeichert wird vor dem Anhängen: lehnt die Prüfung die Werte ab,
+    // etwa Makros über 100 g, soll auch kein Posten mit diesen Werten im
+    // Tag landen.
+    const r = lebensmittelSpeichern(store.getSettings(), { name, ...werte, portionG: gramm }, { id: newId });
+    if (r.fehler) { hinweis.textContent = r.fehler; return; }
+    store.setSettings(r.settings);
+    satz = `Hinzugefügt und unter Eigene gespeichert.${r.hinweis ? ` ${r.hinweis}` : ""}`;
+  }
+  mePostenAnhaengen(eintragAus100g(name, gramm, werte));
   for (const id of ["meHandName", "meHandKcal", "meHandP", "meHandF", "meHandK"]) $(id).value = "";
   $("meHandGramm").value = "100";
-  hinweis.textContent = "Hinzugefügt.";
+  hinweis.textContent = satz;
+  meBibliothekZeichnen();
 });
 
 $("meLoeschen").addEventListener("click", () => {

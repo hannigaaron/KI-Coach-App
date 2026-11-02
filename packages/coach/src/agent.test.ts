@@ -988,3 +988,11 @@ test("was morgen ansteht, kommt aus dem Briefing für morgen", async () => {
   await runOffline("Was steht morgen an?", a);
   assert.equal(art, "abend");
 });
+
+test("ein eigenes Lebensmittel wird angelegt und nicht als Mahlzeit eingetragen", async () => {
+  let angelegt: unknown = null;
+  const a: AgentActions = { ...stubActions([]), async lebensmittelAnlegen(e) { angelegt = e; return "Angelegt."; } };
+  const r = await runOffline("Leg ein Lebensmittel an: Omas Kuchen, 350 kcal, 5 g Eiweiß, 18 g Fett, 40 g Kohlenhydrate je 100 g", a);
+  assert.deepEqual(angelegt, { name: "Omas Kuchen", kcal: 350, proteinG: 5, fatG: 18, carbsG: 40, portionG: undefined });
+  assert.deepEqual(r.ausgeführt, ["Lebensmittel angelegt"]);
+});

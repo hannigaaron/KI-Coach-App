@@ -691,6 +691,7 @@ try {
         </div>
         <div id="meReiter" class="me-reiter" role="tablist" aria-label="Bibliothek">
           <button type="button" data-reiter="zuletzt" class="an">Zuletzt</button>
+          <button type="button" data-reiter="eigene">Eigene</button>
           <button type="button" data-reiter="rezepte">Meine Rezepte</button>
           <button type="button" data-reiter="lexikon">Lexikon</button>
         </div>
@@ -699,7 +700,7 @@ try {
         <ul id="meTreffer" class="me-treffer" hidden></ul>
 
         <details class="me-hand">
-          <summary>Von Hand eintragen</summary>
+          <summary>Eigenes Lebensmittel anlegen</summary>
           <p class="feld-hilfe">Für alles, was die Datenbank nicht kennt. Die Werte stehen auf
             der Packung je 100 Gramm.</p>
           <div class="field"><label for="meHandName">Name</label>
@@ -718,6 +719,8 @@ try {
             <div class="field"><label for="meHandK">Kohlenhydrate je 100 g</label>
               <input id="meHandK" type="number" inputmode="decimal" min="0" step="0.1"></div>
           </div>
+          <label class="me-hand-merken"><input id="meHandMerken" type="checkbox" checked>
+            Als eigenes Lebensmittel speichern, dann findest du es beim nächsten Mal in der Suche</label>
           <button id="meHandAdd" class="ghost breit" type="button">Hinzufügen</button>
           <p id="meHandHinweis" class="feld-hilfe"></p>
         </details>

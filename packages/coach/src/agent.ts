@@ -65,6 +65,7 @@ export interface AgentActions {
   trainingHeute?(input: { gruppen: string[]; minuten?: number; neu?: boolean }): Promise<string>;
   essensplanAbrufen?(input: { inTagen?: number }): Promise<string>;
   uebungenSuchen?(input: { suche?: string; ersatzFuer?: string }): Promise<string>;
+  lebensmittelAnlegen?(input: { name: string; kcal: number; proteinG?: number; fatG?: number; carbsG?: number; portionG?: number }): Promise<string>;
   standardsAbrufen(): Promise<string>;
   standardSetzen(input: {
     text: string; kadenz: string; art: string; ziel: number; id?: string; uhrzeit?: string; entfernen?: boolean;
@@ -892,6 +893,16 @@ async function execute(
         if (!actions.essensplanAbrufen) return { text: "Den Essensplan gibt es in dieser Fassung nicht.", fehler: true };
         return { text: await actions.essensplanAbrufen({ inTagen }) };
       }
+      case "lebensmittel_anlegen": {
+        if (!actions.lebensmittelAnlegen) return { text: "Eigene Lebensmittel gibt es in dieser Fassung nicht.", fehler: true };
+        const z = (v: unknown) => (v === undefined || v === null || v === "" ? undefined : Number(v));
+        const text = await actions.lebensmittelAnlegen({
+          name: String(input.name ?? ""), kcal: Number(input.kcal),
+          proteinG: z(input.proteinG), fatG: z(input.fatG), carbsG: z(input.carbsG), portionG: z(input.portionG),
+        });
+        if (text.startsWith(NICHT_GESPEICHERT)) return { text, fehler: true };
+        return { text, notiz: "Lebensmittel angelegt" };
+      }
       case "uebungen_suchen": {
         if (!actions.uebungenSuchen) return { text: "Die Übungsdatenbank gibt es in dieser Fassung nicht.", fehler: true };
         return { text: await actions.uebungenSuchen({ suche: input.suche ? String(input.suche) : undefined, ersatzFuer: input.ersatzFuer ? String(input.ersatzFuer) : undefined }) };
@@ -1271,6 +1282,29 @@ function parseAmount(raw: string | undefined): number | null {
  * Er erkennt Absichten an Schlüsselwörtern. Das ist grob, aber es deckt die
  * Fälle ab, die im Alltag zählen, und es sagt ehrlich, wenn es nicht reicht.
  */
+/**
+ * Liest ein eigenes Lebensmittel aus einem Satz. Nur mit dem Wort
+ * Lebensmittel und einem Verb fürs Anlegen, und nur mit Kalorien: ohne die
+ * gibt es nichts zu speichern, und Makros ohne Kalorien rät die App nicht.
+ * Die Werte gelten je 100 g, so stehen sie auf jeder Packung.
+ */
+export function lebensmittelAus(text: string, roh: string): { name: string; kcal: number; proteinG?: number; fatG?: number; carbsG?: number; portionG?: number } | null {
+  if (!/\blebensmittel\b/.test(text) || !/\b(anlegen|leg\w*|speicher\w*|merk\w*|hinzufueg\w*|fueg\w*|erstell\w*|neu\w*)\b/.test(text)) return null;
+  const zahl = (re: RegExp) => { const m = re.exec(text); return m?.[1] ? Number(m[1].replace(",", ".")) : undefined; };
+  const kcal = zahl(/(\d+(?:[.,]\d+)?)\s*(?:kcal|kalorien)/);
+  if (kcal === undefined) return null;
+  const g = "(\\d+(?:[.,]\\d+)?)\\s*(?:g|gramm)?\\s*";
+  const proteinG = zahl(new RegExp(g + "(?:eiweiss|protein)"));
+  const fatG = zahl(new RegExp(g + "fett"));
+  const carbsG = zahl(new RegExp(g + "(?:kohlenhydrate|kh|carbs)"));
+  const portionG = zahl(/portion\w*\s*(?:von|sind|ist|=)?\s*(\d+)\s*(?:g|gramm)/);
+  // Der Name steht nach dem Doppelpunkt oder nach "an", bis zur ersten Zahl.
+  const nach = /(?::|\banlegen\b|\ban\b|\bals\b|\bspeicher\w*)\s*([^\d:,]+?)\s*(?:,|\bmit\b|\d)/i.exec(roh.replace(/(?:ein |als )?(?:eigenes |neues )?lebensmittel/i, " "));
+  const name = (nach?.[1] ?? "").replace(/^(ein|eine|das|den|die|neues?)\s+/i, "").replace(/\s+(mit|hat|je)$/i, "").trim();
+  if (name.length < 2) return null;
+  return { name, kcal, proteinG, fatG, carbsG, portionG };
+}
+
 export async function runOffline(
   nachricht: string,
   actions: AgentActions,
@@ -1289,6 +1323,16 @@ export async function runOffline(
       ausgeführt,
       source: "offline",
     };
+  }
+
+  // "Leg ein Lebensmittel an: Omas Kuchen, 350 kcal, 5 g Eiweiß ..." steht vor
+  // dem Erfassen: der Satz trägt kcal und Gramm, und als Mahlzeit gelesen
+  // stünden 350 kcal Kuchen im Tag, die niemand gegessen hat.
+  const neuesLm = actions.lebensmittelAnlegen ? lebensmittelAus(text, nachricht) : null;
+  if (neuesLm && actions.lebensmittelAnlegen) {
+    const antwort = await actions.lebensmittelAnlegen(neuesLm);
+    const ok = !antwort.startsWith(NICHT_GESPEICHERT);
+    return { text: antwort, ausgeführt: ok ? ["Lebensmittel angelegt"] : [], source: "offline" };
   }
 
   // Zurücknehmen steht vor allem, was einträgt. "Das hab ich nicht gegessen"

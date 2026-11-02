@@ -108,6 +108,7 @@ import { KONFIG, istNativ } from "./konfig.js";
 import { kontoSicherstellen, kontoToken } from "./konto.js";
 import { kiErlaubt } from "./einwilligung.js";
 import { NACHTRAG_TAGE, tageZurueck } from "./exif.js";
+import { eigeneLebensmittel, eigenerPosten, eigenesIn, lebensmittelSpeichern } from "./bibliothek.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
 
 const WEEKDAYS = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
@@ -171,13 +172,52 @@ function gemerktesProdukt(suche) {
   return w ? [{ produkt: { ...w.produkt, quelle: "gemerkt" }, einwaende: [] }] : [];
 }
 
+/** Ein eigenes Lebensmittel als Produkt, damit das Nachschlagen es wie jedes andere behandelt. */
+function eigenesProdukt(suche) {
+  const s = store.getSettings();
+  const l = eigenesIn(suche, s) || eigeneLebensmittel(s).find((x) => foldUmlauts(x.name.toLowerCase()) === foldUmlauts(String(suche).toLowerCase().trim()));
+  if (!l) return [];
+  return [{ produkt: { barcode: `eigen-${l.id}`, name: l.name, marke: "", menge: "", per100: l.per100, portionG: l.portionG, quelle: "eigen" }, einwaende: [] }];
+}
+
 function produktMerken(suche, produkt) {
-  if (produkt.quelle === "gemerkt") return;
+  if (produkt.quelle === "gemerkt" || produkt.quelle === "eigen") return;
   const settings = store.getSettings();
   const schluessel = suchWoerter(suche).join(" ");
   const liste = (settings.produkte || []).filter((e) => e.suche !== schluessel && e.produkt.barcode !== produkt.barcode);
   liste.unshift({ suche: schluessel, produkt, am: todayIso() });
   store.setSettings({ ...settings, produkte: liste.slice(0, PRODUKTE_GRENZE) });
+}
+
+/**
+ * Setzt die eigenen Lebensmittel ein. Das Modell kennt "Omas Kuchen" nicht
+ * und schätzt, der Regelweg kennt es auch nicht und lässt es weg. Was der
+ * Nutzer selbst mit Werten angelegt hat, gilt deshalb vor beidem: bei einem
+ * Posten mit demselben Namen werden die Werte aus der eigenen Liste
+ * gerechnet, und was der Regelweg nicht zuordnen konnte, wird dort gesucht.
+ */
+export function mitEigenenLebensmitteln(parsed, settings) {
+  if (!eigeneLebensmittel(settings).length) return parsed;
+  const gramm = (text, l) => extractGrams(String(text || ""), l.portionG ?? 100)?.grams ?? l.portionG ?? 100;
+  const ersetzt = [];
+  const entries = parsed.entries.map((e) => {
+    const l = eigenesIn(e.name, settings);
+    if (!l) return e;
+    ersetzt.push(l.name);
+    const p = eigenerPosten(l, gramm(e.quantity, l));
+    return { ...e, name: l.name, quantity: p.quantity, kcal: p.kcal, proteinG: p.proteinG, fatG: p.fatG, carbsG: p.carbsG };
+  });
+  const offen = [];
+  for (const stueck of parsed.unresolved || []) {
+    const l = eigenesIn(stueck, settings);
+    if (l && !entries.some((e) => e.name === l.name)) {
+      const { eigen: _e, ...p } = eigenerPosten(l, gramm(stueck, l));
+      entries.push(p);
+      ersetzt.push(l.name);
+    } else offen.push(stueck);
+  }
+  if (!ersetzt.length) return parsed;
+  return { ...parsed, entries, unresolved: offen, followUpQuestion: offen.length ? parsed.followUpQuestion : "" };
 }
 
 /* ---------- Was die App verbraucht ---------- */
@@ -2475,7 +2515,7 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
   return {
     async mahlzeitErfassen(beschreibung) {
       const day = todayIso();
-      const parsed = await coach.parseMeal(beschreibung);
+      const parsed = mitEigenenLebensmitteln(await coach.parseMeal(beschreibung), store.getSettings());
       // Lief das Modell nicht, steht das in der Antwort, mit Grund. Vorher
       // fiel die App still auf die Tabelle zurück, und ein Satz mit sechs
       // Lebensmitteln kam mit zweien an, ohne dass jemand es merkte.
@@ -2639,6 +2679,17 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
         + "Erinnerungen und freie Zeit rechne ich für diesen Tag damit.";
     },
 
+    async lebensmittelAnlegen({ name, kcal, proteinG, fatG, carbsG, portionG } = {}) {
+      const r = lebensmittelSpeichern(store.getSettings(), { name, kcal, proteinG, fatG, carbsG, portionG }, { id: newId });
+      if (r.fehler) return `${NICHT_GESPEICHERT} ${r.fehler}`;
+      store.setSettings(r.settings);
+      changed();
+      const l = r.lebensmittel;
+      const w = l.per100;
+      return [`${r.ersetzt ? "Aktualisiert" : "Angelegt"}: ${l.name}, je 100 g ${w.kcal} kcal, ${w.proteinG} g Eiweiß, ${w.fatG} g Fett, ${w.carbsG} g Kohlenhydrate${l.portionG ? `, Portion ${l.portionG} g` : ""}.`,
+        "Ab jetzt rechne ich damit, wenn du es isst.", r.hinweis].filter(Boolean).join(" ");
+    },
+
     /**
      * Ein Markenprodukt nachschlagen und auf Wunsch eintragen.
      *
@@ -2657,7 +2708,8 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       if (q.length < 3) return "Wonach soll ich suchen?";
 
       const nurZiffern = /^\d{8,14}$/.test(q.replace(/\s/g, ""));
-      let treffer = gemerktesProdukt(q);
+      let treffer = eigenesProdukt(q);
+      if (!treffer.length) treffer = gemerktesProdukt(q);
       if (!treffer.length) {
         if (nurZiffern) {
           const t = await produktPerBarcode(q.replace(/\s/g, ""), offOptionen());

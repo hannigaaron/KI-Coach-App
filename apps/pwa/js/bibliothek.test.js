@@ -106,3 +106,26 @@ test("Lebensmittelfotos: jede Kennung hat Datei und Nachweis, Zuordnung auf ganz
   assert.equal(tabellenBild("Ein Teller mit Avocado"), undefined);
   assert.equal(tabellenSuche("avocado")[0].bild, "img/lebensmittel/avocado.jpg");
 });
+
+test("eigene Lebensmittel: speichern, ersetzen, prüfen und finden", async () => {
+  const { lebensmittelSpeichern, lebensmittelLoeschen, eigeneSuche, eigenesIn, eigenerPosten } = await import("./bibliothek.js");
+  let n = 0;
+  const id = () => `l${++n}`;
+  let r = lebensmittelSpeichern({}, { name: "Omas Kuchen", kcal: "350", proteinG: "5", fatG: "18", carbsG: "40,5", portionG: 120 }, { id });
+  assert.equal(r.fehler, undefined);
+  assert.deepEqual(r.lebensmittel.per100, { kcal: 350, proteinG: 5, fatG: 18, carbsG: 40.5 });
+  assert.equal(r.hinweis, "");
+  let s = r.settings;
+  r = lebensmittelSpeichern(s, { name: "omas kuchen", kcal: 360, proteinG: 5, fatG: 19, carbsG: 40 }, { id });
+  assert.equal(r.ersetzt, true);
+  s = r.settings;
+  assert.equal(s.eigeneLebensmittel.length, 1);
+  assert.match(lebensmittelSpeichern(s, { name: "Kaputt", kcal: 300, proteinG: 80, fatG: 20, carbsG: 30 }).fehler, /mehr als 100 g/);
+  assert.match(lebensmittelSpeichern(s, { name: "Riegel", kcal: 500, proteinG: 30, fatG: 5, carbsG: 30 }).hinweis, /Aus den Makros ergeben sich etwa 285 kcal/);
+  assert.match(lebensmittelSpeichern(s, { name: "Ohne", kcal: "" }).fehler, /Kalorien/);
+  assert.equal(eigeneSuche("kuchen", s)[0].name, "omas kuchen");
+  assert.equal(eigenesIn("200 g Omas Kuchen mit Sahne", s)?.name, "omas kuchen");
+  assert.equal(eigenesIn("Kuchenteig", s), null);
+  assert.deepEqual(eigenerPosten(s.eigeneLebensmittel[0], 200), { name: "omas kuchen", quantity: "200 g", kcal: 720, proteinG: 10, fatG: 38, carbsG: 80, eigen: true });
+  assert.equal(lebensmittelLoeschen(s, s.eigeneLebensmittel[0].id).eigeneLebensmittel.length, 0);
+});

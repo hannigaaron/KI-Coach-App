@@ -208,3 +208,103 @@ export function hauptMakro(e) {
   if (p >= f && p >= k) return "protein";
   return f >= k ? "fett" : "kohlenhydrate";
 }
+
+/* ---------- Eigene Lebensmittel ---------- */
+
+/**
+ * Lebensmittel, die der Nutzer selbst mit Werten je 100 Gramm angelegt hat.
+ *
+ * Was keine Tabelle und keine Datenbank kennt, Omas Kuchen oder der
+ * Proteinriegel vom Bäcker, kennt danach daevo: im Editor, beim Diktieren
+ * und im Gespräch. Ohne Grenze je Abo, das ist Grundausstattung beim
+ * Tracken. 500 sind die Grenze für den Speicher, je Eintrag rund 150 Byte.
+ */
+export const LEBENSMITTEL_GRENZE = 500;
+
+export function eigeneLebensmittel(settings) {
+  return Array.isArray(settings?.eigeneLebensmittel) ? settings.eigeneLebensmittel : [];
+}
+
+/**
+ * Prüft und speichert ein eigenes Lebensmittel. Gleicher Name ersetzt.
+ *
+ * Abgelehnt wird nur, was nicht stimmen kann: Makros über 100 Gramm je 100
+ * Gramm oder mehr als 900 kcal. Passen Kalorien und Makros nicht zusammen,
+ * wird gespeichert und ein Hinweis zurückgegeben: auf dem Etikett zählen
+ * Ballaststoffe und Zuckeralkohole anders, und der Nutzer hat die Packung
+ * vor sich, die App nicht.
+ */
+export function lebensmittelSpeichern(settings, { name, kcal, proteinG = 0, fatG = 0, carbsG = 0, portionG } = {}, { id = () => String(Date.now()) } = {}) {
+  const titel = String(name ?? "").replace(/\s+/g, " ").trim().slice(0, 60);
+  if (titel.length < 2) return { fehler: "Gib dem Lebensmittel einen Namen." };
+  const z = (v) => (v === "" || v === null || v === undefined ? NaN : Number(String(v).replace(",", ".")));
+  const w = { kcal: z(kcal), proteinG: z(proteinG) || 0, fatG: z(fatG) || 0, carbsG: z(carbsG) || 0 };
+  if (!Number.isFinite(w.kcal) || w.kcal < 0) return { fehler: "Die Kalorien je 100 g fehlen." };
+  if ([w.proteinG, w.fatG, w.carbsG].some((x) => !Number.isFinite(x) || x < 0)) return { fehler: "Eiweiß, Fett und Kohlenhydrate müssen Zahlen sein." };
+  if (w.proteinG + w.fatG + w.carbsG > 100) return { fehler: "Eiweiß, Fett und Kohlenhydrate ergeben zusammen mehr als 100 g je 100 g. Prüf die Werte auf der Packung." };
+  if (w.kcal > 900) return { fehler: "Mehr als 900 kcal je 100 g gibt es nicht, reines Fett hat 900." };
+  const gerechnet = w.proteinG * 4 + w.fatG * 9 + w.carbsG * 4;
+  const hinweis = gerechnet > 0 && Math.abs(w.kcal - gerechnet) > Math.max(25, gerechnet * 0.2)
+    ? `Aus den Makros ergeben sich etwa ${Math.round(gerechnet)} kcal, eingetragen sind ${Math.round(w.kcal)}. Gespeichert ist, was du eingetragen hast.`
+    : "";
+  const portion = Number(portionG);
+  const liste = eigeneLebensmittel(settings);
+  const alt = liste.find((l) => norm(l.name) === norm(titel));
+  if (!alt && liste.length >= LEBENSMITTEL_GRENZE) return { fehler: `Mehr als ${LEBENSMITTEL_GRENZE} eigene Lebensmittel passen nicht in den Speicher. Lösch eines, das du nicht mehr brauchst.` };
+  const lebensmittel = {
+    id: alt?.id ?? id(),
+    name: titel,
+    per100: { kcal: Math.round(w.kcal), proteinG: r1(w.proteinG), fatG: r1(w.fatG), carbsG: r1(w.carbsG) },
+    ...(portion > 0 && portion <= 3000 ? { portionG: Math.round(portion) } : {}),
+    geaendert: new Date().toISOString(),
+  };
+  const neu = alt ? liste.map((l) => (l.id === alt.id ? lebensmittel : l)) : [lebensmittel, ...liste];
+  return { settings: { ...settings, eigeneLebensmittel: neu }, lebensmittel, ersetzt: Boolean(alt), hinweis };
+}
+
+export function lebensmittelLoeschen(settings, id) {
+  return { ...settings, eigeneLebensmittel: eigeneLebensmittel(settings).filter((l) => l.id !== id) };
+}
+
+/** Ein Posten aus einem eigenen Lebensmittel, mit der Portion oder 100 g. */
+export function eigenerPosten(l, gramm = l.portionG ?? 100) {
+  const anteil = gramm / 100;
+  return {
+    name: l.name,
+    quantity: `${Math.round(gramm)} g`,
+    kcal: Math.round(l.per100.kcal * anteil),
+    proteinG: r1(l.per100.proteinG * anteil),
+    fatG: r1(l.per100.fatG * anteil),
+    carbsG: r1(l.per100.carbsG * anteil),
+    eigen: true,
+  };
+}
+
+/** Eigene Lebensmittel, deren Name den Suchtext enthält, genaue Treffer zuerst. */
+export function eigeneSuche(begriff, settings, { anzahl = 6 } = {}) {
+  const q = norm(begriff);
+  if (q.length < 2) return [];
+  return eigeneLebensmittel(settings)
+    .filter((l) => norm(l.name).includes(q) || q.split(" ").every((w) => norm(l.name).includes(w)))
+    .sort((a, b) => (norm(a.name) === q ? -1 : 0) - (norm(b.name) === q ? -1 : 0))
+    .slice(0, anzahl);
+}
+
+/**
+ * Das eigene Lebensmittel, das in einem Posten oder Satz gemeint ist.
+ * Längster Name zuerst, damit "Omas Kuchen" vor "Kuchen" trifft. Ganze
+ * Wörter, sonst steckt "Ei" in "Eis".
+ */
+export function eigenesIn(text, settings) {
+  const t = ` ${norm(text).replace(/[^a-z0-9 ]+/g, " ")} `;
+  return [...eigeneLebensmittel(settings)]
+    .sort((a, b) => b.name.length - a.name.length)
+    .find((l) => {
+      const n = norm(l.name).replace(/[^a-z0-9 ]+/g, " ").trim();
+      return n.length >= 3 && t.includes(` ${n} `);
+    }) ?? null;
+}
+
+function r1(x) {
+  return Math.round((Number(x) || 0) * 10) / 10;
+}

@@ -67,6 +67,8 @@ export interface MealParseResult {
   source: "model" | "offline";
   /** Warum das Modell nicht geantwortet hat. Ohne das fiel die App still auf die Tabelle. */
   modellFehler?: unknown;
+  /** Textstücke, die der Regelweg keinem Lebensmittel zuordnen konnte. */
+  unresolved?: string[];
 }
 
 export interface MealSuggestion {
@@ -130,6 +132,7 @@ export class Coach {
       followUpQuestion: naechsteFrage(offline.entries.length, offline.unresolved),
       warnings: [],
       source: "offline",
+      unresolved: offline.unresolved,
       ...(modellFehler !== undefined ? { modellFehler } : {}),
     };
   }

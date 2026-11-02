@@ -919,6 +919,26 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: "lebensmittel_anlegen",
+    description:
+      "Speichert ein eigenes Lebensmittel mit Werten je 100 g, damit daevo es beim Erfassen, im Editor und beim " +
+      "Nachschlagen kennt. Nehmen, wenn der Nutzer Werte von einer Packung nennt oder ein Produkt anlegen will, das " +
+      "keine Datenbank findet, etwa nach \"Noch nicht gespeichert\" von produkt_nachschlagen. Nur Werte, die der " +
+      "Nutzer genannt hat oder die auf einem Foto des Etiketts stehen, nie geschätzte. Gleicher Name ersetzt.",
+    input_schema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Name, wie der Nutzer es nennt, etwa \"Omas Kuchen\"." },
+        kcal: { type: "number", description: "kcal je 100 g" },
+        proteinG: { type: "number", description: "Eiweiß je 100 g" },
+        fatG: { type: "number", description: "Fett je 100 g" },
+        carbsG: { type: "number", description: "Kohlenhydrate je 100 g" },
+        portionG: { type: "number", description: "Übliche Portion in Gramm, wenn genannt." },
+      },
+      required: ["name", "kcal"],
+    },
+  },
+  {
     name: "uebungen_suchen",
     description:
       "Sucht in der Übungsdatenbank von daevo nach Name, Muskel, Gerät oder Suchwort, etwa \"Übungen an der " +

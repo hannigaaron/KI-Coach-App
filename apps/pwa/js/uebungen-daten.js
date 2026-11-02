@@ -2720,10 +2720,11 @@ export const UEBUNGEN = [
   ],
   "gruppe": "arme",
   "video": {
-   "id": "ydFzbnIIjlc",
-   "titel": "Trizepsdrücken auf der Schrägbank sitzend am Kabelzug",
-   "kanal": "Masterfitness Academy",
-   "dauer": "0:18"
+   "quelle": "drive",
+   "id": "1ZfwNRnH91xKjaLNLG3bkdY4F8pp8OTvi",
+   "titel": "Abgelegte Trizeps Pushdowns",
+   "kanal": "Coach Aaron",
+   "dauer": ""
   },
   "alias": [
    "Pushdown abgelegt",
@@ -2932,6 +2933,42 @@ export const UEBUNGEN = [
   "alias": [
    "Kabelcurl",
    "Cable Curl"
+  ]
+ },
+ {
+  "id": "curl-kabel-liegend",
+  "name": "Bizeps Curl liegend am Kabel",
+  "nameEn": "Lying Cable Curl",
+  "pattern": "elbow_flexion",
+  "primaryMuscles": [
+   "Bizeps"
+  ],
+  "secondaryMuscles": [
+   "Brachialis",
+   "Unterarm"
+  ],
+  "equipment": "cable",
+  "level": "intermediate",
+  "mechanics": "isolation",
+  "repRange": "10-15",
+  "steps": [
+   "Flache oder leicht schräge Bank vor den Kabelturm stellen, Rolle auf Bankhöhe",
+   "Rücklings legen, Füße am Boden zum Turm, gerade Stange im Untergriff schulterbreit",
+   "Stange aus gestreckten Armen Richtung Kinn curlen, Ellbogen bleiben am Körper",
+   "Arme wieder strecken, ohne die Spannung abzulegen"
+  ],
+  "gruppe": "arme",
+  "video": {
+   "quelle": "drive",
+   "id": "1usiPyafvaKKmUQRbj2kj6dl05T_KJAW0",
+   "titel": "Abgelegter Bizeps Curl",
+   "kanal": "Coach Aaron",
+   "dauer": ""
+  },
+  "alias": [
+   "Abgelegter Bizeps Curl",
+   "Lying Cable Curl",
+   "Kabelcurl liegend"
   ]
  },
  {

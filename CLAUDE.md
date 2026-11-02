@@ -79,7 +79,7 @@ Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
 
-Der Assistent hat zweiundfünfzig Werkzeuge und verändert die App wirklich. Zahlen
+Der Assistent hat dreiundfünfzig Werkzeuge und verändert die App wirklich. Zahlen
 über den Nutzer kommen immer aus Werkzeugen, nie aus dem Modell. Allgemeines
 Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
@@ -274,6 +274,13 @@ Strichfiguren, keine Clip Art, keine Karten mit Rahmen um Text.
   oben nach unten, Kickback einbeinig und seitlich für den Gluteus medius. Auf
   der Schrägbank mit Kurzhanteln Rudern eng und breit, Reverse Fly und
   Fliegende.
+- Bizeps Curl liegend am Kabel, `curl-kabel-liegend`: flache Bank vor dem
+  Turm, Rolle auf Bankhöhe, rücklings mit den Füßen zum Turm, die Stange aus
+  gestreckten Armen zum Kinn, Ellbogen bleiben am Körper. Das Foto ist von der
+  Kopfseite der Bank aufgenommen: in der Seitenansicht und schräg von vorn
+  legte das Bildmodell die Stange in vier von vier Fassungen längs zum Körper
+  und hängte das Kabel an ein Ende. Vorlage für die Haltung war das Video von
+  Coach Aaron, gezeigt wird ein anderes Modell.
 - Fotos an der Multipresse oder mit Langhantel werden von vorn oder schräg
   vorn erzeugt. In der Seitenansicht legte das Bildmodell die Stange bei sechs
   von sieben Übungen längs zum Körper statt quer über Schultern, Brust oder
@@ -625,7 +632,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1312 Tests
+npm test           # 1315 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1832,6 +1839,31 @@ ganze Wörter vorn steht: ein falsches Foto neben einem Posten ist schlimmer
 als ein Buchstabe. Die Lizenzangabe auf Flickr stammt vom Hochladenden und
 kann falsch sein, deshalb steht die Quelle je Datei fest.
 
+## Eigene Lebensmittel
+
+`eigeneLebensmittel`, `lebensmittelSpeichern`, `eigenesIn` in
+`apps/pwa/js/bibliothek.js`, Werkzeug `lebensmittel_anlegen` mit Regelpfad
+`lebensmittelAus` in `agent.ts`. Was keine Tabelle und keine Datenbank kennt,
+Omas Kuchen oder der Riegel vom Bäcker, legt der Nutzer einmal mit den
+Werten je 100 g an. Im Mahlzeit Editor heisst der Weg von Hand jetzt
+"Eigenes Lebensmittel anlegen" und speichert ab Werk mit. Findet die Suche
+nichts, öffnet sich das Feld mit dem Suchtext als Namen.
+
+Danach kennt daevo es überall. In der Suche des Editors steht es vor der
+Tabelle, unter dem Reiter "Eigene" lässt es sich löschen. Beim Erfassen per
+Text oder Sprache rechnet `mitEigenenLebensmitteln` in `assistant.js` die
+Werte aus der eigenen Liste, auch wenn das Modell einen anderen Wert
+geschätzt hat, und was der Regelweg nicht zuordnen konnte, wird dort
+gesucht. `produktNachschlagen` fragt die eigene Liste vor allen anderen
+Stufen. Gesucht wird auf ganze Wörter, der längste Name zuerst: "Omas
+Kuchen" vor "Kuchen", und "Ei" trifft nicht "Eis".
+
+Abgelehnt wird nur, was nicht stimmen kann: Makros über 100 g je 100 g und
+mehr als 900 kcal. Passen Kalorien und Makros nicht zusammen, wird
+gespeichert und der Unterschied genannt, denn der Nutzer hat die Packung vor
+sich und die App nicht. Gleicher Name ersetzt. Höchstens 500, ohne Grenze
+je Abo: das ist Grundausstattung beim Tracken.
+
 ## Eine Mahlzeit nachträglich ändern
 
 `packages/core/src/portion.ts` rechnet, der Editor steht in `apps/pwa`.
@@ -2087,7 +2119,7 @@ Tippfehler darf die Ziele nicht kippen.
 
 ## Der Regelweg ist die kostenlose Stufe
 
-48 der 52 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
+49 der 53 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
 Das ist keine Notlösung für den Ausfall, sondern das Produkt: ein Weg, der
 kein Modell anfragt, kostet nichts je Nutzer und skaliert ohne Rechnung.
 

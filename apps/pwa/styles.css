@@ -2060,6 +2060,8 @@ body.blatt-offen { overflow: hidden; }
 }
 
 .me-hand { margin-top: var(--s-5); }
+.me-hand-merken { display: flex; gap: var(--s-2); align-items: flex-start; font-size: var(--t-sm); color: var(--muted); margin: var(--s-3) 0; line-height: 1.4; }
+.me-hand-merken input { margin-top: 3px; flex: none; }
 .me-hand summary {
   font-size: var(--t-sm); font-weight: 600; color: var(--muted);
   padding: var(--s-2) 0; cursor: pointer;

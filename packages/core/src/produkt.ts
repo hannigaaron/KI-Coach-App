@@ -44,7 +44,7 @@ export interface Produkt {
    * aus einer Websuche des Modells mit Quelle, "gemerkt" aus der eigenen
    * Liste schon gefundener Produkte.
    */
-  quelle: "openfoodfacts" | "web" | "gemerkt";
+  quelle: "openfoodfacts" | "web" | "gemerkt" | "eigen";
   /** Die Seite, von der eine Websuche die Werte hat. */
   quelleUrl?: string;
   /** Wahr, wenn die Kalorien aus den Makros gerechnet sind, weil der Eintrag nicht zusammenpasste. */
@@ -313,6 +313,7 @@ export function produktText(p: Produkt, gramm?: number): string {
 export function quelleSatz(p: Produkt): string {
   const gerechnet = p.kcalGerechnet ? " Die Kalorien sind aus den Makros gerechnet, der Eintrag dort passte nicht zusammen." : "";
   if (p.quelle === "web") return `Quelle: ${p.quelleUrl ? new URL(p.quelleUrl).hostname.replace(/^www\./, "") : "Websuche"}.${gerechnet}`;
+  if (p.quelle === "eigen") return "Quelle: dein eigenes Lebensmittel.";
   if (p.quelle === "gemerkt") return `Quelle: schon einmal nachgeschlagen${p.barcode && !p.barcode.startsWith("web-") ? `, Barcode ${p.barcode}` : ""}.${gerechnet}`;
   return `Quelle: Open Food Facts, Barcode ${p.barcode}.${gerechnet}`;
 }

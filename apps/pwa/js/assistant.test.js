@@ -805,3 +805,20 @@ test("ein Markenprodukt wird gefunden, eingetragen und beim nächsten Mal ohne N
     globalThis.fetch = echt;
   }
 });
+
+test("ein eigenes Lebensmittel gilt beim Erfassen, beim Nachschlagen und im Gespräch", async () => {
+  frischerTag();
+  const aktionen = buildActions({});
+  const a = await aktionen.lebensmittelAnlegen({ name: "Omas Kuchen", kcal: 350, proteinG: 5, fatG: 18, carbsG: 40 });
+  assert.match(a, /^Angelegt: Omas Kuchen, je 100 g 350 kcal/);
+  // Der Regelweg kennt Omas Kuchen nicht, mit der eigenen Liste wird er eingetragen.
+  const e = await aktionen.mahlzeitErfassen("200 g Omas Kuchen");
+  assert.match(e, /700 kcal|Omas Kuchen/);
+  const tag = store.getDay(todayIso());
+  const posten = tag.meals.at(-1).entries.find((x) => x.name === "Omas Kuchen");
+  assert.equal(posten.kcal, 700);
+  const n = await aktionen.produktNachschlagen({ suche: "Omas Kuchen", gramm: 100 });
+  assert.match(n, /dein eigenes Lebensmittel/);
+  const f = await aktionen.lebensmittelAnlegen({ name: "X", kcal: 300, proteinG: 90, fatG: 20, carbsG: 10 });
+  assert.match(f, /^Noch nicht gespeichert\./);
+});
