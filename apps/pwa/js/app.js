@@ -50,6 +50,7 @@ import {
   offOptionen,
 } from "./assistant.js";
 import { zyklusAnsicht, zyklusSichtbar } from "./zyklus-ui.js";
+import { uhrEreignisseAnwenden, uhrMeldung, uhrPaket } from "./uhr.js";
 import { brain } from "./brain.js";
 import { Orb } from "./orb.js";
 import { anhangAusDatei, grossInKb } from "./media.js";
@@ -997,6 +998,7 @@ document.addEventListener("input", (event) => {
 });
 
 function refreshAll() {
+  uhrSpaeter();
   const visible = document.querySelector(".view:not([hidden])");
   const numbers = dayNumbers(day);
   orb?.setProgress(numbers.targets.kcal > 0 ? numbers.totals.kcal / numbers.targets.kcal : 0);
@@ -6544,3 +6546,56 @@ function tagNach(iso) {
   d.setDate(d.getDate() + 1);
   return todayIso(d);
 }
+
+
+/* ---------- Apple Watch ---------- */
+
+/**
+ * Holt ab, was auf der Uhr passiert ist, und schickt danach den neuen Stand.
+ * Nur in der iPhone App, und nur wenn eine Uhr gekoppelt ist. Ohne Uhr
+ * kostet das einen Aufruf beim Öffnen und sonst nichts.
+ */
+// var und nicht let: refreshAll ruft uhrSpaeter schon beim Start, bevor
+// diese Zeilen erreicht sind. Mit let wäre das ein ReferenceError, und die
+// App bliebe schwarz.
+// eslint-disable-next-line no-var
+var uhrDa = null;
+async function uhrAbgleichen() {
+  if (!istNativ()) return;
+  try {
+    if (uhrDa === null || uhrDa === undefined) {
+      const st = await nativAufruf("Uhr", "stand", {});
+      uhrDa = Boolean(st?.gekoppelt && st?.installiert);
+    }
+    if (!uhrDa) return;
+    const { ereignisse = [] } = await nativAufruf("Uhr", "abholen", {});
+    if (ereignisse.length) {
+      const ergebnis = uhrEreignisseAnwenden(ereignisse, { store, heute: todayIso(), neueId: newId });
+      const satz = uhrMeldung(ergebnis);
+      if (satz) { toast(satz, 4500); plaene.verlaufNeu?.(); }
+    }
+    await uhrSenden();
+  } catch {
+    // Ohne Plugin, etwa eine ältere Hülle, oder ohne Uhr: dann eben nicht.
+  }
+}
+
+async function uhrSenden() {
+  if (!istNativ() || !uhrDa) return;
+  const paket = uhrPaket({ settings: store.getSettings(), zahlen: dayNumbers(), heute: todayIso(), gestrichen: trainingGestrichen(store, todayIso()) });
+  await nativAufruf("Uhr", "senden", { paket });
+}
+
+/** Nach einer Änderung nicht sofort, sondern gebündelt: ein Tag hat viele kleine Änderungen. */
+// eslint-disable-next-line no-var
+var uhrTimer = 0;
+function uhrSpaeter() {
+  if (!istNativ() || !uhrDa) return;
+  clearTimeout(uhrTimer);
+  uhrTimer = setTimeout(() => uhrSenden().catch(() => {}), 1500);
+}
+
+setTimeout(() => uhrAbgleichen().then(() => refreshAll()), 2500);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") uhrAbgleichen().then(() => refreshAll());
+});

@@ -632,7 +632,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1325 Tests
+npm test           # 1328 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -3621,6 +3621,41 @@ deshalb ein Test und kein Betrieb.
 Rest der Datei. Vorher schrieb es die Hilfsfunktionen von Hand nach, und
 `istNativ` wäre in der Fassung für Nutzer gefehlt. Deren Import bricht dann
 das ganze Modul, und die App bleibt schwarz.
+
+## Die Apple Watch
+
+`apps/ios/watch/daevo Watch App`, Anleitung in `docs/WATCH.md`. Zwei
+Seiten: Heute mit offenen Kalorien, Eiweiß, Wasser und einem Knopf für 250
+ml, Training mit den vorbereiteten Einheiten. Die Uhr rechnet nichts selbst.
+`uhrPaket` in `apps/pwa/js/uhr.js` baut das Paket: ein offener Entwurf von
+heute, das Training für heute aus dem Gespräch, dann die Einheiten des
+Plans, je Satz mit den Werten vom letzten Mal über `entwurfNeu`. Das iPhone
+schickt es über `UhrPlugin.swift` als Application Context, die Uhr hält den
+letzten Stand und trainiert auch ohne iPhone in der Nähe.
+
+Zurück kommt über `transferUserInfo`, eine Warteschlange, die iOS auch
+zustellt, wenn die App nicht läuft. `UhrZentrale` wird im AppDelegate
+gestartet und legt alles in den UserDefaults ab, die App holt beim Öffnen
+ab, `uhrEreignisseAnwenden`. Ein Training läuft durch `entwurfAbschliessen`
+wie im Trainingsmodus, steht danach im Protokoll und im Tag. Jedes Ereignis
+trägt eine Kennung, `settings.uhrErledigt` merkt die letzten 100, sonst
+zählte ein doppelt zugestelltes Training zweimal.
+
+Im Training läuft eine Sitzung in HealthKit, `Sitzung.swift`: ohne sie
+schickt watchOS die App in den Hintergrund und die Pause vibriert nicht.
+Das Training steht damit auch in Apple Health. Der Abgleich legt es nicht
+doppelt an, ein Krafttraining aus Health innerhalb von 90 Minuten um eines,
+das schon im Tag steht, zählt nicht. Die Krone verstellt Wiederholungen um
+eins und Kilo um 2,5, unter 20 kg um 1, wie die Steigerung in der App.
+
+Das Paket geht gebündelt 1,5 Sekunden nach der letzten Änderung raus,
+`uhrSpaeter` in `refreshAll`. Die Variablen dafür sind `var`: refreshAll
+läuft beim Start, bevor das Ende von `app.js` erreicht ist, und ein `let`
+wäre dort ein ReferenceError und eine schwarze App.
+
+Ungeprüft: die Swift Dateien sind hier nicht kompiliert. Das Ziel für die
+Uhr legt der Betreiber einmal in Xcode an, die Projektdatei wird dafür nicht
+von Hand geändert.
 
 ## Zugriffe beim ersten Start
 

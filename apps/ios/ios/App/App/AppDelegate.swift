@@ -10,6 +10,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Vor allem anderen: tippt jemand in einer Mitteilung auf eine Antwort,
         // startet iOS die App ohne Fenster, und die Antwort käme sonst nirgends an.
         MitteilungenZentrale.shared.einrichten()
+        UhrZentrale.shared.einrichten()
         // Muss vor dem Ende dieser Methode stehen, sonst lehnt iOS die Aufgabe ab.
         KalenderWache.shared.registrieren()
         return true
