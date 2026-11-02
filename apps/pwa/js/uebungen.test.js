@@ -52,9 +52,9 @@ test("Zu jeder Übung gibt es ein Foto und eine Vorschau, und beide sind klein g
 
 test("Jede Übung verweist auf ein Video mit gültiger Kennung", () => {
   for (const u of UEBUNGEN) {
-    assert.match(u.video.id, /^[A-Za-z0-9_-]{11}$/, `${u.id}: Videokennung`);
+    assert.match(u.video.id, u.video.quelle === "drive" ? /^[A-Za-z0-9_-]{25,44}$/ : /^[A-Za-z0-9_-]{11}$/, `${u.id}: Videokennung`);
     assert.ok(u.video.titel && u.video.kanal, `${u.id}: Titel oder Kanal fehlt`);
-    assert.equal(videoLink(u), `https://www.youtube.com/watch?v=${u.video.id}`);
+    if (u.video.quelle !== "drive") assert.equal(videoLink(u), `https://www.youtube.com/watch?v=${u.video.id}`);
   }
 });
 
@@ -184,4 +184,10 @@ test("Die Suche findet, was im Studio gesagt wird", () => {
   findet("von oben nach unten", "cable-crossover");
   assert.ok(uebungenFiltern({ geraet: "smith_machine" }).length >= 7);
   assert.equal(GERAETE.smith_machine, "Multipresse");
+});
+
+test("ein eigenes Video aus Google Drive öffnet Drive und sagt das", () => {
+  const u = { video: { quelle: "drive", id: "1ZfwNRnH91xKjaLNLG3bkdY4F8pp8OTvi", titel: "Trizeps", kanal: "Coach Aaron" } };
+  assert.equal(videoLink(u), "https://drive.google.com/file/d/1ZfwNRnH91xKjaLNLG3bkdY4F8pp8OTvi/view");
+  assert.match(videoHtml(u), /öffnet Google Drive/);
 });

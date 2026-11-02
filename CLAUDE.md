@@ -243,6 +243,10 @@ Strichfiguren, keine Clip Art, keine Karten mit Rahmen um Text.
 - Video: `video: { id, titel, kanal, dauer }` je Übung. daevo verlinkt nur und
   bettet nicht ein. Die Adresse wird aus der Kennung gebaut, nie gespeichert.
   Videos können gelöscht werden, die Links gehören deshalb in die Pflege.
+  Eigene Videos von Coach Aaron tragen `quelle: "drive"` und die Kennung aus
+  Google Drive. Sie gehen nur hinein, wenn die Datei für "Jeder mit dem
+  Link" freigegeben ist: ein privater Link führt Nutzer auf eine Anmeldung
+  bei Google, und das sieht aus wie ein kaputter Knopf.
 - Ansicht: `apps/pwa/js/uebungen.js`. `uebungen.test.js` prüft, dass jede Übung
   Muskeln, drei bis vier Schritte, Foto, Kachel und eine gültige Videokennung
   hat.
@@ -621,7 +625,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1311 Tests
+npm test           # 1312 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages

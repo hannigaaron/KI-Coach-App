@@ -119,7 +119,15 @@ export const alternativPfad = (u) => `./img/uebungen/alternative/${u.id}.jpg`;
  * Der Link zum Video. Nur die Kennung ist gespeichert, die Adresse wird hier
  * gebaut: so kann kein Eintrag auf eine andere Seite zeigen als YouTube.
  */
-export const videoLink = (u) => `https://www.youtube.com/watch?v=${u.video.id}`;
+/**
+ * Die Adresse des Erklärvideos, gebaut aus der Kennung und nie gespeichert.
+ * `quelle: "drive"` ist ein eigenes Video von Coach Aaron in Google Drive.
+ * Es muss für "Jeder mit dem Link" freigegeben sein, sonst landet der Nutzer
+ * vor einer Anmeldung bei Google.
+ */
+export const videoLink = (u) => (u.video.quelle === "drive"
+  ? `https://drive.google.com/file/d/${u.video.id}/view`
+  : `https://www.youtube.com/watch?v=${u.video.id}`);
 
 /** Die Zeile in der Liste: Muskeln und Gerät, mehr nicht. */
 export function untertitel(u) {
@@ -179,7 +187,7 @@ export function videoHtml(u) {
   const dauer = u.video.dauer ? ` · ${esc(u.video.dauer)} Min.` : "";
   return `<a class="ue-cta-knopf" href="${esc(videoLink(u))}" target="_blank" rel="noopener noreferrer">
     <span class="ue-play" aria-hidden="true"></span><span>Erklärvideo ansehen</span></a>
-    <p class="ue-cta-fuss">${esc(u.video.kanal)}${dauer} · öffnet YouTube</p>`;
+    <p class="ue-cta-fuss">${esc(u.video.kanal)}${dauer} · öffnet ${u.video.quelle === "drive" ? "Google Drive" : "YouTube"}</p>`;
 }
 
 const $ = (id) => document.getElementById(id);
