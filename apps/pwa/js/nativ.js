@@ -122,3 +122,23 @@ async function spiegelStarten() {
 }
 
 if (istNativ()) spiegelStarten();
+
+/* ---------- Abruf ohne CORS ---------- */
+
+/**
+ * Holt eine Adresse über den Netzzugang von iOS statt über die Web Ansicht.
+ *
+ * Die neue Suche von Open Food Facts sendet keinen CORS Kopf für fremde
+ * Adressen, die Web Ansicht darf sie nicht lesen. CapacitorHttp ist Teil von
+ * Capacitor selbst, kein fremdes Paket, und unterliegt CORS nicht. Zurück
+ * kommt ein Response wie bei fetch, damit der Aufrufer nichts unterscheidet.
+ */
+export async function nativHolen(url) {
+  const r = await nativAufruf("CapacitorHttp", "request", {
+    url: String(url), method: "GET", headers: { Accept: "application/json" }, responseType: "json",
+  });
+  const kopf = r?.headers || {};
+  const typ = kopf["Content-Type"] || kopf["content-type"] || "application/json";
+  const text = typeof r?.data === "string" ? r.data : JSON.stringify(r?.data ?? null);
+  return new Response(text, { status: Number(r?.status) || 500, headers: { "content-type": typ } });
+}

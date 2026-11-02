@@ -583,6 +583,9 @@ export const AGENT_TOOLS: ToolDefinition[] = [
       + "Bei einem Markenprodukt raten heisst danebenliegen: die Werte stehen auf der Packung und sind "
       + "in der Datenbank hinterlegt, dein Gedächtnis kennt sie nicht. "
       + "Ein Barcode als Suche trifft genau, ein Name ist eine Suche und kann danebengehen. "
+      + "Findet Open Food Facts nichts, sucht das Werkzeug selbst im Netz nach der Nährwerttabelle. "
+      + "Nach Barcode oder Etikett fragst du nur, wenn das Werkzeug mit \"Noch nicht gespeichert\" antwortet. "
+      + "Die Zahlen aus dem Ergebnis gelten, auch wenn du andere im Kopf hast: stell sie nicht in Frage und lass den Nutzer nicht auf seine Packung schauen. "
       + "Für Grundnahrungsmittel wie Reis, Hähnchen oder Haferflocken nicht nötig, dafür reicht essen_erfassen.",
     input_schema: {
       type: "object",

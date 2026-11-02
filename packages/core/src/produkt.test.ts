@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { produktAusOff, pruefeProdukt, naehrwerteFuer, portionsVorschlag, portionInGramm, produktText, offBild } from "./produkt.js";
+import { produktAusOff, pruefeProdukt, naehrwerteFuer, portionsVorschlag, portionInGramm, produktText, offBild, produktBereinigen, trefferWerten, type Produkt } from "./produkt.js";
 
 /**
  * Der echte Datensatz von Open Food Facts, abgerufen am 07.09.2026.
@@ -146,4 +146,41 @@ test("ein Bild kommt nur von Open Food Facts selbst", () => {
   assert.equal(offBild(""), undefined);
   const p = produktAusOff({ code: "4001234567890", product_name: "Skyr", nutriments: { "energy-kcal_100g": 63 }, image_front_small_url: gut });
   assert.equal(p?.bild, gut);
+});
+
+const prod = (marke: string, name: string, barcode: string, per100 = { kcal: 373, proteinG: 7.7, fatG: 0.7, carbsG: 83 }): Produkt => ({
+  barcode, name, marke, menge: "", per100, quelle: "openfoodfacts",
+});
+
+test("ein fremder Milchreis passt nicht zu ESN Instant Rice Pudding", () => {
+  const liste = [
+    prod("Milsani", "Milchreis Rhabarber", "1", { kcal: 114, proteinG: 2.9, fatG: 2, carbsG: 21 }),
+    prod("Asda", "Rice Pudding", "2", { kcal: 81, proteinG: 2.3, fatG: 1, carbsG: 16 }),
+    prod("Vayu ESN", "Instant Rice Pudding", "3"),
+    prod("ESN", "Designer Rice Pudding", "4"),
+    prod("ESN", "Designer Whey Protein", "5", { kcal: 375, proteinG: 73, fatG: 5.2, carbsG: 9.2 }),
+  ];
+  const w = trefferWerten("ESN Instant Rice Pudding", liste);
+  assert.deepEqual(w.map((x) => x.produkt.barcode), ["3", "4"]);
+  assert.ok(w.every((x) => x.markeStimmt));
+});
+
+test("eine zweite Marke im Suchtext nimmt dem Namen nicht die Wörter", () => {
+  const liste = [
+    prod("Alpro", "Skyr Alternative Vanille", "1", { kcal: 77, proteinG: 5.1, fatG: 3, carbsG: 6.8 }),
+    prod("Alpro", "Kokosnussdrink Barista", "2", { kcal: 33, proteinG: 1.5, fatG: 1.4, carbsG: 3.3 }),
+    prod("Skyr", "Natur", "3", { kcal: 62, proteinG: 11, fatG: 0.2, carbsG: 4 }),
+  ];
+  assert.deepEqual(trefferWerten("Alpro Skyr", liste).map((x) => x.produkt.barcode), ["1"]);
+});
+
+test("Kalorien, die nicht zu den Makros passen, werden aus den Makros gerechnet", () => {
+  const whey = prod("ESN", "Designer Whey", "1", { kcal: 523, proteinG: 73, fatG: 5.2, carbsG: 9.2 });
+  const b = produktBereinigen(whey);
+  assert.equal(b?.per100.kcal, 376);
+  assert.equal(b?.kcalGerechnet, true);
+  assert.match(produktText(b!, 45), /aus den Makros gerechnet/);
+  assert.equal(produktBereinigen(prod("X", "Kaputt", "2", { kcal: 300, proteinG: 80, fatG: 20, carbsG: 30 })), null);
+  const sauber = prod("ESN", "Rice Pudding", "3");
+  assert.equal(produktBereinigen(sauber), sauber);
 });

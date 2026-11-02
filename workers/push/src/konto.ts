@@ -241,6 +241,8 @@ export interface Verbrauch {
   cacheReadTokens: number;
   cacheWriteTokens: number;
   modell: string;
+  /** Websuchen, je 0,01 Dollar. */
+  websuchen?: number;
 }
 
 /**
@@ -260,6 +262,8 @@ export function verbrauchAusAntwort(text: string, modell: string): Verbrauch | n
     v.outputTokens = Math.max(v.outputTokens, Number(u.output_tokens) || 0);
     v.cacheReadTokens = Math.max(v.cacheReadTokens, Number(u.cache_read_input_tokens) || 0);
     v.cacheWriteTokens = Math.max(v.cacheWriteTokens, Number(u.cache_creation_input_tokens) || 0);
+    const suchen = Number((u.server_tool_use as { web_search_requests?: unknown } | undefined)?.web_search_requests) || 0;
+    if (suchen) v.websuchen = Math.max(v.websuchen ?? 0, suchen);
   };
   const ganz = text.trimStart();
   if (ganz.startsWith("{")) {

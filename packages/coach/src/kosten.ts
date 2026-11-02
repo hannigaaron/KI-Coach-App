@@ -61,7 +61,8 @@ export function kostenVon(verbrauch: Verbrauch): number {
     verbrauch.inputTokens * preis.input +
     verbrauch.cacheReadTokens * (preis.cacheLesen ?? preis.input * CACHE_LESEN) +
     verbrauch.cacheWriteTokens * preis.input * CACHE_SCHREIBEN;
-  return (eingabe + verbrauch.outputTokens * preis.output) / 1_000_000;
+  // Websuche: 10 Dollar je 1000 Suchen, laut Preisliste von Anthropic.
+  return (eingabe + verbrauch.outputTokens * preis.output) / 1_000_000 + (verbrauch.websuchen ?? 0) * 0.01;
 }
 
 /**

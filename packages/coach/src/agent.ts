@@ -776,7 +776,10 @@ async function execute(
         const gramm = Number.isFinite(Number(input.gramm)) ? clamp(Number(input.gramm), 1, 3000) : undefined;
         const erfassen = input.erfassen === true;
         const text = await actions.produktNachschlagen({ suche, gramm, erfassen });
-        return { text, notiz: erfassen ? `${suche} erfasst` : undefined };
+        // Der Vermerk "erfasst" stand im Betrieb unter einem Produkt, das gar
+        // nicht gefunden war.
+        if (text.startsWith(NICHT_GESPEICHERT)) return { text, fehler: true };
+        return { text, notiz: erfassen && text.includes("Eingetragen.") ? `${suche} erfasst` : undefined };
       }
       case "balance_abrufen": {
         const tage = Number.isFinite(Number(input.tage)) ? clamp(Number(input.tage), 1, 90) : undefined;

@@ -621,7 +621,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1302 Tests
+npm test           # 1311 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -2357,8 +2357,46 @@ Browser ihn hat, sonst bleibt das Eingabefeld. Eine Kamerabibliothek wäre die
 erste Laufzeitabhängigkeit der App und rund 300 Kilobyte je Aufruf. Dreizehn
 Ziffern tippt man in zehn Sekunden.
 
-Findet die Datenbank nichts, nennt der Coach zwei Wege: Barcode scannen oder das
-Nährwertetikett fotografieren. Vom Etikett liest das Modell ab, da rät es nicht.
+### Drei Stufen, bevor daevo nach dem Etikett fragt
+
+`produktNachschlagen` in `assistant.js`. Im Betrieb stand "ESN Instant Rice
+Pudding" als unbekannt da und der Whey mit 523 kcal je 100 g samt der Bitte,
+auf die Dose zu schauen. Beides darf in einer bezahlten App nicht passieren.
+
+1. Die eigene Liste, `settings.produkte`, höchstens 300. Was einmal gefunden
+   wurde, kommt ohne Netz und ohne Kosten, `gemerktesProdukt`.
+2. Open Food Facts über drei Wege gleichzeitig, `produkteSuchen` in `off.ts`.
+   Die alte Suche `/cgi/search.pl` antwortet seit Herbst 2026 fast immer mit
+   503, gemessen am 02.11.2026 drei von drei. Die neue,
+   search.openfoodfacts.org, findet mit `brands:esn` davor sofort, sendet aber
+   keinen CORS Kopf: im Browser über `/produkt` auf dem Worker, in der iPhone
+   App über `CapacitorHttp`, `nativHolen` in `nativ.js`. Dazu `/api/v2/search`
+   mit `brands_tags`, das sendet den Kopf, kennt aber keinen Volltext und
+   holt die 100 meistgescannten Produkte der Marke. Die alte Suche nur, wenn
+   sonst nichts kam.
+3. Die Websuche des Modells, `naehrwerteImNetz` in `websuche.ts`, auf Sonnet
+   mit `web_search_20260209`, höchstens drei Suchen, rund 1 bis 5 Cent. Nur
+   mit Seite als https Adresse, sonst gilt der Fund nicht.
+
+`trefferWerten` im Kern sortiert und verwirft. Die Marke ist das Wort, das
+bei den meisten Treffern als Marke steht, und nur Treffer dieser Marke
+bleiben: die Suche nach "ESN Instant Rice Pudding" brachte vorher als
+ersten Treffer einen Milchreis von Milsani. Danach muss mindestens die
+Hälfte der übrigen Wörter im Namen stehen. Gleiche Werte bei mehreren
+Treffern heben den Rang.
+
+`produktBereinigen` rettet, was zu retten ist. Makros über 100 Gramm
+verwerfen den Treffer. Passen nur die Kalorien nicht zu den Makros, gelten
+die Makros und die Kalorien werden daraus gerechnet, mit einem Halbsatz in
+der Quelle. Eine Bitte an den Nutzer, seine Packung zu prüfen, ist keine
+Antwort.
+
+Erst wenn alle drei Stufen leer sind, beginnt die Antwort mit
+`NICHT_GESPEICHERT` und fragt nach Barcode oder Etikett. Dann steht auch
+kein Vermerk "erfasst" darunter.
+
+Der Worker muss für `/produkt` neu ausgerollt werden. Bis dahin findet der
+Browser über die beiden anderen Wege und die Websuche.
 
 ## Benachrichtigungen
 

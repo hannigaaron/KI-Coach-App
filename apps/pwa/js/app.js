@@ -47,6 +47,7 @@ import {
   erinnerungenAufgeraeumt, heuteGetauscht,
   vorausblickePlan,
   vorausblickFuer,
+  offOptionen,
 } from "./assistant.js";
 import { brain } from "./brain.js";
 import { Orb } from "./orb.js";
@@ -5134,13 +5135,13 @@ async function meSuchen() {
   const ziffern = begriff.replace(/\D/g, "");
   try {
     if (ziffern.length >= 8 && ziffern.length <= 14 && ziffern.length === begriff.replace(/\s/g, "").length) {
-      const t = await produktPerBarcode(ziffern);
+      const t = await produktPerBarcode(ziffern, offOptionen());
       if (!t) { hinweis.textContent = "Diesen Barcode kennt Open Food Facts nicht."; return; }
       meTrefferZeichnen([t]);
       hinweis.textContent = "";
       return;
     }
-    const treffer = await produkteSuchen(begriff, { anzahl: 8 });
+    const treffer = await produkteSuchen(begriff, { anzahl: 8, ...offOptionen() });
     if (treffer.length === 0) {
       hinweis.textContent = "Nichts gefunden. Scann den Barcode oder trag es von Hand ein.";
       return;

@@ -772,3 +772,36 @@ test("Abhaken lässt sich zurücknehmen, in Todoist und lokal", async () => {
   await planung.aufgabeWiederOeffnen(lokal.rueck);
   assert.equal(store.getAufgaben()[0].erledigt, false);
 });
+
+test("ein Markenprodukt wird gefunden, eingetragen und beim nächsten Mal ohne Netz aus der eigenen Liste genommen", async () => {
+  frischerTag();
+  const echt = globalThis.fetch;
+  const aufrufe = [];
+  // Die alte Suche antwortet mit 503, die Suche nach Marke liefert ESN.
+  globalThis.fetch = async (url) => {
+    aufrufe.push(String(url));
+    if (String(url).includes("brands_tags=esn")) {
+      return new Response(JSON.stringify({ products: [
+        { code: "4260682262912", product_name: "Instant Rice Pudding", brands: "ESN", nutriments: { "energy-kcal_100g": 373, proteins_100g: 7.7, fat_100g: 0.7, carbohydrates_100g: 83 } },
+        { code: "4250519650715", product_name: "Designer Whey", brands: "ESN", nutriments: { "energy-kcal_100g": 523, proteins_100g: 73, fat_100g: 5.2, carbohydrates_100g: 9.2 } },
+      ] }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    return new Response("<html>", { status: 503, headers: { "content-type": "text/html" } });
+  };
+  try {
+    const aktionen = buildActions({});
+    const a = await aktionen.produktNachschlagen({ suche: "ESN Instant Rice Pudding", gramm: 75, erfassen: true });
+    assert.match(a, /Auf 75 g: 280 kcal/);
+    assert.match(a, /Eingetragen\./);
+    const w = await aktionen.produktNachschlagen({ suche: "ESN Designer Whey", gramm: 45 });
+    assert.match(w, /Je 100 g: 376 kcal/);
+    assert.match(w, /aus den Makros gerechnet/);
+    globalThis.fetch = async () => { throw new Error("kein Netz"); };
+    const b = await aktionen.produktNachschlagen({ suche: "esn instant rice pudding", gramm: 75 });
+    assert.match(b, /schon einmal nachgeschlagen/);
+    const nichts = await aktionen.produktNachschlagen({ suche: "Marke Unbekannt Riegel" });
+    assert.match(nichts, /^Noch nicht gespeichert\./);
+  } finally {
+    globalThis.fetch = echt;
+  }
+});

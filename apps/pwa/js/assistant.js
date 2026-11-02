@@ -1,10 +1,10 @@
 import {
   Agent, AnthropicProvider, Coach, addiere, buildShoppingList, cacheQuote, denktiefe, dollarText,
   einstufeAufgabe, einstufungText, ersparnis, extractGrams, NICHT_GESPEICHERT, fehlerErklaerung, hochrechnung, kopfLeeren, kopfText, leereSumme,
-  mahlzeitAusFoto, modellFuerBilder, produktPerBarcode, produkteSuchen, summiere, vorratAusFoto,
+  mahlzeitAusFoto, modellFuerBilder, naehrwerteImNetz, produktPerBarcode, produkteSuchen, summiere, vorratAusFoto,
   todoistAbhaken, todoistAufgaben, todoistIdVon, todoistWiederOeffnen,
 } from "@daevo/coach";
-import { foldUmlauts, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, einzeltrainingBauen, FOKUS_NAME } from "@daevo/core";
+import { foldUmlauts, suchWoerter, trefferWerten, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, einzeltrainingBauen, FOKUS_NAME } from "@daevo/core";
 import { UEBUNGEN } from "./uebungen-daten.js";
 import { GERAETE, uebungenFiltern } from "./uebungen.js";
 import {
@@ -103,6 +103,7 @@ import {
   essensplanText,
 } from "@daevo/core";
 import { brain } from "./brain.js";
+import { nativHolen } from "./nativ.js";
 import { KONFIG, istNativ } from "./konfig.js";
 import { kontoSicherstellen, kontoToken } from "./konto.js";
 import { kiErlaubt } from "./einwilligung.js";
@@ -139,6 +140,44 @@ function provider({ ohneZaehlung = false } = {}) {
     onVerbrauch: zaehleVerbrauch,
     ohneZaehlung,
   });
+}
+
+/**
+ * Wie die neue Suche von Open Food Facts erreicht wird. In der iPhone App
+ * direkt über iOS, `nativHolen`, im Browser über den eigenen Worker, siehe
+ * workers/push/src/produkt.ts. Ohne beides bleiben die Wege mit CORS Kopf.
+ */
+export function offOptionen() {
+  if (istNativ()) return { fetchImpl: (url) => nativHolen(url).catch(() => fetch(url)) };
+  const proxy = (KONFIG.chatUrl || "").replace(/\/+$/, "");
+  return proxy ? { proxy } : {};
+}
+
+/** Höchstens so viele gemerkte Produkte. Je Produkt rund 300 Byte. */
+const PRODUKTE_GRENZE = 300;
+
+/**
+ * Sucht in den schon gefundenen Produkten. Ein Treffer zählt nur, wenn alle
+ * Wörter der Suche passen und die Marke stimmt: "ESN Whey" darf nicht den
+ * gemerkten ESN Rice Pudding bringen.
+ */
+function gemerktesProdukt(suche) {
+  const liste = store.getSettings().produkte || [];
+  if (!liste.length) return [];
+  const schluessel = suchWoerter(suche).join(" ");
+  const genau = liste.find((e) => e.suche === schluessel);
+  if (genau) return [{ produkt: { ...genau.produkt, quelle: "gemerkt" }, einwaende: [] }];
+  const w = trefferWerten(suche, liste.map((e) => e.produkt)).find((x) => x.passung === 1 && x.markeStimmt);
+  return w ? [{ produkt: { ...w.produkt, quelle: "gemerkt" }, einwaende: [] }] : [];
+}
+
+function produktMerken(suche, produkt) {
+  if (produkt.quelle === "gemerkt") return;
+  const settings = store.getSettings();
+  const schluessel = suchWoerter(suche).join(" ");
+  const liste = (settings.produkte || []).filter((e) => e.suche !== schluessel && e.produkt.barcode !== produkt.barcode);
+  liste.unshift({ suche: schluessel, produkt, am: todayIso() });
+  store.setSettings({ ...settings, produkte: liste.slice(0, PRODUKTE_GRENZE) });
 }
 
 /* ---------- Was die App verbraucht ---------- */
@@ -2600,39 +2639,56 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
         + "Erinnerungen und freie Zeit rechne ich für diesen Tag damit.";
     },
 
+    /**
+     * Ein Markenprodukt nachschlagen und auf Wunsch eintragen.
+     *
+     * Drei Stufen, und erst wenn alle drei nichts haben, fragt daevo nach
+     * Barcode oder Etikett. Vorher stand nach der ersten gescheiterten Suche
+     * "Dazu finde ich nichts" da, bei ESN Instant Rice Pudding, das fünfmal
+     * in Open Food Facts steht: die alte Suche dort antwortete mit 503.
+     *
+     * Erst die eigene Liste, `settings.produkte`: was einmal gefunden wurde,
+     * ist beim nächsten Mal ohne Netz und ohne Kosten da. Dann Open Food
+     * Facts über drei Wege, siehe `produkteSuchen`. Zuletzt die Websuche des
+     * Modells, nur mit Seite und nach derselben Prüfung der Zahlen.
+     */
     async produktNachschlagen({ suche, gramm, erfassen } = {}) {
       const q = String(suche ?? "").trim();
       if (q.length < 3) return "Wonach soll ich suchen?";
 
       const nurZiffern = /^\d{8,14}$/.test(q.replace(/\s/g, ""));
-      let treffer = [];
-      if (nurZiffern) {
-        const t = await produktPerBarcode(q.replace(/\s/g, ""));
-        if (t) treffer = [t];
-      } else {
-        treffer = await produkteSuchen(q, { anzahl: 5 });
+      let treffer = gemerktesProdukt(q);
+      if (!treffer.length) {
+        if (nurZiffern) {
+          const t = await produktPerBarcode(q.replace(/\s/g, ""), offOptionen());
+          if (t) treffer = [t];
+        } else {
+          treffer = await produkteSuchen(q, { anzahl: 5, ...offOptionen() });
+        }
+      }
+      if (!treffer.length && !nurZiffern) {
+        const p = await naehrwerteImNetz(provider({ ohneZaehlung: true }), q);
+        if (p) treffer = [{ produkt: p, einwaende: [] }];
       }
 
       if (treffer.length === 0) {
-        return `${q} steht nicht in Open Food Facts, oder die Datenbank antwortet gerade nicht. `
-          + "Scann den Barcode oder fotografier das Nährwertetikett, dann lese ich die Werte ab statt sie zu raten.";
+        return `${NICHT_GESPEICHERT} ${q} finde ich weder in Open Food Facts noch im Netz mit einer Nährwerttabelle. `
+          + "Scann den Barcode oder fotografier das Nährwertetikett, dann trage ich die echten Werte ein.";
       }
 
       const beste = treffer[0];
       const p = beste.produkt;
+      produktMerken(q, p);
       const menge = gramm ?? portionsVorschlag(p)?.gramm ?? 100;
       const zeilen = [produktText(p, menge)];
 
-      if (beste.einwaende.length) {
-        zeilen.push(`Achtung: ${beste.einwaende.join(" ")} Prüf die Packung, bevor du das übernimmst.`);
-      }
       if (!gramm) {
         const v = portionsVorschlag(p);
         zeilen.push(v ? `Gerechnet mit ${v.gramm} g, ${v.grund}.` : "Gerechnet mit 100 g, weil keine Portion angegeben ist.");
       }
       if (treffer.length > 1) {
-        const rest = treffer.slice(1, 4).map((t) => `${t.produkt.marke} ${t.produkt.name}`.trim()).join(", ");
-        zeilen.push(`Ebenfalls gefunden: ${rest}. Wenn das eher passt, sag es.`);
+        const rest = treffer.slice(1, 3).map((t) => `${t.produkt.marke} ${t.produkt.name}`.trim()).join(", ");
+        zeilen.push(`Ebenfalls gefunden: ${rest}.`);
       }
 
       if (erfassen) {

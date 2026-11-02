@@ -39,7 +39,16 @@ export interface Produkt {
   ballaststoffeG?: number;
   /** Kleines Foto der Packung, nur von Open Food Facts selbst. */
   bild?: string;
-  quelle: "openfoodfacts";
+  /**
+   * Woher die Zahlen kommen. Open Food Facts über Barcode oder Suche, "web"
+   * aus einer Websuche des Modells mit Quelle, "gemerkt" aus der eigenen
+   * Liste schon gefundener Produkte.
+   */
+  quelle: "openfoodfacts" | "web" | "gemerkt";
+  /** Die Seite, von der eine Websuche die Werte hat. */
+  quelleUrl?: string;
+  /** Wahr, wenn die Kalorien aus den Makros gerechnet sind, weil der Eintrag nicht zusammenpasste. */
+  kcalGerechnet?: boolean;
 }
 
 /**
@@ -78,7 +87,8 @@ export function produktAusOff(roh: unknown): Produkt | null {
   return {
     barcode,
     name,
-    marke: text(p.brands),
+    // Die neue Suche liefert die Marken als Liste, die alte als Text.
+    marke: Array.isArray(p.brands) ? p.brands.map(text).filter(Boolean).join(", ") : text(p.brands),
     menge: text(p.quantity),
     per100,
     portionG: portionInGramm(text(p.serving_size)) ?? undefined,
@@ -137,6 +147,103 @@ export function pruefeProdukt(p: Produkt): Pruefung {
   }
 
   return { ok: einwaende.length === 0, einwaende, gerechnetKcal };
+}
+
+/**
+ * Macht aus einem Treffer etwas, das sich eintragen lässt, oder verwirft ihn.
+ *
+ * Makros über 100 Gramm je 100 Gramm sind nicht zu retten, die Zahlen selbst
+ * sind falsch. Passen nur die Kalorien nicht zu den Makros, liegt der Fehler
+ * fast immer an einem Feld: ESN Whey stand im Betrieb mit 523 kcal da, bei 73
+ * Gramm Protein, 5 Fett und 9 Kohlenhydraten, also rund 375. Dann gelten die
+ * Makros, die Kalorien werden daraus gerechnet, und der Nutzer bekommt eine
+ * Zahl statt einer Bitte, auf seine Dose zu schauen.
+ */
+export function produktBereinigen(p: Produkt): Produkt | null {
+  const m = p.per100;
+  if (m.proteinG + m.fatG + m.carbsG > 100) return null;
+  const pr = pruefeProdukt(p);
+  if (pr.ok) return p;
+  if (pr.gerechnetKcal <= 0) return null;
+  return { ...p, per100: { ...m, kcal: pr.gerechnetKcal }, kcalGerechnet: true };
+}
+
+/** Wörter, die in einer Suche nichts über das Produkt sagen. */
+const FUELL = new Set(["und", "mit", "von", "der", "die", "das", "the", "and", "with", "protein", "geschmack", "flavour", "flavor", "pulver"]);
+
+/** Zerlegt einen Namen in vergleichbare Wörter. */
+export function suchWoerter(textRoh: string): string[] {
+  return textRoh
+    .toLowerCase()
+    .replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss")
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length >= 2);
+}
+
+export interface Wertung {
+  produkt: Produkt;
+  /** Anteil der Suchwörter, die im Treffer stehen, 0 bis 1. */
+  passung: number;
+  /** Ob die Marke aus der Suche beim Treffer steht. */
+  markeStimmt: boolean;
+}
+
+/**
+ * Sortiert Treffer nach der Suche und wirft weg, was nicht gemeint sein kann.
+ *
+ * Die Suche von Open Food Facts liefert zu "ESN Instant Rice Pudding" als
+ * ersten Treffer einen Milchreis von Milsani, weil "Rice Pudding" passt. Ein
+ * fremdes Produkt mit echten Werten ist schlimmer als keines: es sieht
+ * richtig aus. Deshalb gilt: steht eines der Suchwörter bei irgendeinem
+ * Treffer als Marke, ist es die Marke, und nur Treffer dieser Marke bleiben.
+ * Danach zählt der Anteil der übrigen Wörter im Namen, mindestens die Hälfte.
+ *
+ * Gleiche Werte bei mehreren Treffern sind ein gutes Zeichen: ein Produkt,
+ * das drei Leute gleich erfasst haben, ist eher richtig erfasst.
+ */
+export function trefferWerten(suche: string, produkte: Produkt[]): Wertung[] {
+  const woerter = suchWoerter(suche);
+  if (!woerter.length) return [];
+  const markenWoerter = (p: Produkt) => new Set(suchWoerter(p.marke));
+  // Die Marke ist das Wort, das bei den meisten Treffern als Marke steht.
+  // Nicht jedes: bei "Alpro Skyr" gibt es auch eine Marke namens Skyr, und
+  // dann bliebe kein Wort für den Namen übrig.
+  const markenZahl = woerter.map((w) => produkte.filter((p) => markenWoerter(p).has(w)).length);
+  const top = Math.max(0, ...markenZahl);
+  const i = top > 0 ? markenZahl.indexOf(top) : -1;
+  const marke: string[] = [];
+  const erstes = i >= 0 ? woerter[i] : undefined;
+  if (erstes) {
+    marke.push(erstes);
+    // Zweiteilige Marken wie More Nutrition.
+    const zweites = woerter[i + 1];
+    if (zweites && produkte.some((p) => markenWoerter(p).has(erstes) && markenWoerter(p).has(zweites))) marke.push(zweites);
+  }
+  const rest = woerter.filter((w) => !marke.includes(w) && !FUELL.has(w));
+
+  const zaehl = new Map<string, number>();
+  const schluessel = (p: Produkt) => `${p.per100.kcal}|${p.per100.proteinG}|${p.per100.fatG}|${p.per100.carbsG}`;
+  for (const p of produkte) zaehl.set(schluessel(p), (zaehl.get(schluessel(p)) ?? 0) + 1);
+
+  const gesehen = new Set<string>();
+  const liste: Array<Wertung & { rang: number }> = [];
+  for (const p of produkte) {
+    if (gesehen.has(p.barcode)) continue;
+    gesehen.add(p.barcode);
+    const mw = markenWoerter(p);
+    const markeStimmt = marke.length > 0 && marke.some((w) => mw.has(w));
+    if (marke.length && !markeStimmt) continue;
+    const namensWoerter = new Set([...suchWoerter(p.name), ...mw]);
+    // Ein Wort trifft auch als Anfang: "puddings" findet "pudding".
+    const trifft = (w: string) => [...namensWoerter].some((n) => n === w || (w.length >= 4 && (n.startsWith(w) || w.startsWith(n)) && n.length >= 4));
+    const treffer = rest.filter(trifft).length;
+    const passung = rest.length ? treffer / rest.length : 1;
+    if (passung < 0.5) continue;
+    const einig = (zaehl.get(schluessel(p)) ?? 1) - 1;
+    const sauber = pruefeProdukt(p).ok ? 1 : 0;
+    liste.push({ produkt: p, passung, markeStimmt, rang: passung * 10 + sauber * 2 + Math.min(einig, 3) });
+  }
+  return liste.sort((a, b) => b.rang - a.rang).map(({ rang: _r, ...w }) => w);
 }
 
 /** Rechnet die Werte je 100 Gramm auf eine Menge um. */
@@ -198,8 +305,16 @@ export function produktText(p: Produkt, gramm?: number): string {
     const w = naehrwerteFuer(p, gramm);
     zeilen.push(`Auf ${rund1(gramm)} g: ${w.kcal} kcal, ${w.proteinG} g Protein, ${w.fatG} g Fett, ${w.carbsG} g Kohlenhydrate.`);
   }
-  zeilen.push(`Quelle: Open Food Facts, Barcode ${p.barcode}. Von Nutzern gepflegt, also gegen die Packung prüfen.`);
+  zeilen.push(quelleSatz(p));
   return zeilen.join("\n");
+}
+
+/** Woher die Zahlen kommen, in einem Satz. */
+export function quelleSatz(p: Produkt): string {
+  const gerechnet = p.kcalGerechnet ? " Die Kalorien sind aus den Makros gerechnet, der Eintrag dort passte nicht zusammen." : "";
+  if (p.quelle === "web") return `Quelle: ${p.quelleUrl ? new URL(p.quelleUrl).hostname.replace(/^www\./, "") : "Websuche"}.${gerechnet}`;
+  if (p.quelle === "gemerkt") return `Quelle: schon einmal nachgeschlagen${p.barcode && !p.barcode.startsWith("web-") ? `, Barcode ${p.barcode}` : ""}.${gerechnet}`;
+  return `Quelle: Open Food Facts, Barcode ${p.barcode}.${gerechnet}`;
 }
 
 function text(v: unknown): string {
