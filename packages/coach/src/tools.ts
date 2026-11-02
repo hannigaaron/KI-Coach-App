@@ -919,6 +919,26 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: "zyklus",
+    description:
+      "Menstruationszyklus der Nutzerin: abrufen, Beginn oder Ende der Periode eintragen, Beschwerden des Tages " +
+      "eintragen. Zyklustag, Phase, Vorhersage und die Trainingsempfehlung rechnet die App, nenn sie nur von hier. " +
+      "Nach Phase zu trainieren ist nicht belegt (McNulty 2020, Colenso-Semple 2023): passe das Training an die " +
+      "Beschwerden an, nicht an die Phase. Die Vorhersage ist keine Messung und nicht zur Verhütung geeignet.",
+    input_schema: {
+      type: "object",
+      properties: {
+        aktion: { type: "string", enum: ["abrufen", "periode_beginn", "periode_ende", "symptome"] },
+        tag: { type: "string", description: "Datum als JJJJ-MM-TT, ohne Angabe heute." },
+        symptome: {
+          type: "array",
+          items: { type: "string", enum: ["kraempfe", "muede", "kopfschmerz", "stimmung", "blaehbauch", "brust", "schlaf"] },
+        },
+      },
+      required: ["aktion"],
+    },
+  },
+  {
     name: "lebensmittel_anlegen",
     description:
       "Speichert ein eigenes Lebensmittel mit Werten je 100 g, damit daevo es beim Erfassen, im Editor und beim " +

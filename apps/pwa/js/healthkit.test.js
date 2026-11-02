@@ -284,3 +284,20 @@ test("der Blick auf morgen kommt abends und geht vor die Impulse", async () => {
   assert.equal(mitteilungsPlan({ store, jetzt: { tag: HEUTE, uhrzeit: "12:00" }, vorausblicke }).some((m) => m.art === "vorausblick"), false);
   assert.ok(MAX_GEPLANT >= 1);
 });
+
+test("die Periode aus Apple Health landet im Zyklus, eingeschaltet nur bei Frauen", async () => {
+  const { healthkitSchreiben } = await import("./healthkit.js");
+  const speicher = (sex, zyklus) => {
+    let settings = zyklus ? { zyklus } : {};
+    return { getSettings: () => settings, setSettings: (s) => { settings = s; }, getProfile: () => ({ sex }), getDay: () => ({}), setDay() {}, allDays: () => [] };
+  };
+  const antwort = { tage: [], periode: [{ tag: "2026-10-07", staerke: "mittel" }, { tag: "2026-10-08", staerke: "stark" }] };
+  const frau = speicher("female");
+  const r = healthkitSchreiben(antwort, { store: frau, heute: "2026-10-20" });
+  assert.equal(r.perioden, 1);
+  assert.equal(frau.getSettings().zyklus.an, true);
+  const aus = speicher("female", { an: false });
+  healthkitSchreiben(antwort, { store: aus, heute: "2026-10-20" });
+  assert.equal(aus.getSettings().zyklus.an, false);
+  assert.equal(aus.getSettings().zyklus.perioden.length, 1);
+});

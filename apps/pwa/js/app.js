@@ -49,6 +49,7 @@ import {
   vorausblickFuer,
   offOptionen,
 } from "./assistant.js";
+import { zyklusAnsicht, zyklusSichtbar } from "./zyklus-ui.js";
 import { brain } from "./brain.js";
 import { Orb } from "./orb.js";
 import { anhangAusDatei, grossInKb } from "./media.js";
@@ -910,7 +911,7 @@ document.addEventListener("visibilitychange", () => {
  * jemand später hinzufügt, bekommt damit einen vernünftigen Übergang, ohne
  * dass er daran denken muss.
  */
-const ANSICHT_TIEFE = ["assistant", "gespraeche", "heute", "essen", "rezepte", "tag", "balance", "bereitschaft", "checkin", "wochencheck", "bericht", "profil", "reflexion"];
+const ANSICHT_TIEFE = ["assistant", "gespraeche", "heute", "essen", "rezepte", "tag", "balance", "bereitschaft", "zyklus", "checkin", "wochencheck", "bericht", "profil", "reflexion"];
 
 let letzteAnsicht = "assistant";
 
@@ -968,6 +969,7 @@ function showView(name) {
   }
   if (name === "balance") renderBalance();
   if (name === "bereitschaft") renderBereitschaft();
+  if (name === "zyklus") zyklus.zeichnen();
   if (name === "bericht") { berichtZeitraumFuellen(); renderBericht(); }
   if (name === "standards") { renderStandards(); zeigeAngebot("standardsAngebot"); }
   if (name === "gespraeche") renderGespraeche();
@@ -2691,6 +2693,14 @@ function anamneseFertig(ergebnis) {
  * Aussehen, seine Zahlen. Nur was dem Betreiber gehört, wird überschrieben.
  */
 /** Die Empfehlungen. Gerechnet wird in assistant.js, hier wird nur verbunden. */
+const zyklus = zyklusAnsicht({ wurzel: $("zyklusInhalt"), toast, beiAenderung: () => zyklusMenue() });
+
+/** Die Zeile im Menü steht bei Frauen immer und sonst nur, wenn jemand den Zyklus eingeschaltet hat. */
+function zyklusMenue() {
+  $("menuZyklus").hidden = !zyklusSichtbar(store.getProfile(), store.getSettings());
+}
+zyklusMenue();
+
 const rezepte = rezepteAnsicht({
   wurzel: document.querySelector('[data-view="rezepte"]'),
   toast,
@@ -4488,6 +4498,7 @@ $("memList").addEventListener("click", (event) => {
 });
 
 $("btnSaveProfile").addEventListener("click", () => {
+  queueMicrotask(zyklusMenue);
   const candidate = {
     ...profile,
     weightKg: Number($("e-weight").value),

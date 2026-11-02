@@ -4076,3 +4076,45 @@ button.hoert:not(.co-btn) { background: var(--stark); color: var(--auf-stark); a
 }
 #aufgabenHeute > li:first-child:not(.empty) .li-title { font-size: var(--t-lg, 18px); font-weight: 600; }
 #aufgabenHeute > li:not(:first-child), #aufgabenMorgen > li { opacity: 0.45; }
+
+/* ---------- Zyklus ---------- */
+/* Vier Töne für die Phasen, dieselbe Helligkeit, damit keine Phase lauter
+   ist als die andere. Rot ist es nicht: in dieser App heisst Rot über dem
+   Ziel, und eine Periode ist keine Warnung. */
+:root { --zy-periode: #f28b9b; --zy-follikel: #e8b4c2; --zy-eisprung: #96d8f0; --zy-luteal: #b9a6f0; --zy-ruhe: rgba(255, 255, 255, 0.12); }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --zy-periode: #c2475d; --zy-follikel: #b06a80; --zy-eisprung: #1e7fa8; --zy-luteal: #6f56c4; --zy-ruhe: rgba(16, 24, 40, 0.12); } }
+:root[data-theme="light"] { --zy-periode: #c2475d; --zy-follikel: #b06a80; --zy-eisprung: #1e7fa8; --zy-luteal: #6f56c4; --zy-ruhe: rgba(16, 24, 40, 0.12); }
+.zyklus { padding-bottom: var(--s-8); }
+.zy-ring { position: relative; width: 260px; height: 260px; margin: var(--s-2) auto var(--s-2); }
+.zy-mitte { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 56px; }
+.zy-tag { font-family: var(--schrift-akzent); font-size: 52px; line-height: 1; }
+.zy-phase { font-size: var(--t-xs); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; margin-top: var(--s-2); color: var(--zy-follikel); }
+.zy-phase[data-phase="periode"] { color: var(--zy-periode); }
+.zy-phase[data-phase="eisprung"] { color: var(--zy-eisprung); }
+.zy-phase[data-phase="luteal"] { color: var(--zy-luteal); }
+.zy-vor { color: var(--muted); font-size: var(--t-sm); margin-top: var(--s-2); line-height: 1.35; }
+.zy-legende { display: flex; justify-content: center; flex-wrap: wrap; gap: var(--s-3); font-size: var(--t-xs); color: var(--muted); margin-bottom: var(--s-5); }
+.zy-legende i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; }
+.zy-leise { font-family: var(--schrift-text); display: block; margin: var(--s-2) auto var(--s-4); background: none; border: 0; color: var(--muted); font-size: var(--t-sm); padding: var(--s-2); }
+.zy-datum { margin-bottom: var(--s-4); }
+.zy-chips { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-bottom: var(--s-5); }
+.zy-chip { font-family: var(--schrift-text); padding: 8px 14px; border-radius: var(--r-pill, 999px); background: var(--flaeche); box-shadow: var(--haarlinie); border: 0; color: var(--text); font-size: var(--t-sm); }
+.zy-chip.an { background: var(--text); color: var(--bg); font-weight: 600; }
+.zy-karte { border-radius: 22px; padding: var(--s-4) var(--s-5); margin: var(--s-2) 0 var(--s-5);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--brand) 10%, transparent), color-mix(in srgb, var(--brand) 3%, transparent)); box-shadow: var(--haarlinie); }
+.zy-karte b { display: block; margin-bottom: var(--s-2); }
+.zy-karte p { margin: 0 0 var(--s-2); line-height: 1.5; }
+.zy-karte small { color: var(--muted); font-size: var(--t-xs); }
+.zy-warn { color: var(--warn); }
+.zy-zeile { display: flex; justify-content: space-between; align-items: center; gap: var(--s-3); padding: var(--s-3) 0; border-top: 1px solid var(--linie); font-size: var(--t-sm); }
+.zy-zeile > span:last-child { color: var(--muted); display: flex; gap: var(--s-2); }
+.zy-start .zy-verh { border: 0; padding: 0; margin: var(--s-4) 0; display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.zy-start .zy-verh legend { font-size: var(--t-sm); margin-bottom: var(--s-2); }
+.zy-aus { margin-top: var(--s-4); }
+/* Die Regel für Knöpfe setzt Serife und eine Stufe grösser. Symptome und
+   Blutung sind Daten, keine Handlung, deshalb gilt hier die Textschrift. */
+.zyklus .zy-chip, .zyklus .zy-leise { font-family: var(--schrift-text); font-size: var(--t-sm); letter-spacing: normal; }
+.mg-zyklus { margin: var(--s-4) 0; padding: var(--s-3) var(--s-4); border-radius: 18px; background: var(--flaeche); box-shadow: var(--haarlinie); }
+.mg-zyklus b { display: block; }
+.mg-zyklus small { color: var(--muted); font-size: var(--t-xs); }
+.mg-zyklus p { margin: var(--s-2) 0 0; line-height: 1.5; font-size: var(--t-sm); }

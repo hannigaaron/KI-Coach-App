@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Agent, aufgabeMitFrist, trainingHeuteAus, denktiefe, istAbsicht, listeAbhakenAus, naehrwertFrage, postenFuerListe, profilAus, runOffline, schnellweg, type AgentActions } from "./agent.js";
+import { Agent, aufgabeMitFrist, trainingHeuteAus, denktiefe, istAbsicht, listeAbhakenAus, naehrwertFrage, postenFuerListe, profilAus, runOffline, schnellweg, zyklusAus, type AgentActions } from "./agent.js";
 import type { ChatMessage, CoachProvider, ContentBlock, ConverseRequest, ConverseResponse, JsonRequest } from "./provider.js";
 import { standardAenderungAus } from "@daevo/core";
 
@@ -995,4 +995,15 @@ test("ein eigenes Lebensmittel wird angelegt und nicht als Mahlzeit eingetragen"
   const r = await runOffline("Leg ein Lebensmittel an: Omas Kuchen, 350 kcal, 5 g Eiweiß, 18 g Fett, 40 g Kohlenhydrate je 100 g", a);
   assert.deepEqual(angelegt, { name: "Omas Kuchen", kcal: 350, proteinG: 5, fatG: 18, carbsG: 40, portionG: undefined });
   assert.deepEqual(r.ausgeführt, ["Lebensmittel angelegt"]);
+});
+
+test("Sätze zum Zyklus gehen an den Zyklus und nie an die Beschwerden oder das Essen", async () => {
+  const gefragt: Array<{ aktion: string; symptome?: string[] }> = [];
+  const a: AgentActions = { ...stubActions([]), async zyklus(e) { gefragt.push(e); return "Zyklustag 2."; } };
+  await runOffline("Meine Periode hat heute angefangen", a);
+  await runOffline("Ich hab Krämpfe wegen meiner Periode", a);
+  await runOffline("Wann kommt meine nächste Periode?", a);
+  assert.deepEqual(gefragt.map((g) => g.aktion), ["periode_beginn", "symptome", "abrufen"]);
+  assert.deepEqual(gefragt[1]?.symptome, ["kraempfe"]);
+  assert.equal(zyklusAus("ich hab kraempfe in der wade"), null);
 });

@@ -16,7 +16,7 @@
  * Bis `morgenStarten` fasst das Modul weder `document` noch `window` an.
  */
 import {
-  MORGEN_FRAGEN, BELASTBARKEIT_NAME, NACHFRAGE_UHRZEIT, morgenAuswerten, morgenUhrzeit, morgenVollstaendig, nachfrageAuswerten, nachfrageNoetig, tagesrandFuer,
+  MORGEN_FRAGEN, BELASTBARKEIT_NAME, PHASE_NAME, SYMPTOM_NAME, zyklusEmpfehlung, zyklusStand, NACHFRAGE_UHRZEIT, morgenAuswerten, morgenUhrzeit, morgenVollstaendig, nachfrageAuswerten, nachfrageNoetig, tagesrandFuer,
 } from "@daevo/core";
 import { newId, nowTime } from "./storage.js";
 import { spueren } from "./haptik.js";
@@ -152,6 +152,22 @@ export function nachfrageHtml(wert) {
       <div class="mg-enden"><span>krank</span><span>topfit</span></div></fieldset>`;
 }
 
+/**
+ * Eine Zeile zum Zyklus unter dem Ergebnis, nur wenn er eingeschaltet ist.
+ * Senken die Beschwerden die Stufe, steht die Empfehlung mit Grund da, sonst
+ * nur Tag und Phase: der Morgen hat schon gesagt, wie trainiert wird.
+ */
+export function zyklusZeileHtml(zyklus, heute) {
+  if (!zyklus?.an) return "";
+  const stand = zyklusStand(zyklus, heute);
+  if (!stand.bekannt) return "";
+  const sym = zyklus.symptome?.[heute] || [];
+  const e = zyklusEmpfehlung(stand, sym, zyklus.blutung?.[heute]);
+  const kopf = `Tag ${stand.tag}${stand.phase ? `, ${PHASE_NAME[stand.phase]}` : ""}`;
+  const unter = sym.length ? sym.map((x) => SYMPTOM_NAME[x]).join(", ") + ", aus deinem Eintrag" : "Beschwerden trägst du unter Zyklus ein";
+  return `<div class="mg-zyklus"><b>${esc(kopf)}</b><small>${esc(unter)}</small>${e.stufe !== "normal" ? `<p>${esc(e.training)}</p>` : ""}${e.essen && zyklus.blutung?.[heute] === "stark" ? `<p>${esc(e.essen)}</p>` : ""}</div>`;
+}
+
 export function ergebnisHtml(r) {
   const liste = (zeilen) => `<ul class="mg-liste">${zeilen.map((z) => `<li>${esc(z)}</li>`).join("")}</ul>`;
   return `<div class="mg-ergebnis">
@@ -235,7 +251,7 @@ export function morgenStarten({ store, heute, melde, gespeichert, tagesbriefing 
     if (!r) return;
     fertig = true;
     spueren("erfolg");
-    inhalt.innerHTML = ergebnisHtml(r) + briefingHtml(modus === "morgen" ? tagesbriefing?.() : null);
+    inhalt.innerHTML = ergebnisHtml(r) + zyklusZeileHtml(store.getSettings?.().zyklus, heute()) + briefingHtml(modus === "morgen" ? tagesbriefing?.() : null);
     inhalt.scrollTop = 0;
     knopf.textContent = "Fertig";
     knopf.disabled = false;

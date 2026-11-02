@@ -79,7 +79,7 @@ Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
 
-Der Assistent hat dreiundfünfzig Werkzeuge und verändert die App wirklich. Zahlen
+Der Assistent hat vierundfünfzig Werkzeuge und verändert die App wirklich. Zahlen
 über den Nutzer kommen immer aus Werkzeugen, nie aus dem Modell. Allgemeines
 Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
@@ -632,7 +632,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1315 Tests
+npm test           # 1325 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1047,6 +1047,58 @@ halbe Einführung.
 Sie kommt einmal, gesteuert über `settings.einfuehrungGesehen`: nach dem Bogen,
 beim ersten Öffnen der Demo und einmal bei allen, die die App schon vorher
 hatten. Danach steht sie im Profil.
+
+## Der Zyklus
+
+`packages/core/src/zyklus.ts` rechnet, `apps/pwa/js/zyklus-ui.js` zeigt,
+Menü, Training, Zyklus. Die Zeile steht bei Frauen immer und sonst nur,
+wenn jemand den Zyklus eingeschaltet hat, `zyklusSichtbar`. Daten in
+`settings.zyklus`: Perioden mit Beginn und Ende, Symptome und Blutung je
+Tag, Verhütung. Aufbau nach dem Entwurf, den der Nutzer gewählt hat: Ring
+mit Tag und Phase, Vorhersage, ein Knopf für Beginn oder Ende, Blutung,
+Symptome, die Karte "daevo für heute", die letzten Zyklen.
+
+Die Phase allein ändert das Training nicht. Nach Phase zu trainieren ist
+nicht belegt, McNulty und andere, Sports Medicine 2020, und Colenso-Semple
+und andere, Frontiers 2023. Gesteuert wird über die Beschwerden des Tages,
+`zyklusEmpfehlung`: ein Symptom aus Krämpfe, Müde, Kopfschmerz oder
+schlechter Schlaf heisst drei Viertel der Sätze und eine Wiederholung mehr in
+Reserve, zwei davon die Hälfte und zwei mehr. Dieselben Stufen wie bei der
+Tagesform, eine Regel der App. Stimmung, Blähbauch und Brustspannen senken
+die Stufe nicht. Die Häufigkeit der Beschwerden stammt aus Bruinvels und
+andere, BJSM 2021. Starke Blutung bringt den Hinweis auf eisenreiches Essen,
+die Lutealphase den Satz, dass mehr Hunger normal sein kann. Das
+Kalorienziel ändert sich nicht: der höhere Ruheumsatz ist in neueren Studien
+nicht mehr signifikant, Benton und andere 2020.
+
+Länge und Periodendauer kommen aus den letzten sechs Zyklen, ohne Daten aus
+28 und 5 Tagen, und die Vorhersage sagt dann "noch aus Lehrbuchwerten".
+Abstände über 60 Tage zählen nicht als Zyklus, das ist fast immer ein
+vergessener Eintrag. Der Eisprung ist geschätzt, 14 Tage vor der nächsten
+Periode. Mit hormoneller Verhütung gibt es keine Phasen, nur Periode und
+Symptome, Elliott-Sale und andere 2020. Ab 90 Tagen ohne Periode steht der
+Weg zur Ärztin da, ebenso bei Zyklen im Schnitt unter 21 oder über 35 Tagen.
+Jede Ausgabe sagt, dass es keine Messung ist und nicht zur Verhütung taugt.
+
+Im Gespräch: Werkzeug `zyklus` mit Regelpfad `zyklusAus` in `agent.ts`.
+"Meine Periode hat heute angefangen", "meine Tage sind vorbei", "hab
+Krämpfe wegen der Periode". Erkannt wird nur mit einem Wort für Periode oder
+Zyklus, sonst wäre "Krämpfe in der Wade" eine Zyklusbeschwerde. Der Kontext
+jeder Nachricht trägt eine Zeile `zyklusText`, wenn er eingeschaltet ist.
+Der Morgen Check-in zeigt Tag und Phase, und die Anpassung nur, wenn die
+Beschwerden die Stufe senken, `zyklusZeileHtml` in `morgen.js`.
+
+Apple Health: `GesundheitPlugin` liest `menstrualFlow` über die Rohwerte,
+weil Apple die Namen in iOS 18 umbenannt hat, `zyklusAusHealth` macht daraus
+Perioden. Eigene Einträge gewinnen, ein Beginn innerhalb von zehn Tagen ist
+dieselbe Periode. Eingeschaltet wird nur bei Frauen und nie gegen ein
+ausdrückliches Aus. `HEALTH_FASSUNG` steht auf 4, damit iOS nach dem neuen
+Typ fragt. Die Einwilligung für die KI steht auf Fassung 2, der Zyklus geht
+dort mit. Ungeprüft: der Swift Teil ist hier nicht kompiliert.
+
+Offen: die HRV in der Bereitschaft wird noch nicht gegen dieselbe Phase der
+letzten Zyklen verglichen, wie im Entwurf beschrieben. Die Bereitschaft
+liest die HRV bisher gar nicht.
 
 ## Der Guten Morgen Check-in
 
@@ -2119,7 +2171,7 @@ Tippfehler darf die Ziele nicht kippen.
 
 ## Der Regelweg ist die kostenlose Stufe
 
-49 der 53 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
+50 der 54 Werkzeuge haben einen Regelpfad in `packages/coach/src/agent.ts`.
 Das ist keine Notlösung für den Ausfall, sondern das Produkt: ein Weg, der
 kein Modell anfragt, kostet nichts je Nutzer und skaliert ohne Rechnung.
 

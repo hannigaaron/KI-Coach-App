@@ -822,3 +822,15 @@ test("ein eigenes Lebensmittel gilt beim Erfassen, beim Nachschlagen und im Gesp
   const f = await aktionen.lebensmittelAnlegen({ name: "X", kcal: 300, proteinG: 90, fatG: 20, carbsG: 10 });
   assert.match(f, /^Noch nicht gespeichert\./);
 });
+
+test("der Zyklus wird im Gespräch eingetragen und mit Empfehlung zurückgegeben", async () => {
+  const aktionen = buildActions({});
+  const heute = todayIso();
+  const a = await aktionen.zyklus({ aktion: "periode_beginn" });
+  assert.match(a, /^Eingetragen: Periode ab /);
+  assert.match(a, /Zyklustag 1, Periode\./);
+  const b = await aktionen.zyklus({ aktion: "symptome", symptome: ["kraempfe", "unsinn"] });
+  assert.match(b, /drei Vierteln der Sätze/);
+  assert.deepEqual(store.getSettings().zyklus.symptome[heute], ["kraempfe"]);
+  assert.match(await aktionen.zyklus({ aktion: "symptome", symptome: ["unsinn"] }), /^Noch nicht gespeichert\./);
+});

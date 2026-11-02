@@ -16,7 +16,8 @@
  *
  * Kein `document`, kein `window`: das Modul läuft auch in den Tests.
  */
-export const EINWILLIGUNG_FASSUNG = 1;
+// Fassung 2: der Zyklus geht mit, wenn er eingeschaltet ist.
+export const EINWILLIGUNG_FASSUNG = 2;
 
 /** Braucht diese Fassung der App überhaupt eine Einwilligung? */
 export function einwilligungGefragt(konfig) {

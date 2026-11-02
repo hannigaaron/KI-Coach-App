@@ -4,7 +4,7 @@ import {
   mahlzeitAusFoto, modellFuerBilder, naehrwerteImNetz, produktPerBarcode, produkteSuchen, summiere, vorratAusFoto,
   todoistAbhaken, todoistAufgaben, todoistIdVon, todoistWiederOeffnen,
 } from "@daevo/coach";
-import { foldUmlauts, suchWoerter, trefferWerten, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, einzeltrainingBauen, FOKUS_NAME } from "@daevo/core";
+import { foldUmlauts, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, einzeltrainingBauen, FOKUS_NAME } from "@daevo/core";
 import { UEBUNGEN } from "./uebungen-daten.js";
 import { GERAETE, uebungenFiltern } from "./uebungen.js";
 import {
@@ -219,6 +219,8 @@ export function mitEigenenLebensmitteln(parsed, settings) {
   if (!ersetzt.length) return parsed;
   return { ...parsed, entries, unresolved: offen, followUpQuestion: offen.length ? parsed.followUpQuestion : "" };
 }
+
+const zyklusDatum = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString("de-DE", { day: "numeric", month: "long" });
 
 /* ---------- Was die App verbraucht ---------- */
 
@@ -513,6 +515,11 @@ function lageText() {
 
   const koerper = koerperText();
   if (koerper) zeilen.push(koerper);
+
+  // Der Zyklus nur, wenn die Nutzerin ihn eingeschaltet hat. Eine Zeile reicht,
+  // die Empfehlung steht darin, und der Coach soll sie nicht neu erfinden.
+  const zyklusDaten = store.getSettings().zyklus;
+  if (zyklusDaten?.an) zeilen.push(`Zyklus, gerechnet: ${zyklusText(zyklusDaten, todayIso(), zyklusDatum).replace(/\n/g, " ")}`);
 
   // Was der Kalender für heute und morgen verlangt, gerechnet. Damit spricht
   // der Coach es von selbst an, auch wenn die Frage eine andere war: wer
@@ -2677,6 +2684,33 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       const stunden = Math.round(wachMinutenAus(r.wakeTime, r.sleepTime) / 60);
       return `${wann}: ${r.wakeTime} bis ${r.sleepTime}, rund ${stunden} Stunden wach. `
         + "Erinnerungen und freie Zeit rechne ich für diesen Tag damit.";
+    },
+
+    /**
+     * Zyklus abrufen oder eintragen. Die Phase und die Empfehlung rechnet der
+     * Kern aus den Einträgen, das Modell erfindet keinen Zyklustag.
+     */
+    async zyklus({ aktion = "abrufen", tag, symptome = [] } = {}) {
+      const heute = todayIso();
+      const datum = typeof tag === "string" && /^\d{4}-\d{2}-\d{2}$/.test(tag) && tag <= heute ? tag : heute;
+      let d = store.getSettings().zyklus || {};
+      if (aktion === "periode_beginn") d = periodeBeginnen(d, datum);
+      else if (aktion === "periode_ende") d = periodeBeenden(d, datum);
+      else if (aktion === "symptome") {
+        const gueltig = symptome.filter((x) => SYMPTOME.includes(x));
+        if (!gueltig.length) return `${NICHT_GESPEICHERT} Welche Beschwerden? Etwa Krämpfe, Müdigkeit oder Kopfschmerz.`;
+        for (const x of gueltig) if (!(d.symptome?.[datum] || []).includes(x)) d = symptomUmschalten(d, datum, x);
+      } else if (!d.an) {
+        return "Die Zyklus Funktion ist aus. Sie steht im Menü unter Training, Zyklus, oder sag mir den ersten Tag deiner letzten Periode.";
+      }
+      if (aktion !== "abrufen") {
+        store.setSettings({ ...store.getSettings(), zyklus: { ...d, an: true } });
+        changed();
+      }
+      const vorn = aktion === "periode_beginn" ? `Eingetragen: Periode ab ${zyklusDatum(datum)}.\n`
+        : aktion === "periode_ende" ? `Eingetragen: Ende am ${zyklusDatum(datum)}.\n`
+        : aktion === "symptome" ? "Eingetragen.\n" : "";
+      return vorn + zyklusText({ ...d, an: true }, heute, zyklusDatum);
     },
 
     async lebensmittelAnlegen({ name, kcal, proteinG, fatG, carbsG, portionG } = {}) {

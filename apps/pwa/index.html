@@ -532,7 +532,7 @@ try {
       </header>
       <div class="blatt-scroll ki-text">
         <p>Für freie Antworten, Fotos und deinen Tagesplan nutzt daevo ein Sprachmodell von Anthropic in den USA.</p>
-        <p>Dafür geht deine Nachricht über den Server von daevo an Anthropic, mit dem, was die Antwort braucht: etwa Auszüge aus deinem Profil, Zahlen des Tages, Notizen aus dem Gedächtnis, Gesundheitswerte und Fotos, die du schickst. Das sind auch Gesundheitsdaten.</p>
+        <p>Dafür geht deine Nachricht über den Server von daevo an Anthropic, mit dem, was die Antwort braucht: etwa Auszüge aus deinem Profil, Zahlen des Tages, Notizen aus dem Gedächtnis, Gesundheitswerte, deinen Zyklus, wenn du ihn nutzt, und Fotos, die du schickst. Das sind auch Gesundheitsdaten.</p>
         <p>Der Server von daevo speichert den Inhalt nicht. Anthropic nutzt ihn nach eigenen Angaben nicht zum Training und löscht ihn innerhalb von 30 Tagen.</p>
         <p>Ohne Zustimmung läuft alles weiter, was ohne KI geht: Essen eintragen, Pläne, Erinnerungen, Auswertungen. Du kannst das im Profil unter Datenschutz jederzeit ändern.</p>
         <p><button type="button" class="link-knopf" data-recht="datenschutz">Datenschutzerklärung lesen</button></p>
@@ -840,6 +840,11 @@ try {
         dann nicht den Zeitraum, sondern die Tage, an denen du Lust zum Eintragen hattest, und das sind fast
         immer die guten. Ein Trend unter fünf Prozent gilt als unverändert.</p>
     </div>
+  </section>
+
+  <section class="view" data-view="zyklus" hidden>
+    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Zyklus</h1><div class="bar-spacer"></div></header>
+    <div class="scroll"><div id="zyklusInhalt" class="zyklus"></div></div>
   </section>
 
   <section class="view" data-view="bereitschaft" hidden>
@@ -1666,6 +1671,7 @@ try {
           <button class="menu-zeile" data-go="plaene"><span class="menu-sym" data-sym="liste"></span><span><b>Trainingspläne</b><small>Für dein Ziel und deine Zeit</small></span></button>
           <button class="menu-zeile" data-go="uebungen"><span class="menu-sym" data-sym="hantel"></span><span><b>Übungen</b><small>Foto, Muskeln, Erklärvideo</small></span></button>
           <button class="menu-zeile" data-go="bereitschaft"><span class="menu-sym" data-sym="puls"></span><span><b>Bereitschaft</b><small>Tagesform und Belastung</small></span></button>
+          <button class="menu-zeile" data-go="zyklus" id="menuZyklus" hidden><span class="menu-sym" data-sym="zyklus"></span><span><b>Zyklus</b><small>Phase, Periode und Training danach</small></span></button>
         </div>
       </section>
       <section class="menu-seite" data-seite="alltag" hidden>

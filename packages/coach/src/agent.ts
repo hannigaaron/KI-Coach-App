@@ -65,6 +65,7 @@ export interface AgentActions {
   trainingHeute?(input: { gruppen: string[]; minuten?: number; neu?: boolean }): Promise<string>;
   essensplanAbrufen?(input: { inTagen?: number }): Promise<string>;
   uebungenSuchen?(input: { suche?: string; ersatzFuer?: string }): Promise<string>;
+  zyklus?(input: { aktion: string; tag?: string; symptome?: string[] }): Promise<string>;
   lebensmittelAnlegen?(input: { name: string; kcal: number; proteinG?: number; fatG?: number; carbsG?: number; portionG?: number }): Promise<string>;
   standardsAbrufen(): Promise<string>;
   standardSetzen(input: {
@@ -893,6 +894,17 @@ async function execute(
         if (!actions.essensplanAbrufen) return { text: "Den Essensplan gibt es in dieser Fassung nicht.", fehler: true };
         return { text: await actions.essensplanAbrufen({ inTagen }) };
       }
+      case "zyklus": {
+        if (!actions.zyklus) return { text: "Die Zyklus Funktion gibt es in dieser Fassung nicht.", fehler: true };
+        const aktion = String(input.aktion ?? "abrufen");
+        const text = await actions.zyklus({
+          aktion,
+          tag: typeof input.tag === "string" ? input.tag : undefined,
+          symptome: Array.isArray(input.symptome) ? input.symptome.map(String) : [],
+        });
+        if (text.startsWith(NICHT_GESPEICHERT)) return { text, fehler: true };
+        return { text, notiz: aktion === "abrufen" ? undefined : "Zyklus eingetragen" };
+      }
       case "lebensmittel_anlegen": {
         if (!actions.lebensmittelAnlegen) return { text: "Eigene Lebensmittel gibt es in dieser Fassung nicht.", fehler: true };
         const z = (v: unknown) => (v === undefined || v === null || v === "" ? undefined : Number(v));
@@ -1283,6 +1295,28 @@ function parseAmount(raw: string | undefined): number | null {
  * Fälle ab, die im Alltag zählen, und es sagt ehrlich, wenn es nicht reicht.
  */
 /**
+ * Erkennt Sätze zum Zyklus. Nur mit einem Wort für Periode oder Zyklus,
+ * damit "Krämpfe in der Wade" keine Zyklusbeschwerde wird.
+ */
+export function zyklusAus(text: string): { aktion: string; tag?: string; symptome?: string[] } | null {
+  const periode = /\b(periode|meine tage|menstruation|regel(blutung)?|zyklus)\b/.test(text);
+  if (!periode) return null;
+  const gestern = /\bgestern\b/.test(text);
+  const tag = gestern ? new Date(Date.now() - 864e5).toISOString().slice(0, 10) : undefined;
+  if (/\b(vorbei|aufgehoert|zu ende|vorueber|beendet)\b/.test(text)) return { aktion: "periode_ende", tag };
+  if (/\b(angefangen|begonnen|bekommen|eingesetzt|gekriegt|ist da|sind da|habe meine|hab meine|hab die|habe die)\b/.test(text)
+    && !/\b(wann|wie lange|wieviel|wie viel)\b/.test(text)) return { aktion: "periode_beginn", tag };
+  const symptome: string[] = [];
+  if (/kraempf|unterleib/.test(text)) symptome.push("kraempfe");
+  if (/\b(muede|erschoepft|platt|schlapp)\b/.test(text)) symptome.push("muede");
+  if (/kopfschmerz|migraene/.test(text)) symptome.push("kopfschmerz");
+  if (/\b(blaeh\w*|aufgebläht|aufgeblaeht)\b/.test(text)) symptome.push("blaehbauch");
+  if (symptome.length) return { aktion: "symptome", tag, symptome };
+  if (/\b(phase|zyklustag|welcher tag|wann kommt|naechste|zyklus)\b/.test(text)) return { aktion: "abrufen" };
+  return null;
+}
+
+/**
  * Liest ein eigenes Lebensmittel aus einem Satz. Nur mit dem Wort
  * Lebensmittel und einem Verb fürs Anlegen, und nur mit Kalorien: ohne die
  * gibt es nichts zu speichern, und Makros ohne Kalorien rät die App nicht.
@@ -1333,6 +1367,18 @@ export async function runOffline(
     const antwort = await actions.lebensmittelAnlegen(neuesLm);
     const ok = !antwort.startsWith(NICHT_GESPEICHERT);
     return { text: antwort, ausgeführt: ok ? ["Lebensmittel angelegt"] : [], source: "offline" };
+  }
+
+  // "Meine Periode hat heute angefangen", "meine Tage sind vorbei", "hab
+  // Krämpfe". Steht vor dem Erfassen und der Beschwerde: "Krämpfe" ist hier
+  // kein Fall für den Physiotherapeuten.
+  if (actions.zyklus) {
+    const z = zyklusAus(text);
+    if (z) {
+      const antwort = await actions.zyklus(z);
+      const ok = !antwort.startsWith(NICHT_GESPEICHERT);
+      return { text: antwort, ausgeführt: ok && z.aktion !== "abrufen" ? ["Zyklus eingetragen"] : [], source: "offline" };
+    }
   }
 
   // Zurücknehmen steht vor allem, was einträgt. "Das hab ich nicht gegessen"
