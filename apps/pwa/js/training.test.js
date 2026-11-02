@@ -266,3 +266,12 @@ test("Push ohne Curl und hintere Schulter, Pull mit hinterer Schulter und ohne T
   assert.ok(!muster(pull).includes("elbow_extension"), muster(pull).join(","));
   assert.ok(pull.positionen.some((p) => UEBUNGEN.find((u) => u.id === p.id).primaryMuscles.some((m) => /hintere Schulter/.test(m)) || p.id === "face-pull"));
 });
+
+test("60 Minuten Arme füllen die Zeit mit drei Bizeps und drei Trizepsübungen", () => {
+  const e = einzeltrainingBauen({ minuten: 60, gruppen: ["bizeps", "trizeps"], niveau: "intermediate", ziel: "muskel" }, UEBUNGEN);
+  const muster = e.positionen.map((p) => UEBUNGEN.find((u) => u.id === p.id).pattern);
+  assert.equal(muster.filter((m) => m === "elbow_flexion").length, 3);
+  assert.equal(muster.filter((m) => m === "elbow_extension").length, 3);
+  assert.equal(new Set(e.positionen.map((p) => p.id)).size, e.positionen.length, "keine Übung doppelt");
+  assert.ok(e.dauerMin >= 45, `nur ${e.dauerMin} Minuten`);
+});

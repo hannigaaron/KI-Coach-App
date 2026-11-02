@@ -939,7 +939,17 @@ export function einzeltrainingBauen(w: EinzelWunsch, uebungen: PlanUebung[]): Pl
   // zwei Drückübungen bringt ein zweiter Trizeps mehr als ein zweites
   // Schulterdrücken. Eine Regel von Coach Aaron.
   const einmal: ReadonlySet<Platz> = new Set<Platz>(["seitlich", "hintere", "brust_iso"]);
-  for (const l of [...listen].sort((a, b) => a.length - b.length)) if (l[0] && !einmal.has(l[0])) extra.push(l[0]);
+  // Beim Rücken kommt im zweiten Durchgang ein Rudern und kein zweiter
+  // Klimmzug: nach Klimmzug und Rudern stand sonst ein Klimmzug eng neben
+  // dem Klimmzug im Untergriff, fast derselbe Reiz, und der Rücken bekam
+  // zwei Züge von oben und nur einen waagerecht. Eine Regel der App.
+  const zweiter = (l: Platz[]) => (l[0] === "ziehen_v" && l.includes("ziehen_h") ? "ziehen_h" : l[0]);
+  for (const l of [...listen].sort((a, b) => a.length - b.length)) if (l[0] && !einmal.has(l[0])) extra.push(zweiter(l) as Platz);
+  // Ein Armtag hat je Partie nur einen Platz. Nach zwei Durchgängen waren das
+  // vier Übungen, und 60 Minuten Arme endeten nach gut 30. Deshalb ein
+  // dritter Durchgang, wenn jede Partie nur einen Platz kennt: drei
+  // Bizepsübungen und drei Trizepsübungen, solange die Zeit reicht.
+  if (listen.length && listen.every((l) => l.length === 1)) for (const l of listen) if (l[0] && !einmal.has(l[0])) extra.push(l[0]);
   if (gruppen.includes("rumpf")) plaetze.push("rumpf");
   const wunsch: PlanWunsch = {
     tage: 1, minuten: w.minuten, niveau: w.niveau, ziel: w.ziel, ort: w.ort, beschwerden: w.beschwerden,

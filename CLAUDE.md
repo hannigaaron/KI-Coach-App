@@ -450,7 +450,12 @@ bleibt Arme eine Wahl, `FOKUS_PARTIEN`. Die hintere Schulter ist ein Zug:
 am Drücktag fällt sie weg, am Zugtag kommt sie dazu. Im zweiten Durchgang
 von `einzeltrainingBauen` kommt je Partie nur der Hauptplatz, kleine
 Partien zuerst, und eine Fokuspartie wird nicht ein zweites Mal Zusatzplatz:
-vorher standen zwei Flys und zweimal Seitheben in einer Einheit.
+vorher standen zwei Flys und zweimal Seitheben in einer Einheit. Beim Rücken
+ist der zweite Durchgang ein Rudern und kein zweiter Klimmzug, `zweiter` in
+`einzeltrainingBauen`: vorher standen Klimmzug Untergriff und Klimmzug eng
+nebeneinander. Kennt jede Partie nur einen Platz, wie Bizeps und Trizeps,
+gibt es einen dritten Durchgang: 60 Minuten Arme waren vorher vier Übungen
+und nach gut 30 Minuten zu Ende, jetzt drei je Partie und rund 47 Minuten.
 
 Ohne Minuten 60. Die Persona verbietet, Übungen selbst aufzuschreiben.
 Erkannt wird nur mit einem Wort der Absicht und nie in der Vergangenheit:
@@ -616,7 +621,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1297 Tests
+npm test           # 1298 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
