@@ -176,6 +176,9 @@ test("Die Suche findet, was im Studio gesagt wird", () => {
   findet("Hammer Curl einarmig", "hammer-curl-kabel-einarmig");
   findet("Curl Stange Kabel", "curl-kabel-stange");
   findet("Rudern Schrägbank breit", "rudern-schraegbank-breit");
+  findet("Breites Kurzhantelrudern", "rudern-schraegbank-breit");
+  findet("Hammer Curl Kabel", "hammer-curl-kabel-seil");
+  findet("Hammer Curl sitzend", "hammer-curl-sitzend");
   findet("Rudern Schrägbank eng", "rudern-schraegbank-eng");
   findet("Reverse Fly Schrägbank", "reverse-fly-schraegbank");
   findet("Butterfly Schrägbank", "butterfly-schraegbank-kurzhantel");

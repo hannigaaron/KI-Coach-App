@@ -1817,6 +1817,40 @@ export const UEBUNGEN = [
   }
  },
  {
+  "id": "hammer-curl-sitzend",
+  "name": "Hammer Curl sitzend (Kurzhantel)",
+  "nameEn": "Seated Dumbbell Hammer Curl",
+  "pattern": "elbow_flexion",
+  "primaryMuscles": [
+   "Brachialis",
+   "Bizeps"
+  ],
+  "secondaryMuscles": [
+   "Unterarme"
+  ],
+  "equipment": "dumbbell",
+  "level": "beginner",
+  "mechanics": "isolation",
+  "repRange": "8-12",
+  "steps": [
+   "Aufrecht ans Ende einer flachen Bank setzen, Füße fest am Boden",
+   "Kurzhanteln im neutralen Griff, Daumen oben, Arme hängen gestreckt",
+   "Ellbogen am Körper lassen und zur Schulter curlen, ohne mit dem Oberkörper Schwung zu holen",
+   "Kontrolliert ablassen, bis die Arme wieder gestreckt sind"
+  ],
+  "gruppe": "arme",
+  "video": {
+   "id": "1Nl_iBxPxbo",
+   "titel": "Hammer Curls - Anleitung durch Personal Trainer #bizeps",
+   "kanal": "Elite Body",
+   "dauer": "0:39"
+  },
+  "alias": [
+   "Seated Hammer Curl",
+   "Hammer Curl sitzend"
+  ]
+ },
+ {
   "id": "incline-curl",
   "name": "Curl auf der Schrägbank",
   "nameEn": "Incline Dumbbell Curl",
@@ -3038,7 +3072,9 @@ export const UEBUNGEN = [
    "dauer": "0:43"
   },
   "alias": [
-   "Brustgestütztes Rudern breit"
+   "Brustgestütztes Rudern breit",
+   "Breites Kurzhantelrudern",
+   "Kurzhantelrudern breit"
   ]
  },
  {

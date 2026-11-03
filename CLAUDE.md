@@ -273,7 +273,10 @@ Strichfiguren, keine Clip Art, keine Karten mit Rahmen um Text.
   Reverse Butterfly, Butterfly sitzend, Cable Fly von unten nach oben und von
   oben nach unten, Kickback einbeinig und seitlich für den Gluteus medius. Auf
   der Schrägbank mit Kurzhanteln Rudern eng und breit, Reverse Fly und
-  Fliegende.
+  Fliegende. Das breite Rudern findet auch "Breites Kurzhantelrudern".
+  Dazu Hammer Curl sitzend mit Kurzhanteln, `hammer-curl-sitzend`, Foto
+  von schräg vorn: beide Hanteln im neutralen Griff, Daumen oben. Die erste
+  Fassung hatte nur in einer Hand eine Hantel und kam nicht hinein.
 - Bizeps Curl liegend am Kabel, `curl-kabel-liegend`: Bank ganz leicht
   schräg, Kabelturm frei davor, Rolle auf Höhe des Bankpolsters, rücklings
   mit den Füßen zum Turm, die Stange aus gestreckten Armen zum Kinn,
