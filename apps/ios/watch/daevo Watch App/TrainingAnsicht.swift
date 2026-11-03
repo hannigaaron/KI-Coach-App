@@ -83,7 +83,8 @@ struct TrainingLauf: View {
         }
         .task {
             if uebungen.isEmpty {
-                uebungen = vorlage.entwurf.uebungen
+                // Eine Übung ohne Satz hätte beim Anzeigen den Index verfehlt.
+                uebungen = vorlage.entwurf.uebungen.filter { !$0.saetze.isEmpty }
                 start = Date()
                 springeZumOffenen()
                 await sitzung.starten()

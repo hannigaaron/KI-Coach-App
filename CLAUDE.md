@@ -649,7 +649,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1335 Tests
+npm test           # 1336 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -3690,9 +3690,30 @@ Das Paket geht gebündelt 1,5 Sekunden nach der letzten Änderung raus,
 läuft beim Start, bevor das Ende von `app.js` erreicht ist, und ein `let`
 wäre dort ein ReferenceError und eine schwarze App.
 
-Ungeprüft: die Swift Dateien sind hier nicht kompiliert. Das Ziel für die
-Uhr legt der Betreiber einmal in Xcode an, die Projektdatei wird dafür nicht
-von Hand geändert.
+Kein `null` im Paket. Der Application Context nimmt nur Werte einer
+Property List, und ein einziges `null` lässt iOS das ganze Paket ablehnen:
+die Uhr hätte nie einen Stand und nie ein Training bekommen, denn jeder Satz
+ohne Gewicht trug `kg: null`. `schlank` lässt leere Felder weg,
+`alsPropertyList` hält es im Test fest, und `ohneNull` in `UhrPlugin.swift`
+ist der zweite Riegel. Gefunden beim Durchlesen, bevor die Uhr je lief.
+
+Was zwischen den Threads wandert, geht auf der Uhr als `Data`, nicht als
+Wörterbuch mit `Any`: unter Swift 6 lehnt der Bau das sonst ab.
+
+Die Komplikation, `apps/ios/watch/daevo Komplikation`, zeigt die offenen
+Kalorien als Ring, Ecke, Zeile oder Kachel mit Eiweiß. Uhr App und
+Komplikation teilen nur die App Group `group.de.daevo.app`,
+`Gemeinsam/Komplikation.swift` gehört zu beiden Zielen. Ein Stand gilt nur
+für seinen Tag, ab Mitternacht steht ein Strich da statt der Zahl von
+gestern.
+
+Geprüft: Syntax aller Swift Dateien mit Swift 6.1 unter Linux, und der
+Vertrag zwischen App und Uhr: das echte Paket aus `uhrPaket` wurde gegen
+`Modelle.swift` gelesen. SwiftUI, WatchKit, HealthKit und WidgetKit gibt es
+nur auf dem Mac, dort ist nichts gebaut. Die beiden Ziele legt der Betreiber
+einmal in Xcode an, `docs/WATCH.md`, die Projektdatei wird dafür nicht von
+Hand geändert. Neue Ziele in Xcode 26 stehen auf Default Actor Isolation
+MainActor, die Anleitung stellt sie auf nonisolated und Swift 5.
 
 ## Zugriffe beim ersten Start
 

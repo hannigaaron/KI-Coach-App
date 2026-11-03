@@ -34,9 +34,31 @@ function schlank(entwurf) {
       name: u.name,
       wdhZiel: String(u.ziel?.wdh ?? ""),
       pauseSek: r(u.ziel?.pauseSek) || 90,
-      saetze: (u.saetze || []).map((s) => ({ kg: s.kg ?? null, wdh: s.wdh ?? null, rir: s.rir ?? null, fertig: Boolean(s.fertig) })),
-    })),
+      saetze: (u.saetze || []).map((s) => ohneLeeres({ kg: zahlOder(s.kg), wdh: zahlOder(s.wdh), rir: zahlOder(s.rir), fertig: Boolean(s.fertig) })),
+    })).filter((u) => u.saetze.length),
   };
+}
+
+const zahlOder = (x) => (x === null || x === undefined || x === "" || !Number.isFinite(Number(x)) ? undefined : Number(x));
+
+/**
+ * Leere Felder fallen weg, statt als null mitzugehen. Der Application Context
+ * nimmt nur Werte einer Property List, und null ist keiner: iOS lehnt dann
+ * das ganze Paket ab, und die Uhr bekommt nie einen Tag und nie ein
+ * Training. Auf der Uhr ist ein fehlendes Feld dasselbe wie leer.
+ */
+function ohneLeeres(o) {
+  return Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined && v !== null));
+}
+
+/** Ob ein Wert über den Application Context gehen kann: keine null, keine Zahl, die keine ist. */
+export function alsPropertyList(wert) {
+  if (wert === null || wert === undefined) return false;
+  if (typeof wert === "number") return Number.isFinite(wert);
+  if (typeof wert === "string" || typeof wert === "boolean") return true;
+  if (Array.isArray(wert)) return wert.every(alsPropertyList);
+  if (typeof wert === "object") return Object.values(wert).every(alsPropertyList);
+  return false;
 }
 
 /**
@@ -72,7 +94,7 @@ export function uhrPaket({ settings, zahlen, heute, gestrichen = false }) {
       wasserMl: r(s.waterMl), wasserZiel: r(t.waterMl),
     },
     gestrichen: Boolean(gestrichen),
-    trainings: trainings.slice(0, MAX_TRAININGS),
+    trainings: trainings.filter((t) => t.entwurf.uebungen.length).slice(0, MAX_TRAININGS),
   };
 }
 

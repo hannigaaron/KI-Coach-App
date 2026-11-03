@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { planFuer } from "./plaene.js";
-import { uhrEreignisseAnwenden, uhrMeldung, uhrPaket } from "./uhr.js";
+import { alsPropertyList, uhrEreignisseAnwenden, uhrMeldung, uhrPaket } from "./uhr.js";
 
 const HEUTE = "2026-11-02";
 
@@ -61,4 +61,16 @@ test("ein Training ohne abgehakten Satz wird nicht gespeichert", () => {
   const e = uhrEreignisseAnwenden([{ id: "u2", art: "training", titel: "Push", uebungen: [{ id: "bankdruecken", saetze: [{ kg: 80, wdh: 8, fertig: false }] }] }], { store: st, heute: HEUTE, neueId: () => "x" });
   assert.equal(e.trainings.length, 0);
   assert.equal(st.tage[HEUTE], undefined);
+});
+
+test("das Paket enthält kein null, sonst lehnt iOS den ganzen Application Context ab", () => {
+  // Ein Plan ohne Protokoll: jedes Gewicht ist leer, genau der Fall, der vorher null schickte.
+  const plan = planFuer({ tage: 3, minuten: 60, erfahrung: "einsteiger", ziel: "muskelaufbau" });
+  const p = uhrPaket({ settings: { plan, trainingslog: [] }, zahlen: {}, heute: HEUTE });
+  assert.ok(p.trainings.length > 0);
+  assert.ok(alsPropertyList(p), JSON.stringify(p).slice(0, 300));
+  const satz = p.trainings[0].entwurf.uebungen[0].saetze[0];
+  assert.equal("kg" in satz, false);
+  assert.equal(satz.fertig, false);
+  assert.equal(alsPropertyList({ a: [1, { b: null }] }), false);
 });

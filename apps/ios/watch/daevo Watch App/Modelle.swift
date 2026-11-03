@@ -48,16 +48,6 @@ struct Satz: Codable, Equatable, Hashable {
     var fertig: Bool
 }
 
-extension Paket {
-    /// Aus dem Application Context. Der kommt als Wörterbuch, der Umweg über
-    /// JSON spart eine zweite Fassung jedes Felds von Hand.
-    static func aus(_ roh: Any?) -> Paket? {
-        guard let roh, JSONSerialization.isValidJSONObject(roh),
-              let daten = try? JSONSerialization.data(withJSONObject: roh) else { return nil }
-        return try? JSONDecoder().decode(Paket.self, from: daten)
-    }
-}
-
 /// Heute als JJJJ-MM-TT in der Ortszeit, wie die App rechnet.
 func heuteText(_ datum: Date = Date()) -> String {
     let f = DateFormatter()

@@ -34,7 +34,20 @@ final class UhrZentrale: NSObject, WCSessionDelegate {
 
     func senden(_ paket: [String: Any]) throws {
         guard WCSession.isSupported(), WCSession.default.activationState == .activated else { return }
-        try WCSession.default.updateApplicationContext(["paket": paket, "gesendet": Date().timeIntervalSince1970])
+        try WCSession.default.updateApplicationContext(["paket": UhrZentrale.ohneNull(paket), "gesendet": Date().timeIntervalSince1970])
+    }
+
+    /// Der Application Context nimmt nur Werte einer Property List. NSNull ist
+    /// keiner, und ein einziges davon lässt iOS das ganze Paket ablehnen. Die
+    /// Web App schickt schon keine, das hier ist der zweite Riegel.
+    static func ohneNull(_ wert: Any) -> Any {
+        if let d = wert as? [String: Any] {
+            var aus: [String: Any] = [:]
+            for (k, v) in d where !(v is NSNull) { aus[k] = ohneNull(v) }
+            return aus
+        }
+        if let a = wert as? [Any] { return a.filter { !($0 is NSNull) }.map(ohneNull) }
+        return wert
     }
 
     func abholen() -> [[String: Any]] {

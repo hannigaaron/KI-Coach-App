@@ -1,5 +1,6 @@
 import Foundation
 import WatchConnectivity
+import WidgetKit
 
 /// Die Verbindung zum iPhone, auf der Seite der Uhr.
 ///
@@ -47,6 +48,7 @@ final class Verbindung: NSObject, ObservableObject, WCSessionDelegate {
     func wasser(_ ml: Int) {
         wasserOffen += ml
         senden(["art": "wasser", "ml": ml, "tag": heuteText()])
+        if let s = standHeute { Komplikation.schreiben(tag: heuteText(), kcal: s.kcal, kcalZiel: s.kcalZiel, protein: s.protein, proteinZiel: s.proteinZiel) }
     }
 
     func trainingFertig(titel: String, start: Date, ende: Date, uebungen: [Uebung]) {
@@ -77,20 +79,31 @@ final class Verbindung: NSObject, ObservableObject, WCSessionDelegate {
         WCSession.default.transferUserInfo(e)
     }
 
-    private func uebernehmen(_ context: [String: Any]) {
-        guard let neu = Paket.aus(context["paket"]) else { return }
+    private func uebernehmen(_ daten: Data) {
+        guard let neu = try? JSONDecoder().decode(Paket.self, from: daten) else { return }
         paket = neu
         // Das neue Paket enthält das Wasser schon, sobald die App es abgeholt hat.
         wasserOffen = 0
-        if let daten = try? JSONEncoder().encode(neu) { UserDefaults.standard.set(daten, forKey: speicherSchluessel) }
+        UserDefaults.standard.set(daten, forKey: speicherSchluessel)
+        Komplikation.schreiben(tag: neu.tag, kcal: neu.stand.kcal, kcalZiel: neu.stand.kcalZiel, protein: neu.stand.protein, proteinZiel: neu.stand.proteinZiel)
+    }
+
+    /// Der Application Context als JSON. Ein Wörterbuch mit `Any` darf unter
+    /// Swift 6 nicht von der Warteschlange von WatchConnectivity auf den
+    /// Hauptthread wandern, `Data` schon. Deshalb wird hier umgewandelt und
+    /// erst auf dem Hauptthread gelesen.
+    nonisolated private static func json(_ context: [String: Any]) -> Data? {
+        guard let roh = context["paket"], JSONSerialization.isValidJSONObject(roh) else { return nil }
+        return try? JSONSerialization.data(withJSONObject: roh)
     }
 
     nonisolated func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
-        let context = session.receivedApplicationContext
-        Task { @MainActor in self.uebernehmen(context) }
+        guard let daten = Self.json(session.receivedApplicationContext) else { return }
+        Task { @MainActor in self.uebernehmen(daten) }
     }
 
     nonisolated func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
-        Task { @MainActor in self.uebernehmen(applicationContext) }
+        guard let daten = Self.json(applicationContext) else { return }
+        Task { @MainActor in self.uebernehmen(daten) }
     }
 }
