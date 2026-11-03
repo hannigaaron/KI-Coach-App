@@ -276,10 +276,14 @@ Strichfiguren, keine Clip Art, keine Karten mit Rahmen um Text.
   Fliegende.
 - Bizeps Curl liegend am Kabel, `curl-kabel-liegend`: flache Bank vor dem
   Turm, Rolle auf Bankhöhe, rücklings mit den Füßen zum Turm, die Stange aus
-  gestreckten Armen zum Kinn, Ellbogen bleiben am Körper. Das Foto ist von der
-  Kopfseite der Bank aufgenommen: in der Seitenansicht und schräg von vorn
-  legte das Bildmodell die Stange in vier von vier Fassungen längs zum Körper
-  und hängte das Kabel an ein Ende. Vorlage für die Haltung war das Video von
+  gestreckten Armen zum Kinn, Ellbogen bleiben am Körper, Untergriff wie beim
+  stehenden Curl. Das Foto ist schräg von oben am Fußende aufgenommen: die
+  Stange liegt dort quer im Bild, das Kabel läuft gerade aus ihrer Mitte
+  zwischen den Knien zur Rolle, und man sieht die Handrücken, also den
+  Untergriff. In der Seitenansicht und schräg vom Kopfende legte das
+  Bildmodell die Stange in acht von acht Fassungen längs zum Körper und
+  hängte das Kabel an ein Ende. Die erste Fassung von der Kopfseite zeigte
+  den Griff wie einen Obergriff. Vorlage für die Haltung war das Video von
   Coach Aaron, gezeigt wird ein anderes Modell.
 - Fotos an der Multipresse oder mit Langhantel werden von vorn oder schräg
   vorn erzeugt. In der Seitenansicht legte das Bildmodell die Stange bei sechs
