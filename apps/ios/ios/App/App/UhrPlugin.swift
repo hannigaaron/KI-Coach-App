@@ -1,6 +1,7 @@
 import Foundation
 import Capacitor
 import WatchConnectivity
+import UIKit
 
 /// Die Verbindung zur Apple Watch, auf der Seite des iPhones.
 ///
@@ -19,6 +20,12 @@ final class UhrZentrale: NSObject, WCSessionDelegate {
     static let shared = UhrZentrale()
     private let schluessel = "daevo.uhr.eingang"
     private let sperre = NSLock()
+    /// Das Plugin der laufenden Web Ansicht. Schwach, denn die Web Ansicht
+    /// gehört der Bridge und nicht hierher.
+    weak var plugin: UhrPlugin?
+    /// Offene Fragen der Uhr, je Kennung die Antwort an die Uhr. Nur auf dem
+    /// Hauptthread angefasst.
+    private var offen: [String: ([String: Any]) -> Void] = [:]
 
     /// Im AppDelegate gerufen: ohne aktive Sitzung beim Start gingen
     /// Ereignisse verloren, die eintreffen, bevor die Web Ansicht steht.
@@ -78,6 +85,37 @@ final class UhrZentrale: NSObject, WCSessionDelegate {
         NotificationCenter.default.post(name: .daevoUhrEingang, object: nil)
     }
 
+    /// Eine Frage von der Uhr. Beantwortet wird sie nur, wenn daevo hier
+    /// vorn offen ist: im Hintergrund hält iOS die Web Ansicht an, und eine
+    /// Antwort käme erst nach dem Zeitlimit der Uhr. Dann sagt das iPhone
+    /// sofort ab, und die Uhr fragt selbst über den Server.
+    func session(_ session: WCSession, didReceiveMessage message: [String: Any], replyHandler: @escaping ([String: Any]) -> Void) {
+        guard message["art"] as? String == "frage", let text = message["text"] as? String else {
+            replyHandler(["fehler": "unbekannt"])
+            return
+        }
+        DispatchQueue.main.async {
+            guard UIApplication.shared.applicationState == .active, let plugin = self.plugin else {
+                replyHandler(["fehler": "iphone"])
+                return
+            }
+            let id = UUID().uuidString
+            self.offen[id] = replyHandler
+            // Ein Agent mit Werkzeugen braucht manchmal 20 Sekunden. Länger
+            // wartet die Uhr nicht, dann fragt sie selbst.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 40) { self.antworten(id: id, ["fehler": "zeit"]) }
+            plugin.frageWeitergeben(id: id, text: text) { angenommen in
+                if !angenommen { self.antworten(id: id, ["fehler": "iphone"]) }
+            }
+        }
+    }
+
+    /// Schickt die Antwort genau einmal an die Uhr. Auf dem Hauptthread.
+    func antworten(id: String, _ antwort: [String: Any]) {
+        guard let antworte = offen.removeValue(forKey: id) else { return }
+        antworte(antwort)
+    }
+
     func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {}
     func sessionDidBecomeInactive(_ session: WCSession) {}
     func sessionDidDeactivate(_ session: WCSession) { WCSession.default.activate() }
@@ -95,7 +133,35 @@ public class UhrPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "stand", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "senden", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "abholen", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "antworten", returnType: CAPPluginReturnPromise),
     ]
+
+    override public func load() {
+        UhrZentrale.shared.plugin = self
+    }
+
+    /// Reicht die Frage an `daevoUhrFrage` in `app.js` weiter. Die Argumente
+    /// gehen als JSON hinein, damit kein Zeichen der Frage das Skript bricht.
+    func frageWeitergeben(id: String, text: String, fertig: @escaping (Bool) -> Void) {
+        guard let webView = bridge?.webView,
+              let daten = try? JSONSerialization.data(withJSONObject: [id, text]),
+              let args = String(data: daten, encoding: .utf8) else { fertig(false); return }
+        let skript = "typeof window.daevoUhrFrage === 'function' ? (window.daevoUhrFrage(...\(args)), 1) : 0"
+        webView.evaluateJavaScript(skript) { ergebnis, fehler in
+            fertig(fehler == nil && (ergebnis as? Int) == 1)
+        }
+    }
+
+    @objc func antworten(_ call: CAPPluginCall) {
+        guard let id = call.getString("id") else { call.reject("Keine Kennung."); return }
+        var antwort: [String: Any] = [:]
+        if let text = call.getString("antwort") { antwort["antwort"] = text }
+        if let fehler = call.getString("fehler") { antwort["fehler"] = fehler }
+        DispatchQueue.main.async {
+            UhrZentrale.shared.antworten(id: id, antwort)
+            call.resolve()
+        }
+    }
 
     @objc func stand(_ call: CAPPluginCall) {
         let s = WCSession.isSupported() ? WCSession.default : nil

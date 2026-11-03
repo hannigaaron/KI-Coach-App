@@ -649,7 +649,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1336 Tests
+npm test           # 1338 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -3699,6 +3699,28 @@ ist der zweite Riegel. Gefunden beim Durchlesen, bevor die Uhr je lief.
 
 Was zwischen den Threads wandert, geht auf der Uhr als `Data`, nicht als
 Wörterbuch mit `Any`: unter Swift 6 lehnt der Bau das sonst ab.
+
+Die erste Seite der Uhr ist der Assistent, wie auf dem iPhone: das d als
+Partikelkreis, `Orb.swift`, mit Geometrie, Welle, Drehung und Tiefe aus
+`orb.js`. Wer dort etwas ändert, ändert es hier mit. Rund 2600 statt 4700
+Punkte, grösser gezeichnet, 30 Bilder je Sekunde, im gedimmten Modus
+angehalten. Ein Tipp auf das d öffnet das Diktat über `TextFieldLink`, die
+Antwort steht darunter und wird vorgelesen, `Gespraech.swift`.
+
+Gefragt wird erst das iPhone über `sendMessage`. Ist daevo dort vorn offen,
+reicht `UhrPlugin` die Frage über `evaluateJavaScript` an
+`daevoUhrFrage` in `app.js`, sie läuft durch `send` mit allen Werkzeugen,
+und die Antwort geht zurück, nach höchstens 40 Sekunden. Im Hintergrund
+hält iOS die Web Ansicht an, dann sagt das iPhone sofort ab. Die Uhr fragt
+dann selbst über `ki` im Paket, `uhrKiZugang` in `assistant.js`: Adresse,
+Kontoschlüssel, Persona ohne Modi, `UHR_HINWEIS` und der Stand des Tages,
+nur mit Einwilligung und Konto. Dort gibt es nur das Werkzeug `vormerken`.
+Vorgemerkte Sätze kommen als `art: "satz"` zurück und laufen beim Öffnen
+durch `send`, als wären sie hier gesagt, ein Gespräch ohne iPhone als
+`art: "gespraech"` in den Chat. Die Uhr sagt "vorgemerkt" und nie
+"eingetragen": eine Zusage, die nicht stimmt, ist der eine Fehler, den
+daevo nicht machen darf. Antwortet die Uhr, spricht das iPhone nicht mit,
+`vonUhr` an `send`.
 
 Die Komplikation, `apps/ios/watch/daevo Komplikation`, zeigt die offenen
 Kalorien als Ring, Ecke, Zeile oder Kachel mit Eiweiß. Uhr App und

@@ -1,8 +1,8 @@
 import SwiftUI
 import WatchKit
 
-/// daevo auf der Apple Watch. Zwei Seiten: der Tag und das Training.
-/// Alles andere bleibt auf dem iPhone, wo es gerechnet wird.
+/// daevo auf der Apple Watch. Drei Seiten: das d zum Reden, der Tag und das
+/// Training. Gerechnet wird auf dem iPhone.
 @main
 struct DaevoUhrApp: App {
     @StateObject private var verbindung = Verbindung.shared
@@ -15,6 +15,7 @@ struct DaevoUhrApp: App {
         WindowGroup {
             NavigationStack {
                 TabView {
+                    AssistentAnsicht()
                     HeuteAnsicht()
                     TrainingAnsicht()
                 }

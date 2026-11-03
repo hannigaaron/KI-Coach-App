@@ -8,6 +8,18 @@ struct Paket: Codable, Equatable {
     var stand: Stand
     var gestrichen: Bool
     var trainings: [TrainingVorlage]
+    /// Der Weg zur KI, wenn das iPhone nicht antworten kann. Fehlt ohne
+    /// Einwilligung oder Konto, dann redet die Uhr nur über das iPhone.
+    var ki: KiZugang?
+}
+
+struct KiZugang: Codable, Equatable {
+    var url: String
+    var token: String?
+    var schluessel: String?
+    var modell: String
+    var system: String
+    var sprechen: Bool
 }
 
 struct Stand: Codable, Equatable {

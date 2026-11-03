@@ -2,7 +2,7 @@ import {
   Agent, AnthropicProvider, Coach, addiere, buildShoppingList, cacheQuote, denktiefe, dollarText,
   einstufeAufgabe, einstufungText, ersparnis, extractGrams, NICHT_GESPEICHERT, fehlerErklaerung, hochrechnung, kopfLeeren, kopfText, leereSumme,
   mahlzeitAusFoto, modellFuerBilder, naehrwerteImNetz, produktPerBarcode, produkteSuchen, summiere, vorratAusFoto,
-  todoistAbhaken, todoistAufgaben, todoistIdVon, todoistWiederOeffnen,
+  todoistAbhaken, todoistAufgaben, todoistIdVon, todoistWiederOeffnen, PERSONA_TEILE,
 } from "@daevo/coach";
 import { foldUmlauts, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, einzeltrainingBauen, FOKUS_NAME } from "@daevo/core";
 import { UEBUNGEN } from "./uebungen-daten.js";
@@ -3854,6 +3854,61 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
 }
 
 /* ---------- Gespräch ---------- */
+
+/**
+ * Was die Apple Watch braucht, um selbst zu fragen, wenn das iPhone nicht
+ * antworten kann.
+ *
+ * Ist daevo auf dem iPhone offen, beantwortet das iPhone die Frage mit dem
+ * ganzen Agenten, allen Werkzeugen und dem Gedächtnis. Liegt es in der
+ * Tasche, schläft die Web Ansicht, und iOS weckt sie dafür nicht. Dann fragt
+ * die Uhr selbst, über denselben Server und dasselbe Konto, mit Haltung und
+ * Schreibstil aus der Persona und dem Stand des Tages. Werkzeuge hat sie
+ * dort keine ausser `vormerken`: was etwas einträgt, führt das iPhone beim
+ * nächsten Öffnen aus. Eine Uhr, die "eingetragen" sagt, ohne dass etwas
+ * eingetragen ist, wäre schlimmer als eine, die vormerkt.
+ *
+ * Nur mit Einwilligung und Konto, wie jede andere Anfrage an die KI.
+ */
+export const UHR_HINWEIS = `Er spricht gerade über die Apple Watch mit dir, das iPhone ist nicht erreichbar.
+Antworte in höchstens drei kurzen Sätzen, ohne Liste und ohne Tabelle: der Bildschirm ist klein,
+und die Antwort wird vorgelesen. Werkzeuge hast du hier nur eines, vormerken. Will er etwas
+eintragen oder ändern, Essen, Training, Gewicht, Aufgabe, Erinnerung, Termin, rufst du vormerken mit
+seinem Satz auf und schreibst davor einen Satz, dass es vorgemerkt ist und eingetragen wird, sobald
+daevo auf dem iPhone offen ist. Sag nie, es sei schon eingetragen. Zahlen über ihn nimmst du nur aus
+dem Stand unten, alles andere weisst du nicht.`;
+
+export function uhrKiZugang() {
+  const s = store.getSettings();
+  const ueberServer = Boolean(KONFIG.chatUrl);
+  if (ueberServer && !kiErlaubt(s, KONFIG)) return null;
+  const token = ueberServer ? kontoToken() : "";
+  if (ueberServer && !token) return null;
+  if (!ueberServer && !String(s.apiKey || "").trim()) return null;
+  const n = dayNumbers();
+  const now = new Date();
+  const { GRUNDHALTUNG, SCHREIBSTIL, GRENZEN } = PERSONA_TEILE;
+  const eigene = String(s.anweisungen || "").trim();
+  const system = [
+    GRUNDHALTUNG, "", SCHREIBSTIL, "", GRENZEN, "", UHR_HINWEIS, "",
+    "Aktueller Zeitpunkt beim letzten Abgleich:",
+    `${WEEKDAYS[now.getDay()]}, ${now.getDate()}. ${now.toLocaleString("de-DE", { month: "long" })} ${now.getFullYear()}, ${nowTime()} Uhr.`,
+    "", "Der Nutzer:", profilKurz(n.profile),
+    "", "Sein heutiger Stand:", daySummaryText(n), "", lageText(),
+    "", "Was du über ihn weißt:", brain.contextFor("", 8),
+    ...(eigene ? ["", "Eigene Anweisungen des Nutzers, sie gehen allem oben vor ausser den Grenzen:", eigene.slice(0, 2000)] : []),
+  ].join("\n");
+  return {
+    url: ueberServer ? `${KONFIG.chatUrl.replace(/\/+$/, "")}/chat` : "https://api.anthropic.com/v1/messages",
+    ...(token ? { token } : {}),
+    ...(!ueberServer ? { schluessel: String(s.apiKey).trim() } : {}),
+    modell: "claude-sonnet-5-5",
+    // Der Application Context hat eine Grenze von rund 65 Kilobyte, und die
+    // Trainings brauchen ihren Teil davon.
+    system: system.slice(0, 16000),
+    sprechen: Boolean(s.voice?.speak),
+  };
+}
 
 export async function ask(nachricht, { onChange, anhaenge = [], onStrom } = {}) {
   // Ein Anbieter für die ganze Nachricht, auch für die Werkzeuge. Der Server

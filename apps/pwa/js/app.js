@@ -47,7 +47,7 @@ import {
   erinnerungenAufgeraeumt, heuteGetauscht,
   vorausblickePlan,
   vorausblickFuer,
-  offOptionen,
+  offOptionen, uhrKiZugang,
 } from "./assistant.js";
 import { zyklusAnsicht, zyklusSichtbar } from "./zyklus-ui.js";
 import { uhrEreignisseAnwenden, uhrMeldung, uhrPaket } from "./uhr.js";
@@ -356,7 +356,7 @@ function appendPending(text) {
   return { node, text: inhalt };
 }
 
-async function send(text) {
+async function send(text, { vonUhr = false } = {}) {
   const nachricht = text.trim();
 
   // Die Antwort auf die Energiefrage aus der Benachrichtigung. Eine blosse
@@ -457,7 +457,9 @@ async function send(text) {
       const anlass = aboAnlassLeer(store.getSettings().aboHinweise, Date.now(), reply.modus);
       if (anlass) setTimeout(() => aboOeffnen(anlass), 700);
     }
-    if (options.speak) {
+    // Eine Frage von der Uhr liest die Uhr selbst vor. Sprächen beide, hörte
+    // man dieselbe Antwort zweimal und versetzt.
+    if (options.speak && !vonUhr) {
       orb.setState("speaking");
       setStatus("spricht");
       const stimmEinst = store.getSettings();
@@ -6574,6 +6576,26 @@ async function uhrAbgleichen() {
       const ergebnis = uhrEreignisseAnwenden(ereignisse, { store, heute: todayIso(), neueId: newId });
       const satz = uhrMeldung(ergebnis);
       if (satz) { toast(satz, 4500); plaene.verlaufNeu?.(); }
+      // Was auf der Uhr ohne iPhone besprochen wurde, steht danach im
+      // Gespräch, damit der Coach beim nächsten Mal davon weiss.
+      if (ergebnis.gespraech.length) {
+        const chat = store.getChat();
+        for (const g of ergebnis.gespraech) {
+          const at = g.at || new Date().toISOString();
+          chat.push({ role: "user", text: g.frage, at, quelle: "uhr" }, { role: "assistant", text: g.antwort, at, quelle: "uhr" });
+        }
+        store.setChat(chat);
+        gespraechNachziehen();
+        renderTranscript();
+      }
+      // Vorgemerkte Sätze laufen jetzt durch den ganzen Agenten, einer nach
+      // dem anderen, als hätte er sie hier gesagt.
+      for (const text of ergebnis.saetze) {
+        // Läuft gerade eine Antwort, wartet der Satz, sonst verwirft send ihn.
+        while (busy) await new Promise((fertig) => setTimeout(fertig, 300));
+        $("assistant").classList.add("has-chat");
+        await send(text);
+      }
     }
     await uhrSenden();
   } catch {
@@ -6583,9 +6605,30 @@ async function uhrAbgleichen() {
 
 async function uhrSenden() {
   if (!istNativ() || !uhrDa) return;
-  const paket = uhrPaket({ settings: store.getSettings(), zahlen: dayNumbers(), heute: todayIso(), gestrichen: trainingGestrichen(store, todayIso()) });
+  const paket = uhrPaket({ settings: store.getSettings(), zahlen: dayNumbers(), heute: todayIso(), gestrichen: trainingGestrichen(store, todayIso()), ki: uhrKiZugang() });
   await nativAufruf("Uhr", "senden", { paket });
 }
+
+/**
+ * Eine Frage von der Uhr, während daevo hier offen ist. Das Plugin ruft diese
+ * Funktion über die Web Ansicht auf. Sie läuft durch denselben Weg wie jede
+ * Nachricht im Chat, mit allen Werkzeugen, und die Antwort geht zurück an
+ * die Uhr. Ist gerade etwas anderes im Gange, antwortet sie sofort mit einem
+ * Fehler, und die Uhr fragt selbst.
+ */
+globalThis.daevoUhrFrage = async (id, text) => {
+  const antworten = (daten) => nativAufruf("Uhr", "antworten", { id, ...daten }).catch(() => {});
+  if (busy) return antworten({ fehler: "beschaeftigt" });
+  try {
+    $("assistant").classList.add("has-chat");
+    const vorher = store.getChat().length;
+    await send(String(text || ""), { vonUhr: true });
+    const neu = store.getChat().slice(vorher).filter((m) => m.role === "assistant").pop();
+    await antworten(neu?.text ? { antwort: neu.text } : { fehler: "leer" });
+  } catch (e) {
+    await antworten({ fehler: String(e?.message || e) });
+  }
+};
 
 /** Nach einer Änderung nicht sofort, sondern gebündelt: ein Tag hat viele kleine Änderungen. */
 // eslint-disable-next-line no-var

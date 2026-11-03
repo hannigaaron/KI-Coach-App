@@ -74,3 +74,27 @@ test("das Paket enthält kein null, sonst lehnt iOS den ganzen Application Conte
   assert.equal(satz.fertig, false);
   assert.equal(alsPropertyList({ a: [1, { b: null }] }), false);
 });
+
+test("der Zugang zur KI geht mit, wenn er da ist, und ohne null", () => {
+  const zahlen = { targets: { kcal: 2900, proteinG: 170, waterMl: 3500 }, totals: { kcal: 0, proteinG: 0, waterMl: 0 } };
+  const ki = { url: "https://worker.example/chat", token: "t", modell: "claude-sonnet-5-5", system: "Du bist daevo.", sprechen: true };
+  const mit = uhrPaket({ settings: {}, zahlen, heute: HEUTE, ki });
+  assert.deepEqual(mit.ki, ki);
+  assert.equal(alsPropertyList(mit), true);
+  const ohne = uhrPaket({ settings: {}, zahlen, heute: HEUTE, ki: null });
+  assert.equal("ki" in ohne, false);
+});
+
+test("Vorgemerktes und Gespräche von der Uhr kommen getrennt zurück, doppelt zugestellt einmal", () => {
+  const st = speicher({});
+  const ereignisse = [
+    { id: "s1", art: "satz", text: "200 g Magerquark gegessen" },
+    { id: "s1", art: "satz", text: "200 g Magerquark gegessen" },
+    { id: "g1", art: "gespraech", frage: "Wie viel Eiweiß fehlt noch?", antwort: "Noch 82 Gramm.", at: "2026-11-02T10:00:00Z" },
+    { id: "g2", art: "gespraech", frage: "", antwort: "leer" },
+  ];
+  const e = uhrEreignisseAnwenden(ereignisse, { store: st, heute: HEUTE, neueId: () => "x" });
+  assert.deepEqual(e.saetze, ["200 g Magerquark gegessen"]);
+  assert.equal(e.gespraech.length, 1);
+  assert.equal(e.gespraech[0].antwort, "Noch 82 Gramm.");
+});

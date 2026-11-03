@@ -1,7 +1,11 @@
 # daevo auf der Apple Watch
 
-Die Uhr hat zwei Seiten und eine Komplikation.
+Die Uhr hat drei Seiten und eine Komplikation.
 
+- **daevo**: das leuchtende d wie auf dem iPhone, als Partikelkreis mit
+  derselben Geometrie und Bewegung. Ein Tipp auf das d öffnet das Diktat,
+  die Frage geht danach von selbst raus, die Antwort steht darunter und wird
+  vorgelesen. Ein Tipp während daevo spricht hält die Stimme an.
 - **Heute**: offene Kalorien als Ring, Eiweiß und Wasser, ein Knopf für 250 ml
   Wasser.
 - **Training**: die Trainings, die das iPhone vorbereitet hat, mit den Werten
@@ -36,7 +40,7 @@ und Play wie bisher.
    ```
 5. In Xcode im Ordner `daevo Watch App` die zwei Dateien löschen, die Xcode
    angelegt hat: `ContentView.swift` und `daevo_Watch_AppApp.swift`, Move to
-   Trash. Dann Rechtsklick auf den Ordner, Add Files to "App", die sieben
+   Trash. Dann Rechtsklick auf den Ordner, Add Files to "App", die zehn
    kopierten Dateien wählen, unten Ziel **daevo Watch App** anhaken. Stehen
    sie schon im Ordner, prüfe rechts unter Target Membership das Häkchen.
 6. Ziel `daevo Watch App`, Reiter Signing & Capabilities:
@@ -82,6 +86,34 @@ wählen, dann startet sie direkt auf der Uhr. Die Komplikation fügst du auf
 dem Zifferblatt hinzu: lange drücken, Bearbeiten, eine Stelle antippen,
 daevo wählen.
 
+### Hast du die Uhr schon eingerichtet
+
+Dann nur die neuen Dateien nachholen: den `cp` Befehl aus Schritt 4 noch
+einmal ausführen, er überschreibt die alten. In Xcode Rechtsklick auf den
+Ordner `daevo Watch App`, Add Files, `Orb.swift`, `Gespraech.swift` und
+`AssistentAnsicht.swift` wählen, Ziel **daevo Watch App**. Neue Rechte
+braucht das nicht: das Diktat gehört zu watchOS, und ins Netz darf jede
+Uhr App.
+
+## Reden mit der Uhr
+
+Zwei Wege, gewählt wird von selbst.
+
+1. **Über das iPhone.** Ist daevo auf dem iPhone vorn offen, beantwortet das
+   iPhone die Frage mit dem ganzen Coach, allen Werkzeugen und dem
+   Gedächtnis. Was er einträgt, ist eingetragen. Die Frage steht danach auch
+   im Gespräch auf dem iPhone.
+2. **Allein.** Liegt das iPhone in der Tasche, hält iOS die App dort an und
+   weckt sie für die Uhr nicht. Dann fragt die Uhr selbst, über denselben
+   Server und dasselbe Konto, mit der Haltung von daevo und dem Stand des
+   Tages vom letzten Abgleich. Eintragen kann sie dort nichts: sie merkt
+   den Satz vor und sagt das. Beim nächsten Öffnen läuft er auf dem iPhone
+   durch den Coach, als hättest du ihn dort gesagt.
+
+Für den zweiten Weg braucht die Uhr Netz, über WLAN, Mobilfunk oder das
+iPhone in Bluetooth Reichweite, und daevo muss einmal auf dem iPhone offen
+gewesen sein, nachdem du der KI zugestimmt hast.
+
 ## Was geprüft ist und was nicht
 
 Geprüft:
@@ -96,6 +128,10 @@ Geprüft:
   einem Swift 6.1 Compiler gegen `Modelle.swift` gelesen, alle Felder kamen
   an, auch die Sätze ohne Gewicht.
 - Alle Swift Dateien von Uhr und iPhone auf Syntax.
+- Der Aufbau des d in `Orb.swift` lief unter Linux: 1847 Punkte im Ring, 780
+  im Stamm, dasselbe Verhältnis wie auf dem iPhone.
+- `uhr.test.js` prüft den Zugang zur KI im Paket, vorgemerkte Sätze und
+  Gespräche von der Uhr.
 
 Nicht geprüft: SwiftUI, WatchKit, HealthKit und WidgetKit gibt es nur auf
 einem Mac. Ob die Ansichten bauen und auf der Uhr so aussehen wie gedacht,
@@ -104,7 +140,8 @@ Datei und Zeile.
 
 ## Offen
 
-- Essen von der Uhr eintragen, etwa per Diktat. Das braucht eine Antwort vom
-  iPhone, während die App dort geschlossen ist, und die Web Ansicht rechnet
-  im Hintergrund nicht. Möglich wäre eine Warteschlange, die beim nächsten
-  Öffnen eingetragen wird.
+- Ob das Diktat aus dem Tipp auf das d direkt startet oder erst die
+  Tastatur mit Mikrofon zeigt, entscheidet watchOS. Das zeigt die erste
+  Runde auf der Uhr.
+- Ein Weckwort auf der Uhr gibt es nicht. watchOS gibt einer App kein
+  Mikrofon im Hintergrund.

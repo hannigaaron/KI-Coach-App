@@ -66,7 +66,7 @@ export function alsPropertyList(wert) {
  * Trainings kommen in dieser Reihenfolge: ein offener Entwurf von heute,
  * das Training für heute aus dem Gespräch, dann die Einheiten des Plans.
  */
-export function uhrPaket({ settings, zahlen, heute, gestrichen = false }) {
+export function uhrPaket({ settings, zahlen, heute, gestrichen = false, ki = null }) {
   const log = Array.isArray(settings.trainingslog) ? settings.trainingslog : [];
   const trainings = [];
   const offen = settings.trainingEntwurf;
@@ -95,6 +95,8 @@ export function uhrPaket({ settings, zahlen, heute, gestrichen = false }) {
     },
     gestrichen: Boolean(gestrichen),
     trainings: trainings.filter((t) => t.entwurf.uebungen.length).slice(0, MAX_TRAININGS),
+    // Ohne Einwilligung oder Konto fehlt das Feld, und die Uhr fragt nur über das iPhone.
+    ...(ki && alsPropertyList(ki) ? { ki } : {}),
   };
 }
 
@@ -106,7 +108,7 @@ export function uhrPaket({ settings, zahlen, heute, gestrichen = false }) {
 export function uhrEreignisseAnwenden(ereignisse, { store, heute, neueId, jetzt = () => new Date() }) {
   const settings = store.getSettings();
   const erledigt = new Set(Array.isArray(settings.uhrErledigt) ? settings.uhrErledigt : []);
-  const ergebnis = { wasserMl: 0, trainings: [] };
+  const ergebnis = { wasserMl: 0, trainings: [], saetze: [], gespraech: [] };
   let log = Array.isArray(settings.trainingslog) ? settings.trainingslog : [];
 
   for (const e of Array.isArray(ereignisse) ? ereignisse : []) {
@@ -114,6 +116,23 @@ export function uhrEreignisseAnwenden(ereignisse, { store, heute, neueId, jetzt 
     const id = String(e.id || "");
     if (id && erledigt.has(id)) continue;
     if (id) erledigt.add(id);
+
+    // Ein Satz, den die Uhr ohne iPhone vorgemerkt hat. Er läuft beim Öffnen
+    // durch den ganzen Agenten, als hätte er ihn hier gesagt.
+    if (e.art === "satz") {
+      const text = String(e.text || "").trim().slice(0, 1000);
+      if (text) ergebnis.saetze.push(text);
+      continue;
+    }
+
+    // Was auf der Uhr ohne iPhone gefragt und beantwortet wurde. Es gehört
+    // ins Gespräch, sonst fehlt es dem Coach beim nächsten Mal.
+    if (e.art === "gespraech") {
+      const frage = String(e.frage || "").trim().slice(0, 1000);
+      const antwort = String(e.antwort || "").trim().slice(0, 2000);
+      if (frage && antwort) ergebnis.gespraech.push({ frage, antwort, at: String(e.at || "") });
+      continue;
+    }
 
     if (e.art === "wasser") {
       const ml = Math.max(0, Math.min(2000, r(e.ml)));

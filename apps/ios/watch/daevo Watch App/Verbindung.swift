@@ -72,6 +72,32 @@ final class Verbindung: NSObject, ObservableObject, WCSessionDelegate {
         ])
     }
 
+    /// Ein Satz, den die Uhr ohne iPhone nicht eintragen kann. Das iPhone
+    /// führt ihn beim nächsten Öffnen durch den ganzen Agenten.
+    func vormerken(_ satz: String) {
+        senden(["art": "satz", "text": satz])
+    }
+
+    /// Ein Gespräch, das die Uhr allein geführt hat, damit es danach auch
+    /// auf dem iPhone im Verlauf steht.
+    func gespraechMerken(frage: String, antwort: String) {
+        senden(["art": "gespraech", "frage": frage, "antwort": antwort, "at": ISO8601DateFormatter().string(from: Date())])
+    }
+
+    /// Fragt das iPhone. Antwortet es nicht, ist es nicht vorn offen oder
+    /// nicht in Reichweite, und es kommt `nil`: dann fragt die Uhr selbst.
+    func frageAnsIphone(_ text: String) async -> String? {
+        guard WCSession.isSupported(), WCSession.default.activationState == .activated, WCSession.default.isReachable else { return nil }
+        return await withCheckedContinuation { (fortsetzung: CheckedContinuation<String?, Never>) in
+            let einmal = Einmal(fortsetzung)
+            WCSession.default.sendMessage(["art": "frage", "text": text], replyHandler: { antwort in
+                einmal.fertig(antwort["antwort"] as? String)
+            }, errorHandler: { _ in
+                einmal.fertig(nil)
+            })
+        }
+    }
+
     private func senden(_ ereignis: [String: Any]) {
         var e = ereignis
         e["id"] = UUID().uuidString
@@ -105,5 +131,20 @@ final class Verbindung: NSObject, ObservableObject, WCSessionDelegate {
     nonisolated func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
         guard let daten = Self.json(applicationContext) else { return }
         Task { @MainActor in self.uebernehmen(daten) }
+    }
+}
+
+/// Setzt eine Fortsetzung genau einmal fort, auch wenn Antwort und Fehler
+/// beide kommen. Zweimal fortsetzen bringt die App zum Absturz.
+final class Einmal: @unchecked Sendable {
+    private var fortsetzung: CheckedContinuation<String?, Never>?
+    private let sperre = NSLock()
+    init(_ f: CheckedContinuation<String?, Never>) { fortsetzung = f }
+    func fertig(_ wert: String?) {
+        sperre.lock()
+        let f = fortsetzung
+        fortsetzung = nil
+        sperre.unlock()
+        f?.resume(returning: wert)
     }
 }
