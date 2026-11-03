@@ -49,6 +49,27 @@ function merken(eintrag) {
   store.setSettings({ ...s, kalenderAenderungen: stapel });
 }
 
+/**
+ * Was daevo in den Kalender schreiben darf. Der Nutzer hat es so gesagt:
+ * nicht alles, was daevo empfiehlt, sondern ein Training, ein Termin, um den
+ * er selbst bittet, oder eine einzelne dringende Aufgabe aus Todoist. Eine
+ * Liste von Aufgaben als Block ("Aufgaben: Denise zuerst, dann Slide und
+ * Reel") kam vorher in seinen Kalender und machte ihn voll, ohne dass er
+ * darum gebeten hatte. Ein Kalender, in dem alles steht, zeigt nichts mehr.
+ *
+ * Der Prompt sagt dasselbe, aber ein Prompt hilft nur, bis er einmal nicht
+ * greift. Deshalb prüft es auch der Code, bevor etwas geschrieben wird.
+ */
+export function eintragErlaubt(titel, auftrag = {}) {
+  const t = foldUmlauts(String(titel || "").toLowerCase());
+  const liste = /\b(zuerst|danach)\b|,\s*dann\b|(,[^,]+){2,}/.test(t) || /^(aufgaben|to ?dos?)\b.*[:,]/.test(t);
+  if (liste) {
+    return `${NICHT_GESPEICHERT} Eine Liste von Aufgaben trage ich nicht in deinen Kalender ein, sonst ist er so voll, dass du den Überblick verlierst. In den Kalender kommt je Termin genau eine Sache.`;
+  }
+  if (TRAININGSTITEL.test(t) || auftrag.erbeten === true || auftrag.aufgabe === true) return null;
+  return `${NICHT_GESPEICHERT} Von mir aus trage ich nur Trainings und dringende Aufgaben aus Todoist ein. Alles andere nur, wenn du ausdrücklich darum bittest.`;
+}
+
 /** Passt der Termin zur Suche? "training" trifft jede Art von Training. */
 function passt(termin, suche) {
   const titel = foldUmlauts(String(termin.titel || "").toLowerCase());
@@ -101,7 +122,7 @@ export function kalenderWahlText(k) {
   return k.titel && k.titel !== k.quelle ? `${art}, ${k.titel}` : `${art}, ${k.quelle || k.titel}`;
 }
 
-function kannSchreiben() {
+export function kannSchreiben() {
   return istNativ() && store.getSettings().appleKalender === true;
 }
 
@@ -206,6 +227,11 @@ export async function kalenderTermin(auftrag = {}, { jetzt = Date.now() } = {}) 
   const uebernommen = !auftrag.minuten && !alt ? ` Die Dauer von ${minuten} Minuten ist aus deinem Trainingsplan übernommen.` : "";
   const titel = auftrag.titel || alt?.titel || ART_TITEL[vorbild?.type ?? vorbild?.art] || "Training";
 
+  if (aktion === "eintragen") {
+    const verbot = eintragErlaubt(titel, auftrag);
+    if (verbot) return verbot;
+  }
+
   if (alt && aktion === "verschieben" && (auftrag.zielTag || auftrag.zielUhrzeit)) {
     return anGenauesZiel(alt, auftrag, { termine, profile, jetzt });
   }
@@ -251,7 +277,8 @@ export async function kalenderTermin(auftrag = {}, { jetzt = Date.now() } = {}) 
 
   try {
     const r = await nativAufruf("Kalender", "anlegen", { titel, von: platz.von, bis: platz.bis, kalender: zielKalenderId() });
-    merken({ art: "angelegt", eid: r?.eid || "", titel, nachher: { von: platz.von, bis: platz.bis }, gruppe: gruppeNeu() });
+    merken({ art: "angelegt", eid: r?.eid || "", titel, nachher: { von: platz.von, bis: platz.bis }, gruppe: gruppeNeu(),
+      ...(auftrag.aufgabeId ? { aufgabeId: auftrag.aufgabeId } : {}) });
     await neuLesen();
     return `Eingetragen: „${titel}“ am ${platzText(platz)}${r?.kalender ? ` im Kalender ${r.kalender}` : ""}.${uebernommen} ${RUECKNAHME}`;
   } catch (e) {

@@ -277,10 +277,13 @@ Strichfiguren, keine Clip Art, keine Karten mit Rahmen um Text.
 - Bizeps Curl liegend am Kabel, `curl-kabel-liegend`: flache Bank vor dem
   Turm, Rolle auf Bankhöhe, rücklings mit den Füßen zum Turm, die Stange aus
   gestreckten Armen zum Kinn, Ellbogen bleiben am Körper, Untergriff wie beim
-  stehenden Curl. Das Foto ist schräg von oben am Fußende aufgenommen: die
-  Stange liegt dort quer im Bild, das Kabel läuft gerade aus ihrer Mitte
-  zwischen den Knien zur Rolle, und man sieht die Handrücken, also den
-  Untergriff. In der Seitenansicht und schräg vom Kopfende legte das
+  stehenden Curl, Bank leicht schräg. Das Foto ist schräg von oben am Fußende
+  aufgenommen: die Stange liegt dort quer im Bild, das Kabel läuft gerade aus
+  ihrer Mitte zwischen den Knien zur Rolle auf Bankhöhe, und man sieht die
+  Handrücken, also den Untergriff. Das Bildmodell läuft ohne Angabe auf
+  `quality: low`, und genau dort entstand ein Mann mit drei Beinen, den
+  erst der Nutzer sah. Fotos immer mit `quality: high` erzeugen und vor dem
+  Einbauen Arme und Beine zählen. In der Seitenansicht und schräg vom Kopfende legte das
   Bildmodell die Stange in acht von acht Fassungen längs zum Körper und
   hängte das Kabel an ein Ende. Die erste Fassung von der Kopfseite zeigte
   den Griff wie einen Obergriff. Vorlage für die Haltung war das Video von
@@ -434,6 +437,15 @@ aus dem Trainingsprotokoll. Nach Push und Pull sind das Beine, Po und Core.
 Ohne Eintrag in dieser Woche ist nichts vorgewählt, sieben Partien auf
 einmal wären keine Wahl. Trainings aus Apple Health tragen keine Übungen
 und zählen dort nicht.
+
+Im Gespräch auch für einen anderen Tag: "morgen um 14 Uhr Pull" setzt `tag`
+und `uhrzeit` an `training_heute`. Die Einheit liegt dann im Verlauf mit
+`geplant` und überschreibt die von heute nicht, `bestellteEinheit` in
+`apps/pwa/js/vorhaben.js` findet sie an ihrem Tag, für Training für heute,
+Morgen Check-in, Briefing und Uhr. Mit Uhrzeit kommt sie als "Training:
+Pull" in den Kalender. `trainingHeuteAus` liest je Satzteil: im Betrieb
+ergab ein Satz mit gestern Push und morgen Pull eine Einheit aus beidem
+für den falschen Tag. Was in der Vergangenheit steht, zählt nicht mit.
 
 Gerechnet wird mit `einheitBauen`, derselben Funktion wie für jeden Tag
 des Wochenplans, mit Fokus, Schwere, ZNS Regel, Einsteigergeräten und dem
@@ -636,7 +648,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1328 Tests
+npm test           # 1335 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -738,6 +750,26 @@ Antwort. Jede Änderung liegt in `settings.kalenderAenderungen`, die letzten
 20, und "mach die Kalenderänderung rückgängig" nimmt genau die letzte
 zurück. Ohne Kalender oder Termin im Satz greift der Regelpfad nicht,
 sonst nähme "mach das rückgängig" nach einer Mahlzeit einen Termin zurück.
+
+### Was in den Kalender kommt
+
+`eintragErlaubt` in `kalender-schreiben.js`. Der Nutzer will einen Kalender,
+in dem er den Überblick behält. Im Betrieb legte der Coach einen Block
+"Aufgaben: Denise zuerst, dann Slide und Reel" an und merkte sich, alles
+Empfohlene gehöre in den Kalender. Jetzt gilt: ein Training, ein Termin, um
+den er in der Nachricht bittet (`erbeten`), auch wiederkehrend, und von sich
+aus höchstens eine einzelne dringende Aufgabe aus Todoist, heute fällig oder
+überfällig und wichtig, über `aufgabeId`, mit ihrem Namen als Titel und
+höchstens drei am Tag. Eine Liste von Aufgaben lehnt der Code immer ab,
+auch erbeten. Die falsche Notiz räumt `kalenderNotizAufraeumen` einmal weg.
+Eine so eingetragene Aufgabe steht im Tagesplan zu ihrer Kalenderzeit und
+wird nicht ein zweites Mal gelegt, `tagesplan` in `assistant.js`.
+
+Der Fokus im Briefing sagt "Das zuerst" nur, wenn die Aufgabe wirklich die
+früheste ist, sonst "Das ist heute das Wichtigste". Vorher stand Slide um
+11:00 als "zuerst" unter Denise um 08:45. Die Persona verlangt dazu, jede
+Antwort vor dem Senden gegen sich selbst, die Werkzeuge und den Kalender zu
+prüfen.
 
 ### Der Kalender im Hintergrund
 

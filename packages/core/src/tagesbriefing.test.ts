@@ -78,3 +78,15 @@ test("die Punkte stehen nach Uhrzeit, und das Nächste ist das erste, das noch n
   const um13 = new Date(`${TAG}T13:20:00`).getTime();
   assert.notEqual(b.punkte[naechsterPunkt(b.punkte, um13)]!.titel, "Kunde Müller");
 });
+
+test("der Fokus sagt nur 'zuerst', wenn die Aufgabe wirklich als erste dran ist", () => {
+  const spaeter = briefing("morgen", [t("12:30", "14:45", "Mittagessen")], [
+    { text: "Slide schreiben", um: "11:00", wichtig: true },
+    { text: "Denise antworten", um: "08:45" },
+  ]);
+  const fokus = spaeter.abschnitte.find((a) => a.titel === "Fokus")!.zeilen[0]!;
+  assert.doesNotMatch(fokus, /zuerst/);
+  assert.match(fokus, /Slide schreiben um 11:00\. Das ist heute das Wichtigste\./);
+  const frueh = briefing("morgen", [], [{ text: "Slide schreiben", um: "08:45", wichtig: true }, { text: "Denise antworten", um: "11:00" }]);
+  assert.match(frueh.abschnitte.find((a) => a.titel === "Fokus")!.zeilen[0]!, /eingeplant um 08:45\. Das zuerst/);
+});

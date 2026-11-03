@@ -127,6 +127,14 @@ export interface KalenderAuftrag {
   zielUhrzeit?: string;
   /** Der Nutzer hat ausdrücklich um genau diese Änderung gebeten. */
   bestaetigt?: boolean;
+  /**
+   * Der Nutzer hat genau diesen neuen Eintrag verlangt. Ohne das trägt daevo
+   * nur Trainings und dringende Aufgaben aus Todoist ein, siehe
+   * `eintragErlaubt` in der Web App.
+   */
+  erbeten?: boolean;
+  /** Eine einzelne Aufgabe, die in den Kalender soll. Die App prüft, ob sie dringend ist. */
+  aufgabeId?: string;
 }
 
 const UHRZEIT = /\b(?:um\s+(\d{1,2})(?:[:.](\d{2}))?(?:\s*uhr)?|(\d{1,2})(?:[:.](\d{2}))?\s*uhr)\b/;

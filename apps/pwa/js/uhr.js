@@ -14,6 +14,7 @@
  * Kein `document`, kein `window`: das Modul läuft in den Tests.
  */
 import { entwurfAbschliessen, entwurfNeu } from "./training.js";
+import { bestellteEinheit } from "./vorhaben.js";
 
 export const UHR_FASSUNG = 1;
 /** So viele Trainings gehen höchstens mit. Fünf Tage Plan plus heute plus ein offener Entwurf. */
@@ -50,8 +51,8 @@ export function uhrPaket({ settings, zahlen, heute, gestrichen = false }) {
   if (offen?.datum === heute && offen.uebungen?.length) {
     trainings.push({ schluessel: `offen-${offen.start || heute}`, quelle: "offen", titel: offen.titel, entwurf: schlank(offen) });
   }
-  const ht = settings.heuteTraining;
-  if (ht?.tag === heute && ht.einheit?.positionen?.length) {
+  const ht = bestellteEinheit(settings, heute);
+  if (ht?.einheit?.positionen?.length) {
     const e = entwurfNeu({ einheiten: [ht.einheit] }, 0, log, heute);
     if (e) trainings.push({ schluessel: `heute-${ht.schluessel || heute}`, quelle: "heute", titel: "Training für heute", entwurf: schlank({ ...e, titel: "Training für heute" }) });
   }

@@ -19,6 +19,7 @@ import {
   MORGEN_FRAGEN, BELASTBARKEIT_NAME, PHASE_NAME, SYMPTOM_NAME, zyklusEmpfehlung, zyklusStand, NACHFRAGE_UHRZEIT, morgenAuswerten, morgenUhrzeit, morgenVollstaendig, nachfrageAuswerten, nachfrageNoetig, tagesrandFuer,
 } from "@daevo/core";
 import { newId, nowTime } from "./storage.js";
+import { bestellteEinheit } from "./vorhaben.js";
 import { spueren } from "./haptik.js";
 
 /** Bis zu dieser Uhrzeit öffnet sich der Check-in von selbst. */
@@ -42,6 +43,17 @@ export function trainingHeute(store, tag) {
   const sessions = store.getProfile()?.sessions || [];
   const plan = store.getSettings().plan;
   const kraft = sessions.filter((s) => s.type === "strength").sort((a, b) => ((a.weekday + 6) % 7) - ((b.weekday + 6) % 7));
+  // Eine Einheit, die er für diesen Tag bestellt hat, ersetzt das Krafttraining
+  // aus dem Wochenplan. Sonst sagt der Morgen "kein Training", obwohl er am
+  // Abend vorher "morgen um 14 Uhr Pull" gesagt hat.
+  const bestellt = bestellteEinheit(store.getSettings(), tag);
+  if (bestellt) {
+    const kraftHeute = sessions.find((s) => s.weekday === wochentag && s.type === "strength");
+    const andere = sessions.filter((s) => s.weekday === wochentag && s.type !== "strength")
+      .map((s) => ({ art: s.type, minuten: s.minutes, uhrzeit: s.startsAt, titel: undefined }));
+    return [{ art: "strength", minuten: bestellt.einheit.dauerMin ?? bestellt.minuten, uhrzeit: bestellt.uhrzeit ?? kraftHeute?.startsAt, titel: bestellt.einheit.fokus }, ...andere]
+      .sort((a, b) => String(a.uhrzeit ?? "99").localeCompare(String(b.uhrzeit ?? "99")));
+  }
   return sessions
     .filter((s) => s.weekday === wochentag)
     .sort((a, b) => String(a.startsAt).localeCompare(String(b.startsAt)))

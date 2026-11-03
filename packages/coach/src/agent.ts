@@ -62,7 +62,7 @@ export interface AgentActions {
    * macht sie im Chat startbar. Die Übungen kommen aus dem Rechenkern, nie aus
    * dem Modell.
    */
-  trainingHeute?(input: { gruppen: string[]; minuten?: number; neu?: boolean }): Promise<string>;
+  trainingHeute?(input: { gruppen: string[]; minuten?: number; neu?: boolean; tag?: string; uhrzeit?: string }): Promise<string>;
   essensplanAbrufen?(input: { inTagen?: number }): Promise<string>;
   uebungenSuchen?(input: { suche?: string; ersatzFuer?: string }): Promise<string>;
   zyklus?(input: { aktion: string; tag?: string; symptome?: string[] }): Promise<string>;
@@ -737,6 +737,8 @@ async function execute(
           ...(typeof input.zielTag === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.zielTag) ? { zielTag: input.zielTag } : {}),
           ...(typeof input.zielUhrzeit === "string" && /^\d{1,2}:\d{2}$/.test(input.zielUhrzeit) ? { zielUhrzeit: input.zielUhrzeit.padStart(5, "0") } : {}),
           bestaetigt: input.bestaetigt === true,
+          ...(input.erbeten === true ? { erbeten: true } : {}),
+          ...(typeof input.aufgabeId === "string" && input.aufgabeId.trim() ? { aufgabeId: input.aufgabeId.trim().slice(0, 80) } : {}),
         });
         if (text.startsWith(NICHT_GESPEICHERT)) return { text, fehler: true };
         return { text, notiz: aktion === "vorschlagen" ? "Freien Platz gesucht" : "Kalender geändert" };
@@ -881,7 +883,9 @@ async function execute(
         const gruppen = Array.isArray(input.gruppen) ? input.gruppen.map(String) : [];
         const minuten = input.minuten != null && Number.isFinite(Number(input.minuten)) ? clamp(Number(input.minuten), 20, 120) : undefined;
         if (!actions.trainingHeute) return { text: "Das gibt es in dieser Fassung nicht.", fehler: true };
-        const text = await actions.trainingHeute({ gruppen, minuten, neu: input.neu === true });
+        const tag = typeof input.tag === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.tag) ? input.tag : undefined;
+        const uhrzeit = typeof input.uhrzeit === "string" && /^\d{1,2}:\d{2}$/.test(input.uhrzeit) ? input.uhrzeit : undefined;
+        const text = await actions.trainingHeute({ gruppen, minuten, neu: input.neu === true, tag, uhrzeit });
         const ok = !text.startsWith(NICHT_GESPEICHERT);
         return ok ? { text, notiz: "Training für heute bereit" } : { text, fehler: true };
       }
@@ -1127,26 +1131,57 @@ const PARTIE_WOERTER: Array<[RegExp, string[]]> = [
 ];
 
 /**
- * Ob jemand eine Einheit für heute bestellt, und welche. Nur mit einem Wort
- * der Absicht und einer Partie, nie in der Vergangenheit: "war eben 60 min
- * Oberkörper" ist ein Eintrag und keine Bestellung.
+ * Ob jemand eine Einheit bestellt, für welchen Tag und welche. Nur mit einem
+ * Wort der Absicht und einer Partie, nie in der Vergangenheit: "war eben 60
+ * min Oberkörper" ist ein Eintrag und keine Bestellung.
+ *
+ * Gelesen wird je Satzteil. "Gestern Push, morgen um 14 Uhr Pull" ergab
+ * vorher eine Einheit aus Push und Pull für heute: was er gestern gemacht
+ * hat, gehört nicht in die Bestellung, und der Tag steht im selben Satz.
  */
-export function trainingHeuteAus(text: string): { gruppen: string[]; minuten?: number } | null {
-  if (/\b(war|warst|hab|habe|hatte|gewesen|trainiert|gemacht|gegessen|getrunken|esse|essen|isst)\b/.test(text)) return null;
-  const absicht = /\b(trainiere|trainier|trainieren|stell mir|erstell|bau mir|plan mir|plane mir|mach mir|zusammenstellen|gleich ins|geh gleich|gehe gleich|will heute|moechte heute)\b/.test(text)
+export function trainingHeuteAus(text: string, jetzt: Date = new Date()): { gruppen: string[]; minuten?: number; tag?: string; uhrzeit?: string } | null {
+  if (/\b(gegessen|getrunken|esse|essen|isst)\b/.test(text)) return null;
+  const vergangen = /\b(war|warst|hab|habe|hatte|gewesen|trainiert|gemacht|gestern|vorgestern)\b/;
+  const teile = text.replace(/\bguten morgen\b/g, " ").split(/[.,;!?]|\b(?:aber|sondern|danach)\b/).map((t) => t.trim()).filter(Boolean);
+  const kern = teile.filter((t) => !vergangen.test(t)).join(", ");
+  if (!kern) return null;
+  const tagWort = "(heute|morgen|uebermorgen|montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)";
+  const absicht = /\b(trainiere|trainier|trainieren|stell mir|erstell|bau mir|plan mir|plane mir|mach mir|zusammenstellen|gleich ins|geh gleich|gehe gleich)\b/.test(kern)
+    || new RegExp(`\\b(will|moechte|werde|mache|mach)\\b.{0,30}\\b${tagWort}\\b|\\b${tagWort}\\b.{0,30}\\b(will|moechte|werde)\\b`).test(kern)
     // "Heute Pull, 45 min" und "ich mach heute Beine" sind dieselbe Absicht,
     // nur kürzer gesagt. Ohne das kam darauf der Satz, der Regelweg verstehe
     // nur einfache Sätze.
-    || (/\bheute\b/.test(text) && /\b(mach|mache|machen|steht|ist|gibt'?s|gibt es)\b|\d{2,3}\s*(min|minuten)\b/.test(text));
-  const bezug = /\b(heute|gleich|jetzt|nachher|training|einheit|workout|gym|studio)\b/.test(text);
+    || (new RegExp(`\\b${tagWort}\\b`).test(kern) && (/\b(mach|mache|machen|steht|ist|gibt'?s|gibt es)\b|\d{2,3}\s*(min|minuten)\b/.test(kern) || /\bum\s+\d{1,2}\b/.test(kern)));
+  const bezug = new RegExp(`\\b(${tagWort.slice(1, -1)}|gleich|jetzt|nachher|training|einheit|workout|gym|studio)\\b`).test(kern);
   if (!absicht || !bezug) return null;
   const gruppen: string[] = [];
-  for (const [muster, g] of PARTIE_WOERTER) if (muster.test(text)) for (const x of g) if (!gruppen.includes(x)) gruppen.push(x);
+  for (const [muster, g] of PARTIE_WOERTER) if (muster.test(kern)) for (const x of g) if (!gruppen.includes(x)) gruppen.push(x);
   if (!gruppen.length) return null;
-  const min = /(\d{2,3})\s*(min|minuten)\b/.exec(text);
-  const std = /(\d(?:[.,]5)?)\s*(h|std|stunden?)\b/.exec(text);
+  const min = /(\d{2,3})\s*(min|minuten)\b/.exec(kern);
+  const std = /(\d(?:[.,]5)?)\s*(h|std|stunden?)\b/.exec(kern);
   const minuten = min ? Number(min[1]) : std ? Math.round(Number((std[1] ?? "1").replace(",", ".")) * 60) : undefined;
-  return { gruppen, minuten: minuten === undefined ? undefined : Math.max(20, Math.min(120, minuten)) };
+
+  // Der Tag: übermorgen, morgen oder ein Wochentag, sonst heute.
+  const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const WOCHE = ["sonntag", "montag", "dienstag", "mittwoch", "donnerstag", "freitag", "samstag"];
+  let plus = 0;
+  if (/\buebermorgen\b/.test(kern)) plus = 2;
+  else if (/\bmorgen\b/.test(kern)) plus = 1;
+  else {
+    const wt = new RegExp(`\\b(${WOCHE.join("|")})\\b`).exec(kern);
+    if (wt) plus = (WOCHE.indexOf(wt[1]!) - jetzt.getDay() + 7) % 7;
+  }
+  const d = new Date(jetzt); d.setDate(d.getDate() + plus);
+  // Die Uhrzeit nur, wenn sie eindeutig ist: "um 14", "um 14 Uhr", "14:30".
+  const u = /\bum\s+(\d{1,2})(?:[:.](\d{2}))?\b/.exec(kern) ?? /\b(\d{1,2})[:.](\d{2})\b/.exec(kern) ?? /\b(\d{1,2})\s*uhr\b/.exec(kern);
+  const stunde = u ? Number(u[1]) : NaN;
+  const uhrzeit = stunde >= 5 && stunde <= 23 ? `${String(stunde).padStart(2, "0")}:${u?.[2] ?? "00"}` : undefined;
+  return {
+    gruppen,
+    minuten: minuten === undefined ? undefined : Math.max(20, Math.min(120, minuten)),
+    ...(plus > 0 ? { tag: iso(d) } : {}),
+    ...(uhrzeit ? { uhrzeit } : {}),
+  };
 }
 
 /**
@@ -1583,7 +1618,8 @@ export async function runOffline(
   // neuer Wochenplan noch ein Training von heute.
   const auftrag = kalenderAuftragAus(nachricht);
   if (auftrag) {
-    const antwort = await actions.kalenderTermin(auftrag);
+    // Der Satz kommt vom Nutzer selbst: ein Eintrag daraus ist erbeten.
+    const antwort = await actions.kalenderTermin(auftrag.aktion === "eintragen" ? { ...auftrag, erbeten: true } : auftrag);
     const nichts = antwort.startsWith(NICHT_GESPEICHERT) || auftrag.aktion === "vorschlagen";
     return { text: antwort, ausgeführt: nichts ? [] : ["Kalender geändert"], source: "offline" };
   }

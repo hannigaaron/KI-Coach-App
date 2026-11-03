@@ -110,6 +110,7 @@ import { kiErlaubt } from "./einwilligung.js";
 import { NACHTRAG_TAGE, tageZurueck } from "./exif.js";
 import { eigeneLebensmittel, eigenerPosten, eigenesIn, lebensmittelSpeichern } from "./bibliothek.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
+import { bestellteEinheit } from "./vorhaben.js";
 
 const WEEKDAYS = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
 
@@ -827,6 +828,28 @@ export function standardTage(anzahl = 28) {
 }
 
 /** Legt beim ersten Aufruf Standards an, passend zu Profil und Schwerpunkten. */
+/**
+ * Räumt einmal eine Notiz weg, die der Coach falsch verstanden hatte: "alles,
+ * was ich empfehle, kommt in den Kalender". Der Nutzer hat das so nie
+ * gewollt, und solange die Notiz im Gedächtnis steht, liest der Coach sie
+ * bei jeder Nachricht als Auftrag. Die Regel, was in den Kalender gehört,
+ * steht jetzt in der Persona und in `eintragErlaubt`.
+ */
+export function kalenderNotizAufraeumen() {
+  const s = store.getSettings();
+  if (s.kalenderNotizGeprueft) return 0;
+  const alle = store.getMemories();
+  const falsch = (m) => {
+    const t = foldUmlauts(String(m.text || "").toLowerCase());
+    return /\bkalender\b/.test(t) && /\b(alles|alle|jede|jeden|immer)\b/.test(t) && /\b(empfehl\w*|empfiehl\w*|empfohlen|vorschlag\w*|vorschlae\w*|plan\w*)\b/.test(t)
+      && /\b(eintrag\w*|kommt|kommen|landen|landet|rein|direkt)\b/.test(t);
+  };
+  const bleiben = alle.filter((m) => !falsch(m));
+  if (bleiben.length !== alle.length) store.setMemories(bleiben);
+  store.setSettings({ ...store.getSettings(), kalenderNotizGeprueft: true });
+  return alle.length - bleiben.length;
+}
+
 export function ensureStandards() {
   const vorhanden = store.getStandards();
   if (vorhanden.length > 0) return vorhanden;
@@ -1256,7 +1279,18 @@ export function tagesplan(jetzt = Date.now()) {
   const tag = todayIso();
   const ablauf = ablaufFuer(tag);
   const luecken = lueckenOhne(ablauf.luecken, belegtAusserKalender(tag, ablauf));
-  return { plan, zeiten: zeitplan({ aufgaben: plan.heute, luecken, ab: jetzt }) };
+  // Eine Aufgabe, die daevo heute als eigenen Termin in den Kalender gelegt
+  // hat, steht dort fest. Ohne das zählte der Termin als belegt, und der Plan
+  // legte dieselbe Aufgabe ein zweites Mal woandershin: zwei Uhrzeiten für
+  // eine Sache, und der Morgen widersprach dem Kalender.
+  const fest = new Map();
+  for (const k of (Array.isArray(store.getSettings().kalenderAenderungen) ? store.getSettings().kalenderAenderungen : [])) {
+    if (k.art === "angelegt" && k.aufgabeId && k.nachher && ortsTag(k.nachher.von) === tag) fest.set(k.aufgabeId, k.nachher);
+  }
+  if (!fest.size) return { plan, zeiten: zeitplan({ aufgaben: plan.heute, luecken, ab: jetzt }) };
+  const z = zeitplan({ aufgaben: plan.heute.filter((a) => !fest.has(a.id)), luecken, ab: jetzt });
+  const gesetzt = plan.heute.filter((a) => fest.has(a.id)).map((a) => ({ aufgabe: a, von: fest.get(a.id).von, bis: fest.get(a.id).bis }));
+  return { plan, zeiten: { ...z, bloecke: [...z.bloecke, ...gesetzt].sort((x, y) => x.von - y.von) } };
 }
 
 export function tagesplanText(jetzt = Date.now()) {
@@ -1778,6 +1812,20 @@ function trainingFuerBriefing(tagIso) {
   const sessions = (profile?.sessions || []).filter((s) => s.weekday === wochentag)
     .sort((a, b) => String(a.startsAt).localeCompare(String(b.startsAt)));
   const kalender = ablaufFuer(tagIso).training[0];
+  // Was er für diesen Tag selbst bestellt hat, schlägt den Wochenplan: "morgen
+  // um 14 Uhr Pull" ist genauer als "dienstags Krafttraining".
+  const bestellt = bestellteEinheit(store.getSettings(), tagIso);
+  if (bestellt) {
+    const morgensB = tagIso === todayIso()
+      ? (store.getDay(tagIso).checkins || []).filter((c) => c.kind === "morning" && c.morgen).pop() : null;
+    return {
+      titel: `Training: ${trainingsTitel(bestellt.gruppen || [])}`,
+      um: bestellt.uhrzeit ?? (kalender ? uhrzeitVon(kalender.von) : sessions.find((x) => x.type === "strength")?.startsAt),
+      minuten: bestellt.einheit.dauerMin ?? bestellt.minuten,
+      uebungen: bestellt.einheit.positionen?.length,
+      gestrichen: Boolean(morgensB?.trainingGestrichen),
+    };
+  }
   if (!sessions.length && !kalender) return null;
   const s = sessions.find((x) => x.type === "strength") ?? sessions[0];
   let titel = kalender ? kalender.titel
@@ -1958,6 +2006,22 @@ export function essensplanTagText(tag) {
 function essensplanFreiFuerCoach() {
   if (!KONFIG.chatUrl) return true;
   return ["pro", "test"].includes(store.getSettings().kontoStufe || "test");
+}
+
+/**
+ * Kurzer Name einer Einheit für den Kalender. "Pull" liest man im Kalender
+ * schneller als "Rücken, Bizeps", und so hat er es selbst gesagt.
+ */
+export function trainingsTitel(partien) {
+  const k = [...partien].sort().join("+");
+  const namen = { "bizeps+ruecken": "Pull", "brust+schultern+trizeps": "Push", "beine+po": "Beine", "beine": "Beine", "bizeps+trizeps": "Arme" };
+  return namen[k] ?? partien.map((g) => FOKUS_NAME[g] ?? g).join(", ");
+}
+
+/** JJJJ-MM-TT in Ortszeit für einen Zeitpunkt in Millisekunden. */
+function ortsTag(ms) {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function tagPlusIso(iso, n) {
@@ -3126,8 +3190,27 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
     async kalenderTermin(auftrag = {}) {
       // Dynamisch, denn kalender-schreiben.js zieht kalender-sync.js, und das
       // importiert diese Datei. Ein Kreis beim Laden lässt eine Seite leer.
-      const { kalenderTermin } = await import("./kalender-schreiben.js");
-      const text = await kalenderTermin(auftrag);
+      const { kalenderTermin, kalenderAenderungen } = await import("./kalender-schreiben.js");
+      let a = { ...auftrag };
+      // Eine Aufgabe aus Todoist darf daevo von sich aus in den Kalender legen,
+      // aber nur eine dringende: heute fällig oder überfällig und wichtig. Der
+      // Titel ist die Aufgabe selbst, nie eine Liste. Höchstens drei am Tag,
+      // sonst ist der Kalender wieder voll mit dem, was ohnehin unter Dein Tag
+      // steht.
+      if (a.aufgabeId && a.aktion === "eintragen") {
+        const heute = todayIso();
+        const auf = alleAufgaben().find((x) => x.id === a.aufgabeId || x.id === `todoist:${a.aufgabeId}`);
+        if (!auf || auf.erledigt) return `${NICHT_GESPEICHERT} Diese Aufgabe finde ich nicht.`;
+        const dringend = auf.quelle === "todoist" && auf.faellig && auf.faellig <= heute && (auf.wichtigkeit ?? 2) >= 3;
+        if (!dringend && a.erbeten !== true) {
+          return `${NICHT_GESPEICHERT} „${auf.text}“ ist nicht dringend genug, um sie von mir aus in den Kalender zu legen. Sie steht unter Dein Tag.`;
+        }
+        const schon = kalenderAenderungen().filter((k) => k.art === "angelegt" && k.aufgabeId && String(k.am || "").slice(0, 10) === heute);
+        if (schon.some((k) => k.aufgabeId === auf.id)) return `${NICHT_GESPEICHERT} „${auf.text}“ steht heute schon im Kalender.`;
+        if (schon.length >= 3 && a.erbeten !== true) return `${NICHT_GESPEICHERT} Heute stehen schon drei Aufgaben von mir im Kalender. Mehr trage ich nicht von mir aus ein.`;
+        a = { ...a, aufgabe: true, aufgabeId: auf.id, titel: auf.text, minuten: a.minuten ?? auf.minuten, tag: a.tag ?? heute };
+      }
+      const text = await kalenderTermin(a);
       changed();
       return text;
     },
@@ -3448,16 +3531,23 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       return essensplanTagText(tag) + (plan.hinweise.length ? `\n${plan.hinweise.join(" ")}` : "");
     },
 
-    async trainingHeute({ gruppen = [], minuten, neu = false } = {}) {
-      const tag = todayIso();
-      const morgens = (store.getDay(tag).checkins || []).filter((c) => c.kind === "morning" && c.morgen).pop();
+    async trainingHeute({ gruppen = [], minuten, neu = false, tag: wunschTag, uhrzeit } = {}) {
+      const heuteIso = todayIso();
+      // Ein Tag in der Vergangenheit ist keine Bestellung. Weiter als eine
+      // Woche voraus auch nicht: bis dahin hat sich der Plan geändert.
+      const tag = /^\d{4}-\d{2}-\d{2}$/.test(String(wunschTag || "")) && wunschTag > heuteIso && wunschTag <= tagPlusIso(heuteIso, 7)
+        ? wunschTag : heuteIso;
+      const zukunft = tag !== heuteIso;
+      const um = /^\d{1,2}:\d{2}$/.test(String(uhrzeit || "")) ? String(uhrzeit).padStart(5, "0") : undefined;
+      const morgens = zukunft ? null : (store.getDay(tag).checkins || []).filter((c) => c.kind === "morning" && c.morgen).pop();
       if (morgens?.trainingGestrichen) {
         return `${NICHT_GESPEICHERT} Heute ist das Training nach der Nachfrage am Mittag gestrichen. Fühlst du dich besser, beantworte unter Check-ins die Nachfrage neu, dann rechne ich dir die Einheit.`;
       }
       const s = store.getSettings();
-      const jetzt = s.heuteTraining?.tag === tag ? s.heuteTraining : null;
+      const jetzt = bestellteEinheit(s, tag);
       // "Neue Übungen" ohne Partien meint die Einheit von heute.
-      let partien = [...new Set(gruppen.map(String).flatMap((g) => (g === "arme" ? ["bizeps", "trizeps"] : [g])))].filter((g) => FOKUS_NAME[g]);
+      const SPLIT = { arme: ["bizeps", "trizeps"], push: ["brust", "schultern", "trizeps"], pull: ["ruecken", "bizeps"], beine: ["beine", "po"] };
+      let partien = [...new Set(gruppen.map(String).flatMap((g) => SPLIT[g] ?? [g]))].filter((g) => FOKUS_NAME[g]);
       if (!partien.length && neu && jetzt) partien = jetzt.gruppen;
       if (!partien.length) return `${NICHT_GESPEICHERT} Welche Partien willst du heute trainieren? Etwa Push, Pull, Beine oder Oberkörper.`;
       const schluessel = [...partien].sort().join("+");
@@ -3511,9 +3601,13 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
           return u ? { ...p, id: u.id, name: u.name } : p;
         }),
       };
-      const eintrag = { tag, schluessel, gruppen: partien, minuten: min, variante, ersetzt, einheit, erstellt: new Date().toISOString() };
-      const ohneHeute = verlauf.filter((v) => !(v.schluessel === schluessel && v.tag === tag));
-      store.setSettings({ ...store.getSettings(), heuteTraining: eintrag, heuteVerlauf: [...ohneHeute, eintrag].slice(-20) });
+      const eintrag = { tag, schluessel, gruppen: partien, minuten: min, variante, ersetzt, einheit, erstellt: new Date().toISOString(),
+        ...(um ? { uhrzeit: um } : {}), ...(zukunft ? { geplant: true } : {}) };
+      // Je Tag eine bestellte Einheit. Wer für morgen erst Push und dann Pull
+      // sagt, meint Pull, und zwei Einheiten an einem Tag verwirren den Plan.
+      const ohneHeute = verlauf.filter((v) => !(v.tag === tag && (v.schluessel === schluessel || (zukunft && v.geplant))));
+      // Für einen anderen Tag bleibt die Einheit von heute, wie sie ist.
+      store.setSettings({ ...store.getSettings(), ...(zukunft ? {} : { heuteTraining: eintrag }), heuteVerlauf: [...ohneHeute, eintrag].slice(-20) });
       changed();
       const log = Array.isArray(s.trainingslog) ? s.trainingslog : [];
       const zeilen = [];
@@ -3523,10 +3617,28 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       } else if (neu) {
         zeilen.push("Neue Übungen für dieselben Partien. Nimm sie die nächsten Male wieder, dann siehst du, ob du stärker wirst.");
       }
-      zeilen.push(`Training für heute steht: ${einheit.fokus}, etwa ${einheit.dauerMin} Minuten. Tipp auf "Training starten", dann läuft es im Trainingsmodus. Jede Übung lässt sich dort über die drei Punkte tauschen.`);
+      const wann = zukunft
+        ? new Date(`${tag}T12:00:00`).toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" })
+        : "heute";
+      zeilen.push(zukunft
+        ? `Training für ${wann}${um ? ` um ${um}` : ""} steht: ${einheit.fokus}, etwa ${einheit.dauerMin} Minuten. An dem Tag steht es unter "Training für heute" bereit und startet von dort.`
+        : `Training für heute${um ? ` um ${um}` : ""} steht: ${einheit.fokus}, etwa ${einheit.dauerMin} Minuten. Tipp auf "Training starten", dann läuft es im Trainingsmodus. Jede Übung lässt sich dort über die drei Punkte tauschen.`);
       for (const p of einheit.positionen) {
         const st = steigerung(letzteEinheit(log, p.id, tag), p.wdh, p.reserve);
         zeilen.push(`- ${p.name}: ${p.saetze} x ${p.wdh}, ${p.reserve} in Reserve${st ? `. ${st.text}` : ""}`);
+      }
+      // Mit Uhrzeit gehört das Training in den Kalender: das hat er selbst
+      // gesagt, und ein Termin, den er genannt hat, ist kein Vorschlag.
+      if (um) {
+        const { kalenderTermin, terminFinden, kannSchreiben } = await import("./kalender-schreiben.js");
+        if (kannSchreiben()) {
+          const titel = `Training: ${trainingsTitel(partien)}`;
+          const alt = terminFinden(store.getKalender().termine || [], { suche: "training", tag });
+          const k = alt?.daevo
+            ? await kalenderTermin({ aktion: "verschieben", suche: alt.titel, tag, zielTag: tag, zielUhrzeit: um })
+            : await kalenderTermin({ aktion: "eintragen", titel, tag, uhrzeit: um, minuten: einheit.dauerMin, erbeten: true });
+          zeilen.push(k.replace(NICHT_GESPEICHERT, "Nicht im Kalender:").trim());
+        }
       }
       return zeilen.join("\n");
     },
@@ -3980,15 +4092,15 @@ export function erinnerungenAufgeraeumt(jetzt = { tag: todayIso(), uhrzeit: nowT
 /** Ein Tausch im Training für heute gilt auch beim nächsten Mal mit denselben Partien. */
 export function heuteGetauscht(altId, neueId) {
   const s = store.getSettings();
-  const ht = s.heuteTraining;
+  const ht = bestellteEinheit(s, todayIso());
   const u = UEBUNGEN.find((x) => x.id === neueId);
-  if (!ht?.einheit || ht.tag !== todayIso() || !u) return;
+  if (!ht?.einheit || !u) return;
   // Kennung der ursprünglich gerechneten Übung, damit ein zweiter Tausch
   // denselben Platz trifft und nicht ins Leere zeigt.
   const ursprung = Object.entries(ht.ersetzt ?? {}).find(([, v]) => v === altId)?.[0] ?? altId;
   const ersetzt = { ...(ht.ersetzt ?? {}), [ursprung]: neueId };
   const einheit = { ...ht.einheit, positionen: ht.einheit.positionen.map((p) => (p.id === altId ? { ...p, id: u.id, name: u.name } : p)) };
-  const neu = { ...ht, ersetzt, einheit };
+  const neu = { ...ht, ersetzt, einheit, geplant: undefined };
   const verlauf = (Array.isArray(s.heuteVerlauf) ? s.heuteVerlauf : []).map((v) => (v.tag === ht.tag && v.schluessel === ht.schluessel ? neu : v));
   store.setSettings({ ...s, heuteTraining: neu, heuteVerlauf: verlauf });
 }

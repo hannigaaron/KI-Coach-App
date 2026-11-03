@@ -98,7 +98,15 @@ function fokus(e: BriefingEingaben, tagWort: string): string {
       ? `Der Tag ist voll. Nur eins zählt: ${wichtig.text}${wichtig.um ? ` um ${wichtig.um}` : ""}. Alles andere darf warten.`
       : "Der Tag ist voll. Halte deine Mindeststandards, mehr nicht.";
   }
-  if (wichtig) return `${wichtig.text}${wichtig.um ? `, eingeplant um ${wichtig.um}` : ""}. Das zuerst, alles andere danach.`;
+  if (wichtig) {
+    // "Das zuerst" nur, wenn es wirklich zuerst dran ist. Liegt eine andere
+    // Aufgabe früher, hiess es vorher trotzdem "zuerst", und der Morgen
+    // widersprach sich: Denise um 08:45, darunter "Slide zuerst" um 11:00.
+    const frueher = wichtig.um ? e.aufgaben.some((a) => a !== wichtig && a.um && a.um < wichtig.um!) : false;
+    return frueher || !wichtig.um
+      ? `${wichtig.text}${wichtig.um ? ` um ${wichtig.um}` : ""}. Das ist heute das Wichtigste.`
+      : `${wichtig.text}, eingeplant um ${wichtig.um}. Das zuerst, alles andere danach.`;
+  }
   if (e.training && !e.training.gestrichen) return `Dein ${e.training.titel}${e.training.um ? ` um ${e.training.um}` : ""}. Das ist ${tagWort} der feste Punkt.`;
   const block = e.ablauf?.fokusblock;
   if (block) return `Dein längster freier Block ist ${uhrzeit(block.von)} bis ${uhrzeit(block.bis)}. Leg dort hinein, was dich wirklich weiterbringt.`;

@@ -13,7 +13,7 @@ class SpeicherAttrappe {
 globalThis.localStorage = new SpeicherAttrappe();
 
 const { store } = await import("./storage.js");
-const { kalenderTermin, kalenderAenderungen, kalenderWahlText } = await import("./kalender-schreiben.js");
+const { kalenderTermin, kalenderAenderungen, kalenderWahlText, eintragErlaubt } = await import("./kalender-schreiben.js");
 
 /** Morgen, Ortszeit, um hh:mm. */
 const morgen = (hhmm, plusTage = 1) => {
@@ -163,4 +163,14 @@ test("der gewählte Kalender geht beim Eintragen mit", async () => {
 test("die Auswahl nennt Art und Kalender", () => {
   assert.equal(kalenderWahlText({ art: "google", titel: "aaron@example.com", quelle: "Gmail" }), "Google, aaron@example.com");
   assert.equal(kalenderWahlText({ art: "icloud", titel: "Privat", quelle: "iCloud" }), "iCloud, Privat");
+});
+
+test("in den Kalender kommt keine Aufgabenliste und nichts Ungebetenes", () => {
+  // Der Fall aus dem Betrieb: ein Block mit der Reihenfolge des Tages.
+  assert.match(eintragErlaubt("Aufgaben: Denise zuerst, dann Slide und Reel"), /Liste von Aufgaben/);
+  assert.match(eintragErlaubt("Aufgaben: Denise zuerst, dann Slide und Reel", { erbeten: true }), /Liste von Aufgaben/);
+  assert.match(eintragErlaubt("Angebot schreiben"), /nur Trainings und dringende Aufgaben/);
+  assert.equal(eintragErlaubt("Training: Pull"), null);
+  assert.equal(eintragErlaubt("Zahnarzt", { erbeten: true }), null);
+  assert.equal(eintragErlaubt("Slide fertig machen", { aufgabe: true }), null);
 });

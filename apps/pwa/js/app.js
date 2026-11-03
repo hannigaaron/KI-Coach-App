@@ -33,7 +33,7 @@ import { healthDateiLesen, healthSchreiben, kurzbefehlSchreiben, schreibBericht 
 import {
   ablaufFuer, ask, aufgabeAnlegenEingestuft, aufgabeLoeschen, aufgabeUmstufen, aufgabeVerschieben, aufgabenPlan,
   balanceFuer, balanceRat, briefing,
-  buildActions, begruessung, dayNumbers, einkaufslisteText, ensureStandards, herausforderungSpeichern,
+  buildActions, begruessung, dayNumbers, einkaufslisteText, ensureStandards, kalenderNotizAufraeumen, herausforderungSpeichern,
   aktuelleLage, frischesGespraech, gegesseneArten, gespraechBegonnen, gespraecheMitInhalt, gespraechLoeschen, gespraechNachziehen,
   gespraechOeffnen, gespraecheSuchen,
   aufgabenPlanText, energieCheck, kopfSortieren, mittagscheck, mittagscheckText, musterUebersicht,
@@ -67,6 +67,7 @@ import { rezepteAnsicht } from "./rezepte-ui.js";
 import { symbol } from "./symbole.js";
 import { NATIV_PUSH, gesundheitHolen, postfachHolen, pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
 import { kodierungReparieren, newId, nowTime, store, todayIso } from "./storage.js";
+import { bestellteEinheit } from "./vorhaben.js";
 import { healthkitAbgleichen } from "./healthkit.js";
 import { abosAbgleichen, kaufenNativ, startAnlass } from "./kauf.js";
 import { anmeldeWege, anmeldenApple, anmeldenGoogleNativ, anmeldungSenden, anmeldungText } from "./anmeldung.js";
@@ -298,8 +299,7 @@ function renderTranscript() {
       }
       // Eine Einheit, die der Coach für heute gerechnet hat, startet direkt
       // aus dem Gespräch. Nur heute: gestern gerechnet ist heute Geschichte.
-      const ht = store.getSettings().heuteTraining;
-      const startbar = m.ausgeführt?.includes("Training für heute bereit") && ht?.tag === todayIso();
+      const startbar = m.ausgeführt?.includes("Training für heute bereit") && Boolean(bestellteEinheit(store.getSettings(), todayIso()));
       const knopf = startbar
         ? `<div class="msg-aktionen"><button type="button" class="primary" data-heute-starten>Training starten</button>` +
           `<button type="button" class="ghost" data-heute-neu>Neue Übungen</button></div>`
@@ -2767,6 +2767,7 @@ function startApp() {
   options = { ...options, ...(store.getSettings().voice || {}) };
   renderFeelings();
   ensureStandards();
+  kalenderNotizAufraeumen();
   setupAssistant();
   showView("assistant");
   refreshAll();
@@ -2992,7 +2993,7 @@ const plaene = plaeneStarten({
   },
   log: trainingslog,
   heute: todayIso,
-  heuteBestellt: () => store.getSettings().heuteTraining,
+  heuteBestellt: () => bestellteEinheit(store.getSettings(), todayIso()),
 });
 $("plOffen").hidden = !training.offen();
 // "Training starten" unter der Antwort des Coaches. Läuft die Einheit
@@ -3007,8 +3008,8 @@ $("transcript").addEventListener("click", (ev) => {
   // und derselbe Weg rechnet wie beim Tippen.
   if (ev.target.closest("[data-heute-neu]")) { send("Neue Übungen für heute"); return; }
   if (!ev.target.closest("[data-heute-starten]")) return;
-  const ht = store.getSettings().heuteTraining;
-  if (!ht?.einheit || ht.tag !== todayIso()) { toast("Diese Einheit war für einen anderen Tag. Sag mir, was du heute trainierst."); return; }
+  const ht = bestellteEinheit(store.getSettings(), todayIso());
+  if (!ht?.einheit) { toast("Diese Einheit war für einen anderen Tag. Sag mir, was du heute trainierst."); return; }
   if (trainingGestrichen(store, todayIso())) {
     toast("Heute ist dein Training gestrichen, der Tag gehört der Erholung. Geht es dir besser, sag es unter Check-ins.", 5000);
     return;

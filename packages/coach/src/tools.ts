@@ -435,7 +435,12 @@ export const AGENT_TOOLS: ToolDefinition[] = [
       "Kunde Müller auf Freitag 14 Uhr'), ist das sein Ja: bestaetigt true, zielTag und zielUhrzeit setzen, " +
       "nicht nachfragen. Liegt am Ziel ein Training, verlegt die App es selbst und sagt wohin. Nachfragen " +
       "nur, wenn du von dir aus einen fremden Termin bewegen willst. Ohne Uhrzeit beim Eintragen sucht die " +
-      "App den nächsten freien Platz. Für dauerhaft andere Trainingstage gibt es trainingsplan_aendern.",
+      "App den nächsten freien Platz. Für dauerhaft andere Trainingstage gibt es trainingsplan_aendern. " +
+      "Eintragen nur für: ein Training; einen Termin, um den der Nutzer in dieser Nachricht ausdrücklich bittet " +
+      "(erbeten true), auch einen wiederkehrenden; eine einzelne dringende Aufgabe aus Todoist, heute fällig oder " +
+      "überfällig und wichtig, mit aufgabeId, wenn sie in einen freien Platz passt. Nie eine Liste von Aufgaben, nie " +
+      "einen Tagesplan, nie alles, was du empfiehlst: das steht unter Dein Tag, nicht im Kalender. Ein allgemeiner " +
+      "Wunsch wie 'trag alles ein' ist keine Bitte um einen bestimmten Eintrag.",
     input_schema: {
       type: "object",
       properties: {
@@ -453,6 +458,14 @@ export const AGENT_TOOLS: ToolDefinition[] = [
         bestaetigt: {
           type: "boolean",
           description: "true, wenn der Nutzer diesen fremden Termin selbst verschieben lassen will oder ja gesagt hat.",
+        },
+        erbeten: {
+          type: "boolean",
+          description: "true nur, wenn der Nutzer genau diesen neuen Eintrag in seiner Nachricht verlangt hat.",
+        },
+        aufgabeId: {
+          type: "string",
+          description: "Kennung einer dringenden Aufgabe aus Todoist, die als eigener Termin in einen freien Platz soll. Titel und Dauer nimmt die App aus der Aufgabe.",
         },
       },
       required: ["aktion"],
@@ -791,9 +804,12 @@ export const AGENT_TOOLS: ToolDefinition[] = [
   {
     name: "training_heute",
     description:
-      "Rechnet eine Einheit für heute aus Partien und Minuten, mit Erfahrung, Ort, Beschwerden und Fokus aus dem " +
-      "Trainingsplan, speichert sie und zeigt im Chat einen Knopf zum Starten. Nehmen, sobald der Nutzer sagt, was " +
-      "er heute trainieren will, etwa \"heute Push, 60 Minuten\" oder \"stell mir ein Beintraining zusammen\". " +
+      "Rechnet eine Einheit für heute oder einen der nächsten Tage aus Partien und Minuten, mit Erfahrung, Ort, " +
+      "Beschwerden und Fokus aus dem Trainingsplan, speichert sie und zeigt im Chat einen Knopf zum Starten. Nehmen, " +
+      "sobald der Nutzer sagt, was er trainieren will, etwa \"heute Push, 60 Minuten\", \"morgen um 14 Uhr Pull\" " +
+      "oder \"stell mir ein Beintraining zusammen\". Nur die Partien, die er für diesen Tag nennt: erwähnt er, was " +
+      "er gestern trainiert hat, gehört das nicht in die Einheit. Nennt er einen anderen Tag, tag setzen, nennt er " +
+      "eine Uhrzeit, uhrzeit setzen: dann trägt die App das Training auch in den Kalender ein. " +
       "Übungen, Sätze und Wiederholungen nie selbst schreiben, sie kommen aus diesem Werkzeug. Push ist Brust, " +
       "Schultern, Trizeps, Pull ist Rücken und Bizeps, Arme sind Bizeps und Trizeps. Gab es dieselben Partien schon " +
       "einmal, nimmt das Werkzeug dieselben Übungen wie letztes Mal und empfiehlt das. neu nur, wenn der Nutzer " +
@@ -803,9 +819,11 @@ export const AGENT_TOOLS: ToolDefinition[] = [
       properties: {
         gruppen: {
           type: "array",
-          items: { type: "string", enum: ["beine", "po", "brust", "ruecken", "schultern", "bizeps", "trizeps", "rumpf"] },
-          description: "Die Partien der Einheit.",
+          items: { type: "string", enum: ["push", "pull", "beine", "po", "brust", "ruecken", "schultern", "bizeps", "trizeps", "rumpf"] },
+          description: "Die Partien der Einheit. push und pull wie gesagt übergeben, die App löst sie auf.",
         },
+        tag: { type: "string", description: "JJJJ-MM-TT, wenn die Einheit nicht für heute ist. Höchstens sieben Tage voraus." },
+        uhrzeit: { type: "string", description: "HH:MM, nur wenn der Nutzer eine Uhrzeit genannt hat." },
         minuten: { type: "number", description: "Dauer in Minuten, 20 bis 120. Ohne Angabe 60." },
         neu: { type: "boolean", description: "true, wenn der Nutzer andere Übungen als letztes Mal will. Ohne Partien gilt die Einheit von heute." },
       },

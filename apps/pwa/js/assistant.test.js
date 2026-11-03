@@ -35,7 +35,7 @@ class SpeicherAttrappe {
 globalThis.localStorage = new SpeicherAttrappe();
 
 const { store, todayIso } = await import("./storage.js");
-const { buildActions, heuteGetauscht, erinnerungenAufgeraeumt, dayNumbers, kalenderStandText, koerperText, plausibelHinweis, trifftPosten, nachtragZeit } = await import("./assistant.js");
+const { buildActions, heuteGetauscht, kalenderNotizAufraeumen, erinnerungenAufgeraeumt, dayNumbers, kalenderStandText, koerperText, plausibelHinweis, trifftPosten, nachtragZeit } = await import("./assistant.js");
 
 const PROFIL = {
   name: "Aaron", sex: "male", ageYears: 23, heightCm: 184, weightKg: 87,
@@ -751,6 +751,38 @@ test("Training für heute: dieselben Partien bringen dieselben Übungen samt Tau
   const neu = store.getSettings().heuteTraining.einheit.positionen.map((p) => p.id);
   assert.notDeepEqual(neu, wieder);
   store.setSettings(s0);
+});
+
+test("Pull für morgen um 14 Uhr überschreibt heute nicht und steht morgen bereit", async () => {
+  const heute = frischerTag();
+  const a = buildActions({});
+  await a.trainingHeute({ gruppen: ["push"], minuten: 60 });
+  const d = new Date(`${heute}T12:00:00`); d.setDate(d.getDate() + 1);
+  const morgen = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const text = await a.trainingHeute({ gruppen: ["pull"], tag: morgen, uhrzeit: "14:00" });
+  assert.match(text, /um 14:00 steht: Rücken, Bizeps/);
+  const s = store.getSettings();
+  assert.equal(s.heuteTraining.tag, heute);
+  assert.deepEqual(s.heuteTraining.gruppen, ["brust", "schultern", "trizeps"]);
+  const geplant = s.heuteVerlauf.find((v) => v.tag === morgen);
+  assert.equal(geplant.geplant, true);
+  assert.equal(geplant.uhrzeit, "14:00");
+  assert.deepEqual(geplant.gruppen, ["ruecken", "bizeps"]);
+  // Ein Tag in der Vergangenheit wird heute.
+  await a.trainingHeute({ gruppen: ["beine"], tag: "2000-01-01" });
+  assert.equal(store.getSettings().heuteTraining.tag, heute);
+});
+
+test("die falsch verstandene Kalendernotiz verschwindet einmal, andere bleiben", () => {
+  frischerTag();
+  store.setMemories([
+    { id: "1", text: "Alles, was daevo empfiehlt, kommt direkt in den Kalender.", kind: "fakt", tags: [], wichtigkeit: 3, erstellt: "2026-11-02" },
+    { id: "2", text: "Therapie freitags um 13 Uhr, nicht in den Kalender eintragen.", kind: "fakt", tags: [], wichtigkeit: 3, erstellt: "2026-11-02" },
+  ]);
+  assert.equal(kalenderNotizAufraeumen(), 1);
+  assert.deepEqual(store.getMemories().map((m) => m.id), ["2"]);
+  store.setMemories([{ id: "3", text: "Alles, was daevo empfiehlt, kommt direkt in den Kalender.", kind: "fakt", tags: [], wichtigkeit: 3, erstellt: "2026-11-02" }]);
+  assert.equal(kalenderNotizAufraeumen(), 0);
 });
 
 test("Abhaken lässt sich zurücknehmen, in Todoist und lokal", async () => {

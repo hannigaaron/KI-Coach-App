@@ -966,6 +966,19 @@ test("kurze Sätze für heute sind auch eine Bestellung, ein Essen nie", () => {
   assert.equal(trainingHeuteAus("heute war beintag, 60 min"), null);
 });
 
+test("Tag, Uhrzeit und nur die Partie, die für diesen Tag gesagt ist", () => {
+  // Montag, 2. November 2026, abends.
+  const mo = new Date(2026, 10, 2, 22, 29);
+  assert.deepEqual(trainingHeuteAus("ich will morgen um 14 uhr pull trainieren", mo), { gruppen: ["ruecken", "bizeps"], minuten: undefined, tag: "2026-11-03", uhrzeit: "14:00" });
+  // Was gestern war, gehört nicht in die Einheit. Vorher kam Push und Pull zusammen heraus.
+  assert.deepEqual(trainingHeuteAus("gestern hab ich push gemacht, morgen um 14 uhr will ich pull", mo)?.gruppen, ["ruecken", "bizeps"]);
+  assert.equal(trainingHeuteAus("heute um 14:30 trainiere ich beine", mo)?.uhrzeit, "14:30");
+  assert.equal(trainingHeuteAus("heute um 14:30 trainiere ich beine", mo)?.tag, undefined);
+  assert.equal(trainingHeuteAus("am mittwoch will ich push trainieren", mo)?.tag, "2026-11-04");
+  assert.equal(trainingHeuteAus("guten morgen, heute trainiere ich pull", mo)?.tag, undefined);
+  assert.equal(trainingHeuteAus("was soll ich morgen trainieren", mo), null);
+});
+
 test("Übungen werden in der Datenbank gesucht, ein Ersatz nach der Bewegung", async () => {
   const gefragt: Array<{ suche?: string; ersatzFuer?: string }> = [];
   const a: AgentActions = { ...stubActions([]), async uebungenSuchen(e) { gefragt.push(e); return "Liste."; } };
