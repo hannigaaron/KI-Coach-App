@@ -485,6 +485,19 @@ nebeneinander. Kennt jede Partie nur einen Platz, wie Bizeps und Trizeps,
 gibt es einen dritten Durchgang: 60 Minuten Arme waren vorher vier Übungen
 und nach gut 30 Minuten zu Ende, jetzt drei je Partie und rund 47 Minuten.
 
+Pull mit Schultern ist ein Zugtag, `zugTag` in `einzeltrainingBauen`:
+Rücken ohne Brust und Trizeps, dann heisst Schultern nur die hintere
+Schulter. Im Betrieb bestellte das Modell Pull mit Schultern und bekam
+Schulterdrücken und Seitheben an einem Zugtag. Ein Test prüft jede Dauer.
+
+Einzelne Übungen ändert der Coach selbst, `weglassen` und `tauschen` an
+`training_heute`, `einheitAendern` in `assistant.js`. Der Name wird in
+beide Richtungen abgeglichen, getauscht wird gegen dieselbe Bewegung nach
+Ort, Niveau und Beschwerden, und es gilt beim nächsten Mal mit denselben
+Partien, über `ersetzt` und `weg` im Verlauf. Vorher schrieb der Coach
+"Rückensatz weglassen und zwei Sätze Curls anhängen" und überliess es dem
+Nutzer. Die Persona sagt jetzt: was er selbst ändern kann, ändert er.
+
 Ohne Minuten 60. Die Persona verbietet, Übungen selbst aufzuschreiben.
 Erkannt wird nur mit einem Wort der Absicht und nie in der Vergangenheit:
 "war eben 60 min Oberkörper" ist ein Eintrag. Am gestrichenen Tag wird
@@ -649,7 +662,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1338 Tests
+npm test           # 1345 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -2015,6 +2028,29 @@ reicht deshalb nicht.
 Der Text läuft durch `foldUmlauts`, wie überall sonst im Regelpfad. `pattern`
 faltet seine Wörter, also muss die andere Seite mitgefaltet sein, sonst trifft
 "möchte" nie.
+
+## Wenn das Netz während einer Antwort abreisst
+
+Im Betrieb kam eine lange Beschwerde an daevo mit "Ich komme gerade nicht
+ins Netz" zurück, und der Regelweg machte daraus über die Länge der
+Nachricht ein Kopf leeren: eine Aufgabe "dass ich das machen muss" und die
+ganze Aufgabenliste darunter. Drei Riegel dagegen, in `agent.ts`:
+
+- Ein Netzfehler oder eine überlastete Schnittstelle bekommt nach 1,5
+  Sekunden einen zweiten Versuch, aber nur, solange kein Werkzeug gelaufen
+  und kein Wort in der Blase steht. Gezählt wird über einen Proxy um die
+  Aktionen und den Strom. Sonst stünde eine Mahlzeit zweimal im Tag.
+- Lief vor dem Abbruch schon ein Werkzeug, kommt kein Regelweg obendrauf,
+  nur die Meldung und der Satz, dass Erledigtes gespeichert ist.
+- `anDaevo` erkennt einen Satz an daevo selbst, Kritik oder Bitte: zwei
+  Anreden in zwölf Wörtern oder Wendungen wie "dafür bist du da". Daraus
+  legt der Regelweg nie etwas an. Nach einem Modellfehler macht die Länge
+  einer Nachricht kein Kopf leeren mehr.
+
+Fristen stehen als Wort, `fristWort` im Kern: "fällig heute", "seit
+gestern überfällig", "fällig 12. Nov.", nie "fällig 2026-11-03". Sternchen
+aus dem Modell werden im Chat Fettdruck, `fett` in `chat-format.js`, und
+die Sprachausgabe liest sie nicht.
 
 ## Was der Coach zurückfragt, wenn nichts aufging
 

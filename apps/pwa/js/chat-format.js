@@ -19,6 +19,10 @@
  */
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+// Das Modell schreibt Hervorhebungen manchmal als **so**. Roh dastehende
+// Sternchen sehen aus wie ein Fehler der App, also wird daraus Fettdruck,
+// und was übrig bleibt, fällt weg.
+const fett = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/\*\*/g, "");
 
 const LISTE = /^\s*(?:[-•–*]|\d{1,2}[.)])\s+(.*)$/;
 const TABELLE = /^\s*\|.*\|\s*$/;
@@ -37,8 +41,8 @@ function tabelleAusPipes(zeilen) {
   const reihen = zeilen.filter((z) => !TRENNER.test(z)).map(zellen);
   const [kopf, ...rest] = reihen;
   if (!kopf) return "";
-  return `<table class="ct"><thead><tr>${kopf.map((k) => `<th>${esc(k)}</th>`).join("")}</tr></thead>` +
-    `<tbody>${rest.map((r) => `<tr>${kopf.map((_, i) => `<td>${esc(r[i] ?? "")}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+  return `<table class="ct"><thead><tr>${kopf.map((k) => `<th>${fett(k)}</th>`).join("")}</tr></thead>` +
+    `<tbody>${rest.map((r) => `<tr>${kopf.map((_, i) => `<td>${fett(r[i] ?? "")}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
 }
 
 function listeHtml(punkte) {
@@ -48,7 +52,7 @@ function listeHtml(punkte) {
     const zeilen = punkte.map((roh, i) => {
       const p = paare[i];
       const u = uebungen[i];
-      if (!p || !u) return `<tr><td colspan="4">${esc(roh)}</td></tr>`;
+      if (!p || !u) return `<tr><td colspan="4">${fett(roh)}</td></tr>`;
       const zusatz = u[4] ? `<span class="ct-zusatz">${esc(u[4])}</span>` : "";
       return `<tr><td class="ct-name">${esc(p.name)}${zusatz}</td><td class="ct-zahl">${esc(u[1])}</td>` +
         `<td class="ct-zahl">${esc(u[2])}</td><td class="ct-zahl">${esc(u[3])}</td></tr>`;
@@ -60,11 +64,11 @@ function listeHtml(punkte) {
     return `<table class="ct ct-paare"><tbody>${punkte.map((roh, i) => {
       const p = paare[i];
       return p
-        ? `<tr><th scope="row">${esc(p.name)}</th><td>${esc(p.wert)}</td></tr>`
-        : `<tr><td colspan="2">${esc(roh)}</td></tr>`;
+        ? `<tr><th scope="row">${fett(p.name)}</th><td>${fett(p.wert)}</td></tr>`
+        : `<tr><td colspan="2">${fett(roh)}</td></tr>`;
     }).join("")}</tbody></table>`;
   }
-  return `<ul class="cl">${punkte.map((p) => `<li>${esc(p)}</li>`).join("")}</ul>`;
+  return `<ul class="cl">${punkte.map((p) => `<li>${fett(p)}</li>`).join("")}</ul>`;
 }
 
 /** Text einer Antwort als HTML, mit Aufzählungen als Tabelle. */
@@ -73,7 +77,7 @@ export function chatHtml(text) {
   const teile = [];
   let absatz = [];
   const absatzFertig = () => {
-    if (absatz.length) teile.push(`<p class="cp">${esc(absatz.join("\n"))}</p>`);
+    if (absatz.length) teile.push(`<p class="cp">${fett(absatz.join("\n"))}</p>`);
     absatz = [];
   };
   for (let i = 0; i < zeilen.length; ) {
@@ -105,6 +109,7 @@ export function chatHtml(text) {
 export function chatSprechbar(text) {
   return String(text ?? "").split("\n")
     .filter((z) => !TRENNER.test(z))
+    .map((z) => z.replace(/\*\*/g, ""))
     .map((z) => (TABELLE.test(z) ? z.trim().replace(/^\||\|$/g, "").split("|").map((c) => c.trim()).filter(Boolean).join(", ") + "." : z))
     .join("\n");
 }

@@ -530,7 +530,7 @@ async function dumpFertig(text) {
     const ergebnis = await kopfSortieren(roh);
     pending.node.remove();
     const antwort = ergebnis
-      ? `${ergebnis.text}\n\n${ergebnis.angelegt.length} Aufgaben stehen jetzt in deiner Liste.\n\n${aufgabenPlanText()}`
+      ? `${ergebnis.text}\n\n${ergebnis.angelegt.length === 1 ? "Eine Aufgabe steht" : `${ergebnis.angelegt.length} Aufgaben stehen`} jetzt in deiner Liste.\n\n${aufgabenPlanText()}`
       : "Dafür war zu wenig da.";
 
     const chat = store.getChat();
@@ -3918,7 +3918,7 @@ $("btnKopf").addEventListener("click", async () => {
     const ergebnis = await kopfSortieren(text);
     if (!ergebnis) { $("kopfErgebnis").textContent = "Dafür war zu wenig da."; return; }
     $("kopfErgebnis").textContent =
-      `${ergebnis.text}\n\n${ergebnis.angelegt.length} Aufgaben stehen jetzt in deiner Liste.`;
+      `${ergebnis.text}\n\n${ergebnis.angelegt.length === 1 ? "Eine Aufgabe steht" : `${ergebnis.angelegt.length} Aufgaben stehen`} jetzt in deiner Liste.`;
     $("kopfText").value = "";
     renderTag();
     refreshAll();

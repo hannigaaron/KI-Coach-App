@@ -1020,3 +1020,54 @@ test("Sätze zum Zyklus gehen an den Zyklus und nie an die Beschwerden oder das 
   assert.deepEqual(gefragt[1]?.symptome, ["kraempfe"]);
   assert.equal(zyklusAus("ich hab kraempfe in der wade"), null);
 });
+
+const BESCHWERDE = "Bro, bitte, wenn dir selber die Abweichungen auffallen, dann bitte tu auch die Abweichungen selbst umstellen. "
+  + "Also wenn du merkst, dass du was nicht richtig eingetragen hast, dann bitte tu es auch wieder richtig korrigieren. "
+  + "Weil Schulterdrücken hat nichts an einem Pull, in einem Ziehtag verloren. Das weißt du doch, wenn es dir auffällt, "
+  + "dann bitte tust es auch selber korrigieren. Das kann doch jetzt nicht sein, dass ich das machen muss. Dafür bist du da";
+
+test("Eine Beschwerde an daevo wird ohne Modell nicht zur Aufgabe", async () => {
+  const log: string[] = [];
+  const reply = await new Agent(new DeadProvider()).respond({ nachricht: BESCHWERDE, verlauf: LEER, kontext: KONTEXT, aktionen: stubActions(log) });
+  assert.deepEqual(log, [], "nichts angelegt, nichts eingetragen");
+  assert.ok(!/Aufgaben|Fang hiermit an/.test(reply.text));
+  const offline = await runOffline(BESCHWERDE, stubActions(log));
+  assert.equal(offline.unverstanden, true);
+  assert.deepEqual(log, []);
+});
+
+test("Ein Abbruch im Netz bekommt einen zweiten Versuch, solange noch nichts passiert ist", async () => {
+  let n = 0;
+  const provider: CoachProvider = {
+    name: "wackel", available: true,
+    async generateJson<T>(): Promise<T> { throw new Error("nicht benutzt"); },
+    async converse(): Promise<ConverseResponse> {
+      n++;
+      if (n === 1) throw new TypeError("Load failed");
+      return { content: text("Hier bin ich."), stopReason: "end_turn" };
+    },
+  };
+  const log: string[] = [];
+  const reply = await new Agent(provider).respond({ nachricht: "Wie geht es weiter?", verlauf: LEER, kontext: KONTEXT, aktionen: stubActions(log) });
+  assert.equal(reply.text, "Hier bin ich.");
+  assert.equal(n, 2);
+});
+
+test("Nach einem Werkzeug gibt es keinen zweiten Versuch und keinen Regelweg obendrauf", async () => {
+  let n = 0;
+  const provider: CoachProvider = {
+    name: "halb", available: true,
+    async generateJson<T>(): Promise<T> { throw new Error("nicht benutzt"); },
+    async converse(): Promise<ConverseResponse> {
+      n++;
+      if (n === 1) return { content: toolUse("wasser_eintragen", { ml: 500 }), stopReason: "tool_use" };
+      throw new TypeError("Load failed");
+    },
+  };
+  const log: string[] = [];
+  const reply = await new Agent(provider).respond({ nachricht: "Ich habe zwei Gläser Wasser getrunken", verlauf: LEER, kontext: KONTEXT, aktionen: stubActions(log) });
+  assert.equal(n, 2);
+  assert.deepEqual(log, ["wasser:500"], "das Wasser steht genau einmal da");
+  assert.match(reply.text, /Netz/);
+  assert.match(reply.text, /schon erledigt/);
+});

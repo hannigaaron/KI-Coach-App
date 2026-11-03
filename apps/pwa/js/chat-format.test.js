@@ -33,3 +33,10 @@ test("Text wird maskiert", () => {
   assert.match(chatHtml("<b>x</b>"), /&lt;b&gt;/);
   assert.match(chatHtml("- <i>: a\n- b: c"), /&lt;i&gt;/);
 });
+
+test("Sternchen um eine Hervorhebung werden Fettdruck und stehen nie roh da", () => {
+  const html = chatHtml("**Vor dem Start:** Iss etwas Schnelles.");
+  assert.match(html, /<strong>Vor dem Start:<\/strong>/);
+  assert.ok(!html.includes("**"));
+  assert.ok(!chatSprechbar("**Achtung** jetzt").includes("*"));
+});

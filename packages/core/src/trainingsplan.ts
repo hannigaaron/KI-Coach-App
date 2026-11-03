@@ -923,7 +923,13 @@ export function einzeltrainingBauen(w: EinzelWunsch, uebungen: PlanUebung[]): Pl
   // es ein Drücktag, dort fällt sie weg. Mit Rücken und ohne Schultern ist es
   // ein Zugtag, dort kommt sie dazu. Eine Regel von Coach Aaron.
   const drueckTag = gruppen.includes("brust") && !gruppen.includes("ruecken");
-  const listen = ohneRumpf.map((g) => FOKUS_PLAETZE[g].filter((p) => !(drueckTag && p === "hintere")));
+  // Umgekehrt ist es ein Zugtag, wenn Rücken dabei ist und weder Brust noch
+  // Trizeps. Dann heisst Schultern nur die hintere Schulter: im Betrieb kam
+  // "Pull mit Schultern" mit Schulterdrücken zurück, und ein Drücken hat an
+  // einem Zugtag nichts verloren.
+  const zugTag = gruppen.includes("ruecken") && !gruppen.includes("brust") && !gruppen.includes("trizeps");
+  const listen = ohneRumpf.map((g) => FOKUS_PLAETZE[g].filter((p) =>
+    !(drueckTag && p === "hintere") && !(zugTag && g === "schultern" && p !== "hintere")));
   if (gruppen.includes("ruecken") && !gruppen.includes("schultern") && !drueckTag) listen.push(["hintere"]);
   const plaetze: Platz[] = [];
   const extra: Platz[] = [];

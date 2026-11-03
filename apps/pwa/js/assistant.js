@@ -4,7 +4,7 @@ import {
   mahlzeitAusFoto, modellFuerBilder, naehrwerteImNetz, produktPerBarcode, produkteSuchen, summiere, vorratAusFoto,
   todoistAbhaken, todoistAufgaben, todoistIdVon, todoistWiederOeffnen, PERSONA_TEILE,
 } from "@daevo/coach";
-import { foldUmlauts, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, einzeltrainingBauen, FOKUS_NAME } from "@daevo/core";
+import { foldUmlauts, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, einzeltrainingBauen, FOKUS_NAME, alternativen, planNachrechnen } from "@daevo/core";
 import { UEBUNGEN } from "./uebungen-daten.js";
 import { GERAETE, uebungenFiltern } from "./uebungen.js";
 import {
@@ -1386,7 +1386,7 @@ export function wochenplanTextFuer(jetzt = Date.now()) {
 }
 
 export function aufgabenPlanText() {
-  return planText(aufgabenPlan());
+  return planText(aufgabenPlan(), todayIso());
 }
 
 /**
@@ -3353,7 +3353,7 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       if (!ergebnis) return "Dafür ist zu wenig da. Erzähl einfach alles, was dir durch den Kopf geht.";
       changed();
       const plan = aufgabenPlanText();
-      return `${ergebnis.text}\n\n${ergebnis.angelegt.length} Aufgaben stehen jetzt auf deiner Liste.\n\n${plan}`;
+      return `${ergebnis.text}\n\n${ergebnis.angelegt.length === 1 ? "Eine Aufgabe steht" : `${ergebnis.angelegt.length} Aufgaben stehen`} jetzt auf deiner Liste.\n\n${plan}`;
     },
 
     async aufgabenPriorisieren() {
@@ -3531,7 +3531,7 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       return essensplanTagText(tag) + (plan.hinweise.length ? `\n${plan.hinweise.join(" ")}` : "");
     },
 
-    async trainingHeute({ gruppen = [], minuten, neu = false, tag: wunschTag, uhrzeit } = {}) {
+    async trainingHeute({ gruppen = [], minuten, neu = false, tag: wunschTag, uhrzeit, weglassen = [], tauschen = [] } = {}) {
       const heuteIso = todayIso();
       // Ein Tag in der Vergangenheit ist keine Bestellung. Weiter als eine
       // Woche voraus auch nicht: bis dahin hat sich der Plan geändert.
@@ -3549,6 +3549,14 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       const SPLIT = { arme: ["bizeps", "trizeps"], push: ["brust", "schultern", "trizeps"], pull: ["ruecken", "bizeps"], beine: ["beine", "po"] };
       let partien = [...new Set(gruppen.map(String).flatMap((g) => SPLIT[g] ?? [g]))].filter((g) => FOKUS_NAME[g]);
       if (!partien.length && neu && jetzt) partien = jetzt.gruppen;
+      // Eine einzelne Übung ändern, ohne die Einheit neu zu rechnen. Sieht der
+      // Coach selbst, dass eine Übung nicht passt, oder sagt der Nutzer
+      // "ohne Schulterdrücken", ändert er sie hier, statt es nur zu sagen.
+      const namenWeg = (Array.isArray(weglassen) ? weglassen : []).map(String).filter(Boolean);
+      const namenTausch = (Array.isArray(tauschen) ? tauschen : []).map(String).filter(Boolean);
+      if ((namenWeg.length || namenTausch.length) && jetzt?.einheit && (!partien.length || [...partien].sort().join("+") === jetzt.schluessel)) {
+        return einheitAendern(jetzt, tag, namenWeg, namenTausch, changed);
+      }
       if (!partien.length) return `${NICHT_GESPEICHERT} Welche Partien willst du heute trainieren? Etwa Push, Pull, Beine oder Oberkörper.`;
       const schluessel = [...partien].sort().join("+");
       const verlauf = Array.isArray(s.heuteVerlauf) ? s.heuteVerlauf : [];
@@ -3594,14 +3602,15 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       if (!einheit && variante > 0) { variante = 0; einheit = bauen(0); }
       if (!einheit) return `${NICHT_GESPEICHERT} Für diese Partien findet die App mit deinen Beschwerden und deinem Ort keine passende Übung.`;
       const nachId = new Map(UEBUNGEN.map((u) => [u.id, u]));
+      const weg = wiederholt && Array.isArray(frueher.weg) ? frueher.weg : [];
       if (!damals) einheit = {
         ...einheit,
-        positionen: einheit.positionen.map((p) => {
+        positionen: einheit.positionen.filter((p) => !weg.includes(p.id)).map((p) => {
           const u = nachId.get(ersetzt[p.id]);
           return u ? { ...p, id: u.id, name: u.name } : p;
         }),
       };
-      const eintrag = { tag, schluessel, gruppen: partien, minuten: min, variante, ersetzt, einheit, erstellt: new Date().toISOString(),
+      const eintrag = { tag, schluessel, gruppen: partien, minuten: min, variante, ersetzt, ...(weg.length ? { weg } : {}), einheit, erstellt: new Date().toISOString(),
         ...(um ? { uhrzeit: um } : {}), ...(zukunft ? { geplant: true } : {}) };
       // Je Tag eine bestellte Einheit. Wer für morgen erst Push und dann Pull
       // sagt, meint Pull, und zwei Einheiten an einem Tag verwirren den Plan.
@@ -3854,6 +3863,75 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
 }
 
 /* ---------- Gespräch ---------- */
+
+/**
+ * Streicht oder tauscht einzelne Übungen in einer bestellten Einheit. Der
+ * Name wird gegen die Übungen der Einheit abgeglichen, in beide Richtungen,
+ * denn das Modell schreibt "Schulterdrücken" und die Einheit heisst
+ * "Schulterdrücken Langhantel". Getauscht wird gegen eine Übung derselben
+ * Bewegung, nach Ort, Niveau und Beschwerden. Was gestrichen oder getauscht
+ * ist, gilt auch beim nächsten Mal mit denselben Partien.
+ */
+function einheitAendern(eintrag, tag, weglassen, tauschen, changed = () => {}) {
+  const s = store.getSettings();
+  const w = s.plan?.wunsch || {};
+  const wunsch = {
+    niveau: ["beginner", "intermediate", "advanced"].includes(w.niveau) ? w.niveau : "intermediate",
+    ort: typeof w.ort === "string" ? w.ort : "studio",
+    beschwerden: Array.isArray(w.beschwerden) ? w.beschwerden : [],
+    meiden: Array.isArray(w.meiden) ? w.meiden : [],
+    ziel: typeof w.ziel === "string" ? w.ziel : "muskel",
+  };
+  const passt = (name, wunschName) => {
+    const a = foldUmlauts(String(name).toLowerCase());
+    const b = foldUmlauts(String(wunschName).toLowerCase()).trim();
+    return b.length >= 3 && (a.includes(b) || b.includes(a));
+  };
+  const ersetzt = { ...(eintrag.ersetzt || {}) };
+  const weg = [...(eintrag.weg || [])];
+  const gestrichen = [];
+  const getauscht = [];
+  const ohne = [];
+  let positionen = eintrag.einheit.positionen.filter((p) => {
+    if (!weglassen.some((n) => passt(p.name, n))) return true;
+    gestrichen.push(p.name);
+    // Die Kennung von damals zählt, nicht die des Ersatzes.
+    const ursprung = Object.keys(ersetzt).find((k) => ersetzt[k] === p.id) ?? p.id;
+    weg.push(ursprung);
+    return false;
+  });
+  positionen = positionen.map((p) => {
+    if (!tauschen.some((n) => passt(p.name, n))) return p;
+    const neu = alternativen({ wunsch, einheiten: [{ positionen }] }, 0, p.id, UEBUNGEN)[0];
+    if (!neu) { ohne.push(p.name); return p; }
+    getauscht.push(`${p.name} gegen ${neu.name}`);
+    const ursprung = Object.keys(ersetzt).find((k) => ersetzt[k] === p.id) ?? p.id;
+    ersetzt[ursprung] = neu.id;
+    return { ...p, id: neu.id, name: neu.name };
+  });
+  if (!gestrichen.length && !getauscht.length) {
+    const da = eintrag.einheit.positionen.map((p) => p.name).join(", ");
+    return `${NICHT_GESPEICHERT} ${ohne.length ? `Für ${ohne.join(", ")} gibt es keine passende andere Übung.` : `Diese Übung steht nicht in der Einheit. Drin sind: ${da}.`}`;
+  }
+  if (!positionen.length) return `${NICHT_GESPEICHERT} Dann bliebe keine Übung übrig. Sag mir lieber, welche Partien du trainieren willst.`;
+  const gerechnet = planNachrechnen({ wunsch, einheiten: [{ ...eintrag.einheit, positionen }] }, UEBUNGEN).einheiten[0];
+  const neu = { ...eintrag, ersetzt, weg: [...new Set(weg)], einheit: gerechnet, geaendert: new Date().toISOString() };
+  const verlauf = (Array.isArray(s.heuteVerlauf) ? s.heuteVerlauf : []).map((v) => (v.tag === eintrag.tag && v.schluessel === eintrag.schluessel ? neu : v));
+  const heute = s.heuteTraining?.tag === eintrag.tag && s.heuteTraining?.schluessel === eintrag.schluessel;
+  store.setSettings({ ...store.getSettings(), ...(heute ? { heuteTraining: neu } : {}), heuteVerlauf: verlauf });
+  changed();
+  const zeilen = [[
+    gestrichen.length ? `Gestrichen: ${gestrichen.join(", ")}.` : "",
+    getauscht.length ? `Getauscht: ${getauscht.join(", ")}.` : "",
+    ohne.length ? `Für ${ohne.join(", ")} gibt es keine passende andere Übung, sie bleibt.` : "",
+  ].filter(Boolean).join(" ") + ` Die Einheit dauert jetzt etwa ${gerechnet.dauerMin} Minuten.`];
+  const log = Array.isArray(s.trainingslog) ? s.trainingslog : [];
+  for (const p of gerechnet.positionen) {
+    const st = steigerung(letzteEinheit(log, p.id, tag), p.wdh, p.reserve);
+    zeilen.push(`- ${p.name}: ${p.saetze} x ${p.wdh}, ${p.reserve} in Reserve${st ? `. ${st.text}` : ""}`);
+  }
+  return zeilen.join("\n");
+}
 
 /**
  * Was die Apple Watch braucht, um selbst zu fragen, wenn das iPhone nicht

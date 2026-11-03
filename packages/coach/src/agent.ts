@@ -62,7 +62,7 @@ export interface AgentActions {
    * macht sie im Chat startbar. Die Übungen kommen aus dem Rechenkern, nie aus
    * dem Modell.
    */
-  trainingHeute?(input: { gruppen: string[]; minuten?: number; neu?: boolean; tag?: string; uhrzeit?: string }): Promise<string>;
+  trainingHeute?(input: { gruppen: string[]; minuten?: number; neu?: boolean; tag?: string; uhrzeit?: string; weglassen?: string[]; tauschen?: string[] }): Promise<string>;
   essensplanAbrufen?(input: { inTagen?: number }): Promise<string>;
   uebungenSuchen?(input: { suche?: string; ersatzFuer?: string }): Promise<string>;
   zyklus?(input: { aktion: string; tag?: string; symptome?: string[] }): Promise<string>;
@@ -209,11 +209,37 @@ export class Agent {
       if (sofort.ausgeführt.length) return sofort;
     }
     if (this.provider.available) {
+      // Ein abgerissenes Netz oder eine überlastete Schnittstelle ist oft nach
+      // einer Sekunde vorbei. Ein zweiter Versuch läuft aber nur, solange noch
+      // nichts passiert ist: kein Werkzeug gerufen, kein Wort in der Blase.
+      // Sonst stünde eine Mahlzeit zweimal im Tag oder die Antwort doppelt da.
+      let gerufen = 0;
+      let geschrieben = 0;
+      const aktionen = new Proxy(params.aktionen, {
+        get(ziel, name, empfaenger) {
+          const wert = Reflect.get(ziel, name, empfaenger);
+          return typeof wert === "function" ? (...args: unknown[]) => { gerufen++; return wert.apply(ziel, args); } : wert;
+        },
+      });
+      const strom = params.strom ? { neu: () => params.strom!.neu(), text: (t: string) => { geschrieben++; params.strom!.text(t); } } : undefined;
       try {
-        return await this.runModel(params);
+        try {
+          return await this.runModel({ ...params, aktionen, strom });
+        } catch (erster) {
+          const art = fehlerErklaerung(erster).art;
+          if ((art !== "netz" && art !== "ueberlastet") || gerufen || geschrieben) throw erster;
+          await new Promise((fertig) => setTimeout(fertig, 1500));
+          return await this.runModel({ ...params, aktionen, strom });
+        }
       } catch (error) {
         if (isDebug()) console.error("Agent Modellfehler", error);
-        const offline = await runOffline(params.nachricht, params.aktionen, Boolean(params.anhaenge?.length));
+        // Eine Nachricht, die etwas Neues sagen will, verlangt das Modell. Der
+        // Regelweg darf daraus nichts anlegen: im Betrieb wurde aus einer
+        // langen Beschwerde über ein falsches Training eine Aufgabe "dass ich
+        // das machen muss", samt einer Liste aller Aufgaben des Tages.
+        const offline = gerufen
+          ? { text: "", ausgeführt: [], source: "offline" as const, unverstanden: true }
+          : await runOffline(params.nachricht, params.aktionen, Boolean(params.anhaenge?.length), { nachModellfehler: true });
         // Die Meldung von Anthropic trägt den Grund. Sie wegzuwerfen und durch
         // "nicht erreichbar" zu ersetzen, kostet den Nutzer jede Chance, den
         // Fehler selbst zu beheben.
@@ -227,7 +253,8 @@ export class Agent {
         // brauchst du Plus" liest, hat eine App, die nicht hält, was sie
         // verspricht. Nur die allgemeine Hilfe bleibt weg, die wirkt neben
         // der Meldung, als hätte die App nicht zugehört.
-        if (offline.unverstanden) return { ...offline, fehlerArt: deutung.art, text: hinweis };
+        const schonGetan = gerufen ? " Was ich vor dem Abbruch schon erledigt habe, ist gespeichert." : "";
+        if (offline.unverstanden) return { ...offline, fehlerArt: deutung.art, text: `${hinweis}${schonGetan}` };
         // Steht die Meldung schon im Text, etwa weil das Auslesen der
         // Mahlzeit am selben Kontingent scheiterte, kommt sie nicht zweimal.
         const text = offline.text.includes(deutung.text) ? offline.text : `${offline.text}\n\n${hinweis}`;
@@ -885,7 +912,14 @@ async function execute(
         if (!actions.trainingHeute) return { text: "Das gibt es in dieser Fassung nicht.", fehler: true };
         const tag = typeof input.tag === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.tag) ? input.tag : undefined;
         const uhrzeit = typeof input.uhrzeit === "string" && /^\d{1,2}:\d{2}$/.test(input.uhrzeit) ? input.uhrzeit : undefined;
-        const text = await actions.trainingHeute({ gruppen, minuten, neu: input.neu === true, tag, uhrzeit });
+        const namen = (v: unknown) => (Array.isArray(v) ? v.map(String).filter(Boolean).slice(0, 8) : []);
+        const weglassen = namen(input.weglassen);
+        const tauschen = namen(input.tauschen);
+        const text = await actions.trainingHeute({ gruppen, minuten, neu: input.neu === true, tag, uhrzeit, weglassen, tauschen });
+        if (weglassen.length || tauschen.length) {
+          const geaendert = !text.startsWith(NICHT_GESPEICHERT);
+          return geaendert ? { text, notiz: "Training angepasst" } : { text, fehler: true };
+        }
         const ok = !text.startsWith(NICHT_GESPEICHERT);
         return ok ? { text, notiz: "Training für heute bereit" } : { text, fehler: true };
       }
@@ -1374,10 +1408,27 @@ export function lebensmittelAus(text: string, roh: string): { name: string; kcal
   return { name, kcal, proteinG, fatG, carbsG, portionG };
 }
 
+/**
+ * Ob ein Satz sich an daevo richtet statt etwas einzutragen. Zwei Anreden
+ * wie du, dir oder dich, oder eine Wendung, die nur an die App geht. Der
+ * Text ist schon gefaltet und klein.
+ */
+export function anDaevo(text: string): boolean {
+  const anreden = (text.match(/\b(du|dir|dich|dein\w*)\b/g) ?? []).length;
+  const woerter = text.split(/\s+/).filter(Boolean).length;
+  if (pattern("dafur bist du da", "dafuer bist du da", "du sollst", "du musst", "verstehst du nicht",
+    "kannst du nicht", "das nervt").test(text) || /\bbro\b/.test(text)) return true;
+  // Kurze Bitten wie "kannst du dir merken, dass ..." gehen weiter an die
+  // Zweige darunter. Erst ein längerer Satz mit mehreren Anreden ist ein
+  // Gespräch über daevo.
+  return woerter >= 12 && anreden >= 2;
+}
+
 export async function runOffline(
   nachricht: string,
   actions: AgentActions,
   mitAnhang = false,
+  { nachModellfehler = false }: { nachModellfehler?: boolean } = {},
 ): Promise<AgentReply> {
   const text = foldUmlauts(nachricht.toLowerCase());
   const ausgeführt: string[] = [];
@@ -1433,6 +1484,22 @@ export async function runOffline(
     const antwort = await actions.eintragZuruecknehmen(ruecknahme);
     const erledigt = !/^(Dazu finde ich|Für heute steht|Es gibt)/.test(antwort);
     return { text: antwort, ausgeführt: erledigt ? ["Eintrag zurückgenommen"] : [], source: "offline" };
+  }
+
+  // Ein Satz an daevo selbst, Kritik, eine Bitte, eine Rückfrage zu einer
+  // Antwort, ist kein Eintrag. Ohne Modell versteht ihn niemand, und aus
+  // seinen Wörtern eine Aufgabe oder Mahlzeit zu bauen ist schlimmer als zu
+  // sagen, dass es gerade nicht geht. Im Betrieb wurde aus "wenn dir die
+  // Abweichungen auffallen, korrigier sie selbst" eine Aufgabe.
+  if (anDaevo(text)) {
+    return {
+      text: nachModellfehler
+        ? "Das muss ich verstehen, und dafür brauche ich die KI. Ich habe nichts eingetragen."
+        : "Das kann ich ohne KI nicht verstehen, und ich trage deshalb nichts ein.",
+      ausgeführt,
+      source: "offline",
+      unverstanden: true,
+    };
   }
 
   if (pattern("merk dir", "merke dir", "denk dran", "nicht vergessen", "behalte").test(text)) {
@@ -1811,8 +1878,8 @@ export async function runOffline(
   if (pattern("kopf schwirrt", "geht mir durch den kopf", "alles zu viel", "weiss nicht wo ich anfangen",
     "weiß nicht wo ich anfangen", "kopf frei", "chaos im kopf", "so viel gleichzeitig",
     "muss mal alles raus", "kopf leeren", "gedanken sortieren").test(text)
-    || nachricht.split(/\s+/).filter(Boolean).length > 60
-    || (nachricht.split(/\s+/).filter(Boolean).length > 30 && (nachricht.match(/,/g) ?? []).length >= 4)) {
+    || (!nachModellfehler && nachricht.split(/\s+/).filter(Boolean).length > 60)
+    || (!nachModellfehler && nachricht.split(/\s+/).filter(Boolean).length > 30 && (nachricht.match(/,/g) ?? []).length >= 4)) {
     return { text: await actions.kopfLeeren({ text: nachricht }), ausgeführt: ["Kopf geleert"], source: "offline" };
   }
 

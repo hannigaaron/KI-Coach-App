@@ -866,3 +866,30 @@ test("der Zyklus wird im Gespräch eingetragen und mit Empfehlung zurückgegeben
   assert.deepEqual(store.getSettings().zyklus.symptome[heute], ["kraempfe"]);
   assert.match(await aktionen.zyklus({ aktion: "symptome", symptome: ["unsinn"] }), /^Noch nicht gespeichert\./);
 });
+
+test("Der Coach streicht und tauscht einzelne Übungen selbst, und es gilt beim nächsten Mal", async () => {
+  frischerTag();
+  const a = buildActions({});
+  const s0 = store.getSettings();
+  store.setSettings({ ...s0, heuteTraining: undefined, heuteVerlauf: [] });
+  await a.trainingHeute({ gruppen: ["pull"], minuten: 60 });
+  const vorher = store.getSettings().heuteTraining.einheit.positionen;
+  const erste = vorher[0];
+  const letzte = vorher[vorher.length - 1];
+  const text = await a.trainingHeute({ weglassen: [letzte.name], tauschen: [erste.name.split(" ")[0] + " " + (erste.name.split(" ")[1] ?? "")] });
+  assert.match(text, /Gestrichen: /);
+  assert.match(text, /Getauscht: /);
+  const nachher = store.getSettings().heuteTraining.einheit.positionen;
+  assert.equal(nachher.length, vorher.length - 1);
+  assert.ok(!nachher.some((p) => p.id === letzte.id));
+  assert.notEqual(nachher[0].id, erste.id);
+  // Eine Übung, die es in der Einheit nicht gibt, meldet das, statt still nichts zu tun.
+  assert.match(await a.trainingHeute({ weglassen: ["Bankdrücken"] }), /^NICHT_GESPEICHERT|steht nicht in der Einheit/);
+  // Am nächsten Mal mit denselben Partien bleibt es so.
+  const s = store.getSettings();
+  store.setSettings({ ...s, heuteTraining: undefined, heuteVerlauf: s.heuteVerlauf.map((v) => ({ ...v, tag: "2000-01-01" })) });
+  await a.trainingHeute({ gruppen: ["pull"], minuten: 60 });
+  const wieder = store.getSettings().heuteTraining.einheit.positionen.map((p) => p.id);
+  assert.deepEqual(wieder, nachher.map((p) => p.id));
+  store.setSettings(s0);
+});

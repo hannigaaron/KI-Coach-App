@@ -813,7 +813,9 @@ export const AGENT_TOOLS: ToolDefinition[] = [
       "Übungen, Sätze und Wiederholungen nie selbst schreiben, sie kommen aus diesem Werkzeug. Push ist Brust, " +
       "Schultern, Trizeps, Pull ist Rücken und Bizeps, Arme sind Bizeps und Trizeps. Gab es dieselben Partien schon " +
       "einmal, nimmt das Werkzeug dieselben Übungen wie letztes Mal und empfiehlt das. neu nur, wenn der Nutzer " +
-      "ausdrücklich neue Übungen will.",
+      "ausdrücklich neue Übungen will. Eine einzelne Übung ändern: weglassen oder tauschen mit ihrem Namen, ohne " +
+      "gruppen. Das gilt auch, wenn du selbst siehst, dass eine Übung nicht passt, etwa ein Drücken an einem " +
+      "Zugtag: dann änderst du sie mit diesem Werkzeug, statt dem Nutzer zu sagen, er soll sie weglassen.",
     input_schema: {
       type: "object",
       properties: {
@@ -826,6 +828,8 @@ export const AGENT_TOOLS: ToolDefinition[] = [
         uhrzeit: { type: "string", description: "HH:MM, nur wenn der Nutzer eine Uhrzeit genannt hat." },
         minuten: { type: "number", description: "Dauer in Minuten, 20 bis 120. Ohne Angabe 60." },
         neu: { type: "boolean", description: "true, wenn der Nutzer andere Übungen als letztes Mal will. Ohne Partien gilt die Einheit von heute." },
+        weglassen: { type: "array", items: { type: "string" }, description: "Namen von Übungen, die aus der Einheit für diesen Tag fallen." },
+        tauschen: { type: "array", items: { type: "string" }, description: "Namen von Übungen, die gegen eine andere derselben Bewegung getauscht werden." },
       },
       required: [],
     },

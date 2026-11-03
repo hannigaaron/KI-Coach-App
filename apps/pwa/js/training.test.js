@@ -275,3 +275,13 @@ test("60 Minuten Arme füllen die Zeit mit drei Bizeps und drei Trizepsübungen"
   assert.equal(new Set(e.positionen.map((p) => p.id)).size, e.positionen.length, "keine Übung doppelt");
   assert.ok(e.dauerMin >= 45, `nur ${e.dauerMin} Minuten`);
 });
+
+test("Pull mit Schultern ist ein Zugtag: kein Drücken, nur die hintere Schulter", () => {
+  for (const minuten of [45, 60, 75]) {
+    for (const gruppen of [["ruecken", "bizeps", "schultern"], ["ruecken", "bizeps", "schultern", "rumpf"], ["ruecken", "schultern"]]) {
+      const e = einzeltrainingBauen({ minuten, gruppen, niveau: "intermediate", ziel: "muskel" }, UEBUNGEN);
+      const muster = e.positionen.map((p) => nachId.get(p.id).pattern);
+      assert.ok(!muster.some((m) => m.endsWith("_push")), `${minuten}/${gruppen}: ${e.positionen.map((p) => p.id)}`);
+    }
+  }
+});
