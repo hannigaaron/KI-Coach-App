@@ -568,7 +568,23 @@ dazu" und "Satz weg" waren grösser als die Sätze selbst.
 
 Die drei Punkte neben dem Namen bieten drei Übungen für dieselbe Bewegung
 an, nach Ort, Niveau und Beschwerden, die erste als Vorschlag von daevo.
-Der Tausch gilt ab dann auch im Plan. Wer einen Plan startet, der noch
+Der Tausch gilt ab dann auch im Plan. Darunter "Andere Übung suchen": dieselbe Suche wie
+beim Hinzufügen über die ganze Datenbank, nach Ort und Beschwerden
+gefiltert, und ein Tipp ersetzt die aktive Übung. Vorher gab es nur die
+drei Vorschläge, und wer im Studio etwas anderes machen wollte, kam nicht
+weiter. Eine Übung aus einer anderen Bewegung bekommt Wiederholungen,
+Reserve und Pause aus `positionFuer`, die Zahl der Sätze bleibt,
+`entwurfTauschen`.
+
+Ein langer Druck auf einen Daumen oben, 420 Millisekunden, hebt ihn an,
+danach lässt er sich seitlich an eine andere Stelle ziehen,
+`uebungVerschieben` und `positionVerschieben` in `plaene.js`. Die aktive
+Übung bleibt aktiv, und im Training aus dem Plan wandert die Übung dort mit,
+sonst passte beim Tauschen die Stelle im Plan nicht mehr. Bewegt sich der
+Finger vor Ablauf der Zeit, ist es Scrollen. Während des Ziehens hält ein
+`touchmove` mit `passive: false` die Seite still, und `-webkit-touch-callout`
+verhindert das Bildmenü von iOS. Der Klick nach dem Loslassen öffnet die
+Übung nicht. Wer einen Plan startet, der noch
 nicht gespeichert ist, speichert ihn damit: ohne gespeicherten Plan gibt es
 nichts, woran nach acht Wochen gemessen wird.
 
@@ -665,7 +681,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1345 Tests
+npm test           # 1347 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages

@@ -22,7 +22,7 @@ import { UEBUNGEN } from "./uebungen-daten.js";
 import { spueren } from "./haptik.js";
 import { pauseMitteilung, pauseMitteilungAus } from "./nativ.js";
 import { fotoPfad, GERAETE, uebungenFiltern, vorschauPfad } from "./uebungen.js";
-import { STANDARD_WUNSCH, tauschListe, uebungTauschen } from "./plaene.js";
+import { STANDARD_WUNSCH, positionVerschieben, tauschListe, uebungTauschen } from "./plaene.js";
 
 const nachId = new Map(UEBUNGEN.map((u) => [u.id, u]));
 const esc = (text) => String(text ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
@@ -189,17 +189,51 @@ function mitUebung(entwurf, ui, aendern) {
  * an, denn 80 kg Bankdrücken sagen über Kurzhanteln nichts.
  */
 export function entwurfTauschen(entwurf, plan, ui, neueId, log) {
+  const u = nachId.get(neueId);
+  const alt = entwurf.uebungen[ui];
+  if (!u || !alt) return { entwurf, plan };
+  // Ersetzt werden darf durch jede Übung, nicht nur durch dieselbe Bewegung.
+  // Ist es eine andere, kommen Wiederholungen, Reserve und Pause aus der
+  // Regel für diese Übung: ein Curl in den Wiederholungen einer Kniebeuge
+  // wäre falsch dosiert. Die Zahl der Sätze bleibt, die hat der Plan gesetzt.
+  const vorher = nachId.get(alt.id);
+  const anders = !vorher || vorher.pattern !== u.pattern;
+  const dosis = anders ? positionFuer(u, plan?.wunsch ?? STANDARD_WUNSCH) : null;
+  const ziel = dosis
+    ? { saetze: alt.ziel.saetze, wdh: dosis.wdh, pauseSek: dosis.pauseSek, reserve: dosis.reserve }
+    : { saetze: alt.ziel.saetze, wdh: alt.ziel.wdh, pauseSek: alt.ziel.pauseSek, reserve: alt.ziel.reserve };
   if (entwurf.frei) {
-    const u = nachId.get(neueId);
-    const alt = entwurf.uebungen[ui];
-    if (!u || !alt) return { entwurf, plan };
-    const p = { id: u.id, name: u.name, saetze: alt.ziel.saetze, wdh: alt.ziel.wdh, pauseSek: alt.ziel.pauseSek, reserve: alt.ziel.reserve };
+    const p = { id: u.id, name: u.name, ...ziel };
     return { plan, entwurf: mitUebung(entwurf, ui, () => uebungImEntwurf(p, log, entwurf.datum)) };
   }
-  const neuerPlan = uebungTauschen(plan, entwurf.ei, ui, neueId);
+  let neuerPlan = uebungTauschen(plan, entwurf.ei, ui, neueId);
+  if (dosis) {
+    neuerPlan = { ...neuerPlan, einheiten: neuerPlan.einheiten.map((e, i) => (i !== entwurf.ei ? e : {
+      ...e, positionen: e.positionen.map((q, j) => (j === ui ? { ...q, wdh: ziel.wdh, pauseSek: ziel.pauseSek, reserve: ziel.reserve } : q)),
+    })) };
+  }
   const p = neuerPlan.einheiten[entwurf.ei]?.positionen[ui];
   if (!p || p.id !== neueId) return { entwurf, plan };
   return { plan: neuerPlan, entwurf: mitUebung(entwurf, ui, () => uebungImEntwurf(p, log, entwurf.datum)) };
+}
+
+/**
+ * Verschiebt eine Übung im laufenden Training. Die aktive Übung bleibt aktiv,
+ * auch wenn sie dabei die Stelle wechselt: wer die dritte Übung nach vorn
+ * zieht, weil das Gerät frei ist, steht danach nicht plötzlich woanders. Im
+ * Training aus dem Plan wandert die Übung dort mit, sonst passte die Stelle
+ * im Plan beim Tauschen nicht mehr zur Stelle im Training.
+ */
+export function uebungVerschieben(entwurf, plan, von, nach) {
+  const n = entwurf.uebungen.length;
+  if (von === nach || von < 0 || nach < 0 || von >= n || nach >= n) return { entwurf, plan };
+  const liste = [...entwurf.uebungen];
+  const aktiv = liste[entwurf.aktiv];
+  const [u] = liste.splice(von, 1);
+  liste.splice(nach, 0, u);
+  const neu = { ...entwurf, uebungen: liste, aktiv: Math.max(0, liste.indexOf(aktiv)) };
+  const neuerPlan = !entwurf.frei && plan && entwurf.ei >= 0 ? positionVerschieben(plan, entwurf.ei, von, nach) : plan;
+  return { entwurf: neu, plan: neuerPlan };
 }
 
 /**
@@ -215,18 +249,25 @@ export function ersatzVorschlaege(plan, ei, id, entwurf = null) {
   return tauschListe(plan, ei, id).slice(0, 3);
 }
 
-/** Die Auswahl zum Hinzufügen: ein Suchfeld und die Liste darunter. */
-export function auswahlHtml(liste, text = "") {
+/**
+ * Die Auswahl zum Hinzufügen oder Ersetzen: ein Suchfeld und die Liste
+ * darunter. Beim Ersetzen steht die ganze Datenbank zur Wahl, nach Ort und
+ * Beschwerden gefiltert, nicht nur die drei Vorschläge.
+ */
+export function auswahlHtml(liste, text = "", modus = "dazu", fuer = "") {
+  const kopf = modus === "ersatz" ? `${esc(fuer)} ersetzen durch` : "Übung hinzufügen";
   return `<div class="tr-auswahl">
-      <p class="tr-menue-titel">Übung hinzufügen</p>
+      <p class="tr-menue-titel">${kopf}</p>
       <input type="search" class="tr-suche" data-tr-suche placeholder="Übung, Muskel oder Gerät" value="${esc(text)}" autocomplete="off" autocapitalize="none" spellcheck="false">
-      <div class="tr-auswahl-liste">${auswahlListeHtml(liste)}</div>
+      <div class="tr-auswahl-liste">${auswahlListeHtml(liste, modus)}</div>
+      ${modus === "ersatz" ? '<button type="button" class="tr-ersatz tr-abbruch" data-tr-ersatzzu><b>Abbrechen</b></button>' : ""}
     </div>`;
 }
 
-export function auswahlListeHtml(liste) {
+export function auswahlListeHtml(liste, modus = "dazu") {
   if (!liste.length) return '<p class="tr-leer">Keine passende Übung gefunden.</p>';
-  return liste.map((u) => `<button type="button" class="tr-wahl" data-tr-dazu="${esc(u.id)}">`
+  const attr = modus === "ersatz" ? "data-tr-ersatz" : "data-tr-dazu";
+  return liste.map((u) => `<button type="button" class="tr-wahl" ${attr}="${esc(u.id)}">`
     + `<img src="${esc(vorschauPfad(u))}" alt="" loading="lazy" decoding="async" width="40" height="50">`
     + `<span><b>${esc(u.name)}</b><small>${esc(GERAETE[u.equipment] ?? u.equipment)}${u.zuletzt ? " · zuletzt gemacht" : ""}</small></span></button>`).join("");
 }
@@ -263,7 +304,7 @@ const datumKurz = (iso) => {
 
 /* ---------- Darstellung ---------- */
 
-export function trainingHtml(entwurf, log, { menue = false, vorschlaege = [], pause = null, waehlen = false, auswahl = [], suche = "" } = {}) {
+export function trainingHtml(entwurf, log, { menue = false, vorschlaege = [], pause = null, waehlen = false, auswahl = [], suche = "", ersetzen = false } = {}) {
   const u = entwurf.uebungen[entwurf.aktiv];
   if (!u) {
     return `<p class="tr-erstes">Freies Training ohne Plan. Nimm die Übungen dazu, die du heute machst. Jeder Satz wird gespeichert und zählt für deinen Fortschritt.</p>${auswahlHtml(auswahl, suche)}`;
@@ -272,8 +313,8 @@ export function trainingHtml(entwurf, log, { menue = false, vorschlaege = [], pa
   const leiste = entwurf.uebungen.map((x, i) => {
     const bild = nachId.get(x.id);
     const fertig = x.saetze.length && x.saetze.every((s) => s.fertig);
-    return `<button type="button" class="tr-daumen${i === entwurf.aktiv ? " an" : ""}${fertig ? " fertig" : ""}" data-tr-gehe="${i}" aria-label="${esc(x.name)}">`
-      + (bild ? `<img src="${esc(vorschauPfad(bild))}" alt="" loading="lazy" decoding="async">` : `<span>${esc(x.name.slice(0, 1))}</span>`)
+    return `<button type="button" class="tr-daumen${i === entwurf.aktiv ? " an" : ""}${fertig ? " fertig" : ""}" data-tr-gehe="${i}" aria-label="${esc(x.name)}, lange drücken zum Verschieben">`
+      + (bild ? `<img src="${esc(vorschauPfad(bild))}" alt="" loading="lazy" decoding="async" draggable="false">` : `<span>${esc(x.name.slice(0, 1))}</span>`)
       + "</button>";
   }).join("") + `<button type="button" class="tr-daumen tr-plus${waehlen ? " an" : ""}" data-tr-waehlen aria-label="Übung hinzufügen"><span>+</span></button>`;
   const geraet = info ? GERAETE[info.equipment] ?? info.equipment : "";
@@ -298,16 +339,17 @@ export function trainingHtml(entwurf, log, { menue = false, vorschlaege = [], pa
     : `<p class="tr-erstes">Das erste Mal mit dieser Übung. Ab dem nächsten Mal steht hier, was du gemacht hast.</p>`;
   const menueHtml = menue
     ? `<div class="tr-menue" role="menu">
-        <p class="tr-menue-titel">Ersetzen durch, für dieselbe Bewegung</p>
+        <p class="tr-menue-titel">Ersetzen durch</p>
         ${vorschlaege.length
           ? vorschlaege.map((v, i) => `<button type="button" role="menuitem" class="tr-ersatz" data-tr-ersatz="${esc(v.id)}"><b>${esc(v.name)}</b><span>${esc(GERAETE[v.equipment] ?? v.equipment)}${i === 0 ? " · Vorschlag von daevo" : ""}</span></button>`).join("")
           : "<p class=\"tr-leer\">Für diese Bewegung gibt es keine andere Übung, die zu Ort, Niveau und Beschwerden passt.</p>"}
+        <button type="button" role="menuitem" class="tr-ersatz tr-ersatz-suche" data-tr-ersatzsuche><b>Andere Übung suchen</b><span>Alle Übungen, nach Name, Muskel oder Gerät</span></button>
         <p class="tr-menue-hinweis">${entwurf.frei ? "Der Tausch gilt für dieses Training." : "Der Tausch gilt ab jetzt auch im Plan."}</p>
         ${entwurf.frei ? `<button type="button" role="menuitem" class="tr-ersatz" data-tr-raus><b>Aus diesem Training entfernen</b></button>` : ""}
         <button type="button" role="menuitem" class="tr-ersatz" data-tr-anleitung="${esc(u.id)}"><b>Anleitung ansehen</b></button>
       </div>`
     : "";
-  if (waehlen) return `<div class="tr-leiste">${leiste}</div>${auswahlHtml(auswahl, suche)}`;
+  if (waehlen) return `<div class="tr-leiste">${leiste}</div>${auswahlHtml(auswahl, suche, ersetzen ? "ersatz" : "dazu", u.name)}`;
   // Wo man in der Einheit steht, als Zahl und als Balken. Die Daumen allein
   // sagen das nicht, sobald die Leiste breiter als der Bildschirm ist.
   const n = entwurf.uebungen.length;
@@ -379,6 +421,8 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
   // Ob die Auswahl zum Hinzufügen offen ist, und was im Suchfeld steht.
   let waehlen = false;
   let suche = "";
+  // Ob die Auswahl die aktive Übung ersetzt statt eine dazu zu nehmen.
+  let ersetzen = false;
   const wunsch = () => planSpeicher.lesen()?.wunsch ?? STANDARD_WUNSCH;
   const auswahl = () => (entwurf ? auswahlListe(suche, entwurf, logSpeicher.lesen(), wunsch()) : []);
 
@@ -390,7 +434,7 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
     const u = entwurf.uebungen[entwurf.aktiv];
     const offenWahl = waehlen || !u;
     inhalt.innerHTML = trainingHtml(entwurf, logSpeicher.lesen(), {
-      menue, pause, waehlen: offenWahl, suche, auswahl: offenWahl ? auswahl() : [],
+      menue, pause, waehlen: offenWahl, suche, ersetzen: ersetzen && Boolean(u), auswahl: offenWahl ? auswahl() : [],
       vorschlaege: menue && u && (plan || entwurf.frei) ? ersatzVorschlaege(plan, entwurf.ei, u.id, entwurf) : [],
     });
     fuss.innerHTML = fussHtml(entwurf, pause, offenWahl);
@@ -450,7 +494,7 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
     if (event.target.matches("[data-tr-suche]")) {
       suche = event.target.value;
       const liste = inhalt.querySelector(".tr-auswahl-liste");
-      if (liste) liste.innerHTML = auswahlListeHtml(auswahl());
+      if (liste) liste.innerHTML = auswahlListeHtml(auswahl(), ersetzen ? "ersatz" : "dazu");
       return;
     }
     const feld = event.target.closest("[data-tr-feld]");
@@ -472,10 +516,15 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
   });
   const klick = (event) => {
     if (!entwurf) return;
+    // Nach dem Ziehen kommt noch ein Klick auf den Daumen. Der würde die
+    // gerade verschobene Übung öffnen, obwohl niemand darauf getippt hat.
+    if (nachZiehen) { nachZiehen = false; return; }
     const z = (sel) => event.target.closest(sel);
     let k;
-    if ((k = z("[data-tr-gehe]"))) { entwurf = { ...entwurf, aktiv: Number(k.dataset.trGehe) }; menue = false; waehlen = false; }
-    else if (z("[data-tr-waehlen]")) { waehlen = !waehlen; menue = false; suche = ""; }
+    if ((k = z("[data-tr-gehe]"))) { entwurf = { ...entwurf, aktiv: Number(k.dataset.trGehe) }; menue = false; waehlen = false; ersetzen = false; }
+    else if (z("[data-tr-waehlen]")) { waehlen = !waehlen || ersetzen; ersetzen = false; menue = false; suche = ""; }
+    else if (z("[data-tr-ersatzsuche]")) { waehlen = true; ersetzen = true; menue = false; suche = ""; inhalt.scrollTop = 0; }
+    else if (z("[data-tr-ersatzzu]")) { waehlen = false; ersetzen = false; suche = ""; }
     else if ((k = z("[data-tr-dazu]"))) {
       entwurf = uebungHinzu(entwurf, k.dataset.trDazu, logSpeicher.lesen(), wunsch());
       waehlen = false; suche = ""; inhalt.scrollTop = 0;
@@ -505,7 +554,7 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
         if (!entwurf.frei) { planSpeicher.schreiben(r.plan); geaendert?.(); }
         melde(`Ersetzt durch ${entwurf.uebungen[entwurf.aktiv].name}`);
       }
-      menue = false;
+      menue = false; waehlen = false; ersetzen = false; suche = "";
     } else if ((k = z("[data-tr-anleitung]"))) { merken(); schliessen(); oeffne(k.dataset.trAnleitung); return; }
     else if (z("[data-tr-pause]")) { if (pause) pauseStopp(); else pauseStart(entwurf.uebungen[entwurf.aktiv].ziel.pauseSek); }
     else if (z("[data-tr-weiter]")) {
@@ -526,6 +575,76 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
   };
   inhalt.addEventListener("click", klick);
   fuss.addEventListener("click", klick);
+
+  // Verschieben: lange auf einen Daumen drücken, dann seitlich ziehen. Wer
+  // vorher den Finger bewegt, will die Leiste scrollen, und das bleibt so.
+  let nachZiehen = false;
+  let zug = null;
+  const ZEIT = 420;
+  const zugEnde = (uebernehmen) => {
+    if (!zug) return;
+    clearTimeout(zug.timer);
+    const { aktivZug, von, nach, knopf, leiste } = zug;
+    zug = null;
+    if (!aktivZug) return;
+    knopf.classList.remove("zieht");
+    knopf.style.transform = "";
+    leiste.classList.remove("sortieren");
+    leiste.querySelectorAll(".tr-daumen").forEach((d) => { d.style.transform = ""; });
+    nachZiehen = true;
+    setTimeout(() => { nachZiehen = false; }, 400);
+    if (!uebernehmen || nach === von) return;
+    const r = uebungVerschieben(entwurf, planSpeicher.lesen(), von, nach);
+    entwurf = r.entwurf;
+    if (!entwurf.frei && r.plan) { planSpeicher.schreiben(r.plan); geaendert?.(); }
+    spueren("leicht");
+    merken();
+    zeichnen();
+  };
+  inhalt.addEventListener("pointerdown", (event) => {
+    const knopf = event.target.closest(".tr-daumen[data-tr-gehe]");
+    if (!knopf || !entwurf) return;
+    const leiste = knopf.parentElement;
+    const daumen = [...leiste.querySelectorAll(".tr-daumen[data-tr-gehe]")];
+    const von = daumen.indexOf(knopf);
+    zug = { knopf, leiste, daumen, von, nach: von, x0: event.clientX, y0: event.clientY, aktivZug: false, id: event.pointerId,
+      mitten: daumen.map((d) => { const b = d.getBoundingClientRect(); return b.left + b.width / 2; }),
+      breite: knopf.getBoundingClientRect().width + 8 };
+    zug.timer = setTimeout(() => {
+      if (!zug) return;
+      zug.aktivZug = true;
+      knopf.classList.add("zieht");
+      leiste.classList.add("sortieren");
+      try { knopf.setPointerCapture(zug.id); } catch { /* ohne Fang läuft es über die Leiste weiter */ }
+      spueren("leicht");
+    }, ZEIT);
+  });
+  inhalt.addEventListener("pointermove", (event) => {
+    if (!zug || event.pointerId !== zug.id) return;
+    const dx = event.clientX - zug.x0;
+    if (!zug.aktivZug) {
+      if (Math.abs(dx) > 8 || Math.abs(event.clientY - zug.y0) > 8) { clearTimeout(zug.timer); zug = null; }
+      return;
+    }
+    zug.knopf.style.transform = `translateX(${dx}px) scale(1.08)`;
+    // Ziel ist der Platz, dessen Mitte dem Finger am nächsten liegt.
+    const x = zug.mitten[zug.von] + dx;
+    let nach = 0;
+    zug.mitten.forEach((m, i) => { if (Math.abs(m - x) < Math.abs(zug.mitten[nach] - x)) nach = i; });
+    zug.nach = nach;
+    zug.daumen.forEach((d, i) => {
+      if (i === zug.von) return;
+      const schiebt = zug.von < nach ? (i > zug.von && i <= nach ? -1 : 0) : (i < zug.von && i >= nach ? 1 : 0);
+      d.style.transform = schiebt ? `translateX(${schiebt * zug.breite}px)` : "";
+    });
+  });
+  // Während des Ziehens darf die Seite nicht scrollen. Das geht auf iOS nur
+  // über touchmove mit passive false.
+  inhalt.addEventListener("touchmove", (event) => { if (zug?.aktivZug) event.preventDefault(); }, { passive: false });
+  inhalt.addEventListener("pointerup", () => zugEnde(true));
+  inhalt.addEventListener("pointercancel", () => zugEnde(false));
+  // Ein langer Druck öffnet auf iOS sonst das Menü für das Bild.
+  inhalt.addEventListener("contextmenu", (event) => { if (event.target.closest(".tr-daumen")) event.preventDefault(); });
   document.getElementById("trainingZu").addEventListener("click", schliessen);
   document.getElementById("trainingEnde").addEventListener("click", beenden);
 

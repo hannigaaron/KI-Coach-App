@@ -1,10 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { einheitHaeltZns } from "@daevo/core";
+import { einheitHaeltZns, positionFuer } from "@daevo/core";
 import { UEBUNGEN } from "./uebungen-daten.js";
-import { aktualisierungHtml, planFuer, planPruefen, verlaufHtml } from "./plaene.js";
+import { STANDARD_WUNSCH, aktualisierungHtml, planFuer, planPruefen, verlaufHtml } from "./plaene.js";
 import {
-  FREI_TITEL, auswahlListe, entwurfFrei, uebungHinzu, uebungRaus,
+  FREI_TITEL, auswahlHtml, auswahlListe, entwurfFrei, uebungHinzu, uebungRaus, uebungVerschieben,
   entwurfAbschliessen, entwurfBegonnen, entwurfNeu, entwurfTauschen, ersatzVorschlaege, satzAbhaken, satzDazu, satzSetzen,
   trainingHtml, zahlAus,
 } from "./training.js";
@@ -284,4 +284,34 @@ test("Pull mit Schultern ist ein Zugtag: kein Drücken, nur die hintere Schulter
       assert.ok(!muster.some((m) => m.endsWith("_push")), `${minuten}/${gruppen}: ${e.positionen.map((p) => p.id)}`);
     }
   }
+});
+
+test("Übungen lassen sich verschieben, die aktive bleibt aktiv, und der Plan zieht mit", () => {
+  const e0 = { ...entwurfNeu(plan, 0, [], HEUTE), aktiv: 1 };
+  const ids = e0.uebungen.map((u) => u.id);
+  const { entwurf, plan: p2 } = uebungVerschieben(e0, plan, 2, 0);
+  assert.deepEqual(entwurf.uebungen.map((u) => u.id), [ids[2], ids[0], ids[1], ...ids.slice(3)]);
+  assert.equal(entwurf.uebungen[entwurf.aktiv].id, ids[1], "die aktive Übung bleibt dieselbe");
+  assert.deepEqual(p2.einheiten[0].positionen.map((p) => p.id).slice(0, 3), [ids[2], ids[0], ids[1]]);
+  // Getauscht wird danach an der neuen Stelle, im Plan und im Training gleich.
+  const ersatz = UEBUNGEN.find((u) => u.id === "hammer-curl-sitzend");
+  const t = entwurfTauschen(entwurf, p2, 0, ersatz.id, []);
+  assert.equal(t.entwurf.uebungen[0].id, ersatz.id);
+  assert.equal(t.plan.einheiten[0].positionen[0].id, ersatz.id);
+  assert.equal(uebungVerschieben(e0, plan, 1, 1).entwurf, e0);
+});
+
+test("Ersetzen geht mit jeder Übung, eine andere Bewegung bekommt ihre eigene Dosis", () => {
+  const frei = uebungHinzu(entwurfFrei(HEUTE), "kniebeuge-langhantel", []);
+  const saetze = frei.uebungen[0].ziel.saetze;
+  const { entwurf } = entwurfTauschen(frei, null, 0, "hammer-curl-sitzend", []);
+  assert.equal(entwurf.uebungen[0].id, "hammer-curl-sitzend");
+  assert.equal(entwurf.uebungen[0].ziel.saetze, saetze, "die Zahl der Sätze bleibt");
+  const regel = positionFuer(UEBUNGEN.find((u) => u.id === "hammer-curl-sitzend"), STANDARD_WUNSCH);
+  assert.equal(entwurf.uebungen[0].ziel.wdh, regel.wdh, "Wiederholungen aus der Regel für den Curl, nicht von der Kniebeuge");
+  assert.equal(entwurf.uebungen[0].ziel.reserve, regel.reserve);
+  const html = auswahlHtml(auswahlListe("hammer", frei, []), "hammer", "ersatz", "Kniebeuge");
+  assert.match(html, /data-tr-ersatz="hammer-curl-sitzend"/);
+  assert.match(html, /Kniebeuge ersetzen durch/);
+  assert.ok(!html.includes("data-tr-dazu"));
 });

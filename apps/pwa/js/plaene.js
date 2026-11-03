@@ -187,6 +187,16 @@ export function uebungTauschen(plan, ei, pi, neueId) {
   });
 }
 
+/** Verschiebt eine Übung innerhalb einer Einheit, etwa wenn im Studio ein Gerät besetzt ist. */
+export function positionVerschieben(plan, ei, von, nach) {
+  return mitEinheit(plan, ei, (pos) => {
+    if (von < 0 || von >= pos.length || nach < 0 || nach >= pos.length || von === nach) return pos;
+    const [p] = pos.splice(von, 1);
+    pos.splice(nach, 0, p);
+    return pos;
+  });
+}
+
 export function uebungHinzufuegen(plan, ei, id) {
   const u = nachId.get(id);
   if (!u) return plan;

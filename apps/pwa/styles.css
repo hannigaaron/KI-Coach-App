@@ -3485,6 +3485,13 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 .tr-daumen img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .tr-daumen span { font-weight: 600; color: var(--muted); }
 .tr-daumen.an { opacity: 1; box-shadow: 0 0 0 2px var(--accent); }
+/* Verschieben per langem Druck. Ohne touch-callout öffnet iOS das Menü für
+   das Bild, ohne user-select markiert es den Namen. */
+.tr-daumen { -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; transition: transform 160ms var(--kurve); }
+.tr-daumen img { pointer-events: none; }
+.tr-ersatz.tr-abbruch { background: none; box-shadow: none; justify-content: center; text-align: center; margin-top: var(--s-2); }
+.tr-ersatz.tr-abbruch b { font-size: var(--t-sm); font-weight: 500; color: var(--muted); }
+.tr-daumen.zieht { opacity: 1; z-index: 2; transition: none; box-shadow: 0 0 0 2px var(--accent), var(--tief-karte); }
 .tr-daumen.fertig::after {
   content: ""; position: absolute; right: 4px; bottom: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--good);
 }
