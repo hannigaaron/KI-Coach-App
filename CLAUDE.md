@@ -274,20 +274,21 @@ Strichfiguren, keine Clip Art, keine Karten mit Rahmen um Text.
   oben nach unten, Kickback einbeinig und seitlich für den Gluteus medius. Auf
   der Schrägbank mit Kurzhanteln Rudern eng und breit, Reverse Fly und
   Fliegende.
-- Bizeps Curl liegend am Kabel, `curl-kabel-liegend`: flache Bank vor dem
-  Turm, Rolle auf Bankhöhe, rücklings mit den Füßen zum Turm, die Stange aus
-  gestreckten Armen zum Kinn, Ellbogen bleiben am Körper, Untergriff wie beim
-  stehenden Curl, Bank leicht schräg. Das Foto ist schräg von oben am Fußende
-  aufgenommen: die Stange liegt dort quer im Bild, das Kabel läuft gerade aus
-  ihrer Mitte zwischen den Knien zur Rolle auf Bankhöhe, und man sieht die
-  Handrücken, also den Untergriff. Das Bildmodell läuft ohne Angabe auf
-  `quality: low`, und genau dort entstand ein Mann mit drei Beinen, den
-  erst der Nutzer sah. Fotos immer mit `quality: high` erzeugen und vor dem
-  Einbauen Arme und Beine zählen. In der Seitenansicht und schräg vom Kopfende legte das
-  Bildmodell die Stange in acht von acht Fassungen längs zum Körper und
-  hängte das Kabel an ein Ende. Die erste Fassung von der Kopfseite zeigte
-  den Griff wie einen Obergriff. Vorlage für die Haltung war das Video von
-  Coach Aaron, gezeigt wird ein anderes Modell.
+- Bizeps Curl liegend am Kabel, `curl-kabel-liegend`: Bank ganz leicht
+  schräg, Kabelturm frei davor, Rolle auf Höhe des Bankpolsters, rücklings
+  mit den Füßen zum Turm, die Stange aus gestreckten Armen zum Kinn,
+  Ellbogen bleiben am Körper, Untergriff wie beim stehenden Curl. Das Foto
+  ist von der Seite. Zwei Fassungen davor hat der Nutzer zurückgewiesen:
+  einmal ein drittes Bein, einmal Beine, die am Rücken ansetzten, und eine
+  Rolle, die an der Bank hing. Beides kam aus Bearbeitungen eines Bildes,
+  das den Fehler schon trug, und aus `quality: low`, der Voreinstellung des
+  Bildmodells. Jetzt: neu erzeugen statt ein fehlerhaftes Bild bearbeiten,
+  immer `quality: high`, und vor dem Einbauen nach Liste prüfen. Eine
+  Person, zwei Arme, zwei Beine, die an der Hüfte ansetzen, zwei Füße.
+  Jedes Gerät steht für sich und hängt nicht an einem anderen. Kabel gerade
+  von der Rolle zum Griff, Rolle auf der verlangten Höhe. Stange quer zum
+  Körper, Griff wie verlangt, Gelenkwinkel möglich. Vorlage für die Haltung
+  war das Video von Coach Aaron, gezeigt wird ein anderes Modell.
 - Fotos an der Multipresse oder mit Langhantel werden von vorn oder schräg
   vorn erzeugt. In der Seitenansicht legte das Bildmodell die Stange bei sechs
   von sieben Übungen längs zum Körper statt quer über Schultern, Brust oder
