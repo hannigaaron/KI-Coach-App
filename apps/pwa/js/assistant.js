@@ -4,7 +4,8 @@ import {
   mahlzeitAusFoto, modellFuerBilder, naehrwerteImNetz, produktPerBarcode, produkteSuchen, summiere, vorratAusFoto,
   todoistAbhaken, todoistAufgaben, todoistIdVon, todoistWiederOeffnen, PERSONA_TEILE,
 } from "@daevo/coach";
-import { foldUmlauts, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, einzeltrainingBauen, FOKUS_NAME, alternativen, planNachrechnen } from "@daevo/core";
+import { foldUmlauts, wochenrueckblick, wochenbeginn, rueckblickArt, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, einzeltrainingBauen, FOKUS_NAME, alternativen, planNachrechnen } from "@daevo/core";
+import { trainingsTageAusQuellen } from "./luecke.js";
 import { UEBUNGEN } from "./uebungen-daten.js";
 import { GERAETE, uebungenFiltern } from "./uebungen.js";
 import {
@@ -2480,6 +2481,9 @@ export function widerspruchListe(tage = 28) {
   const heute = todayIso();
   const reihe = [];
   const titel = [];
+  // Ein Training, das nur im Kalender oder im Protokoll steht, ist trotzdem
+  // gemacht. Ein fehlender Eintrag ist vergessen, nicht ausgefallen.
+  const weitere = new Set(trainingsTageAusQuellen(store, heute));
   for (let i = tage - 1; i >= 0; i--) {
     const d = new Date(`${heute}T12:00:00`);
     d.setDate(d.getDate() - i);
@@ -2497,7 +2501,7 @@ export function widerspruchListe(tage = 28) {
       kcal: data.meals.length ? Math.round(kcal) : null,
       proteinG: data.meals.length ? Math.round(protein) : null,
       mahlzeiten: data.meals.length,
-      trainings: (data.trainings || []).length,
+      trainings: Math.max((data.trainings || []).length, weitere.has(iso) ? 1 : 0),
       terminMinuten: termine.length ? Math.round(termine.reduce((s, t) => s + (t.bis - t.von), 0) / 60000) : null,
     });
   }
@@ -3538,6 +3542,9 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
     async uebungenSuchen({ suche, ersatzFuer } = {}) {
       return uebungenSuchenText({ suche, ersatzFuer });
     },
+    async wochenrueckblick() {
+      return wochenrueckblickFuer().text;
+    },
     async essensplanAbrufen({ inTagen = 0 } = {}) {
       if (!essensplanFreiFuerCoach()) {
         return "NICHT_GESPEICHERT: Der Essensplan für die Woche gehört zu Pro. Einzelne Rezepte passend zum Rest des Tages gibt es unter Rezepte.";
@@ -4237,6 +4244,36 @@ export function erinnerungenAufgeraeumt(jetzt = { tag: todayIso(), uhrzeit: nowT
   const offen = alle.filter((e) => !erinnerungVorbei(e, jetzt));
   if (offen.length !== alle.length) store.setSettings({ ...s, eigeneErinnerungen: offen });
   return offen;
+}
+
+/**
+ * Der Wochenrückblick aus allem, was eingetragen ist. Mittwochs ab Montag bis
+ * heute, an jedem anderen Tag die Woche bis heute, sonntags die ganze Woche.
+ * Ziele je Tag kommen aus `dayNumbers`, also mit Trainingstag und Korrektur.
+ */
+export function wochenrueckblickFuer(heute = todayIso()) {
+  // Bis Mittwoch ist es ein Zwischenstand, ab Donnerstag zählt die Woche.
+  const w = new Date(`${heute}T12:00:00`).getDay();
+  const art = rueckblickArt(heute) ?? (w >= 1 && w <= 3 ? "zwischenstand" : "woche");
+  const naechster = (t) => { const d = new Date(`${t}T12:00:00`); d.setDate(d.getDate() + 1); return todayIso(d); };
+  const tage = [];
+  const weitere = new Set(trainingsTageAusQuellen(store, heute));
+  for (let t = wochenbeginn(heute); t <= heute; t = naechster(t)) {
+    const n = dayNumbers(t);
+    const d = n.data;
+    tage.push({
+      tag: t,
+      mahlzeiten: (d.meals || []).filter((m) => (m.entries || []).length).length,
+      kcal: n.totals.kcal, proteinG: n.totals.proteinG,
+      zielKcal: n.targets.kcal, zielProteinG: n.targets.proteinG,
+      wasserMl: n.totals.waterMl, zielWasserMl: n.targets.waterMl,
+      trainings: Math.max((d.trainings || []).length, weitere.has(t) ? 1 : 0),
+      geplant: (n.profile?.sessions || []).filter((x) => x.weekday === n.weekday).length,
+      gewichtKg: d.weightKg ?? null,
+      schlafMin: d.gesundheit?.schlafMinuten ?? null,
+    });
+  }
+  return wochenrueckblick(tage, { art, ziel: store.getProfile()?.goal });
 }
 
 /** Ein Tausch im Training für heute gilt auch beim nächsten Mal mit denselben Partien. */

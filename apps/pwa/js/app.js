@@ -39,7 +39,7 @@ import {
   aufgabenPlanText, energieCheck, kopfSortieren, mittagscheck, mittagscheckText, musterUebersicht,
   schluesselPruefen, tagesnutzungFuer,
   trainingsplanUebernehmen, trainingsplanVorschlag, widerspruchListe,
-  kalenderEntfernen, kalenderImportieren, kalenderStand, tagesbriefingFuer, tagesessenFuer,
+  kalenderEntfernen, kalenderImportieren, kalenderStand, tagesbriefingFuer, wochenrueckblickFuer, tagesessenFuer,
   kostenUebersicht, recommendations, standardsUebersicht, tagesErinnerungen, verlaufPunkte,
   berichtFuer,
   berichtZeitraeume,
@@ -362,6 +362,11 @@ async function send(text, { vonUhr = false } = {}) {
   // Die Antwort auf die Energiefrage aus der Benachrichtigung. Eine blosse
   // Zahl von 1 bis 10 wird hier gerechnet und geht nicht an das Modell: die
   // Bewertung steht im Rechenkern, kostet nichts und läuft ohne Schlüssel.
+  // Eine beantwortete Frage aus einer Mitteilung kommt heute nicht noch einmal.
+  if (offeneFrage && nachricht) {
+    const s = store.getSettings();
+    store.setSettings({ ...s, impulsBeantwortet: { ...(s.impulsBeantwortet || {}), [offeneFrage]: todayIso() } });
+  }
   const zahl = offeneFrage === "energie" ? nurZahl(nachricht) : null;
   if (zahl !== null && !busy) {
     offeneFrage = null;
@@ -1001,6 +1006,7 @@ document.addEventListener("input", (event) => {
 
 function refreshAll() {
   uhrSpaeter();
+  planSpaeter();
   const visible = document.querySelector(".view:not([hidden])");
   const numbers = dayNumbers(day);
   orb?.setProgress(numbers.targets.kcal > 0 ? numbers.totals.kcal / numbers.targets.kcal : 0);
@@ -5650,14 +5656,34 @@ async function mitteilungenNativ() {
     if (geoeffnet?.art === "luecke") lueckeFrageOeffnen();
     else if (geoeffnet?.art && geoeffnet.art !== "runterfahren") impulsOeffnen({ art: geoeffnet.art });
 
-    const d = new Date();
-    const jetzt = { tag: todayIso(d), uhrzeit: `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}` };
-    let vorausblicke = [];
-    try { vorausblicke = vorausblickePlan(jetzt.tag); } catch { /* ohne Kalender keiner */ }
-    await mitteilungenPlanen({ aufruf: nativAufruf, store, jetzt, vorausblicke });
+    await mitteilungenNeuPlanen();
   } catch {
     // Ohne Erlaubnis plant iOS nichts. Die App läuft trotzdem.
   }
+}
+
+async function mitteilungenNeuPlanen() {
+  const d = new Date();
+  const jetzt = { tag: todayIso(d), uhrzeit: `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}` };
+  let vorausblicke = [];
+  try { vorausblicke = vorausblickePlan(jetzt.tag); } catch { /* ohne Kalender keiner */ }
+  await mitteilungenPlanen({ aufruf: nativAufruf, store, jetzt, vorausblicke });
+}
+
+/**
+ * Nach jedem Eintrag neu planen, gebündelt. Wer um 13 Uhr sein Mittagessen
+ * einträgt, bekommt um 16 Uhr keine Frage mehr, ob es ausgefallen ist: der
+ * Plan bei iOS wird ohne diese Mitteilung ersetzt. var aus demselben Grund
+ * wie bei uhrTimer, refreshAll läuft vor dieser Zeile.
+ */
+// eslint-disable-next-line no-var
+var planTimer = 0;
+function planSpaeter() {
+  // Nicht rechteOffen lesen: das ist ein let, und refreshAll läuft beim Start
+  // vor seiner Zeile. Das wäre ein ReferenceError und eine schwarze App.
+  if (!istNativ() || !store.getSettings().mitteilungenGefragt) return;
+  clearTimeout(planTimer);
+  planTimer = setTimeout(() => mitteilungenNeuPlanen().catch(() => {}), 3000);
 }
 
 document.addEventListener("visibilitychange", () => {
@@ -6013,6 +6039,9 @@ function impulsOeffnen(daten) {
   // Das ganze Briefing für morgen, nicht nur der eine Satz aus der Mitteilung.
   let voraus = "";
   if (art === "vorausblick") { try { voraus = tagesbriefingFuer("abend").text; } catch { voraus = vorausblickText(vorausblickFuer(tagNach(todayIso()))); } }
+  // Gerechnet beim Antippen, nicht beim Planen: so stehen die Einträge bis
+  // eben drin.
+  if (art === "rueckblick") { try { voraus = wochenrueckblickFuer().text; } catch { return; } }
   const impuls = voraus ? { text: voraus } : impulseFuerTag(todayIso()).find((i) => i.art === art);
   if (!impuls) return;
 
@@ -6068,8 +6097,13 @@ async function lueckePruefen() {
   }
 
   const luecke = lueckeAusSpeicher(store);
-  const schieflage = schieflageAusSpeicher(store, balanceFuer);
-  if (!luecke && !schieflage) return;
+  // Die Schieflage geht nicht mehr als Mitteilung raus. Sie misst Zeit, die
+  // eingetragen ist, und ein leerer Bereich heisst meist nur, dass nichts
+  // eingetragen wurde. Eine Regel des Nutzers: daevo hakt nur beim Training
+  // nach, wenn nirgends eins zu sehen ist. Auf der Balance Seite steht sie
+  // weiter.
+  const schieflage = null;
+  if (!luecke) return;
 
   const worker = store.getSettings().pushWorker || KONFIG.pushUrl || "";
   if (!worker || !navigator.serviceWorker) return;

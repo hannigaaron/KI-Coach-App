@@ -22,13 +22,14 @@ class CacheAttrappe {
   }
 }
 
-function storeAttrappe({ tage = {}, sessions = 4, settings = { healthNativ: { at: "2026-09-26T08:00:00Z" } } } = {}) {
+function storeAttrappe({ tage = {}, sessions = 4, settings = { healthNativ: { at: "2026-09-26T08:00:00Z" } }, termine = [] } = {}) {
   let einstellungen = { ...settings };
   let profil = { sessions: Array.from({ length: sessions }, () => ({ type: "strength" })) };
   return {
     allDays: () => Object.keys(tage),
     getDay: (t) => tage[t] ?? { trainings: [] },
     getProfile: () => profil,
+    getKalender: () => ({ termine }),
     getSettings: () => einstellungen,
     setSettings: (s) => { einstellungen = s; },
   };
@@ -44,6 +45,16 @@ test("die Lücke kommt aus den gespeicherten Tagen", () => {
   const luecke = lueckeAusSpeicher(store, "2026-09-26");
   assert.ok(luecke);
   assert.equal(luecke.tageOhne, 4);
+});
+
+test("ein Training im Kalender oder im Protokoll zählt, Athletiktraining mit Kunden nicht", () => {
+  const am = (tag, titel) => ({ titel, von: new Date(`${tag}T18:00:00`).getTime(), bis: new Date(`${tag}T19:00:00`).getTime() });
+  const kunde = storeAttrappe({ tage: { "2026-09-22": einheit }, termine: [am("2026-09-25", "Athletiktraining Team U17")] });
+  assert.ok(lueckeAusSpeicher(kunde, "2026-09-26"), "Kundentermin ist kein eigenes Training");
+  const selbst = storeAttrappe({ tage: { "2026-09-22": einheit }, termine: [am("2026-09-25", "Krafttraining")] });
+  assert.equal(lueckeAusSpeicher(selbst, "2026-09-26"), null);
+  const protokoll = storeAttrappe({ tage: { "2026-09-22": einheit }, settings: { trainingslog: [{ datum: "2026-09-25", uebung: "kniebeuge" }] } });
+  assert.equal(lueckeAusSpeicher(protokoll, "2026-09-26"), null);
 });
 
 test("ohne Trainingsplan im Profil gibt es keine Lücke", () => {
@@ -240,16 +251,9 @@ test("Eine gemeldete Schieflage sperrt die nächsten drei Tage", async () => {
   assert.equal(schieflageAusSpeicher(store, balanceAttrappe(SCHIEF), "2026-09-29"), null);
 });
 
-test("ohne Verbindung zu Apple Health wird nie gefragt", () => {
-  const ohne = storeAttrappe({ tage: { "2026-09-22": einheit }, settings: {} });
-  assert.equal(lueckeAusSpeicher(ohne, "2026-09-26"), null);
-  const alt = storeAttrappe({ tage: { "2026-09-22": einheit }, settings: { healthNativ: { at: "2026-09-10T08:00:00Z" } } });
-  assert.equal(lueckeAusSpeicher(alt, "2026-09-26"), null, "Abgleich älter als drei Tage");
-});
-
-test("nur von Hand eingetragene Trainings reichen nicht", () => {
-  const store = storeAttrappe({ tage: { "2026-09-22": { trainings: [{ art: "strength", minuten: 60 }] } } });
-  assert.equal(lueckeAusSpeicher(store, "2026-09-26"), null);
+test("auch ohne Apple Health wird gefragt, wenn nirgends ein Training zu sehen ist", () => {
+  const ohne = storeAttrappe({ tage: { "2026-09-22": { trainings: [{ art: "strength", minuten: 60 }] } }, settings: {} });
+  assert.equal(lueckeAusSpeicher(ohne, "2026-09-26").tageOhne, 4);
 });
 
 test("mit Health zählt auch ein Training, das von Hand eingetragen wurde", () => {

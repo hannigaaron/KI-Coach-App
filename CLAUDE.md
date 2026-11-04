@@ -79,7 +79,7 @@ Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
 
-Der Assistent hat vierundfünfzig Werkzeuge und verändert die App wirklich. Zahlen
+Der Assistent hat fünfundfünfzig Werkzeuge und verändert die App wirklich. Zahlen
 über den Nutzer kommen immer aus Werkzeugen, nie aus dem Modell. Allgemeines
 Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
@@ -682,7 +682,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1351 Tests
+npm test           # 1359 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -2039,6 +2039,28 @@ nochmal in Frage stellen.
 Eine Mahlzeit ohne Posten wird beim Speichern gelöscht. Eine Zeile mit null
 Kalorien im Verlauf zu führen wäre die schlechtere Antwort.
 
+## Der Wochenrückblick
+
+`packages/core/src/wochenrueckblick.ts`, `wochenrueckblickFuer` in
+`assistant.js`, Werkzeug `wochenrueckblick` mit Regelpfad ("wie lief meine
+Woche", "Zwischenstand"). Wie ein Abschlussgespräch mit einem Coach: die
+Zahlen, was gut lief, was besser geht, zwei bis drei konkrete Tipps und der
+Fokus. Mittwoch Zwischenstand von Montag bis heute, Sonntag die ganze
+Woche, als Mitteilung um 18:30 und 20:00, eine halbe Stunde nach den
+Check-ins. Die Mitteilung trägt keine Zahlen, sie ist Tage vorher geplant.
+Gerechnet wird beim Antippen, und der ganze Rückblick steht im Chat.
+
+Gerechnet aus allem, was eingetragen ist: Protein gedeckt ab 90 Prozent des
+Ziels, Kalorien getroffen bis 10 Prozent daneben, Wasser ab 80 Prozent,
+Training gegen die Tage im Profil, Gewicht als Strecke gegen das Ziel,
+Schlaf aus Apple Health. Die Schwellen sind Regeln der App. Ein Tag ohne
+Eintrag ist eine Lücke und kein Tag ohne Essen, er wird nur gezählt. Ein
+Tag unter der Hälfte der Kalorien gilt als unvollständig, fällt aus den
+Schnitten und wird genannt, mit der Bitte, es zu sagen, wenn es wirklich so
+war. Die Tipps tragen einen Rang, der Fokus ist der erste. Zu wenig Protein
+nennt die Gramm je Mahlzeit, ein Gewicht gegen das Ziel beim Aufbau 200 kcal
+mehr.
+
 ## Ein Vorhaben ist kein Eintrag
 
 `istAbsicht` in `packages/coach/src/agent.ts`. Der Satz "ich möchte heute zwei
@@ -2634,6 +2656,18 @@ sonst ist der Worker eine offene Weiterleitung, die auf Zuruf Anfragen an
 fremde Adressen schickt. Ein Abo, auf das der Dienst mit 404 oder 410
 antwortet, löscht der Worker selbst.
 
+Ein Impuls kommt nur, wenn das Passende noch nicht eingetragen ist,
+`impulsNoetig` im Kern, `impulsLage` in `mitteilungen.js`. Eine Regel des
+Nutzers: im Betrieb kam um 16 Uhr "Mittagessen ausgefallen?", obwohl das
+Mittagessen um 13 Uhr eingetragen war. Eiweiss am Morgen fällt weg, sobald
+eine Mahlzeit dasteht, Trinken mit eingetragenem Wasser, Nachlegen mit
+einer Mahlzeit ab 11 Uhr, Energie nach dem Mittags Check-in, Stress und
+Pause, wenn die Frage heute beantwortet ist, `settings.impulsBeantwortet`.
+Geprüft wird nur der laufende Tag, die Tage danach prüft das nächste
+Planen. Deshalb plant die iPhone App nach jedem Eintrag neu, gebündelt
+nach drei Sekunden, `planSpaeter` in `refreshAll`. Offen: Web Push über
+den Worker schickt die Impulse weiter blind, er kennt die Einträge nicht.
+
 Die Erinnerungen aus `reminders.ts` bleiben davon unberührt. Sie hängen an den
 Zahlen des Tages und laufen weiter über `apps/api/src/scheduler.ts`.
 `WebPushNotifier` verschickt sie über denselben Weg, sobald der Server steht.
@@ -2657,6 +2691,19 @@ Geheimnisse annimmt. Wer die Geheimnisse zuerst setzt, wird mitten im Ablauf
 gefragt, ob ein Worker angelegt werden soll, und wer dort abbricht, hat
 weder das eine noch das andere.
 
+## Was nicht eingetragen ist, ist vergessen
+
+Eine Regel des Nutzers für jede Empfehlung, jede Mitteilung und jede
+Rückfrage: sie stützt sich nur auf das, was eingetragen ist. Ein Tag ohne
+Mahlzeit ist kein Tag ohne Essen, ein Bereich ohne Zeit im Balance Board
+keine Woche ohne Me Time. Die Persona sagt das in der Grundhaltung, die
+Impulse prüfen es über `impulsNoetig`, der Wochenrückblick zählt Tage
+ohne Eintrag nur. Die Schieflage geht deshalb nicht mehr als Mitteilung
+raus und steht nur noch auf der Balance Seite: ein leerer Bereich hiess
+dort fast immer, dass nichts eingetragen war.
+
+Einzige Ausnahme ist das Training, siehe die Trainingslücke.
+
 ## Die Trainingslücke
 
 `packages/core/src/trainingsluecke.ts`, `workers/push/src/auftrag.ts`,
@@ -2670,16 +2717,16 @@ mehr.
 Gefragt wird nicht, warum jemand nicht trainiert hat. Das ist ein Vorwurf und
 erzeugt eine Rechtfertigung. Gefragt wird nach dem, was dazwischen kam.
 
-Gefragt wird nur, wenn Trainings automatisch ankommen,
-`trainingAutomatischErfasst` in `luecke.js`: der Abgleich mit Apple Health
-lief in den letzten drei Tagen, und in den letzten 60 Tagen kam mindestens
-ein Training aus Health, also von der Uhr oder aus Apple Fitness. Vorher
-reichte ein einziges Training, das irgendwann in daevo stand. Der Betreiber
-trainiert täglich und trägt es nicht in daevo ein, und die App fragte ihn
-nach vier Tagen, was dazwischen gekommen sei. Eine Frage nach einer Lücke,
-die es nicht gibt, ist ein Vorwurf. Im Browser und in der Demo gibt es
-HealthKit nicht, dort kommt die Frage deshalb nie. Eine schon geplante
-Frage fällt mit weg, `lueckeFuerPlan`.
+Gefragt wird nur, wenn nirgends ein Training zu sehen ist: kein
+eingetragenes in der App, keins aus Apple Health, kein abgehakter Satz im
+Trainingsmodus, kein gestartetes Training und kein Training im Kalender,
+`trainingsTageAusQuellen` in `luecke.js`. Im Kalender zählt, was das
+Balance Board als Fitness liest, und alles, was daevo eingetragen hat.
+"Athletiktraining" mit Kunden ist Arbeit und zählt nicht. Vorher fragte
+die App nur mit verbundenem Apple Health, jetzt fragt sie überall, aber
+erst, wenn keine der Quellen etwas zeigt. Höchstens zweimal je Woche,
+Montag bis Sonntag, `FRAGEN_JE_WOCHE` im Kern, und nie an zwei Tagen kurz
+hintereinander, `settings.lueckeGefragtListe`.
 
 Dazu drei Bedingungen, und jede einzelne verhindert die Frage. Ohne Trainingsplan im
 Profil weiss die App nicht, was überhaupt geplant war. Ohne ein einziges
@@ -2687,7 +2734,8 @@ Training in den letzten 60 Tagen ist es keine Lücke, sondern keine Datenlage,
 und eine Frage nach einer Lücke setzt voraus, dass es vorher keine war. Nach
 einer gestellten Frage bleibt es drei Tage still: bei einer zweiwöchigen Pause
 käme sonst jeden Tag dieselbe Frage, und eine tägliche Frage wird weggewischt,
-mitsamt allen anderen Nachrichten der App.
+mitsamt allen anderen Nachrichten der App. Dazu gilt die Grenze von zwei je
+Woche.
 
 Der Tag der Frage wird erst gesetzt, wenn der Worker sie angenommen hat. Wer
 ihn vorher setzt, verliert die Frage bei jedem Netzfehler still und fragt drei

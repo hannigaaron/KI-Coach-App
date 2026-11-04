@@ -83,13 +83,19 @@ export interface LueckenLage {
   /** Wann zuletzt nach dem Grund gefragt wurde, JJJJ-MM-TT. */
   zuletztGefragt?: string | null;
   /**
-   * Ob Trainings automatisch ankommen, über Apple Health von der Uhr oder
-   * aus Apple Fitness. Ohne das fragt die App nie: wer daevo nicht zum
-   * Trainieren benutzt, trainiert trotzdem, und eine Frage nach einer Lücke,
-   * die es nicht gibt, ist ein Vorwurf. Genau das ist im Betrieb passiert.
+   * Weitere Tage mit Training aus anderen Quellen als den eingetragenen
+   * Einheiten: das Protokoll des Trainingsmodus, ein gestartetes Training
+   * und Trainings im Kalender. Eine Regel des Nutzers: nachgefragt wird nur,
+   * wenn weder die App noch Apple Health noch der Kalender ein Training
+   * zeigen. Fehlt ein Eintrag, ist er vergessen, nicht ausgefallen.
    */
-  automatischErfasst?: boolean;
+  trainingsTage?: string[];
+  /** Die Tage, an denen schon gefragt wurde, JJJJ-MM-TT. */
+  gefragt?: string[];
 }
+
+/** Höchstens so oft je Woche, Montag bis Sonntag. Eine Regel des Nutzers. */
+export const FRAGEN_JE_WOCHE = 2;
 
 export interface Trainingsluecke {
   /** Volle Tage seit dem letzten Training. */
@@ -109,28 +115,30 @@ export interface Trainingsluecke {
  * "zu wenig Daten" unterscheiden müsste, hätte davon nichts.
  */
 export function trainingslueckeFinden(lage: LueckenLage): Trainingsluecke | null {
-  if (lage.automatischErfasst !== true) return null;
   if (lage.geplanteEinheiten < 1) return null;
 
   const heute = tagIndex(lage.heute);
+  const weitere = new Set(lage.trainingsTage || []);
   let letzter: string | null = null;
   for (let zurueck = 0; zurueck <= RUECKBLICK_TAGE; zurueck++) {
     const tag = tagAus(heute - zurueck);
     const eintraege = lage.tage[tag]?.trainings;
-    if (Array.isArray(eintraege) && eintraege.length > 0) {
+    if ((Array.isArray(eintraege) && eintraege.length > 0) || weitere.has(tag)) {
       letzter = tag;
       break;
     }
   }
+  // Ohne jedes Training in 60 Tagen fehlt die Datenlage, nicht das Training.
   if (!letzter) return null;
 
   const tageOhne = heute - tagIndex(letzter);
   if (tageOhne < LUECKE_AB_TAGEN) return null;
 
-  if (lage.zuletztGefragt) {
-    const seitFrage = heute - tagIndex(lage.zuletztGefragt);
-    if (seitFrage < WIEDER_FRAGEN_NACH_TAGEN) return null;
-  }
+  // Zweimal die Woche und nie an zwei Tagen hintereinander.
+  const gefragt = [...new Set([...(lage.gefragt || []), ...(lage.zuletztGefragt ? [lage.zuletztGefragt] : [])])];
+  const montag = heute - ((new Date(heute * 86400000).getUTCDay() + 6) % 7);
+  if (gefragt.filter((t) => tagIndex(t) >= montag && tagIndex(t) <= heute).length >= FRAGEN_JE_WOCHE) return null;
+  if (gefragt.some((t) => heute - tagIndex(t) >= 0 && heute - tagIndex(t) < WIEDER_FRAGEN_NACH_TAGEN)) return null;
 
   return {
     tageOhne,

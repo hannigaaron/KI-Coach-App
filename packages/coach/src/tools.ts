@@ -864,6 +864,16 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: "wochenrueckblick",
+    description:
+      "Der Wochenrückblick wie ein Abschlussgespräch: Zahlen zu Protein, Kalorien, Wasser, Training, Gewicht und " +
+      "Schlaf aus allem, was eingetragen ist, was gut lief, was besser geht, zwei bis drei konkrete Tipps und der " +
+      "Fokus. Mittwochs Zwischenstand seit Montag, sonst die Woche. Nehmen bei \"wie lief meine Woche\", " +
+      "\"Wochenrückblick\" oder \"Zwischenstand\". Tage ohne Eintrag sind Lücken und kein Tag ohne Essen, das " +
+      "rechnet die App schon so. Zahlen nie selbst ergänzen, du darfst den Text in deinen Worten zusammenfassen.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
     name: "einkaufsliste_ergaenzen",
     description:
       "Setzt Posten auf die Einkaufsliste, die der Nutzer selbst nennt: \"setz Reis und Brokkoli auf die Liste\". " +
