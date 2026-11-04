@@ -145,10 +145,10 @@ export function wochenrueckblick(tage: RueckblickTag[], { art, ziel }: { art: Wo
   const geplant = tage.reduce((s, t) => s + t.geplant, 0);
   const trainiert = tage.reduce((s, t) => s + t.trainings, 0);
   if (geplant > 0) {
-    bilanz.push(`Training: ${trainiert} von ${geplant} geplanten Einheiten eingetragen.`);
+    bilanz.push(`Training: ${trainiert} von ${geplant} geplanten Einheiten, aus App, Apple Health und Kalender.`);
     if (trainiert >= geplant) gut.push(`Alle geplanten Trainings gemacht.`);
     else {
-      besser.push(`${geplant - trainiert} geplante ${geplant - trainiert === 1 ? "Einheit fehlt" : "Einheiten fehlen"} im Eintrag.`);
+      besser.push(`${geplant - trainiert} geplante ${geplant - trainiert === 1 ? "Einheit sehe ich" : "Einheiten sehe ich"} nirgends. Hast du trainiert und nur nicht eingetragen, zählt das trotzdem.`);
       tipps.push({ rang: 7, text: `Leg die nächste Einheit jetzt als Termin in den Kalender. Was dort steht, findet statt, was nur im Kopf steht, rutscht.` });
     }
   } else if (trainiert > 0) {

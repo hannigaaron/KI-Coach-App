@@ -36,7 +36,7 @@ test("zu wenig Protein ergibt einen konkreten Tipp mit Gramm je Mahlzeit und den
   const r = wochenrueckblick(tage, { art: "woche", ziel: "lean_bulk" });
   assert.equal(r.tipps[0], "Plan 45 g Protein in jede deiner 4 Mahlzeiten ein, bevor du sie zusammenstellst. 250 g Magerquark bringen rund 30 g, drei Eier rund 20 g.");
   assert.ok(r.tipps.length >= 2 && r.tipps.length <= 3);
-  assert.match(r.text, /Training: 1 von 2 geplanten Einheiten/);
+  assert.match(r.text, /Training: 1 von 2 geplanten Einheiten, aus App/);
   assert.match(r.text, /Fokus für nächste Woche: Plan 45 g Protein/);
   assert.match(r.kurz, /^Protein diese Woche an 0 Prozent/);
   assert.doesNotMatch(r.text, /[\u2013\u2014]/);

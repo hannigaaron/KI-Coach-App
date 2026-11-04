@@ -12,7 +12,6 @@ function lage(teil: Partial<LueckenLage> = {}): LueckenLage {
     tage: {},
     heute: "2026-09-26",
     geplanteEinheiten: 4,
-    automatischErfasst: true,
     ...teil,
   };
 }
@@ -86,7 +85,17 @@ test("jede Schnellantwort hat eine ASCII Kennung und einen ganzen Satz", () => {
   }
 });
 
-test("ohne automatische Erfassung wird nie gefragt", () => {
-  assert.equal(trainingslueckeFinden(lage({ tage: { "2026-09-10": einheit }, automatischErfasst: false })), null);
-  assert.equal(trainingslueckeFinden(lage({ tage: { "2026-09-10": einheit }, automatischErfasst: undefined })), null);
+test("ein Training aus Kalender, Protokoll oder Health verhindert die Frage", () => {
+  // Ein Training im Kalender oder im Protokoll zählt wie ein eingetragenes.
+  assert.equal(trainingslueckeFinden(lage({ tage: { "2026-09-10": einheit }, trainingsTage: ["2026-09-24"] })), null);
+});
+
+test("höchstens zweimal je Woche gefragt, Montag bis Sonntag", () => {
+  const alt = { tage: { "2026-09-01": einheit } };
+  // 2026-09-26 ist ein Samstag. Montag und Mittwoch schon gefragt: Schluss.
+  assert.equal(trainingslueckeFinden(lage({ ...alt, gefragt: ["2026-09-21", "2026-09-23"] })), null);
+  // Einmal in der Woche gefragt, vier Tage her: ein zweites Mal geht.
+  assert.ok(trainingslueckeFinden(lage({ ...alt, gefragt: ["2026-09-22"] })));
+  // Gestern gefragt: nicht schon wieder.
+  assert.equal(trainingslueckeFinden(lage({ ...alt, gefragt: ["2026-09-25"] })), null);
 });

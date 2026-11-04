@@ -6097,8 +6097,13 @@ async function lueckePruefen() {
   }
 
   const luecke = lueckeAusSpeicher(store);
-  const schieflage = schieflageAusSpeicher(store, balanceFuer);
-  if (!luecke && !schieflage) return;
+  // Die Schieflage geht nicht mehr als Mitteilung raus. Sie misst Zeit, die
+  // eingetragen ist, und ein leerer Bereich heisst meist nur, dass nichts
+  // eingetragen wurde. Eine Regel des Nutzers: daevo hakt nur beim Training
+  // nach, wenn nirgends eins zu sehen ist. Auf der Balance Seite steht sie
+  // weiter.
+  const schieflage = null;
+  if (!luecke) return;
 
   const worker = store.getSettings().pushWorker || KONFIG.pushUrl || "";
   if (!worker || !navigator.serviceWorker) return;

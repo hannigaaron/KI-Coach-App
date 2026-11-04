@@ -15,7 +15,7 @@
  * Browser testbar, wie storage.js und assistant.js auch.
  */
 
-import { LUECKEN_ANTWORTEN, LUECKE_UHRZEIT, schieflageFinden, trainingslueckeFinden } from "@daevo/core";
+import { LUECKEN_ANTWORTEN, LUECKE_UHRZEIT, bereichVon, schieflageFinden, trainingslueckeFinden } from "@daevo/core";
 
 /** Derselbe Name wie im Service Worker. Wer ihn hier ändert, bricht beides. */
 export const ANTWORT_CACHE = "daevo-antworten";
@@ -42,27 +42,27 @@ export function naechsterZeitpunkt(jetzt = new Date()) {
  * leerer Tag ist ein Tag ohne Training, und einer, der gar nicht existiert,
  * auch. Die Unterscheidung wäre hier ohne Wert.
  */
-/** So alt darf der letzte Abgleich mit Apple Health sein, damit er als verbunden gilt. */
-export const HEALTH_FRISCH_TAGE = 3;
-
 /**
- * Ob Trainings automatisch ankommen. Zwei Bedingungen: der Abgleich mit
- * Apple Health lief in den letzten drei Tagen, und in den letzten 60 Tagen
- * kam mindestens ein Training aus Health. Das zweite zeigt, dass Uhr oder
- * Apple Fitness Trainings wirklich aufzeichnen. Eine Verbindung, die nur
- * Schritte liefert, sagt über Training nichts.
- *
- * Ohne das fragte die App jeden, der irgendwann einmal ein Training
- * eingetragen hatte, nach vier Tagen, was dazwischen gekommen sei. Auch den,
- * der jeden Tag trainiert und es nur nicht in daevo einträgt.
+ * Tage mit Training aus allen Quellen ausser den eingetragenen Einheiten:
+ * das Protokoll des Trainingsmodus, ein gestartetes Training und Trainings
+ * im Kalender, über dieselbe Zuordnung wie das Balance Board.
+ * "Athletiktraining" mit Kunden ist dort Arbeit und zählt hier nicht.
  */
-export function trainingAutomatischErfasst(store, heute = new Date().toISOString().slice(0, 10)) {
-  const stand = store.getSettings()?.healthNativ?.at;
-  if (!stand) return false;
-  const alter = (Date.parse(`${heute}T12:00:00Z`) - Date.parse(stand)) / 86_400_000;
-  if (!(alter <= HEALTH_FRISCH_TAGE)) return false;
-  const grenze = new Date(Date.parse(`${heute}T12:00:00Z`) - 60 * 86_400_000).toISOString().slice(0, 10);
-  return store.allDays().some((tag) => tag >= grenze && (store.getDay(tag).trainings || []).some((t) => t?.quelle === "health"));
+export function trainingsTageAusQuellen(store, heute = new Date().toISOString().slice(0, 10)) {
+  const s = store.getSettings() || {};
+  const tage = new Set();
+  for (const e of Array.isArray(s.trainingslog) ? s.trainingslog : []) if (e?.datum) tage.add(e.datum);
+  if (s.trainingEntwurf?.datum) tage.add(s.trainingEntwurf.datum);
+  const jetzt = Date.now();
+  for (const t of store.getKalender?.().termine || []) {
+    if (!Number.isFinite(Number(t?.von)) || Number(t.von) > jetzt || t.ganztags) continue;
+    // Was daevo eingetragen hat, heisst "Training: Pull" und ist immer ein
+    // eigenes Training, auch ohne ein Wort aus der Liste des Boards.
+    if (!t.daevo && bereichVon(String(t.titel || "")) !== "fitness") continue;
+    const d = new Date(Number(t.von));
+    tage.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
+  }
+  return [...tage].filter((t) => t <= heute);
 }
 
 export function lueckeAusSpeicher(store, heute = new Date().toISOString().slice(0, 10)) {
@@ -75,8 +75,16 @@ export function lueckeAusSpeicher(store, heute = new Date().toISOString().slice(
     heute,
     geplanteEinheiten: Array.isArray(profil?.sessions) ? profil.sessions.length : 0,
     zuletztGefragt: einstellungen?.lueckeGefragt ?? null,
-    automatischErfasst: trainingAutomatischErfasst(store, heute),
+    gefragt: Array.isArray(einstellungen?.lueckeGefragtListe) ? einstellungen.lueckeGefragtListe : [],
+    trainingsTage: trainingsTageAusQuellen(store, heute),
   });
+}
+
+/** Merkt die Frage, für die Grenze von zwei je Woche. Die letzten zehn reichen. */
+export function lueckeGefragtMerken(store, tag) {
+  const s = store.getSettings();
+  const liste = [...new Set([...(Array.isArray(s.lueckeGefragtListe) ? s.lueckeGefragtListe : []), tag])].sort().slice(-10);
+  store.setSettings({ ...s, lueckeGefragt: tag, lueckeGefragtListe: liste });
 }
 
 /**
@@ -109,7 +117,7 @@ export async function lueckeMelden({ store, worker, endpoint, luecke, jetzt = ne
     throw new Error(grund.fehler || `Der Worker hat mit ${antwort.status} geantwortet.`);
   }
 
-  store.setSettings({ ...store.getSettings(), lueckeGefragt: jetzt.toISOString().slice(0, 10) });
+  lueckeGefragtMerken(store, jetzt.toISOString().slice(0, 10));
   return luecke;
 }
 

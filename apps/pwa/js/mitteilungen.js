@@ -31,7 +31,7 @@ export function randMitKalender(profil, tag, termine = []) {
   const ausKalender = schlafenszeitAusKalender(termine, tag);
   return ausKalender ? { ...rand, sleepTime: ausKalender } : rand;
 }
-import { lueckeAusSpeicher, trainingAutomatischErfasst } from "./luecke.js";
+import { lueckeAusSpeicher, lueckeGefragtMerken, trainingsTageAusQuellen } from "./luecke.js";
 
 export const MAX_GEPLANT = 60;
 
@@ -168,18 +168,19 @@ export function mitteilungsPlan({ store, jetzt, luecke = null, vorausblicke = []
  * Öffnen am selben Tag heraus, denn dann gilt sie als schon gefragt.
  */
 export function lueckeFuerPlan(store, heute) {
-  // Eine schon geplante Frage fällt ebenfalls weg, wenn die Verbindung fehlt.
-  if (!trainingAutomatischErfasst(store, heute)) return null;
   const neu = lueckeAusSpeicher(store, heute);
   if (neu) {
-    store.setSettings({ ...store.getSettings(), lueckeGefragt: heute, lueckeGeplant: { tag: heute, titel: neu.titel, text: neu.text } });
+    lueckeGefragtMerken(store, heute);
+    store.setSettings({ ...store.getSettings(), lueckeGeplant: { tag: heute, titel: neu.titel, text: neu.text } });
     return neu;
   }
   const geplant = store.getSettings().lueckeGeplant;
   if (!geplant || geplant.tag < tagPlus(heute, -1)) return null;
-  // Seit dem Planen trainiert? Dann ist die Frage erledigt.
+  // Seit dem Planen trainiert, in der App, in Health oder im Kalender? Dann
+  // ist die Frage erledigt.
+  const weitere = new Set(trainingsTageAusQuellen(store, heute));
   for (let t = geplant.tag; t <= heute; t = tagPlus(t, 1)) {
-    if ((store.getDay(t).trainings || []).length) return null;
+    if ((store.getDay(t).trainings || []).length || weitere.has(t)) return null;
   }
   return geplant;
 }

@@ -682,7 +682,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1358 Tests
+npm test           # 1359 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -2691,6 +2691,19 @@ Geheimnisse annimmt. Wer die Geheimnisse zuerst setzt, wird mitten im Ablauf
 gefragt, ob ein Worker angelegt werden soll, und wer dort abbricht, hat
 weder das eine noch das andere.
 
+## Was nicht eingetragen ist, ist vergessen
+
+Eine Regel des Nutzers für jede Empfehlung, jede Mitteilung und jede
+Rückfrage: sie stützt sich nur auf das, was eingetragen ist. Ein Tag ohne
+Mahlzeit ist kein Tag ohne Essen, ein Bereich ohne Zeit im Balance Board
+keine Woche ohne Me Time. Die Persona sagt das in der Grundhaltung, die
+Impulse prüfen es über `impulsNoetig`, der Wochenrückblick zählt Tage
+ohne Eintrag nur. Die Schieflage geht deshalb nicht mehr als Mitteilung
+raus und steht nur noch auf der Balance Seite: ein leerer Bereich hiess
+dort fast immer, dass nichts eingetragen war.
+
+Einzige Ausnahme ist das Training, siehe die Trainingslücke.
+
 ## Die Trainingslücke
 
 `packages/core/src/trainingsluecke.ts`, `workers/push/src/auftrag.ts`,
@@ -2704,16 +2717,16 @@ mehr.
 Gefragt wird nicht, warum jemand nicht trainiert hat. Das ist ein Vorwurf und
 erzeugt eine Rechtfertigung. Gefragt wird nach dem, was dazwischen kam.
 
-Gefragt wird nur, wenn Trainings automatisch ankommen,
-`trainingAutomatischErfasst` in `luecke.js`: der Abgleich mit Apple Health
-lief in den letzten drei Tagen, und in den letzten 60 Tagen kam mindestens
-ein Training aus Health, also von der Uhr oder aus Apple Fitness. Vorher
-reichte ein einziges Training, das irgendwann in daevo stand. Der Betreiber
-trainiert täglich und trägt es nicht in daevo ein, und die App fragte ihn
-nach vier Tagen, was dazwischen gekommen sei. Eine Frage nach einer Lücke,
-die es nicht gibt, ist ein Vorwurf. Im Browser und in der Demo gibt es
-HealthKit nicht, dort kommt die Frage deshalb nie. Eine schon geplante
-Frage fällt mit weg, `lueckeFuerPlan`.
+Gefragt wird nur, wenn nirgends ein Training zu sehen ist: kein
+eingetragenes in der App, keins aus Apple Health, kein abgehakter Satz im
+Trainingsmodus, kein gestartetes Training und kein Training im Kalender,
+`trainingsTageAusQuellen` in `luecke.js`. Im Kalender zählt, was das
+Balance Board als Fitness liest, und alles, was daevo eingetragen hat.
+"Athletiktraining" mit Kunden ist Arbeit und zählt nicht. Vorher fragte
+die App nur mit verbundenem Apple Health, jetzt fragt sie überall, aber
+erst, wenn keine der Quellen etwas zeigt. Höchstens zweimal je Woche,
+Montag bis Sonntag, `FRAGEN_JE_WOCHE` im Kern, und nie an zwei Tagen kurz
+hintereinander, `settings.lueckeGefragtListe`.
 
 Dazu drei Bedingungen, und jede einzelne verhindert die Frage. Ohne Trainingsplan im
 Profil weiss die App nicht, was überhaupt geplant war. Ohne ein einziges
@@ -2721,7 +2734,8 @@ Training in den letzten 60 Tagen ist es keine Lücke, sondern keine Datenlage,
 und eine Frage nach einer Lücke setzt voraus, dass es vorher keine war. Nach
 einer gestellten Frage bleibt es drei Tage still: bei einer zweiwöchigen Pause
 käme sonst jeden Tag dieselbe Frage, und eine tägliche Frage wird weggewischt,
-mitsamt allen anderen Nachrichten der App.
+mitsamt allen anderen Nachrichten der App. Dazu gilt die Grenze von zwei je
+Woche.
 
 Der Tag der Frage wird erst gesetzt, wenn der Worker sie angenommen hat. Wer
 ihn vorher setzt, verliert die Frage bei jedem Netzfehler still und fragt drei
