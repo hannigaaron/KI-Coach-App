@@ -33,6 +33,7 @@ export const GERAETE = {
   trap_bar: "Trap Bar",
   resistance_band: "Widerstandsband",
   medicine_ball: "Medizinball",
+  smith_machine: "Multipresse",
   equipment: "Ab Wheel",
 };
 
@@ -64,13 +65,30 @@ const MUSKEL_ALIAS = {
   Soleus: "Waden",
   Adduktoren: "Innenseite Oberschenkel",
   Unterarme: "Griffkraft",
+  Unterarm: "Griffkraft",
+  "oberer Rücken": "Rücken",
+  "mittlerer Rücken": "Rücken",
+  "hintere Schulter": "Schultern",
+  "seitliche Schulter": "Schultern",
+  "vordere Schulter": "Schultern",
 };
+
+/**
+ * Ob ein Suchwort trifft. Im Studio heisst es "Trizeps Extensions überkopf"
+ * oder "Pushdowns", in der Datenbank "Trizepsstrecken über Kopf". Deshalb
+ * trifft ein Wort auch ohne Leerzeichen im Namen und ohne Plural-s am Ende.
+ */
+function trifft(heu, wort) {
+  if (heu.includes(wort)) return true;
+  if (heu.replace(/[\s()-]/g, "").includes(wort)) return true;
+  return wort.length > 5 && wort.endsWith("s") && heu.includes(wort.slice(0, -1));
+}
 
 const norm = (text) => foldUmlauts(String(text ?? "").toLowerCase());
 
 /**
- * Filtert die Datenbank. Der Suchtext trifft Name, englischen Namen, Muskeln
- * und Gerät. Jedes Wort muss irgendwo vorkommen, die Reihenfolge ist egal.
+ * Filtert die Datenbank. Der Suchtext trifft Name, englischen Namen, die
+ * Suchwörter in `alias`, Muskeln und Gerät. Jedes Wort muss irgendwo vorkommen, die Reihenfolge ist egal.
  * Ohne Umlautfaltung fände "Gesaess" das Gesäß nicht und "Gesäß" nicht
  * "Gesaess".
  */
@@ -81,8 +99,8 @@ export function uebungenFiltern({ text = "", gruppe = "alle", geraet = "alle" } 
     if (geraet !== "alle" && u.equipment !== geraet) return false;
     if (!woerter.length) return true;
     const muskeln = [...u.primaryMuscles, ...u.secondaryMuscles];
-    const heu = norm([u.name, u.nameEn, ...muskeln, ...muskeln.map((m) => MUSKEL_ALIAS[m] ?? ""), GERAETE[u.equipment]].join(" "));
-    return woerter.every((w) => heu.includes(w));
+    const heu = norm([u.name, u.nameEn, ...(u.alias ?? []), ...muskeln, ...muskeln.map((m) => MUSKEL_ALIAS[m] ?? ""), GERAETE[u.equipment]].join(" "));
+    return woerter.every((w) => trifft(heu, w));
   });
 }
 
@@ -101,7 +119,15 @@ export const alternativPfad = (u) => `./img/uebungen/alternative/${u.id}.jpg`;
  * Der Link zum Video. Nur die Kennung ist gespeichert, die Adresse wird hier
  * gebaut: so kann kein Eintrag auf eine andere Seite zeigen als YouTube.
  */
-export const videoLink = (u) => `https://www.youtube.com/watch?v=${u.video.id}`;
+/**
+ * Die Adresse des Erklärvideos, gebaut aus der Kennung und nie gespeichert.
+ * `quelle: "drive"` ist ein eigenes Video von Coach Aaron in Google Drive.
+ * Es muss für "Jeder mit dem Link" freigegeben sein, sonst landet der Nutzer
+ * vor einer Anmeldung bei Google.
+ */
+export const videoLink = (u) => (u.video.quelle === "drive"
+  ? `https://drive.google.com/file/d/${u.video.id}/view`
+  : `https://www.youtube.com/watch?v=${u.video.id}`);
 
 /** Die Zeile in der Liste: Muskeln und Gerät, mehr nicht. */
 export function untertitel(u) {
@@ -161,7 +187,7 @@ export function videoHtml(u) {
   const dauer = u.video.dauer ? ` · ${esc(u.video.dauer)} Min.` : "";
   return `<a class="ue-cta-knopf" href="${esc(videoLink(u))}" target="_blank" rel="noopener noreferrer">
     <span class="ue-play" aria-hidden="true"></span><span>Erklärvideo ansehen</span></a>
-    <p class="ue-cta-fuss">${esc(u.video.kanal)}${dauer} · öffnet YouTube</p>`;
+    <p class="ue-cta-fuss">${esc(u.video.kanal)}${dauer} · öffnet ${u.video.quelle === "drive" ? "Google Drive" : "YouTube"}</p>`;
 }
 
 const $ = (id) => document.getElementById(id);
@@ -176,7 +202,7 @@ export function uebungenStarten() {
 
   // Das Gerät als zweite Zeile, kleiner als die Muskelgruppe. Wer im Studio
   // an der Maschine steht oder zu Hause nur Kurzhanteln hat, sucht genau so.
-  const GERAETE_WAHL = [["alle", "Alle Geräte"], ["machine", "Maschine"], ["cable", "Kabel"], ["dumbbell", "Kurzhantel"], ["barbell", "Langhantel"], ["bodyweight", "Körpergewicht"]];
+  const GERAETE_WAHL = [["alle", "Alle Geräte"], ["machine", "Maschine"], ["cable", "Kabel"], ["smith_machine", "Multipresse"], ["dumbbell", "Kurzhantel"], ["barbell", "Langhantel"], ["bodyweight", "Körpergewicht"]];
   $("ueGeraete").innerHTML = GERAETE_WAHL.map(([id, name]) => `<button type="button" class="ue-tab${id === "alle" ? " on" : ""}" data-geraet="${id}" role="tab" aria-selected="${id === "alle"}">${name}</button>`).join("");
   $("ueGeraete").addEventListener("click", (event) => {
     const knopf = event.target.closest("[data-geraet]");

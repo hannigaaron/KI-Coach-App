@@ -84,6 +84,19 @@ export class AnthropicProvider implements CoachProvider {
   private readonly standardModell: string;
   /** Ob über diese Instanz schon eine Anfrage an den eigenen Server ging. */
   private angefragt = false;
+  // Hat der eigene Server einmal 402 gesagt, ist das Kontingent für diese
+  // Nachricht leer. Die nächste Anfrage derselben Nachricht, etwa das
+  // Auslesen der Mahlzeit nach dem gescheiterten Gespräch, geht dann nicht
+  // mehr raus. Auf dem iPhone kam sie als "Load failed" zurück, und die
+  // Antwort sagte "Ich komme nicht ins Netz", obwohl das Kontingent der Grund
+  // war.
+  private gesperrt: Error | null = null;
+
+  private apiFehler(status: number, text: string): Error {
+    const fehler = new Error(`Anthropic API ${status}: ${text.slice(0, 500)}`);
+    if (status === 402) this.gesperrt = fehler;
+    return fehler;
+  }
 
   constructor(private readonly options: AnthropicOptions) {
     this.standardModell = aktuellesModell(options.model);
@@ -162,6 +175,8 @@ export class AnthropicProvider implements CoachProvider {
       cacheWriteTokens: zahl(usage.cache_creation_input_tokens),
       modell,
     };
+    const suchen = zahl((usage.server_tool_use as { web_search_requests?: unknown } | undefined)?.web_search_requests);
+    if (suchen) verbrauch.websuchen = suchen;
     this.options.onVerbrauch?.(verbrauch);
     return verbrauch;
   }
@@ -174,6 +189,7 @@ export class AnthropicProvider implements CoachProvider {
       // this.fetchImpl(...) direkt auf, ist this die Instanz und nicht
       // globalThis. Browser werfen dann "Illegal invocation", und es geht
       // keine einzige Anfrage raus.
+      if (this.gesperrt) throw this.gesperrt;
       const holen = this.fetchImpl;
       const response = await holen(this.ziel(), {
         method: "POST",
@@ -183,7 +199,7 @@ export class AnthropicProvider implements CoachProvider {
       });
       if (!response.ok) {
         const text = await response.text();
-        throw new Error(`Anthropic API ${response.status}: ${text.slice(0, 500)}`);
+        throw this.apiFehler(response.status, text);
       }
       return await response.json();
     } finally {
@@ -254,6 +270,7 @@ export class AnthropicProvider implements CoachProvider {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.options.timeoutMs ?? 90000);
     try {
+      if (this.gesperrt) throw this.gesperrt;
       const holen = this.fetchImpl;
       const response = await holen(this.ziel(), {
         method: "POST",
@@ -263,7 +280,7 @@ export class AnthropicProvider implements CoachProvider {
       });
       if (!response.ok || !response.body) {
         const text = response.body ? await response.text() : "";
-        throw new Error(`Anthropic API ${response.status}: ${text.slice(0, 500)}`);
+        throw this.apiFehler(response.status, text);
       }
 
       const blöcke: ContentBlock[] = [];
@@ -494,57 +511,72 @@ export class AnthropicProvider implements CoachProvider {
     // ein Modell ohne Denken und brachen jetzt mitten in der Auswertung ab.
     const timeout = setTimeout(() => controller.abort(), this.options.timeoutMs ?? 60000);
     try {
+      if (this.gesperrt) throw this.gesperrt;
       const holen = this.fetchImpl;
-      const response = await holen(this.ziel(), {
-        method: "POST",
-        // Dieselben Köpfe wie im Gespräch. Hier stand vorher ein eigener
-        // Satz mit `x-api-key` und ohne Kontoschlüssel: über den Worker kam
-        // jede Mahlzeit mit 401 zurück und fiel still auf die Tabelle.
-        headers: this.headers(),
-        signal: controller.signal,
-        body: JSON.stringify({
-          model: modell,
-          // Die aktuellen Modelle denken immer, auch hier. Das Denken zählt
-          // gegen max_tokens, und ein Teller mit fünf Posten braucht mehr
-          // als ein Satz. Abgeschnitten käme kein Werkzeugaufruf zurück.
-          max_tokens: request.maxTokens ?? 4096,
-          output_config: { effort: request.effort ?? "medium" },
-          // Auch hier cachen. Der Prompt fuers Auswerten eines Tellers ist
-          // lang und bei jedem Foto derselbe.
-          system: [{ type: "text", text: erzwingen ? request.system : `${request.system}\n\n${pflichtSatz(request.schemaName)}`, cache_control: { type: "ephemeral" } }],
-          // Anhänge stehen vor dem Text. Das Modell sieht sonst die Frage,
-          // bevor es das Bild kennt, und beginnt zu raten.
-          messages: [{
-            role: "user",
-            content: request.anhaenge?.length
-              ? [...request.anhaenge.map(anhangBlock), { type: "text", text: request.user }]
-              : request.user,
-          }],
-          tools: [
-            {
-              name: request.schemaName,
-              description: "Gib das Ergebnis ausschließlich über dieses Tool zurück.",
-              input_schema: request.schema,
-            },
-          ],
-          // Opus 5.5 und Sonnet 5.5 lehnen ein erzwungenes Werkzeug mit 400
-          // ab. Dort steht die Pflicht im Prompt, und unten wird geprüft,
-          // ob der Aufruf wirklich kam.
-          tool_choice: erzwingen ? { type: "tool", name: request.schemaName } : { type: "auto" },
-        }),
-      });
+      const websuche = Math.max(0, Math.min(5, request.websuche ?? 0));
+      // Mit Websuche ist die Pflicht nie erzwungen: ein erzwungenes Werkzeug
+      // käme sofort, vor der ersten Suche.
+      const erzwingenHier = erzwingen && !websuche;
+      const nachrichten: Array<{ role: string; content: unknown }> = [{
+        role: "user",
+        // Anhänge stehen vor dem Text. Das Modell sieht sonst die Frage,
+        // bevor es das Bild kennt, und beginnt zu raten.
+        content: request.anhaenge?.length
+          ? [...request.anhaenge.map(anhangBlock), { type: "text", text: request.user }]
+          : request.user,
+      }];
+      const werkzeuge: unknown[] = [
+        {
+          name: request.schemaName,
+          description: "Gib das Ergebnis ausschließlich über dieses Tool zurück.",
+          input_schema: request.schema,
+        },
+        ...(websuche ? [{ type: "web_search_20260209", name: "web_search", max_uses: websuche }] : []),
+      ];
 
-      if (!response.ok) {
-        const body = await response.text();
-        throw new Error(`Anthropic API ${response.status}: ${body.slice(0, 500)}`);
+      type Antwort = { content?: Array<{ type: string; name?: string; input?: unknown }>; stop_reason?: string };
+      let payload: Antwort = {};
+      // Die Websuche läuft auf dem Server in einer Schleife. Erreicht sie ihre
+      // Grenze, kommt pause_turn, und dieselbe Anfrage mit der bisherigen
+      // Antwort setzt fort. Zweimal reicht für drei Suchen.
+      for (let runde = 0; runde < 3; runde++) {
+        const response = await holen(this.ziel(), {
+          method: "POST",
+          // Dieselben Köpfe wie im Gespräch. Hier stand vorher ein eigener
+          // Satz mit `x-api-key` und ohne Kontoschlüssel: über den Worker kam
+          // jede Mahlzeit mit 401 zurück und fiel still auf die Tabelle.
+          headers: this.headers(),
+          signal: controller.signal,
+          body: JSON.stringify({
+            model: modell,
+            // Die aktuellen Modelle denken immer, auch hier. Das Denken zählt
+            // gegen max_tokens, und ein Teller mit fünf Posten braucht mehr
+            // als ein Satz. Abgeschnitten käme kein Werkzeugaufruf zurück.
+            max_tokens: request.maxTokens ?? 4096,
+            output_config: { effort: request.effort ?? "medium" },
+            // Auch hier cachen. Der Prompt fuers Auswerten eines Tellers ist
+            // lang und bei jedem Foto derselbe.
+            system: [{ type: "text", text: erzwingenHier ? request.system : `${request.system}\n\n${pflichtSatz(request.schemaName)}`, cache_control: { type: "ephemeral" } }],
+            messages: nachrichten,
+            tools: werkzeuge,
+            // Opus 5.5 und Sonnet 5.5 lehnen ein erzwungenes Werkzeug mit 400
+            // ab. Dort steht die Pflicht im Prompt, und unten wird geprüft,
+            // ob der Aufruf wirklich kam.
+            tool_choice: erzwingenHier ? { type: "tool", name: request.schemaName } : { type: "auto" },
+          }),
+        });
+
+        if (!response.ok) {
+          const body = await response.text();
+          throw this.apiFehler(response.status, body);
+        }
+
+        payload = (await response.json()) as Antwort;
+        this.meldeVerbrauch(payload, modell);
+        if (payload.stop_reason !== "pause_turn") break;
+        nachrichten.push({ role: "assistant", content: payload.content ?? [] });
       }
-
-      const payload = (await response.json()) as {
-        content?: Array<{ type: string; name?: string; input?: unknown }>;
-        stop_reason?: string;
-      };
-      this.meldeVerbrauch(payload, modell);
-      const toolUse = payload.content?.find((block) => block.type === "tool_use");
+      const toolUse = payload.content?.find((block) => block.type === "tool_use" && block.name === request.schemaName);
       if (payload.stop_reason === "refusal") throw new Error("Anthropic API refusal: Das Modell hat die Anfrage abgelehnt.");
       if (!toolUse?.input) throw new Error("Antwort enthält keinen Tool Call");
       return toolUse.input as T;

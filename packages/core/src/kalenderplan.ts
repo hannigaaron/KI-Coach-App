@@ -113,7 +113,7 @@ export function platzText(p: { von: number; bis: number }): string {
 /* ---------- Was der Nutzer will, ohne Modell gelesen ---------- */
 
 export interface KalenderAuftrag {
-  aktion: "eintragen" | "verschieben" | "vorschlagen" | "rueckgaengig";
+  aktion: "eintragen" | "verschieben" | "vorschlagen" | "rueckgaengig" | "loeschen";
   /** Woran der Termin im Kalender erkannt wird, etwa "training". */
   suche?: string;
   titel?: string;
@@ -127,6 +127,14 @@ export interface KalenderAuftrag {
   zielUhrzeit?: string;
   /** Der Nutzer hat ausdrücklich um genau diese Änderung gebeten. */
   bestaetigt?: boolean;
+  /**
+   * Der Nutzer hat genau diesen neuen Eintrag verlangt. Ohne das trägt daevo
+   * nur Trainings und dringende Aufgaben aus Todoist ein, siehe
+   * `eintragErlaubt` in der Web App.
+   */
+  erbeten?: boolean;
+  /** Eine einzelne Aufgabe, die in den Kalender soll. Die App prüft, ob sie dringend ist. */
+  aufgabeId?: string;
 }
 
 const UHRZEIT = /\b(?:um\s+(\d{1,2})(?:[:.](\d{2}))?(?:\s*uhr)?|(\d{1,2})(?:[:.](\d{2}))?\s*uhr)\b/;
@@ -187,6 +195,12 @@ export function kalenderAuftragAus(satz: string, heute = new Date()): KalenderAu
   }
   if (!TRAININGSWORT.test(text)) return null;
   const tag = tagAusSatz(text, heute);
+  // "Lösch das Training am Dienstag aus dem Kalender". Nur mit Kalender oder
+  // Termin im Satz: "lösch das Training von gestern" meint den Eintrag im
+  // Tag und nicht den Kalender.
+  if (/\b(loesch\w*|entfern\w*|streich\w*|raus\w*|weg)\b/.test(text) && /\b(kalender\w*|termin\w*)\b/.test(text)) {
+    return { aktion: "loeschen", suche: "training", ...(tag ? { tag } : {}) };
+  }
   const dauer = /(\d+)\s*(min|minuten)\b/.exec(text) ?? null;
   const stunden = /(\d+(?:[.,]\d)?|eine|einer)\s*(stunden?|std)\b/.exec(text);
   const minuten = dauer ? Number(dauer[1]) : stunden ? Math.round((stunden[1]!.startsWith("ein") ? 1 : Number(stunden[1]!.replace(",", "."))) * 60) : undefined;

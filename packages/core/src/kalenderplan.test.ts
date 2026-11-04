@@ -89,3 +89,11 @@ test("ein genannter Termin mit Ziel ist ein Ja, auch beim Kunden", async () => {
     { aktion: "verschieben", suche: "training", tag: "2026-10-29", zielTag: "2026-10-31", zielUhrzeit: "10:00", bestaetigt: true });
   assert.equal(kalenderAuftragAus("Ich freu mich auf Freitag 14 Uhr", mi), null);
 });
+
+test("kalenderAuftragAus: Training aus dem Kalender löschen, nur mit Kalender oder Termin im Satz", async () => {
+  const { kalenderAuftragAus } = await import("./kalenderplan.js");
+  const mi = new Date(2026, 10, 4, 10, 0);
+  assert.deepEqual(kalenderAuftragAus("Lösch das Training am Dienstag aus dem Kalender", mi),
+    { aktion: "loeschen", suche: "training", tag: "2026-11-10" });
+  assert.equal(kalenderAuftragAus("Lösch das Training von gestern", mi)?.aktion, undefined);
+});

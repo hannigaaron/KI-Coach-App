@@ -57,6 +57,16 @@ export interface AgentActions {
   einkaufslisteAbhaken(input: { posten: string; stand: "gekauft" | "zuhause" | "offen" }): Promise<string>;
   einkaufslisteErgaenzen(input: { posten: string[] }): Promise<string>;
   trainingsplanAbrufen(input: { inTagen?: number }): Promise<string>;
+  /**
+   * Rechnet eine Einheit für heute aus Partien und Minuten, speichert sie und
+   * macht sie im Chat startbar. Die Übungen kommen aus dem Rechenkern, nie aus
+   * dem Modell.
+   */
+  trainingHeute?(input: { gruppen: string[]; minuten?: number; neu?: boolean; tag?: string; uhrzeit?: string; weglassen?: string[]; tauschen?: string[] }): Promise<string>;
+  essensplanAbrufen?(input: { inTagen?: number }): Promise<string>;
+  uebungenSuchen?(input: { suche?: string; ersatzFuer?: string }): Promise<string>;
+  zyklus?(input: { aktion: string; tag?: string; symptome?: string[] }): Promise<string>;
+  lebensmittelAnlegen?(input: { name: string; kcal: number; proteinG?: number; fatG?: number; carbsG?: number; portionG?: number }): Promise<string>;
   standardsAbrufen(): Promise<string>;
   standardSetzen(input: {
     text: string; kadenz: string; art: string; ziel: number; id?: string; uhrzeit?: string; entfernen?: boolean;
@@ -88,9 +98,12 @@ export interface AgentActions {
   bereitschaftAbrufen(): Promise<string>;
   balanceAbrufen(input: { tage?: number }): Promise<string>;
   zeitEintragen(input: { bereich: string; minuten: number; was: string; tag?: string }): Promise<string>;
-  /** Eine eigene, wiederkehrende Erinnerung, etwa für Medikamente. */
+  /**
+   * Eine eigene Erinnerung, wiederkehrend etwa für Medikamente, oder mit
+   * `datum` einmalig an genau einem Tag.
+   */
   erinnerungAnlegen(input: {
-    text: string; uhrzeit?: string; bezug?: "schlafen" | "aufstehen"; versatz?: number; tage: number[];
+    text: string; uhrzeit?: string; bezug?: "schlafen" | "aufstehen"; versatz?: number; tage: number[]; datum?: string;
   }): Promise<string>;
   /**
    * Trägt ein Training in den echten Kalender ein oder verschiebt eines. Den
@@ -196,11 +209,37 @@ export class Agent {
       if (sofort.ausgeführt.length) return sofort;
     }
     if (this.provider.available) {
+      // Ein abgerissenes Netz oder eine überlastete Schnittstelle ist oft nach
+      // einer Sekunde vorbei. Ein zweiter Versuch läuft aber nur, solange noch
+      // nichts passiert ist: kein Werkzeug gerufen, kein Wort in der Blase.
+      // Sonst stünde eine Mahlzeit zweimal im Tag oder die Antwort doppelt da.
+      let gerufen = 0;
+      let geschrieben = 0;
+      const aktionen = new Proxy(params.aktionen, {
+        get(ziel, name, empfaenger) {
+          const wert = Reflect.get(ziel, name, empfaenger);
+          return typeof wert === "function" ? (...args: unknown[]) => { gerufen++; return wert.apply(ziel, args); } : wert;
+        },
+      });
+      const strom = params.strom ? { neu: () => params.strom!.neu(), text: (t: string) => { geschrieben++; params.strom!.text(t); } } : undefined;
       try {
-        return await this.runModel(params);
+        try {
+          return await this.runModel({ ...params, aktionen, strom });
+        } catch (erster) {
+          const art = fehlerErklaerung(erster).art;
+          if ((art !== "netz" && art !== "ueberlastet") || gerufen || geschrieben) throw erster;
+          await new Promise((fertig) => setTimeout(fertig, 1500));
+          return await this.runModel({ ...params, aktionen, strom });
+        }
       } catch (error) {
         if (isDebug()) console.error("Agent Modellfehler", error);
-        const offline = await runOffline(params.nachricht, params.aktionen, Boolean(params.anhaenge?.length));
+        // Eine Nachricht, die etwas Neues sagen will, verlangt das Modell. Der
+        // Regelweg darf daraus nichts anlegen: im Betrieb wurde aus einer
+        // langen Beschwerde über ein falsches Training eine Aufgabe "dass ich
+        // das machen muss", samt einer Liste aller Aufgaben des Tages.
+        const offline = gerufen
+          ? { text: "", ausgeführt: [], source: "offline" as const, unverstanden: true }
+          : await runOffline(params.nachricht, params.aktionen, Boolean(params.anhaenge?.length), { nachModellfehler: true });
         // Die Meldung von Anthropic trägt den Grund. Sie wegzuwerfen und durch
         // "nicht erreichbar" zu ersetzen, kostet den Nutzer jede Chance, den
         // Fehler selbst zu beheben.
@@ -214,7 +253,8 @@ export class Agent {
         // brauchst du Plus" liest, hat eine App, die nicht hält, was sie
         // verspricht. Nur die allgemeine Hilfe bleibt weg, die wirkt neben
         // der Meldung, als hätte die App nicht zugehört.
-        if (offline.unverstanden) return { ...offline, fehlerArt: deutung.art, text: hinweis };
+        const schonGetan = gerufen ? " Was ich vor dem Abbruch schon erledigt habe, ist gespeichert." : "";
+        if (offline.unverstanden) return { ...offline, fehlerArt: deutung.art, text: `${hinweis}${schonGetan}` };
         // Steht die Meldung schon im Text, etwa weil das Auslesen der
         // Mahlzeit am selben Kontingent scheiterte, kommt sie nicht zweimal.
         const text = offline.text.includes(deutung.text) ? offline.text : `${offline.text}\n\n${hinweis}`;
@@ -558,7 +598,7 @@ export const NUR_LESEN = new Set([
   "tagesstand_abrufen", "verlauf_abrufen", "kalender_abrufen", "gespraeche_durchsuchen",
   "produkt_nachschlagen", "balance_abrufen", "muster_erkennen", "bericht_erstellen",
   "belastung_abrufen", "bereitschaft_abrufen", "widersprueche_pruefen",
-  "trainingsplan_abrufen", "standards_abrufen", "gedaechtnis_durchsuchen",
+  "trainingsplan_abrufen", "essensplan_abrufen", "standards_abrufen", "gedaechtnis_durchsuchen", "uebungen_suchen",
 ]);
 
 async function execute(
@@ -693,15 +733,20 @@ async function execute(
         const tage = Array.isArray(input.tage) ? input.tage.map(Number).filter((n) => n >= 1 && n <= 7) : [];
         const bezug = input.bezug === "schlafen" || input.bezug === "aufstehen" ? input.bezug : undefined;
         const uhrzeit = typeof input.uhrzeit === "string" ? input.uhrzeit : undefined;
+        const datum = typeof input.datum === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.datum) ? input.datum : undefined;
         if (!bezug && !uhrzeit) return { text: "Um wie viel Uhr, oder wann im Tag?", fehler: true };
         const text = await actions.erinnerungAnlegen({
           text: String(input.text ?? "").trim().slice(0, 120),
           uhrzeit: bezug ? undefined : uhrzeit,
           bezug,
           versatz: bezug ? Math.round(Number(input.versatz) || 0) : undefined,
-          tage,
+          tage: datum ? [] : tage,
+          ...(datum ? { datum } : {}),
         });
-        return { text, notiz: "Erinnerung angelegt" };
+        // Nur ein angelegter Eintrag trägt den Vermerk. Vorher stand er auch
+        // unter "Um wie viel Uhr?", und der Coach sagte "angelegt".
+        const ok = text.startsWith("Erinnerung angelegt");
+        return ok ? { text, notiz: "Erinnerung angelegt" } : { text, fehler: true };
       }
       case "kalender_termin": {
         const aktion = ["eintragen", "verschieben", "vorschlagen", "rueckgaengig"].includes(String(input.aktion))
@@ -719,6 +764,8 @@ async function execute(
           ...(typeof input.zielTag === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.zielTag) ? { zielTag: input.zielTag } : {}),
           ...(typeof input.zielUhrzeit === "string" && /^\d{1,2}:\d{2}$/.test(input.zielUhrzeit) ? { zielUhrzeit: input.zielUhrzeit.padStart(5, "0") } : {}),
           bestaetigt: input.bestaetigt === true,
+          ...(input.erbeten === true ? { erbeten: true } : {}),
+          ...(typeof input.aufgabeId === "string" && input.aufgabeId.trim() ? { aufgabeId: input.aufgabeId.trim().slice(0, 80) } : {}),
         });
         if (text.startsWith(NICHT_GESPEICHERT)) return { text, fehler: true };
         return { text, notiz: aktion === "vorschlagen" ? "Freien Platz gesucht" : "Kalender geändert" };
@@ -760,7 +807,10 @@ async function execute(
         const gramm = Number.isFinite(Number(input.gramm)) ? clamp(Number(input.gramm), 1, 3000) : undefined;
         const erfassen = input.erfassen === true;
         const text = await actions.produktNachschlagen({ suche, gramm, erfassen });
-        return { text, notiz: erfassen ? `${suche} erfasst` : undefined };
+        // Der Vermerk "erfasst" stand im Betrieb unter einem Produkt, das gar
+        // nicht gefunden war.
+        if (text.startsWith(NICHT_GESPEICHERT)) return { text, fehler: true };
+        return { text, notiz: erfassen && text.includes("Eingetragen.") ? `${suche} erfasst` : undefined };
       }
       case "balance_abrufen": {
         const tage = Number.isFinite(Number(input.tage)) ? clamp(Number(input.tage), 1, 90) : undefined;
@@ -856,9 +906,56 @@ async function execute(
         });
         return { text, notiz: "Einkaufsliste aktualisiert" };
       }
+      case "training_heute": {
+        const gruppen = Array.isArray(input.gruppen) ? input.gruppen.map(String) : [];
+        const minuten = input.minuten != null && Number.isFinite(Number(input.minuten)) ? clamp(Number(input.minuten), 20, 120) : undefined;
+        if (!actions.trainingHeute) return { text: "Das gibt es in dieser Fassung nicht.", fehler: true };
+        const tag = typeof input.tag === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.tag) ? input.tag : undefined;
+        const uhrzeit = typeof input.uhrzeit === "string" && /^\d{1,2}:\d{2}$/.test(input.uhrzeit) ? input.uhrzeit : undefined;
+        const namen = (v: unknown) => (Array.isArray(v) ? v.map(String).filter(Boolean).slice(0, 8) : []);
+        const weglassen = namen(input.weglassen);
+        const tauschen = namen(input.tauschen);
+        const text = await actions.trainingHeute({ gruppen, minuten, neu: input.neu === true, tag, uhrzeit, weglassen, tauschen });
+        if (weglassen.length || tauschen.length) {
+          const geaendert = !text.startsWith(NICHT_GESPEICHERT);
+          return geaendert ? { text, notiz: "Training angepasst" } : { text, fehler: true };
+        }
+        const ok = !text.startsWith(NICHT_GESPEICHERT);
+        return ok ? { text, notiz: "Training für heute bereit" } : { text, fehler: true };
+      }
       case "trainingsplan_abrufen": {
         const inTagen = Number.isFinite(Number(input.inTagen)) ? clamp(Number(input.inTagen), 0, 6) : 0;
         return { text: await actions.trainingsplanAbrufen({ inTagen }) };
+      }
+      case "essensplan_abrufen": {
+        const inTagen = Number.isFinite(Number(input.inTagen)) ? clamp(Number(input.inTagen), 0, 6) : 0;
+        if (!actions.essensplanAbrufen) return { text: "Den Essensplan gibt es in dieser Fassung nicht.", fehler: true };
+        return { text: await actions.essensplanAbrufen({ inTagen }) };
+      }
+      case "zyklus": {
+        if (!actions.zyklus) return { text: "Die Zyklus Funktion gibt es in dieser Fassung nicht.", fehler: true };
+        const aktion = String(input.aktion ?? "abrufen");
+        const text = await actions.zyklus({
+          aktion,
+          tag: typeof input.tag === "string" ? input.tag : undefined,
+          symptome: Array.isArray(input.symptome) ? input.symptome.map(String) : [],
+        });
+        if (text.startsWith(NICHT_GESPEICHERT)) return { text, fehler: true };
+        return { text, notiz: aktion === "abrufen" ? undefined : "Zyklus eingetragen" };
+      }
+      case "lebensmittel_anlegen": {
+        if (!actions.lebensmittelAnlegen) return { text: "Eigene Lebensmittel gibt es in dieser Fassung nicht.", fehler: true };
+        const z = (v: unknown) => (v === undefined || v === null || v === "" ? undefined : Number(v));
+        const text = await actions.lebensmittelAnlegen({
+          name: String(input.name ?? ""), kcal: Number(input.kcal),
+          proteinG: z(input.proteinG), fatG: z(input.fatG), carbsG: z(input.carbsG), portionG: z(input.portionG),
+        });
+        if (text.startsWith(NICHT_GESPEICHERT)) return { text, fehler: true };
+        return { text, notiz: "Lebensmittel angelegt" };
+      }
+      case "uebungen_suchen": {
+        if (!actions.uebungenSuchen) return { text: "Die Übungsdatenbank gibt es in dieser Fassung nicht.", fehler: true };
+        return { text: await actions.uebungenSuchen({ suche: input.suche ? String(input.suche) : undefined, ersatzFuer: input.ersatzFuer ? String(input.ersatzFuer) : undefined }) };
       }
       case "einkaufsliste_ergaenzen": {
         const posten = Array.isArray(input.posten) ? input.posten.map(String).filter((p) => p.trim()) : [];
@@ -1049,6 +1146,78 @@ function korrekturAus(text: string, nachricht: string): { posten?: string; neueM
   return { posten: nachricht, neueMenge: zahl, ...(umrechnen ? { mengeText: `${zahl} ${schoen[einheit] ?? einheit}` } : {}) };
 }
 
+/** Welche Partien ein Wort meint. Push und Pull wie im Studio gemeint. */
+const PARTIE_WOERTER: Array<[RegExp, string[]]> = [
+  [/\bpush\b/, ["brust", "schultern", "trizeps"]],
+  [/\bpull\b/, ["ruecken", "bizeps"]],
+  [/\b(oberkoerper|upper|torso)\b/, ["brust", "ruecken", "schultern"]],
+  [/\b(unterkoerper|lower)\b/, ["beine", "po"]],
+  [/\b(ganzkoerper|full ?body)\b/, ["beine", "brust", "ruecken"]],
+  [/\b(beine?|bein\w*|legs?|leg day|beintag)\b/, ["beine", "po"]],
+  [/\b(po|glutes?|gesaess)\b/, ["po"]],
+  [/\bbrust\w*\b/, ["brust"]],
+  [/\b(ruecken\w*|lat)\b/, ["ruecken"]],
+  [/\b(schulter\w*|delts?)\b/, ["schultern"]],
+  [/\barme?\b/, ["bizeps", "trizeps"]],
+  [/\b(bizeps|biceps)\b/, ["bizeps"]],
+  [/\b(trizeps|triceps)\b/, ["trizeps"]],
+  [/\b(core|bauch|rumpf)\b/, ["rumpf"]],
+];
+
+/**
+ * Ob jemand eine Einheit bestellt, für welchen Tag und welche. Nur mit einem
+ * Wort der Absicht und einer Partie, nie in der Vergangenheit: "war eben 60
+ * min Oberkörper" ist ein Eintrag und keine Bestellung.
+ *
+ * Gelesen wird je Satzteil. "Gestern Push, morgen um 14 Uhr Pull" ergab
+ * vorher eine Einheit aus Push und Pull für heute: was er gestern gemacht
+ * hat, gehört nicht in die Bestellung, und der Tag steht im selben Satz.
+ */
+export function trainingHeuteAus(text: string, jetzt: Date = new Date()): { gruppen: string[]; minuten?: number; tag?: string; uhrzeit?: string } | null {
+  if (/\b(gegessen|getrunken|esse|essen|isst)\b/.test(text)) return null;
+  const vergangen = /\b(war|warst|hab|habe|hatte|gewesen|trainiert|gemacht|gestern|vorgestern)\b/;
+  const teile = text.replace(/\bguten morgen\b/g, " ").split(/[.,;!?]|\b(?:aber|sondern|danach)\b/).map((t) => t.trim()).filter(Boolean);
+  const kern = teile.filter((t) => !vergangen.test(t)).join(", ");
+  if (!kern) return null;
+  const tagWort = "(heute|morgen|uebermorgen|montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)";
+  const absicht = /\b(trainiere|trainier|trainieren|stell mir|erstell|bau mir|plan mir|plane mir|mach mir|zusammenstellen|gleich ins|geh gleich|gehe gleich)\b/.test(kern)
+    || new RegExp(`\\b(will|moechte|werde|mache|mach)\\b.{0,30}\\b${tagWort}\\b|\\b${tagWort}\\b.{0,30}\\b(will|moechte|werde)\\b`).test(kern)
+    // "Heute Pull, 45 min" und "ich mach heute Beine" sind dieselbe Absicht,
+    // nur kürzer gesagt. Ohne das kam darauf der Satz, der Regelweg verstehe
+    // nur einfache Sätze.
+    || (new RegExp(`\\b${tagWort}\\b`).test(kern) && (/\b(mach|mache|machen|steht|ist|gibt'?s|gibt es)\b|\d{2,3}\s*(min|minuten)\b/.test(kern) || /\bum\s+\d{1,2}\b/.test(kern)));
+  const bezug = new RegExp(`\\b(${tagWort.slice(1, -1)}|gleich|jetzt|nachher|training|einheit|workout|gym|studio)\\b`).test(kern);
+  if (!absicht || !bezug) return null;
+  const gruppen: string[] = [];
+  for (const [muster, g] of PARTIE_WOERTER) if (muster.test(kern)) for (const x of g) if (!gruppen.includes(x)) gruppen.push(x);
+  if (!gruppen.length) return null;
+  const min = /(\d{2,3})\s*(min|minuten)\b/.exec(kern);
+  const std = /(\d(?:[.,]5)?)\s*(h|std|stunden?)\b/.exec(kern);
+  const minuten = min ? Number(min[1]) : std ? Math.round(Number((std[1] ?? "1").replace(",", ".")) * 60) : undefined;
+
+  // Der Tag: übermorgen, morgen oder ein Wochentag, sonst heute.
+  const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const WOCHE = ["sonntag", "montag", "dienstag", "mittwoch", "donnerstag", "freitag", "samstag"];
+  let plus = 0;
+  if (/\buebermorgen\b/.test(kern)) plus = 2;
+  else if (/\bmorgen\b/.test(kern)) plus = 1;
+  else {
+    const wt = new RegExp(`\\b(${WOCHE.join("|")})\\b`).exec(kern);
+    if (wt) plus = (WOCHE.indexOf(wt[1]!) - jetzt.getDay() + 7) % 7;
+  }
+  const d = new Date(jetzt); d.setDate(d.getDate() + plus);
+  // Die Uhrzeit nur, wenn sie eindeutig ist: "um 14", "um 14 Uhr", "14:30".
+  const u = /\bum\s+(\d{1,2})(?:[:.](\d{2}))?\b/.exec(kern) ?? /\b(\d{1,2})[:.](\d{2})\b/.exec(kern) ?? /\b(\d{1,2})\s*uhr\b/.exec(kern);
+  const stunde = u ? Number(u[1]) : NaN;
+  const uhrzeit = stunde >= 5 && stunde <= 23 ? `${String(stunde).padStart(2, "0")}:${u?.[2] ?? "00"}` : undefined;
+  return {
+    gruppen,
+    minuten: minuten === undefined ? undefined : Math.max(20, Math.min(120, minuten)),
+    ...(plus > 0 ? { tag: iso(d) } : {}),
+    ...(uhrzeit ? { uhrzeit } : {}),
+  };
+}
+
 /**
  * Die Ruecknahme eines Eintrags aus dem Satz lesen.
  *
@@ -1070,6 +1239,9 @@ function ruecknahmeAus(text: string): { art?: string; suche?: string } | null {
     // deshalb reicht eine feste Wortfolge nicht.
     || (pattern("nimm", "nehme").test(text) && pattern("raus", "weg").test(text));
   if (!ruecknahme) return null;
+  // Ein Termin im Kalender ist kein Eintrag im Tag, dafür gibt es
+  // kalender_termin mit aktion loeschen.
+  if (pattern("kalender", "termin").test(text)) return null;
 
   // Ohne Gegenstand nichts tun. "Das stimmt nicht" ueber eine Aussage des
   // Coaches darf keinen Eintrag entfernen.
@@ -1194,10 +1366,72 @@ function parseAmount(raw: string | undefined): number | null {
  * Er erkennt Absichten an Schlüsselwörtern. Das ist grob, aber es deckt die
  * Fälle ab, die im Alltag zählen, und es sagt ehrlich, wenn es nicht reicht.
  */
+/**
+ * Erkennt Sätze zum Zyklus. Nur mit einem Wort für Periode oder Zyklus,
+ * damit "Krämpfe in der Wade" keine Zyklusbeschwerde wird.
+ */
+export function zyklusAus(text: string): { aktion: string; tag?: string; symptome?: string[] } | null {
+  const periode = /\b(periode|meine tage|menstruation|regel(blutung)?|zyklus)\b/.test(text);
+  if (!periode) return null;
+  const gestern = /\bgestern\b/.test(text);
+  const tag = gestern ? new Date(Date.now() - 864e5).toISOString().slice(0, 10) : undefined;
+  if (/\b(vorbei|aufgehoert|zu ende|vorueber|beendet)\b/.test(text)) return { aktion: "periode_ende", tag };
+  if (/\b(angefangen|begonnen|bekommen|eingesetzt|gekriegt|ist da|sind da|habe meine|hab meine|hab die|habe die)\b/.test(text)
+    && !/\b(wann|wie lange|wieviel|wie viel)\b/.test(text)) return { aktion: "periode_beginn", tag };
+  const symptome: string[] = [];
+  if (/kraempf|unterleib/.test(text)) symptome.push("kraempfe");
+  if (/\b(muede|erschoepft|platt|schlapp)\b/.test(text)) symptome.push("muede");
+  if (/kopfschmerz|migraene/.test(text)) symptome.push("kopfschmerz");
+  if (/\b(blaeh\w*|aufgebläht|aufgeblaeht)\b/.test(text)) symptome.push("blaehbauch");
+  if (symptome.length) return { aktion: "symptome", tag, symptome };
+  if (/\b(phase|zyklustag|welcher tag|wann kommt|naechste|zyklus)\b/.test(text)) return { aktion: "abrufen" };
+  return null;
+}
+
+/**
+ * Liest ein eigenes Lebensmittel aus einem Satz. Nur mit dem Wort
+ * Lebensmittel und einem Verb fürs Anlegen, und nur mit Kalorien: ohne die
+ * gibt es nichts zu speichern, und Makros ohne Kalorien rät die App nicht.
+ * Die Werte gelten je 100 g, so stehen sie auf jeder Packung.
+ */
+export function lebensmittelAus(text: string, roh: string): { name: string; kcal: number; proteinG?: number; fatG?: number; carbsG?: number; portionG?: number } | null {
+  if (!/\blebensmittel\b/.test(text) || !/\b(anlegen|leg\w*|speicher\w*|merk\w*|hinzufueg\w*|fueg\w*|erstell\w*|neu\w*)\b/.test(text)) return null;
+  const zahl = (re: RegExp) => { const m = re.exec(text); return m?.[1] ? Number(m[1].replace(",", ".")) : undefined; };
+  const kcal = zahl(/(\d+(?:[.,]\d+)?)\s*(?:kcal|kalorien)/);
+  if (kcal === undefined) return null;
+  const g = "(\\d+(?:[.,]\\d+)?)\\s*(?:g|gramm)?\\s*";
+  const proteinG = zahl(new RegExp(g + "(?:eiweiss|protein)"));
+  const fatG = zahl(new RegExp(g + "fett"));
+  const carbsG = zahl(new RegExp(g + "(?:kohlenhydrate|kh|carbs)"));
+  const portionG = zahl(/portion\w*\s*(?:von|sind|ist|=)?\s*(\d+)\s*(?:g|gramm)/);
+  // Der Name steht nach dem Doppelpunkt oder nach "an", bis zur ersten Zahl.
+  const nach = /(?::|\banlegen\b|\ban\b|\bals\b|\bspeicher\w*)\s*([^\d:,]+?)\s*(?:,|\bmit\b|\d)/i.exec(roh.replace(/(?:ein |als )?(?:eigenes |neues )?lebensmittel/i, " "));
+  const name = (nach?.[1] ?? "").replace(/^(ein|eine|das|den|die|neues?)\s+/i, "").replace(/\s+(mit|hat|je)$/i, "").trim();
+  if (name.length < 2) return null;
+  return { name, kcal, proteinG, fatG, carbsG, portionG };
+}
+
+/**
+ * Ob ein Satz sich an daevo richtet statt etwas einzutragen. Zwei Anreden
+ * wie du, dir oder dich, oder eine Wendung, die nur an die App geht. Der
+ * Text ist schon gefaltet und klein.
+ */
+export function anDaevo(text: string): boolean {
+  const anreden = (text.match(/\b(du|dir|dich|dein\w*)\b/g) ?? []).length;
+  const woerter = text.split(/\s+/).filter(Boolean).length;
+  if (pattern("dafur bist du da", "dafuer bist du da", "du sollst", "du musst", "verstehst du nicht",
+    "kannst du nicht", "das nervt").test(text) || /\bbro\b/.test(text)) return true;
+  // Kurze Bitten wie "kannst du dir merken, dass ..." gehen weiter an die
+  // Zweige darunter. Erst ein längerer Satz mit mehreren Anreden ist ein
+  // Gespräch über daevo.
+  return woerter >= 12 && anreden >= 2;
+}
+
 export async function runOffline(
   nachricht: string,
   actions: AgentActions,
   mitAnhang = false,
+  { nachModellfehler = false }: { nachModellfehler?: boolean } = {},
 ): Promise<AgentReply> {
   const text = foldUmlauts(nachricht.toLowerCase());
   const ausgeführt: string[] = [];
@@ -1212,6 +1446,28 @@ export async function runOffline(
       ausgeführt,
       source: "offline",
     };
+  }
+
+  // "Leg ein Lebensmittel an: Omas Kuchen, 350 kcal, 5 g Eiweiß ..." steht vor
+  // dem Erfassen: der Satz trägt kcal und Gramm, und als Mahlzeit gelesen
+  // stünden 350 kcal Kuchen im Tag, die niemand gegessen hat.
+  const neuesLm = actions.lebensmittelAnlegen ? lebensmittelAus(text, nachricht) : null;
+  if (neuesLm && actions.lebensmittelAnlegen) {
+    const antwort = await actions.lebensmittelAnlegen(neuesLm);
+    const ok = !antwort.startsWith(NICHT_GESPEICHERT);
+    return { text: antwort, ausgeführt: ok ? ["Lebensmittel angelegt"] : [], source: "offline" };
+  }
+
+  // "Meine Periode hat heute angefangen", "meine Tage sind vorbei", "hab
+  // Krämpfe". Steht vor dem Erfassen und der Beschwerde: "Krämpfe" ist hier
+  // kein Fall für den Physiotherapeuten.
+  if (actions.zyklus) {
+    const z = zyklusAus(text);
+    if (z) {
+      const antwort = await actions.zyklus(z);
+      const ok = !antwort.startsWith(NICHT_GESPEICHERT);
+      return { text: antwort, ausgeführt: ok && z.aktion !== "abrufen" ? ["Zyklus eingetragen"] : [], source: "offline" };
+    }
   }
 
   // Zurücknehmen steht vor allem, was einträgt. "Das hab ich nicht gegessen"
@@ -1231,6 +1487,22 @@ export async function runOffline(
     const antwort = await actions.eintragZuruecknehmen(ruecknahme);
     const erledigt = !/^(Dazu finde ich|Für heute steht|Es gibt)/.test(antwort);
     return { text: antwort, ausgeführt: erledigt ? ["Eintrag zurückgenommen"] : [], source: "offline" };
+  }
+
+  // Ein Satz an daevo selbst, Kritik, eine Bitte, eine Rückfrage zu einer
+  // Antwort, ist kein Eintrag. Ohne Modell versteht ihn niemand, und aus
+  // seinen Wörtern eine Aufgabe oder Mahlzeit zu bauen ist schlimmer als zu
+  // sagen, dass es gerade nicht geht. Im Betrieb wurde aus "wenn dir die
+  // Abweichungen auffallen, korrigier sie selbst" eine Aufgabe.
+  if (anDaevo(text)) {
+    return {
+      text: nachModellfehler
+        ? "Das muss ich verstehen, und dafür brauche ich die KI. Ich habe nichts eingetragen."
+        : "Das kann ich ohne KI nicht verstehen, und ich trage deshalb nichts ein.",
+      ausgeführt,
+      source: "offline",
+      unverstanden: true,
+    };
   }
 
   if (pattern("merk dir", "merke dir", "denk dran", "nicht vergessen", "behalte").test(text)) {
@@ -1297,6 +1569,57 @@ export async function runOffline(
     return { text: antwort, ausgeführt, source: "offline" };
   }
 
+  // "Was esse ich morgen laut Plan" und "was soll ich heute essen" lesen den
+  // Essensplan. "Was hab ich heute gegessen" ist eine Frage nach dem Tag und
+  // landet hier nicht: verlangt wird "soll", "laut Plan" oder das Wort selbst.
+  const essenTag = (/\bessensplan\b/.test(text) || /\blaut plan\b/.test(text) && /\b(esse|essen|koche|kochen)\b/.test(text)
+    || /\b(was|welches)\b.*\b(soll|sollte)\b.*\b(essen|kochen)\b/.test(text))
+    ? (/\buebermorgen\b/.test(text) ? 2 : /\bmorgen\b/.test(text) ? 1 : 0)
+    : null;
+  if (essenTag !== null && actions.essensplanAbrufen) {
+    const plan = await actions.essensplanAbrufen({ inTagen: essenTag });
+    // "Was soll ich heute Abend essen" fragt nach einer Mahlzeit und nicht
+    // nach dem ganzen Tag. Dann bleibt die Kopfzeile und genau diese Zeile.
+    const klein = nachricht.toLowerCase();
+    const mahlzeit = /abend/.test(klein) ? "Abendessen" : /mittag/.test(klein) ? "Mittagessen"
+      : /(frühstück|fruehstueck)/.test(klein) ? "Frühstück" : /snack/.test(klein) ? "Snack" : null;
+    const zeilen = plan.split("\n");
+    const treffer = mahlzeit ? zeilen.filter((z) => z.startsWith(`${mahlzeit}:`)) : [];
+    const text2 = treffer.length ? [zeilen[0], ...treffer].join("\n") : plan;
+    return { text: text2, ausgeführt, source: "offline" };
+  }
+
+  // Eine Einheit für heute bestellen: "heute trainiere ich Push, 60 Minuten",
+  // "stell mir ein Beintraining zusammen". Vor der Frage nach dem Plan und vor
+  // dem Eintragen, denn "Training" steht in allen dreien.
+  // "Neue Übungen" nach einer Einheit für heute, auch als Knopf unter der
+  // Antwort. Kurz oder mit heute, sonst ist es eine Frage zum Wochenplan.
+  const neuWunsch = /\b(neue|andere)\s+uebungen\b/.test(text) && (text.split(/\s+/).length <= 6 || /\bheute\b/.test(text));
+  const heute = neuWunsch ? { ...(trainingHeuteAus(text) ?? { gruppen: [] }), neu: true } : trainingHeuteAus(text);
+  if (heute && actions.trainingHeute) {
+    const antwort = await actions.trainingHeute(heute);
+    const ok = !antwort.startsWith(NICHT_GESPEICHERT);
+    return { text: antwort, ausgeführt: ok ? [...ausgeführt, "Training für heute bereit"] : ausgeführt, source: "offline" };
+  }
+
+  // "Zeig mir Übungen an der Multipresse", "welche Übung ersetzt Bankdrücken".
+  // Die Datenbank kennt Gerät, Muskel und Bewegung, dafür braucht es kein Modell.
+  if (actions.uebungenSuchen) {
+    const ersatz = /\b(ersetz\w*|alternative\w*|statt|anstatt|anstelle)\b/.test(text) && /\buebung\w*\b|\bbesetzt\b/.test(text);
+    const liste = /\buebungen\b/.test(text) && /\b(zeig\w*|welche|liste|gibt es|gibts|gibt's|alle)\b/.test(text);
+    if (ersatz || liste) {
+      const roh = nachricht.replace(/[?!.]/g, " ");
+      const ersatzName = ersatz
+        ? (/(?:ersetzt|ersetze|ersetzen|alternative zu|statt|anstatt|anstelle von)\s+(?:die\s+|den\s+|das\s+)?([A-Za-zÄÖÜäöüß -]+?)(?:\s+wenn|\s+weil|,|$)/i.exec(roh)?.[1] ?? "")
+        : "";
+      const suche = liste
+        ? text.replace(/[?!.,']/g, " ").replace(/\b(zeig|zeige|mir|welche|liste|gibt|gibts|es|alle|uebungen|an|am|der|die|das|den|dem|mit|fuer|ich|kann|machen|eine|einer|bitte|von|im|in|fuer den)\b/g, " ").replace(/\s+/g, " ").trim()
+        : "";
+      const antwort = await actions.uebungenSuchen({ suche: suche || undefined, ersatzFuer: ersatzName.trim() || undefined });
+      return { text: antwort, ausgeführt, source: "offline" };
+    }
+  }
+
   // "Was soll ich morgen trainieren" ist eine Frage nach dem Plan, nicht nach
   // der Tagesform. Für heute nur, wenn weder Schlaf noch Stress im Satz steht,
   // sonst gehört sie zur Anpassung darunter.
@@ -1349,7 +1672,8 @@ export async function runOffline(
   const erinnerung = erinnerungAus(nachricht);
   if (erinnerung) {
     const antwort = await actions.erinnerungAnlegen(erinnerung);
-    return { text: antwort, ausgeführt: ["Erinnerung angelegt"], source: "offline" };
+    const ok = antwort.startsWith("Erinnerung angelegt");
+    return { text: antwort, ausgeführt: ok ? ["Erinnerung angelegt"] : [], source: "offline" };
   }
 
   // Ein geänderter Mindeststandard. Braucht das Wort Standard, damit "dreimal
@@ -1364,7 +1688,8 @@ export async function runOffline(
   // neuer Wochenplan noch ein Training von heute.
   const auftrag = kalenderAuftragAus(nachricht);
   if (auftrag) {
-    const antwort = await actions.kalenderTermin(auftrag);
+    // Der Satz kommt vom Nutzer selbst: ein Eintrag daraus ist erbeten.
+    const antwort = await actions.kalenderTermin(auftrag.aktion === "eintragen" ? { ...auftrag, erbeten: true } : auftrag);
     const nichts = antwort.startsWith(NICHT_GESPEICHERT) || auftrag.aktion === "vorschlagen";
     return { text: antwort, ausgeführt: nichts ? [] : ["Kalender geändert"], source: "offline" };
   }
@@ -1556,8 +1881,8 @@ export async function runOffline(
   if (pattern("kopf schwirrt", "geht mir durch den kopf", "alles zu viel", "weiss nicht wo ich anfangen",
     "weiß nicht wo ich anfangen", "kopf frei", "chaos im kopf", "so viel gleichzeitig",
     "muss mal alles raus", "kopf leeren", "gedanken sortieren").test(text)
-    || nachricht.split(/\s+/).filter(Boolean).length > 60
-    || (nachricht.split(/\s+/).filter(Boolean).length > 30 && (nachricht.match(/,/g) ?? []).length >= 4)) {
+    || (!nachModellfehler && nachricht.split(/\s+/).filter(Boolean).length > 60)
+    || (!nachModellfehler && nachricht.split(/\s+/).filter(Boolean).length > 30 && (nachricht.match(/,/g) ?? []).length >= 4)) {
     return { text: await actions.kopfLeeren({ text: nachricht }), ausgeführt: ["Kopf geleert"], source: "offline" };
   }
 
@@ -1626,7 +1951,9 @@ export async function runOffline(
     return { text: await actions.briefingErstellen({ art: "morgen" }), ausgeführt, source: "offline" };
   }
 
-  if (pattern("tagesabschluss", "tag abschliessen", "tag abschließen", "gute nacht", "feierabend").test(text)) {
+  if (pattern("tagesabschluss", "tag abschliessen", "tag abschließen", "gute nacht", "feierabend",
+    "was steht morgen an", "wie sieht morgen aus", "wie sieht mein morgen aus", "wie sieht der morgige tag aus",
+    "was hab ich morgen", "was habe ich morgen", "was ist morgen los").test(text)) {
     return { text: await actions.briefingErstellen({ art: "abend" }), ausgeführt, source: "offline" };
   }
 

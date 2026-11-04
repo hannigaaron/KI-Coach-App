@@ -34,6 +34,9 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
             if let t = HKObjectType.quantityType(forIdentifier: id) { typen.insert(t) }
         }
         if let schlaf = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) { typen.insert(schlaf) }
+        // Die Periode, wenn die Nutzerin sie in Health oder einer Zyklus App
+        // führt. Nur lesen, daevo schreibt nichts nach Health.
+        if let periode = HKObjectType.categoryType(forIdentifier: .menstrualFlow) { typen.insert(periode) }
         typen.insert(HKObjectType.workoutType())
         // Ernährung, die andere Apps nach Health schreiben, etwa YAZIO oder
         // MyFitnessPal. Die Mahlzeit als Ganzes steht als Korrelation da,
@@ -214,6 +217,31 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
         }
         store.execute(workoutAbfrage)
 
+        // Blutung je Tag. Die Werte von HKCategoryValueMenstrualFlow über die
+        // Rohwerte, weil Apple die Namen in iOS 18 umbenannt hat:
+        // 1 ohne Angabe, 2 leicht, 3 mittel, 4 stark, 5 keine.
+        var periode: [[String: Any]] = []
+        if let periodeTyp = HKObjectType.categoryType(forIdentifier: .menstrualFlow) {
+            gruppe.enter()
+            let abfrage = HKSampleQuery(
+                sampleType: periodeTyp,
+                predicate: HKQuery.predicateForSamples(withStart: anfang, end: ende),
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
+            ) { _, proben, _ in
+                let staerke = [1: "mittel", 2: "leicht", 3: "mittel", 4: "stark"]
+                let liste = (proben as? [HKCategorySample] ?? []).compactMap { p -> [String: Any]? in
+                    guard let s = staerke[p.value] else { return nil }
+                    return ["tag": GesundheitPlugin.tagText(p.startDate), "staerke": s]
+                }
+                sperre.lock()
+                periode = liste
+                sperre.unlock()
+                gruppe.leave()
+            }
+            store.execute(abfrage)
+        }
+
         var nahrung: [[String: Any]] = []
         gruppe.enter()
         nahrungLesen(anfang: anfang, ende: ende) { liste in
@@ -225,7 +253,7 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
 
         gruppe.notify(queue: .main) {
             let liste = ergebnis.values.sorted { ($0["tag"] as? String ?? "") < ($1["tag"] as? String ?? "") }
-            call.resolve(["tage": liste, "workouts": workouts, "nahrung": nahrung, "von": GesundheitPlugin.tagText(anfang)])
+            call.resolve(["tage": liste, "workouts": workouts, "nahrung": nahrung, "periode": periode, "von": GesundheitPlugin.tagText(anfang)])
         }
     }
 

@@ -245,7 +245,9 @@ export function regelKopf(text: string): KopfErgebnis {
 
   return {
     kern: aufgaben.length
-      ? `${aufgaben.length} ${aufgaben.length === 1 ? "Handlung" : "Handlungen"} und ${sorgen.length} ${sorgen.length === 1 ? "Sache" : "Sachen"}, die dich belasten, ohne dass es dafür eine Aufgabe gibt.`
+      ? `${aufgaben.length === 1 ? "Eine Aufgabe" : `${aufgaben.length} Aufgaben`}${sorgen.length
+        ? ` und ${sorgen.length === 1 ? "eine Sache" : `${sorgen.length} Sachen`}, die dich belasten, ohne dass es dafür eine Aufgabe gibt`
+        : ""}.`
       : "Aus deinem Text konnte ich ohne Modell keine klare Handlung herauslesen.",
     aufgaben: aufgaben.slice(0, MAX_AUFGABEN),
     entscheidungen: entscheidungen.slice(0, 8),

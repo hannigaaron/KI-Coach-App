@@ -197,7 +197,7 @@ function stunden(minuten: number): string {
 }
 
 /** Der Plan in Worten. Für den Prompt, die Erinnerung und die Anzeige. */
-export function planText(plan: Plan): string {
+export function planText(plan: Plan, heute?: string): string {
   const zeilen: string[] = [];
   if (plan.heute.length === 0 && plan.morgen.length === 0 && plan.spaeter.length === 0) {
     return "Keine offenen Aufgaben.";
@@ -205,14 +205,14 @@ export function planText(plan: Plan): string {
 
   if (plan.heute.length) {
     zeilen.push("Heute noch, in dieser Reihenfolge:");
-    for (const a of plan.heute) zeilen.push(`- ${a.text} (${a.minuten} Minuten${frist(a)})`);
+    for (const a of plan.heute) zeilen.push(`- ${a.text} (${a.minuten} Minuten${frist(a, heute)})`);
   } else {
     zeilen.push("Heute nichts mehr.");
   }
 
   if (plan.morgen.length) {
     zeilen.push("Das kann bis morgen warten:");
-    for (const a of plan.morgen) zeilen.push(`- ${a.text} (${a.minuten} Minuten${frist(a)})`);
+    for (const a of plan.morgen) zeilen.push(`- ${a.text} (${a.minuten} Minuten${frist(a, heute)})`);
   }
 
   if (plan.spaeter.length) {
@@ -223,6 +223,25 @@ export function planText(plan: Plan): string {
   return zeilen.join("\n");
 }
 
-function frist(a: Aufgabe): string {
-  return a.faellig ? `, fällig ${a.faellig}` : "";
+const MONATE = ["Jan.", "Feb.", "März", "Apr.", "Mai", "Juni", "Juli", "Aug.", "Sep.", "Okt.", "Nov.", "Dez."];
+
+/**
+ * Die Frist als Wort. "fällig 2026-11-03" ist eine Datenbankzeile, und am
+ * Tag selbst heisst es heute. Was davor lag, ist überfällig und sagt das.
+ */
+export function fristWort(faellig: string, heute?: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(faellig);
+  if (!m) return `fällig ${faellig}`;
+  const datum = `${Number(m[3])}. ${MONATE[Number(m[2]) - 1]}`;
+  if (!heute) return `fällig ${datum}`;
+  const tage = Math.round((Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) - Date.parse(`${heute}T00:00:00Z`)) / 86_400_000);
+  if (tage === 0) return "fällig heute";
+  if (tage === 1) return "fällig morgen";
+  if (tage === -1) return "seit gestern überfällig";
+  if (tage < 0) return `überfällig seit ${datum}`;
+  return `fällig ${datum}`;
+}
+
+function frist(a: Aufgabe, heute?: string): string {
+  return a.faellig ? `, ${fristWort(a.faellig, heute)}` : "";
 }

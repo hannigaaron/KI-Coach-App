@@ -167,8 +167,8 @@ test("Bis 45 Minuten steht keine Isolationsübung im Plan, nur die Rumpfübung",
   }
 });
 
-test("Jede kurze Einheit hat Knie, Hüfte, Drücken, Ziehen und Rumpf, die Rumpfübung zuletzt", () => {
-  for (const tage of [2, 3, 4, 5] as const) {
+test("Jede kurze Ganzkörpereinheit hat Knie, Hüfte, Drücken, Ziehen und Rumpf, die Rumpfübung zuletzt", () => {
+  for (const tage of [2, 3] as const) {
     for (const ziel of ["muskel", "kraft", "fitness"] as const) {
       for (const e of uebungsplanBauen(w({ tage, minuten: 30, ziel }), LIB_FREI).einheiten) {
         const muster = e.positionen.map((p) => gruppeVon(p.id).pattern);
@@ -275,5 +275,36 @@ test("Grundübungen zuerst, Isolation danach, Rumpf am Ende", () => {
       const rumpf = arten.findIndex((u) => u.gruppe === "rumpf");
       if (rumpf >= 0) assert.ok(arten.slice(rumpf).every((u) => u.gruppe === "rumpf"), `${tage}/${minuten} ${e.titel}`);
     }
+  }
+});
+
+test("Ab vier Tagen gibt es keinen Ganzkörperplan, auch nicht kurz", () => {
+  for (const tage of [4, 5] as const) {
+    for (const minuten of [30, 45, 60, 90]) {
+      const plan = uebungsplanBauen(w({ tage, minuten }), LIB_FREI);
+      assert.equal(plan.einheiten.length, tage);
+      for (const e of plan.einheiten) assert.ok(!/Ganzkörper/.test(e.titel), `${tage} Tage, ${minuten} Min: ${e.titel}`);
+      for (const e of plan.einheiten) assert.ok(e.positionen.length >= 3, `${e.titel} hat nur ${e.positionen.length} Übungen`);
+    }
+  }
+  const kurz4 = uebungsplanBauen(w({ tage: 4, minuten: 45 }), LIB_FREI).einheiten.map((e) => e.titel);
+  assert.deepEqual(kurz4, ["Oberkörper A", "Unterkörper A", "Oberkörper B", "Unterkörper B"]);
+  // Oberkörper ohne Beine, Unterkörper ohne Drücken und Ziehen.
+  for (const e of uebungsplanBauen(w({ tage: 4, minuten: 45 }), LIB_FREI).einheiten) {
+    const muster = e.positionen.map((p) => gruppeVon(p.id).pattern);
+    if (/Ober/.test(e.titel)) assert.ok(!muster.some((m) => /knee|hip_dominant|unilateral/.test(m)), e.titel);
+    else assert.ok(!muster.some((m) => /_push$|_pull$/.test(m)), e.titel);
+  }
+});
+
+test("Vier Tage mit Schwachstellen: Torso, Beine und Arme, Torso, Schwachstellen", () => {
+  for (const minuten of [45, 60]) {
+    const plan = uebungsplanBauen(w({ tage: 4, minuten, fokus: ["arme", "schultern"] }), LIB_FREI);
+    assert.deepEqual(plan.einheiten.map((e) => e.titel), ["Torso A", "Beine und Arme", "Torso B", "Schwachstellen"]);
+    const schwach = plan.einheiten[3]!;
+    const muster = schwach.positionen.map((p) => gruppeVon(p.id).pattern);
+    assert.ok(muster.every((m) => /elbow|shoulder|vertical_push|core_/.test(m)), muster.join());
+    assert.ok(schwach.positionen.length >= 3);
+    assert.ok(schwach.dauerMin <= minuten, `${schwach.dauerMin} > ${minuten}`);
   }
 });

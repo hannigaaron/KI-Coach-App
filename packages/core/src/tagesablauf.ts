@@ -102,7 +102,18 @@ export function tagesablauf(params: {
   const rohBis = zeitAmTag(tag, rand.sleepTime);
   const wachBis = rohBis > wachVon ? rohBis : rohBis + 86400_000;
 
-  const alle = params.termine.slice().sort((a, b) => a.von - b.von);
+  // Derselbe Termin aus zwei Kalendern, etwa ein Feiertag in iCloud und in
+  // Google, steht sonst doppelt da und zählt doppelt in der Auslastung.
+  const gesehen = new Set<string>();
+  const alle = params.termine
+    .filter((t) => !istSchlafMarker(t.titel))
+    .filter((t) => {
+      const k = `${t.titel.trim().toLowerCase()}|${t.ganztags ? new Date(t.von).toDateString() : t.von}|${t.ganztags ? "" : t.bis}`;
+      if (gesehen.has(k)) return false;
+      gesehen.add(k);
+      return true;
+    })
+    .sort((a, b) => a.von - b.von);
   const ganztags = alle.filter((t) => t.ganztags);
   const termine = alle.filter((t) => !t.ganztags);
 
@@ -141,6 +152,35 @@ export function tagesablauf(params: {
     training,
     hinweise,
   };
+}
+
+/**
+ * Ein Eintrag wie "SLEEP" oder "Schlafen" ist kein Termin, sondern die
+ * Schlafenszeit im Kalender. Als Termin gezählt, meldete der Tag "endet 66
+ * Minuten nach deiner Schlafenszeit" und legte die letzte Mahlzeit davor.
+ * Nur der ganze Titel zählt, "Schlafcoaching mit Kunde" bleibt ein Termin.
+ */
+export function istSchlafMarker(titel: string): boolean {
+  const kern = String(titel ?? "").replace(/[^\p{L}\s]/gu, "").trim().toLowerCase();
+  return /^(sleep|schlaf|schlafen|schlafenszeit|bett|bettzeit|ins bett|nachtruhe|bedtime)$/.test(kern);
+}
+
+/**
+ * Die Schlafenszeit eines Abends aus dem Kalender, wenn dort ein Eintrag wie
+ * "SLEEP" steht. Wer sie so plant, plant sie je Tag, und eine Erinnerung
+ * "eine Stunde vor dem Schlafen" soll dann an genau diesem Abend kommen und
+ * nicht zur Zeit aus dem Profil. Gezählt wird ein Beginn zwischen 15 Uhr und
+ * 5 Uhr früh danach, denn eine Nacht beginnt auch nach Mitternacht.
+ */
+export function schlafenszeitAusKalender(termine: { titel: string; von: number; ganztags?: boolean }[], tagIso: string): string | null {
+  const von = new Date(`${tagIso}T15:00:00`).getTime();
+  const bis = von + 14 * 3600_000;
+  const treffer = (termine ?? [])
+    .filter((t) => !t.ganztags && istSchlafMarker(t.titel) && t.von >= von && t.von < bis)
+    .sort((a, b) => a.von - b.von)[0];
+  if (!treffer) return null;
+  const d = new Date(treffer.von);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
 function zeitAmTag(tagIso: string, hhmm: string): number {
@@ -433,7 +473,12 @@ export function trainingsplanAusKalender(
  * Bewusst als Text und nicht als Tabelle: der Coach soll daraus reden können,
  * ohne die Zahlen umzuformen.
  */
-export function tagesablaufText(a: Tagesablauf): string {
+/**
+ * `essen` ersetzt die gleichmässige Aufteilung, wenn der Aufrufer die
+ * Mahlzeiten aus `tagesessen` hat: mit Rezept, Training und dem, was schon
+ * gegessen ist.
+ */
+export function tagesablaufText(a: Tagesablauf, essen?: string): string {
   const zeilen: string[] = [];
   zeilen.push(`Tag ${a.tag}. Wach von ${uhrzeit(a.wachVon)} bis ${uhrzeit(a.wachBis)}.`);
 
@@ -458,7 +503,9 @@ export function tagesablaufText(a: Tagesablauf): string {
     );
   }
 
-  if (a.essensfenster.length) {
+  if (essen) {
+    zeilen.push("Vorschlag für die Mahlzeiten:", essen);
+  } else if (a.essensfenster.length) {
     zeilen.push("Vorschlag für die Mahlzeiten:");
     for (const e of a.essensfenster) {
       zeilen.push(`- ${uhrzeit(e.um)} etwa ${e.kcal} kcal und ${e.proteinG} g Protein, ${e.grund}`);

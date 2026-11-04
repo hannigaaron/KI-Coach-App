@@ -318,8 +318,10 @@ export class SetupFlow {
   }
 
   render(behalteScroll = false) {
-    const body = this.el.querySelector(".setup-body");
-    const scroll = behalteScroll && body ? body.scrollTop : 0;
+    // Gescrollt wird der ganze Bogen, `.setup`, siehe styles.css. Eine neue
+    // Frage fängt oben an, ein Neuzeichnen derselben Frage bleibt stehen.
+    const rahmen = this.el.closest(".setup");
+    const scroll = behalteScroll && rahmen ? rahmen.scrollTop : 0;
     const s = this.schritt;
     const auto = this.autoWeiter();
     const richtung = behalteScroll ? "" : (this.richtung || "");
@@ -343,8 +345,7 @@ export class SetupFlow {
       ${auto && this.kurzwegMoeglich() ? '<div class="setup-fuss"><button type="button" class="setup-link" data-kurzweg>Den Rest später, jetzt starten</button></div>' : ""}`;
     this.updateWeiter();
     this.sicherungZeigen(this.index === 0);
-    const neu = this.el.querySelector(".setup-body");
-    if (neu) neu.scrollTop = scroll;
+    if (rahmen) rahmen.scrollTop = scroll;
   }
 
   feldHtml(feld) {
@@ -484,6 +485,8 @@ export class SetupFlow {
     this.ergebnis = { ...ergebnis, ziele, energie, schrittziel, kurzweg: Boolean(this.antworten.kurzweg) };
 
     this.sicherungZeigen(false);
+    const rahmen = this.el.closest(".setup");
+    if (rahmen) rahmen.scrollTop = 0;
     this.el.innerHTML = `
       ${this.kopfHtml({ abschnitt: "Startklar", nummer: SCHRITTE.length + 1, gesamt: SCHRITTE.length + 1, zurueck: true })}
       <div class="setup-body rein-vor">

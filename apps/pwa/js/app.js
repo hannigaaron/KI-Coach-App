@@ -1,9 +1,10 @@
 import "./nativ.js";
+import { chatHtml } from "./chat-format.js";
 import {
   BEREICHE, BEREICH_NAME, CHECKIN_BOEGEN, CHECKIN_MITTE, STANDARD_ZIELE, WOCHENTAGE,
   MAHLZEITEN, bogenAmTag, bogenFuer, eintragAus100g, energyBreakdown, hatAngebot, mengeLesen,
   ORDNER, mengeSetzen, nachOrdnern, naehrwerteFuer, offeneMahlzeiten, portionsVorschlag, skalierbar,
-  impulseFuerTag, planFuer, saubereUrl, uhrzeit, undListe, weckwortGehoert, weightTrend,
+  impulseFuerTag, naechsterPunkt, planFuer, saubereUrl, uhrzeit, undListe, weckwortGehoert, weightTrend,
   belastung,
   belastungText,
   bereitschaft,
@@ -13,8 +14,9 @@ import {
   restText,
   makroHerkunft,
   MAX_EIGENE,
-  tageText,
-  wannText,
+  erinnerungZeile,
+  istEinmalig,
+  vorausblickText,
 } from "@daevo/core";
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, PREISE_STAND, aktuellesModell, produktPerBarcode, produkteSuchen } from "@daevo/coach";
 import { Coach, AnthropicProvider, FOODS } from "@daevo/coach";
@@ -31,18 +33,24 @@ import { healthDateiLesen, healthSchreiben, kurzbefehlSchreiben, schreibBericht 
 import {
   ablaufFuer, ask, aufgabeAnlegenEingestuft, aufgabeLoeschen, aufgabeUmstufen, aufgabeVerschieben, aufgabenPlan,
   balanceFuer, balanceRat, briefing,
-  buildActions, begruessung, dayNumbers, einkaufslisteText, ensureStandards, herausforderungSpeichern,
+  buildActions, begruessung, dayNumbers, einkaufslisteText, ensureStandards, kalenderNotizAufraeumen, aufgabenAufraeumen, herausforderungSpeichern,
   aktuelleLage, frischesGespraech, gegesseneArten, gespraechBegonnen, gespraecheMitInhalt, gespraechLoeschen, gespraechNachziehen,
   gespraechOeffnen, gespraecheSuchen,
   aufgabenPlanText, energieCheck, kopfSortieren, mittagscheck, mittagscheckText, musterUebersicht,
   schluesselPruefen, tagesnutzungFuer,
   trainingsplanUebernehmen, trainingsplanVorschlag, widerspruchListe,
-  kalenderEntfernen, kalenderImportieren, kalenderStand, kalenderUebersicht,
+  kalenderEntfernen, kalenderImportieren, kalenderStand, tagesbriefingFuer, tagesessenFuer,
   kostenUebersicht, recommendations, standardsUebersicht, tagesErinnerungen, verlaufPunkte,
   berichtFuer,
   berichtZeitraeume,
-  aufgabeErledigen, todoistAktualisieren, todoistVerbunden,
+  aufgabeErledigen, aufgabeWiederOeffnen, todoistAktualisieren, todoistVerbunden,
+  erinnerungenAufgeraeumt, heuteGetauscht, heuteVerschoben,
+  vorausblickePlan,
+  vorausblickFuer,
+  offOptionen, uhrKiZugang,
 } from "./assistant.js";
+import { zyklusAnsicht, zyklusSichtbar } from "./zyklus-ui.js";
+import { uhrEreignisseAnwenden, uhrMeldung, uhrPaket } from "./uhr.js";
 import { brain } from "./brain.js";
 import { Orb } from "./orb.js";
 import { anhangAusDatei, grossInKb } from "./media.js";
@@ -59,15 +67,16 @@ import { rezepteAnsicht } from "./rezepte-ui.js";
 import { symbol } from "./symbole.js";
 import { NATIV_PUSH, gesundheitHolen, postfachHolen, pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
 import { kodierungReparieren, newId, nowTime, store, todayIso } from "./storage.js";
+import { bestellteEinheit } from "./vorhaben.js";
 import { healthkitAbgleichen } from "./healthkit.js";
 import { abosAbgleichen, kaufenNativ, startAnlass } from "./kauf.js";
 import { anmeldeWege, anmeldenApple, anmeldenGoogleNativ, anmeldungSenden, anmeldungText } from "./anmeldung.js";
 import { aboEntfernen, aboHinzufuegen, APPLE_QUELLE, appleKalenderTrennen, appleKalenderVerbinden, kalenderAbgleichen, kalenderAbos } from "./kalender-sync.js";
 import { mitteilungenPlanen } from "./mitteilungen.js";
-import { berechtigungenFragen, berechtigungenOffen, berechtigungenText } from "./berechtigungen.js";
+import { berechtigungenFragen, berechtigungenOffen, berechtigungenText, kontenText } from "./berechtigungen.js";
 import { nativAufruf } from "./nativ.js";
 import { spueren } from "./haptik.js";
-import { anteilAmZiel, eigeneRezepte, hauptMakro, rezeptGrenze, rezeptLoeschen, rezeptSpeichern, summe as postenSumme, tabellenBild, tabellenPosten, tabellenSuche, zuletztGegessen } from "./bibliothek.js";
+import { anteilAmZiel, eigeneLebensmittel, eigeneSuche, eigenerPosten, lebensmittelLoeschen, lebensmittelSpeichern, eigeneRezepte, essensplanFrei, hauptMakro, rezeptGrenze, rezeptLoeschen, rezeptSpeichern, summe as postenSumme, tabellenBild, tabellenPosten, tabellenSuche, zuletztGegessen } from "./bibliothek.js";
 import { einwilligungOffen, einwilligungSetzen, einwilligungText, kiErlaubt } from "./einwilligung.js";
 import { ABO_STUFEN, ABO_TAKTE, aboPreis, ersparnisProzent, aboAnlass, aboAnlassLeer, aboLeiste, aboLink, kontoLoeschen, kontoSicherstellen, kontoStand, kontoText } from "./konto.js";
 
@@ -127,6 +136,37 @@ function toast(message, ms = 2600) {
   el.hidden = false;
   clearTimeout(toast.timer);
   toast.timer = setTimeout(() => { el.hidden = true; }, ms);
+}
+
+/**
+ * Eine Meldung mit Knopf, etwa "Abgehakt" mit "Rückgängig". Sechs Sekunden,
+ * länger als die normale Meldung: wer sich vertippt hat, merkt es nicht sofort.
+ */
+function toastAktion(message, label, aktion, ms = 6000) {
+  const el = $("toast");
+  el.innerHTML = "";
+  const text = document.createElement("span");
+  text.textContent = message;
+  const knopf = document.createElement("button");
+  knopf.type = "button";
+  knopf.className = "toast-aktion";
+  knopf.textContent = label;
+  knopf.addEventListener("click", () => { el.hidden = true; aktion(); }, { once: true });
+  el.append(text, knopf);
+  el.hidden = false;
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => { el.hidden = true; }, ms);
+}
+
+/** Abgehakt, mit dem Weg zurück. Gilt auf Dein Tag und auf der Kalenderseite. */
+function abgehaktMelden(ergebnis, nachher) {
+  if (!ergebnis.ok) { toast(ergebnis.text, 4200); return; }
+  if (!ergebnis.rueck) { toast("Abgehakt"); return; }
+  toastAktion("Abgehakt", "Rückgängig", async () => {
+    const r = await aufgabeWiederOeffnen(ergebnis.rueck);
+    toast(r.text, r.ok ? 2600 : 4200);
+    nachher();
+  });
 }
 
 function escapeHtml(text) {
@@ -257,8 +297,15 @@ function renderTranscript() {
       if (m.role === "user") {
         return `<div class="msg user">${bilder}${dateien}${escapeHtml(m.text)}${done}</div>`;
       }
+      // Eine Einheit, die der Coach für heute gerechnet hat, startet direkt
+      // aus dem Gespräch. Nur heute: gestern gerechnet ist heute Geschichte.
+      const startbar = m.ausgeführt?.includes("Training für heute bereit") && Boolean(bestellteEinheit(store.getSettings(), todayIso()));
+      const knopf = startbar
+        ? `<div class="msg-aktionen"><button type="button" class="primary" data-heute-starten>Training starten</button>` +
+          `<button type="button" class="ghost" data-heute-neu>Neue Übungen</button></div>`
+        : "";
       return `<div class="msg assistant">${markeSvg()}` +
-        `<div class="msg-text">${bilder}${dateien}${escapeHtml(m.text)}${done}</div></div>`;
+        `<div class="msg-text">${bilder}${dateien}${chatHtml(m.text)}${done}${knopf}</div></div>`;
     })
     .join("");
   // Erst wenn der Nutzer selbst etwas gesagt hat, schrumpft der Kreis. Die
@@ -309,7 +356,7 @@ function appendPending(text) {
   return { node, text: inhalt };
 }
 
-async function send(text) {
+async function send(text, { vonUhr = false } = {}) {
   const nachricht = text.trim();
 
   // Die Antwort auf die Energiefrage aus der Benachrichtigung. Eine blosse
@@ -410,7 +457,9 @@ async function send(text) {
       const anlass = aboAnlassLeer(store.getSettings().aboHinweise, Date.now(), reply.modus);
       if (anlass) setTimeout(() => aboOeffnen(anlass), 700);
     }
-    if (options.speak) {
+    // Eine Frage von der Uhr liest die Uhr selbst vor. Sprächen beide, hörte
+    // man dieselbe Antwort zweimal und versetzt.
+    if (options.speak && !vonUhr) {
       orb.setState("speaking");
       setStatus("spricht");
       const stimmEinst = store.getSettings();
@@ -481,7 +530,7 @@ async function dumpFertig(text) {
     const ergebnis = await kopfSortieren(roh);
     pending.node.remove();
     const antwort = ergebnis
-      ? `${ergebnis.text}\n\n${ergebnis.angelegt.length} Aufgaben stehen jetzt in deiner Liste.\n\n${aufgabenPlanText()}`
+      ? `${ergebnis.text}\n\n${ergebnis.angelegt.length === 1 ? "Eine Aufgabe steht" : `${ergebnis.angelegt.length} Aufgaben stehen`} jetzt in deiner Liste.\n\n${aufgabenPlanText()}`
       : "Dafür war zu wenig da.";
 
     const chat = store.getChat();
@@ -519,6 +568,7 @@ $("btnDump").addEventListener("click", () => {
   listener?.stop?.();
 
   dumpListener = new Listener({
+    bisStopp: true,
     pauseMs: 9000,
     maxMs: 300000,
     stilleMs: 12000,
@@ -711,16 +761,26 @@ function startListening() {
 function setupAssistant() {
   orb = new Orb($("orb"));
   listener = new Listener({
-    onPartial: (text) => { $("chatInput").value = text; },
+    // Diktieren endet nur auf Senden, Stopp oder einen Tipp auf den Kreis,
+    // nie durch eine Sprechpause. Freihand und Weckwort schalten das über
+    // `handsFree` selbst wieder auf das Ende durch Stille.
+    bisStopp: true,
+    onPartial: (text) => {
+      $("chatInput").value = text;
+      const vorschau = $("diktatText");
+      vorschau.textContent = text;
+      vorschau.scrollTop = vorschau.scrollHeight;
+    },
     onFinal: (text) => {
       // Im Weckwortmodus ist nicht alles Gesagte an daevo gerichtet. Erst das
       // Weckwort macht aus einem Satz im Raum eine Frage an die App.
       if (weckwortLaeuft) { weckwortPruefen(text); return; }
       send(text);
     },
-    onLevel: (level) => orb.setLevel(level),
+    onLevel: (level) => { orb.setLevel(level); welle.pegel = level; },
     onState: (state, detail) => {
       $("btnMic").setAttribute("aria-pressed", state === "listening" ? "true" : "false");
+      diktatAnzeige(state === "listening" && listener.ohneStille && !weckwortLaeuft);
       if (state === "listening") {
         // Spürbar, dass das Mikrofon offen ist, auch wer nicht hinsieht.
         // Nicht im Weckwortmodus und nicht beim Neustart im Freihandbetrieb:
@@ -737,8 +797,12 @@ function setupAssistant() {
             ? "Sag jetzt, was du willst."
             : "Sag Hey daevo, dann deine Frage.";
         } else {
-          setStatus("hört zu, tipp auf Fertig");
-          $("orbHint").textContent = "Sprich in Ruhe. Tipp auf den Kreis, wenn du fertig bist.";
+          setStatus("hört zu");
+          // Die Erklärung nur beim allerersten Diktat. Danach weiss man es,
+          // und ein Satz, der jedes Mal dasteht, wird zur Tapete.
+          $("orbHint").textContent = diktatErstesMal()
+            ? "Sprich in Ruhe, Pausen sind in Ordnung. Senden schickt ab, das Viereck hält an zum Bearbeiten."
+            : "";
         }
         $("btnMic").classList.add("hoert");
       }
@@ -768,6 +832,41 @@ function setupAssistant() {
   begruessungZeigen();
   renderTranscript();
   setStatus("bereit");
+}
+
+/**
+ * Die Balken beim Diktieren. Jeder Balken ist ein Moment, der neueste rechts,
+ * gefüttert mit dem Pegel aus dem Mikrofon. In der iPhone App ist das der
+ * echte Pegel aus `DiktatPlugin.swift`, im Browser auf iOS eine erzeugte
+ * Welle, weil dort Erkennung und Pegelmesser sich das Mikrofon nicht teilen.
+ */
+const welle = { pegel: 0, verlauf: [], takt: 0 };
+const WELLE_BALKEN = 34;
+function diktatAnzeige(an) {
+  const form = $("composer");
+  const vorschau = $("diktatText");
+  const war = form.classList.contains("diktiert");
+  form.classList.toggle("diktiert", an);
+  vorschau.hidden = !an;
+  if (an && !war) {
+    vorschau.textContent = "";
+    const box = $("diktatWelle");
+    box.innerHTML = "<i></i>".repeat(WELLE_BALKEN);
+    welle.verlauf = Array(WELLE_BALKEN).fill(0);
+    clearInterval(welle.takt);
+    welle.takt = setInterval(() => {
+      welle.verlauf.push(welle.pegel);
+      welle.verlauf.shift();
+      const balken = box.children;
+      for (let i = 0; i < balken.length; i++) {
+        balken[i].style.height = `${4 + Math.round(welle.verlauf[i] * 30)}px`;
+      }
+    }, 80);
+  }
+  if (!an && war) {
+    clearInterval(welle.takt);
+    welle.takt = 0;
+  }
 }
 
 /**
@@ -815,7 +914,7 @@ document.addEventListener("visibilitychange", () => {
  * jemand später hinzufügt, bekommt damit einen vernünftigen Übergang, ohne
  * dass er daran denken muss.
  */
-const ANSICHT_TIEFE = ["assistant", "gespraeche", "heute", "essen", "rezepte", "tag", "balance", "bereitschaft", "checkin", "wochencheck", "bericht", "profil", "reflexion"];
+const ANSICHT_TIEFE = ["assistant", "gespraeche", "heute", "essen", "rezepte", "tag", "balance", "bereitschaft", "zyklus", "checkin", "wochencheck", "bericht", "profil", "reflexion"];
 
 let letzteAnsicht = "assistant";
 
@@ -873,6 +972,7 @@ function showView(name) {
   }
   if (name === "balance") renderBalance();
   if (name === "bereitschaft") renderBereitschaft();
+  if (name === "zyklus") zyklus.zeichnen();
   if (name === "bericht") { berichtZeitraumFuellen(); renderBericht(); }
   if (name === "standards") { renderStandards(); zeigeAngebot("standardsAngebot"); }
   if (name === "gespraeche") renderGespraeche();
@@ -900,6 +1000,7 @@ document.addEventListener("input", (event) => {
 });
 
 function refreshAll() {
+  uhrSpaeter();
   const visible = document.querySelector(".view:not([hidden])");
   const numbers = dayNumbers(day);
   orb?.setProgress(numbers.targets.kcal > 0 ? numbers.totals.kcal / numbers.targets.kcal : 0);
@@ -1994,7 +2095,9 @@ function neuesGespraech() {
   renderTranscript();
   $("chatInput")?.focus();
 }
-$("btnNeuesGespraech").addEventListener("click", neuesGespraech);
+// Ein neues Gespräch beginnt über die Liste der Gespräche oder von selbst
+// nach einer halben Stunde. Das Plus in der Kopfzeile tat nichts, was man
+// dort sucht, und sah neben Liste und Lautsprecher nach einem Fehler aus.
 $("btnNeuAusListe").addEventListener("click", neuesGespraech);
 
 /* ---------- Wochen Check-in ---------- */
@@ -2594,10 +2697,21 @@ function anamneseFertig(ergebnis) {
  * Aussehen, seine Zahlen. Nur was dem Betreiber gehört, wird überschrieben.
  */
 /** Die Empfehlungen. Gerechnet wird in assistant.js, hier wird nur verbunden. */
+const zyklus = zyklusAnsicht({ wurzel: $("zyklusInhalt"), toast, beiAenderung: () => zyklusMenue() });
+
+/** Die Zeile im Menü steht bei Frauen immer und sonst nur, wenn jemand den Zyklus eingeschaltet hat. */
+function zyklusMenue() {
+  $("menuZyklus").hidden = !zyklusSichtbar(store.getProfile(), store.getSettings());
+}
+zyklusMenue();
+
 const rezepte = rezepteAnsicht({
   wurzel: document.querySelector('[data-view="rezepte"]'),
   toast,
   beiEintrag: () => refreshAll(),
+  planFrei: () => essensplanFrei(store.getSettings(), KONFIG),
+  proOeffnen: () => aboOeffnen({ marke: "Pro", titel: "Dein Essensplan für die Woche", empfohlen: "pro",
+    text: "Sieben Tage aus den Rezepten, gerechnet auf deine Kalorien und Makros, mit Abendessen zum Vorkochen und fertiger Einkaufsliste." }),
 });
 
 function einfuehrungGesehen() {
@@ -2655,6 +2769,8 @@ function startApp() {
   options = { ...options, ...(store.getSettings().voice || {}) };
   renderFeelings();
   ensureStandards();
+  kalenderNotizAufraeumen();
+  aufgabenAufraeumen();
   setupAssistant();
   showView("assistant");
   refreshAll();
@@ -2716,6 +2832,12 @@ function startApp() {
 
 $("composer").addEventListener("submit", (event) => {
   event.preventDefault();
+  // Senden beim Diktieren: anhalten und abschicken, was verstanden wurde.
+  if (listener?.active && listener.ohneStille && !weckwortLaeuft) {
+    spueren("leicht");
+    listener.stop();
+    return;
+  }
   if ($("chatInput").value.trim()) spueren("leicht");
   send($("chatInput").value);
 });
@@ -2781,6 +2903,16 @@ document.addEventListener("visibilitychange", () => {
 });
 
 $("btnMic").addEventListener("click", startListening);
+// Das Viereck: anhalten, der Text bleibt im Feld und lässt sich korrigieren.
+$("btnDiktatStopp").addEventListener("click", async () => {
+  if (!listener?.active) return;
+  spueren("leicht");
+  const text = await listener.beenden();
+  const feld = $("chatInput");
+  feld.value = text;
+  feld.focus();
+  try { feld.setSelectionRange(text.length, text.length); } catch { /* nicht jedes Feld kann das */ }
+});
 $("btnWeckwort").addEventListener("click", () => {
   if (weckwortLaeuft) weckwortStoppen("Weckwort aus");
   else weckwortStarten();
@@ -2832,6 +2964,9 @@ const training = trainingStarten({
     refreshAll();
   },
   geaendert: () => plaene.laden(),
+  // Getauscht im Training für heute gilt auch beim nächsten Mal mit denselben Partien.
+  getauscht: (titel, altId, neueId) => { if (titel === "Training für heute") heuteGetauscht(altId, neueId); },
+  verschoben: (titel, ids) => { if (titel === "Training für heute") heuteVerschoben(ids); },
 });
 const plaene = plaeneStarten({
   speicher: planSpeicher,
@@ -2862,8 +2997,31 @@ const plaene = plaeneStarten({
   },
   log: trainingslog,
   heute: todayIso,
+  heuteBestellt: () => bestellteEinheit(store.getSettings(), todayIso()),
 });
 $("plOffen").hidden = !training.offen();
+// "Training starten" unter der Antwort des Coaches. Läuft die Einheit
+// schon, geht es dort weiter, statt die abgehakten Sätze zu verwerfen.
+$("kalZiel").addEventListener("change", (ev) => {
+  store.setSettings({ ...store.getSettings(), zielKalender: ev.target.value });
+  toast(`daevo trägt ab jetzt in ${ev.target.selectedOptions[0]?.textContent || "diesen Kalender"} ein.`);
+});
+
+$("transcript").addEventListener("click", (ev) => {
+  // "Neue Übungen" geht als Satz an den Coach, damit es im Gespräch steht
+  // und derselbe Weg rechnet wie beim Tippen.
+  if (ev.target.closest("[data-heute-neu]")) { send("Neue Übungen für heute"); return; }
+  if (!ev.target.closest("[data-heute-starten]")) return;
+  const ht = bestellteEinheit(store.getSettings(), todayIso());
+  if (!ht?.einheit) { toast("Diese Einheit war für einen anderen Tag. Sag mir, was du heute trainierst."); return; }
+  if (trainingGestrichen(store, todayIso())) {
+    toast("Heute ist dein Training gestrichen, der Tag gehört der Erholung. Geht es dir besser, sag es unter Check-ins.", 5000);
+    return;
+  }
+  const offen = training.offen();
+  if (offen && offen.titel === ht.einheit.titel && (offen.uebungen?.length ?? 0) > 0) training.fortsetzen();
+  else training.einheit(ht.einheit);
+});
 $("plFortsetzen").addEventListener("click", () => training.fortsetzen());
 
 // Täglicher Check-in und Wochenbogen sind zwei Ansichten, aber ein Menüpunkt.
@@ -3288,15 +3446,45 @@ $("erfassenBlatt").addEventListener("click", (event) => {
   }
 });
 
-$("btnVoice").addEventListener("click", () => {
-  if (!listener?.supported) { toast("Dieser Browser kann keine Spracherkennung."); return; }
-  const einmal = new Listener({
-    onPartial: (t) => { $("mealText").value = t; },
-    onFinal: (t) => { $("mealText").value = t; toast("Aufnahme übernommen"); },
+/** Ob heute zum ersten Mal überhaupt diktiert wird. Merkt es sich sofort. */
+function diktatErstesMal() {
+  const settings = store.getSettings();
+  if (settings.diktatErklaert) return false;
+  store.setSettings({ ...settings, diktatErklaert: true });
+  return true;
+}
+
+/**
+ * Ein Knopf zum Diktieren in ein Feld. Er hört zu, bis er noch einmal
+ * gedrückt wird, und heisst solange "Fertig". Pausen beenden nichts: wer
+ * aufzählt, was er gegessen hat, überlegt zwischen den Posten.
+ */
+function diktatKnopf(knopfId, feldId, hinweis) {
+  let laufend = null;
+  const knopf = $(knopfId);
+  const ruhe = knopf.textContent;
+  knopf.addEventListener("click", () => {
+    if (laufend?.active) { laufend.stop(); return; }
+    if (!listener?.supported) { toast("Dieser Browser kann keine Spracherkennung."); return; }
+    stopSpeaking();
+    const vorher = $(feldId).value.trim();
+    const mit = (t) => (vorher ? `${vorher} ${t}` : t);
+    laufend = new Listener({
+      bisStopp: true,
+      onPartial: (t) => { $(feldId).value = mit(t); },
+      onFinal: (t) => { $(feldId).value = mit(t); },
+      onState: (state, detail) => {
+        const an = state === "listening";
+        knopf.textContent = an ? "Fertig" : ruhe;
+        knopf.classList.toggle("hoert", an);
+        if (state === "error") toast(`Mikrofon: ${detail}`, 5000);
+      },
+    });
+    laufend.start();
+    if (diktatErstesMal()) toast(hinweis);
   });
-  einmal.start();
-  toast("Sprich jetzt");
-});
+}
+diktatKnopf("btnVoice", "mealText", "Sprich in Ruhe. Tipp auf Fertig, wenn du durch bist.");
 
 $("feelingRow").addEventListener("click", (event) => {
   const button = event.target.closest("[data-feel]");
@@ -3665,7 +3853,7 @@ function fuelleAufgaben(id, aufgaben, leerText) {
       const ergebnis = await aufgabeErledigen(a.id);
       renderTag();
       refreshAll();
-      toast(ergebnis.ok ? "Abgehakt" : ergebnis.text, ergebnis.ok ? 2600 : 4200);
+      abgehaktMelden(ergebnis, () => { renderTag(); refreshAll(); });
     });
     // Streichen und Verschieben nur bei eigenen Aufgaben. Eine Aufgabe in
     // Todoist auf einen Tipp hin zu löschen wäre ein Eingriff in eine fremde
@@ -3732,7 +3920,7 @@ $("btnKopf").addEventListener("click", async () => {
     const ergebnis = await kopfSortieren(text);
     if (!ergebnis) { $("kopfErgebnis").textContent = "Dafür war zu wenig da."; return; }
     $("kopfErgebnis").textContent =
-      `${ergebnis.text}\n\n${ergebnis.angelegt.length} Aufgaben stehen jetzt in deiner Liste.`;
+      `${ergebnis.text}\n\n${ergebnis.angelegt.length === 1 ? "Eine Aufgabe steht" : `${ergebnis.angelegt.length} Aufgaben stehen`} jetzt in deiner Liste.`;
     $("kopfText").value = "";
     renderTag();
     refreshAll();
@@ -3744,15 +3932,7 @@ $("btnKopf").addEventListener("click", async () => {
   }
 });
 
-$("btnKopfDiktat").addEventListener("click", () => {
-  if (!listener?.supported) { toast("Dieser Browser kann keine Spracherkennung."); return; }
-  const einmal = new Listener({
-    onPartial: (t) => { $("kopfText").value = t; },
-    onFinal: (t) => { $("kopfText").value = t; toast("Aufnahme übernommen"); },
-  });
-  einmal.start();
-  toast("Sprich in Ruhe. Alles, was dir im Kopf herumgeht.");
-});
+diktatKnopf("btnKopfDiktat", "kopfText", "Sprich in Ruhe. Tipp auf Fertig, wenn du durch bist.");
 
 $("btnBriefingMorgen").addEventListener("click", () => { $("briefingText").textContent = briefing("morgen"); });
 $("btnBriefingAbend").addEventListener("click", () => { $("briefingText").textContent = briefing("abend"); });
@@ -3818,12 +3998,30 @@ const KALENDER_ANLEITUNG = [
   "Nichts davon geht an einen Server. Die Datei wird im Browser gelesen und nur die Termine bleiben liegen.",
 ].join(" ");
 
+/**
+ * Wohin daevo Trainings und Erinnerungen schreibt. Vorher immer der
+ * Standardkalender von iOS, und der steht ab Werk auf iCloud: das Training
+ * stand im Apple Kalender, im Google Kalender des Nutzers fehlte es. Jetzt
+ * wählt das Plugin Google vor iCloud, und hier lässt es sich festlegen.
+ */
+async function zielKalenderZeigen() {
+  const { schreibKalender, kalenderWahlText } = await import("./kalender-schreiben.js");
+  const liste = await schreibKalender();
+  $("kalZielFeld").hidden = liste.length < 2;
+  if (liste.length < 2) return;
+  $("kalZiel").innerHTML = liste
+    .map((k) => `<option value="${escapeHtml(k.id)}"${k.ziel ? " selected" : ""}>${escapeHtml(kalenderWahlText(k))}</option>`)
+    .join("");
+}
+
 function renderKalender() {
   renderTodoist();
   $("kalTag").value = kalenderTag;
   $("kalAnleitung").textContent = KALENDER_ANLEITUNG;
   const sync = store.getSettings();
   $("btnAppleKalender").hidden = Boolean(sync.appleKalender);
+  $("kalKonten").textContent = sync.appleKalender ? kontenText(sync.kalenderKonten) : "";
+  zielKalenderZeigen();
   $("btnKalAbgleich").hidden = !(sync.appleKalender || kalenderAbos(sync).length);
 
   const stand = kalenderStand();
@@ -3875,15 +4073,11 @@ function renderKalender() {
     seite: t.quelle || "",
   })), "Keine Termine an diesem Tag.");
 
-  fuelleListe("kalEssen", a.essensfenster.map((e) => ({
-    titel: `${uhrzeit(e.um)} Mahlzeit ${e.nummer}`,
-    sub: e.grund,
-    seite: `${e.kcal} kcal\n${e.proteinG} g Protein`,
-  })), (kalenderStand().anzahl === 0 ? "Ohne Kalender kein Vorschlag." : "Keine freie Lücke gefunden."));
+  essenZeichnen(kalenderTag);
 
   fuelleListe("kalHinweise", a.hinweise.map((h) => ({ titel: h, sub: "", seite: "" })), "Nichts Auffälliges.");
 
-  $("kalWoche").textContent = kalenderUebersicht(Number($("kalTage").value) || 7);
+  briefingZeichnen();
 
   const vorschlag = trainingsplanVorschlag();
   fuelleListe("planVorschlag", vorschlag.map((v) => ({
@@ -3929,7 +4123,152 @@ $("kalTag").addEventListener("change", (event) => {
   renderKalender();
 });
 
-$("kalTage").addEventListener("change", renderKalender);
+/**
+ * Das Briefing oben auf der Kalenderseite. Heute ist der Morgen, Morgen der
+ * Vorabend: dieselben Abschnitte, die auch als Mitteilung und im Chat kommen.
+ * Vorher stand dort eine Woche als Textblock mit Minutenzahlen je Tag, und
+ * die beantwortete keine Frage, die jemand morgens hat.
+ */
+let briefingArt = "morgen";
+/** Ob die blassen Punkte nach den ersten vier aufgeklappt sind. */
+let briefingAlles = false;
+const PUNKT_ART = { aufgabe: "Aufgabe", termin: "Termin", essen: "Essen", training: "Training" };
+
+/**
+ * Das Briefing als ein Blick: oben gross, was jetzt dran ist, darunter der
+ * Rest des Tages blass als Zeitachse. Vorher fünf Abschnitte mit allen
+ * Terminen, Aufgaben und Mahlzeiten untereinander, und ein Tag mit vier
+ * Aufgaben sah aus wie dreissig Punkte. Wer nur das Nächste sieht, fängt an.
+ * Aufgaben lassen sich direkt abhaken, dann rückt das Nächste nach oben.
+ */
+function briefingZeichnen() {
+  const ziel = $("kalBriefing");
+  let b;
+  try { b = tagesbriefingFuer(briefingArt); } catch (e) { ziel.textContent = "Das Briefing liess sich nicht rechnen."; console.error(e); return; }
+  const heute = briefingArt === "morgen";
+  const abschnitt = (titel) => b.abschnitte.find((x) => x.titel === titel);
+  const punkte = b.punkte;
+  // Morgen beginnt mit dem ersten Punkt des Tages, heute mit dem, der noch
+  // nicht vorbei ist.
+  const i = heute ? naechsterPunkt(punkte, Date.now()) : (punkte.length ? 0 : -1);
+  const vorbei = heute && i > 0 ? i : (heute && i < 0 ? punkte.length : 0);
+  const haupt = i >= 0 ? punkte[i] : null;
+  const rest = i >= 0 ? punkte.slice(i + 1) : [];
+  const zeit = (p) => (p.um === null ? "offen" : uhrzeit(p.um));
+  const haken = (p, gross) => (p.art === "aufgabe" && p.id
+    ? `<button type="button" class="kb-haken${gross ? " gross" : ""}" data-erledigt="${escapeHtml(p.id)}" aria-label="Erledigt: ${escapeHtml(p.titel)}"><svg viewBox="0 0 24 24" width="${gross ? 22 : 16}" height="${gross ? 22 : 16}" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>`
+    : "");
+
+  let html = "";
+  const stand = !heute ? abschnitt("Heute") : null;
+  if (stand) html += `<p class="kb-stand">Heute: ${escapeHtml(stand.zeilen[0])}</p>`;
+  const ganz = (abschnitt(heute ? "Dein Tag" : "Morgen")?.zeilen || []).find((z) => z.startsWith("Ganztägig:"));
+  if (ganz) html += `<p class="kb-ganz">${escapeHtml(ganz.replace(/\.$/, ""))}</p>`;
+
+  if (haupt) {
+    const bild = haupt.foto && haupt.rezeptId
+      ? `<img class="kb-bild" src="img/rezepte/${encodeURIComponent(haupt.rezeptId)}.jpg" alt="" loading="lazy">` : "";
+    html += `<section class="kb-jetzt kb-${haupt.art}"${haupt.art === "essen" && haupt.rezeptId ? ` data-rezept="${escapeHtml(haupt.rezeptId)}" role="button" tabindex="0"` : ""}>
+      <span class="kb-label">${heute ? "Als Nächstes" : "Morgen zuerst"} · ${zeit(haupt)}</span>
+      <div class="kb-jetzt-zeile">${bild}<div class="kb-jetzt-text"><h3>${escapeHtml(haupt.titel)}</h3>
+      <p>${escapeHtml(haupt.unter)}</p></div>${haken(haupt, true)}</div>
+    </section>`;
+  } else {
+    html += `<section class="kb-jetzt"><span class="kb-label">${heute ? "Heute" : "Morgen"}</span><div class="kb-jetzt-text"><h3>${heute ? "Für heute ist nichts mehr offen." : "Morgen steht noch nichts an."}</h3></div></section>`;
+  }
+
+  const achtung = abschnitt("Achtung") || abschnitt("Heute Abend vorbereiten");
+  if (achtung) html += `<p class="kb-achtung"><b>${escapeHtml(achtung.titel)}:</b> ${escapeHtml(achtung.zeilen[0])}</p>`;
+
+  if (rest.length) {
+    const sichtbar = briefingAlles ? rest : rest.slice(0, 4);
+    html += `<h3 class="kb-danach">Danach</h3><ol class="kb-liste">${sichtbar.map((p) => `<li class="kb-${p.art}"${p.art === "essen" && p.rezeptId ? ` data-rezept="${escapeHtml(p.rezeptId)}" role="button" tabindex="0"` : ""}>
+      <span class="kb-zeit">${zeit(p)}</span><span class="kb-was"><b>${escapeHtml(p.titel)}</b><small>${escapeHtml(PUNKT_ART[p.art])}${p.art === "essen" ? `, ${escapeHtml(p.unter.split(", ").slice(1).join(", "))}` : ""}</small></span>${haken(p, false)}</li>`).join("")}</ol>`;
+    if (rest.length > 4) {
+      html += `<button type="button" class="kb-mehr" data-mehr>${briefingAlles ? "Weniger zeigen" : `Noch ${rest.length - 4} weitere`}</button>`;
+    }
+  }
+  if (vorbei > 0) html += `<p class="kb-vorbei">${vorbei} ${vorbei === 1 ? "Punkt ist" : "Punkte sind"} heute schon vorbei.</p>`;
+
+  const grenze = abschnitt("Deine Untergrenze");
+  if (grenze) {
+    html += `<details class="kb-grenze"><summary>Deine Untergrenze, ${grenze.zeilen.length} offen</summary><ul>${grenze.zeilen.map((z) => `<li>${escapeHtml(z)}</li>`).join("")}</ul></details>`;
+  }
+  ziel.innerHTML = html;
+}
+$("kalBriefing").addEventListener("click", async (event) => {
+  if (event.target.closest("[data-mehr]")) { briefingAlles = !briefingAlles; briefingZeichnen(); return; }
+  const rezept = event.target.closest("[data-rezept]");
+  if (rezept && !event.target.closest("[data-erledigt]")) {
+    const tag = briefingArt === "morgen" ? todayIso() : folgetag(todayIso());
+    const m = vorschlagFuer(tag, rezept.dataset.rezept);
+    if (m) rezeptBlattOeffnen(m);
+    return;
+  }
+  const knopf = event.target.closest("[data-erledigt]");
+  if (!knopf) return;
+  knopf.disabled = true;
+  knopf.classList.add("an");
+  spueren("erfolg");
+  const ergebnis = await aufgabeErledigen(knopf.dataset.erledigt);
+  // Kurz stehen lassen, damit der Haken zu sehen ist, dann rückt das Nächste nach.
+  setTimeout(() => { briefingZeichnen(); refreshAll(); }, 450);
+  abgehaktMelden(ergebnis, () => { briefingZeichnen(); refreshAll(); });
+});
+document.querySelectorAll("#kalBriefingWahl [data-briefing]").forEach((k) => {
+  k.addEventListener("click", () => {
+    briefingArt = k.dataset.briefing;
+    document.querySelectorAll("#kalBriefingWahl [data-briefing]").forEach((x) => {
+      x.classList.toggle("is-on", x === k);
+      x.setAttribute("aria-selected", String(x === k));
+    });
+    briefingZeichnen();
+  });
+});
+
+/**
+ * Die Mahlzeiten des Tages als Karten: Uhrzeit, Gericht mit Foto, Grösse,
+ * und warum genau dann. Die Zutaten klappen auf. Gleiche Kalorien für jede
+ * Mahlzeit, wie vorher, sagen nichts darüber, was man essen soll.
+ */
+let essenTag = todayIso();
+$("kalEssen").addEventListener("click", (ev) => {
+  const k = ev.target.closest("[data-rezept]");
+  if (!k) return;
+  const m = vorschlagFuer(essenTag, k.dataset.rezept);
+  if (m) rezeptBlattOeffnen(m);
+});
+
+function essenZeichnen(tag) {
+  essenTag = tag;
+  const liste = $("kalEssen");
+  let t;
+  try { t = tagesessenFuer(tag); } catch (e) { liste.innerHTML = `<li class="empty">Kein Vorschlag möglich.</li>`; console.error(e); return; }
+  if (!t.mahlzeiten.length) {
+    liste.innerHTML = `<li class="empty">${escapeHtml(t.hinweise[0] || "Für heute ist nichts mehr offen.")}</li>`;
+    return;
+  }
+  liste.innerHTML = t.mahlzeiten.map((m) => {
+    const r = m.rezept;
+    const bild = r?.foto
+      ? `<img class="ke-bild" src="img/rezepte/${encodeURIComponent(r.id)}.jpg" alt="" loading="lazy">`
+      : `<span class="ke-bild ke-leer" aria-hidden="true"></span>`;
+    const marke = m.mitnehmen ? "zum Mitnehmen" : m.training === "davor" ? "vor dem Training" : m.training === "danach" ? "nach dem Training" : "";
+    const zutaten = r?.zutaten?.length
+      ? `<details class="ke-zutaten"><summary>Zutaten, ${r.minuten} Minuten</summary><ul>${r.zutaten.map((z) => `<li>${escapeHtml(z)}</li>`).join("")}</ul></details>`
+      : "";
+    return `<li class="ke">
+      <div class="ke-zeit"><b>${uhrzeit(m.um)}</b><span>${escapeHtml(m.name)}</span></div>
+      <div class="ke-karte">
+        <div class="ke-kopf"${r ? ` data-rezept="${escapeHtml(r.id)}" role="button" tabindex="0"` : ""}>${bild}<div class="ke-text">
+          <b>${escapeHtml(r ? r.name : "Freie Wahl")}</b>
+          <span class="ke-werte">${m.kcal} kcal · ${m.proteinG} g Protein${marke ? ` · <em>${escapeHtml(marke)}</em>` : ""}</span>
+          <span class="ke-grund">${escapeHtml(m.grund)}</span>
+        </div></div>${zutaten}
+      </div>
+    </li>`;
+  }).join("") + (t.hinweise.length ? `<li class="ke-hinweis">${escapeHtml(t.hinweise.join(" "))}</li>` : "");
+}
 
 /**
  * Der Stand der Todoist Verbindung.
@@ -4027,7 +4366,12 @@ async function kalenderStill() {
   if (!s.appleKalender && !kalenderAbos(s).length) return;
   try {
     const r = await kalenderAbgleichen();
-    if (!r.uebersprungen && r.ergebnisse.some((e) => e.anzahl !== undefined)) refreshAll();
+    if (!r.uebersprungen && r.ergebnisse.some((e) => e.anzahl !== undefined)) {
+      refreshAll();
+      // Ein SLEEP Eintrag im Kalender verschiebt die Erinnerungen vor dem
+      // Schlafen. Ohne neues Planen kämen sie zur Zeit von vor dem Abgleich.
+      mitteilungenNativ();
+    }
   } catch {
     // Ohne Netz bleibt der letzte Stand. Der Kalender sagt im Profil, von wann er ist.
   }
@@ -4161,6 +4505,7 @@ $("memList").addEventListener("click", (event) => {
 });
 
 $("btnSaveProfile").addEventListener("click", () => {
+  queueMicrotask(zyklusMenue);
   const candidate = {
     ...profile,
     weightKg: Number($("e-weight").value),
@@ -4183,6 +4528,9 @@ $("btnSaveProfile").addEventListener("click", () => {
   store.setProfile(profile);
   renderProfile();
   refreshAll();
+  // Neue Schlafenszeiten verschieben die Erinnerungen vor dem Schlafen und das
+  // Runterfahren. Ohne neues Planen kämen sie bis zum nächsten Öffnen zur alten Zeit.
+  mitteilungenNativ();
   toast("Gespeichert");
 });
 
@@ -4368,6 +4716,8 @@ $("btnPostfach").addEventListener("click", () => {
  * ohne es zu wollen.
  */
 let meMahlzeit = null;
+/** Der Tag, an dem die offene Mahlzeit steht. Ein Rezept für morgen gehört nicht in den Tag, der gerade auf Heute steht. */
+let meTag = todayIso();
 let mePosten = [];
 let meArt = "";
 let meScanLaeuft = false;
@@ -4376,8 +4726,9 @@ let meScanLaeuft = false;
 /** Ob die offene Mahlzeit gerade erst für diesen Editor angelegt wurde. */
 let meNeu = false;
 
-function mahlzeitOeffnen(id) {
-  const mahlzeit = store.getDay(day).meals.find((m) => m.id === id);
+function mahlzeitOeffnen(id, tag = day) {
+  meTag = tag;
+  const mahlzeit = store.getDay(meTag).meals.find((m) => m.id === id);
   if (!mahlzeit) return;
   meMahlzeit = mahlzeit;
   meNeu = false;
@@ -4402,7 +4753,11 @@ function mahlzeitSchliessen() {
   // Eine leer angelegte Mahlzeit verschwindet beim Schliessen wieder. Sie
   // entsteht nur, damit der Editor etwas zum Anfassen hat: wer den Weg
   // abbricht, darf keine Zeile mit null Kalorien im Verlauf zurücklassen.
-  if (meMahlzeit && meNeu && mePosten.length === 0) store.removeMeal(day, meMahlzeit.id);
+  // Gezählt wird, was gespeichert ist: ein vorbelegtes Rezept hat Posten im
+  // Editor, aber noch keine im Tag, und Abbrechen darf es nicht stehen lassen.
+  if (meMahlzeit && meNeu && !store.getDay(meTag).meals.find((m) => m.id === meMahlzeit.id)?.entries?.length) {
+    store.removeMeal(meTag, meMahlzeit.id);
+  }
   meNeu = false;
   $("mahlzeitEditor").hidden = true;
   document.body.classList.remove("blatt-offen");
@@ -4434,6 +4789,82 @@ function mahlzeitNeu(fokus) {
   if (fokus === "barcode") meScanStarten();
 }
 
+/* ---------- Ein vorgeschlagenes Rezept öffnen und eintragen ---------- */
+
+/** Der Tag nach `tag`, als ISO Datum in Ortszeit. */
+function folgetag(tag) {
+  const d = new Date(`${tag}T12:00:00`);
+  d.setDate(d.getDate() + 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+let rbMahlzeit = null;
+
+/**
+ * Das Rezept hinter einem Vorschlag auf der Kalenderseite: Foto, Zutaten in
+ * der gerechneten Portion, Zubereitung, darunter Eintragen für heute oder
+ * morgen. Vorher stand dort nur der Name, und wer kochen wollte, musste das
+ * Rezept unter Ernährung suchen.
+ */
+function rezeptBlattOeffnen(m) {
+  const r = m?.rezept;
+  if (!r) return;
+  rbMahlzeit = m;
+  $("rbTitel").textContent = r.name;
+  const bild = r.foto ? `<img class="rb-bild" src="img/rezepte/${encodeURIComponent(r.id)}.jpg" alt="">` : "";
+  const summe = (r.posten || []).reduce((s, p) => ({ f: s.f + p.fatG, k: s.k + p.carbsG }), { f: 0, k: 0 });
+  $("rbInhalt").innerHTML = `${bild}
+    <p class="rb-werte">${r.kcal} kcal · ${r.proteinG} g Protein · ${Math.round(summe.f)} g Fett · ${Math.round(summe.k)} g Kohlenhydrate · ${r.minuten} Minuten</p>
+    <p class="rb-grund">${escapeHtml(m.name)} um ${uhrzeit(m.um)}${m.grund ? `, ${escapeHtml(m.grund.replace(/\.$/, ""))}` : ""}.</p>
+    <h3 class="rb-kopf">Zutaten</h3>
+    <ul class="rb-zutaten">${(r.posten || []).map((p) => `<li><span>${escapeHtml(p.name)}</span><b>${escapeHtml(p.menge)}</b></li>`).join("")}</ul>
+    ${r.schritte?.length ? `<h3 class="rb-kopf">Zubereitung</h3><ol class="rb-schritte">${r.schritte.map((s) => `<li>${escapeHtml(s)}</li>`).join("")}</ol>` : ""}
+    <p class="fineprint">Mengen für deine Portion gerechnet. Beim Eintragen kannst du jede Menge ändern, wenn du es anders machst.</p>`;
+  $("rezeptBlatt").hidden = false;
+  document.body.classList.add("blatt-offen");
+}
+
+function rezeptBlattSchliessen() {
+  $("rezeptBlatt").hidden = true;
+  if ($("mahlzeitEditor").hidden) document.body.classList.remove("blatt-offen");
+}
+
+/**
+ * Öffnet den Mahlzeit Editor mit den Zutaten des Rezepts, noch nicht
+ * gespeichert. Wer weniger Reis nimmt, ändert die Menge und speichert, wer
+ * abbricht, hinterlässt nichts im Tag.
+ */
+function rezeptInEditor(m, tag) {
+  const r = m.rezept;
+  const id = newId();
+  store.addMeal(tag, { id, text: r.name, at: uhrzeit(m.um), source: "rezept", entries: [], feeling: null, art: m.art });
+  mahlzeitOeffnen(id, tag);
+  meNeu = true;
+  mePosten = (r.posten || []).map((p) => ({
+    name: p.name, quantity: p.menge,
+    kcal: Math.round(p.kcal), proteinG: Math.round(p.proteinG * 10) / 10,
+    fatG: Math.round(p.fatG * 10) / 10, carbsG: Math.round(p.carbsG * 10) / 10,
+  }));
+  meArt = m.art || "";
+  meArtenZeichnen();
+  mePostenZeichnen();
+  if (tag !== todayIso()) {
+    const wann = new Date(`${tag}T12:00:00`).toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" });
+    $("meSuchHinweis").textContent = `Wird für ${wann} eingetragen.`;
+    toast(`Für ${wann}. Mengen anpassen, dann speichern.`, 3600);
+  }
+}
+
+$("rbSchliessen").addEventListener("click", rezeptBlattSchliessen);
+$("rezeptBlatt").addEventListener("click", (ev) => { if (ev.target === $("rezeptBlatt")) rezeptBlattSchliessen(); });
+$("rbHeute").addEventListener("click", () => { const m = rbMahlzeit; rezeptBlattSchliessen(); if (m) rezeptInEditor(m, todayIso()); });
+$("rbMorgen").addEventListener("click", () => { const m = rbMahlzeit; rezeptBlattSchliessen(); if (m) rezeptInEditor(m, folgetag(todayIso())); });
+
+/** Sucht den Vorschlag mit diesem Rezept an diesem Tag. */
+function vorschlagFuer(tag, rezeptId) {
+  try { return tagesessenFuer(tag).mahlzeiten.find((x) => x.rezept?.id === rezeptId) || null; } catch { return null; }
+}
+
 function meArtenZeichnen() {
   // Die Art ist freiwillig. Eine Mahlzeit ohne Zuordnung ist kein Fehler, und
   // ein Pflichtfeld würde beim dritten Mal auf gut Glück gefüllt.
@@ -4451,7 +4882,7 @@ function mePostenZeichnen() {
       ? `<li class="me-leer">Noch nichts drin. Such unten ein Lebensmittel oder scann einen Barcode.</li>`
       : `<li class="me-leer">Kein Posten mehr drin. Speichern löscht die Mahlzeit.</li>`;
   } else {
-    const ziel = dayNumbers(day).targets;
+    const ziel = dayNumbers(meTag).targets;
     liste.innerHTML = mePosten.map((e, i) => {
       const menge = mengeLesen(e.quantity);
       const kann = skalierbar(e);
@@ -4489,7 +4920,7 @@ function meSummeZeichnen() {
   $("meProtein").textContent = `${komma(runde1(summe.p))} g`;
   $("meFett").textContent = `${komma(runde1(summe.f))} g`;
   $("meKh").textContent = `${komma(runde1(summe.k))} g`;
-  const ziel = dayNumbers(day).targets;
+  const ziel = dayNumbers(meTag).targets;
   const kcalAnteil = anteilAmZiel(summe.kcal, ziel.kcal);
   $("meKcalAnteil").textContent = kcalAnteil === null ? "" : `${kcalAnteil} % deines Tages`;
   $("meKcalBalken").style.width = `${Math.min(100, kcalAnteil ?? 0)}%`;
@@ -4549,9 +4980,9 @@ function postenWerte(e, ziel) {
 /** Was gerade in der Bibliothek steht, damit ein Tipp den richtigen Posten findet. */
 let meBibliothekPosten = [];
 
-function bibZeile(e, i, { loeschen = null, unter = "" } = {}) {
+function bibZeile(e, i, { loeschen = null, unter = "", loeschenArt = "rezept" } = {}) {
   const weg = loeschen
-    ? `<button type="button" class="me-weg" data-rezept-weg="${escapeHtml(loeschen)}" aria-label="Rezept ${escapeHtml(e.name)} löschen"><span class="kreuz"></span></button>`
+    ? `<button type="button" class="me-weg" data-${loeschenArt}-weg="${escapeHtml(loeschen)}" aria-label="${loeschenArt === "rezept" ? "Rezept" : "Lebensmittel"} ${escapeHtml(e.name)} löschen"><span class="kreuz"></span></button>`
     : "";
   const zeile = unter || `<span class="me-kcal-text">${Math.round(e.kcal)} kcal</span> · ${escapeHtml(e.quantity || "")}`;
   return `<li class="bib-zeile">
@@ -4579,10 +5010,13 @@ function meBibliothekZeichnen() {
   if (begriff) {
     // Beim Tippen sofort die eigene Tabelle, ohne Netz. Open Food Facts kommt
     // erst mit Enter, sonst ginge bei jedem Buchstaben eine Anfrage raus.
-    const treffer = tabellenSuche(begriff);
+    // Eigene Lebensmittel zuerst: wer etwas selbst angelegt hat, meint fast
+    // immer genau das und nicht den Eintrag aus der Tabelle.
+    const eigene = eigeneSuche(begriff, store.getSettings()).map((l) => eigenerPosten(l));
+    const treffer = [...eigene, ...tabellenSuche(begriff)];
     box.innerHTML = (treffer.length
-      ? liste(treffer.map((e) => bibZeile(e, meBibliothekPosten.push({ art: "posten", e }) - 1)))
-      : leer("Nicht in der Nährwerttabelle."))
+      ? liste(treffer.map((e) => bibZeile(e, meBibliothekPosten.push({ art: "posten", e }) - 1, e.eigen ? { unter: `<span class="me-kcal-text">${Math.round(e.kcal)} kcal</span> · ${e.quantity} · eigenes` } : undefined)))
+      : leer("Weder in deinen Lebensmitteln noch in der Nährwerttabelle. Unten kannst du es anlegen."))
       + `<p class="feld-hilfe">Enter sucht zusätzlich nach Marken und Produkten.</p>`;
     return;
   }
@@ -4599,6 +5033,17 @@ function meBibliothekZeichnen() {
         return bibZeile(e, meBibliothekPosten.push({ art: "rezept", r }) - 1, { loeschen: r.id, unter });
       }))
       : leer("Noch keine eigenen Rezepte. Stell oben eine Mahlzeit zusammen und speichere sie als Rezept.");
+    return;
+  }
+  if (meReiterWahl === "eigene") {
+    const liste_ = eigeneLebensmittel(store.getSettings());
+    box.innerHTML = liste_.length
+      ? liste(liste_.map((l) => {
+        const e = eigenerPosten(l);
+        const unter = `<span class="me-kcal-text">${l.per100.kcal} kcal je 100 g</span> · ${l.per100.proteinG} g Eiweiß`;
+        return bibZeile(e, meBibliothekPosten.push({ art: "posten", e }) - 1, { loeschen: l.id, unter, loeschenArt: "lebensmittel" });
+      }))
+      : leer("Noch keine eigenen Lebensmittel. Leg unten eines an, mit den Werten je 100 g von der Packung.");
     return;
   }
   if (meReiterWahl === "lexikon") {
@@ -4627,6 +5072,14 @@ function meRezeptHinweis(text) {
 }
 
 $("meBibliothek").addEventListener("click", (event) => {
+  const lmWeg = event.target.closest("[data-lebensmittel-weg]");
+  if (lmWeg) {
+    const l = eigeneLebensmittel(store.getSettings()).find((x) => x.id === lmWeg.dataset.lebensmittelWeg);
+    if (!l || !confirm(`"${l.name}" aus deinen Lebensmitteln löschen? Eingetragene Mahlzeiten bleiben.`)) return;
+    store.setSettings(lebensmittelLoeschen(store.getSettings(), l.id));
+    meBibliothekZeichnen();
+    return;
+  }
   const weg = event.target.closest("[data-rezept-weg]");
   if (weg) {
     const r = eigeneRezepte(store.getSettings()).find((x) => x.id === weg.dataset.rezeptWeg);
@@ -4722,15 +5175,17 @@ async function meSuchen() {
   const ziffern = begriff.replace(/\D/g, "");
   try {
     if (ziffern.length >= 8 && ziffern.length <= 14 && ziffern.length === begriff.replace(/\s/g, "").length) {
-      const t = await produktPerBarcode(ziffern);
+      const t = await produktPerBarcode(ziffern, offOptionen());
       if (!t) { hinweis.textContent = "Diesen Barcode kennt Open Food Facts nicht."; return; }
       meTrefferZeichnen([t]);
       hinweis.textContent = "";
       return;
     }
-    const treffer = await produkteSuchen(begriff, { anzahl: 8 });
+    const treffer = await produkteSuchen(begriff, { anzahl: 8, ...offOptionen() });
     if (treffer.length === 0) {
-      hinweis.textContent = "Nichts gefunden. Scann den Barcode oder trag es von Hand ein.";
+      hinweis.textContent = "Nichts gefunden. Scann den Barcode oder leg es unten als eigenes Lebensmittel an.";
+      $("meHandName").value = begriff;
+      document.querySelector(".me-hand")?.setAttribute("open", "");
       return;
     }
     meTrefferZeichnen(treffer);
@@ -4814,7 +5269,7 @@ $("mePosten").addEventListener("input", (event) => {
   // dem Nutzer mitten im Tippen den Fokus aus dem Feld nehmen.
   const zeile = feld.closest("li")?.querySelector(".me-werte");
   const e = mePosten[i];
-  if (zeile) zeile.innerHTML = postenWerte(e, dayNumbers(day).targets);
+  if (zeile) zeile.innerHTML = postenWerte(e, dayNumbers(meTag).targets);
   meSummeZeichnen();
 });
 
@@ -4858,21 +5313,33 @@ $("meHandAdd").addEventListener("click", () => {
   if (!name) { hinweis.textContent = "Ohne Namen findest du den Posten später nicht wieder."; return; }
   if (!Number.isFinite(gramm) || gramm <= 0) { hinweis.textContent = "Die Menge fehlt."; return; }
   if (!Number.isFinite(kcal) || kcal < 0) { hinweis.textContent = "Die Kalorien je 100 g fehlen."; return; }
-  mePostenAnhaengen(eintragAus100g(name, gramm, {
+  const werte = {
     kcal,
-    proteinG: Number($("meHandP").value) || 0,
-    fatG: Number($("meHandF").value) || 0,
-    carbsG: Number($("meHandK").value) || 0,
-  }));
+    proteinG: Number(String($("meHandP").value).replace(",", ".")) || 0,
+    fatG: Number(String($("meHandF").value).replace(",", ".")) || 0,
+    carbsG: Number(String($("meHandK").value).replace(",", ".")) || 0,
+  };
+  let satz = "Hinzugefügt.";
+  if ($("meHandMerken").checked) {
+    // Gespeichert wird vor dem Anhängen: lehnt die Prüfung die Werte ab,
+    // etwa Makros über 100 g, soll auch kein Posten mit diesen Werten im
+    // Tag landen.
+    const r = lebensmittelSpeichern(store.getSettings(), { name, ...werte, portionG: gramm }, { id: newId });
+    if (r.fehler) { hinweis.textContent = r.fehler; return; }
+    store.setSettings(r.settings);
+    satz = `Hinzugefügt und unter Eigene gespeichert.${r.hinweis ? ` ${r.hinweis}` : ""}`;
+  }
+  mePostenAnhaengen(eintragAus100g(name, gramm, werte));
   for (const id of ["meHandName", "meHandKcal", "meHandP", "meHandF", "meHandK"]) $(id).value = "";
   $("meHandGramm").value = "100";
-  hinweis.textContent = "Hinzugefügt.";
+  hinweis.textContent = satz;
+  meBibliothekZeichnen();
 });
 
 $("meLoeschen").addEventListener("click", () => {
   if (!meMahlzeit) return;
   if (!confirm("Diese Mahlzeit wirklich löschen?")) return;
-  store.removeMeal(day, meMahlzeit.id);
+  store.removeMeal(meTag, meMahlzeit.id);
   mahlzeitSchliessen();
   refreshAll();
   toast("Mahlzeit gelöscht");
@@ -4883,14 +5350,14 @@ $("meSpeichern").addEventListener("click", () => {
   // Eine Mahlzeit ohne Posten ist keine Mahlzeit. Sie stehen zu lassen hiesse,
   // eine Zeile mit null Kalorien im Verlauf zu führen.
   if (mePosten.length === 0) {
-    store.removeMeal(day, meMahlzeit.id);
+    store.removeMeal(meTag, meMahlzeit.id);
     mahlzeitSchliessen();
     refreshAll();
     toast("Mahlzeit gelöscht, es war nichts mehr drin");
     return;
   }
   const zeit = $("meZeit").value || meMahlzeit.at;
-  store.updateMeal(day, meMahlzeit.id, {
+  store.updateMeal(meTag, meMahlzeit.id, {
     entries: mePosten,
     at: zeit,
     art: meArt || undefined,
@@ -4986,6 +5453,20 @@ async function renderKonto() {
   $("kontoStand").textContent = kontoText(stand);
   $("kontoId").textContent = stand?.id || store.getSettings().kontoId || "-";
 }
+
+// Die Kennung stand vorher als Wert einer Zeile "Konto", rechts und
+// abgeschnitten, und wurde auf dem iPhone nicht gefunden. Kopieren über
+// einen Knopf, weil eine lange Zeichenkette niemand abtippt.
+$("btnKontoKopieren").addEventListener("click", async () => {
+  const id = store.getSettings().kontoId || "";
+  if (!id) { toast("Noch kein Konto. Prüf deine Verbindung und öffne das Profil erneut."); return; }
+  try {
+    await navigator.clipboard.writeText(id);
+    toast("Kennung kopiert");
+  } catch {
+    toast(`Kennung: ${id}`, 10000);
+  }
+});
 
 /* ---------- Anmeldung mit Apple oder Google ---------- */
 
@@ -5107,8 +5588,10 @@ function rechteFragen() {
       document.body.classList.remove("blatt-offen");
       try {
         const ergebnis = await berechtigungenFragen({ aufruf: nativAufruf, store });
-        const satz = berechtigungenText(ergebnis);
-        if (satz) toast(satz, 8000);
+        // Was fehlt zuerst, dann welche Kalender gefunden wurden. Fehlt
+        // Google, steht der Weg dorthin gleich dabei.
+        const satz = [berechtigungenText(ergebnis), ergebnis.konten ? kontenText(ergebnis.konten) : ""].filter(Boolean).join(" ");
+        if (satz) toast(satz, 12000);
       } catch {
         // Ohne Hülle oder Plugin bleibt jede Funktion bei ihrer eigenen Frage.
       }
@@ -5169,7 +5652,9 @@ async function mitteilungenNativ() {
 
     const d = new Date();
     const jetzt = { tag: todayIso(d), uhrzeit: `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}` };
-    await mitteilungenPlanen({ aufruf: nativAufruf, store, jetzt });
+    let vorausblicke = [];
+    try { vorausblicke = vorausblickePlan(jetzt.tag); } catch { /* ohne Kalender keiner */ }
+    await mitteilungenPlanen({ aufruf: nativAufruf, store, jetzt, vorausblicke });
   } catch {
     // Ohne Erlaubnis plant iOS nichts. Die App läuft trotzdem.
   }
@@ -5189,6 +5674,7 @@ const morgen = morgenStarten({
   // Neu planen: nach Fitheit 1 oder 2 kommt die Nachfrage am Mittag dazu,
   // nach der Nachfrage fällt sie wieder weg.
   gespeichert: () => { refreshAll(); mitteilungenNativ(); },
+  tagesbriefing: () => { try { return tagesbriefingFuer("morgen"); } catch { return null; } },
 });
 
 /**
@@ -5216,14 +5702,14 @@ const ER_KREUZ = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" st
   + 'stroke-linecap="round" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg>';
 
 function eigeneErinnerungenZeigen() {
-  const liste = store.getSettings().eigeneErinnerungen || [];
+  const liste = erinnerungenAufgeraeumt();
   $("eigeneListe").innerHTML = liste.length
     ? liste.map((e) => `<li><div class="li-main"><div class="li-title">${escapeHtml(e.text)}</div>`
-      + `<div class="li-sub">${escapeHtml(`${tageText(e.tage)}, ${wannText(e)}`)}</div></div>`
+      + `<div class="li-sub">${escapeHtml(erinnerungZeile(e, todayIso()))}</div></div>`
       + `<div class="li-side"><button class="aufgabe-knopf" data-er-weg="${e.id}" title="Löschen" `
       + `aria-label="Erinnerung löschen">${ER_KREUZ}</button></div></li>`).join("")
     : "";
-  $("btnErinnerungNeu").disabled = liste.length >= MAX_EIGENE;
+  $("btnErinnerungNeu").disabled = liste.filter((e) => !istEinmalig(e)).length >= MAX_EIGENE;
 }
 
 $("erWann").addEventListener("change", () => {
@@ -5239,7 +5725,9 @@ $("eigeneListe").addEventListener("click", (event) => {
   const b = event.target.closest("[data-er-weg]");
   if (!b) return;
   const s = store.getSettings();
+  const weg = (s.eigeneErinnerungen || []).find((e) => e.id === b.dataset.erWeg);
   store.setSettings({ ...s, eigeneErinnerungen: (s.eigeneErinnerungen || []).filter((e) => e.id !== b.dataset.erWeg) });
+  if (weg?.kalender) import("./kalender-schreiben.js").then((m) => m.erinnerungAustragen(weg.kalender));
   eigeneErinnerungenZeigen();
   mitteilungenNativ();
 });
@@ -5519,7 +6007,13 @@ function impulsOeffnen(daten) {
   if (art === "morgen") { morgen.oeffnen(); return; }
   if (art === "nachfrage") { morgen.nachfrage(); return; }
   showView("assistant");
-  const impuls = impulseFuerTag(todayIso()).find((i) => i.art === art);
+  // Der Blick auf morgen: im Chat steht alles, nicht nur der eine Satz aus
+  // der Mitteilung, und eine Antwort wie "ja, trag es um 19:15 ein" geht
+  // direkt an den Coach.
+  // Das ganze Briefing für morgen, nicht nur der eine Satz aus der Mitteilung.
+  let voraus = "";
+  if (art === "vorausblick") { try { voraus = tagesbriefingFuer("abend").text; } catch { voraus = vorausblickText(vorausblickFuer(tagNach(todayIso()))); } }
+  const impuls = voraus ? { text: voraus } : impulseFuerTag(todayIso()).find((i) => i.art === art);
   if (!impuls) return;
 
   const chat = store.getChat();
@@ -6050,3 +6544,104 @@ if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("./sw.js").catch(() => {});
   });
 }
+
+/** Der Tag nach `iso`, in Ortszeit. */
+function tagNach(iso) {
+  const d = new Date(`${iso}T12:00:00`);
+  d.setDate(d.getDate() + 1);
+  return todayIso(d);
+}
+
+
+/* ---------- Apple Watch ---------- */
+
+/**
+ * Holt ab, was auf der Uhr passiert ist, und schickt danach den neuen Stand.
+ * Nur in der iPhone App, und nur wenn eine Uhr gekoppelt ist. Ohne Uhr
+ * kostet das einen Aufruf beim Öffnen und sonst nichts.
+ */
+// var und nicht let: refreshAll ruft uhrSpaeter schon beim Start, bevor
+// diese Zeilen erreicht sind. Mit let wäre das ein ReferenceError, und die
+// App bliebe schwarz.
+// eslint-disable-next-line no-var
+var uhrDa = null;
+async function uhrAbgleichen() {
+  if (!istNativ()) return;
+  try {
+    if (uhrDa === null || uhrDa === undefined) {
+      const st = await nativAufruf("Uhr", "stand", {});
+      uhrDa = Boolean(st?.gekoppelt && st?.installiert);
+    }
+    if (!uhrDa) return;
+    const { ereignisse = [] } = await nativAufruf("Uhr", "abholen", {});
+    if (ereignisse.length) {
+      const ergebnis = uhrEreignisseAnwenden(ereignisse, { store, heute: todayIso(), neueId: newId });
+      const satz = uhrMeldung(ergebnis);
+      if (satz) { toast(satz, 4500); plaene.verlaufNeu?.(); }
+      // Was auf der Uhr ohne iPhone besprochen wurde, steht danach im
+      // Gespräch, damit der Coach beim nächsten Mal davon weiss.
+      if (ergebnis.gespraech.length) {
+        const chat = store.getChat();
+        for (const g of ergebnis.gespraech) {
+          const at = g.at || new Date().toISOString();
+          chat.push({ role: "user", text: g.frage, at, quelle: "uhr" }, { role: "assistant", text: g.antwort, at, quelle: "uhr" });
+        }
+        store.setChat(chat);
+        gespraechNachziehen();
+        renderTranscript();
+      }
+      // Vorgemerkte Sätze laufen jetzt durch den ganzen Agenten, einer nach
+      // dem anderen, als hätte er sie hier gesagt.
+      for (const text of ergebnis.saetze) {
+        // Läuft gerade eine Antwort, wartet der Satz, sonst verwirft send ihn.
+        while (busy) await new Promise((fertig) => setTimeout(fertig, 300));
+        $("assistant").classList.add("has-chat");
+        await send(text);
+      }
+    }
+    await uhrSenden();
+  } catch {
+    // Ohne Plugin, etwa eine ältere Hülle, oder ohne Uhr: dann eben nicht.
+  }
+}
+
+async function uhrSenden() {
+  if (!istNativ() || !uhrDa) return;
+  const paket = uhrPaket({ settings: store.getSettings(), zahlen: dayNumbers(), heute: todayIso(), gestrichen: trainingGestrichen(store, todayIso()), ki: uhrKiZugang() });
+  await nativAufruf("Uhr", "senden", { paket });
+}
+
+/**
+ * Eine Frage von der Uhr, während daevo hier offen ist. Das Plugin ruft diese
+ * Funktion über die Web Ansicht auf. Sie läuft durch denselben Weg wie jede
+ * Nachricht im Chat, mit allen Werkzeugen, und die Antwort geht zurück an
+ * die Uhr. Ist gerade etwas anderes im Gange, antwortet sie sofort mit einem
+ * Fehler, und die Uhr fragt selbst.
+ */
+globalThis.daevoUhrFrage = async (id, text) => {
+  const antworten = (daten) => nativAufruf("Uhr", "antworten", { id, ...daten }).catch(() => {});
+  if (busy) return antworten({ fehler: "beschaeftigt" });
+  try {
+    $("assistant").classList.add("has-chat");
+    const vorher = store.getChat().length;
+    await send(String(text || ""), { vonUhr: true });
+    const neu = store.getChat().slice(vorher).filter((m) => m.role === "assistant").pop();
+    await antworten(neu?.text ? { antwort: neu.text } : { fehler: "leer" });
+  } catch (e) {
+    await antworten({ fehler: String(e?.message || e) });
+  }
+};
+
+/** Nach einer Änderung nicht sofort, sondern gebündelt: ein Tag hat viele kleine Änderungen. */
+// eslint-disable-next-line no-var
+var uhrTimer = 0;
+function uhrSpaeter() {
+  if (!istNativ() || !uhrDa) return;
+  clearTimeout(uhrTimer);
+  uhrTimer = setTimeout(() => uhrSenden().catch(() => {}), 1500);
+}
+
+setTimeout(() => uhrAbgleichen().then(() => refreshAll()), 2500);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") uhrAbgleichen().then(() => refreshAll());
+});

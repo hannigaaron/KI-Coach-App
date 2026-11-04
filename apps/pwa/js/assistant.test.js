@@ -35,7 +35,7 @@ class SpeicherAttrappe {
 globalThis.localStorage = new SpeicherAttrappe();
 
 const { store, todayIso } = await import("./storage.js");
-const { buildActions, dayNumbers, kalenderStandText, koerperText, plausibelHinweis, trifftPosten, nachtragZeit } = await import("./assistant.js");
+const { buildActions, heuteGetauscht, heuteVerschoben, aufgabenAufraeumen, kalenderNotizAufraeumen, erinnerungenAufgeraeumt, dayNumbers, kalenderStandText, koerperText, plausibelHinweis, trifftPosten, nachtragZeit } = await import("./assistant.js");
 
 const PROFIL = {
   name: "Aaron", sex: "male", ageYears: 23, heightCm: 184, weightKg: 87,
@@ -700,4 +700,226 @@ test("Apple Health im Kontext: Nacht mit Phasen, HRV gegen den eigenen Schnitt",
   assert.match(t, /HRV 30 ms, Schnitt 28 Tage 48/);
   assert.match(t, /VO2max 47,5 ml\/kg\/min/);
   assert.equal(koerperText("2031-06-01"), "");
+});
+
+test("einmalige Erinnerung wird angelegt, vorbei heisst abgelehnt und weggeräumt", async () => {
+  const aktionen = buildActions({});
+  const morgen = new Date(Date.now() + 86400000);
+  const z = (n) => String(n).padStart(2, "0");
+  const datum = `${morgen.getFullYear()}-${z(morgen.getMonth() + 1)}-${z(morgen.getDate())}`;
+  const ok = await aktionen.erinnerungAnlegen({ text: "die Wäsche", uhrzeit: "22:30", tage: [], datum });
+  assert.match(ok, /^Erinnerung angelegt: Wäsche, morgen, 22:30, einmalig\./);
+  const vorbei = await aktionen.erinnerungAnlegen({ text: "Ofen", uhrzeit: "00:00", tage: [], datum: "2020-01-01" });
+  assert.doesNotMatch(vorbei, /angelegt/);
+  // Eine einmalige von gestern fällt beim nächsten Lesen aus der Liste.
+  const s = store.getSettings();
+  store.setSettings({ ...s, eigeneErinnerungen: [...s.eigeneErinnerungen, { id: "alt", text: "Alt", uhrzeit: "08:00", tage: [], datum: "2020-01-01" }] });
+  const offen = erinnerungenAufgeraeumt();
+  assert.ok(offen.some((e) => e.text === "Wäsche"));
+  assert.ok(!offen.some((e) => e.id === "alt"));
+});
+
+test("eine wiederkehrende Erinnerung mit gleichem Text ersetzt die alte, statt doppelt zu kommen", async () => {
+  const aktionen = buildActions({});
+  const s = store.getSettings();
+  store.setSettings({ ...s, eigeneErinnerungen: [{ id: "fest", text: "Schlaf Supplements", uhrzeit: "21:54", tage: [] }] });
+  const antwort = await aktionen.erinnerungAnlegen({ text: "meine Schlaf Supplements", bezug: "schlafen", versatz: -60, tage: [] });
+  assert.match(antwort, /^Erinnerung angelegt: Schlaf Supplements, täglich, 1 Stunde vor dem Schlafen\. Die bisherige \(täglich, 21:54\) ist ersetzt\./);
+  const liste = store.getSettings().eigeneErinnerungen.filter((e) => /supplements/i.test(e.text));
+  assert.equal(liste.length, 1);
+  assert.equal(liste[0].bezug, "schlafen");
+});
+
+test("Training für heute: dieselben Partien bringen dieselben Übungen samt Tausch, neu bringt andere", async () => {
+  const a = buildActions({});
+  const s0 = store.getSettings();
+  store.setSettings({ ...s0, heuteTraining: undefined, heuteVerlauf: [] });
+  await a.trainingHeute({ gruppen: ["brust", "schultern", "trizeps"], minuten: 60 });
+  const erst = store.getSettings().heuteTraining.einheit.positionen.map((p) => p.id);
+  // Getauscht im Training: die erste Übung gegen eine andere für dieselbe Bewegung.
+  heuteGetauscht(erst[0], "liegestuetz");
+  // Der Eintrag rückt einen Tag zurück, als wäre das letzte Woche gewesen.
+  const s = store.getSettings();
+  const gestern = { ...s.heuteVerlauf[0], tag: "2000-01-01" };
+  store.setSettings({ ...s, heuteTraining: undefined, heuteVerlauf: [gestern] });
+  const text = await a.trainingHeute({ gruppen: ["trizeps", "brust", "schultern"] });
+  assert.match(text, /Dieselben Übungen wie am/);
+  const wieder = store.getSettings().heuteTraining.einheit.positionen.map((p) => p.id);
+  assert.deepEqual(wieder, ["liegestuetz", ...erst.slice(1)]);
+  const neuText = await a.trainingHeute({ gruppen: [], neu: true });
+  assert.match(neuText, /Neue Übungen/);
+  const neu = store.getSettings().heuteTraining.einheit.positionen.map((p) => p.id);
+  assert.notDeepEqual(neu, wieder);
+  store.setSettings(s0);
+});
+
+test("Training für heute: eine verschobene Reihenfolge kommt beim nächsten Mal wieder", async () => {
+  const a = buildActions({});
+  const s0 = store.getSettings();
+  store.setSettings({ ...s0, heuteTraining: undefined, heuteVerlauf: [] });
+  await a.trainingHeute({ gruppen: ["ruecken", "bizeps"], minuten: 60 });
+  const erst = store.getSettings().heuteTraining.einheit.positionen.map((p) => p.id);
+  const umgestellt = [erst.at(-1), ...erst.slice(0, -1)];
+  heuteVerschoben(umgestellt);
+  const s = store.getSettings();
+  store.setSettings({ ...s, heuteTraining: undefined, heuteVerlauf: [{ ...s.heuteVerlauf[0], tag: "2000-01-01" }] });
+  await a.trainingHeute({ gruppen: ["ruecken", "bizeps"], minuten: 60 });
+  assert.deepEqual(store.getSettings().heuteTraining.einheit.positionen.map((p) => p.id), umgestellt);
+  store.setSettings(s0);
+});
+
+test("Pull für morgen um 14 Uhr überschreibt heute nicht und steht morgen bereit", async () => {
+  const heute = frischerTag();
+  const a = buildActions({});
+  await a.trainingHeute({ gruppen: ["push"], minuten: 60 });
+  const d = new Date(`${heute}T12:00:00`); d.setDate(d.getDate() + 1);
+  const morgen = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const text = await a.trainingHeute({ gruppen: ["pull"], tag: morgen, uhrzeit: "14:00" });
+  assert.match(text, /um 14:00 steht: Rücken, Bizeps/);
+  const s = store.getSettings();
+  assert.equal(s.heuteTraining.tag, heute);
+  assert.deepEqual(s.heuteTraining.gruppen, ["brust", "schultern", "trizeps"]);
+  const geplant = s.heuteVerlauf.find((v) => v.tag === morgen);
+  assert.equal(geplant.geplant, true);
+  assert.equal(geplant.uhrzeit, "14:00");
+  assert.deepEqual(geplant.gruppen, ["ruecken", "bizeps"]);
+  // Ein Tag in der Vergangenheit wird heute.
+  await a.trainingHeute({ gruppen: ["beine"], tag: "2000-01-01" });
+  assert.equal(store.getSettings().heuteTraining.tag, heute);
+});
+
+test("die falsch verstandene Kalendernotiz verschwindet einmal, andere bleiben", () => {
+  frischerTag();
+  store.setMemories([
+    { id: "1", text: "Alles, was daevo empfiehlt, kommt direkt in den Kalender.", kind: "fakt", tags: [], wichtigkeit: 3, erstellt: "2026-11-02" },
+    { id: "2", text: "Therapie freitags um 13 Uhr, nicht in den Kalender eintragen.", kind: "fakt", tags: [], wichtigkeit: 3, erstellt: "2026-11-02" },
+  ]);
+  assert.equal(kalenderNotizAufraeumen(), 1);
+  assert.deepEqual(store.getMemories().map((m) => m.id), ["2"]);
+  store.setMemories([{ id: "3", text: "Alles, was daevo empfiehlt, kommt direkt in den Kalender.", kind: "fakt", tags: [], wichtigkeit: 3, erstellt: "2026-11-02" }]);
+  assert.equal(kalenderNotizAufraeumen(), 0);
+});
+
+test("Abhaken lässt sich zurücknehmen, in Todoist und lokal", async () => {
+  frischerTag();
+  store.setSettings({ ...store.getSettings(), todoistToken: "abc" });
+  store.setTodoist({ abgerufen: new Date().toISOString(), aufgaben: [{ id: "todoist:9", text: "Angebot", minuten: 30, wichtigkeit: 2, erledigt: false, erstellt: todayIso(), quelle: "todoist" }] });
+  const ok = await planung.aufgabeErledigen("todoist:9", { fetchImpl: async () => antwortJson(204) });
+  assert.equal(planung.alleAufgaben().length, 0);
+  let ziel = "";
+  const zurueck = await planung.aufgabeWiederOeffnen(ok.rueck, { fetchImpl: async (url) => { ziel = url; return antwortJson(204); } });
+  assert.equal(zurueck.ok, true);
+  assert.match(ziel, /tasks\/9\/reopen/);
+  assert.deepEqual(planung.alleAufgaben().map((a) => a.text), ["Angebot"]);
+
+  store.setSettings({ ...store.getSettings(), todoistToken: "" });
+  store.setAufgaben([{ id: "a1", text: "Steuer", minuten: 30, wichtigkeit: 2, erledigt: false, erstellt: todayIso() }]);
+  const lokal = await planung.aufgabeErledigen("a1");
+  assert.equal(store.getAufgaben()[0].erledigt, true);
+  await planung.aufgabeWiederOeffnen(lokal.rueck);
+  assert.equal(store.getAufgaben()[0].erledigt, false);
+});
+
+test("ein Markenprodukt wird gefunden, eingetragen und beim nächsten Mal ohne Netz aus der eigenen Liste genommen", async () => {
+  frischerTag();
+  const echt = globalThis.fetch;
+  const aufrufe = [];
+  // Die alte Suche antwortet mit 503, die Suche nach Marke liefert ESN.
+  globalThis.fetch = async (url) => {
+    aufrufe.push(String(url));
+    if (String(url).includes("brands_tags=esn")) {
+      return new Response(JSON.stringify({ products: [
+        { code: "4260682262912", product_name: "Instant Rice Pudding", brands: "ESN", nutriments: { "energy-kcal_100g": 373, proteins_100g: 7.7, fat_100g: 0.7, carbohydrates_100g: 83 } },
+        { code: "4250519650715", product_name: "Designer Whey", brands: "ESN", nutriments: { "energy-kcal_100g": 523, proteins_100g: 73, fat_100g: 5.2, carbohydrates_100g: 9.2 } },
+      ] }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    return new Response("<html>", { status: 503, headers: { "content-type": "text/html" } });
+  };
+  try {
+    const aktionen = buildActions({});
+    const a = await aktionen.produktNachschlagen({ suche: "ESN Instant Rice Pudding", gramm: 75, erfassen: true });
+    assert.match(a, /Auf 75 g: 280 kcal/);
+    assert.match(a, /Eingetragen\./);
+    const w = await aktionen.produktNachschlagen({ suche: "ESN Designer Whey", gramm: 45 });
+    assert.match(w, /Je 100 g: 376 kcal/);
+    assert.match(w, /aus den Makros gerechnet/);
+    globalThis.fetch = async () => { throw new Error("kein Netz"); };
+    const b = await aktionen.produktNachschlagen({ suche: "esn instant rice pudding", gramm: 75 });
+    assert.match(b, /schon einmal nachgeschlagen/);
+    const nichts = await aktionen.produktNachschlagen({ suche: "Marke Unbekannt Riegel" });
+    assert.match(nichts, /^Noch nicht gespeichert\./);
+  } finally {
+    globalThis.fetch = echt;
+  }
+});
+
+test("ein eigenes Lebensmittel gilt beim Erfassen, beim Nachschlagen und im Gespräch", async () => {
+  frischerTag();
+  const aktionen = buildActions({});
+  const a = await aktionen.lebensmittelAnlegen({ name: "Omas Kuchen", kcal: 350, proteinG: 5, fatG: 18, carbsG: 40 });
+  assert.match(a, /^Angelegt: Omas Kuchen, je 100 g 350 kcal/);
+  // Der Regelweg kennt Omas Kuchen nicht, mit der eigenen Liste wird er eingetragen.
+  const e = await aktionen.mahlzeitErfassen("200 g Omas Kuchen");
+  assert.match(e, /700 kcal|Omas Kuchen/);
+  const tag = store.getDay(todayIso());
+  const posten = tag.meals.at(-1).entries.find((x) => x.name === "Omas Kuchen");
+  assert.equal(posten.kcal, 700);
+  const n = await aktionen.produktNachschlagen({ suche: "Omas Kuchen", gramm: 100 });
+  assert.match(n, /dein eigenes Lebensmittel/);
+  const f = await aktionen.lebensmittelAnlegen({ name: "X", kcal: 300, proteinG: 90, fatG: 20, carbsG: 10 });
+  assert.match(f, /^Noch nicht gespeichert\./);
+});
+
+test("der Zyklus wird im Gespräch eingetragen und mit Empfehlung zurückgegeben", async () => {
+  const aktionen = buildActions({});
+  const heute = todayIso();
+  const a = await aktionen.zyklus({ aktion: "periode_beginn" });
+  assert.match(a, /^Eingetragen: Periode ab /);
+  assert.match(a, /Zyklustag 1, Periode\./);
+  const b = await aktionen.zyklus({ aktion: "symptome", symptome: ["kraempfe", "unsinn"] });
+  assert.match(b, /drei Vierteln der Sätze/);
+  assert.deepEqual(store.getSettings().zyklus.symptome[heute], ["kraempfe"]);
+  assert.match(await aktionen.zyklus({ aktion: "symptome", symptome: ["unsinn"] }), /^Noch nicht gespeichert\./);
+});
+
+test("Der Coach streicht und tauscht einzelne Übungen selbst, und es gilt beim nächsten Mal", async () => {
+  frischerTag();
+  const a = buildActions({});
+  const s0 = store.getSettings();
+  store.setSettings({ ...s0, heuteTraining: undefined, heuteVerlauf: [] });
+  await a.trainingHeute({ gruppen: ["pull"], minuten: 60 });
+  const vorher = store.getSettings().heuteTraining.einheit.positionen;
+  const erste = vorher[0];
+  const letzte = vorher[vorher.length - 1];
+  const text = await a.trainingHeute({ weglassen: [letzte.name], tauschen: [erste.name.split(" ")[0] + " " + (erste.name.split(" ")[1] ?? "")] });
+  assert.match(text, /Gestrichen: /);
+  assert.match(text, /Getauscht: /);
+  const nachher = store.getSettings().heuteTraining.einheit.positionen;
+  assert.equal(nachher.length, vorher.length - 1);
+  assert.ok(!nachher.some((p) => p.id === letzte.id));
+  assert.notEqual(nachher[0].id, erste.id);
+  // Eine Übung, die es in der Einheit nicht gibt, meldet das, statt still nichts zu tun.
+  assert.match(await a.trainingHeute({ weglassen: ["Bankdrücken"] }), /^NICHT_GESPEICHERT|steht nicht in der Einheit/);
+  // Am nächsten Mal mit denselben Partien bleibt es so.
+  const s = store.getSettings();
+  store.setSettings({ ...s, heuteTraining: undefined, heuteVerlauf: s.heuteVerlauf.map((v) => ({ ...v, tag: "2000-01-01" })) });
+  await a.trainingHeute({ gruppen: ["pull"], minuten: 60 });
+  const wieder = store.getSettings().heuteTraining.einheit.positionen.map((p) => p.id);
+  assert.deepEqual(wieder, nachher.map((p) => p.id));
+  store.setSettings(s0);
+});
+
+test("aufgabenAufraeumen nimmt Satzreste wie „dass ich das machen muss“ einmal weg", () => {
+  const s0 = store.getSettings();
+  store.setSettings({ ...s0, aufgabenGeprueft: false });
+  const jetzt = new Date().toISOString();
+  store.setAufgaben([
+    { id: "a", text: "dass ich das machen muss", minuten: 30, wichtigkeit: 2, erledigt: false, erstellt: jetzt },
+    { id: "b", text: "Angebot schreiben", minuten: 30, wichtigkeit: 2, erledigt: false, erstellt: jetzt },
+    { id: "c", text: "Dass Formular", minuten: 30, wichtigkeit: 2, erledigt: false, erstellt: jetzt, quelle: "todoist" },
+  ]);
+  assert.equal(aufgabenAufraeumen(), 1);
+  assert.deepEqual(store.getAufgaben().map((a) => a.id), ["b", "c"]);
+  assert.equal(aufgabenAufraeumen(), 0);
+  store.setSettings({ ...store.getSettings(), aufgabenGeprueft: s0.aufgabenGeprueft });
 });

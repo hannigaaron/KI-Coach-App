@@ -33,6 +33,8 @@ public class KalenderPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "anlegen", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "verschieben", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "loeschen", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "konten", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "schreibKalender", returnType: CAPPluginReturnPromise),
     ]
 
     static let markierung = URL(string: "daevo://termin")!
@@ -45,6 +47,88 @@ public class KalenderPlugin: CAPPlugin, CAPBridgedPlugin {
             return stand == .fullAccess
         }
         return stand == .authorized
+    }
+
+    /// Welche Konten iOS für Termine kennt, mit der Zahl ihrer Kalender.
+    /// Damit sagt die App nach dem Ja zum Kalender, was sie gefunden hat, und
+    /// wenn kein Google oder Outlook dabei ist, wie man es hinzufügt. Eine App
+    /// darf in iOS keinen Account anlegen, das muss die Person selbst tun.
+    ///
+    /// Die Art kommt aus dem Typ der Quelle und ihrem Namen: Google läuft in
+    /// iOS über CalDAV und heisst dort "Gmail" oder trägt die Adresse, Outlook
+    /// über Exchange. Geburtstage sind keine Quelle, die jemand verbindet.
+    /// Die Art einer Quelle: google, icloud, outlook, lokal, abo, andere.
+    private func art(_ quelle: EKSource?) -> String {
+        guard let quelle = quelle else { return "andere" }
+        let klein = quelle.title.lowercased()
+        switch quelle.sourceType {
+        case .exchange: return "outlook"
+        case .local: return "lokal"
+        case .subscribed: return "abo"
+        case .calDAV, .mobileMe:
+            if klein.contains("gmail") || klein.contains("google") { return "google" }
+            if klein.contains("icloud") || quelle.sourceType == .mobileMe { return "icloud" }
+            if klein.contains("outlook") || klein.contains("hotmail") || klein.contains("live.") { return "outlook" }
+            return "andere"
+        default: return "andere"
+        }
+    }
+
+    /// Wohin daevo schreibt. Eine eigene Wahl gilt immer. Ohne sie der
+    /// Standardkalender von iOS, ausser der ist iCloud oder lokal und es gibt
+    /// einen beschreibbaren Google oder Outlook Kalender: der Standard steht ab
+    /// Werk auf iCloud, und wer Google als Account einträgt, plant meist dort.
+    /// So stand ein Training im Apple Kalender, den der Betreiber nie ansieht,
+    /// und im Google Kalender fehlte es. Bei Google zuerst der Hauptkalender,
+    /// der heisst wie die Adresse.
+    private func zielKalender(_ wunsch: String?) -> EKCalendar? {
+        if let id = wunsch, !id.isEmpty, let k = speicher.calendar(withIdentifier: id), k.allowsContentModifications { return k }
+        let standard = speicher.defaultCalendarForNewEvents
+        if let s = standard, s.allowsContentModifications, ["google", "outlook"].contains(art(s.source)) { return s }
+        let schreibbar = speicher.calendars(for: .event).filter { $0.allowsContentModifications }
+        let google = schreibbar.filter { art($0.source) == "google" }
+        if let haupt = google.first(where: { $0.title.contains("@") }) ?? google.first { return haupt }
+        if let outlook = schreibbar.first(where: { art($0.source) == "outlook" }) { return outlook }
+        if let s = standard, s.allowsContentModifications { return s }
+        return schreibbar.first
+    }
+
+    /// Die Kalender, in die daevo schreiben darf, für die Wahl auf der Kalenderseite.
+    @objc func schreibKalender(_ call: CAPPluginCall) {
+        guard darfLesen() else { call.reject("Kein Zugriff auf den Kalender."); return }
+        let ziel = zielKalender(call.getString("kalender"))
+        let liste: [[String: Any]] = speicher.calendars(for: .event)
+            .filter { $0.allowsContentModifications && $0.source?.sourceType != .birthdays }
+            .map { k in
+                ["id": k.calendarIdentifier, "titel": k.title, "quelle": k.source?.title ?? "",
+                 "art": art(k.source), "ziel": k.calendarIdentifier == ziel?.calendarIdentifier]
+            }
+        call.resolve(["kalender": liste])
+    }
+
+    @objc func konten(_ call: CAPPluginCall) {
+        guard darfLesen() else { call.reject("Kein Zugriff auf den Kalender."); return }
+        var zaehler: [String: (name: String, art: String, kalender: Int)] = [:]
+        for kalender in speicher.calendars(for: .event) {
+            guard let quelle = kalender.source, quelle.sourceType != .birthdays else { continue }
+            let name = quelle.title
+            let klein = name.lowercased()
+            let art: String
+            switch quelle.sourceType {
+            case .exchange: art = "outlook"
+            case .local: art = "lokal"
+            case .subscribed: art = "abo"
+            case .calDAV, .mobileMe:
+                if klein.contains("gmail") || klein.contains("google") { art = "google" }
+                else if klein.contains("icloud") || quelle.sourceType == .mobileMe { art = "icloud" }
+                else if klein.contains("outlook") || klein.contains("hotmail") || klein.contains("live.") { art = "outlook" }
+                else { art = "andere" }
+            default: art = "andere"
+            }
+            let alt = zaehler[quelle.sourceIdentifier]
+            zaehler[quelle.sourceIdentifier] = (name, art, (alt?.kalender ?? 0) + 1)
+        }
+        call.resolve(["konten": zaehler.values.map { ["name": $0.name, "art": $0.art, "kalender": $0.kalender] }])
     }
 
     @objc func berechtigen(_ call: CAPPluginCall) {
@@ -105,8 +189,8 @@ public class KalenderPlugin: CAPPlugin, CAPBridgedPlugin {
         guard let titel = call.getString("titel"), let von = call.getDouble("von"), let bis = call.getDouble("bis"), bis > von else {
             call.reject("Titel, Beginn und Ende fehlen."); return
         }
-        guard let kalender = speicher.defaultCalendarForNewEvents, kalender.allowsContentModifications else {
-            call.reject("Kein Kalender, in den daevo schreiben darf. In der Kalender App einen Standardkalender wählen."); return
+        guard let kalender = zielKalender(call.getString("kalender")) else {
+            call.reject("Kein Kalender, in den daevo schreiben darf. Unter Einstellungen, Apps, Kalender, Accounts deinen Google Kalender hinzufügen."); return
         }
         let e = EKEvent(eventStore: speicher)
         e.calendar = kalender
@@ -117,7 +201,7 @@ public class KalenderPlugin: CAPPlugin, CAPBridgedPlugin {
         e.url = KalenderPlugin.markierung
         do {
             try speicher.save(e, span: .thisEvent, commit: true)
-            call.resolve(["eid": e.eventIdentifier ?? "", "kalender": kalender.title])
+            call.resolve(["eid": e.eventIdentifier ?? "", "kalender": kalender.title, "art": art(kalender.source)])
         } catch {
             call.reject("Speichern ging nicht: \(error.localizedDescription)")
         }

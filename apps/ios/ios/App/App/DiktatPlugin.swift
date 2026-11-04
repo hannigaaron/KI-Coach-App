@@ -125,8 +125,24 @@ final class DiktatZustand {
     private var fest = ""
     private var laufend = ""
     private var fehler = ""
+    /// Lautstärke des Mikrofons zwischen 0 und 1, für die Balken beim Diktieren.
+    private var pegel: Double = 0
 
-    func zuruecksetzen() { sperre.lock(); fest = ""; laufend = ""; fehler = ""; sperre.unlock() }
+    func zuruecksetzen() { sperre.lock(); fest = ""; laufend = ""; fehler = ""; pegel = 0; sperre.unlock() }
+
+    /// Aus einem Puffer des Mikrofons. Geglättet, sonst zittern die Balken.
+    func pegelMessen(_ puffer: AVAudioPCMBuffer) {
+        guard let kanal = puffer.floatChannelData?[0], puffer.frameLength > 0 else { return }
+        let n = Int(puffer.frameLength)
+        var summe: Float = 0
+        for i in 0..<n { summe += kanal[i] * kanal[i] }
+        let rms = Double(sqrt(summe / Float(n)))
+        // Sprache liegt grob zwischen 0,01 und 0,2 RMS. Logarithmisch, weil
+        // leises Sprechen sonst keinen Ausschlag gibt.
+        let db = 20 * log10(max(rms, 0.000_01))
+        let wert = min(1, max(0, (db + 55) / 40))
+        sperre.lock(); pegel = pegel * 0.4 + wert * 0.6; sperre.unlock()
+    }
 
     /// Ein abgeschlossenes Stück kommt hinten an, das laufende ist damit erledigt.
     func festhalten(_ text: String) {
@@ -154,7 +170,7 @@ final class DiktatZustand {
         sperre.lock()
         defer { sperre.unlock() }
         let text = [fest, laufend].filter { !$0.isEmpty }.joined(separator: " ")
-        return ["text": text, "fehler": fehler]
+        return ["text": text, "fehler": fehler, "pegel": pegel]
     }
 }
 
@@ -182,8 +198,10 @@ final class AltMotor: DiktatMotor {
     private var aufgabe: SFSpeechRecognitionTask?
     private var woerter: [String] = []
     private var aktiv = false
-    /// Abschnitte hintereinander, die ohne ein einziges Wort endeten. Ab fünf
-    /// stimmt etwas nicht, und ein neuer Abschnitt hülfe nicht mehr.
+    /// Abschnitte hintereinander, die ohne ein einziges Wort endeten. Daran
+    /// hängt nur der Abstand bis zum nächsten Abschnitt, nie ein Abbruch:
+    /// Stille heisst beim Diktieren Nachdenken, und Schluss ist erst, wenn
+    /// der Nutzer absendet oder auf Stopp tippt.
     private var leer = 0
 
     init(zustand: DiktatZustand) { self.zustand = zustand }
@@ -196,6 +214,7 @@ final class AltMotor: DiktatMotor {
         let format = eingang.outputFormat(forBus: 0)
         eingang.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] puffer, _ in
             self?.anfrage?.append(puffer)
+            self?.zustand.pegelMessen(puffer)
         }
         engine.prepare()
         try engine.start()
@@ -221,11 +240,10 @@ final class AltMotor: DiktatMotor {
             if (ergebnis?.isFinal ?? false) || fehler != nil {
                 self.zustand.laufendFesthalten()
                 self.leer = etwas ? 0 : self.leer + 1
-                if self.leer >= 5 {
-                    self.zustand.fehlerSetzen(fehler?.localizedDescription ?? "Die Erkennung hört nichts.")
-                    return
-                }
-                if self.aktiv { DispatchQueue.main.async { self.neuerAbschnitt() } }
+                // Nach mehreren leeren Abschnitten in Folge kurz warten, damit
+                // die Erkennung in langer Stille nicht im Kreis startet.
+                let warte = self.leer >= 3 ? 0.8 : 0.0
+                if self.aktiv { DispatchQueue.main.asyncAfter(deadline: .now() + warte) { self.neuerAbschnitt() } }
             }
         }
     }
@@ -298,6 +316,7 @@ final class NeuMotor: DiktatMotor {
         if let ziel = zielFormat, ziel != format { wandler = AVAudioConverter(from: format, to: ziel) }
         eingang.installTap(onBus: 0, bufferSize: 4096, format: format) { [weak self] puffer, _ in
             self?.einspeisen(puffer)
+            self?.zustand.pegelMessen(puffer)
         }
         engine.prepare()
         try engine.start()

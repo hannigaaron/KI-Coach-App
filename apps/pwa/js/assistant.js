@@ -1,15 +1,22 @@
 import {
   Agent, AnthropicProvider, Coach, addiere, buildShoppingList, cacheQuote, denktiefe, dollarText,
   einstufeAufgabe, einstufungText, ersparnis, extractGrams, NICHT_GESPEICHERT, fehlerErklaerung, hochrechnung, kopfLeeren, kopfText, leereSumme,
-  mahlzeitAusFoto, modellFuerBilder, produktPerBarcode, produkteSuchen, summiere, vorratAusFoto,
-  todoistAbhaken, todoistAufgaben, todoistIdVon,
+  mahlzeitAusFoto, modellFuerBilder, naehrwerteImNetz, produktPerBarcode, produkteSuchen, summiere, vorratAusFoto,
+  todoistAbhaken, todoistAufgaben, todoistIdVon, todoistWiederOeffnen, PERSONA_TEILE,
 } from "@daevo/coach";
+import { foldUmlauts, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, einzeltrainingBauen, FOKUS_NAME, alternativen, planNachrechnen } from "@daevo/core";
+import { UEBUNGEN } from "./uebungen-daten.js";
+import { GERAETE, uebungenFiltern } from "./uebungen.js";
 import {
   MAX_EIGENE,
   planAendern,
   trainingsplanText,
   standardAenderungAus,
   erinnerungFehler,
+  erinnerungVorbei,
+  erinnerungZeile,
+  istEinmalig,
+  MAX_EINMALIG,
   tageText,
   wannText,
   MAHLZEITEN,
@@ -92,13 +99,18 @@ import {
   anpassungText,
   letzteEinheit,
   steigerung,
+  essensplanBauen,
+  essensplanText,
 } from "@daevo/core";
 import { brain } from "./brain.js";
+import { nativHolen } from "./nativ.js";
 import { KONFIG, istNativ } from "./konfig.js";
 import { kontoSicherstellen, kontoToken } from "./konto.js";
 import { kiErlaubt } from "./einwilligung.js";
 import { NACHTRAG_TAGE, tageZurueck } from "./exif.js";
+import { eigeneLebensmittel, eigenerPosten, eigenesIn, lebensmittelSpeichern } from "./bibliothek.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
+import { bestellteEinheit } from "./vorhaben.js";
 
 const WEEKDAYS = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
 
@@ -131,6 +143,85 @@ function provider({ ohneZaehlung = false } = {}) {
     ohneZaehlung,
   });
 }
+
+/**
+ * Wie die neue Suche von Open Food Facts erreicht wird. In der iPhone App
+ * direkt über iOS, `nativHolen`, im Browser über den eigenen Worker, siehe
+ * workers/push/src/produkt.ts. Ohne beides bleiben die Wege mit CORS Kopf.
+ */
+export function offOptionen() {
+  if (istNativ()) return { fetchImpl: (url) => nativHolen(url).catch(() => fetch(url)) };
+  const proxy = (KONFIG.chatUrl || "").replace(/\/+$/, "");
+  return proxy ? { proxy } : {};
+}
+
+/** Höchstens so viele gemerkte Produkte. Je Produkt rund 300 Byte. */
+const PRODUKTE_GRENZE = 300;
+
+/**
+ * Sucht in den schon gefundenen Produkten. Ein Treffer zählt nur, wenn alle
+ * Wörter der Suche passen und die Marke stimmt: "ESN Whey" darf nicht den
+ * gemerkten ESN Rice Pudding bringen.
+ */
+function gemerktesProdukt(suche) {
+  const liste = store.getSettings().produkte || [];
+  if (!liste.length) return [];
+  const schluessel = suchWoerter(suche).join(" ");
+  const genau = liste.find((e) => e.suche === schluessel);
+  if (genau) return [{ produkt: { ...genau.produkt, quelle: "gemerkt" }, einwaende: [] }];
+  const w = trefferWerten(suche, liste.map((e) => e.produkt)).find((x) => x.passung === 1 && x.markeStimmt);
+  return w ? [{ produkt: { ...w.produkt, quelle: "gemerkt" }, einwaende: [] }] : [];
+}
+
+/** Ein eigenes Lebensmittel als Produkt, damit das Nachschlagen es wie jedes andere behandelt. */
+function eigenesProdukt(suche) {
+  const s = store.getSettings();
+  const l = eigenesIn(suche, s) || eigeneLebensmittel(s).find((x) => foldUmlauts(x.name.toLowerCase()) === foldUmlauts(String(suche).toLowerCase().trim()));
+  if (!l) return [];
+  return [{ produkt: { barcode: `eigen-${l.id}`, name: l.name, marke: "", menge: "", per100: l.per100, portionG: l.portionG, quelle: "eigen" }, einwaende: [] }];
+}
+
+function produktMerken(suche, produkt) {
+  if (produkt.quelle === "gemerkt" || produkt.quelle === "eigen") return;
+  const settings = store.getSettings();
+  const schluessel = suchWoerter(suche).join(" ");
+  const liste = (settings.produkte || []).filter((e) => e.suche !== schluessel && e.produkt.barcode !== produkt.barcode);
+  liste.unshift({ suche: schluessel, produkt, am: todayIso() });
+  store.setSettings({ ...settings, produkte: liste.slice(0, PRODUKTE_GRENZE) });
+}
+
+/**
+ * Setzt die eigenen Lebensmittel ein. Das Modell kennt "Omas Kuchen" nicht
+ * und schätzt, der Regelweg kennt es auch nicht und lässt es weg. Was der
+ * Nutzer selbst mit Werten angelegt hat, gilt deshalb vor beidem: bei einem
+ * Posten mit demselben Namen werden die Werte aus der eigenen Liste
+ * gerechnet, und was der Regelweg nicht zuordnen konnte, wird dort gesucht.
+ */
+export function mitEigenenLebensmitteln(parsed, settings) {
+  if (!eigeneLebensmittel(settings).length) return parsed;
+  const gramm = (text, l) => extractGrams(String(text || ""), l.portionG ?? 100)?.grams ?? l.portionG ?? 100;
+  const ersetzt = [];
+  const entries = parsed.entries.map((e) => {
+    const l = eigenesIn(e.name, settings);
+    if (!l) return e;
+    ersetzt.push(l.name);
+    const p = eigenerPosten(l, gramm(e.quantity, l));
+    return { ...e, name: l.name, quantity: p.quantity, kcal: p.kcal, proteinG: p.proteinG, fatG: p.fatG, carbsG: p.carbsG };
+  });
+  const offen = [];
+  for (const stueck of parsed.unresolved || []) {
+    const l = eigenesIn(stueck, settings);
+    if (l && !entries.some((e) => e.name === l.name)) {
+      const { eigen: _e, ...p } = eigenerPosten(l, gramm(stueck, l));
+      entries.push(p);
+      ersetzt.push(l.name);
+    } else offen.push(stueck);
+  }
+  if (!ersetzt.length) return parsed;
+  return { ...parsed, entries, unresolved: offen, followUpQuestion: offen.length ? parsed.followUpQuestion : "" };
+}
+
+const zyklusDatum = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString("de-DE", { day: "numeric", month: "long" });
 
 /* ---------- Was die App verbraucht ---------- */
 
@@ -425,6 +516,20 @@ function lageText() {
 
   const koerper = koerperText();
   if (koerper) zeilen.push(koerper);
+
+  // Der Zyklus nur, wenn die Nutzerin ihn eingeschaltet hat. Eine Zeile reicht,
+  // die Empfehlung steht darin, und der Coach soll sie nicht neu erfinden.
+  const zyklusDaten = store.getSettings().zyklus;
+  if (zyklusDaten?.an) zeilen.push(`Zyklus, gerechnet: ${zyklusText(zyklusDaten, todayIso(), zyklusDatum).replace(/\n/g, " ")}`);
+
+  // Was der Kalender für heute und morgen verlangt, gerechnet. Damit spricht
+  // der Coach es von selbst an, auch wenn die Frage eine andere war: wer
+  // abends nach einem Rezept fragt, soll hören, dass morgen mittags keine
+  // Lücke ist.
+  const heuteBlick = vorausblickText(vorausblickFuer(todayIso()));
+  if (heuteBlick) zeilen.push(`Heute laut Kalender, gerechnet: ${heuteBlick}`);
+  const morgenBlick = vorausblickText(vorausblickFuer(tagPlusIso(todayIso(), 1)));
+  if (morgenBlick) zeilen.push(`Morgen laut Kalender, gerechnet: ${morgenBlick}`);
 
   // Der heutige Tagesablauf, falls ein Kalender verbunden ist. Ohne das müsste
   // der Coach für jede Frage nach Zeit erst ein Werkzeug rufen, und für die
@@ -723,6 +828,45 @@ export function standardTage(anzahl = 28) {
 }
 
 /** Legt beim ersten Aufruf Standards an, passend zu Profil und Schwerpunkten. */
+/**
+ * Räumt einmal eine Notiz weg, die der Coach falsch verstanden hatte: "alles,
+ * was ich empfehle, kommt in den Kalender". Der Nutzer hat das so nie
+ * gewollt, und solange die Notiz im Gedächtnis steht, liest der Coach sie
+ * bei jeder Nachricht als Auftrag. Die Regel, was in den Kalender gehört,
+ * steht jetzt in der Persona und in `eintragErlaubt`.
+ */
+export function kalenderNotizAufraeumen() {
+  const s = store.getSettings();
+  if (s.kalenderNotizGeprueft) return 0;
+  const alle = store.getMemories();
+  const falsch = (m) => {
+    const t = foldUmlauts(String(m.text || "").toLowerCase());
+    return /\bkalender\b/.test(t) && /\b(alles|alle|jede|jeden|immer)\b/.test(t) && /\b(empfehl\w*|empfiehl\w*|empfohlen|vorschlag\w*|vorschlae\w*|plan\w*)\b/.test(t)
+      && /\b(eintrag\w*|kommt|kommen|landen|landet|rein|direkt)\b/.test(t);
+  };
+  const bleiben = alle.filter((m) => !falsch(m));
+  if (bleiben.length !== alle.length) store.setMemories(bleiben);
+  store.setSettings({ ...store.getSettings(), kalenderNotizGeprueft: true });
+  return alle.length - bleiben.length;
+}
+
+/**
+ * Räumt einmal die Aufgaben weg, die der Regelweg aus einer Beschwerde an
+ * daevo gemacht hatte, etwa "dass ich das machen muss". Ein Satzteil, der
+ * mit "dass" beginnt, ist nie eine Aufgabe, sondern der Rest eines Satzes.
+ * Seit `anDaevo` entstehen solche nicht mehr. Todoist bleibt unberührt.
+ */
+export function aufgabenAufraeumen() {
+  const s = store.getSettings();
+  if (s.aufgabenGeprueft) return 0;
+  const alle = store.getAufgaben();
+  const falsch = (a) => !a.erledigt && a.quelle !== "todoist" && /^dass\b/.test(foldUmlauts(String(a.text || "").trim().toLowerCase()));
+  const bleiben = alle.filter((a) => !falsch(a));
+  if (bleiben.length !== alle.length) store.setAufgaben(bleiben);
+  store.setSettings({ ...store.getSettings(), aufgabenGeprueft: true });
+  return alle.length - bleiben.length;
+}
+
 export function ensureStandards() {
   const vorhanden = store.getStandards();
   if (vorhanden.length > 0) return vorhanden;
@@ -983,12 +1127,42 @@ export function ablaufFuer(tagIso) {
   });
 }
 
+/**
+ * Was für einen Tag vorzubereiten ist, aus Kalender und Profil. Null ohne
+ * Kalender oder wenn nichts zu tun ist, siehe `vorausblick` im Kern.
+ */
+export function vorausblickFuer(tagIso) {
+  const termine = store.getKalender().termine || [];
+  if (!termine.length) return null;
+  const profile = profilFuerTag(tagIso) || store.getProfile();
+  if (!profile) return null;
+  return vorausblick({ morgen: ablaufFuer(tagIso), termine, profile });
+}
+
+/**
+ * Die Abendmitteilungen für die nächsten Tage: jeden Abend das Briefing für
+ * den Tag danach. Steht etwas vorzubereiten an, trägt die Mitteilung genau
+ * das, sonst Termine und Fokus. Geplant wird bei jedem Öffnen neu, ändert
+ * sich der Kalender, ändert sich auch die Mitteilung.
+ */
+export function vorausblickePlan(heute = todayIso(), tage = 3) {
+  const profile = store.getProfile();
+  if (!profile) return [];
+  const plan = [];
+  for (let i = 0; i < tage; i++) {
+    const abend = tagPlusIso(heute, i);
+    const b = tagesbriefingFuer("abend", Date.now(), tagPlusIso(abend, 1));
+    if (b?.kurz) plan.push({ tag: abend, uhrzeit: vorausblickUhrzeit(profile, abend), titel: b.titel, text: b.kurz });
+  }
+  return plan;
+}
+
 /** Der Tagesablauf in Worten. Leer, solange kein Kalender verbunden ist. */
 export function tagesablaufUebersicht(tagIso = todayIso()) {
   if ((store.getKalender().termine || []).length === 0) {
     return "Kein Kalender verbunden. Ohne Termine kann ich den Tagesablauf nicht beurteilen.";
   }
-  return tagesablaufText(ablaufFuer(tagIso));
+  return tagesablaufText(ablaufFuer(tagIso), tagesessenText(tagesessenFuer(tagIso)) || undefined);
 }
 
 /** Die nächsten Tage in je einer Zeile. */
@@ -1122,7 +1296,18 @@ export function tagesplan(jetzt = Date.now()) {
   const tag = todayIso();
   const ablauf = ablaufFuer(tag);
   const luecken = lueckenOhne(ablauf.luecken, belegtAusserKalender(tag, ablauf));
-  return { plan, zeiten: zeitplan({ aufgaben: plan.heute, luecken, ab: jetzt }) };
+  // Eine Aufgabe, die daevo heute als eigenen Termin in den Kalender gelegt
+  // hat, steht dort fest. Ohne das zählte der Termin als belegt, und der Plan
+  // legte dieselbe Aufgabe ein zweites Mal woandershin: zwei Uhrzeiten für
+  // eine Sache, und der Morgen widersprach dem Kalender.
+  const fest = new Map();
+  for (const k of (Array.isArray(store.getSettings().kalenderAenderungen) ? store.getSettings().kalenderAenderungen : [])) {
+    if (k.art === "angelegt" && k.aufgabeId && k.nachher && ortsTag(k.nachher.von) === tag) fest.set(k.aufgabeId, k.nachher);
+  }
+  if (!fest.size) return { plan, zeiten: zeitplan({ aufgaben: plan.heute, luecken, ab: jetzt }) };
+  const z = zeitplan({ aufgaben: plan.heute.filter((a) => !fest.has(a.id)), luecken, ab: jetzt });
+  const gesetzt = plan.heute.filter((a) => fest.has(a.id)).map((a) => ({ aufgabe: a, von: fest.get(a.id).von, bis: fest.get(a.id).bis }));
+  return { plan, zeiten: { ...z, bloecke: [...z.bloecke, ...gesetzt].sort((x, y) => x.von - y.von) } };
 }
 
 export function tagesplanText(jetzt = Date.now()) {
@@ -1218,7 +1403,7 @@ export function wochenplanTextFuer(jetzt = Date.now()) {
 }
 
 export function aufgabenPlanText() {
-  return planText(aufgabenPlan());
+  return planText(aufgabenPlan(), todayIso());
 }
 
 /**
@@ -1318,7 +1503,7 @@ export async function aufgabeErledigen(id, { fetchImpl } = {}) {
   const todoistId = todoistIdVon(id);
   if (!todoistId) {
     aufgabeAbhaken(id);
-    return { ok: true, text: `Abgehakt: ${a.text}.` };
+    return { ok: true, text: `Abgehakt: ${a.text}.`, rueck: { id } };
   }
   try {
     await todoistAbhaken(todoistId, { token: store.getSettings().todoistToken, fetchImpl });
@@ -1326,8 +1511,37 @@ export async function aufgabeErledigen(id, { fetchImpl } = {}) {
     return { ok: false, text: `In Todoist konnte ich "${a.text}" nicht abhaken. ${e?.message || ""}`.trim() };
   }
   const stand = store.getTodoist();
+  const alt = (stand.aufgaben || []).find((x) => x.id === id);
   store.setTodoist({ ...stand, aufgaben: (stand.aufgaben || []).filter((x) => x.id !== id) });
-  return { ok: true, text: `Abgehakt, auch in Todoist: ${a.text}.` };
+  return { ok: true, text: `Abgehakt, auch in Todoist: ${a.text}.`, rueck: { id, todoistId, aufgabe: alt } };
+}
+
+/**
+ * Nimmt ein Abhaken zurück. Ein Haken liegt auf dem Handy direkt unter dem
+ * Daumen, und ein Fehltipp hakte bisher endgültig ab, in Todoist gleich mit.
+ * Todoist zuerst und dann der lokale Stand, aus demselben Grund wie beim
+ * Abhaken: sonst stünde die Aufgabe hier offen und dort erledigt.
+ */
+export async function aufgabeWiederOeffnen(rueck, { fetchImpl } = {}) {
+  if (!rueck?.id) return { ok: false, text: "Da gibt es nichts zurückzunehmen." };
+  if (rueck.todoistId) {
+    try {
+      await todoistWiederOeffnen(rueck.todoistId, { token: store.getSettings().todoistToken, fetchImpl });
+    } catch (e) {
+      return { ok: false, text: `In Todoist ging das Zurückholen nicht. ${e?.message || ""}`.trim() };
+    }
+    const stand = store.getTodoist();
+    const liste = stand.aufgaben || [];
+    if (rueck.aufgabe && !liste.some((x) => x.id === rueck.id)) store.setTodoist({ ...stand, aufgaben: [...liste, rueck.aufgabe] });
+    return { ok: true, text: "Wieder offen, auch in Todoist." };
+  }
+  const aufgaben = store.getAufgaben();
+  const a = aufgaben.find((x) => x.id === rueck.id);
+  if (!a) return { ok: false, text: "Die Aufgabe gibt es nicht mehr." };
+  a.erledigt = false;
+  delete a.erledigtAm;
+  store.setAufgaben(aufgaben);
+  return { ok: true, text: "Wieder offen." };
 }
 
 export function aufgabeAbhaken(id) {
@@ -1575,49 +1789,134 @@ export function herausforderungSpeichern(text) {
   return true;
 }
 
-/** Morgenbriefing und Tagesabschluss. Beides ohne Modellaufruf. */
-export function briefing(art = "morgen") {
-  const day = todayIso();
-  const n = dayNumbers(day);
-  const jetzt = new Date();
-  const datum = `${WEEKDAYS[jetzt.getDay()]}, ${jetzt.getDate()}. ${jetzt.toLocaleString("de-DE", { month: "long" })} ${jetzt.getFullYear()}`;
-  const status = standardsUebersicht();
+/**
+ * Die Mahlzeiten eines Tages, an den Kalender gelegt, mit Rezept.
+ *
+ * Vorher teilte der Tagesablauf das Ziel gleichmässig auf vier Zeiten, und
+ * jede Zeile hiess "787 kcal". Jetzt rechnet `tagesessen` im Kern: was schon
+ * gegessen ist, zählt ab, das Training verschiebt Zeit und Grösse, und jede
+ * Mahlzeit bekommt ein Gericht, das zu Ausschlüssen und Vorrat passt.
+ */
+export function tagesessenFuer(tagIso = todayIso(), jetzt = Date.now()) {
+  const n = dayNumbers(tagIso);
+  const profile = n.profile || PROFIL_NOTFALL;
+  const heute = tagIso === todayIso();
+  const gegessen = (n.data.meals || []).map((m) => {
+    const s = { kcal: 0, proteinG: 0, fatG: 0, carbsG: 0 };
+    for (const e of m.entries || []) for (const k of Object.keys(s)) s[k] += Number(e[k]) || 0;
+    return { at: m.at, ...s };
+  });
+  return tagesessen({
+    ablauf: ablaufFuer(tagIso),
+    ziele: n.targets,
+    gegessen: heute ? gegessen : [],
+    jetzt: heute ? jetzt : undefined,
+    trainings: trainingAusProfil(profile.sessions, tagIso),
+    ernaehrung: profile.ernaehrung || {},
+    vorrat: store.getFridge(),
+  });
+}
 
-  if (art === "abend") {
-    const aufgaben = store.getAufgaben();
-    const heute = day;
-    const erledigt = aufgaben.filter((a) => a.erledigt && (a.erledigtAm || "").slice(0, 10) === heute).map((a) => a.text);
-    const offen = aufgabenPlan().heute.map((a) => a.text);
-    const morgenTag = new Date(`${day}T12:00:00`);
-    morgenTag.setDate(morgenTag.getDate() + 1);
-    const morgenIso = morgenTag.toISOString().slice(0, 10);
-    const m = ablaufFuer(morgenIso);
-    return abendAbschluss({
-      datum,
-      stand: `${Math.round(n.totals.kcal)} von ${n.targets.kcal} kcal, ${Math.round(n.totals.proteinG)} von ${n.targets.proteinG} g Protein, ` +
-        `${n.totals.waterMl} von ${n.targets.waterMl} ml Wasser.`,
-      offen,
-      erledigt,
-      standards: status.map((s) => s.satz),
-      morgen: (store.getKalender().termine || []).length
-        ? `${m.termine.length + m.ganztags.length} Termine, ${m.belegtMinuten} Minuten verplant.`
-        : "kein Kalender verbunden.",
-    });
+function datumLang(tagIso) {
+  const d = new Date(`${tagIso}T12:00:00`);
+  return `${WEEKDAYS[d.getDay()]}, ${d.getDate()}. ${d.toLocaleString("de-DE", { month: "long" })}`;
+}
+
+/** Das Training eines Tages für das Briefing, mit der Einheit aus dem gespeicherten Plan. */
+function trainingFuerBriefing(tagIso) {
+  const profile = store.getProfile();
+  const wochentag = new Date(`${tagIso}T12:00:00`).getDay();
+  const sessions = (profile?.sessions || []).filter((s) => s.weekday === wochentag)
+    .sort((a, b) => String(a.startsAt).localeCompare(String(b.startsAt)));
+  const kalender = ablaufFuer(tagIso).training[0];
+  // Was er für diesen Tag selbst bestellt hat, schlägt den Wochenplan: "morgen
+  // um 14 Uhr Pull" ist genauer als "dienstags Krafttraining".
+  const bestellt = bestellteEinheit(store.getSettings(), tagIso);
+  if (bestellt) {
+    const morgensB = tagIso === todayIso()
+      ? (store.getDay(tagIso).checkins || []).filter((c) => c.kind === "morning" && c.morgen).pop() : null;
+    return {
+      titel: `Training: ${trainingsTitel(bestellt.gruppen || [])}`,
+      um: bestellt.uhrzeit ?? (kalender ? uhrzeitVon(kalender.von) : sessions.find((x) => x.type === "strength")?.startsAt),
+      minuten: bestellt.einheit.dauerMin ?? bestellt.minuten,
+      uebungen: bestellt.einheit.positionen?.length,
+      gestrichen: Boolean(morgensB?.trainingGestrichen),
+    };
+  }
+  if (!sessions.length && !kalender) return null;
+  const s = sessions.find((x) => x.type === "strength") ?? sessions[0];
+  let titel = kalender ? kalender.titel
+    : ({ strength: "Krafttraining", team_sport: "Mannschaftstraining", cardio: "Ausdauer", mobility: "Mobilität" }[s.type] || "Training");
+  let uebungen;
+  const plan = store.getSettings().plan;
+  if (s?.type === "strength" && plan?.einheiten?.length) {
+    const kraft = (profile.sessions || []).filter((x) => x.type === "strength")
+      .sort((a, b) => ((a.weekday + 6) % 7) - ((b.weekday + 6) % 7));
+    const index = Math.max(0, kraft.findIndex((x) => x.weekday === wochentag));
+    const einheit = plan.einheiten[index % plan.einheiten.length];
+    if (einheit) { titel = `Krafttraining, ${einheit.titel}`; uebungen = einheit.positionen?.length; }
+  }
+  const morgens = tagIso === todayIso()
+    ? (store.getDay(tagIso).checkins || []).filter((c) => c.kind === "morning" && c.morgen).pop()
+    : null;
+  return {
+    titel,
+    um: kalender ? uhrzeitVon(kalender.von) : s?.startsAt,
+    minuten: kalender ? Math.round((kalender.bis - kalender.von) / 60000) : s?.minutes,
+    uebungen,
+    gestrichen: Boolean(morgens?.trainingGestrichen),
+  };
+}
+
+/**
+ * Das Briefing als Struktur, morgens für heute, abends für morgen.
+ * Abschnitte für die Ansicht, `kurz` für die Mitteilung, `text` für den Chat.
+ */
+export function tagesbriefingFuer(art = "morgen", jetzt = Date.now(), fuerTag) {
+  const heute = todayIso();
+  const morgenIso = tagPlusIso(heute, 1);
+  const tag = fuerTag || (art === "abend" ? morgenIso : heute);
+  const hatKalender = (store.getKalender().termine || []).length > 0;
+  const n = dayNumbers(tag);
+  const profile = profilFuerTag(tag) || store.getProfile();
+
+  let aufgaben = [];
+  if (art === "morgen") {
+    const { plan, zeiten } = tagesplan(jetzt);
+    const um = new Map(zeiten.bloecke.map((b) => [b.aufgabe.id ?? b.aufgabe.text, uhrzeitVon(b.von)]));
+    aufgaben = plan.heute.map((a) => ({ id: a.id, text: a.text, um: um.get(a.id ?? a.text), wichtig: a.wichtigkeit >= 3 }));
+  } else if (tag === morgenIso) {
+    // Für übermorgen kennt die Priorisierung keine Reihenfolge, dann lieber
+    // keine Aufgabe als die falsche.
+    const plan = aufgabenPlan(jetzt);
+    aufgaben = plan.morgen.map((a) => ({ id: a.id, text: a.text, wichtig: a.wichtigkeit >= 3 }));
   }
 
-  const trend = weightTrend(verlaufPunkte(56));
-  return morgenBriefing({
-    datum,
-    tagesablauf: (store.getKalender().termine || []).length ? tagesablaufText(ablaufFuer(day)) : "",
-    ziele: n.targets,
-    // Morgens mit Uhrzeiten. "Erst das Angebot" hilft wenig, wenn unklar
-    // ist, ob es zwischen die Termine überhaupt passt.
-    aufgaben: tagesplanText(),
-    standards: status.filter((s) => !s.aktuell).map((s) => s.satz),
-    trend: trend.belastbar
-      ? `Gewicht: ${trend.aktuellKg} kg geglättet, ${trend.kgProWoche > 0 ? "plus" : "minus"} ${Math.abs(trend.kgProWoche).toFixed(2).replace(".", ",")} kg je Woche.`
+  const status = standardsUebersicht();
+  const h = dayNumbers(heute);
+  const erledigt = store.getAufgaben().filter((a) => a.erledigt && (a.erledigtAm || "").slice(0, 10) === heute).length;
+
+  return tagesbriefing({
+    art,
+    datum: datumLang(tag),
+    ablauf: hatKalender ? ablaufFuer(tag) : null,
+    essen: tagesessenFuer(tag, jetzt),
+    vorausblick: hatKalender && profile
+      ? vorausblick({ morgen: ablaufFuer(tag), termine: store.getKalender().termine, profile, fuer: art === "abend" ? "morgen" : "heute" })
+      : null,
+    training: trainingFuerBriefing(tag),
+    aufgaben,
+    ziele: { kcal: n.targets.kcal, proteinG: n.targets.proteinG },
+    heute: art === "abend"
+      ? { kcal: h.totals.kcal, zielKcal: h.targets.kcal, proteinG: h.totals.proteinG, zielProteinG: h.targets.proteinG, erledigt }
       : undefined,
+    standards: status.filter((s) => !s.aktuell).map((s) => s.satz),
   });
+}
+
+/** Morgenbriefing und Tagesabschluss als Text. Ohne Modellaufruf. */
+export function briefing(art = "morgen") {
+  return tagesbriefingFuer(art === "abend" ? "abend" : "morgen").text;
 }
 
 /**
@@ -1677,6 +1976,97 @@ export function rezeptVorschlaege({ art, jetzt = new Date() } = {}) {
     ziel, art: gewaehlt, ernaehrung: profil.ernaehrung || {}, vorrat: store.getFridge(),
   });
   return { art: gewaehlt, offen, morgen, rest: n.rest, ziel, empfehlungen, ausgeblendet, hinweis };
+}
+
+/**
+ * Der Essensplan für sieben Tage, aus dem Rechenkern.
+ *
+ * Gespeichert werden nur Beginn und Variante, nicht der Plan. Bei gleicher
+ * Eingabe rechnet der Kern denselben Plan, und ändert sich das Gewicht oder
+ * die Allergieliste, stimmt der Plan danach mit den neuen Angaben überein,
+ * statt mit denen vom Montag. Ein Plan, der älter als sechs Tage ist, beginnt
+ * neu ab heute.
+ */
+export function essensplanRechnen({ neu = false, andere = false, heute = todayIso() } = {}) {
+  const s = store.getSettings();
+  let stand = s.essensplan;
+  const alt = stand?.start ? (Date.parse(`${heute}T12:00:00`) - Date.parse(`${stand.start}T12:00:00`)) / 86400000 : Infinity;
+  if (neu || !stand || alt < 0 || alt > 6) stand = { start: heute, variante: 0 };
+  if (andere) stand = { ...stand, variante: (stand.variante || 0) + 1 };
+  if (stand !== s.essensplan) store.setSettings({ ...store.getSettings(), essensplan: stand });
+  const profil = store.getProfile() || {};
+  const ziel = (tag) => {
+    const t = dayNumbers(tag).targets;
+    return { kcal: t.kcal, proteinG: t.proteinG, fatG: t.fatG, carbsG: t.carbsG };
+  };
+  return essensplanBauen({
+    ziel: ziel(stand.start), zielFuer: ziel, start: stand.start, variante: stand.variante || 0,
+    ernaehrung: profil.ernaehrung || {}, vorrat: store.getFridge(),
+  });
+}
+
+/** Ein Tag des Essensplans als Text für den Coach und den Regelweg. */
+export function essensplanTagText(tag) {
+  const wt = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
+  const kopf = `${wt[new Date(`${tag.datum}T12:00:00`).getDay()]}, ${tag.summe.kcal} von ${tag.ziel.kcal} kcal, ${tag.summe.proteinG} von ${tag.ziel.proteinG} g Protein.`;
+  const zeilen = tag.mahlzeiten.map((m) => {
+    const e = m.empfehlung;
+    const vk = m.vorkochen === "doppelt" ? " Doppelt kochen, morgen gibt es das noch einmal."
+      : m.vorkochen === "vorgekocht" ? " Vom Vortag aufwärmen." : "";
+    return `${m.name}: ${e.rezept.name}, ${e.summe.kcal} kcal, ${e.summe.proteinG} g Protein. ${e.posten.map((p) => `${p.menge}${p.menge.endsWith(" g") ? ` ${p.name}` : ""}`).join(", ")}.${vk}`;
+  });
+  const erg = tag.ergaenzung.length ? [`Dazu: ${tag.ergaenzung.map((p) => `${p.menge} ${p.name}`).join(" und ")}.`] : [];
+  return [kopf, ...zeilen, ...erg].join("\n");
+}
+
+/** Ob der Coach den Plan zeigen darf, dieselbe Regel wie die Ansicht. */
+function essensplanFreiFuerCoach() {
+  if (!KONFIG.chatUrl) return true;
+  return ["pro", "test"].includes(store.getSettings().kontoStufe || "test");
+}
+
+/**
+ * Kurzer Name einer Einheit für den Kalender. "Pull" liest man im Kalender
+ * schneller als "Rücken, Bizeps", und so hat er es selbst gesagt.
+ */
+export function trainingsTitel(partien) {
+  const k = [...partien].sort().join("+");
+  const namen = { "bizeps+ruecken": "Pull", "brust+schultern+trizeps": "Push", "beine+po": "Beine", "beine": "Beine", "bizeps+trizeps": "Arme" };
+  return namen[k] ?? partien.map((g) => FOKUS_NAME[g] ?? g).join(", ");
+}
+
+/** JJJJ-MM-TT in Ortszeit für einen Zeitpunkt in Millisekunden. */
+function ortsTag(ms) {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function tagPlusIso(iso, n) {
+  const d = new Date(`${iso}T12:00:00`);
+  d.setDate(d.getDate() + n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * Schreibt die Zutaten des Plans in die Einkaufsliste.
+ *
+ * Posten aus einem früheren Plan werden ersetzt und nicht addiert: wer zweimal
+ * auf den Knopf drückt, braucht nicht doppelt so viel Reis. Eigene Posten und
+ * die aus der Tagesrechnung bleiben stehen. Was im Vorrat liegt, kommt als
+ * "zuhause" hinein, damit es sichtbar bleibt und nicht gekauft wird.
+ */
+export function essensplanEinkauf(plan) {
+  const alt = store.getShoppingList();
+  const liste = alt ?? { tage: 7, items: [], hinweis: "", gemieden: [], erstelltAm: new Date().toISOString() };
+  liste.items = liste.items.filter((i) => !i.ausPlan);
+  for (const p of plan.einkauf) {
+    liste.items.push({
+      key: `plan-${p.key}`, name: p.name, menge: p.menge, kategorie: "sonstiges",
+      grund: "Für deinen Essensplan", stand: p.imVorrat ? "zuhause" : "offen", ausPlan: true,
+    });
+  }
+  store.setShoppingList(liste);
+  return plan.einkauf.length;
 }
 
 /**
@@ -2213,13 +2603,16 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
   return {
     async mahlzeitErfassen(beschreibung) {
       const day = todayIso();
-      const parsed = await coach.parseMeal(beschreibung);
+      const parsed = mitEigenenLebensmitteln(await coach.parseMeal(beschreibung), store.getSettings());
       // Lief das Modell nicht, steht das in der Antwort, mit Grund. Vorher
       // fiel die App still auf die Tabelle zurück, und ein Satz mit sechs
       // Lebensmitteln kam mit zweien an, ohne dass jemand es merkte.
-      const ohneModell = parsed.modellFehler !== undefined
-        ? `Die KI hat nicht geantwortet, deshalb nur nach der eingebauten Tabelle. ${fehlerErklaerung(parsed.modellFehler).text}`
-        : "";
+      // Beim leeren Kontingent steht der Grund schon unter der Antwort. Ein
+      // zweiter Absatz dazu sagte dasselbe noch einmal.
+      const deutung = parsed.modellFehler !== undefined ? fehlerErklaerung(parsed.modellFehler) : null;
+      const ohneModell = !deutung ? ""
+        : deutung.art === "kontingent" ? "Ohne KI, nach der eingebauten Tabelle."
+        : `Die KI hat nicht geantwortet, deshalb nur nach der eingebauten Tabelle. ${deutung.text}`;
       if (parsed.entries.length === 0) {
         // Kein erkanntes Lebensmittel heisst fast immer: das war keine
         // Mahlzeit. Eine Rückfrage nach Mengen wirkt dann, als hätte die App
@@ -2374,39 +2767,95 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
         + "Erinnerungen und freie Zeit rechne ich für diesen Tag damit.";
     },
 
+    /**
+     * Zyklus abrufen oder eintragen. Die Phase und die Empfehlung rechnet der
+     * Kern aus den Einträgen, das Modell erfindet keinen Zyklustag.
+     */
+    async zyklus({ aktion = "abrufen", tag, symptome = [] } = {}) {
+      const heute = todayIso();
+      const datum = typeof tag === "string" && /^\d{4}-\d{2}-\d{2}$/.test(tag) && tag <= heute ? tag : heute;
+      let d = store.getSettings().zyklus || {};
+      if (aktion === "periode_beginn") d = periodeBeginnen(d, datum);
+      else if (aktion === "periode_ende") d = periodeBeenden(d, datum);
+      else if (aktion === "symptome") {
+        const gueltig = symptome.filter((x) => SYMPTOME.includes(x));
+        if (!gueltig.length) return `${NICHT_GESPEICHERT} Welche Beschwerden? Etwa Krämpfe, Müdigkeit oder Kopfschmerz.`;
+        for (const x of gueltig) if (!(d.symptome?.[datum] || []).includes(x)) d = symptomUmschalten(d, datum, x);
+      } else if (!d.an) {
+        return "Die Zyklus Funktion ist aus. Sie steht im Menü unter Training, Zyklus, oder sag mir den ersten Tag deiner letzten Periode.";
+      }
+      if (aktion !== "abrufen") {
+        store.setSettings({ ...store.getSettings(), zyklus: { ...d, an: true } });
+        changed();
+      }
+      const vorn = aktion === "periode_beginn" ? `Eingetragen: Periode ab ${zyklusDatum(datum)}.\n`
+        : aktion === "periode_ende" ? `Eingetragen: Ende am ${zyklusDatum(datum)}.\n`
+        : aktion === "symptome" ? "Eingetragen.\n" : "";
+      return vorn + zyklusText({ ...d, an: true }, heute, zyklusDatum);
+    },
+
+    async lebensmittelAnlegen({ name, kcal, proteinG, fatG, carbsG, portionG } = {}) {
+      const r = lebensmittelSpeichern(store.getSettings(), { name, kcal, proteinG, fatG, carbsG, portionG }, { id: newId });
+      if (r.fehler) return `${NICHT_GESPEICHERT} ${r.fehler}`;
+      store.setSettings(r.settings);
+      changed();
+      const l = r.lebensmittel;
+      const w = l.per100;
+      return [`${r.ersetzt ? "Aktualisiert" : "Angelegt"}: ${l.name}, je 100 g ${w.kcal} kcal, ${w.proteinG} g Eiweiß, ${w.fatG} g Fett, ${w.carbsG} g Kohlenhydrate${l.portionG ? `, Portion ${l.portionG} g` : ""}.`,
+        "Ab jetzt rechne ich damit, wenn du es isst.", r.hinweis].filter(Boolean).join(" ");
+    },
+
+    /**
+     * Ein Markenprodukt nachschlagen und auf Wunsch eintragen.
+     *
+     * Drei Stufen, und erst wenn alle drei nichts haben, fragt daevo nach
+     * Barcode oder Etikett. Vorher stand nach der ersten gescheiterten Suche
+     * "Dazu finde ich nichts" da, bei ESN Instant Rice Pudding, das fünfmal
+     * in Open Food Facts steht: die alte Suche dort antwortete mit 503.
+     *
+     * Erst die eigene Liste, `settings.produkte`: was einmal gefunden wurde,
+     * ist beim nächsten Mal ohne Netz und ohne Kosten da. Dann Open Food
+     * Facts über drei Wege, siehe `produkteSuchen`. Zuletzt die Websuche des
+     * Modells, nur mit Seite und nach derselben Prüfung der Zahlen.
+     */
     async produktNachschlagen({ suche, gramm, erfassen } = {}) {
       const q = String(suche ?? "").trim();
       if (q.length < 3) return "Wonach soll ich suchen?";
 
       const nurZiffern = /^\d{8,14}$/.test(q.replace(/\s/g, ""));
-      let treffer = [];
-      if (nurZiffern) {
-        const t = await produktPerBarcode(q.replace(/\s/g, ""));
-        if (t) treffer = [t];
-      } else {
-        treffer = await produkteSuchen(q, { anzahl: 5 });
+      let treffer = eigenesProdukt(q);
+      if (!treffer.length) treffer = gemerktesProdukt(q);
+      if (!treffer.length) {
+        if (nurZiffern) {
+          const t = await produktPerBarcode(q.replace(/\s/g, ""), offOptionen());
+          if (t) treffer = [t];
+        } else {
+          treffer = await produkteSuchen(q, { anzahl: 5, ...offOptionen() });
+        }
+      }
+      if (!treffer.length && !nurZiffern) {
+        const p = await naehrwerteImNetz(provider({ ohneZaehlung: true }), q);
+        if (p) treffer = [{ produkt: p, einwaende: [] }];
       }
 
       if (treffer.length === 0) {
-        return `${q} steht nicht in Open Food Facts, oder die Datenbank antwortet gerade nicht. `
-          + "Scann den Barcode oder fotografier das Nährwertetikett, dann lese ich die Werte ab statt sie zu raten.";
+        return `${NICHT_GESPEICHERT} ${q} finde ich weder in Open Food Facts noch im Netz mit einer Nährwerttabelle. `
+          + "Scann den Barcode oder fotografier das Nährwertetikett, dann trage ich die echten Werte ein.";
       }
 
       const beste = treffer[0];
       const p = beste.produkt;
+      produktMerken(q, p);
       const menge = gramm ?? portionsVorschlag(p)?.gramm ?? 100;
       const zeilen = [produktText(p, menge)];
 
-      if (beste.einwaende.length) {
-        zeilen.push(`Achtung: ${beste.einwaende.join(" ")} Prüf die Packung, bevor du das übernimmst.`);
-      }
       if (!gramm) {
         const v = portionsVorschlag(p);
         zeilen.push(v ? `Gerechnet mit ${v.gramm} g, ${v.grund}.` : "Gerechnet mit 100 g, weil keine Portion angegeben ist.");
       }
       if (treffer.length > 1) {
-        const rest = treffer.slice(1, 4).map((t) => `${t.produkt.marke} ${t.produkt.name}`.trim()).join(", ");
-        zeilen.push(`Ebenfalls gefunden: ${rest}. Wenn das eher passt, sag es.`);
+        const rest = treffer.slice(1, 3).map((t) => `${t.produkt.marke} ${t.produkt.name}`.trim()).join(", ");
+        zeilen.push(`Ebenfalls gefunden: ${rest}.`);
       }
 
       if (erfassen) {
@@ -2758,33 +3207,77 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
     async kalenderTermin(auftrag = {}) {
       // Dynamisch, denn kalender-schreiben.js zieht kalender-sync.js, und das
       // importiert diese Datei. Ein Kreis beim Laden lässt eine Seite leer.
-      const { kalenderTermin } = await import("./kalender-schreiben.js");
-      const text = await kalenderTermin(auftrag);
+      const { kalenderTermin, kalenderAenderungen } = await import("./kalender-schreiben.js");
+      let a = { ...auftrag };
+      // Eine Aufgabe aus Todoist darf daevo von sich aus in den Kalender legen,
+      // aber nur eine dringende: heute fällig oder überfällig und wichtig. Der
+      // Titel ist die Aufgabe selbst, nie eine Liste. Höchstens drei am Tag,
+      // sonst ist der Kalender wieder voll mit dem, was ohnehin unter Dein Tag
+      // steht.
+      if (a.aufgabeId && a.aktion === "eintragen") {
+        const heute = todayIso();
+        const auf = alleAufgaben().find((x) => x.id === a.aufgabeId || x.id === `todoist:${a.aufgabeId}`);
+        if (!auf || auf.erledigt) return `${NICHT_GESPEICHERT} Diese Aufgabe finde ich nicht.`;
+        const dringend = auf.quelle === "todoist" && auf.faellig && auf.faellig <= heute && (auf.wichtigkeit ?? 2) >= 3;
+        if (!dringend && a.erbeten !== true) {
+          return `${NICHT_GESPEICHERT} „${auf.text}“ ist nicht dringend genug, um sie von mir aus in den Kalender zu legen. Sie steht unter Dein Tag.`;
+        }
+        const schon = kalenderAenderungen().filter((k) => k.art === "angelegt" && k.aufgabeId && String(k.am || "").slice(0, 10) === heute);
+        if (schon.some((k) => k.aufgabeId === auf.id)) return `${NICHT_GESPEICHERT} „${auf.text}“ steht heute schon im Kalender.`;
+        if (schon.length >= 3 && a.erbeten !== true) return `${NICHT_GESPEICHERT} Heute stehen schon drei Aufgaben von mir im Kalender. Mehr trage ich nicht von mir aus ein.`;
+        a = { ...a, aufgabe: true, aufgabeId: auf.id, titel: auf.text, minuten: a.minuten ?? auf.minuten, tag: a.tag ?? heute };
+      }
+      const text = await kalenderTermin(a);
       changed();
       return text;
     },
-    async erinnerungAnlegen({ text, uhrzeit, bezug, versatz, tage = [] } = {}) {
+    async erinnerungAnlegen({ text, uhrzeit, bezug, versatz, tage = [], datum } = {}) {
       // "an mein Magnesium" wird "Magnesium". In der Mitteilung stand sonst
       // "Mein Magnesium", und das liest sich wie ein Fehler.
-      const sauber = String(text || "").trim().replace(/^(mein|meine|meinen|meinem|meiner)\s+/i, "");
+      // "an den Physio Termin" wird "Physio Termin", der Artikel gehört nicht in die Mitteilung.
+      const sauber = String(text || "").trim().replace(/^(mein|meine|meinen|meinem|meiner|den|die|das|der|dem)\s+/i, "");
       const eintrag = { id: newId(), text: sauber ? sauber.charAt(0).toUpperCase() + sauber.slice(1) : sauber, tage };
       if (bezug) Object.assign(eintrag, { bezug, versatz: Number(versatz) || 0 });
       else eintrag.uhrzeit = uhrzeit;
+      if (datum) Object.assign(eintrag, { datum, tage: [] });
       const fehler = erinnerungFehler(eintrag);
       if (fehler) return fehler;
-      const liste = store.getSettings().eigeneErinnerungen || [];
-      if (liste.length >= MAX_EIGENE) {
-        return `Du hast schon ${MAX_EIGENE} eigene Erinnerungen. Lösch eine im Profil unter Benachrichtigungen, dann geht die nächste.`;
+      const jetzt = { tag: todayIso(), uhrzeit: nowTime() };
+      if (erinnerungVorbei(eintrag, jetzt)) return `${eintrag.uhrzeit} ist heute schon vorbei. Für wann soll ich sie stellen?`;
+      // Vorbei ist vorbei: einmalige von gestern räumen sich hier selbst weg.
+      // Eine wiederkehrende mit demselben Text wird ersetzt und nicht
+      // verdoppelt: "Schlaf Supplements eine Stunde vor dem Schlafen" heisst,
+      // die alte um 21:54 soll weg, nicht dass beide kommen.
+      const gleicherText = (e) => foldUmlauts(String(e.text || "").toLowerCase().replace(/^(mein|meine|meinen|meinem|meiner)\s+/, "").trim());
+      const bisher = erinnerungenAufgeraeumt(jetzt);
+      const alt = istEinmalig(eintrag) ? null : bisher.find((e) => !istEinmalig(e) && gleicherText(e) === gleicherText(eintrag));
+      const liste = bisher.filter((e) => e !== alt);
+      const gleicheArt = liste.filter((e) => istEinmalig(e) === istEinmalig(eintrag)).length;
+      if (!istEinmalig(eintrag) && gleicheArt >= MAX_EIGENE) {
+        return `Du hast schon ${MAX_EIGENE} wiederkehrende Erinnerungen. Lösch eine im Profil unter Benachrichtigungen, dann geht die nächste.`;
+      }
+      if (istEinmalig(eintrag) && gleicheArt >= MAX_EINMALIG) {
+        return `Du hast schon ${MAX_EINMALIG} offene einmalige Erinnerungen. Lösch eine im Profil unter Benachrichtigungen.`;
+      }
+      let imKalender = "";
+      if (istEinmalig(eintrag)) {
+        const { erinnerungEintragen } = await import("./kalender-schreiben.js");
+        const k = await erinnerungEintragen(eintrag);
+        if (k?.eid) {
+          eintrag.kalender = { eid: k.eid, von: k.von };
+          imKalender = ` Sie steht auch als Termin im Kalender${k.kalender ? ` ${k.kalender}` : ""}.`;
+        }
       }
       store.setSettings({ ...store.getSettings(), eigeneErinnerungen: [...liste, eintrag] });
       changed();
-      const wann = `${tageText(eintrag.tage)}, ${wannText(eintrag)}`;
+      const wann = erinnerungZeile(eintrag, jetzt.tag);
       // Im Browser plant niemand diese Mitteilung ein. Das gehört gesagt,
       // gerade wenn es um ein Medikament geht.
       const hinweis = istNativ()
         ? " Du siehst und löschst sie im Profil unter Benachrichtigungen."
         : " Mitteilungen dafür kommen nur in der iPhone App, hier im Browser erinnere ich dich nicht.";
-      return `Erinnerung angelegt: ${eintrag.text}, ${wann}.${hinweis}`;
+      const vorher = alt ? ` Die bisherige (${erinnerungZeile(alt, jetzt.tag)}) ist ersetzt.` : "";
+      return `Erinnerung angelegt: ${eintrag.text}, ${wann}.${vorher}${imKalender}${hinweis}`;
     },
 
     async zeitEintragen({ bereich, minuten, was, tag } = {}) {
@@ -2877,7 +3370,7 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       if (!ergebnis) return "Dafür ist zu wenig da. Erzähl einfach alles, was dir durch den Kopf geht.";
       changed();
       const plan = aufgabenPlanText();
-      return `${ergebnis.text}\n\n${ergebnis.angelegt.length} Aufgaben stehen jetzt auf deiner Liste.\n\n${plan}`;
+      return `${ergebnis.text}\n\n${ergebnis.angelegt.length === 1 ? "Eine Aufgabe steht" : `${ergebnis.angelegt.length} Aufgaben stehen`} jetzt auf deiner Liste.\n\n${plan}`;
     },
 
     async aufgabenPriorisieren() {
@@ -3010,7 +3503,7 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
         // "Liste rechnen" weg.
         items: [
           ...roh.items.map((item) => ({ ...item, stand: alterStand.get(item.key) || "offen" })),
-          ...(alt?.items || []).filter((i) => i.eigen && !roh.items.some((r) => r.name.toLowerCase() === i.name.toLowerCase())),
+          ...(alt?.items || []).filter((i) => (i.eigen || i.ausPlan) && !roh.items.some((r) => r.name.toLowerCase() === i.name.toLowerCase())),
         ],
       };
       store.setShoppingList(liste);
@@ -3040,6 +3533,140 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       const offen = liste.items.filter((i) => i.stand === "offen").length;
       const wort = { gekauft: "gekauft", zuhause: "hast du noch", offen: "wieder offen" }[stand];
       return `${treffer.name}: ${wort}. Noch ${offen} Posten offen.`;
+    },
+
+    async uebungenSuchen({ suche, ersatzFuer } = {}) {
+      return uebungenSuchenText({ suche, ersatzFuer });
+    },
+    async essensplanAbrufen({ inTagen = 0 } = {}) {
+      if (!essensplanFreiFuerCoach()) {
+        return "NICHT_GESPEICHERT: Der Essensplan für die Woche gehört zu Pro. Einzelne Rezepte passend zum Rest des Tages gibt es unter Rezepte.";
+      }
+      const plan = essensplanRechnen();
+      const tag = plan.tage.find((t) => t.datum === tagPlusIso(todayIso(), inTagen));
+      if (!tag) return "Der Plan reicht nicht so weit. Unter Rezepte, Wochenplan, rechnet daevo einen neuen ab heute.";
+      return essensplanTagText(tag) + (plan.hinweise.length ? `\n${plan.hinweise.join(" ")}` : "");
+    },
+
+    async trainingHeute({ gruppen = [], minuten, neu = false, tag: wunschTag, uhrzeit, weglassen = [], tauschen = [] } = {}) {
+      const heuteIso = todayIso();
+      // Ein Tag in der Vergangenheit ist keine Bestellung. Weiter als eine
+      // Woche voraus auch nicht: bis dahin hat sich der Plan geändert.
+      const tag = /^\d{4}-\d{2}-\d{2}$/.test(String(wunschTag || "")) && wunschTag > heuteIso && wunschTag <= tagPlusIso(heuteIso, 7)
+        ? wunschTag : heuteIso;
+      const zukunft = tag !== heuteIso;
+      const um = /^\d{1,2}:\d{2}$/.test(String(uhrzeit || "")) ? String(uhrzeit).padStart(5, "0") : undefined;
+      const morgens = zukunft ? null : (store.getDay(tag).checkins || []).filter((c) => c.kind === "morning" && c.morgen).pop();
+      if (morgens?.trainingGestrichen) {
+        return `${NICHT_GESPEICHERT} Heute ist das Training nach der Nachfrage am Mittag gestrichen. Fühlst du dich besser, beantworte unter Check-ins die Nachfrage neu, dann rechne ich dir die Einheit.`;
+      }
+      const s = store.getSettings();
+      const jetzt = bestellteEinheit(s, tag);
+      // "Neue Übungen" ohne Partien meint die Einheit von heute.
+      const SPLIT = { arme: ["bizeps", "trizeps"], push: ["brust", "schultern", "trizeps"], pull: ["ruecken", "bizeps"], beine: ["beine", "po"] };
+      let partien = [...new Set(gruppen.map(String).flatMap((g) => SPLIT[g] ?? [g]))].filter((g) => FOKUS_NAME[g]);
+      if (!partien.length && neu && jetzt) partien = jetzt.gruppen;
+      // Eine einzelne Übung ändern, ohne die Einheit neu zu rechnen. Sieht der
+      // Coach selbst, dass eine Übung nicht passt, oder sagt der Nutzer
+      // "ohne Schulterdrücken", ändert er sie hier, statt es nur zu sagen.
+      const namenWeg = (Array.isArray(weglassen) ? weglassen : []).map(String).filter(Boolean);
+      const namenTausch = (Array.isArray(tauschen) ? tauschen : []).map(String).filter(Boolean);
+      if ((namenWeg.length || namenTausch.length) && jetzt?.einheit && (!partien.length || [...partien].sort().join("+") === jetzt.schluessel)) {
+        return einheitAendern(jetzt, tag, namenWeg, namenTausch, changed);
+      }
+      if (!partien.length) return `${NICHT_GESPEICHERT} Welche Partien willst du heute trainieren? Etwa Push, Pull, Beine oder Oberkörper.`;
+      const schluessel = [...partien].sort().join("+");
+      const verlauf = Array.isArray(s.heuteVerlauf) ? s.heuteVerlauf : [];
+      const frueher = [...verlauf].reverse().find((v) => v.schluessel === schluessel && v.tag <= tag);
+      const min = Math.max(20, Math.min(120, Math.round(Number(minuten ?? (neu ? jetzt?.minuten : frueher?.minuten) ?? 60) || 60)));
+      // Erfahrung, Ort, Beschwerden und Fokus kommen aus dem gespeicherten
+      // Plan. Ohne Plan gelten dieselben Vorgaben wie in der Planansicht.
+      const w = s.plan?.wunsch || {};
+      const NIVEAUS = ["beginner", "intermediate", "advanced"];
+      const bauen = (variante, zuletzt = []) => einzeltrainingBauen({
+        minuten: min, gruppen: partien,
+        niveau: NIVEAUS.includes(w.niveau) ? w.niveau : "intermediate",
+        ziel: typeof w.ziel === "string" ? w.ziel : "muskel",
+        ort: typeof w.ort === "string" ? w.ort : "studio",
+        beschwerden: Array.isArray(w.beschwerden) ? w.beschwerden : [],
+        meiden: Array.isArray(w.meiden) ? w.meiden : [],
+        fokus: Array.isArray(w.fokus) ? w.fokus : [],
+        variante, zuletzt,
+      }, UEBUNGEN);
+      // Dieselben Partien wie schon einmal heisst dieselben Übungen, mit den
+      // Tauschen von damals. Fortschritt lässt sich nur an Übungen ablesen,
+      // die man wiederholt, und wer jede Woche neue nimmt, fängt jede Woche
+      // bei den Gewichten von vorn an. Eine Regel von Coach Aaron. Gestützt
+      // auf Kassiano und andere, J Strength Cond Res 2022: Abwechslung bringt
+      // für Muskelaufbau nicht mehr, zu viel davon kann ihn bremsen.
+      let variante = 0;
+      let ersetzt = {};
+      let wiederholt = false;
+      if (neu) variante = ((jetzt?.schluessel === schluessel ? jetzt.variante : frueher?.variante) ?? 0) + 1;
+      else if (frueher) {
+        variante = frueher.variante ?? 0; ersetzt = frueher.ersetzt ?? {}; wiederholt = true;
+        // Die Reihenfolge der Partien entscheidet mit, welche Übung welchen
+        // Platz bekommt. "Trizeps, Brust" muss dieselbe Einheit ergeben wie
+        // "Brust, Trizeps".
+        partien = frueher.gruppen;
+      }
+      // Gleiche Dauer heisst genau die Einheit von damals, auch wenn sich die
+      // Datenbank seitdem geändert hat. Erst bei anderer Dauer wird gerechnet.
+      const damals = wiederholt && Math.abs((frueher.minuten ?? 0) - min) <= 10 && frueher.einheit?.positionen?.length ? frueher.einheit : null;
+      // Neue Übungen heisst: was zuletzt dran war, steht hinten an.
+      const vorher = neu ? ((jetzt?.schluessel === schluessel ? jetzt : frueher)?.einheit?.positionen ?? []).map((p) => p.id) : [];
+      let einheit = damals ?? bauen(variante, vorher);
+      if (!einheit && variante > 0) { variante = 0; einheit = bauen(0); }
+      if (!einheit) return `${NICHT_GESPEICHERT} Für diese Partien findet die App mit deinen Beschwerden und deinem Ort keine passende Übung.`;
+      const nachId = new Map(UEBUNGEN.map((u) => [u.id, u]));
+      const weg = wiederholt && Array.isArray(frueher.weg) ? frueher.weg : [];
+      if (!damals) einheit = {
+        ...einheit,
+        positionen: einheit.positionen.filter((p) => !weg.includes(p.id)).map((p) => {
+          const u = nachId.get(ersetzt[p.id]);
+          return u ? { ...p, id: u.id, name: u.name } : p;
+        }),
+      };
+      const eintrag = { tag, schluessel, gruppen: partien, minuten: min, variante, ersetzt, ...(weg.length ? { weg } : {}), einheit, erstellt: new Date().toISOString(),
+        ...(um ? { uhrzeit: um } : {}), ...(zukunft ? { geplant: true } : {}) };
+      // Je Tag eine bestellte Einheit. Wer für morgen erst Push und dann Pull
+      // sagt, meint Pull, und zwei Einheiten an einem Tag verwirren den Plan.
+      const ohneHeute = verlauf.filter((v) => !(v.tag === tag && (v.schluessel === schluessel || (zukunft && v.geplant))));
+      // Für einen anderen Tag bleibt die Einheit von heute, wie sie ist.
+      store.setSettings({ ...store.getSettings(), ...(zukunft ? {} : { heuteTraining: eintrag }), heuteVerlauf: [...ohneHeute, eintrag].slice(-20) });
+      changed();
+      const log = Array.isArray(s.trainingslog) ? s.trainingslog : [];
+      const zeilen = [];
+      if (wiederholt && frueher.tag < tag) {
+        const wann = new Date(`${frueher.tag}T12:00:00`).toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" });
+        zeilen.push(`Dieselben Übungen wie am ${wann}. Bleib dabei, solange du dich steigerst: Fortschritt siehst du nur an Übungen, die du wiederholst. Willst du trotzdem andere, tipp auf "Neue Übungen".`);
+      } else if (neu) {
+        zeilen.push("Neue Übungen für dieselben Partien. Nimm sie die nächsten Male wieder, dann siehst du, ob du stärker wirst.");
+      }
+      const wann = zukunft
+        ? new Date(`${tag}T12:00:00`).toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" })
+        : "heute";
+      zeilen.push(zukunft
+        ? `Training für ${wann}${um ? ` um ${um}` : ""} steht: ${einheit.fokus}, etwa ${einheit.dauerMin} Minuten. An dem Tag steht es unter "Training für heute" bereit und startet von dort.`
+        : `Training für heute${um ? ` um ${um}` : ""} steht: ${einheit.fokus}, etwa ${einheit.dauerMin} Minuten. Tipp auf "Training starten", dann läuft es im Trainingsmodus. Jede Übung lässt sich dort über die drei Punkte tauschen.`);
+      for (const p of einheit.positionen) {
+        const st = steigerung(letzteEinheit(log, p.id, tag), p.wdh, p.reserve);
+        zeilen.push(`- ${p.name}: ${p.saetze} x ${p.wdh}, ${p.reserve} in Reserve${st ? `. ${st.text}` : ""}`);
+      }
+      // Mit Uhrzeit gehört das Training in den Kalender: das hat er selbst
+      // gesagt, und ein Termin, den er genannt hat, ist kein Vorschlag.
+      if (um) {
+        const { kalenderTermin, terminFinden, kannSchreiben } = await import("./kalender-schreiben.js");
+        if (kannSchreiben()) {
+          const titel = `Training: ${trainingsTitel(partien)}`;
+          const alt = terminFinden(store.getKalender().termine || [], { suche: "training", tag });
+          const k = alt?.daevo
+            ? await kalenderTermin({ aktion: "verschieben", suche: alt.titel, tag, zielTag: tag, zielUhrzeit: um })
+            : await kalenderTermin({ aktion: "eintragen", titel, tag, uhrzeit: um, minuten: einheit.dauerMin, erbeten: true });
+          zeilen.push(k.replace(NICHT_GESPEICHERT, "Nicht im Kalender:").trim());
+        }
+      }
+      return zeilen.join("\n");
     },
 
     async trainingsplanAbrufen({ inTagen = 0 } = {}) {
@@ -3253,6 +3880,130 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
 }
 
 /* ---------- Gespräch ---------- */
+
+/**
+ * Streicht oder tauscht einzelne Übungen in einer bestellten Einheit. Der
+ * Name wird gegen die Übungen der Einheit abgeglichen, in beide Richtungen,
+ * denn das Modell schreibt "Schulterdrücken" und die Einheit heisst
+ * "Schulterdrücken Langhantel". Getauscht wird gegen eine Übung derselben
+ * Bewegung, nach Ort, Niveau und Beschwerden. Was gestrichen oder getauscht
+ * ist, gilt auch beim nächsten Mal mit denselben Partien.
+ */
+function einheitAendern(eintrag, tag, weglassen, tauschen, changed = () => {}) {
+  const s = store.getSettings();
+  const w = s.plan?.wunsch || {};
+  const wunsch = {
+    niveau: ["beginner", "intermediate", "advanced"].includes(w.niveau) ? w.niveau : "intermediate",
+    ort: typeof w.ort === "string" ? w.ort : "studio",
+    beschwerden: Array.isArray(w.beschwerden) ? w.beschwerden : [],
+    meiden: Array.isArray(w.meiden) ? w.meiden : [],
+    ziel: typeof w.ziel === "string" ? w.ziel : "muskel",
+  };
+  const passt = (name, wunschName) => {
+    const a = foldUmlauts(String(name).toLowerCase());
+    const b = foldUmlauts(String(wunschName).toLowerCase()).trim();
+    return b.length >= 3 && (a.includes(b) || b.includes(a));
+  };
+  const ersetzt = { ...(eintrag.ersetzt || {}) };
+  const weg = [...(eintrag.weg || [])];
+  const gestrichen = [];
+  const getauscht = [];
+  const ohne = [];
+  let positionen = eintrag.einheit.positionen.filter((p) => {
+    if (!weglassen.some((n) => passt(p.name, n))) return true;
+    gestrichen.push(p.name);
+    // Die Kennung von damals zählt, nicht die des Ersatzes.
+    const ursprung = Object.keys(ersetzt).find((k) => ersetzt[k] === p.id) ?? p.id;
+    weg.push(ursprung);
+    return false;
+  });
+  positionen = positionen.map((p) => {
+    if (!tauschen.some((n) => passt(p.name, n))) return p;
+    const neu = alternativen({ wunsch, einheiten: [{ positionen }] }, 0, p.id, UEBUNGEN)[0];
+    if (!neu) { ohne.push(p.name); return p; }
+    getauscht.push(`${p.name} gegen ${neu.name}`);
+    const ursprung = Object.keys(ersetzt).find((k) => ersetzt[k] === p.id) ?? p.id;
+    ersetzt[ursprung] = neu.id;
+    return { ...p, id: neu.id, name: neu.name };
+  });
+  if (!gestrichen.length && !getauscht.length) {
+    const da = eintrag.einheit.positionen.map((p) => p.name).join(", ");
+    return `${NICHT_GESPEICHERT} ${ohne.length ? `Für ${ohne.join(", ")} gibt es keine passende andere Übung.` : `Diese Übung steht nicht in der Einheit. Drin sind: ${da}.`}`;
+  }
+  if (!positionen.length) return `${NICHT_GESPEICHERT} Dann bliebe keine Übung übrig. Sag mir lieber, welche Partien du trainieren willst.`;
+  const gerechnet = planNachrechnen({ wunsch, einheiten: [{ ...eintrag.einheit, positionen }] }, UEBUNGEN).einheiten[0];
+  const neu = { ...eintrag, ersetzt, weg: [...new Set(weg)], einheit: gerechnet, geaendert: new Date().toISOString() };
+  const verlauf = (Array.isArray(s.heuteVerlauf) ? s.heuteVerlauf : []).map((v) => (v.tag === eintrag.tag && v.schluessel === eintrag.schluessel ? neu : v));
+  const heute = s.heuteTraining?.tag === eintrag.tag && s.heuteTraining?.schluessel === eintrag.schluessel;
+  store.setSettings({ ...store.getSettings(), ...(heute ? { heuteTraining: neu } : {}), heuteVerlauf: verlauf });
+  changed();
+  const zeilen = [[
+    gestrichen.length ? `Gestrichen: ${gestrichen.join(", ")}.` : "",
+    getauscht.length ? `Getauscht: ${getauscht.join(", ")}.` : "",
+    ohne.length ? `Für ${ohne.join(", ")} gibt es keine passende andere Übung, sie bleibt.` : "",
+  ].filter(Boolean).join(" ") + ` Die Einheit dauert jetzt etwa ${gerechnet.dauerMin} Minuten.`];
+  const log = Array.isArray(s.trainingslog) ? s.trainingslog : [];
+  for (const p of gerechnet.positionen) {
+    const st = steigerung(letzteEinheit(log, p.id, tag), p.wdh, p.reserve);
+    zeilen.push(`- ${p.name}: ${p.saetze} x ${p.wdh}, ${p.reserve} in Reserve${st ? `. ${st.text}` : ""}`);
+  }
+  return zeilen.join("\n");
+}
+
+/**
+ * Was die Apple Watch braucht, um selbst zu fragen, wenn das iPhone nicht
+ * antworten kann.
+ *
+ * Ist daevo auf dem iPhone offen, beantwortet das iPhone die Frage mit dem
+ * ganzen Agenten, allen Werkzeugen und dem Gedächtnis. Liegt es in der
+ * Tasche, schläft die Web Ansicht, und iOS weckt sie dafür nicht. Dann fragt
+ * die Uhr selbst, über denselben Server und dasselbe Konto, mit Haltung und
+ * Schreibstil aus der Persona und dem Stand des Tages. Werkzeuge hat sie
+ * dort keine ausser `vormerken`: was etwas einträgt, führt das iPhone beim
+ * nächsten Öffnen aus. Eine Uhr, die "eingetragen" sagt, ohne dass etwas
+ * eingetragen ist, wäre schlimmer als eine, die vormerkt.
+ *
+ * Nur mit Einwilligung und Konto, wie jede andere Anfrage an die KI.
+ */
+export const UHR_HINWEIS = `Er spricht gerade über die Apple Watch mit dir, das iPhone ist nicht erreichbar.
+Antworte in höchstens drei kurzen Sätzen, ohne Liste und ohne Tabelle: der Bildschirm ist klein,
+und die Antwort wird vorgelesen. Werkzeuge hast du hier nur eines, vormerken. Will er etwas
+eintragen oder ändern, Essen, Training, Gewicht, Aufgabe, Erinnerung, Termin, rufst du vormerken mit
+seinem Satz auf und schreibst davor einen Satz, dass es vorgemerkt ist und eingetragen wird, sobald
+daevo auf dem iPhone offen ist. Sag nie, es sei schon eingetragen. Zahlen über ihn nimmst du nur aus
+dem Stand unten, alles andere weisst du nicht.`;
+
+export function uhrKiZugang() {
+  const s = store.getSettings();
+  const ueberServer = Boolean(KONFIG.chatUrl);
+  if (ueberServer && !kiErlaubt(s, KONFIG)) return null;
+  const token = ueberServer ? kontoToken() : "";
+  if (ueberServer && !token) return null;
+  if (!ueberServer && !String(s.apiKey || "").trim()) return null;
+  const n = dayNumbers();
+  const now = new Date();
+  const { GRUNDHALTUNG, SCHREIBSTIL, GRENZEN } = PERSONA_TEILE;
+  const eigene = String(s.anweisungen || "").trim();
+  const system = [
+    GRUNDHALTUNG, "", SCHREIBSTIL, "", GRENZEN, "", UHR_HINWEIS, "",
+    "Aktueller Zeitpunkt beim letzten Abgleich:",
+    `${WEEKDAYS[now.getDay()]}, ${now.getDate()}. ${now.toLocaleString("de-DE", { month: "long" })} ${now.getFullYear()}, ${nowTime()} Uhr.`,
+    "", "Der Nutzer:", profilKurz(n.profile),
+    "", "Sein heutiger Stand:", daySummaryText(n), "", lageText(),
+    "", "Was du über ihn weißt:", brain.contextFor("", 8),
+    ...(eigene ? ["", "Eigene Anweisungen des Nutzers, sie gehen allem oben vor ausser den Grenzen:", eigene.slice(0, 2000)] : []),
+  ].join("\n");
+  return {
+    url: ueberServer ? `${KONFIG.chatUrl.replace(/\/+$/, "")}/chat` : "https://api.anthropic.com/v1/messages",
+    ...(token ? { token } : {}),
+    ...(!ueberServer ? { schluessel: String(s.apiKey).trim() } : {}),
+    modell: "claude-sonnet-5-5",
+    // Der Application Context hat eine Grenze von rund 65 Kilobyte, und die
+    // Trainings brauchen ihren Teil davon.
+    system: system.slice(0, 16000),
+    sprechen: Boolean(s.voice?.speak),
+  };
+}
 
 export async function ask(nachricht, { onChange, anhaenge = [], onStrom } = {}) {
   // Ein Anbieter für die ganze Nachricht, auch für die Werkzeuge. Der Server
@@ -3474,3 +4225,80 @@ function mittelwert(werte) {
 }
 
 export { buildDailyReminders, daySummaryText, profileText };
+
+/**
+ * Die eigenen Erinnerungen ohne die einmaligen, die schon vorbei sind. Was
+ * wegfällt, wird gleich mitgespeichert, sonst wüchse die Liste mit jeder
+ * Wäsche von letzter Woche.
+ */
+export function erinnerungenAufgeraeumt(jetzt = { tag: todayIso(), uhrzeit: nowTime() }) {
+  const s = store.getSettings();
+  const alle = s.eigeneErinnerungen || [];
+  const offen = alle.filter((e) => !erinnerungVorbei(e, jetzt));
+  if (offen.length !== alle.length) store.setSettings({ ...s, eigeneErinnerungen: offen });
+  return offen;
+}
+
+/** Ein Tausch im Training für heute gilt auch beim nächsten Mal mit denselben Partien. */
+export function heuteGetauscht(altId, neueId) {
+  const s = store.getSettings();
+  const ht = bestellteEinheit(s, todayIso());
+  const u = UEBUNGEN.find((x) => x.id === neueId);
+  if (!ht?.einheit || !u) return;
+  // Kennung der ursprünglich gerechneten Übung, damit ein zweiter Tausch
+  // denselben Platz trifft und nicht ins Leere zeigt.
+  const ursprung = Object.entries(ht.ersetzt ?? {}).find(([, v]) => v === altId)?.[0] ?? altId;
+  const ersetzt = { ...(ht.ersetzt ?? {}), [ursprung]: neueId };
+  const einheit = { ...ht.einheit, positionen: ht.einheit.positionen.map((p) => (p.id === altId ? { ...p, id: u.id, name: u.name } : p)) };
+  const neu = { ...ht, ersetzt, einheit, geplant: undefined };
+  const verlauf = (Array.isArray(s.heuteVerlauf) ? s.heuteVerlauf : []).map((v) => (v.tag === ht.tag && v.schluessel === ht.schluessel ? neu : v));
+  store.setSettings({ ...s, heuteTraining: neu, heuteVerlauf: verlauf });
+}
+
+/**
+ * Eine im Trainingsmodus verschobene Reihenfolge gilt auch beim nächsten Mal
+ * mit denselben Partien. Wer Bizeps vor Rücken trainieren will, will das
+ * nicht jede Woche neu ziehen. Übungen, die nicht in der Liste stehen,
+ * bleiben hinten in ihrer alten Folge.
+ */
+export function heuteVerschoben(ids) {
+  const s = store.getSettings();
+  const ht = bestellteEinheit(s, todayIso());
+  if (!ht?.einheit || !Array.isArray(ids)) return;
+  const rang = (p) => { const i = ids.indexOf(p.id); return i < 0 ? ids.length : i; };
+  const positionen = ht.einheit.positionen.map((p, i) => ({ p, i }))
+    .sort((a, b) => rang(a.p) - rang(b.p) || a.i - b.i).map((x) => x.p);
+  const neu = { ...ht, einheit: { ...ht.einheit, positionen }, geplant: undefined };
+  const verlauf = (Array.isArray(s.heuteVerlauf) ? s.heuteVerlauf : []).map((v) => (v.tag === ht.tag && v.schluessel === ht.schluessel ? neu : v));
+  store.setSettings({ ...s, heuteTraining: neu, heuteVerlauf: verlauf });
+}
+
+/**
+ * Übungen aus der Datenbank, als Antwort im Gespräch. Mit `ersatzFuer`
+ * kommen Übungen für dieselbe Bewegung, nach Ort und Beschwerden aus dem
+ * gespeicherten Plan. Nur was in der Datenbank steht, hat in der App Foto,
+ * Schritte und Video, deshalb nennt der Coach keine Übung aus dem Gedächtnis.
+ */
+export function uebungenSuchenText({ suche, ersatzFuer } = {}) {
+  const zeile = (u) => `- ${u.name}: ${GERAETE[u.equipment] ?? u.equipment}, ${u.primaryMuscles.join(", ")}`;
+  const w = store.getSettings().plan?.wunsch || {};
+  const erlaubt = (u) => uebungErlaubt(u, { ort: w.ort, beschwerden: w.beschwerden, meiden: w.meiden });
+  if (ersatzFuer) {
+    const f = (t) => foldUmlauts(String(t).toLowerCase()).trim();
+    const ziel = f(ersatzFuer);
+    const quelle = UEBUNGEN.find((u) => f(u.name) === ziel)
+      ?? UEBUNGEN.find((u) => f(u.name).startsWith(ziel))
+      ?? uebungenFiltern({ text: ersatzFuer })[0];
+    if (!quelle) return `"${ersatzFuer}" finde ich nicht in der Übungsdatenbank. Unter Training, Übungen kannst du suchen.`;
+    const andere = UEBUNGEN.filter((u) => u.id !== quelle.id && u.pattern === quelle.pattern && u.gruppe === quelle.gruppe && erlaubt(u))
+      .sort((a, b) => (a.equipment === quelle.equipment) - (b.equipment === quelle.equipment) || (a.mechanics !== quelle.mechanics) - (b.mechanics !== quelle.mechanics))
+      .slice(0, 6);
+    if (!andere.length) return `Für ${quelle.name} kenne ich keine Übung mit derselben Bewegung, die zu deinem Ort und deinen Beschwerden passt.`;
+    return `Statt ${quelle.name}, dieselbe Bewegung:\n${andere.map(zeile).join("\n")}\nIm Trainingsmodus tauschst du sie über die drei Punkte neben dem Namen.`;
+  }
+  const treffer = uebungenFiltern({ text: suche || "" });
+  if (!treffer.length) return `Zu "${suche}" finde ich keine Übung. Unter Training, Übungen kannst du nach Muskel und Gerät filtern.`;
+  const gezeigt = treffer.slice(0, 12);
+  const rest = treffer.length - gezeigt.length;
+  return `${treffer.length} Übungen${suche ? ` zu "${suche}"` : ""}:\n${gezeigt.map(zeile).join("\n")}${rest > 0 ? `\nUnd ${rest} weitere unter Training, Übungen.` : ""}`;
+}

@@ -9,7 +9,8 @@
  * Rechenkern. Diese Datei rechnet nichts, sie zeigt nur.
  */
 import { MAHLZEITEN } from "@daevo/core";
-import { rezeptEintragen, rezeptVorschlaege } from "./assistant.js";
+import { essensplanEinkauf, essensplanRechnen, rezeptEintragen, rezeptVorschlaege } from "./assistant.js";
+import { todayIso } from "./storage.js";
 import { symbol } from "./symbole.js";
 
 const escapeHtml = (text) =>
@@ -20,6 +21,8 @@ const ART_SYMBOL = { fruehstueck: "sonne", hauptmahlzeit: "flamme", snack: "apfe
 // Zeilen stand der Snack allein unter den drei anderen.
 const KURZNAME = { fruehstueck: "Frühstück", mittagessen: "Mittag", abendessen: "Abend", snack: "Snack" };
 const ART_NAME = { fruehstueck: "Frühstück", hauptmahlzeit: "Hauptmahlzeit", snack: "Snack" };
+const WOCHENTAG = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+const zahl = (n) => Math.round(n).toLocaleString("de-DE");
 
 /**
  * Baut die Ansicht und gibt eine Funktion zum Neuzeichnen zurück.
@@ -27,12 +30,117 @@ const ART_NAME = { fruehstueck: "Frühstück", hauptmahlzeit: "Hauptmahlzeit", s
  * `beiEintrag` kommt aus app.js und zeichnet den Rest der App neu. Diese Datei
  * soll nicht wissen, welche Ansichten es sonst noch gibt.
  */
-export function rezepteAnsicht({ wurzel, toast, beiEintrag }) {
-  const zustand = { art: null, index: 0, verworfen: new Set() };
+export function rezepteAnsicht({ wurzel, toast, beiEintrag, planFrei = () => true, proOeffnen = () => {} }) {
+  const zustand = { art: null, index: 0, verworfen: new Set(), modus: "einzeln", tag: 0, offen: -1 };
 
   const el = (id) => wurzel.querySelector(`#${id}`);
 
   function zeichnen() {
+    const woche = zustand.modus === "woche";
+    el("rzEinzeln").hidden = woche;
+    el("rzWoche").hidden = !woche;
+    for (const b of wurzel.querySelectorAll("[data-rz-modus]")) {
+      const an = b.dataset.rzModus === zustand.modus;
+      b.classList.toggle("on", an);
+      b.setAttribute("aria-selected", String(an));
+    }
+    return woche ? wocheZeichnen() : einzelnZeichnen();
+  }
+
+  /**
+   * Der Wochenplan, ein Tag auf einmal. Sieben Tage untereinander mit je vier
+   * Gerichten sind 28 Zeilen, und darin findet niemand den Donnerstag.
+   */
+  function wocheZeichnen() {
+    if (!planFrei()) {
+      el("epZiel").textContent = "";
+      el("epTage").innerHTML = "";
+      el("epHinweis").textContent = "";
+      wurzel.querySelector(".ep-aktionen").hidden = true;
+      el("epTag").innerHTML = `<div class="ep-sperre">
+        <h2>Dein Essensplan für die Woche</h2>
+        <p>Sieben Tage aus den Rezepten, gerechnet auf deine Kalorien und Makros, mit Abendessen zum Vorkochen und fertiger Einkaufsliste. Das gehört zu Pro.</p>
+        <button type="button" class="primary breit" data-ep-pro>Pro ansehen</button>
+      </div>`;
+      return;
+    }
+    wurzel.querySelector(".ep-aktionen").hidden = false;
+    const plan = zustand.plan ?? (zustand.plan = essensplanRechnen());
+    if (zustand.tag >= plan.tage.length) zustand.tag = 0;
+    const tag = plan.tage[zustand.tag];
+    const z = plan.tage[0].ziel;
+    el("epZiel").textContent = `Gerechnet auf ${zahl(z.kcal)} kcal und ${z.proteinG} g Protein am Tag, an Trainingstagen auf dein höheres Ziel.`;
+
+    const heute = todayIso();
+    el("epTage").innerHTML = plan.tage.map((t, i) => {
+      const d = new Date(`${t.datum}T12:00:00`);
+      const name = t.datum === heute ? "Heute" : WOCHENTAG[d.getDay()];
+      return `<button type="button" class="pill${i === zustand.tag ? " on" : ""}" role="tab" aria-selected="${i === zustand.tag}" data-ep-tag="${i}">${name} <small>${d.getDate()}.</small></button>`;
+    }).join("");
+
+    const s = tag.summe;
+    const zt = tag.ziel;
+    const wert = (name, ist, soll, einheit) => `<div class="ep-wert"><b>${zahl(ist)}</b><span>von ${zahl(soll)} ${einheit}</span><i>${name}</i></div>`;
+    const darfEintragen = tag.datum <= heute;
+    el("epTag").innerHTML = `
+      <div class="ep-werte">
+        ${wert("Kalorien", s.kcal, zt.kcal, "kcal")}
+        ${wert("Protein", s.proteinG, zt.proteinG, "g")}
+        ${wert("Kohlenh.", s.carbsG, zt.carbsG, "g")}
+        ${wert("Fett", s.fatG, zt.fatG, "g")}
+      </div>
+      <ul class="ep-liste">${tag.mahlzeiten.map((m, i) => {
+        const e = m.empfehlung;
+        const offen = zustand.offen === i;
+        const marke = m.vorkochen === "doppelt" ? '<em class="ep-marke">doppelt kochen</em>'
+          : m.vorkochen === "vorgekocht" ? '<em class="ep-marke">vom Vortag</em>' : "";
+        return `<li class="ep-mahlzeit${offen ? " offen" : ""}">
+          <button type="button" class="ep-kopf" data-ep-m="${i}" aria-expanded="${offen}">
+            ${e.rezept.foto ? `<img src="./img/rezepte/${encodeURIComponent(e.rezept.id)}.jpg" alt="" width="64" height="48" loading="lazy" decoding="async">` : `<span class="ep-bild">${symbol("apfel", { groesse: 22 })}</span>`}
+            <span class="ep-text">
+              <small>${escapeHtml(m.name)}${marke}</small>
+              <strong>${escapeHtml(e.rezept.name)}</strong>
+              <span>${zahl(e.summe.kcal)} kcal · ${e.summe.proteinG} g Protein · ${e.rezept.minuten} Min.</span>
+            </span>
+          </button>
+          ${offen ? `<div class="ep-detail">
+            ${m.vorkochen === "doppelt" ? zusammenHtml(m, plan.tage[zustand.tag + 1]) : ""}
+            ${m.vorkochen === "vorgekocht" ? '<p class="sub">Vom Vortag aufwärmen. Die Menge unten ist deine Portion für heute.</p>' : ""}
+            <ul class="rz-zutaten">${e.posten.map((p) => `<li><span>${escapeHtml(p.name)}</span><b>${escapeHtml(p.menge)}</b></li>`).join("")}</ul>
+            ${m.vorkochen === "vorgekocht" ? "" : `<ol class="rz-schritte">${e.rezept.schritte.map((t) => `<li>${escapeHtml(t)}</li>`).join("")}</ol>`}
+            ${darfEintragen ? `<button type="button" class="ghost breit" data-ep-eintragen="${i}">Gegessen, eintragen</button>` : ""}
+          </div>` : ""}
+        </li>`;
+      }).join("")}</ul>
+      ${tag.ergaenzung.length ? `<p class="ep-ergaenzung"><b>Dazu am Tag:</b> ${tag.ergaenzung.map((p) => `${escapeHtml(p.menge)} ${escapeHtml(p.name)}`).join(" und ")}. Damit gehen Protein und Kalorien auf, etwa als Snack oder zum Frühstück.</p>` : ""}`;
+
+    el("epHinweis").textContent = [...plan.hinweise,
+      "Die Nährwerte sind Richtwerte aus Nährwerttabellen und aus den Zutaten gerechnet. Allergien, Unverträglichkeiten und deine Ernährungsform aus dem Fragebogen sind berücksichtigt."].join(" ");
+  }
+
+  /**
+   * Was für heute und morgen zusammen in den Topf kommt. Die Portionen beider
+   * Tage sind einzeln gerechnet, an einem Trainingstag ist die zweite grösser.
+   * Wer vorkocht, will eine Zahl je Zutat und nicht zwei zum Addieren.
+   */
+  function zusammenHtml(m, morgen) {
+    const zweite = morgen?.mahlzeiten.find((x) => x.art === m.art && x.empfehlung.rezept.id === m.empfehlung.rezept.id);
+    if (!zweite) return "";
+    const summe = new Map();
+    for (const p of [...m.empfehlung.posten, ...zweite.empfehlung.posten]) {
+      const alt = summe.get(p.key);
+      summe.set(p.key, { name: p.name, gramm: (alt?.gramm ?? 0) + p.gramm, stueck: p.menge.endsWith(" g") ? null : p.menge, n: (alt?.n ?? 0) + (Number.parseInt(p.menge, 10) || 0) });
+    }
+    const zeilen = [...summe.values()].map((z) => {
+      const menge = z.stueck ? `${z.n} ${z.stueck.replace(/^\d+\s*/, "")}` : `${z.gramm} g`;
+      return `<li><span>${escapeHtml(z.name)}</span><b>${escapeHtml(menge)}</b></li>`;
+    }).join("");
+    return `<p class="sub">Koch heute für zwei Tage. Morgen gibt es das Gericht noch einmal. So viel kommt zusammen in den Topf:</p>
+      <ul class="rz-zutaten">${zeilen}</ul>
+      <h3 class="section-title">Davon deine Portion heute</h3>`;
+  }
+
+  function einzelnZeichnen() {
     const r = rezeptVorschlaege({ art: zustand.art });
     zustand.art = r.art;
     const liste = r.empfehlungen.filter((e) => !zustand.verworfen.has(e.rezept.id));
@@ -121,6 +229,44 @@ export function rezepteAnsicht({ wurzel, toast, beiEintrag }) {
   }
 
   wurzel.addEventListener("click", (event) => {
+    const modus = event.target.closest("[data-rz-modus]");
+    if (modus) {
+      zustand.modus = modus.dataset.rzModus;
+      zustand.plan = null;
+      return zeichnen();
+    }
+    if (event.target.closest("[data-ep-pro]")) return proOeffnen();
+    const tag = event.target.closest("[data-ep-tag]");
+    if (tag) {
+      zustand.tag = Number(tag.dataset.epTag);
+      zustand.offen = -1;
+      return zeichnen();
+    }
+    const kopf = event.target.closest("[data-ep-m]");
+    if (kopf) {
+      const i = Number(kopf.dataset.epM);
+      zustand.offen = zustand.offen === i ? -1 : i;
+      return zeichnen();
+    }
+    const eintragen = event.target.closest("[data-ep-eintragen]");
+    if (eintragen && zustand.plan) {
+      const t = zustand.plan.tage[zustand.tag];
+      const m = t.mahlzeiten[Number(eintragen.dataset.epEintragen)];
+      rezeptEintragen(m.empfehlung, { day: t.datum });
+      toast(`${m.empfehlung.rezept.name} eingetragen, ${m.empfehlung.summe.kcal} kcal und ${m.empfehlung.summe.proteinG} g Protein.`);
+      beiEintrag();
+      return;
+    }
+    if (event.target.closest("#epAnders")) {
+      zustand.plan = essensplanRechnen({ andere: true });
+      zustand.offen = -1;
+      return zeichnen();
+    }
+    if (event.target.closest("#epEinkauf") && zustand.plan) {
+      const n = essensplanEinkauf(zustand.plan);
+      toast(`${n} Zutaten für die Woche stehen in der Einkaufsliste. Was im Vorrat liegt, steht dort als zuhause.`);
+      return;
+    }
     const art = event.target.closest("[data-rz-art]");
     if (art) {
       zustand.art = art.dataset.rzArt;

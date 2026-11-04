@@ -11,10 +11,11 @@
  *
  * Kein `document`, kein `window`: das Modul läuft auch in den Tests.
  */
+import { zyklusAusHealth } from "@daevo/core";
 import { healthSchreiben } from "./gesundheit.js";
 
 /** Welche Fassung der Leseberechtigung zuletzt erfragt wurde. 2 brachte die Ernährung, 3 Körperfett, VO2max und Trainingsminuten. */
-export const HEALTH_FASSUNG = 3;
+export const HEALTH_FASSUNG = 4;
 
 /** Trainings innerhalb dieses Abstands zu einem eigenen Eintrag gleicher Art gelten als derselbe. */
 const GLEICH_MINUTEN = 90;
@@ -188,7 +189,19 @@ export function healthkitSchreiben(antwort, { store, heute }) {
   const essen = Array.isArray(antwort?.nahrung)
     ? ernaehrungSchreiben(antwort.nahrung, { store, heute, von: antwort.von })
     : { mahlzeiten: 0, uebersprungen: 0 };
-  return { ...bericht, trainings: workoutsSchreiben(antwort?.workouts, { store, heute }), ...essen };
+  // Die Periode aus Health. Eingeschaltet wird der Zyklus nur bei Frauen:
+  // wer die Funktion ausgeschaltet hat, bekommt sie nicht über einen Abgleich
+  // zurück, die Einträge kommen trotzdem an.
+  let perioden = 0;
+  if (Array.isArray(antwort?.periode) && antwort.periode.length) {
+    const s = store.getSettings();
+    const vorher = (s.zyklus?.perioden || []).length;
+    const anschalten = store.getProfile?.()?.sex === "female" && s.zyklus?.an !== false;
+    const zyklus = zyklusAusHealth(s.zyklus || {}, antwort.periode, { anschalten });
+    perioden = (zyklus.perioden || []).length - vorher;
+    store.setSettings({ ...store.getSettings(), zyklus });
+  }
+  return { ...bericht, trainings: workoutsSchreiben(antwort?.workouts, { store, heute }), ...essen, perioden };
 }
 
 /**

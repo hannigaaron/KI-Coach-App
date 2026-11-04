@@ -49,6 +49,27 @@ function merken(eintrag) {
   store.setSettings({ ...s, kalenderAenderungen: stapel });
 }
 
+/**
+ * Was daevo in den Kalender schreiben darf. Der Nutzer hat es so gesagt:
+ * nicht alles, was daevo empfiehlt, sondern ein Training, ein Termin, um den
+ * er selbst bittet, oder eine einzelne dringende Aufgabe aus Todoist. Eine
+ * Liste von Aufgaben als Block ("Aufgaben: Denise zuerst, dann Slide und
+ * Reel") kam vorher in seinen Kalender und machte ihn voll, ohne dass er
+ * darum gebeten hatte. Ein Kalender, in dem alles steht, zeigt nichts mehr.
+ *
+ * Der Prompt sagt dasselbe, aber ein Prompt hilft nur, bis er einmal nicht
+ * greift. Deshalb prüft es auch der Code, bevor etwas geschrieben wird.
+ */
+export function eintragErlaubt(titel, auftrag = {}) {
+  const t = foldUmlauts(String(titel || "").toLowerCase());
+  const liste = /\b(zuerst|danach)\b|,\s*dann\b|(,[^,]+){2,}/.test(t) || /^(aufgaben|to ?dos?)\b.*[:,]/.test(t);
+  if (liste) {
+    return `${NICHT_GESPEICHERT} Eine Liste von Aufgaben trage ich nicht in deinen Kalender ein, sonst ist er so voll, dass du den Überblick verlierst. In den Kalender kommt je Termin genau eine Sache.`;
+  }
+  if (TRAININGSTITEL.test(t) || auftrag.erbeten === true || auftrag.aufgabe === true) return null;
+  return `${NICHT_GESPEICHERT} Von mir aus trage ich nur Trainings und dringende Aufgaben aus Todoist ein. Alles andere nur, wenn du ausdrücklich darum bittest.`;
+}
+
 /** Passt der Termin zur Suche? "training" trifft jede Art von Training. */
 function passt(termin, suche) {
   const titel = foldUmlauts(String(termin.titel || "").toLowerCase());
@@ -77,7 +98,31 @@ function dauerAusProfil(profile) {
   return kraft ? { minuten: kraft.minutes, uhrzeit: kraft.startsAt, art: kraft.type } : null;
 }
 
-function kannSchreiben() {
+/** Der Kalender, den der Nutzer auf der Kalenderseite gewählt hat. Leer heisst: das Plugin wählt, Google vor iCloud. */
+export function zielKalenderId(settings = store.getSettings()) {
+  return typeof settings.zielKalender === "string" ? settings.zielKalender : "";
+}
+
+/** Die Kalender, in die daevo schreiben darf, mit dem, in den es gerade schreibt. Ohne Hülle leer. */
+export async function schreibKalender() {
+  if (!kannSchreiben()) return [];
+  try {
+    const r = await nativAufruf("Kalender", "schreibKalender", { kalender: zielKalenderId() });
+    return Array.isArray(r?.kalender) ? r.kalender : [];
+  } catch {
+    return [];
+  }
+}
+
+const ART_NAME = { google: "Google", icloud: "iCloud", outlook: "Outlook", lokal: "Auf dem iPhone", andere: "Kalender" };
+
+/** Eine Zeile je Kalender für die Auswahl: "Google, aaron@…". */
+export function kalenderWahlText(k) {
+  const art = ART_NAME[k.art] || "Kalender";
+  return k.titel && k.titel !== k.quelle ? `${art}, ${k.titel}` : `${art}, ${k.quelle || k.titel}`;
+}
+
+export function kannSchreiben() {
   return istNativ() && store.getSettings().appleKalender === true;
 }
 
@@ -159,6 +204,27 @@ async function anGenauesZiel(alt, auftrag, { termine, profile, jetzt }) {
 }
 
 /**
+ * Ein Termin, den daevo eingetragen hat, geht ohne Rückfrage raus: er ist
+ * daevos eigener, und eine Frage dazu ist eine Aufgabe mehr für den
+ * Nutzer. Fremde Termine löscht daevo nie, das prüft auch das Plugin.
+ */
+async function terminLoeschen(t) {
+  if (!t) return `${NICHT_GESPEICHERT} Ich finde dieses Training nicht im Kalender.`;
+  if (!t.daevo) {
+    return `${NICHT_GESPEICHERT} \u201e${t.titel}\u201c hat nicht daevo eingetragen, und fremde Termine lösche ich nicht. Verschieben kann ich ihn, wenn du sagst wohin.`;
+  }
+  if (!kannSchreiben()) return `${NICHT_GESPEICHERT} ${NUR_IPHONE}`;
+  try {
+    await nativAufruf("Kalender", "loeschen", { eid: t.eid, alt: t.von });
+  } catch (e) {
+    return `${NICHT_GESPEICHERT} Löschen ging nicht: ${e?.message || e}`;
+  }
+  merken({ art: "geloescht", eid: t.eid, titel: t.titel, vorher: { von: t.von, bis: t.bis }, gruppe: gruppeNeu() });
+  await neuLesen();
+  return `Gelöscht: \u201e${t.titel}\u201c am ${platzText(t)} ist aus dem Kalender. ${RUECKNAHME}`;
+}
+
+/**
  * Führt einen Auftrag aus `kalenderAuftragAus` oder vom Modell aus. Gibt
  * immer einen Satz zurück. Hat er nichts geschrieben, beginnt er mit
  * NICHT_GESPEICHERT, damit der Coach nicht "eingetragen" sagt.
@@ -173,6 +239,7 @@ export async function kalenderTermin(auftrag = {}, { jetzt = Date.now() } = {}) 
     : auftrag.eid ? termine.find((t) => t.eid === auftrag.eid && Math.abs(t.von - Number(auftrag.beginn)) < 60000) ?? null
     : terminFinden(termine, auftrag, jetzt);
   if (auftrag.eid && !alt) return `${NICHT_GESPEICHERT} Das Training steht nicht mehr im Kalender.`;
+  if (aktion === "loeschen") return terminLoeschen(alt);
   const vorbild = alt ? null : (auftrag.tag ? einheitAmTag(profile, auftrag.tag) : null) ?? dauerAusProfil(profile);
   const minuten = auftrag.minuten
     ?? (alt ? Math.round((alt.bis - alt.von) / 60000) : (vorbild?.minutes ?? vorbild?.minuten));
@@ -181,6 +248,11 @@ export async function kalenderTermin(auftrag = {}, { jetzt = Date.now() } = {}) 
   }
   const uebernommen = !auftrag.minuten && !alt ? ` Die Dauer von ${minuten} Minuten ist aus deinem Trainingsplan übernommen.` : "";
   const titel = auftrag.titel || alt?.titel || ART_TITEL[vorbild?.type ?? vorbild?.art] || "Training";
+
+  if (aktion === "eintragen") {
+    const verbot = eintragErlaubt(titel, auftrag);
+    if (verbot) return verbot;
+  }
 
   if (alt && aktion === "verschieben" && (auftrag.zielTag || auftrag.zielUhrzeit)) {
     return anGenauesZiel(alt, auftrag, { termine, profile, jetzt });
@@ -226,8 +298,9 @@ export async function kalenderTermin(auftrag = {}, { jetzt = Date.now() } = {}) 
   }
 
   try {
-    const r = await nativAufruf("Kalender", "anlegen", { titel, von: platz.von, bis: platz.bis });
-    merken({ art: "angelegt", eid: r?.eid || "", titel, nachher: { von: platz.von, bis: platz.bis }, gruppe: gruppeNeu() });
+    const r = await nativAufruf("Kalender", "anlegen", { titel, von: platz.von, bis: platz.bis, kalender: zielKalenderId() });
+    merken({ art: "angelegt", eid: r?.eid || "", titel, nachher: { von: platz.von, bis: platz.bis }, gruppe: gruppeNeu(),
+      ...(auftrag.aufgabeId ? { aufgabeId: auftrag.aufgabeId } : {}) });
     await neuLesen();
     return `Eingetragen: „${titel}“ am ${platzText(platz)}${r?.kalender ? ` im Kalender ${r.kalender}` : ""}.${uebernommen} ${RUECKNAHME}`;
   } catch (e) {
@@ -265,6 +338,8 @@ async function eineZuruecknehmen(letzte) {
   try {
     if (letzte.art === "angelegt") {
       await nativAufruf("Kalender", "loeschen", { eid: letzte.eid, alt: letzte.nachher.von });
+    } else if (letzte.art === "geloescht") {
+      await nativAufruf("Kalender", "anlegen", { titel: letzte.titel, von: letzte.vorher.von, bis: letzte.vorher.bis, kalender: zielKalenderId() });
     } else {
       // Der Nutzer hat beim Verschieben schon ja gesagt, zurück braucht kein zweites.
       await nativAufruf("Kalender", "verschieben", {
@@ -274,6 +349,7 @@ async function eineZuruecknehmen(letzte) {
   } catch (e) {
     return `${NICHT_GESPEICHERT} Zurücknehmen ging nicht: ${e?.message || e}`;
   }
+  if (letzte.art === "geloescht") return `Zurückgenommen: „${letzte.titel}“ steht wieder am ${platzText(letzte.vorher)}.`;
   return letzte.art === "angelegt"
     ? `Zurückgenommen: „${letzte.titel}“ am ${platzText(letzte.nachher)} ist wieder aus dem Kalender.`
     : `Zurückgenommen: „${letzte.titel}“ steht wieder am ${platzText(letzte.vorher)}.`;
@@ -322,4 +398,34 @@ export async function einheitImKalenderAnpassen(alt, neu, { jetzt = Date.now() }
   }
   if (anzahl) await neuLesen();
   return { anzahl };
+}
+
+/**
+ * Eine einmalige Erinnerung zusätzlich als Termin von 15 Minuten in den
+ * Standardkalender des iPhones, also dorthin, wo auch die Trainings landen.
+ * Wer seinen Tag im Google Kalender liest, sieht sie dort, und die Mitteilung
+ * von daevo kommt trotzdem. Ohne verbundenen Kalender null, still: die
+ * Mitteilung ist das Wesentliche, der Termin eine Zugabe.
+ */
+export async function erinnerungEintragen({ text, datum, uhrzeit }) {
+  if (!kannSchreiben() || !datum || !uhrzeit) return null;
+  const von = tagBeginn(datum) + (Number(uhrzeit.slice(0, 2)) * 60 + Number(uhrzeit.slice(3, 5))) * 60000;
+  try {
+    const r = await nativAufruf("Kalender", "anlegen", {
+      titel: `Erinnerung: ${text}`, von, bis: von + 15 * 60000, notiz: "Erinnerung von daevo.", kalender: zielKalenderId(),
+    });
+    await neuLesen();
+    return { eid: r?.eid || "", von, kalender: r?.kalender || "" };
+  } catch {
+    return null;
+  }
+}
+
+/** Nimmt den Termin einer gelöschten Erinnerung wieder aus dem Kalender. */
+export async function erinnerungAustragen(kalender) {
+  if (!kalender?.eid || !istNativ()) return;
+  try {
+    await nativAufruf("Kalender", "loeschen", { eid: kalender.eid, alt: kalender.von });
+    await neuLesen();
+  } catch { /* schon weg oder kein Zugriff, die Erinnerung ist trotzdem gelöscht */ }
 }

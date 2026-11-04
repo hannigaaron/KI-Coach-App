@@ -1,5 +1,7 @@
 import Foundation
-import AVFoundation
+// AVSpeechSynthesizer ist nicht als Sendable markiert, wird hier aber nur auf
+// dem Hauptthread benutzt. Ohne preconcurrency warnt Xcode bei jedem Build.
+@preconcurrency import AVFoundation
 import Capacitor
 
 /// Sprachausgabe über AVSpeechSynthesizer statt über die Web Ansicht.

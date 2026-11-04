@@ -55,9 +55,9 @@ export function parseMealOffline(text: string): { entries: FoodEntry[]; unresolv
   const chunks = text
     .replace(/d(ö|oe)ner mit (hähnchen|haehnchen|hühnchen|huehnchen|huhn|chicken|geflügel|gefluegel|pute)/gi, "Hähnchendöner")
     .replace(/(veggie|vegetarischer|vegetarisch) d(ö|oe)ner|d(ö|oe)ner (vegetarisch|ohne fleisch)/gi, "vegetarischer Döner")
-    .split(/(?<!\d),(?!\d)| und | mit |\+|\n/i)
-    .map((c) => c.trim())
-    .filter(Boolean);
+    .split(/(?<!\d),(?!\d)| und | mit |\+|\n|\.\s+/i)
+    .map((c) => postenText(c))
+    .filter((c) => c && !istBitte(c));
 
   const treffer: { key: string; explizit: boolean; entry: FoodEntry }[] = [];
   for (const chunk of chunks) {
@@ -95,6 +95,32 @@ export function parseMealOffline(text: string): { entries: FoodEntry[]; unresolv
     entries.push(t.entry);
   }
   return { entries, unresolved };
+}
+
+// Wörter, die eine Bitte tragen und kein Lebensmittel. "Makros und
+// Nährwerte bitte" am Ende eines diktierten Satzes stand sonst als offener
+// Posten da, und die Antwort fragte nach der Menge von "Nährwerte bitte".
+const BITTE = new Set(["makros", "makro", "naehrwerte", "naehrwert", "kalorien", "kcal", "bitte", "danke", "und", "die", "mir", "gib", "sag", "zeig", "alle", "auch"]);
+
+/** Ein Teil ohne Zahl, der nur aus Wörtern einer Bitte besteht. */
+function istBitte(chunk: string): boolean {
+  const woerter = normalize(chunk).split(" ").filter(Boolean);
+  return woerter.length > 0 && !/\d/.test(chunk) && woerter.every((w) => BITTE.has(w));
+}
+
+/**
+ * Nimmt Satzanfang und Satzende weg, die zu keinem Posten gehören. Ohne das
+ * stand in der Antwort "Hab grad 400g Putengeschnetzeltes" als Name eines
+ * Postens, den die App nicht kennt.
+ */
+function postenText(chunk: string): string {
+  return chunk
+    .trim()
+    .replace(/^(ich\s+)?(hab|habe|hatte)\s+/i, "")
+    .replace(/^(grad|gerade|eben|heute|vorhin|gestern)\s+/i, "")
+    .replace(/\s+(gegessen|getrunken|gefuttert)\s*[.!]?$/i, "")
+    .replace(/[.!]+$/, "")
+    .trim();
 }
 
 /** Text, auf dem die Mengensuche läuft: gefaltet, Zahlwörter als Ziffern, Kommazahlen erhalten. */

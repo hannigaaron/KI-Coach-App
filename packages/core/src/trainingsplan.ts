@@ -86,11 +86,22 @@ export interface PlanWunsch {
  * obwohl die Datenbank sie unter Beine führt: wer Po sagt, meint Hüftstrecken
  * und nicht Beinstrecker.
  */
-export type FokusGruppe = "beine" | "po" | "brust" | "ruecken" | "schultern" | "arme" | "rumpf";
+export type FokusGruppe = "beine" | "po" | "brust" | "ruecken" | "schultern" | "arme" | "bizeps" | "trizeps" | "rumpf";
 
 export const FOKUS_NAME: Record<FokusGruppe, string> = {
-  beine: "Beine", po: "Po", brust: "Brust", ruecken: "Rücken", schultern: "Schultern", arme: "Arme", rumpf: "Core",
+  beine: "Beine", po: "Po", brust: "Brust", ruecken: "Rücken", schultern: "Schultern", arme: "Arme",
+  bizeps: "Bizeps", trizeps: "Trizeps", rumpf: "Core",
 };
+
+/**
+ * Die Partien für ein einzelnes Training. Bizeps und Trizeps getrennt: Push
+ * trifft den Trizeps, Pull den Bizeps, und "Arme" an einem Push Tag brachte
+ * einen Curl zwischen die Drückübungen.
+ */
+export const PARTIEN: FokusGruppe[] = ["beine", "po", "brust", "ruecken", "schultern", "bizeps", "trizeps", "rumpf"];
+
+/** Die Partien für den Fokus im Wochenplan. Dort bleibt Arme eine Wahl, wer Arme aufbauen will, meint beide. */
+export const FOKUS_PARTIEN: FokusGruppe[] = ["beine", "po", "brust", "ruecken", "schultern", "arme", "rumpf"];
 
 export type PlanOrt = "studio" | "zuhause" | "ohne";
 export type Beschwerde =
@@ -111,19 +122,21 @@ const BELASTET: Record<Beschwerde, (e: PlanUebung) => boolean> = {
   knie: (e) => e.pattern === "knee_dominant" || e.pattern === "unilateral_legs" || e.pattern === "plyometric",
   unterer_ruecken: (e) =>
     (e.pattern === "hip_dominant" && ["barbell", "trap_bar", "kettlebell"].includes(e.equipment))
-    || ["kniebeuge-langhantel", "frontkniebeuge", "rudern-langhantel", "t-bar-rudern", "good-morning"].includes(e.id),
+    || ["kniebeuge-langhantel", "frontkniebeuge", "kniebeuge-multipresse", "rudern-langhantel", "t-bar-rudern", "good-morning"].includes(e.id),
   schulter: (e) =>
     e.pattern === "vertical_push"
-    || ["dips", "bankdruecken", "schraegbankdruecken", "fliegende-kurzhantel", "klimmzug-breit", "seitheben"].includes(e.id),
+    || ["dips", "bankdruecken", "schraegbankdruecken", "bankdruecken-multipresse", "schraegbankdruecken-multipresse",
+      "fliegende-kurzhantel", "butterfly-schraegbank-kurzhantel", "klimmzug-breit", "seitheben"].includes(e.id),
   ellbogen: (e) =>
     e.pattern === "elbow_flexion" || e.pattern === "elbow_extension" || ["dips", "enges-bankdruecken"].includes(e.id),
   handgelenk: (e) =>
     ["liegestuetz", "dips", "bankdruecken", "schraegbankdruecken", "enges-bankdruecken", "schulterdruecken-langhantel",
-      "frontkniebeuge", "langhantel-curl", "french-press"].includes(e.id),
-  nacken: (e) => ["kurzhantel-shrug", "kniebeuge-langhantel", "schulterdruecken-langhantel", "good-morning"].includes(e.id),
+      "frontkniebeuge", "langhantel-curl", "french-press", "bankdruecken-multipresse", "schraegbankdruecken-multipresse",
+      "schulterdruecken-multipresse", "curl-kabel-stange"].includes(e.id),
+  nacken: (e) => ["kurzhantel-shrug", "kniebeuge-langhantel", "kniebeuge-multipresse", "schulterdruecken-langhantel", "good-morning"].includes(e.id),
   huefte: (e) =>
     e.pattern === "unilateral_legs" || e.pattern === "plyometric" || e.pattern === "hip_abd_add"
-    || (e.pattern === "hip_dominant" && e.equipment === "barbell"),
+    || (e.pattern === "hip_dominant" && (e.equipment === "barbell" || e.equipment === "smith_machine")),
   sprunggelenk: (e) => e.pattern === "unilateral_legs" || e.pattern === "plyometric" || e.id === "wadenheben-stehend" || e.id === "farmers-walk",
 };
 
@@ -216,6 +229,8 @@ export const FOKUS_PLAETZE: Record<FokusGruppe, Platz[]> = {
   ruecken: ["ziehen_v", "ziehen_h"],
   schultern: ["druecken_v", "seitlich", "hintere"],
   arme: ["bizeps", "trizeps"],
+  bizeps: ["bizeps"],
+  trizeps: ["trizeps"],
   rumpf: ["rumpf"],
 };
 
@@ -295,7 +310,8 @@ const EINSTEIGER_ERSATZ: Partial<Record<Platz, Platz>> = { druecken_v: "druecken
 
 /** 0 geführt, 1 eigenes Körpergewicht, 2 freie Gewichte. */
 function fuehrung(e: PlanUebung): number {
-  if (e.equipment === "machine" || e.equipment === "cable") return 0;
+  // Die Multipresse führt die Stange auf einer Schiene, gilt also als geführt.
+  if (e.equipment === "machine" || e.equipment === "cable" || e.equipment === "smith_machine") return 0;
   if (e.equipment === "bodyweight") return 1;
   return 2;
 }
@@ -321,13 +337,72 @@ const K_C: Tagesvorlage = { titel: "Ganzkörper C", fokus: KURZ_FOKUS, plaetze: 
 const K_D: Tagesvorlage = { titel: "Ganzkörper D", fokus: KURZ_FOKUS, plaetze: ["huefte", "einbein", "druecken_v", "ziehen_h", "rumpf"] };
 const K_E: Tagesvorlage = { ...K_A, titel: "Ganzkörper E" };
 
+// Ab vier Tagen gibt es keinen Ganzkörperplan mehr, auch nicht in kurzen
+// Einheiten. Viermal die Woche jede Partie heisst viermal Beine und Rücken,
+// und die zweite Hälfte der Woche trainiert auf müden Muskeln. Eine Regel von
+// Coach Aaron. Kurz bleibt dabei kurz: nur Grundübungen und Rumpf.
+const K_OBER_A: Tagesvorlage = { titel: "Oberkörper A", fokus: "Brust und Rücken", plaetze: ["druecken_h", "ziehen_h", "druecken_v", "ziehen_v", "rumpf"] };
+const K_OBER_B: Tagesvorlage = { titel: "Oberkörper B", fokus: "Rücken und Schulter", plaetze: ["ziehen_v", "druecken_h", "ziehen_h", "druecken_v", "rumpf"] };
+const K_UNTER_A: Tagesvorlage = { titel: "Unterkörper A", fokus: "Kniebeuge und Hüfte", plaetze: ["kniebeuge", "huefte", "einbein", "rumpf"] };
+const K_UNTER_B: Tagesvorlage = { titel: "Unterkörper B", fokus: "Hüfte und Einbein", plaetze: ["huefte", "kniebeuge", "einbein", "rumpf"] };
+const K_PUSH: Tagesvorlage = { titel: "Push", fokus: "Brust und Schulter", plaetze: ["druecken_h", "druecken_v", "druecken_h", "rumpf"] };
+const K_PULL: Tagesvorlage = { titel: "Pull", fokus: "Rücken", plaetze: ["ziehen_v", "ziehen_h", "ziehen_h", "rumpf"] };
+const K_BEINE: Tagesvorlage = { titel: "Beine", fokus: "Beine und Hüfte", plaetze: ["kniebeuge", "huefte", "einbein", "rumpf"] };
+const K_OBER: Tagesvorlage = { ...K_OBER_B, titel: "Oberkörper" };
+const K_UNTER: Tagesvorlage = { ...K_UNTER_B, titel: "Unterkörper" };
+
 const KURZ_VORLAGEN: Record<PlanTage, Tagesvorlage[]> = {
   1: [K_A],
   2: [K_A, K_B],
   3: [K_A, K_B, K_C],
-  4: [K_A, K_B, K_C, K_D],
-  5: [K_A, K_B, K_C, K_D, K_E],
+  4: [K_OBER_A, K_UNTER_A, K_OBER_B, K_UNTER_B],
+  5: [K_PUSH, K_PULL, K_BEINE, K_OBER, K_UNTER],
 };
+
+// Vier Tage mit angegebenen Schwachstellen: Torso, Beine und Arme, Torso,
+// und der vierte Tag gehört nur den Schwachstellen. Torso heisst Brust,
+// Rücken und Schulter ohne Arme, die Arme laufen mit den Beinen. So hat es
+// Coach Aaron festgelegt.
+const TORSO_A: Tagesvorlage = {
+  titel: "Torso A", fokus: "Brust, Rücken, Schulter",
+  plaetze: ["druecken_h", "ziehen_h", "druecken_v", "ziehen_v", "seitlich", "hintere"],
+  extra: ["brust_iso", "rumpf"],
+};
+const TORSO_B: Tagesvorlage = {
+  titel: "Torso B", fokus: "Rücken, Brust, Schulter",
+  plaetze: ["ziehen_v", "druecken_h", "ziehen_h", "druecken_v", "brust_iso", "hintere"],
+  extra: ["seitlich", "rumpf"],
+};
+const LIMBS: Tagesvorlage = {
+  titel: "Beine und Arme", fokus: "Beine, Bizeps, Trizeps",
+  plaetze: ["kniebeuge", "huefte", "einbein", "beinbeuger", "bizeps", "trizeps"],
+  extra: ["waden", "beinstrecker", "rumpf"],
+};
+const K_TORSO_A: Tagesvorlage = { titel: "Torso A", fokus: "Brust, Rücken, Schulter", plaetze: ["druecken_h", "ziehen_h", "druecken_v", "ziehen_v", "rumpf"] };
+const K_TORSO_B: Tagesvorlage = { titel: "Torso B", fokus: "Rücken, Brust, Schulter", plaetze: ["ziehen_v", "druecken_h", "ziehen_h", "druecken_v", "rumpf"] };
+// Arme sind Isolation, auch in kurzen Einheiten. Ohne sie wäre der Tag nur
+// Beine, und der Name stimmte nicht.
+const K_LIMBS: Tagesvorlage = { titel: "Beine und Arme", fokus: "Beine, Bizeps, Trizeps", plaetze: ["kniebeuge", "huefte", "einbein", "bizeps", "trizeps"] };
+
+export const SCHWACHSTELLEN_TITEL = "Schwachstellen";
+
+/**
+ * Der Tag nur für die Schwachstellen. Je Partie zuerst ihr schwerster Platz,
+ * dann reihum die nächsten, wie im Training für heute. Der Rumpf am Ende,
+ * wenn er dazugehört.
+ */
+function schwachstellenVorlage(fokus: FokusGruppe[]): Tagesvorlage {
+  const gruppen = [...new Set(fokus)].filter((g) => FOKUS_PLAETZE[g]);
+  const listen = gruppen.filter((g) => g !== "rumpf").map((g) => FOKUS_PLAETZE[g]);
+  const plaetze: Platz[] = [];
+  const extra: Platz[] = [];
+  for (const l of listen) if (l[0] && !plaetze.includes(l[0])) plaetze.push(l[0]);
+  const tiefe = Math.max(0, ...listen.map((l) => l.length));
+  for (let i = 1; i < tiefe; i++) for (const l of listen) { const p = l[i]; if (p && !plaetze.includes(p) && !extra.includes(p)) extra.push(p); }
+  for (const l of listen) for (const p of l) extra.push(p);
+  if (gruppen.includes("rumpf")) plaetze.push("rumpf");
+  return { titel: SCHWACHSTELLEN_TITEL, fokus: gruppen.map((g) => FOKUS_NAME[g]).join(", "), plaetze, extra };
+}
 
 // Pro Tag ein Hauptplatz für die Beine, ein Drücken, ein Ziehen, danach Zubehör. Mehr
 // Beinplätze ließen die Beine auf das Doppelte der Brust kommen, und der Plan wäre
@@ -522,7 +597,9 @@ function einheitBauen(vorlage: Tagesvorlage, { wunsch, erlaubt, imPlan, kurz, ei
     // der Plan den Aufbau der Woche vergisst, um eine Vorliebe zu bedienen.
     const haelfte = (p: Platz) => (OBEN.has(p) ? OBEN : UNTEN.has(p) ? UNTEN : null);
     const fokusExtra = (wunsch.fokus ?? []).flatMap((f) => FOKUS_PLAETZE[f] ?? [])
-      .filter((p) => p !== "rumpf" && !vorlage.plaetze.includes(p) && vorlage.plaetze.some((v) => haelfte(p)?.has(v)))
+      // Steht der Platz schon in den Zusatzplätzen, käme er sonst doppelt:
+      // zwei Flys oder zweimal Seitheben in einer Einheit.
+      .filter((p) => p !== "rumpf" && !vorlage.plaetze.includes(p) && !(vorlage.extra ?? []).includes(p) && vorlage.plaetze.some((v) => haelfte(p)?.has(v)))
       .filter((p, i, a) => a.indexOf(p) === i)
       .slice(0, 2);
     for (const vorlagePlatz of [...fokusExtra, ...(vorlage.extra ?? [])]) {
@@ -644,8 +721,24 @@ export function uebungsplanBauen(wunsch: PlanWunsch, uebungen: PlanUebung[]): Ue
   const kurz = wunsch.minuten <= KURZ_BIS_MIN;
   const einsteiger = wunsch.niveau === "beginner";
 
-  for (const vorlage of (kurz ? KURZ_VORLAGEN : VORLAGEN)[wunsch.tage]) {
-    einheiten.push(einheitBauen(vorlage, { wunsch, erlaubt, imPlan, kurz, einsteiger, variante }));
+  const fokus = (wunsch.fokus ?? []).filter((g) => FOKUS_PLAETZE[g]);
+  if (wunsch.tage === 4 && fokus.length) {
+    // Die drei Tage davor bleiben ohne Fokus. Die Schwachstellen haben ihren
+    // eigenen Tag, und Schulterdrücken am Beintag wäre die Folge, sie
+    // zusätzlich überall voranzustellen.
+    const ohneFokus = { ...wunsch, fokus: [] };
+    for (const vorlage of kurz ? [K_TORSO_A, K_LIMBS, K_TORSO_B] : [TORSO_A, LIMBS, TORSO_B]) {
+      einheiten.push(einheitBauen(vorlage, { wunsch: ohneFokus, erlaubt, imPlan, kurz, einsteiger, variante }));
+    }
+    // Der Schwachstellentag füllt seine Zeit wie ein langer Tag, auch bei 45
+    // Minuten: er besteht oft nur aus Isolation, und zwei Übungen Bizeps in
+    // einer Dreiviertelstunde wären zu wenig.
+    const schwach = einheitBauen(schwachstellenVorlage(fokus), { wunsch, erlaubt, imPlan, kurz: false, einsteiger, variante });
+    if (schwach.positionen.length) einheiten.push(schwach);
+  } else {
+    for (const vorlage of (kurz ? KURZ_VORLAGEN : VORLAGEN)[wunsch.tage]) {
+      einheiten.push(einheitBauen(vorlage, { wunsch, erlaubt, imPlan, kurz, einsteiger, variante }));
+    }
   }
 
   const nachId = new Map(uebungen.map((e) => [e.id, e]));
@@ -796,6 +889,12 @@ export interface EinzelWunsch {
   meiden?: string[];
   fokus?: FokusGruppe[];
   variante?: number;
+  /**
+   * Übungen vom letzten Mal, die bei "Neue Übungen" hinten anstehen. Nur
+   * die Variante zu ändern tauschte zwei von sieben, weil der Abstand zum
+   * eigenen Niveau schwerer wiegt als der Streuwert.
+   */
+  zuletzt?: string[];
 }
 
 export const EINZEL_TITEL = "Training für heute";
@@ -820,7 +919,18 @@ export function einzeltrainingBauen(w: EinzelWunsch, uebungen: PlanUebung[]): Pl
   const gruppen = [...new Set(w.gruppen)].filter((g) => FOKUS_PLAETZE[g]);
   if (!gruppen.length) return null;
   const ohneRumpf = gruppen.filter((g) => g !== "rumpf");
-  const listen = ohneRumpf.map((g) => FOKUS_PLAETZE[g]);
+  // Die hintere Schulter ist eine Zugbewegung. Mit Brust und ohne Rücken ist
+  // es ein Drücktag, dort fällt sie weg. Mit Rücken und ohne Schultern ist es
+  // ein Zugtag, dort kommt sie dazu. Eine Regel von Coach Aaron.
+  const drueckTag = gruppen.includes("brust") && !gruppen.includes("ruecken");
+  // Umgekehrt ist es ein Zugtag, wenn Rücken dabei ist und weder Brust noch
+  // Trizeps. Dann heisst Schultern nur die hintere Schulter: im Betrieb kam
+  // "Pull mit Schultern" mit Schulterdrücken zurück, und ein Drücken hat an
+  // einem Zugtag nichts verloren.
+  const zugTag = gruppen.includes("ruecken") && !gruppen.includes("brust") && !gruppen.includes("trizeps");
+  const listen = ohneRumpf.map((g) => FOKUS_PLAETZE[g].filter((p) =>
+    !(drueckTag && p === "hintere") && !(zugTag && g === "schultern" && p !== "hintere")));
+  if (gruppen.includes("ruecken") && !gruppen.includes("schultern") && !drueckTag) listen.push(["hintere"]);
   const plaetze: Platz[] = [];
   const extra: Platz[] = [];
   const nehmen = (ziel: Platz[], p: Platz | undefined) => { if (p && !plaetze.includes(p) && !extra.includes(p)) ziel.push(p); };
@@ -829,7 +939,23 @@ export function einzeltrainingBauen(w: EinzelWunsch, uebungen: PlanUebung[]): Pl
   for (let i = 1; i < tiefe; i++) for (const l of listen) nehmen(extra, l[i]);
   // Ein zweiter Durchgang mit denselben Plätzen und anderen Übungen, falls
   // noch Zeit ist. Sonst wären 30 Minuten Arme nach zwei Übungen zu Ende.
-  for (const l of listen) for (const p of l) extra.push(p);
+  // Im zweiten Durchgang nur der Hauptplatz je Partie. Zweimal Seitheben
+  // oder zwei Flys in einer Einheit sind derselbe Reiz zweimal, eine zweite
+  // Drückübung oder ein zweiter Trizeps nicht. Kleine Partien zuerst: nach
+  // zwei Drückübungen bringt ein zweiter Trizeps mehr als ein zweites
+  // Schulterdrücken. Eine Regel von Coach Aaron.
+  const einmal: ReadonlySet<Platz> = new Set<Platz>(["seitlich", "hintere", "brust_iso"]);
+  // Beim Rücken kommt im zweiten Durchgang ein Rudern und kein zweiter
+  // Klimmzug: nach Klimmzug und Rudern stand sonst ein Klimmzug eng neben
+  // dem Klimmzug im Untergriff, fast derselbe Reiz, und der Rücken bekam
+  // zwei Züge von oben und nur einen waagerecht. Eine Regel der App.
+  const zweiter = (l: Platz[]) => (l[0] === "ziehen_v" && l.includes("ziehen_h") ? "ziehen_h" : l[0]);
+  for (const l of [...listen].sort((a, b) => a.length - b.length)) if (l[0] && !einmal.has(l[0])) extra.push(zweiter(l) as Platz);
+  // Ein Armtag hat je Partie nur einen Platz. Nach zwei Durchgängen waren das
+  // vier Übungen, und 60 Minuten Arme endeten nach gut 30. Deshalb ein
+  // dritter Durchgang, wenn jede Partie nur einen Platz kennt: drei
+  // Bizepsübungen und drei Trizepsübungen, solange die Zeit reicht.
+  if (listen.length && listen.every((l) => l.length === 1)) for (const l of listen) if (l[0] && !einmal.has(l[0])) extra.push(l[0]);
   if (gruppen.includes("rumpf")) plaetze.push("rumpf");
   const wunsch: PlanWunsch = {
     tage: 1, minuten: w.minuten, niveau: w.niveau, ziel: w.ziel, ort: w.ort, beschwerden: w.beschwerden,
@@ -838,7 +964,7 @@ export function einzeltrainingBauen(w: EinzelWunsch, uebungen: PlanUebung[]): Pl
   const erlaubt = uebungen.filter((e) => RANG[e.level] <= RANG[w.niveau] && uebungErlaubt(e, wunsch));
   const vorlage: Tagesvorlage = { titel: EINZEL_TITEL, fokus: gruppen.map((g) => FOKUS_NAME[g]).join(", "), plaetze, extra };
   const einheit = einheitBauen(vorlage, {
-    wunsch, erlaubt, imPlan: new Map(), kurz: false, einsteiger: w.niveau === "beginner", variante: w.variante ?? 0,
+    wunsch, erlaubt, imPlan: new Map((w.zuletzt ?? []).map((id) => [id, 1])), kurz: false, einsteiger: w.niveau === "beginner", variante: w.variante ?? 0,
   });
   return einheit.positionen.length ? einheit : null;
 }
@@ -850,7 +976,7 @@ const MUSTER_PARTIE: Record<string, FokusGruppe> = {
   horizontal_push: "brust", incline_push: "brust", chest_isolation: "brust",
   vertical_push: "schultern", shoulder_isolation: "schultern",
   horizontal_pull: "ruecken", vertical_pull: "ruecken",
-  elbow_flexion: "arme", elbow_extension: "arme",
+  elbow_flexion: "bizeps", elbow_extension: "trizeps",
 };
 
 /**
@@ -879,5 +1005,5 @@ export function wocheTrainiert(
 
 /** Was diese Woche noch fehlt, in der festen Reihenfolge der Partien. */
 export function fehlendePartien(trainiert: Partial<Record<FokusGruppe, number>>): FokusGruppe[] {
-  return (Object.keys(FOKUS_NAME) as FokusGruppe[]).filter((g) => !trainiert[g]);
+  return PARTIEN.filter((g) => !trainiert[g]);
 }

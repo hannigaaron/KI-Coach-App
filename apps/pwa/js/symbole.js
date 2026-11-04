@@ -39,6 +39,7 @@ const PFADE = {
   wiederholen: '<path d="M4 11a8 8 0 0 1 14-4.5L20 8"/><path d="M20 4v4h-4"/><path d="M20 13a8 8 0 0 1-14 4.5L4 16"/><path d="M4 20v-4h4"/>',
   uhr: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
   haus: '<path d="M4 11l8-6.5 8 6.5"/><path d="M6 9.5V20h12V9.5"/><path d="M10 20v-5h4v5"/>',
+  zyklus: '<path d="M12 4a8 8 0 1 1-7.4 5"/><circle cx="12" cy="4" r="1.8"/>',
   kalender: '<rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17"/><path d="M8 3v4"/><path d="M16 3v4"/>',
   wechsel: '<path d="M4 7h11l-3-3"/><path d="M20 17H9l3 3"/><path d="M15 7l3 3"/><path d="M9 17l-3-3"/>',
 

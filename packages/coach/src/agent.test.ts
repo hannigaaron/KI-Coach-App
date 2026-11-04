@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Agent, aufgabeMitFrist, denktiefe, istAbsicht, listeAbhakenAus, naehrwertFrage, postenFuerListe, profilAus, runOffline, schnellweg, type AgentActions } from "./agent.js";
+import { Agent, aufgabeMitFrist, trainingHeuteAus, denktiefe, istAbsicht, listeAbhakenAus, naehrwertFrage, postenFuerListe, profilAus, runOffline, schnellweg, zyklusAus, type AgentActions } from "./agent.js";
 import type { ChatMessage, CoachProvider, ContentBlock, ConverseRequest, ConverseResponse, JsonRequest } from "./provider.js";
 import { standardAenderungAus } from "@daevo/core";
 
@@ -24,6 +24,7 @@ function stubActions(log: string[]): AgentActions {
     async einkaufslisteAbrufen() { log.push("einkauf:abrufen"); return "14 Posten, 3 davon zu Hause."; },
     async einkaufslisteAbhaken(i) { log.push(`einkauf:${i.posten}=${i.stand}`); return "Notiert."; },
     async trainingsplanAbrufen(i) { log.push(`planTag:${i.inTagen}`); return "Morgen Kraft."; },
+    async trainingHeute(i) { log.push(`heute:${i.gruppen.join("+")}:${i.minuten}${i.neu ? ":neu" : ""}`); return "Training für heute steht."; },
     async einkaufslisteErgaenzen(i) { log.push(`einkaufDazu:${i.posten.join("|")}`); return "Auf der Liste."; },
     async standardsAbrufen() { log.push("standards"); return "Protein: an 5 von 7 Tagen gehalten."; },
     async standardSetzen(i) { log.push(`standard:${i.text}`); return "Standard steht."; },
@@ -914,4 +915,159 @@ test("Regelweg Kalender: verschieben vor Planänderung und Training", async () =
   const r = await runOffline("Ich schaff's morgen doch nicht ins Training, plan mal bitte um", actions);
   assert.ok(log.some((l) => l.startsWith("kalender:verschieben:")), log.join(","));
   assert.deepEqual(r.ausgeführt, ["Kalender geändert"]);
+});
+
+test("der Essensplan im Regelweg: laut Plan und soll ich essen, nicht was ich gegessen habe", async () => {
+  for (const [satz, erwartet] of [
+    ["Was esse ich morgen laut Plan?", 1],
+    ["Was soll ich heute essen", 0],
+    ["zeig mir den Essensplan für übermorgen", 2],
+  ] as const) {
+    const log: string[] = [];
+    const a: AgentActions = { ...stubActions(log), async essensplanAbrufen(i) { log.push(`essen:${i.inTagen}`); return "Plan."; } };
+    await runOffline(satz, a);
+    assert.ok(log.includes(`essen:${erwartet}`), `${satz}: ${log.join(",")}`);
+  }
+});
+
+test("was ich heute gegessen habe, liest nicht den Essensplan", async () => {
+  const log: string[] = [];
+  const a: AgentActions = { ...stubActions(log), async essensplanAbrufen() { log.push("essen"); return "Plan."; } };
+  await runOffline("Was hab ich heute gegessen?", a);
+  assert.ok(!log.includes("essen"), log.join(","));
+});
+
+test("eine Einheit für heute wird bestellt und nicht als Training eingetragen", async () => {
+  const log: string[] = [];
+  const r = await runOffline("Ich trainiere heute Push, so 60 Minuten", stubActions(log));
+  assert.deepEqual(log, ["heute:brust+schultern+trizeps:60"]);
+  assert.ok(r.ausgeführt?.includes("Training für heute bereit"));
+});
+
+test("welche Partien ein Satz für heute meint", () => {
+  assert.deepEqual(trainingHeuteAus("stell mir ein beintraining fuer heute zusammen")?.gruppen, ["beine", "po"]);
+  assert.deepEqual(trainingHeuteAus("ich geh gleich ins gym, pull und bauch, 45 min"), { gruppen: ["ruecken", "bizeps", "rumpf"], minuten: 45 });
+  assert.deepEqual(trainingHeuteAus("heute trainiere ich arme")?.gruppen, ["bizeps", "trizeps"]);
+  assert.equal(trainingHeuteAus("heute trainiere ich push")?.minuten, undefined);
+});
+
+test("neue Übungen für heute gehen an dieselbe Einheit", async () => {
+  const log: string[] = [];
+  await runOffline("Neue Übungen für heute", stubActions(log));
+  assert.deepEqual(log, ["heute::undefined:neu"]);
+  assert.equal(trainingHeuteAus("war eben 60 min im gym, oberkoerper"), null);
+  assert.equal(trainingHeuteAus("was soll ich morgen trainieren"), null);
+});
+
+test("kurze Sätze für heute sind auch eine Bestellung, ein Essen nie", () => {
+  assert.deepEqual(trainingHeuteAus("heute pull, 45 min"), { gruppen: ["ruecken", "bizeps"], minuten: 45 });
+  assert.deepEqual(trainingHeuteAus("ich mach heute beine an der multipresse")?.gruppen, ["beine", "po"]);
+  assert.equal(trainingHeuteAus("heute 200 g haehnchenbrust gegessen"), null);
+  assert.equal(trainingHeuteAus("heute war beintag, 60 min"), null);
+});
+
+test("Tag, Uhrzeit und nur die Partie, die für diesen Tag gesagt ist", () => {
+  // Montag, 2. November 2026, abends.
+  const mo = new Date(2026, 10, 2, 22, 29);
+  assert.deepEqual(trainingHeuteAus("ich will morgen um 14 uhr pull trainieren", mo), { gruppen: ["ruecken", "bizeps"], minuten: undefined, tag: "2026-11-03", uhrzeit: "14:00" });
+  // Was gestern war, gehört nicht in die Einheit. Vorher kam Push und Pull zusammen heraus.
+  assert.deepEqual(trainingHeuteAus("gestern hab ich push gemacht, morgen um 14 uhr will ich pull", mo)?.gruppen, ["ruecken", "bizeps"]);
+  assert.equal(trainingHeuteAus("heute um 14:30 trainiere ich beine", mo)?.uhrzeit, "14:30");
+  assert.equal(trainingHeuteAus("heute um 14:30 trainiere ich beine", mo)?.tag, undefined);
+  assert.equal(trainingHeuteAus("am mittwoch will ich push trainieren", mo)?.tag, "2026-11-04");
+  assert.equal(trainingHeuteAus("guten morgen, heute trainiere ich pull", mo)?.tag, undefined);
+  assert.equal(trainingHeuteAus("was soll ich morgen trainieren", mo), null);
+});
+
+test("Übungen werden in der Datenbank gesucht, ein Ersatz nach der Bewegung", async () => {
+  const gefragt: Array<{ suche?: string; ersatzFuer?: string }> = [];
+  const a: AgentActions = { ...stubActions([]), async uebungenSuchen(e) { gefragt.push(e); return "Liste."; } };
+  await runOffline("Zeig mir Übungen an der Multipresse", a);
+  await runOffline("Welche Übung ersetzt Bankdrücken, wenn die Bank besetzt ist?", a);
+  assert.equal(gefragt[0]?.suche, "multipresse");
+  assert.equal(gefragt[1]?.ersatzFuer, "Bankdrücken");
+});
+
+test("eine Frage nach einer Mahlzeit zeigt aus dem Essensplan nur diese", async () => {
+  const plan = "Montag, 2300 von 2300 kcal.\nFrühstück: Skyr.\nMittagessen: Pizza.\nAbendessen: Lachs Bowl.";
+  const a: AgentActions = { ...stubActions([]), async essensplanAbrufen() { return plan; } };
+  const r = await runOffline("Was soll ich heute Abend essen?", a);
+  assert.equal(r.text, "Montag, 2300 von 2300 kcal.\nAbendessen: Lachs Bowl.");
+});
+
+test("was morgen ansteht, kommt aus dem Briefing für morgen", async () => {
+  let art = "";
+  const a: AgentActions = { ...stubActions([]), async briefingErstellen(e) { art = e.art; return "Morgen."; } };
+  await runOffline("Was steht morgen an?", a);
+  assert.equal(art, "abend");
+});
+
+test("ein eigenes Lebensmittel wird angelegt und nicht als Mahlzeit eingetragen", async () => {
+  let angelegt: unknown = null;
+  const a: AgentActions = { ...stubActions([]), async lebensmittelAnlegen(e) { angelegt = e; return "Angelegt."; } };
+  const r = await runOffline("Leg ein Lebensmittel an: Omas Kuchen, 350 kcal, 5 g Eiweiß, 18 g Fett, 40 g Kohlenhydrate je 100 g", a);
+  assert.deepEqual(angelegt, { name: "Omas Kuchen", kcal: 350, proteinG: 5, fatG: 18, carbsG: 40, portionG: undefined });
+  assert.deepEqual(r.ausgeführt, ["Lebensmittel angelegt"]);
+});
+
+test("Sätze zum Zyklus gehen an den Zyklus und nie an die Beschwerden oder das Essen", async () => {
+  const gefragt: Array<{ aktion: string; symptome?: string[] }> = [];
+  const a: AgentActions = { ...stubActions([]), async zyklus(e) { gefragt.push(e); return "Zyklustag 2."; } };
+  await runOffline("Meine Periode hat heute angefangen", a);
+  await runOffline("Ich hab Krämpfe wegen meiner Periode", a);
+  await runOffline("Wann kommt meine nächste Periode?", a);
+  assert.deepEqual(gefragt.map((g) => g.aktion), ["periode_beginn", "symptome", "abrufen"]);
+  assert.deepEqual(gefragt[1]?.symptome, ["kraempfe"]);
+  assert.equal(zyklusAus("ich hab kraempfe in der wade"), null);
+});
+
+const BESCHWERDE = "Bro, bitte, wenn dir selber die Abweichungen auffallen, dann bitte tu auch die Abweichungen selbst umstellen. "
+  + "Also wenn du merkst, dass du was nicht richtig eingetragen hast, dann bitte tu es auch wieder richtig korrigieren. "
+  + "Weil Schulterdrücken hat nichts an einem Pull, in einem Ziehtag verloren. Das weißt du doch, wenn es dir auffällt, "
+  + "dann bitte tust es auch selber korrigieren. Das kann doch jetzt nicht sein, dass ich das machen muss. Dafür bist du da";
+
+test("Eine Beschwerde an daevo wird ohne Modell nicht zur Aufgabe", async () => {
+  const log: string[] = [];
+  const reply = await new Agent(new DeadProvider()).respond({ nachricht: BESCHWERDE, verlauf: LEER, kontext: KONTEXT, aktionen: stubActions(log) });
+  assert.deepEqual(log, [], "nichts angelegt, nichts eingetragen");
+  assert.ok(!/Aufgaben|Fang hiermit an/.test(reply.text));
+  const offline = await runOffline(BESCHWERDE, stubActions(log));
+  assert.equal(offline.unverstanden, true);
+  assert.deepEqual(log, []);
+});
+
+test("Ein Abbruch im Netz bekommt einen zweiten Versuch, solange noch nichts passiert ist", async () => {
+  let n = 0;
+  const provider: CoachProvider = {
+    name: "wackel", available: true,
+    async generateJson<T>(): Promise<T> { throw new Error("nicht benutzt"); },
+    async converse(): Promise<ConverseResponse> {
+      n++;
+      if (n === 1) throw new TypeError("Load failed");
+      return { content: text("Hier bin ich."), stopReason: "end_turn" };
+    },
+  };
+  const log: string[] = [];
+  const reply = await new Agent(provider).respond({ nachricht: "Wie geht es weiter?", verlauf: LEER, kontext: KONTEXT, aktionen: stubActions(log) });
+  assert.equal(reply.text, "Hier bin ich.");
+  assert.equal(n, 2);
+});
+
+test("Nach einem Werkzeug gibt es keinen zweiten Versuch und keinen Regelweg obendrauf", async () => {
+  let n = 0;
+  const provider: CoachProvider = {
+    name: "halb", available: true,
+    async generateJson<T>(): Promise<T> { throw new Error("nicht benutzt"); },
+    async converse(): Promise<ConverseResponse> {
+      n++;
+      if (n === 1) return { content: toolUse("wasser_eintragen", { ml: 500 }), stopReason: "tool_use" };
+      throw new TypeError("Load failed");
+    },
+  };
+  const log: string[] = [];
+  const reply = await new Agent(provider).respond({ nachricht: "Ich habe zwei Gläser Wasser getrunken", verlauf: LEER, kontext: KONTEXT, aktionen: stubActions(log) });
+  assert.equal(n, 2);
+  assert.deepEqual(log, ["wasser:500"], "das Wasser steht genau einmal da");
+  assert.match(reply.text, /Netz/);
+  assert.match(reply.text, /schon erledigt/);
 });

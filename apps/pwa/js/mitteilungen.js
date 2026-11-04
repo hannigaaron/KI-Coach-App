@@ -13,12 +13,31 @@
  *
  * Kein `document`, kein `window`: das Modul läuft auch in den Tests.
  */
-import { LUECKE_UHRZEIT, NACHFRAGE_UHRZEIT, erinnerungAmTag, erinnerungUhrzeit, impulseFuerTag, morgenUhrzeit, nachfrageNoetig, tagesrandFuer } from "@daevo/core";
+import { LUECKE_UHRZEIT, NACHFRAGE_UHRZEIT, erinnerungAmTag, erinnerungUhrzeit, impulseFuerTag, morgenUhrzeit, nachfrageNoetig, schlafenszeitAusKalender, tagesrandFuer, wochentagVon } from "@daevo/core";
+
+/**
+ * Aufsteh und Schlafenszeit eines Tages für die Mitteilungen. Was der Nutzer
+ * in daevo eingetragen hat, gilt zuerst: die Ausnahme für genau diesen Tag,
+ * dann die Zeit je Wochentag aus dem Profil. Erst wenn dort für diesen Tag
+ * nichts steht, zählt ein Eintrag wie "SLEEP" im Kalender, und danach der
+ * Schnitt. Der Betreiber pflegt seine Zeiten je Tag in der App, und ein
+ * Kalendereintrag darf sie nicht still überschreiben.
+ */
+export function randMitKalender(profil, tag, termine = []) {
+  const rand = tagesrandFuer(profil, tag);
+  if (profil.tagesausnahmen?.[tag]?.sleepTime) return rand;
+  const wt = wochentagVon(tag);
+  if (profil.randModus === "wochentag" && wt !== null && profil.wochenraender?.[String(wt)]?.sleepTime) return rand;
+  const ausKalender = schlafenszeitAusKalender(termine, tag);
+  return ausKalender ? { ...rand, sleepTime: ausKalender } : rand;
+}
 import { lueckeAusSpeicher, trainingAutomatischErfasst } from "./luecke.js";
 
 export const MAX_GEPLANT = 60;
 
-const rang = (m) => (m.art === "eigene" ? 2 : m.art === "luecke" ? 1 : 0);
+// Eigene Erinnerungen zuerst, dann die zwei, die etwas über diesen Nutzer
+// wissen: der Blick auf morgen und die Lücke. Die Impulse sind für alle gleich.
+const rang = (m) => (m.art === "eigene" ? 3 : m.art === "vorausblick" ? 2 : m.art === "luecke" ? 1 : 0);
 const TAGE_VORAUS = 7;
 
 function tagPlus(tag, n) {
@@ -44,19 +63,20 @@ function uhrzeitAus(min) {
  * weg: eine Mitteilung von heute Morgen, die abends nachgereicht wird, ist
  * keine Erinnerung mehr, sondern Lärm.
  */
-export function mitteilungsPlan({ store, jetzt, luecke = null }) {
+export function mitteilungsPlan({ store, jetzt, luecke = null, vorausblicke = [] }) {
   const profil = store.getProfile();
   const aus = store.getSettings().mitteilungenAus || {};
   const plan = [];
 
   const eigene = store.getSettings().eigeneErinnerungen || [];
+  const termine = store.getKalender?.().termine || [];
   for (let i = 0; i < TAGE_VORAUS; i++) {
     const tag = tagPlus(jetzt.tag, i);
     for (const e of eigene) {
       if (!erinnerungAmTag(e, tag)) continue;
       // Ohne Profil gibt es keine Schlafenszeit. Eine Erinnerung, die daran
       // hängt, fällt dann aus, statt auf eine geratene Uhrzeit zu rutschen.
-      const rand = profil ? tagesrandFuer(profil, tag) : null;
+      const rand = profil ? randMitKalender(profil, tag, termine) : null;
       const uhrzeit = e.bezug ? (rand ? erinnerungUhrzeit(e, rand) : null) : e.uhrzeit;
       if (!uhrzeit) continue;
       plan.push({ id: `eigene-${e.id}-${tag}`, tag, uhrzeit, titel: "Erinnerung", text: e.text, art: "eigene" });
@@ -88,7 +108,7 @@ export function mitteilungsPlan({ store, jetzt, luecke = null }) {
     if (!aus.runterfahren && profil) {
       // Dieselbe Zeit wie im Erinnerungsplan, siehe reminders.ts: 45 Minuten
       // vor der Schlafenszeit dieses Tages, mit Wochentag und Ausnahmen.
-      const { sleepTime } = tagesrandFuer(profil, tag);
+      const { sleepTime } = randMitKalender(profil, tag, termine);
       plan.push({
         id: `runterfahren-${tag}`,
         tag,
@@ -97,6 +117,15 @@ export function mitteilungsPlan({ store, jetzt, luecke = null }) {
         text: "Handy weg. Dein Schlaf entscheidet über die Energie von morgen.",
         art: "runterfahren",
       });
+    }
+  }
+
+  // Am Abend vor einem Tag, an dem etwas vorzubereiten ist: vorkochen,
+  // Training verlegen, früh los. Der Text kommt aus `vorausblick` im Kern,
+  // gerechnet aus Kalender und Profil.
+  if (!aus.vorausblick) {
+    for (const v of vorausblicke) {
+      plan.push({ id: `voraus-${v.tag}`, tag: v.tag, uhrzeit: v.uhrzeit, titel: v.titel, text: v.text, art: "vorausblick" });
     }
   }
 
@@ -140,13 +169,13 @@ export function lueckeFuerPlan(store, heute) {
 }
 
 /** Plant alles neu bei iOS. Gibt die Zahl der geplanten Mitteilungen zurück. */
-export async function mitteilungenPlanen({ aufruf, store, jetzt }) {
+export async function mitteilungenPlanen({ aufruf, store, jetzt, vorausblicke = [] }) {
   const settings = store.getSettings();
   if (!settings.mitteilungenGefragt) {
     const { erlaubt } = await aufruf("Mitteilungen", "berechtigen");
     store.setSettings({ ...store.getSettings(), mitteilungenGefragt: true, mitteilungenErlaubt: Boolean(erlaubt) });
   }
-  const plan = mitteilungsPlan({ store, jetzt, luecke: lueckeFuerPlan(store, jetzt.tag) });
+  const plan = mitteilungsPlan({ store, jetzt, luecke: lueckeFuerPlan(store, jetzt.tag), vorausblicke });
   await aufruf("Mitteilungen", "planen", { eintraege: plan });
   return plan.length;
 }

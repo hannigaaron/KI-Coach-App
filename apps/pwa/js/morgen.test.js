@@ -106,3 +106,14 @@ test("Ohne schwachen Morgen keine Nachfrage", () => {
   assert.equal(nachfrageFaellig(store, { tag: HEUTE, uhrzeit: "13:00" }), false);
   assert.ok(!mitteilungsPlan({ store, jetzt: { tag: HEUTE, uhrzeit: "09:00" } }).some((x) => x.art === "nachfrage"));
 });
+
+test("der Morgen nennt den Zyklus nur, wenn er eingeschaltet ist, und die Anpassung nur bei Beschwerden", async () => {
+  const { zyklusZeileHtml } = await import("./morgen.js");
+  assert.equal(zyklusZeileHtml(undefined, "2026-11-02"), "");
+  assert.equal(zyklusZeileHtml({ an: false, perioden: [{ beginn: "2026-11-01" }] }, "2026-11-02"), "");
+  const ruhig = zyklusZeileHtml({ an: true, perioden: [{ beginn: "2026-11-01" }] }, "2026-11-02");
+  assert.match(ruhig, /Tag 2, Periode/);
+  assert.doesNotMatch(ruhig, /Sätze/);
+  const kraempfe = zyklusZeileHtml({ an: true, perioden: [{ beginn: "2026-11-01" }], symptome: { "2026-11-02": ["kraempfe"] } }, "2026-11-02");
+  assert.match(kraempfe, /drei Vierteln der Sätze/);
+});

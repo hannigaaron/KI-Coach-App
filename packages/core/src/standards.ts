@@ -201,7 +201,7 @@ export function standardStatus(standard: Standard, tage: StandardTag[]): Standar
       quote,
       aktuell: treffer[0] === true,
       serie,
-      satz: `${standard.text}: ${zahlenTaeglich(gehalten, moeglich, serie)}`,
+      satz: `${standard.text.replace(/[.!]\s*$/, "")}: ${zahlenTaeglich(gehalten, moeglich, serie)}`,
       zahlen: zahlenTaeglich(gehalten, moeglich, serie),
     };
   }
@@ -224,7 +224,7 @@ export function standardStatus(standard: Standard, tage: StandardTag[]): Standar
     quote: moeglich > 0 ? gehalten / moeglich : 0,
     aktuell: dieseWoche >= standard.ziel,
     serie: 0,
-    satz: `${standard.text}: ${zahlenWoechentlich(standard, dieseWoche)}`,
+    satz: `${standard.text.replace(/[.!]\s*$/, "")}: ${zahlenWoechentlich(standard, dieseWoche)}`,
     zahlen: zahlenWoechentlich(standard, dieseWoche),
   };
 }

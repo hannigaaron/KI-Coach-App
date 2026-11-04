@@ -13,7 +13,7 @@ class SpeicherAttrappe {
 globalThis.localStorage = new SpeicherAttrappe();
 
 const { store } = await import("./storage.js");
-const { kalenderTermin, kalenderAenderungen } = await import("./kalender-schreiben.js");
+const { kalenderTermin, kalenderAenderungen, kalenderWahlText, eintragErlaubt } = await import("./kalender-schreiben.js");
 
 /** Morgen, Ortszeit, um hh:mm. */
 const morgen = (hhmm, plusTage = 1) => {
@@ -150,4 +150,41 @@ test("eine geänderte Einheit im Profil nimmt die eigenen Termine mit", async ()
   assert.equal(v.daten.eid, "em");
   assert.equal(v.daten.von, di.getTime());
   assert.equal(v.daten.bis - v.daten.von, 75 * 60000);
+});
+
+test("der gewählte Kalender geht beim Eintragen mit", async () => {
+  lage([]);
+  store.setSettings({ ...store.getSettings(), zielKalender: "google-haupt" });
+  const tag = new Date(morgen("12:00")); const iso = `${tag.getFullYear()}-${String(tag.getMonth() + 1).padStart(2, "0")}-${String(tag.getDate()).padStart(2, "0")}`;
+  await kalenderTermin({ aktion: "eintragen", tag: iso, uhrzeit: "07:30", titel: "Training" });
+  assert.equal(aufrufe.find((a) => a.methode === "anlegen").daten.kalender, "google-haupt");
+});
+
+test("die Auswahl nennt Art und Kalender", () => {
+  assert.equal(kalenderWahlText({ art: "google", titel: "aaron@example.com", quelle: "Gmail" }), "Google, aaron@example.com");
+  assert.equal(kalenderWahlText({ art: "icloud", titel: "Privat", quelle: "iCloud" }), "iCloud, Privat");
+});
+
+test("in den Kalender kommt keine Aufgabenliste und nichts Ungebetenes", () => {
+  // Der Fall aus dem Betrieb: ein Block mit der Reihenfolge des Tages.
+  assert.match(eintragErlaubt("Aufgaben: Denise zuerst, dann Slide und Reel"), /Liste von Aufgaben/);
+  assert.match(eintragErlaubt("Aufgaben: Denise zuerst, dann Slide und Reel", { erbeten: true }), /Liste von Aufgaben/);
+  assert.match(eintragErlaubt("Angebot schreiben"), /nur Trainings und dringende Aufgaben/);
+  assert.equal(eintragErlaubt("Training: Pull"), null);
+  assert.equal(eintragErlaubt("Zahnarzt", { erbeten: true }), null);
+  assert.equal(eintragErlaubt("Slide fertig machen", { aufgabe: true }), null);
+});
+
+test("eigenes Training wird ohne Rückfrage gelöscht und kommt zurück, fremdes nie", async () => {
+  lage([{ uid: "t1", titel: "Training", von: morgen("20:00"), bis: morgen("22:00"), eid: "e1", daevo: true, schreibbar: true }]);
+  const text = await kalenderTermin({ aktion: "loeschen", suche: "training" });
+  assert.match(text, /^Gelöscht/);
+  assert.equal(aufrufe.filter((a) => a.methode === "loeschen").length, 1);
+  const zurueck = await kalenderTermin({ aktion: "rueckgaengig" });
+  assert.match(zurueck, /^Zurückgenommen/);
+  assert.equal(aufrufe.filter((a) => a.methode === "anlegen").at(-1).daten.von, morgen("20:00"));
+
+  lage([{ uid: "t2", titel: "Training Verein", von: morgen("20:00"), bis: morgen("22:00"), eid: "e2", daevo: false, schreibbar: true }]);
+  const fremd = await kalenderTermin({ aktion: "loeschen", suche: "training" });
+  assert.match(fremd, /^Noch nicht gespeichert\..*nicht daevo/);
 });

@@ -27,6 +27,11 @@ export interface JsonRequest {
   modell?: string;
   /** Denktiefe. Ohne Angabe medium, denn ausgeschaltet werden kann das Denken nicht mehr. */
   effort?: "low" | "medium" | "high";
+  /**
+   * Erlaubt dem Modell bis zu so viele Websuchen, bevor es antwortet. Für
+   * Nährwerte, die in keiner Datenbank stehen. Jede Suche kostet 0,01 Dollar.
+   */
+  websuche?: number;
 }
 
 /** Ein Werkzeug, das das Modell aufrufen darf. */
@@ -120,6 +125,8 @@ export interface Verbrauch {
   /** In den Zwischenspeicher geschrieben, kostet das 1,25 fache. */
   cacheWriteTokens: number;
   modell: string;
+  /** Websuchen auf dem Server von Anthropic, je 0,01 Dollar. */
+  websuchen?: number;
 }
 
 export interface ConverseRequest {

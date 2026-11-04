@@ -29,6 +29,7 @@ import { gesundheitAbholen, gesundheitAblegen, tagPruefen, werteLesen } from "./
 import { anmeldungVerknuepfen, googleCodeTauschen, idTokenPruefen, pruefungFuer, type Anbieter } from "./anmeldung.js";
 import { appleJwsAnwenden, appleMeldung, stripeEreignis, stripeSignaturPruefen } from "./abo-kauf.js";
 import { kalenderHolen } from "./kalender.js";
+import { produktSuchen } from "./produkt.js";
 import { postAblegen, postAbholen, postMitteilung } from "./postfach.js";
 import type { Env, ScheduledEvent } from "./umgebung.js";
 
@@ -206,6 +207,11 @@ export default {
         }
         await stripeEreignis(env.ABOS, JSON.parse(roh), env.STRIPE_PREISE || "");
         return antwort({ ok: true }, 200, kopf);
+      }
+
+      if (url.pathname === "/produkt" && anfrage.method === "GET") {
+        const r = await produktSuchen(url.searchParams.get("q"));
+        return new Response(r.text, { status: r.status, headers: { ...kopf, "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=3600" } });
       }
 
       if (url.pathname === "/kalender" && anfrage.method === "POST") {

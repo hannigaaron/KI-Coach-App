@@ -16,9 +16,10 @@
  * Bis `morgenStarten` fasst das Modul weder `document` noch `window` an.
  */
 import {
-  MORGEN_FRAGEN, BELASTBARKEIT_NAME, NACHFRAGE_UHRZEIT, morgenAuswerten, morgenUhrzeit, morgenVollstaendig, nachfrageAuswerten, nachfrageNoetig, tagesrandFuer,
+  MORGEN_FRAGEN, BELASTBARKEIT_NAME, PHASE_NAME, SYMPTOM_NAME, zyklusEmpfehlung, zyklusStand, NACHFRAGE_UHRZEIT, morgenAuswerten, morgenUhrzeit, morgenVollstaendig, nachfrageAuswerten, nachfrageNoetig, tagesrandFuer,
 } from "@daevo/core";
 import { newId, nowTime } from "./storage.js";
+import { bestellteEinheit } from "./vorhaben.js";
 import { spueren } from "./haptik.js";
 
 /** Bis zu dieser Uhrzeit öffnet sich der Check-in von selbst. */
@@ -42,6 +43,17 @@ export function trainingHeute(store, tag) {
   const sessions = store.getProfile()?.sessions || [];
   const plan = store.getSettings().plan;
   const kraft = sessions.filter((s) => s.type === "strength").sort((a, b) => ((a.weekday + 6) % 7) - ((b.weekday + 6) % 7));
+  // Eine Einheit, die er für diesen Tag bestellt hat, ersetzt das Krafttraining
+  // aus dem Wochenplan. Sonst sagt der Morgen "kein Training", obwohl er am
+  // Abend vorher "morgen um 14 Uhr Pull" gesagt hat.
+  const bestellt = bestellteEinheit(store.getSettings(), tag);
+  if (bestellt) {
+    const kraftHeute = sessions.find((s) => s.weekday === wochentag && s.type === "strength");
+    const andere = sessions.filter((s) => s.weekday === wochentag && s.type !== "strength")
+      .map((s) => ({ art: s.type, minuten: s.minutes, uhrzeit: s.startsAt, titel: undefined }));
+    return [{ art: "strength", minuten: bestellt.einheit.dauerMin ?? bestellt.minuten, uhrzeit: bestellt.uhrzeit ?? kraftHeute?.startsAt, titel: bestellt.einheit.fokus }, ...andere]
+      .sort((a, b) => String(a.uhrzeit ?? "99").localeCompare(String(b.uhrzeit ?? "99")));
+  }
   return sessions
     .filter((s) => s.weekday === wochentag)
     .sort((a, b) => String(a.startsAt).localeCompare(String(b.startsAt)))
@@ -152,6 +164,22 @@ export function nachfrageHtml(wert) {
       <div class="mg-enden"><span>krank</span><span>topfit</span></div></fieldset>`;
 }
 
+/**
+ * Eine Zeile zum Zyklus unter dem Ergebnis, nur wenn er eingeschaltet ist.
+ * Senken die Beschwerden die Stufe, steht die Empfehlung mit Grund da, sonst
+ * nur Tag und Phase: der Morgen hat schon gesagt, wie trainiert wird.
+ */
+export function zyklusZeileHtml(zyklus, heute) {
+  if (!zyklus?.an) return "";
+  const stand = zyklusStand(zyklus, heute);
+  if (!stand.bekannt) return "";
+  const sym = zyklus.symptome?.[heute] || [];
+  const e = zyklusEmpfehlung(stand, sym, zyklus.blutung?.[heute]);
+  const kopf = `Tag ${stand.tag}${stand.phase ? `, ${PHASE_NAME[stand.phase]}` : ""}`;
+  const unter = sym.length ? sym.map((x) => SYMPTOM_NAME[x]).join(", ") + ", aus deinem Eintrag" : "Beschwerden trägst du unter Zyklus ein";
+  return `<div class="mg-zyklus"><b>${esc(kopf)}</b><small>${esc(unter)}</small>${e.stufe !== "normal" ? `<p>${esc(e.training)}</p>` : ""}${e.essen && zyklus.blutung?.[heute] === "stark" ? `<p>${esc(e.essen)}</p>` : ""}</div>`;
+}
+
 export function ergebnisHtml(r) {
   const liste = (zeilen) => `<ul class="mg-liste">${zeilen.map((z) => `<li>${esc(z)}</li>`).join("")}</ul>`;
   return `<div class="mg-ergebnis">
@@ -168,9 +196,21 @@ export function ergebnisHtml(r) {
     </div>`;
 }
 
+/**
+ * Das Tagesbriefing unter dem Ergebnis. Der Morgen Check-in ist der Moment,
+ * in dem jemand ohnehin auf den Tag schaut, und eine zweite Mitteilung zur
+ * selben Zeit wäre Lärm. Ohne Briefing bleibt der Teil leer.
+ */
+export function briefingHtml(b) {
+  if (!b?.abschnitte?.length) return "";
+  const teile = b.abschnitte.filter((a) => a.titel !== "Deine Untergrenze");
+  return `<div class="mg-ergebnis mg-tag">${teile.map((a) => `<h3 class="mg-titel">${esc(a.titel)}</h3>`
+    + (a.zeilen.length > 1 ? `<ul class="mg-liste">${a.zeilen.map((z) => `<li>${esc(z)}</li>`).join("")}</ul>` : `<p class="mg-warum">${esc(a.zeilen[0] || "")}</p>`)).join("")}</div>`;
+}
+
 /* ---------- Oberfläche ---------- */
 
-export function morgenStarten({ store, heute, melde, gespeichert }) {
+export function morgenStarten({ store, heute, melde, gespeichert, tagesbriefing }) {
   const blatt = document.getElementById("morgenBlatt");
   const inhalt = document.getElementById("morgenInhalt");
   const knopf = document.getElementById("morgenAuswerten");
@@ -223,7 +263,7 @@ export function morgenStarten({ store, heute, melde, gespeichert }) {
     if (!r) return;
     fertig = true;
     spueren("erfolg");
-    inhalt.innerHTML = ergebnisHtml(r);
+    inhalt.innerHTML = ergebnisHtml(r) + zyklusZeileHtml(store.getSettings?.().zyklus, heute()) + briefingHtml(modus === "morgen" ? tagesbriefing?.() : null);
     inhalt.scrollTop = 0;
     knopf.textContent = "Fertig";
     knopf.disabled = false;

@@ -75,6 +75,41 @@ try {
   </div>
 </div>
 
+<!-- Die Anmeldung kommt bei neuen Nutzern vor dem Fragebogen, also bevor
+     #app sichtbar ist. Lag sie in #app, war sie offen und unsichtbar: die App
+     wartete auf einen Tipp, den niemand machen konnte, und blieb schwarz. -->
+<div id="anmeldeBlatt" class="anmelde-blatt" hidden role="dialog" aria-modal="true" aria-labelledby="anmeldeTitel">
+  <div class="anmelde-innen">
+    <img class="anmelde-marke" src="./brand/daevo-lockup-dark.svg" width="220" alt="daevo, Evolve your daily life">
+    <h2 id="anmeldeTitel">Schön, dass du da bist</h2>
+    <p class="anmelde-sub">Melde dich an, dann kommt dein Abo nach einem Handywechsel oder einer Neuinstallation zurück. Deine Daten bleiben auf deinem Gerät.</p>
+    <div class="anmelde-knoepfe">
+      <button id="btnAnmeldenApple" class="anmelde-knopf apple" type="button" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.37 12.6c-.02-2.2 1.8-3.26 1.88-3.31-1.03-1.5-2.62-1.7-3.18-1.73-1.35-.14-2.64.8-3.33.8-.69 0-1.74-.78-2.87-.76-1.47.02-2.83.86-3.59 2.18-1.53 2.66-.39 6.6 1.1 8.76.73 1.06 1.6 2.24 2.73 2.2 1.1-.04 1.51-.71 2.84-.71 1.32 0 1.7.71 2.86.69 1.18-.02 1.93-1.07 2.65-2.13.84-1.22 1.18-2.41 1.2-2.47-.03-.01-2.3-.88-2.32-3.5zM14.2 6.13c.6-.74 1.01-1.75.9-2.77-.87.04-1.93.58-2.55 1.31-.56.65-1.05 1.69-.92 2.69.97.07 1.96-.49 2.57-1.23z" fill="currentColor"/></svg>
+        Mit Apple anmelden</button>
+      <button id="btnAnmeldenGoogle" class="anmelde-knopf google" type="button" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.5 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.9a5.04 5.04 0 0 1-2.19 3.31v2.75h3.54c2.07-1.91 3.25-4.72 3.25-8.07z"/><path fill="#34A853" d="M12 23c2.96 0 5.45-.98 7.26-2.66l-3.54-2.75c-.98.66-2.24 1.05-3.72 1.05-2.86 0-5.29-1.93-6.15-4.53H2.2v2.84A10.99 10.99 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.85 14.11a6.6 6.6 0 0 1 0-4.22V7.05H2.2a11 11 0 0 0 0 9.9l3.65-2.84z"/><path fill="#EA4335" d="M12 5.36c1.61 0 3.06.55 4.2 1.64l3.14-3.14C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.2 7.05l3.65 2.84C6.71 7.29 9.14 5.36 12 5.36z"/></svg>
+        Mit Google anmelden</button>
+      <div id="googleWebKnopf" hidden></div>
+      <button id="btnAnmeldenSpaeter" class="link-knopf anmelde-spaeter" type="button">Ohne Anmeldung weiter</button>
+    </div>
+    <p class="anmelde-fein">daevo speichert dazu nur einen Prüfwert deiner Kennung, keinen Namen und keine E-Mail.
+      <button type="button" class="link-knopf" data-recht="datenschutz">Datenschutz</button></p>
+  </div>
+</div>
+
+<!-- Die Rechtstexte. Dieselben Seiten liegen öffentlich unter
+       rechtliches/, für den App Store und die Website. -->
+  <div id="rechtBlatt" class="blatt recht-blatt" hidden>
+    <div class="blatt-innen" role="dialog" aria-modal="true" aria-labelledby="rechtTitel">
+      <header class="blatt-kopf">
+        <h2 id="rechtTitel">Rechtliches</h2>
+        <button id="rechtSchliessen" class="icon-btn" aria-label="Schließen"><span class="kreuz"></span></button>
+      </header>
+      <iframe id="rechtRahmen" class="recht-rahmen" title="Rechtstext"></iframe>
+    </div>
+  </div>
+
 <main id="app" hidden>
 
   <!-- Der Assistent, der beim Oeffnen erscheint -->
@@ -86,9 +121,6 @@ try {
       <div id="assistantStatus" class="bar-status">bereit</div>
       <button id="btnGespraeche" class="icon-btn" aria-label="Gespräche">
         <span class="stapel"></span>
-      </button>
-      <button id="btnNeuesGespraech" class="icon-btn" aria-label="Neues Gespräch">
-        <span class="plus"></span>
       </button>
       <button id="btnSpeaker" class="icon-btn" aria-label="Sprachausgabe umschalten" aria-pressed="true">
         <svg class="speaker" viewBox="0 0 24 24" aria-hidden="true">
@@ -133,11 +165,18 @@ try {
       </button>
     </div>
 
+    <!-- Beim Diktieren steht hier, was verstanden wurde. Die Pille darunter
+         zeigt dann Balken statt Feld, ein Viereck zum Bearbeiten und Senden. -->
+    <p id="diktatText" class="diktat-text" aria-live="polite" hidden></p>
     <form id="composer" class="composer-bar">
       <button type="button" id="btnAnhang" class="co-btn co-plus" aria-label="Mehr: Foto, Kopf leeren, freihändig">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
       </button>
       <input id="chatInput" type="text" placeholder="Schreib oder sprich" autocomplete="off" enterkeyhint="send" aria-label="Nachricht an daevo">
+      <div id="diktatWelle" class="diktat-welle" aria-hidden="true"></div>
+      <button type="button" id="btnDiktatStopp" class="co-btn co-stopp" aria-label="Aufnahme beenden und Text bearbeiten">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="3.5" fill="currentColor"/></svg>
+      </button>
       <button type="button" id="btnMic" class="co-btn co-mic" aria-label="Diktieren" aria-pressed="false">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11.2a6.5 6.5 0 0 0 13 0M12 17.7V21"/></svg>
       </button>
@@ -462,25 +501,6 @@ try {
 
   <!-- Die Einwilligung vor der ersten Antwort mit KI, Art. 9 DSGVO. Kommt
        einmal je Fassung, nach Ja oder Nein nicht wieder. Widerruf im Profil. -->
-  <div id="anmeldeBlatt" class="anmelde-blatt" hidden role="dialog" aria-modal="true" aria-labelledby="anmeldeTitel">
-    <div class="anmelde-innen">
-      <img class="anmelde-marke" src="./brand/daevo-lockup-dark.svg" width="220" alt="daevo, Evolve your daily life">
-      <h2 id="anmeldeTitel">Schön, dass du da bist</h2>
-      <p class="anmelde-sub">Melde dich an, dann kommt dein Abo nach einem Handywechsel oder einer Neuinstallation zurück. Deine Daten bleiben auf deinem Gerät.</p>
-      <div class="anmelde-knoepfe">
-        <button id="btnAnmeldenApple" class="anmelde-knopf apple" type="button" hidden>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.37 12.6c-.02-2.2 1.8-3.26 1.88-3.31-1.03-1.5-2.62-1.7-3.18-1.73-1.35-.14-2.64.8-3.33.8-.69 0-1.74-.78-2.87-.76-1.47.02-2.83.86-3.59 2.18-1.53 2.66-.39 6.6 1.1 8.76.73 1.06 1.6 2.24 2.73 2.2 1.1-.04 1.51-.71 2.84-.71 1.32 0 1.7.71 2.86.69 1.18-.02 1.93-1.07 2.65-2.13.84-1.22 1.18-2.41 1.2-2.47-.03-.01-2.3-.88-2.32-3.5zM14.2 6.13c.6-.74 1.01-1.75.9-2.77-.87.04-1.93.58-2.55 1.31-.56.65-1.05 1.69-.92 2.69.97.07 1.96-.49 2.57-1.23z" fill="currentColor"/></svg>
-          Mit Apple anmelden</button>
-        <button id="btnAnmeldenGoogle" class="anmelde-knopf google" type="button" hidden>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.5 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.9a5.04 5.04 0 0 1-2.19 3.31v2.75h3.54c2.07-1.91 3.25-4.72 3.25-8.07z"/><path fill="#34A853" d="M12 23c2.96 0 5.45-.98 7.26-2.66l-3.54-2.75c-.98.66-2.24 1.05-3.72 1.05-2.86 0-5.29-1.93-6.15-4.53H2.2v2.84A10.99 10.99 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.85 14.11a6.6 6.6 0 0 1 0-4.22V7.05H2.2a11 11 0 0 0 0 9.9l3.65-2.84z"/><path fill="#EA4335" d="M12 5.36c1.61 0 3.06.55 4.2 1.64l3.14-3.14C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.2 7.05l3.65 2.84C6.71 7.29 9.14 5.36 12 5.36z"/></svg>
-          Mit Google anmelden</button>
-        <div id="googleWebKnopf" hidden></div>
-        <button id="btnAnmeldenSpaeter" class="link-knopf anmelde-spaeter" type="button">Ohne Anmeldung weiter</button>
-      </div>
-      <p class="anmelde-fein">daevo speichert dazu nur einen Prüfwert deiner Kennung, keinen Namen und keine E-Mail.
-        <button type="button" class="link-knopf" data-recht="datenschutz">Datenschutz</button></p>
-    </div>
-  </div>
 
   <!-- Beim ersten Start in der iPhone App, einmal. Nur ein Knopf "Weiter":
        Apple lehnt Vorabseiten ab, die vor der Frage von iOS ein eigenes Nein
@@ -512,7 +532,7 @@ try {
       </header>
       <div class="blatt-scroll ki-text">
         <p>Für freie Antworten, Fotos und deinen Tagesplan nutzt daevo ein Sprachmodell von Anthropic in den USA.</p>
-        <p>Dafür geht deine Nachricht über den Server von daevo an Anthropic, mit dem, was die Antwort braucht: etwa Auszüge aus deinem Profil, Zahlen des Tages, Notizen aus dem Gedächtnis, Gesundheitswerte und Fotos, die du schickst. Das sind auch Gesundheitsdaten.</p>
+        <p>Dafür geht deine Nachricht über den Server von daevo an Anthropic, mit dem, was die Antwort braucht: etwa Auszüge aus deinem Profil, Zahlen des Tages, Notizen aus dem Gedächtnis, Gesundheitswerte, deinen Zyklus, wenn du ihn nutzt, und Fotos, die du schickst. Das sind auch Gesundheitsdaten.</p>
         <p>Der Server von daevo speichert den Inhalt nicht. Anthropic nutzt ihn nach eigenen Angaben nicht zum Training und löscht ihn innerhalb von 30 Tagen.</p>
         <p>Ohne Zustimmung läuft alles weiter, was ohne KI geht: Essen eintragen, Pläne, Erinnerungen, Auswertungen. Du kannst das im Profil unter Datenschutz jederzeit ändern.</p>
         <p><button type="button" class="link-knopf" data-recht="datenschutz">Datenschutzerklärung lesen</button></p>
@@ -524,15 +544,17 @@ try {
     </div>
   </div>
 
-  <!-- Die Rechtstexte. Dieselben Seiten liegen öffentlich unter
-       rechtliches/, für den App Store und die Website. -->
-  <div id="rechtBlatt" class="blatt recht-blatt" hidden>
-    <div class="blatt-innen" role="dialog" aria-modal="true" aria-labelledby="rechtTitel">
+  <div id="rezeptBlatt" class="blatt" hidden>
+    <div class="blatt-innen" role="dialog" aria-modal="true" aria-labelledby="rbTitel">
       <header class="blatt-kopf">
-        <h2 id="rechtTitel">Rechtliches</h2>
-        <button id="rechtSchliessen" class="icon-btn" aria-label="Schließen"><span class="kreuz"></span></button>
+        <h2 id="rbTitel">Rezept</h2>
+        <button id="rbSchliessen" class="icon-btn" aria-label="Schließen"><span class="kreuz"></span></button>
       </header>
-      <iframe id="rechtRahmen" class="recht-rahmen" title="Rechtstext"></iframe>
+      <div class="blatt-scroll" id="rbInhalt"></div>
+      <div class="rb-knoepfe">
+        <button type="button" id="rbHeute" class="primary breit">Für heute eintragen</button>
+        <button type="button" id="rbMorgen" class="ghost breit">Für morgen eintragen</button>
+      </div>
     </div>
   </div>
 
@@ -669,6 +691,7 @@ try {
         </div>
         <div id="meReiter" class="me-reiter" role="tablist" aria-label="Bibliothek">
           <button type="button" data-reiter="zuletzt" class="an">Zuletzt</button>
+          <button type="button" data-reiter="eigene">Eigene</button>
           <button type="button" data-reiter="rezepte">Meine Rezepte</button>
           <button type="button" data-reiter="lexikon">Lexikon</button>
         </div>
@@ -677,7 +700,7 @@ try {
         <ul id="meTreffer" class="me-treffer" hidden></ul>
 
         <details class="me-hand">
-          <summary>Von Hand eintragen</summary>
+          <summary>Eigenes Lebensmittel anlegen</summary>
           <p class="feld-hilfe">Für alles, was die Datenbank nicht kennt. Die Werte stehen auf
             der Packung je 100 Gramm.</p>
           <div class="field"><label for="meHandName">Name</label>
@@ -696,6 +719,8 @@ try {
             <div class="field"><label for="meHandK">Kohlenhydrate je 100 g</label>
               <input id="meHandK" type="number" inputmode="decimal" min="0" step="0.1"></div>
           </div>
+          <label class="me-hand-merken"><input id="meHandMerken" type="checkbox" checked>
+            Als eigenes Lebensmittel speichern, dann findest du es beim nächsten Mal in der Suche</label>
           <button id="meHandAdd" class="ghost breit" type="button">Hinzufügen</button>
           <p id="meHandHinweis" class="feld-hilfe"></p>
         </details>
@@ -817,6 +842,11 @@ try {
     </div>
   </section>
 
+  <section class="view" data-view="zyklus" hidden>
+    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Zyklus</h1><div class="bar-spacer"></div></header>
+    <div class="scroll"><div id="zyklusInhalt" class="zyklus"></div></div>
+  </section>
+
   <section class="view" data-view="bereitschaft" hidden>
     <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Bereitschaft</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
@@ -840,6 +870,22 @@ try {
   <section class="view" data-view="rezepte" hidden>
     <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Rezepte</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
+      <div class="ue-modus" role="tablist" aria-label="Rezepte">
+        <button type="button" class="on" role="tab" aria-selected="true" data-rz-modus="einzeln">Einzeln</button>
+        <button type="button" class="" role="tab" aria-selected="false" data-rz-modus="woche">Wochenplan</button>
+      </div>
+      <!-- Der Essensplan über sieben Tage, gerechnet in packages/core/src/essensplan.ts. -->
+      <div id="rzWoche" hidden>
+        <p class="sub" id="epZiel"></p>
+        <div class="pills ep-tage" id="epTage" role="tablist" aria-label="Tag"></div>
+        <div id="epTag"></div>
+        <div class="ep-aktionen">
+          <button type="button" id="epEinkauf" class="primary breit">Zutaten in die Einkaufsliste</button>
+          <button type="button" id="epAnders" class="ghost breit">Anderer Plan</button>
+        </div>
+        <p class="fineprint" id="epHinweis"></p>
+      </div>
+      <div id="rzEinzeln">
       <div class="rz-rest" id="rzRest"></div>
       <div class="pills rz-arten" id="rzArten"></div>
       <p class="sub" id="rzFuerMorgen" hidden>Diese Mahlzeit ist für heute vorbei. Gerechnet wird mit deinem vollen Tagesziel, also für morgen.</p>
@@ -855,6 +901,7 @@ try {
       </div>
       <div id="rzDetail"></div>
       <p class="fineprint" id="rzHinweis"></p>
+      </div>
     </div>
   </section>
 
@@ -992,13 +1039,14 @@ try {
   <section class="view" data-view="kalender" hidden>
     <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Kalender</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
-      <p class="sub">Dein Tag mit deinen Terminen. daevo legt die Mahlzeiten in deine Lücken statt in dein Meeting.</p>
-
-      <div class="field-row">
-        <div class="field"><label for="kalTag">Tag</label><input id="kalTag" type="date"></div>
-        <div class="field"><label for="kalTage">Vorschau in Tagen</label>
-          <input id="kalTage" type="number" inputmode="numeric" min="1" max="14" value="7"></div>
+      <div class="seg" id="kalBriefingWahl" role="tablist">
+        <button class="seg-btn is-on" role="tab" aria-selected="true" data-briefing="morgen">Heute</button>
+        <button class="seg-btn" role="tab" aria-selected="false" data-briefing="abend">Morgen</button>
       </div>
+      <div class="kb" id="kalBriefing"></div>
+
+      <h2 class="abschnitt">Tag im Detail</h2>
+      <div class="field"><label for="kalTag">Tag</label><input id="kalTag" type="date"></div>
 
       <div class="card" id="kalTagKarte">
         <div class="kv"><span>Verplant</span><b id="kalBelegt">0 Minuten</b></div>
@@ -1006,17 +1054,15 @@ try {
         <div class="kv"><span>Längster freier Block</span><b id="kalFokus">keiner</b></div>
       </div>
 
-      <h2 class="abschnitt">Termine</h2>
+      <h2 class="section-title">Termine</h2>
       <ul class="list" id="kalListe"></ul>
 
-      <h2 class="abschnitt">Vorschlag für die Mahlzeiten</h2>
-      <ul class="list" id="kalEssen"></ul>
+      <h2 class="section-title">Mahlzeiten nach deinem Kalender</h2>
+      <p class="sub" id="kalEssenSub">Zeit und Grösse richten sich nach deinen Terminen und deinem Training. Tipp auf ein Gericht für die Zutaten.</p>
+      <ul class="kal-essen" id="kalEssen"></ul>
 
-      <h2 class="abschnitt">Was auffällt</h2>
+      <h2 class="section-title">Was auffällt</h2>
       <ul class="list" id="kalHinweise"></ul>
-
-      <h2 class="abschnitt">Die nächsten Tage</h2>
-      <pre class="pre" id="kalWoche"></pre>
 
       <h2 class="abschnitt">Trainingsplan aus dem Kalender</h2>
       <p class="sub" id="planVorschlagSub">Was seit mindestens drei Wochen zur selben Zeit stattfindet, ist dein Plan. Egal, was im Profil steht.</p>
@@ -1076,6 +1122,9 @@ try {
       <ul class="list" id="kalQuellen"></ul>
       <div data-nur-nativ hidden>
         <button id="btnAppleKalender" class="primary breit">Apple Kalender verbinden</button>
+        <p class="sub" id="kalKonten"></p>
+        <div class="field" id="kalZielFeld" hidden><label for="kalZiel">daevo trägt ein in</label>
+          <select id="kalZiel"></select></div>
         <p class="fineprint">Liest alle Kalender auf deinem iPhone, auch Google und Outlook, wenn sie unter
           Einstellungen, Kalender, Accounts eingetragen sind. Die Termine bleiben auf dem Gerät.</p>
       </div>
@@ -1507,7 +1556,9 @@ try {
         <p id="anmeldungStand" class="fineprint" hidden></p>
         <button id="btnAnmeldungProfil" class="ghost breit" type="button" hidden>Anmelden mit Apple oder Google</button>
         <button id="btnAboVerwalten" class="ghost breit" type="button" hidden>Abo verwalten oder kündigen</button>
-        <div class="kv"><span>Konto</span><b id="kontoId">-</b></div>
+        <p class="fineprint" style="margin:12px 0 4px">Deine Kennung, für jede Anfrage an daevo:</p>
+        <p class="konto-kennung" id="kontoId">-</p>
+        <button id="btnKontoKopieren" class="ghost breit" type="button">Kennung kopieren</button>
         <button id="btnAboZeigen" class="ghost" style="margin-top:12px">Plus und Pro ansehen</button>
         <p class="fineprint" style="margin-bottom:0">Auf dem Server liegen nur Stufe und Verbrauch, keine Gespräche und keine Zahlen über dich. Dein Konto steckt in der Sicherung: ohne Sicherung ist es beim Löschen der App weg. Alles ohne KI ist in jeder Stufe unbegrenzt.</p>
       </div>
@@ -1620,6 +1671,7 @@ try {
           <button class="menu-zeile" data-go="plaene"><span class="menu-sym" data-sym="liste"></span><span><b>Trainingspläne</b><small>Für dein Ziel und deine Zeit</small></span></button>
           <button class="menu-zeile" data-go="uebungen"><span class="menu-sym" data-sym="hantel"></span><span><b>Übungen</b><small>Foto, Muskeln, Erklärvideo</small></span></button>
           <button class="menu-zeile" data-go="bereitschaft"><span class="menu-sym" data-sym="puls"></span><span><b>Bereitschaft</b><small>Tagesform und Belastung</small></span></button>
+          <button class="menu-zeile" data-go="zyklus" id="menuZyklus" hidden><span class="menu-sym" data-sym="zyklus"></span><span><b>Zyklus</b><small>Phase, Periode und Training danach</small></span></button>
         </div>
       </section>
       <section class="menu-seite" data-seite="alltag" hidden>

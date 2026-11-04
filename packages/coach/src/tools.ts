@@ -397,13 +397,15 @@ export const AGENT_TOOLS: ToolDefinition[] = [
   {
     name: "erinnerung_anlegen",
     description:
-      "Legt eine eigene, wiederkehrende Erinnerung an, die als Mitteilung auf dem iPhone kommt. " +
-      "Nehmen, wenn der Nutzer sagt, dass er an etwas Regelmässiges erinnert werden will: Medikamente, " +
-      "Supplemente, Dehnen, Abendroutine. Entweder eine feste Uhrzeit oder ein Bezug auf den eigenen Tag: " +
-      "'eine Stunde vor dem Schlafen' ist bezug schlafen mit versatz -60, 'nach dem Aufstehen' bezug " +
-      "aufstehen mit versatz 0. Die Zeiten des Nutzers kommen dann aus seinem Profil, je Tag. " +
-      "Nicht nehmen für einmalige Dinge wie einen Termin morgen, das ist eine Aufgabe. " +
-      "Fehlt die Uhrzeit, frag danach, statt eine zu raten.",
+      "Legt eine eigene Erinnerung an, die als Mitteilung auf dem iPhone kommt. Wiederkehrend für " +
+      "Regelmässiges: Medikamente, Supplemente, Dehnen, Abendroutine. Entweder eine feste Uhrzeit oder " +
+      "ein Bezug auf den eigenen Tag: 'eine Stunde vor dem Schlafen' ist bezug schlafen mit versatz -60, " +
+      "'nach dem Aufstehen' bezug aufstehen mit versatz 0. Die Zeiten kommen dann aus dem Profil, je Tag. " +
+      "Einmalig mit datum und fester uhrzeit: 'erinnere mich heute um 22:30 an die Wäsche', 'morgen um 8 " +
+      "an den Zahnarzt', 'in 20 Minuten an den Ofen' (rechne die Uhrzeit aus der aktuellen Zeit). Eine " +
+      "einmalige steht zusätzlich als kurzer Termin im Standardkalender des iPhones, sofern verbunden. " +
+      "Fehlt die Uhrzeit, frag danach, statt eine zu raten. Sag nur 'angelegt', wenn die Antwort des " +
+      "Werkzeugs mit 'Erinnerung angelegt' beginnt.",
     input_schema: {
       type: "object",
       properties: {
@@ -413,8 +415,9 @@ export const AGENT_TOOLS: ToolDefinition[] = [
         versatz: { type: "number", description: "Minuten zum Bezug, negativ heisst davor." },
         tage: {
           type: "array", items: { type: "number" },
-          description: "Wochentage 1 Montag bis 7 Sonntag. Leer heisst täglich.",
+          description: "Wochentage 1 Montag bis 7 Sonntag. Leer heisst täglich. Bei datum leer lassen.",
         },
+        datum: { type: "string", description: "JJJJ-MM-TT, nur bei einer einmaligen Erinnerung." },
       },
       required: ["text", "tage"],
     },
@@ -427,17 +430,23 @@ export const AGENT_TOOLS: ToolDefinition[] = [
       "nicht ins Training, plan um'), wenn ein Training eingetragen werden soll, oder um eine Änderung " +
       "zurückzunehmen. Den freien Platz rechnet die App aus Kalender, Wachzeit und Luft um Termine, " +
       "nenn nie selbst eine Uhrzeit als frei. Termine, die daevo selbst eingetragen hat, verschiebt " +
-      "die App ohne Rückfrage. Fremde Termine (Kunden, Familie, Meetings) nur mit bestaetigt true. " +
+      "oder löscht die App ohne Rückfrage, frag dafür nie nach. aktion loeschen nimmt so einen Termin aus dem " +
+      "Kalender, fremde Termine löscht sie nie. Fremde Termine (Kunden, Familie, Meetings) nur mit bestaetigt true. " +
       "Bittet der Nutzer selbst darum, einen bestimmten Termin zu verschieben ('verschieb den Termin mit " +
       "Kunde Müller auf Freitag 14 Uhr'), ist das sein Ja: bestaetigt true, zielTag und zielUhrzeit setzen, " +
       "nicht nachfragen. Liegt am Ziel ein Training, verlegt die App es selbst und sagt wohin. Nachfragen " +
       "nur, wenn du von dir aus einen fremden Termin bewegen willst. Ohne Uhrzeit beim Eintragen sucht die " +
-      "App den nächsten freien Platz. Für dauerhaft andere Trainingstage gibt es trainingsplan_aendern.",
+      "App den nächsten freien Platz. Für dauerhaft andere Trainingstage gibt es trainingsplan_aendern. " +
+      "Eintragen nur für: ein Training; einen Termin, um den der Nutzer in dieser Nachricht ausdrücklich bittet " +
+      "(erbeten true), auch einen wiederkehrenden; eine einzelne dringende Aufgabe aus Todoist, heute fällig oder " +
+      "überfällig und wichtig, mit aufgabeId, wenn sie in einen freien Platz passt. Nie eine Liste von Aufgaben, nie " +
+      "einen Tagesplan, nie alles, was du empfiehlst: das steht unter Dein Tag, nicht im Kalender. Ein allgemeiner " +
+      "Wunsch wie 'trag alles ein' ist keine Bitte um einen bestimmten Eintrag.",
     input_schema: {
       type: "object",
       properties: {
         aktion: {
-          type: "string", enum: ["eintragen", "verschieben", "vorschlagen", "rueckgaengig"],
+          type: "string", enum: ["eintragen", "verschieben", "vorschlagen", "rueckgaengig", "loeschen"],
           description: "vorschlagen sucht nur einen Platz und schreibt nichts.",
         },
         suche: { type: "string", description: "Woran der bestehende Termin zu erkennen ist, etwa 'Training' oder 'Volleyball'." },
@@ -450,6 +459,14 @@ export const AGENT_TOOLS: ToolDefinition[] = [
         bestaetigt: {
           type: "boolean",
           description: "true, wenn der Nutzer diesen fremden Termin selbst verschieben lassen will oder ja gesagt hat.",
+        },
+        erbeten: {
+          type: "boolean",
+          description: "true nur, wenn der Nutzer genau diesen neuen Eintrag in seiner Nachricht verlangt hat.",
+        },
+        aufgabeId: {
+          type: "string",
+          description: "Kennung einer dringenden Aufgabe aus Todoist, die als eigener Termin in einen freien Platz soll. Titel und Dauer nimmt die App aus der Aufgabe.",
         },
       },
       required: ["aktion"],
@@ -580,6 +597,9 @@ export const AGENT_TOOLS: ToolDefinition[] = [
       + "Bei einem Markenprodukt raten heisst danebenliegen: die Werte stehen auf der Packung und sind "
       + "in der Datenbank hinterlegt, dein Gedächtnis kennt sie nicht. "
       + "Ein Barcode als Suche trifft genau, ein Name ist eine Suche und kann danebengehen. "
+      + "Findet Open Food Facts nichts, sucht das Werkzeug selbst im Netz nach der Nährwerttabelle. "
+      + "Nach Barcode oder Etikett fragst du nur, wenn das Werkzeug mit \"Noch nicht gespeichert\" antwortet. "
+      + "Die Zahlen aus dem Ergebnis gelten, auch wenn du andere im Kopf hast: stell sie nicht in Frage und lass den Nutzer nicht auf seine Packung schauen. "
       + "Für Grundnahrungsmittel wie Reis, Hähnchen oder Haferflocken nicht nötig, dafür reicht essen_erfassen.",
     input_schema: {
       type: "object",
@@ -783,12 +803,59 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: "training_heute",
+    description:
+      "Rechnet eine Einheit für heute oder einen der nächsten Tage aus Partien und Minuten, mit Erfahrung, Ort, " +
+      "Beschwerden und Fokus aus dem Trainingsplan, speichert sie und zeigt im Chat einen Knopf zum Starten. Nehmen, " +
+      "sobald der Nutzer sagt, was er trainieren will, etwa \"heute Push, 60 Minuten\", \"morgen um 14 Uhr Pull\" " +
+      "oder \"stell mir ein Beintraining zusammen\". Nur die Partien, die er für diesen Tag nennt: erwähnt er, was " +
+      "er gestern trainiert hat, gehört das nicht in die Einheit. Nennt er einen anderen Tag, tag setzen, nennt er " +
+      "eine Uhrzeit, uhrzeit setzen: dann trägt die App das Training auch in den Kalender ein. " +
+      "Übungen, Sätze und Wiederholungen nie selbst schreiben, sie kommen aus diesem Werkzeug. Push ist Brust, " +
+      "Schultern, Trizeps, Pull ist Rücken und Bizeps, Arme sind Bizeps und Trizeps. Gab es dieselben Partien schon " +
+      "einmal, nimmt das Werkzeug dieselben Übungen wie letztes Mal und empfiehlt das. neu nur, wenn der Nutzer " +
+      "ausdrücklich neue Übungen will. Eine einzelne Übung ändern: weglassen oder tauschen mit ihrem Namen, ohne " +
+      "gruppen. Das gilt auch, wenn du selbst siehst, dass eine Übung nicht passt, etwa ein Drücken an einem " +
+      "Zugtag: dann änderst du sie mit diesem Werkzeug, statt dem Nutzer zu sagen, er soll sie weglassen.",
+    input_schema: {
+      type: "object",
+      properties: {
+        gruppen: {
+          type: "array",
+          items: { type: "string", enum: ["push", "pull", "beine", "po", "brust", "ruecken", "schultern", "bizeps", "trizeps", "rumpf"] },
+          description: "Die Partien der Einheit. push und pull wie gesagt übergeben, die App löst sie auf.",
+        },
+        tag: { type: "string", description: "JJJJ-MM-TT, wenn die Einheit nicht für heute ist. Höchstens sieben Tage voraus." },
+        uhrzeit: { type: "string", description: "HH:MM, nur wenn der Nutzer eine Uhrzeit genannt hat." },
+        minuten: { type: "number", description: "Dauer in Minuten, 20 bis 120. Ohne Angabe 60." },
+        neu: { type: "boolean", description: "true, wenn der Nutzer andere Übungen als letztes Mal will. Ohne Partien gilt die Einheit von heute." },
+        weglassen: { type: "array", items: { type: "string" }, description: "Namen von Übungen, die aus der Einheit für diesen Tag fallen." },
+        tauschen: { type: "array", items: { type: "string" }, description: "Namen von Übungen, die gegen eine andere derselben Bewegung getauscht werden." },
+      },
+      required: [],
+    },
+  },
+  {
     name: "trainingsplan_abrufen",
     description:
       "Liefert das Training eines Tages: Termin aus dem Wochenplan und die Einheit aus dem gespeicherten " +
       "Trainingsplan mit Übungen, Sätzen und Wiederholungen. Nehmen bei \"was trainiere ich heute\" oder " +
       "\"welche Übungen morgen\". Übungen nie aus dem Gedächtnis nennen, sie stehen im Plan. " +
       "Je Übung steht, was heute dran ist, gerechnet aus dem Protokoll. Gewichte nur von dort nennen, nie schätzen.",
+    input_schema: {
+      type: "object",
+      properties: {
+        inTagen: { type: "number", description: "0 heute, 1 morgen, bis 6." },
+      },
+    },
+  },
+  {
+    name: "essensplan_abrufen",
+    description:
+      "Liefert den Essensplan eines Tages aus dem Wochenplan unter Rezepte: Gerichte je Mahlzeit mit Kalorien " +
+      "und Protein, die Ergänzung des Tages und welches Abendessen doppelt gekocht oder vom Vortag ist. Nehmen bei " +
+      "\"was esse ich heute laut Plan\" oder \"was koche ich morgen\". Gerichte und Mengen nie selbst erfinden, " +
+      "sie stehen im Plan und sind auf das Tagesziel gerechnet.",
     input_schema: {
       type: "object",
       properties: {
@@ -872,6 +939,61 @@ export const AGENT_TOOLS: ToolDefinition[] = [
       type: "object",
       properties: { frage: { type: "string", description: "Wonach gesucht wird." } },
       required: ["frage"],
+    },
+  },
+  {
+    name: "zyklus",
+    description:
+      "Menstruationszyklus der Nutzerin: abrufen, Beginn oder Ende der Periode eintragen, Beschwerden des Tages " +
+      "eintragen. Zyklustag, Phase, Vorhersage und die Trainingsempfehlung rechnet die App, nenn sie nur von hier. " +
+      "Nach Phase zu trainieren ist nicht belegt (McNulty 2020, Colenso-Semple 2023): passe das Training an die " +
+      "Beschwerden an, nicht an die Phase. Die Vorhersage ist keine Messung und nicht zur Verhütung geeignet.",
+    input_schema: {
+      type: "object",
+      properties: {
+        aktion: { type: "string", enum: ["abrufen", "periode_beginn", "periode_ende", "symptome"] },
+        tag: { type: "string", description: "Datum als JJJJ-MM-TT, ohne Angabe heute." },
+        symptome: {
+          type: "array",
+          items: { type: "string", enum: ["kraempfe", "muede", "kopfschmerz", "stimmung", "blaehbauch", "brust", "schlaf"] },
+        },
+      },
+      required: ["aktion"],
+    },
+  },
+  {
+    name: "lebensmittel_anlegen",
+    description:
+      "Speichert ein eigenes Lebensmittel mit Werten je 100 g, damit daevo es beim Erfassen, im Editor und beim " +
+      "Nachschlagen kennt. Nehmen, wenn der Nutzer Werte von einer Packung nennt oder ein Produkt anlegen will, das " +
+      "keine Datenbank findet, etwa nach \"Noch nicht gespeichert\" von produkt_nachschlagen. Nur Werte, die der " +
+      "Nutzer genannt hat oder die auf einem Foto des Etiketts stehen, nie geschätzte. Gleicher Name ersetzt.",
+    input_schema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Name, wie der Nutzer es nennt, etwa \"Omas Kuchen\"." },
+        kcal: { type: "number", description: "kcal je 100 g" },
+        proteinG: { type: "number", description: "Eiweiß je 100 g" },
+        fatG: { type: "number", description: "Fett je 100 g" },
+        carbsG: { type: "number", description: "Kohlenhydrate je 100 g" },
+        portionG: { type: "number", description: "Übliche Portion in Gramm, wenn genannt." },
+      },
+      required: ["name", "kcal"],
+    },
+  },
+  {
+    name: "uebungen_suchen",
+    description:
+      "Sucht in der Übungsdatenbank von daevo nach Name, Muskel, Gerät oder Suchwort, etwa \"Übungen an der " +
+      "Multipresse\", \"was gibt es für den Trizeps am Kabel\". Mit ersatzFuer kommen Übungen für dieselbe Bewegung, " +
+      "nach Ort, Niveau und Beschwerden gefiltert, etwa wenn die Bank besetzt ist. Übungen nur von hier nennen, " +
+      "nie aus dem Gedächtnis: nur was in der Datenbank steht, hat Foto, Schritte und Video in der App.",
+    input_schema: {
+      type: "object",
+      properties: {
+        suche: { type: "string", description: "Suchwörter, etwa \"Multipresse\", \"Trizeps Kabel\", \"hintere Schulter\"." },
+        ersatzFuer: { type: "string", description: "Name der Übung, für die ein Ersatz gesucht wird, etwa \"Bankdrücken\"." },
+      },
     },
   },
 ];

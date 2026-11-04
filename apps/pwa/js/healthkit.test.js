@@ -135,6 +135,43 @@ test("eigene Erinnerungen: feste Uhrzeit, vor dem Schlafen, und sie gehen beim K
   assert.equal(voll.filter((m) => m.art === "eigene").length, 42);
 });
 
+test("vor dem Schlafen folgt der Schlafenszeit des Tages, auch aus einem SLEEP Eintrag im Kalender", async () => {
+  frisch();
+  const { mitteilungsPlan } = await import("./mitteilungen.js");
+  const ms = (tag, hhmm) => new Date(`${tag}T${hhmm}:00`).getTime();
+  store.setSettings({ ...store.getSettings(), eigeneErinnerungen: [{ id: "sup", text: "Schlaf Supplements", bezug: "schlafen", versatz: -60, tage: [] }] });
+  store.setKalender({ termine: [
+    { uid: "s1", titel: "SLEEP", ort: "", von: ms(HEUTE, "23:45"), bis: ms("2026-10-20", "07:00"), ganztags: false },
+    // Nach Mitternacht gehört die Nacht noch zum Abend davor.
+    { uid: "s2", titel: "Sleep", ort: "", von: ms("2026-10-21", "00:30"), bis: ms("2026-10-21", "08:00"), ganztags: false },
+    { uid: "k1", titel: "Kunde Müller", ort: "", von: ms("2026-10-21", "20:00"), bis: ms("2026-10-21", "21:00"), ganztags: false },
+  ] });
+  // Eine Ausnahme, die für genau diesen Tag gesagt wurde, schlägt den Kalender.
+  store.setProfile({ ...store.getProfile(), tagesausnahmen: { "2026-10-22": { sleepTime: "21:30" } } });
+  const plan = mitteilungsPlan({ store, jetzt: { tag: HEUTE, uhrzeit: "06:00" } });
+  const zeit = (tag) => plan.find((m) => m.id === `eigene-sup-${tag}`)?.uhrzeit;
+  assert.equal(zeit(HEUTE), "22:45", "SLEEP um 23:45");
+  assert.equal(zeit("2026-10-20"), "23:30", "SLEEP um 00:30 in der Nacht danach");
+  assert.equal(zeit("2026-10-21"), "22:00", "ohne Eintrag die Schlafenszeit aus dem Profil");
+  assert.equal(zeit("2026-10-22"), "20:30", "die Ausnahme des Tages");
+  assert.equal(plan.find((m) => m.id === `runterfahren-${HEUTE}`).uhrzeit, "23:00", "Runterfahren 45 Minuten vor 23:45");
+});
+
+test("die Schlafenszeit je Wochentag aus daevo geht dem Kalender vor", async () => {
+  frisch();
+  const { mitteilungsPlan } = await import("./mitteilungen.js");
+  const ms = (tag, hhmm) => new Date(`${tag}T${hhmm}:00`).getTime();
+  store.setSettings({ ...store.getSettings(), eigeneErinnerungen: [{ id: "sup", text: "Schlaf Supplements", bezug: "schlafen", versatz: -60, tage: [] }] });
+  store.setKalender({ termine: [{ uid: "s1", titel: "SLEEP", ort: "", von: ms(HEUTE, "23:45"), bis: ms("2026-10-20", "07:00"), ganztags: false }] });
+  // 2026-10-19 ist ein Montag.
+  store.setProfile({ ...store.getProfile(), randModus: "wochentag", wochenraender: { "1": { sleepTime: "22:30" }, "2": { sleepTime: "00:15" } } });
+  const plan = mitteilungsPlan({ store, jetzt: { tag: HEUTE, uhrzeit: "06:00" } });
+  const zeit = (tag) => plan.find((m) => m.id === `eigene-sup-${tag}`)?.uhrzeit;
+  assert.equal(zeit(HEUTE), "21:30", "Montag laut daevo 22:30, der Kalender zählt nicht");
+  assert.equal(zeit("2026-10-20"), "23:15", "Dienstag laut daevo 00:15");
+  assert.equal(zeit("2026-10-21"), "22:00", "Mittwoch ohne Eintrag: Schnitt 23:00");
+});
+
 /* ---------- Ernährung aus Apple Health ---------- */
 
 const { ernaehrungSchreiben, nahrungZusammenlegen, NAHRUNG_GLEICH_MINUTEN } = await import("./healthkit.js");
@@ -230,4 +267,37 @@ test("Wer vor der Ernährung schon zugestimmt hat, wird für die neuen Typen noc
   await healthkitAbgleichen({ aufruf, store, heute: HEUTE });
   await healthkitAbgleichen({ aufruf, store, heute: HEUTE });
   assert.deepEqual(aufrufe, ["berechtigen", "lesen", "lesen"]);
+});
+
+test("der Blick auf morgen kommt abends und geht vor die Impulse", async () => {
+  frisch();
+  const { mitteilungsPlan, MAX_GEPLANT } = await import("./mitteilungen.js");
+  const vorausblicke = [{ tag: HEUTE, uhrzeit: "20:00", titel: "Für morgen vorkochen", text: "Koch heute eine Portion mehr." }];
+  const plan = mitteilungsPlan({ store, jetzt: { tag: HEUTE, uhrzeit: "12:00" }, vorausblicke });
+  const v = plan.find((m) => m.art === "vorausblick");
+  assert.equal(v.id, `voraus-${HEUTE}`);
+  assert.equal(v.uhrzeit, "20:00");
+  // Vorbei ist vorbei, wie bei allen anderen.
+  assert.equal(mitteilungsPlan({ store, jetzt: { tag: HEUTE, uhrzeit: "21:00" }, vorausblicke }).some((m) => m.art === "vorausblick"), false);
+  // Ausgeschaltet heisst ausgeschaltet.
+  store.setSettings({ ...store.getSettings(), mitteilungenAus: { vorausblick: true } });
+  assert.equal(mitteilungsPlan({ store, jetzt: { tag: HEUTE, uhrzeit: "12:00" }, vorausblicke }).some((m) => m.art === "vorausblick"), false);
+  assert.ok(MAX_GEPLANT >= 1);
+});
+
+test("die Periode aus Apple Health landet im Zyklus, eingeschaltet nur bei Frauen", async () => {
+  const { healthkitSchreiben } = await import("./healthkit.js");
+  const speicher = (sex, zyklus) => {
+    let settings = zyklus ? { zyklus } : {};
+    return { getSettings: () => settings, setSettings: (s) => { settings = s; }, getProfile: () => ({ sex }), getDay: () => ({}), setDay() {}, allDays: () => [] };
+  };
+  const antwort = { tage: [], periode: [{ tag: "2026-10-07", staerke: "mittel" }, { tag: "2026-10-08", staerke: "stark" }] };
+  const frau = speicher("female");
+  const r = healthkitSchreiben(antwort, { store: frau, heute: "2026-10-20" });
+  assert.equal(r.perioden, 1);
+  assert.equal(frau.getSettings().zyklus.an, true);
+  const aus = speicher("female", { an: false });
+  healthkitSchreiben(antwort, { store: aus, heute: "2026-10-20" });
+  assert.equal(aus.getSettings().zyklus.an, false);
+  assert.equal(aus.getSettings().zyklus.perioden.length, 1);
 });

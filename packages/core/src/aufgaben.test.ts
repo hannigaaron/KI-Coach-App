@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ARBEITSGRENZE_MINUTEN, planText, priorisiere, type Aufgabe } from "./aufgaben.js";
+import { ARBEITSGRENZE_MINUTEN, fristWort, planText, priorisiere, type Aufgabe } from "./aufgaben.js";
 
 const HEUTE = "2026-09-07";
 
@@ -122,4 +122,12 @@ test("eine verschobene Aufgabe steht heute nicht im Plan, auch wenn Zeit wäre",
 test("ab heute zählt wieder normal", () => {
   const plan = priorisiere({ ...BASIS, aufgaben: [a({ text: "Wieder da", ab: HEUTE })] });
   assert.deepEqual(plan.heute.map((x) => x.text), ["Wieder da"]);
+});
+
+test("Fristen stehen als Wort da und nicht als Datenbankzeile", () => {
+  assert.equal(fristWort("2026-11-03", "2026-11-03"), "fällig heute");
+  assert.equal(fristWort("2026-11-04", "2026-11-03"), "fällig morgen");
+  assert.equal(fristWort("2026-11-02", "2026-11-03"), "seit gestern überfällig");
+  assert.equal(fristWort("2026-10-30", "2026-11-03"), "überfällig seit 30. Okt.");
+  assert.equal(fristWort("2026-11-12", "2026-11-03"), "fällig 12. Nov.");
 });

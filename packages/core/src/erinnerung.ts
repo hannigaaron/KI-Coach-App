@@ -31,10 +31,37 @@ export interface EigeneErinnerung {
   versatz?: number;
   /** 1 Montag bis 7 Sonntag. Leer heisst täglich. */
   tage: number[];
+  /**
+   * JJJJ-MM-TT bei einer einmaligen Erinnerung. Dann zählen die Wochentage
+   * nicht, sie kommt genau an diesem Tag und fällt danach weg. Ohne das gab
+   * es auf "erinnere mich heute um 22:30" nur zwei Antworten: eine tägliche
+   * Erinnerung, die niemand wollte, oder eine Aufgabe ohne Mitteilung.
+   */
+  datum?: string;
+  /** Kennung und Beginn des Kalendertermins dazu, damit Löschen ihn mitnimmt. */
+  kalender?: { eid: string; von: number };
 }
 
 /** Obergrenze. iOS hält 64 Mitteilungen, und die Impulse brauchen auch Platz. */
 export const MAX_EIGENE = 6;
+
+/**
+ * Obergrenze für einmalige. Jede kostet genau eine Mitteilung, nicht sieben
+ * wie eine tägliche, deshalb zählen sie getrennt und dürfen mehr sein.
+ */
+export const MAX_EINMALIG = 12;
+
+/** Ob eine Erinnerung einmalig ist. */
+export function istEinmalig(e: Pick<EigeneErinnerung, "datum">): boolean {
+  return typeof e.datum === "string" && e.datum.length > 0;
+}
+
+/** Ob eine einmalige Erinnerung vorbei ist und weg kann. */
+export function erinnerungVorbei(e: EigeneErinnerung, jetzt: { tag: string; uhrzeit: string }): boolean {
+  if (!istEinmalig(e)) return false;
+  if ((e.datum as string) < jetzt.tag) return true;
+  return e.datum === jetzt.tag && !!e.uhrzeit && e.uhrzeit < jetzt.uhrzeit;
+}
 
 export const WOCHENTAG_KURZ = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 
@@ -46,6 +73,7 @@ export function wochentagIso(tag: string): number {
 
 /** Ob die Erinnerung an diesem Tag kommt. */
 export function erinnerungAmTag(e: EigeneErinnerung, tag: string): boolean {
+  if (istEinmalig(e)) return e.datum === tag;
   return !e.tage?.length || e.tage.includes(wochentagIso(tag));
 }
 
@@ -83,6 +111,26 @@ export function wannText(e: EigeneErinnerung): string {
   return `${dauer} ${v < 0 ? "vor" : "nach"} ${ziel}`;
 }
 
+/**
+ * "heute", "morgen", "übermorgen" oder "am 3. Nov.". Der Monat als Kürzel,
+ * wie im Bericht: 3.11. und 11.3. unterscheiden sich nur in der Reihenfolge.
+ */
+export function datumText(datum: string, heute: string): string {
+  const tage = Math.round((Date.parse(`${datum}T12:00:00Z`) - Date.parse(`${heute}T12:00:00Z`)) / 86400000);
+  if (tage === 0) return "heute";
+  if (tage === 1) return "morgen";
+  if (tage === 2) return "übermorgen";
+  const [, m, d] = datum.split("-").map(Number);
+  const monate = ["Jan.", "Feb.", "März", "Apr.", "Mai", "Juni", "Juli", "Aug.", "Sept.", "Okt.", "Nov.", "Dez."];
+  return `am ${d}. ${monate[(m ?? 1) - 1]}`;
+}
+
+/** Die Zeile unter einer Erinnerung: "täglich, 08:00" oder "heute, 22:30". */
+export function erinnerungZeile(e: EigeneErinnerung, heute: string): string {
+  if (istEinmalig(e)) return `${datumText(e.datum as string, heute)}, ${e.uhrzeit ?? ""}, einmalig`;
+  return `${tageText(e.tage)}, ${wannText(e)}`;
+}
+
 /** "täglich", "werktags", "Mo, Mi, Fr". */
 export function tageText(tage: number[]): string {
   const t = [...new Set(tage ?? [])].filter((n) => n >= 1 && n <= 7).sort((a, b) => a - b);
@@ -103,7 +151,26 @@ export function erinnerungFehler(e: Partial<EigeneErinnerung>): string | null {
   if (!Array.isArray(e.tage) || e.tage.some((n) => !Number.isInteger(n) || n < 1 || n > 7)) {
     return "Die Wochentage stimmen nicht.";
   }
+  if (e.datum !== undefined) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(e.datum)) || Number.isNaN(Date.parse(`${e.datum}T12:00:00Z`))) {
+      return "An welchem Tag?";
+    }
+    // Eine einmalige Erinnerung braucht eine Uhrzeit. "Eine Stunde vor dem
+    // Schlafen" an einem einzelnen Tag ginge, ist aber nie gefragt worden.
+    if (e.bezug) return "Für eine einmalige Erinnerung brauche ich eine Uhrzeit.";
+  }
   return null;
+}
+
+/** Heute und jetzt in Ortszeit, für den Regelweg ohne mitgegebene Zeit. */
+function jetztOrt(): { tag: string; uhrzeit: string } {
+  const d = new Date();
+  const z = (n: number) => String(n).padStart(2, "0");
+  return { tag: `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`, uhrzeit: `${z(d.getHours())}:${z(d.getMinutes())}` };
+}
+
+function tagPlus(tag: string, n: number): string {
+  return new Date(Date.parse(`${tag}T12:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
 }
 
 const TAGE_WORTE: [RegExp, number[]][] = [
@@ -125,14 +192,16 @@ const EINZELNE: [RegExp, number][] = [
  * einem Medikament ist schlimmer als eine Rückfrage. Ohne Tagesangabe gilt
  * täglich, denn so sind fast alle wiederkehrenden Erinnerungen gemeint.
  */
-export function erinnerungAus(satz: string): Omit<EigeneErinnerung, "id"> | null {
+export function erinnerungAus(satz: string, jetzt: { tag: string; uhrzeit: string } = jetztOrt()): Omit<EigeneErinnerung, "id"> | null {
   const roh = String(satz ?? "");
   const text = foldUmlauts(roh.toLowerCase());
   if (!/\berinner/.test(text)) return null;
-  // Eine einmalige Sache für heute oder morgen ist eine Aufgabe, keine
-  // wiederkehrende Erinnerung.
-  if (/\b(heute|morgen|uebermorgen|gleich|spaeter|in \d+ (minuten|stunden))\b/.test(text)
-    && !/\bjeden morgen\b/.test(text)) return null;
+  // Heute, morgen, übermorgen und "in 20 Minuten" sind einmalig. "Gleich"
+  // und "später" haben keine Uhrzeit, dort fragt der Coach nach.
+  const einmalig = /\b(heute|morgen|uebermorgen|heute abend|in \d+ (minuten|min|stunden?))\b/.test(text)
+    && !/\bjeden morgen\b/.test(text);
+  if (einmalig) return einmaligAus(roh, text, jetzt);
+  if (/\b(gleich|spaeter)\b/.test(text)) return null;
 
   const relativ = relativAus(text);
   const zeit = relativ ? null : /\bum (\d{1,2})(?:[:.](\d{2}))?(?:\s*uhr)?\b/.exec(text) ?? /\b(\d{1,2})(?:[:.](\d{2}))?\s*uhr\b/.exec(text);
@@ -171,10 +240,53 @@ export function erinnerungAus(satz: string): Omit<EigeneErinnerung, "id"> | null
   return { text: was.slice(0, 120), uhrzeit, tage };
 }
 
+/**
+ * Eine einmalige Erinnerung aus einem Satz. Nur mit echter Uhrzeit oder
+ * "in 20 Minuten", sonst null und der Coach fragt. Liegt die Uhrzeit heute
+ * schon hinter uns, gibt es ebenfalls nichts: still auf morgen zu schieben
+ * wäre geraten.
+ */
+function einmaligAus(roh: string, text: string, jetzt: { tag: string; uhrzeit: string }): Omit<EigeneErinnerung, "id"> | null {
+  let datum: string;
+  let uhrzeit: string;
+  const inZeit = /\bin (\d+) (minuten|min|stunden?)\b/.exec(text);
+  if (inZeit) {
+    const minuten = Number(inZeit[1]) * (/^st/.test(inZeit[2] ?? "") ? 60 : 1);
+    if (minuten < 1 || minuten > 24 * 60) return null;
+    const [h = 0, m = 0] = jetzt.uhrzeit.split(":").map(Number);
+    const ziel = h * 60 + m + minuten;
+    datum = tagPlus(jetzt.tag, Math.floor(ziel / 1440));
+    uhrzeit = hhmm(ziel);
+  } else {
+    const zeit = /\bum (\d{1,2})(?:[:.](\d{2}))?(?:\s*uhr)?\b/.exec(text) ?? /\b(\d{1,2})(?:[:.](\d{2}))?\s*uhr\b/.exec(text);
+    if (!zeit) return null;
+    let stunde = Number(zeit[1]);
+    const minute = Number(zeit[2] ?? 0);
+    if (stunde > 23 || minute > 59) return null;
+    if (stunde < 12 && /\b(abends|am abend|heute abend|nachmittags)\b/.test(text)) stunde += 12;
+    uhrzeit = `${String(stunde).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+    const versatz = /\buebermorgen\b/.test(text) ? 2 : /\bmorgen\b/.test(text) ? 1 : 0;
+    datum = tagPlus(jetzt.tag, versatz);
+    if (versatz === 0 && uhrzeit <= jetzt.uhrzeit) return null;
+  }
+  const inhalt = /\b(?:daran,?|an|dass ich|dass)\s+(.+)$/i.exec(roh.replace(/[.!?]+\s*$/, ""));
+  let was = (inhalt?.[1] ?? "")
+    .replace(/\b(heute abend|heute|übermorgen|morgen|abends|morgens|nachmittags|am abend)\b/gi, "")
+    .replace(/\bin \d+ (minuten|min|stunden?)\b/gi, "")
+    .replace(/\bum \d{1,2}([:.]\d{2})?(\s*uhr)?\b/gi, "")
+    .replace(/\b\d{1,2}([:.]\d{2})?\s*uhr\b/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim()
+    .replace(/^[,\s]+|[,\s]+$/g, "");
+  if (was.length < 2) return null;
+  was = was.charAt(0).toUpperCase() + was.slice(1);
+  return { text: was.slice(0, 120), uhrzeit, tage: [], datum };
+}
+
 const ZAHLWORTE: Record<string, number> = { eine: 1, einer: 1, ein: 1, zwei: 2, drei: 3, halbe: 0.5 };
 
 /** Der Teil "eine Stunde vor dem Schlafengehen" im Original, zum Herausschneiden. */
-const RELATIV_ROH = /,?\s*((eine?r?|zwei|drei|eine halbe|\d{1,3})\s+(stunden?|std|minuten|min)\s+)?(vor|nach)\s+(dem\s+)?(schlafen(gehen)?|zubettgehen|insbettgehen|ins bett gehen|aufstehen|aufwachen)\b/gi;
+const RELATIV_ROH = /,?\s*((eine?r?|zwei|drei|eine halbe|\d{1,3})\s+(stunden?|std|minuten|min)\s+)?((vor|nach)\s+(dem\s+|der\s+|meiner\s+)?(schlafen(gehen)?|schlafenszeit|zubettgehen|insbettgehen|ins bett gehen|bett|aufstehen|aufwachen)|bevor ich (schlafen|ins bett) gehe)\b/gi;
 
 /**
  * "eine Stunde vor dem Schlafengehen", "30 Minuten nach dem Aufstehen",
@@ -182,7 +294,9 @@ const RELATIV_ROH = /,?\s*((eine?r?|zwei|drei|eine halbe|\d{1,3})\s+(stunden?|st
  * Schlafen" heisst dann zur Schlafenszeit, nicht eine geratene halbe Stunde.
  */
 function relativAus(text: string): { bezug: "schlafen" | "aufstehen"; versatz: number } | null {
-  const m = /\b(?:((?:eine halbe)|eine?r?|zwei|drei|\d{1,3})\s+(stunden?|std|minuten|min)\s+)?(vor|nach)\s+(?:dem\s+)?(schlafen(?:gehen)?|zubettgehen|insbettgehen|ins bett gehen|aufstehen|aufwachen)\b/.exec(text);
+  // "bevor ich schlafen gehe" heisst dasselbe wie "vor dem Schlafen".
+  const t = text.replace(/\bbevor ich (schlafen|ins bett) gehe\b/g, "vor dem schlafen");
+  const m = /\b(?:((?:eine halbe)|eine?r?|zwei|drei|\d{1,3})\s+(stunden?|std|minuten|min)\s+)?(vor|nach)\s+(?:dem\s+|der\s+|meiner\s+)?(schlafen(?:gehen)?|schlafenszeit|zubettgehen|insbettgehen|ins bett gehen|bett|aufstehen|aufwachen)\b/.exec(t);
   if (!m) return null;
   const bezug = /aufsteh|aufwach/.test(m[4] ?? "") ? "aufstehen" : "schlafen";
   let minuten = 0;
