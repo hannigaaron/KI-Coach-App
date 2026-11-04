@@ -174,3 +174,17 @@ test("in den Kalender kommt keine Aufgabenliste und nichts Ungebetenes", () => {
   assert.equal(eintragErlaubt("Zahnarzt", { erbeten: true }), null);
   assert.equal(eintragErlaubt("Slide fertig machen", { aufgabe: true }), null);
 });
+
+test("eigenes Training wird ohne Rückfrage gelöscht und kommt zurück, fremdes nie", async () => {
+  lage([{ uid: "t1", titel: "Training", von: morgen("20:00"), bis: morgen("22:00"), eid: "e1", daevo: true, schreibbar: true }]);
+  const text = await kalenderTermin({ aktion: "loeschen", suche: "training" });
+  assert.match(text, /^Gelöscht/);
+  assert.equal(aufrufe.filter((a) => a.methode === "loeschen").length, 1);
+  const zurueck = await kalenderTermin({ aktion: "rueckgaengig" });
+  assert.match(zurueck, /^Zurückgenommen/);
+  assert.equal(aufrufe.filter((a) => a.methode === "anlegen").at(-1).daten.von, morgen("20:00"));
+
+  lage([{ uid: "t2", titel: "Training Verein", von: morgen("20:00"), bis: morgen("22:00"), eid: "e2", daevo: false, schreibbar: true }]);
+  const fremd = await kalenderTermin({ aktion: "loeschen", suche: "training" });
+  assert.match(fremd, /^Noch nicht gespeichert\..*nicht daevo/);
+});

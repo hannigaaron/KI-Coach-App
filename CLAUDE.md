@@ -514,7 +514,8 @@ Cond Res 2022: Abwechslung bringt für den Muskelaufbau nicht mehr. Bei
 gleicher Dauer, bis 10 Minuten Abstand, kommt genau die Einheit von damals,
 sonst wird mit Variante und Tauschen von damals neu gerechnet, in der
 Reihenfolge der Partien von damals. Ein Tausch im Trainingsmodus gilt über
-`heuteGetauscht` auch beim nächsten Mal. Unter der Antwort steht neben
+`heuteGetauscht` auch beim nächsten Mal, eine dort verschobene Reihenfolge
+über `heuteVerschoben`. Unter der Antwort steht neben
 "Training starten" der Knopf "Neue Übungen". Er schickt den Satz an den
 Coach, und die Übungen vom letzten Mal stehen dann hinten an, `zuletzt` im
 `EinzelWunsch`: nur die Variante zu erhöhen tauschte zwei von sieben.
@@ -681,7 +682,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1347 Tests
+npm test           # 1351 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -751,7 +752,13 @@ Modell, das eine Uhrzeit nennt, kennt den Kalender nicht genau genug und
 legt das Training auf einen Kundentermin.
 
 Was daevo eingetragen hat, trägt `daevo://termin` als URL und wird ohne
-Rückfrage verschoben. Fremde Termine nur mit `bestaetigt`, und gelöscht
+Rückfrage verschoben oder gelöscht, `aktion: "loeschen"` an
+`kalender_termin`, `terminLoeschen` in `kalender-schreiben.js`. Im Betrieb
+fragte der Coach bei seinem eigenen Training nach, ob er es wirklich
+löschen soll, und das ist eine Aufgabe mehr für den Nutzer. Der Regelweg
+erkennt "lösch das Training am Dienstag aus dem Kalender" nur mit Kalender
+oder Termin im Satz, sonst wäre "lösch das Training von gestern" ein
+Termin statt eines Eintrags. Rückgängig legt den Termin neu an. Fremde Termine nur mit `bestaetigt`, und gelöscht
 wird nur Eigenes. Die Bitte des Nutzers ist das Ja: "verschieb den Termin
 mit Kunde Müller auf Freitag 14 Uhr" setzt `bestaetigt`, `zielTag` und
 `zielUhrzeit`, auch im Regelpfad, und daevo fragt nicht nach. Gefragt wird
@@ -2065,6 +2072,9 @@ ganze Aufgabenliste darunter. Drei Riegel dagegen, in `agent.ts`:
   Anreden in zwölf Wörtern oder Wendungen wie "dafür bist du da". Daraus
   legt der Regelweg nie etwas an. Nach einem Modellfehler macht die Länge
   einer Nachricht kein Kopf leeren mehr.
+
+Die Aufgaben, die vorher so entstanden, räumt `aufgabenAufraeumen` einmal
+weg: ein Satzteil, der mit "dass" beginnt, ist nie eine Aufgabe.
 
 Fristen stehen als Wort, `fristWort` im Kern: "fällig heute", "seit
 gestern überfällig", "fällig 12. Nov.", nie "fällig 2026-11-03". Sternchen

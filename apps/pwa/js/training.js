@@ -409,7 +409,7 @@ export function gewichtWeitergeben(entwurf, ui, si) {
  * `entwurfSpeicher` die laufende Einheit. `fertig` bekommt Titel und Minuten,
  * damit die App das Training in den Tag schreibt.
  */
-export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfSpeicher, heute, oeffne, melde, fertig, geaendert, getauscht }) {
+export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfSpeicher, heute, oeffne, melde, fertig, geaendert, getauscht, verschoben }) {
   const blatt = document.getElementById("trainingBlatt");
   const inhalt = document.getElementById("trainingInhalt");
   const fuss = document.getElementById("trainingFuss");
@@ -597,6 +597,7 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
     const r = uebungVerschieben(entwurf, planSpeicher.lesen(), von, nach);
     entwurf = r.entwurf;
     if (!entwurf.frei && r.plan) { planSpeicher.schreiben(r.plan); geaendert?.(); }
+    if (entwurf.frei) verschoben?.(entwurf.titel, entwurf.uebungen.map((u) => u.id));
     spueren("leicht");
     merken();
     zeichnen();

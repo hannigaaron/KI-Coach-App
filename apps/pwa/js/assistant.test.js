@@ -35,7 +35,7 @@ class SpeicherAttrappe {
 globalThis.localStorage = new SpeicherAttrappe();
 
 const { store, todayIso } = await import("./storage.js");
-const { buildActions, heuteGetauscht, kalenderNotizAufraeumen, erinnerungenAufgeraeumt, dayNumbers, kalenderStandText, koerperText, plausibelHinweis, trifftPosten, nachtragZeit } = await import("./assistant.js");
+const { buildActions, heuteGetauscht, heuteVerschoben, aufgabenAufraeumen, kalenderNotizAufraeumen, erinnerungenAufgeraeumt, dayNumbers, kalenderStandText, koerperText, plausibelHinweis, trifftPosten, nachtragZeit } = await import("./assistant.js");
 
 const PROFIL = {
   name: "Aaron", sex: "male", ageYears: 23, heightCm: 184, weightKg: 87,
@@ -753,6 +753,21 @@ test("Training für heute: dieselben Partien bringen dieselben Übungen samt Tau
   store.setSettings(s0);
 });
 
+test("Training für heute: eine verschobene Reihenfolge kommt beim nächsten Mal wieder", async () => {
+  const a = buildActions({});
+  const s0 = store.getSettings();
+  store.setSettings({ ...s0, heuteTraining: undefined, heuteVerlauf: [] });
+  await a.trainingHeute({ gruppen: ["ruecken", "bizeps"], minuten: 60 });
+  const erst = store.getSettings().heuteTraining.einheit.positionen.map((p) => p.id);
+  const umgestellt = [erst.at(-1), ...erst.slice(0, -1)];
+  heuteVerschoben(umgestellt);
+  const s = store.getSettings();
+  store.setSettings({ ...s, heuteTraining: undefined, heuteVerlauf: [{ ...s.heuteVerlauf[0], tag: "2000-01-01" }] });
+  await a.trainingHeute({ gruppen: ["ruecken", "bizeps"], minuten: 60 });
+  assert.deepEqual(store.getSettings().heuteTraining.einheit.positionen.map((p) => p.id), umgestellt);
+  store.setSettings(s0);
+});
+
 test("Pull für morgen um 14 Uhr überschreibt heute nicht und steht morgen bereit", async () => {
   const heute = frischerTag();
   const a = buildActions({});
@@ -892,4 +907,19 @@ test("Der Coach streicht und tauscht einzelne Übungen selbst, und es gilt beim 
   const wieder = store.getSettings().heuteTraining.einheit.positionen.map((p) => p.id);
   assert.deepEqual(wieder, nachher.map((p) => p.id));
   store.setSettings(s0);
+});
+
+test("aufgabenAufraeumen nimmt Satzreste wie „dass ich das machen muss“ einmal weg", () => {
+  const s0 = store.getSettings();
+  store.setSettings({ ...s0, aufgabenGeprueft: false });
+  const jetzt = new Date().toISOString();
+  store.setAufgaben([
+    { id: "a", text: "dass ich das machen muss", minuten: 30, wichtigkeit: 2, erledigt: false, erstellt: jetzt },
+    { id: "b", text: "Angebot schreiben", minuten: 30, wichtigkeit: 2, erledigt: false, erstellt: jetzt },
+    { id: "c", text: "Dass Formular", minuten: 30, wichtigkeit: 2, erledigt: false, erstellt: jetzt, quelle: "todoist" },
+  ]);
+  assert.equal(aufgabenAufraeumen(), 1);
+  assert.deepEqual(store.getAufgaben().map((a) => a.id), ["b", "c"]);
+  assert.equal(aufgabenAufraeumen(), 0);
+  store.setSettings({ ...store.getSettings(), aufgabenGeprueft: s0.aufgabenGeprueft });
 });

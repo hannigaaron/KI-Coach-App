@@ -850,6 +850,23 @@ export function kalenderNotizAufraeumen() {
   return alle.length - bleiben.length;
 }
 
+/**
+ * Räumt einmal die Aufgaben weg, die der Regelweg aus einer Beschwerde an
+ * daevo gemacht hatte, etwa "dass ich das machen muss". Ein Satzteil, der
+ * mit "dass" beginnt, ist nie eine Aufgabe, sondern der Rest eines Satzes.
+ * Seit `anDaevo` entstehen solche nicht mehr. Todoist bleibt unberührt.
+ */
+export function aufgabenAufraeumen() {
+  const s = store.getSettings();
+  if (s.aufgabenGeprueft) return 0;
+  const alle = store.getAufgaben();
+  const falsch = (a) => !a.erledigt && a.quelle !== "todoist" && /^dass\b/.test(foldUmlauts(String(a.text || "").trim().toLowerCase()));
+  const bleiben = alle.filter((a) => !falsch(a));
+  if (bleiben.length !== alle.length) store.setAufgaben(bleiben);
+  store.setSettings({ ...store.getSettings(), aufgabenGeprueft: true });
+  return alle.length - bleiben.length;
+}
+
 export function ensureStandards() {
   const vorhanden = store.getStandards();
   if (vorhanden.length > 0) return vorhanden;
@@ -4234,6 +4251,24 @@ export function heuteGetauscht(altId, neueId) {
   const ersetzt = { ...(ht.ersetzt ?? {}), [ursprung]: neueId };
   const einheit = { ...ht.einheit, positionen: ht.einheit.positionen.map((p) => (p.id === altId ? { ...p, id: u.id, name: u.name } : p)) };
   const neu = { ...ht, ersetzt, einheit, geplant: undefined };
+  const verlauf = (Array.isArray(s.heuteVerlauf) ? s.heuteVerlauf : []).map((v) => (v.tag === ht.tag && v.schluessel === ht.schluessel ? neu : v));
+  store.setSettings({ ...s, heuteTraining: neu, heuteVerlauf: verlauf });
+}
+
+/**
+ * Eine im Trainingsmodus verschobene Reihenfolge gilt auch beim nächsten Mal
+ * mit denselben Partien. Wer Bizeps vor Rücken trainieren will, will das
+ * nicht jede Woche neu ziehen. Übungen, die nicht in der Liste stehen,
+ * bleiben hinten in ihrer alten Folge.
+ */
+export function heuteVerschoben(ids) {
+  const s = store.getSettings();
+  const ht = bestellteEinheit(s, todayIso());
+  if (!ht?.einheit || !Array.isArray(ids)) return;
+  const rang = (p) => { const i = ids.indexOf(p.id); return i < 0 ? ids.length : i; };
+  const positionen = ht.einheit.positionen.map((p, i) => ({ p, i }))
+    .sort((a, b) => rang(a.p) - rang(b.p) || a.i - b.i).map((x) => x.p);
+  const neu = { ...ht, einheit: { ...ht.einheit, positionen }, geplant: undefined };
   const verlauf = (Array.isArray(s.heuteVerlauf) ? s.heuteVerlauf : []).map((v) => (v.tag === ht.tag && v.schluessel === ht.schluessel ? neu : v));
   store.setSettings({ ...s, heuteTraining: neu, heuteVerlauf: verlauf });
 }

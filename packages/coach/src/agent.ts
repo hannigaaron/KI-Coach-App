@@ -1239,6 +1239,9 @@ function ruecknahmeAus(text: string): { art?: string; suche?: string } | null {
     // deshalb reicht eine feste Wortfolge nicht.
     || (pattern("nimm", "nehme").test(text) && pattern("raus", "weg").test(text));
   if (!ruecknahme) return null;
+  // Ein Termin im Kalender ist kein Eintrag im Tag, dafür gibt es
+  // kalender_termin mit aktion loeschen.
+  if (pattern("kalender", "termin").test(text)) return null;
 
   // Ohne Gegenstand nichts tun. "Das stimmt nicht" ueber eine Aussage des
   // Coaches darf keinen Eintrag entfernen.

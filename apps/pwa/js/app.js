@@ -33,7 +33,7 @@ import { healthDateiLesen, healthSchreiben, kurzbefehlSchreiben, schreibBericht 
 import {
   ablaufFuer, ask, aufgabeAnlegenEingestuft, aufgabeLoeschen, aufgabeUmstufen, aufgabeVerschieben, aufgabenPlan,
   balanceFuer, balanceRat, briefing,
-  buildActions, begruessung, dayNumbers, einkaufslisteText, ensureStandards, kalenderNotizAufraeumen, herausforderungSpeichern,
+  buildActions, begruessung, dayNumbers, einkaufslisteText, ensureStandards, kalenderNotizAufraeumen, aufgabenAufraeumen, herausforderungSpeichern,
   aktuelleLage, frischesGespraech, gegesseneArten, gespraechBegonnen, gespraecheMitInhalt, gespraechLoeschen, gespraechNachziehen,
   gespraechOeffnen, gespraecheSuchen,
   aufgabenPlanText, energieCheck, kopfSortieren, mittagscheck, mittagscheckText, musterUebersicht,
@@ -44,7 +44,7 @@ import {
   berichtFuer,
   berichtZeitraeume,
   aufgabeErledigen, aufgabeWiederOeffnen, todoistAktualisieren, todoistVerbunden,
-  erinnerungenAufgeraeumt, heuteGetauscht,
+  erinnerungenAufgeraeumt, heuteGetauscht, heuteVerschoben,
   vorausblickePlan,
   vorausblickFuer,
   offOptionen, uhrKiZugang,
@@ -2770,6 +2770,7 @@ function startApp() {
   renderFeelings();
   ensureStandards();
   kalenderNotizAufraeumen();
+  aufgabenAufraeumen();
   setupAssistant();
   showView("assistant");
   refreshAll();
@@ -2965,6 +2966,7 @@ const training = trainingStarten({
   geaendert: () => plaene.laden(),
   // Getauscht im Training für heute gilt auch beim nächsten Mal mit denselben Partien.
   getauscht: (titel, altId, neueId) => { if (titel === "Training für heute") heuteGetauscht(altId, neueId); },
+  verschoben: (titel, ids) => { if (titel === "Training für heute") heuteVerschoben(ids); },
 });
 const plaene = plaeneStarten({
   speicher: planSpeicher,

@@ -430,7 +430,8 @@ export const AGENT_TOOLS: ToolDefinition[] = [
       "nicht ins Training, plan um'), wenn ein Training eingetragen werden soll, oder um eine Änderung " +
       "zurückzunehmen. Den freien Platz rechnet die App aus Kalender, Wachzeit und Luft um Termine, " +
       "nenn nie selbst eine Uhrzeit als frei. Termine, die daevo selbst eingetragen hat, verschiebt " +
-      "die App ohne Rückfrage. Fremde Termine (Kunden, Familie, Meetings) nur mit bestaetigt true. " +
+      "oder löscht die App ohne Rückfrage, frag dafür nie nach. aktion loeschen nimmt so einen Termin aus dem " +
+      "Kalender, fremde Termine löscht sie nie. Fremde Termine (Kunden, Familie, Meetings) nur mit bestaetigt true. " +
       "Bittet der Nutzer selbst darum, einen bestimmten Termin zu verschieben ('verschieb den Termin mit " +
       "Kunde Müller auf Freitag 14 Uhr'), ist das sein Ja: bestaetigt true, zielTag und zielUhrzeit setzen, " +
       "nicht nachfragen. Liegt am Ziel ein Training, verlegt die App es selbst und sagt wohin. Nachfragen " +
@@ -445,7 +446,7 @@ export const AGENT_TOOLS: ToolDefinition[] = [
       type: "object",
       properties: {
         aktion: {
-          type: "string", enum: ["eintragen", "verschieben", "vorschlagen", "rueckgaengig"],
+          type: "string", enum: ["eintragen", "verschieben", "vorschlagen", "rueckgaengig", "loeschen"],
           description: "vorschlagen sucht nur einen Platz und schreibt nichts.",
         },
         suche: { type: "string", description: "Woran der bestehende Termin zu erkennen ist, etwa 'Training' oder 'Volleyball'." },

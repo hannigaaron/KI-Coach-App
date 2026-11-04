@@ -204,6 +204,27 @@ async function anGenauesZiel(alt, auftrag, { termine, profile, jetzt }) {
 }
 
 /**
+ * Ein Termin, den daevo eingetragen hat, geht ohne Rückfrage raus: er ist
+ * daevos eigener, und eine Frage dazu ist eine Aufgabe mehr für den
+ * Nutzer. Fremde Termine löscht daevo nie, das prüft auch das Plugin.
+ */
+async function terminLoeschen(t) {
+  if (!t) return `${NICHT_GESPEICHERT} Ich finde dieses Training nicht im Kalender.`;
+  if (!t.daevo) {
+    return `${NICHT_GESPEICHERT} \u201e${t.titel}\u201c hat nicht daevo eingetragen, und fremde Termine lösche ich nicht. Verschieben kann ich ihn, wenn du sagst wohin.`;
+  }
+  if (!kannSchreiben()) return `${NICHT_GESPEICHERT} ${NUR_IPHONE}`;
+  try {
+    await nativAufruf("Kalender", "loeschen", { eid: t.eid, alt: t.von });
+  } catch (e) {
+    return `${NICHT_GESPEICHERT} Löschen ging nicht: ${e?.message || e}`;
+  }
+  merken({ art: "geloescht", eid: t.eid, titel: t.titel, vorher: { von: t.von, bis: t.bis }, gruppe: gruppeNeu() });
+  await neuLesen();
+  return `Gelöscht: \u201e${t.titel}\u201c am ${platzText(t)} ist aus dem Kalender. ${RUECKNAHME}`;
+}
+
+/**
  * Führt einen Auftrag aus `kalenderAuftragAus` oder vom Modell aus. Gibt
  * immer einen Satz zurück. Hat er nichts geschrieben, beginnt er mit
  * NICHT_GESPEICHERT, damit der Coach nicht "eingetragen" sagt.
@@ -218,6 +239,7 @@ export async function kalenderTermin(auftrag = {}, { jetzt = Date.now() } = {}) 
     : auftrag.eid ? termine.find((t) => t.eid === auftrag.eid && Math.abs(t.von - Number(auftrag.beginn)) < 60000) ?? null
     : terminFinden(termine, auftrag, jetzt);
   if (auftrag.eid && !alt) return `${NICHT_GESPEICHERT} Das Training steht nicht mehr im Kalender.`;
+  if (aktion === "loeschen") return terminLoeschen(alt);
   const vorbild = alt ? null : (auftrag.tag ? einheitAmTag(profile, auftrag.tag) : null) ?? dauerAusProfil(profile);
   const minuten = auftrag.minuten
     ?? (alt ? Math.round((alt.bis - alt.von) / 60000) : (vorbild?.minutes ?? vorbild?.minuten));
@@ -316,6 +338,8 @@ async function eineZuruecknehmen(letzte) {
   try {
     if (letzte.art === "angelegt") {
       await nativAufruf("Kalender", "loeschen", { eid: letzte.eid, alt: letzte.nachher.von });
+    } else if (letzte.art === "geloescht") {
+      await nativAufruf("Kalender", "anlegen", { titel: letzte.titel, von: letzte.vorher.von, bis: letzte.vorher.bis, kalender: zielKalenderId() });
     } else {
       // Der Nutzer hat beim Verschieben schon ja gesagt, zurück braucht kein zweites.
       await nativAufruf("Kalender", "verschieben", {
@@ -325,6 +349,7 @@ async function eineZuruecknehmen(letzte) {
   } catch (e) {
     return `${NICHT_GESPEICHERT} Zurücknehmen ging nicht: ${e?.message || e}`;
   }
+  if (letzte.art === "geloescht") return `Zurückgenommen: „${letzte.titel}“ steht wieder am ${platzText(letzte.vorher)}.`;
   return letzte.art === "angelegt"
     ? `Zurückgenommen: „${letzte.titel}“ am ${platzText(letzte.nachher)} ist wieder aus dem Kalender.`
     : `Zurückgenommen: „${letzte.titel}“ steht wieder am ${platzText(letzte.vorher)}.`;
