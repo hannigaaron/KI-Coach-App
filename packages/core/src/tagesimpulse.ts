@@ -267,3 +267,36 @@ export function energieBefundText(b: EnergieBefund): string {
   }
   return zeilen.join("\n");
 }
+
+export interface ImpulsLage {
+  /** Uhrzeiten HH:MM der eingetragenen Mahlzeiten des Tages. */
+  mahlzeiten: string[];
+  wasserMl: number;
+  /** Arten der Check-ins des Tages, etwa "midday". */
+  checkins: string[];
+  /** Impulse, die heute schon beantwortet sind. */
+  beantwortet: ImpulsArt[];
+}
+
+/**
+ * Ob ein Impuls heute noch Sinn ergibt. Eine Regel des Nutzers: daevo fragt
+ * nur nach, wenn nichts eingetragen ist. Wer um 13 Uhr sein Mittagessen
+ * eingetragen hat und um 16 Uhr gefragt wird, ob es ausgefallen ist, hält
+ * die App für blind, und das zu Recht.
+ *
+ * Gilt nur für den laufenden Tag. Für die Tage danach plant die App den
+ * Impuls ein und prüft beim nächsten Planen neu, also bei jedem Eintrag.
+ */
+export function impulsNoetig(art: ImpulsArt, lage: ImpulsLage): boolean {
+  const stunde = (at: string) => Number(String(at).slice(0, 2));
+  switch (art) {
+    // Die erste Mahlzeit steht schon da: die Frage danach ist beantwortet.
+    case "protein": return lage.mahlzeiten.length === 0;
+    case "trinken": return !(lage.wasserMl > 0);
+    case "energie": return !lage.checkins.includes("midday") && !lage.beantwortet.includes("energie");
+    // "Mittagessen ausgefallen?" nur, wenn ab 11 Uhr nichts eingetragen ist.
+    case "shake": return !lage.mahlzeiten.some((at) => stunde(at) >= 11);
+    case "stress": return !lage.beantwortet.includes("stress");
+    case "pause": return !lage.beantwortet.includes("pause");
+  }
+}

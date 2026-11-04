@@ -4,7 +4,7 @@ import {
   mahlzeitAusFoto, modellFuerBilder, naehrwerteImNetz, produktPerBarcode, produkteSuchen, summiere, vorratAusFoto,
   todoistAbhaken, todoistAufgaben, todoistIdVon, todoistWiederOeffnen, PERSONA_TEILE,
 } from "@daevo/coach";
-import { foldUmlauts, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, einzeltrainingBauen, FOKUS_NAME, alternativen, planNachrechnen } from "@daevo/core";
+import { foldUmlauts, wochenrueckblick, wochenbeginn, rueckblickArt, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, einzeltrainingBauen, FOKUS_NAME, alternativen, planNachrechnen } from "@daevo/core";
 import { UEBUNGEN } from "./uebungen-daten.js";
 import { GERAETE, uebungenFiltern } from "./uebungen.js";
 import {
@@ -3538,6 +3538,9 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
     async uebungenSuchen({ suche, ersatzFuer } = {}) {
       return uebungenSuchenText({ suche, ersatzFuer });
     },
+    async wochenrueckblick() {
+      return wochenrueckblickFuer().text;
+    },
     async essensplanAbrufen({ inTagen = 0 } = {}) {
       if (!essensplanFreiFuerCoach()) {
         return "NICHT_GESPEICHERT: Der Essensplan für die Woche gehört zu Pro. Einzelne Rezepte passend zum Rest des Tages gibt es unter Rezepte.";
@@ -4237,6 +4240,35 @@ export function erinnerungenAufgeraeumt(jetzt = { tag: todayIso(), uhrzeit: nowT
   const offen = alle.filter((e) => !erinnerungVorbei(e, jetzt));
   if (offen.length !== alle.length) store.setSettings({ ...s, eigeneErinnerungen: offen });
   return offen;
+}
+
+/**
+ * Der Wochenrückblick aus allem, was eingetragen ist. Mittwochs ab Montag bis
+ * heute, an jedem anderen Tag die Woche bis heute, sonntags die ganze Woche.
+ * Ziele je Tag kommen aus `dayNumbers`, also mit Trainingstag und Korrektur.
+ */
+export function wochenrueckblickFuer(heute = todayIso()) {
+  // Bis Mittwoch ist es ein Zwischenstand, ab Donnerstag zählt die Woche.
+  const w = new Date(`${heute}T12:00:00`).getDay();
+  const art = rueckblickArt(heute) ?? (w >= 1 && w <= 3 ? "zwischenstand" : "woche");
+  const naechster = (t) => { const d = new Date(`${t}T12:00:00`); d.setDate(d.getDate() + 1); return todayIso(d); };
+  const tage = [];
+  for (let t = wochenbeginn(heute); t <= heute; t = naechster(t)) {
+    const n = dayNumbers(t);
+    const d = n.data;
+    tage.push({
+      tag: t,
+      mahlzeiten: (d.meals || []).filter((m) => (m.entries || []).length).length,
+      kcal: n.totals.kcal, proteinG: n.totals.proteinG,
+      zielKcal: n.targets.kcal, zielProteinG: n.targets.proteinG,
+      wasserMl: n.totals.waterMl, zielWasserMl: n.targets.waterMl,
+      trainings: (d.trainings || []).length,
+      geplant: (n.profile?.sessions || []).filter((x) => x.weekday === n.weekday).length,
+      gewichtKg: d.weightKg ?? null,
+      schlafMin: d.gesundheit?.schlafMinuten ?? null,
+    });
+  }
+  return wochenrueckblick(tage, { art, ziel: store.getProfile()?.goal });
 }
 
 /** Ein Tausch im Training für heute gilt auch beim nächsten Mal mit denselben Partien. */

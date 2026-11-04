@@ -13,7 +13,7 @@
  *
  * Kein `document`, kein `window`: das Modul läuft auch in den Tests.
  */
-import { LUECKE_UHRZEIT, NACHFRAGE_UHRZEIT, erinnerungAmTag, erinnerungUhrzeit, impulseFuerTag, morgenUhrzeit, nachfrageNoetig, schlafenszeitAusKalender, tagesrandFuer, wochentagVon } from "@daevo/core";
+import { LUECKE_UHRZEIT, NACHFRAGE_UHRZEIT, erinnerungAmTag, erinnerungUhrzeit, impulseFuerTag, impulsNoetig, morgenUhrzeit, rueckblickArt, nachfrageNoetig, schlafenszeitAusKalender, tagesrandFuer, wochentagVon } from "@daevo/core";
 
 /**
  * Aufsteh und Schlafenszeit eines Tages für die Mitteilungen. Was der Nutzer
@@ -37,7 +37,7 @@ export const MAX_GEPLANT = 60;
 
 // Eigene Erinnerungen zuerst, dann die zwei, die etwas über diesen Nutzer
 // wissen: der Blick auf morgen und die Lücke. Die Impulse sind für alle gleich.
-const rang = (m) => (m.art === "eigene" ? 3 : m.art === "vorausblick" ? 2 : m.art === "luecke" ? 1 : 0);
+const rang = (m) => (m.art === "eigene" ? 3 : m.art === "vorausblick" || m.art === "rueckblick" ? 2 : m.art === "luecke" ? 1 : 0);
 const TAGE_VORAUS = 7;
 
 function tagPlus(tag, n) {
@@ -82,7 +82,9 @@ export function mitteilungsPlan({ store, jetzt, luecke = null, vorausblicke = []
       plan.push({ id: `eigene-${e.id}-${tag}`, tag, uhrzeit, titel: "Erinnerung", text: e.text, art: "eigene" });
     }
     if (!aus.impulse) {
+      const lage = i === 0 ? impulsLage(store, tag) : null;
       for (const impuls of impulseFuerTag(tag)) {
+        if (lage && !impulsNoetig(impuls.art, lage)) continue;
         plan.push({ id: `impuls-${impuls.art}-${tag}`, tag, uhrzeit: impuls.at, titel: impuls.titel, text: impuls.text, art: impuls.art });
       }
     }
@@ -104,6 +106,20 @@ export function mitteilungsPlan({ store, jetzt, luecke = null, vorausblicke = []
           titel: "Guten Morgen", text: "Wie hast du geschlafen? Vier Fragen, dann plant daevo deinen Tag.", art: "morgen",
         });
       }
+    }
+    // Mittwoch Zwischenstand, Sonntag Rückblick, eine halbe Stunde nach dem
+    // Check-in derselben Tage. Der Text steht nicht in der Mitteilung: sie ist
+    // Tage im Voraus geplant, die Zahlen wären beim Ankommen alt. Gerechnet
+    // wird beim Antippen.
+    const rueckblick = rueckblickArt(tag);
+    if (!aus.rueckblick && rueckblick) {
+      plan.push({
+        id: `rueckblick-${tag}`, tag, uhrzeit: rueckblick === "woche" ? "20:00" : "18:30",
+        titel: rueckblick === "woche" ? "Dein Wochenrückblick" : "Zwischenstand zur Wochenmitte",
+        text: rueckblick === "woche" ? "Wie lief deine Woche? Zahlen, was gut lief, was besser geht und dein Fokus für nächste Woche."
+          : "Montag bis heute: was läuft, was fehlt und worauf du bis Sonntag achtest.",
+        art: "rueckblick",
+      });
     }
     if (!aus.runterfahren && profil) {
       // Dieselbe Zeit wie im Erinnerungsplan, siehe reminders.ts: 45 Minuten
@@ -166,6 +182,18 @@ export function lueckeFuerPlan(store, heute) {
     if ((store.getDay(t).trainings || []).length) return null;
   }
   return geplant;
+}
+
+/** Was heute schon eingetragen ist, für `impulsNoetig`. */
+export function impulsLage(store, tag) {
+  const d = store.getDay(tag);
+  const beantwortet = store.getSettings().impulsBeantwortet || {};
+  return {
+    mahlzeiten: (d.meals || []).filter((m) => (m.entries || []).length).map((m) => String(m.at || "")),
+    wasserMl: Number(d.waterMl) || 0,
+    checkins: (d.checkins || []).map((c) => c.kind),
+    beantwortet: Object.keys(beantwortet).filter((art) => beantwortet[art] === tag),
+  };
 }
 
 /** Plant alles neu bei iOS. Gibt die Zahl der geplanten Mitteilungen zurück. */

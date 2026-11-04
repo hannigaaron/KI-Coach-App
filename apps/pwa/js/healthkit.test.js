@@ -107,7 +107,7 @@ test("die Lücke steht mit Antwortknöpfen im Plan und geht vor, wenn gekürzt w
 
 test("wer selbst ausgeschaltet hat, bekommt nichts geplant", async () => {
   frisch();
-  store.setSettings({ ...store.getSettings(), mitteilungenAus: { impulse: true, runterfahren: true, morgen: true } });
+  store.setSettings({ ...store.getSettings(), mitteilungenAus: { impulse: true, runterfahren: true, morgen: true, rueckblick: true } });
   const { mitteilungsPlan } = await import("./mitteilungen.js");
   assert.equal(mitteilungsPlan({ store, jetzt: { tag: HEUTE, uhrzeit: "06:00" } }).length, 0);
 });
@@ -300,4 +300,31 @@ test("die Periode aus Apple Health landet im Zyklus, eingeschaltet nur bei Fraue
   healthkitSchreiben(antwort, { store: aus, heute: "2026-10-20" });
   assert.equal(aus.getSettings().zyklus.an, false);
   assert.equal(aus.getSettings().zyklus.perioden.length, 1);
+});
+
+test("ein Impuls kommt nur, wenn das Passende noch nicht eingetragen ist", async () => {
+  frisch();
+  const { mitteilungsPlan } = await import("./mitteilungen.js");
+  const arten = () => mitteilungsPlan({ store, jetzt: { tag: HEUTE, uhrzeit: "08:00" } }).filter((m) => m.tag === HEUTE).map((m) => m.art);
+  assert.ok(arten().includes("shake") && arten().includes("protein") && arten().includes("trinken"));
+  // Frühstück um 7:30 und Mittagessen um 13 Uhr: keine Frage nach Eiweiß am Morgen
+  // und keine, ob das Mittagessen ausgefallen ist.
+  const eintrag = { name: "Quark", amount: "250 g", kcal: 170, proteinG: 30, fatG: 1, carbsG: 10 };
+  store.addMeal(HEUTE, { id: "m1", at: "07:30", entries: [eintrag] });
+  store.addMeal(HEUTE, { id: "m2", at: "13:00", entries: [eintrag] });
+  const d = store.getDay(HEUTE); d.waterMl = 500; store.setDay(HEUTE, d);
+  store.setSettings({ ...store.getSettings(), impulsBeantwortet: { stress: HEUTE } });
+  const rest = arten();
+  for (const art of ["protein", "shake", "trinken", "stress"]) assert.ok(!rest.includes(art), art);
+  assert.ok(rest.includes("energie") && rest.includes("pause"));
+  // Morgen gilt das nicht, dort ist noch nichts eingetragen.
+  assert.ok(mitteilungsPlan({ store, jetzt: { tag: HEUTE, uhrzeit: "08:00" } }).some((m) => m.tag > HEUTE && m.art === "shake"));
+});
+
+test("Wochenrückblick mittwochs und sonntags im Plan, ohne Zahlen in der Mitteilung", async () => {
+  frisch();
+  const { mitteilungsPlan } = await import("./mitteilungen.js");
+  const r = mitteilungsPlan({ store, jetzt: { tag: HEUTE, uhrzeit: "08:00" } }).filter((m) => m.art === "rueckblick");
+  assert.deepEqual(r.map((m) => [m.tag, m.uhrzeit]), [["2026-10-21", "18:30"], ["2026-10-25", "20:00"]]);
+  assert.ok(r.every((m) => !/\d/.test(m.text)));
 });

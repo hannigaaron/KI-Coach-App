@@ -64,6 +64,7 @@ export interface AgentActions {
    */
   trainingHeute?(input: { gruppen: string[]; minuten?: number; neu?: boolean; tag?: string; uhrzeit?: string; weglassen?: string[]; tauschen?: string[] }): Promise<string>;
   essensplanAbrufen?(input: { inTagen?: number }): Promise<string>;
+  wochenrueckblick?(): Promise<string>;
   uebungenSuchen?(input: { suche?: string; ersatzFuer?: string }): Promise<string>;
   zyklus?(input: { aktion: string; tag?: string; symptome?: string[] }): Promise<string>;
   lebensmittelAnlegen?(input: { name: string; kcal: number; proteinG?: number; fatG?: number; carbsG?: number; portionG?: number }): Promise<string>;
@@ -598,7 +599,7 @@ export const NUR_LESEN = new Set([
   "tagesstand_abrufen", "verlauf_abrufen", "kalender_abrufen", "gespraeche_durchsuchen",
   "produkt_nachschlagen", "balance_abrufen", "muster_erkennen", "bericht_erstellen",
   "belastung_abrufen", "bereitschaft_abrufen", "widersprueche_pruefen",
-  "trainingsplan_abrufen", "essensplan_abrufen", "standards_abrufen", "gedaechtnis_durchsuchen", "uebungen_suchen",
+  "trainingsplan_abrufen", "essensplan_abrufen", "wochenrueckblick", "standards_abrufen", "gedaechtnis_durchsuchen", "uebungen_suchen",
 ]);
 
 async function execute(
@@ -926,6 +927,10 @@ async function execute(
       case "trainingsplan_abrufen": {
         const inTagen = Number.isFinite(Number(input.inTagen)) ? clamp(Number(input.inTagen), 0, 6) : 0;
         return { text: await actions.trainingsplanAbrufen({ inTagen }) };
+      }
+      case "wochenrueckblick": {
+        if (!actions.wochenrueckblick) return { text: "Den Wochenrückblick gibt es in dieser Fassung nicht.", fehler: true };
+        return { text: await actions.wochenrueckblick() };
       }
       case "essensplan_abrufen": {
         const inTagen = Number.isFinite(Number(input.inTagen)) ? clamp(Number(input.inTagen), 0, 6) : 0;
@@ -1567,6 +1572,13 @@ export async function runOffline(
       erfassen: pattern("gegessen", "esse", "hatte", "getrunken", "eintragen").test(text),
     });
     return { text: antwort, ausgeführt, source: "offline" };
+  }
+
+  // "Wie lief meine Woche", "Wochenrückblick", "Zwischenstand". Vor dem
+  // Bericht, denn der kennt nur Zahlen und keine Tipps.
+  if (actions.wochenrueckblick && (/\b(wochenrueckblick|wochenbilanz|zwischenstand|wochenabschluss)\b/.test(text)
+    || /\bwie\b.{0,20}\b(lief|war|laeuft)\b.{0,20}\b(meine|die|diese)\s+woche\b/.test(text))) {
+    return { text: await actions.wochenrueckblick(), ausgeführt: [], source: "offline" };
   }
 
   // "Was esse ich morgen laut Plan" und "was soll ich heute essen" lesen den

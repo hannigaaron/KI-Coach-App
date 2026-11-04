@@ -79,7 +79,7 @@ Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
 
-Der Assistent hat vierundfünfzig Werkzeuge und verändert die App wirklich. Zahlen
+Der Assistent hat fünfundfünfzig Werkzeuge und verändert die App wirklich. Zahlen
 über den Nutzer kommen immer aus Werkzeugen, nie aus dem Modell. Allgemeines
 Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
@@ -682,7 +682,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1351 Tests
+npm test           # 1358 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -2039,6 +2039,28 @@ nochmal in Frage stellen.
 Eine Mahlzeit ohne Posten wird beim Speichern gelöscht. Eine Zeile mit null
 Kalorien im Verlauf zu führen wäre die schlechtere Antwort.
 
+## Der Wochenrückblick
+
+`packages/core/src/wochenrueckblick.ts`, `wochenrueckblickFuer` in
+`assistant.js`, Werkzeug `wochenrueckblick` mit Regelpfad ("wie lief meine
+Woche", "Zwischenstand"). Wie ein Abschlussgespräch mit einem Coach: die
+Zahlen, was gut lief, was besser geht, zwei bis drei konkrete Tipps und der
+Fokus. Mittwoch Zwischenstand von Montag bis heute, Sonntag die ganze
+Woche, als Mitteilung um 18:30 und 20:00, eine halbe Stunde nach den
+Check-ins. Die Mitteilung trägt keine Zahlen, sie ist Tage vorher geplant.
+Gerechnet wird beim Antippen, und der ganze Rückblick steht im Chat.
+
+Gerechnet aus allem, was eingetragen ist: Protein gedeckt ab 90 Prozent des
+Ziels, Kalorien getroffen bis 10 Prozent daneben, Wasser ab 80 Prozent,
+Training gegen die Tage im Profil, Gewicht als Strecke gegen das Ziel,
+Schlaf aus Apple Health. Die Schwellen sind Regeln der App. Ein Tag ohne
+Eintrag ist eine Lücke und kein Tag ohne Essen, er wird nur gezählt. Ein
+Tag unter der Hälfte der Kalorien gilt als unvollständig, fällt aus den
+Schnitten und wird genannt, mit der Bitte, es zu sagen, wenn es wirklich so
+war. Die Tipps tragen einen Rang, der Fokus ist der erste. Zu wenig Protein
+nennt die Gramm je Mahlzeit, ein Gewicht gegen das Ziel beim Aufbau 200 kcal
+mehr.
+
 ## Ein Vorhaben ist kein Eintrag
 
 `istAbsicht` in `packages/coach/src/agent.ts`. Der Satz "ich möchte heute zwei
@@ -2633,6 +2655,18 @@ sich gegenseitig. Angenommen werden nur Endpunkte bekannter Push Dienste:
 sonst ist der Worker eine offene Weiterleitung, die auf Zuruf Anfragen an
 fremde Adressen schickt. Ein Abo, auf das der Dienst mit 404 oder 410
 antwortet, löscht der Worker selbst.
+
+Ein Impuls kommt nur, wenn das Passende noch nicht eingetragen ist,
+`impulsNoetig` im Kern, `impulsLage` in `mitteilungen.js`. Eine Regel des
+Nutzers: im Betrieb kam um 16 Uhr "Mittagessen ausgefallen?", obwohl das
+Mittagessen um 13 Uhr eingetragen war. Eiweiss am Morgen fällt weg, sobald
+eine Mahlzeit dasteht, Trinken mit eingetragenem Wasser, Nachlegen mit
+einer Mahlzeit ab 11 Uhr, Energie nach dem Mittags Check-in, Stress und
+Pause, wenn die Frage heute beantwortet ist, `settings.impulsBeantwortet`.
+Geprüft wird nur der laufende Tag, die Tage danach prüft das nächste
+Planen. Deshalb plant die iPhone App nach jedem Eintrag neu, gebündelt
+nach drei Sekunden, `planSpaeter` in `refreshAll`. Offen: Web Push über
+den Worker schickt die Impulse weiter blind, er kennt die Einträge nicht.
 
 Die Erinnerungen aus `reminders.ts` bleiben davon unberührt. Sie hängen an den
 Zahlen des Tages und laufen weiter über `apps/api/src/scheduler.ts`.
