@@ -6867,14 +6867,24 @@ function tagNach(iso) {
 // App bliebe schwarz.
 // eslint-disable-next-line no-var
 var uhrDa = null;
+// eslint-disable-next-line no-var
+var uhrLaeuft = false;
+// eslint-disable-next-line no-var
+var uhrNochmal = false;
 async function uhrAbgleichen() {
   if (!istNativ()) return;
+  // Kommt während eines Abgleichs etwas Neues, läuft danach ein zweiter.
+  // Ein überlappender Lauf könnte einen Satz zweimal durch den Coach schicken.
+  if (uhrLaeuft) { uhrNochmal = true; return; }
+  uhrLaeuft = true;
   try {
-    if (uhrDa === null || uhrDa === undefined) {
-      const st = await nativAufruf("Uhr", "stand", {});
-      uhrDa = Boolean(st?.gekoppelt && st?.installiert);
-    }
-    if (!uhrDa) return;
+    // Der Stand wird jedes Mal gefragt und nicht einmal beim Start gemerkt.
+    // Im Betrieb kam die Uhr App nach der iPhone App aufs Gerät, beim Start
+    // hiess es "keine Uhr", und vorgemerkte Sätze blieben liegen, bis die App
+    // ganz neu startete. Abgeholt wird immer: was im Eingang liegt, kam von
+    // einer Uhr, egal was der Stand gerade meldet.
+    const st = await nativAufruf("Uhr", "stand", {});
+    uhrDa = Boolean(st?.gekoppelt);
     const { ereignisse = [] } = await nativAufruf("Uhr", "abholen", {});
     if (ereignisse.length) {
       const ergebnis = uhrEreignisseAnwenden(ereignisse, { store, heute: todayIso(), neueId: newId });
@@ -6901,11 +6911,21 @@ async function uhrAbgleichen() {
         await send(text);
       }
     }
-    await uhrSenden();
+    if (uhrDa) await uhrSenden();
   } catch {
     // Ohne Plugin, etwa eine ältere Hülle, oder ohne Uhr: dann eben nicht.
+  } finally {
+    uhrLaeuft = false;
   }
+  if (uhrNochmal) { uhrNochmal = false; await uhrAbgleichen(); }
 }
+
+/**
+ * Das Plugin ruft das auf, sobald etwas von der Uhr eintrifft, während daevo
+ * hier vorn offen ist. Vorher kam ein Satz von der Uhr erst beim nächsten
+ * Öffnen an, und wer die App schon offen hatte, wartete vergeblich.
+ */
+window.daevoUhrEingang = () => { uhrAbgleichen().then(() => refreshAll()); };
 
 async function uhrSenden() {
   if (!istNativ() || !uhrDa) return;

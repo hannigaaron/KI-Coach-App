@@ -138,6 +138,20 @@ public class UhrPlugin: CAPPlugin, CAPBridgedPlugin {
 
     override public func load() {
         UhrZentrale.shared.plugin = self
+        NotificationCenter.default.addObserver(self, selector: #selector(eingang), name: .daevoUhrEingang, object: nil)
+        // Beim Zurückholen der App liegen oft schon Sätze im Eingang. Die
+        // Web App holt sie beim Sichtbarwerden selbst ab, das hier ist für
+        // den Fall, dass sie schon vorn ist, wenn die Uhr etwas schickt.
+    }
+
+    /// Etwas ist von der Uhr gekommen. Ist daevo vorn, holt die Web App es
+    /// sofort ab. Im Hintergrund hält iOS die Web Ansicht an, dann bleibt es
+    /// im Eingang, bis die App wieder offen ist.
+    @objc private func eingang() {
+        DispatchQueue.main.async { [weak self] in
+            guard UIApplication.shared.applicationState == .active, let webView = self?.bridge?.webView else { return }
+            webView.evaluateJavaScript("typeof window.daevoUhrEingang === 'function' && window.daevoUhrEingang(); 0", completionHandler: nil)
+        }
     }
 
     /// Reicht die Frage an `daevoUhrFrage` in `app.js` weiter. Die Argumente
