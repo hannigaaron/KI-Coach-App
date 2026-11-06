@@ -3889,7 +3889,12 @@ Kontoschlüssel, Persona ohne Modi, `UHR_HINWEIS` und der Stand des Tages,
 nur mit Einwilligung und Konto. Dort gibt es nur das Werkzeug `vormerken`.
 Vorgemerkte Sätze kommen als `art: "satz"` zurück und laufen beim Öffnen
 durch `send`, als wären sie hier gesagt, ein Gespräch ohne iPhone als
-`art: "gespraech"` in den Chat. Die Uhr sagt "vorgemerkt" und nie
+`art: "gespraech"` in den Chat. Abgeholt wird bei jedem Öffnen und, wenn
+daevo schon vorn ist, sofort: das Plugin meldet jeden Eingang über
+`daevoUhrEingang` in `app.js`. Der Stand der Uhr wird dabei jedes Mal neu
+gefragt und nie beim Start gemerkt. Im Betrieb kam die Uhr App nach der
+iPhone App aufs Gerät, beim Start hiess es "keine Uhr", und ein
+vorgemerkter Satz blieb liegen, bis die App ganz neu startete. Die Uhr sagt "vorgemerkt" und nie
 "eingetragen": eine Zusage, die nicht stimmt, ist der eine Fehler, den
 daevo nicht machen darf. Antwortet die Uhr, spricht das iPhone nicht mit,
 `vonUhr` an `send`.
