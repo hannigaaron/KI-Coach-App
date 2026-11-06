@@ -4166,3 +4166,20 @@ button.hoert:not(.co-btn) { background: var(--stark); color: var(--auf-stark); a
 #evNachtragen { margin-top: var(--s-3); }
 .ev-bilanz { margin: var(--s-4) 0 0; font-size: var(--t-sm); line-height: 1.55; }
 .ev-wochen li.aktiv .li-title { color: var(--accent-text); }
+
+/* Der Titel auf Heute öffnet die Tagwahl. Er bleibt eine Überschrift und
+ * trägt deshalb ihre Schrift, nicht die Serife der Knöpfe. */
+.titel-wahl {
+  display: inline-flex; align-items: center; gap: var(--s-2); padding: var(--s-1) 0; border: 0;
+  background: none; color: inherit; font: inherit; letter-spacing: inherit; cursor: pointer;
+}
+.titel-pfeil {
+  width: 7px; height: 7px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+  transform: translateY(-2px) rotate(45deg); opacity: 0.7;
+}
+.heute-zurueck {
+  display: block; margin: 0 auto var(--s-3); padding: var(--s-2) var(--s-4); border: 0; border-radius: var(--r-pill);
+  background: var(--flaeche); box-shadow: var(--haarlinie); color: var(--accent-text);
+  font-family: var(--schrift-text); font-size: var(--t-sm); font-weight: 600; letter-spacing: normal; cursor: pointer;
+}
+.tw-anzeigen { margin-top: var(--s-5); }
