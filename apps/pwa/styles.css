@@ -4183,3 +4183,17 @@ button.hoert:not(.co-btn) { background: var(--stark); color: var(--auf-stark); a
   font-family: var(--schrift-text); font-size: var(--t-sm); font-weight: 600; letter-spacing: normal; cursor: pointer;
 }
 .tw-anzeigen { margin-top: var(--s-5); }
+
+/* Ändern und Löschen im Blatt "Woher kommen". Klein und leise, damit die
+ * Zahlen die Zeile tragen. Daten tragen sie nicht, also die Textschrift. */
+.hk-aktionen { display: flex; gap: var(--s-2); margin-top: var(--s-3); }
+#hkMahlzeiten .hk-aktion {
+  min-height: 0; line-height: 1.3;
+  padding: 6px var(--s-4); border: 0; border-radius: var(--r-pill); background: var(--flaeche);
+  box-shadow: var(--haarlinie); color: var(--text); font-family: var(--schrift-text);
+  font-size: var(--t-sm); font-weight: 600; letter-spacing: normal; cursor: pointer;
+}
+#hkMahlzeiten .hk-aktion.gefahr { color: var(--bad); }
+/* Das Kreuz in der Mahlzeitenliste: nicht in der Akzentfarbe wie der
+ * Haken der Aufgaben, Löschen ist keine Hauptsache. */
+.list li .meal-weg, .list li .meal-weg:first-child { color: var(--muted); margin-left: var(--s-2); flex-shrink: 0; }
