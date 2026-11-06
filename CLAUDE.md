@@ -3311,6 +3311,17 @@ dieselbe Mahlzeit beim Aufteilen des Rests Snack und hier Mittagessen.
 Gerundet wird erst beim Anzeigen. Die Summe der Zeilen trifft damit die Zahl
 im Balken, und ein Test hält das für alle vier Werte fest.
 
+Jede Mahlzeit im Blatt trägt "Ändern" und "Löschen", jede Zeile in den
+Listen auf Heute und unter Mahlzeiten ein Kreuz. Im Betrieb stand eine
+falsche Mahlzeit mit allen Zahlen im Blatt, und der einzige Weg zum Editor
+war ein Tipp auf die Zeile ganz unten auf Heute, ohne Hinweis darauf.
+Gelöscht wird über `mahlzeitLoeschen` in `app.js` ohne Rückfrage, mit sechs
+Sekunden Rückgängig: eine Rückfrage kostet bei jedem Löschen einen Tipp,
+Rückgängig nur beim Fehltipp. Rückgängig setzt die Mahlzeit an ihre alte
+Stelle und nimmt bei Apple Health die Sperre aus `healthEntfernt` wieder
+weg. Auch "Mahlzeit löschen" im Editor läuft so und nicht mehr über
+`confirm`.
+
 ## Die Gewichtskurve
 
 `apps/pwa/js/gewichtkurve.js`, auf Heute unter Gewicht. Jede Wiegung ist ein
