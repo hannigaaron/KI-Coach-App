@@ -218,8 +218,9 @@ try {
 
   <!-- Bereiche -->
   <section class="view" data-view="heute" hidden>
-    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Heute</h1><div class="bar-spacer"></div></header>
+    <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1><button type="button" id="heuteTitel" class="titel-wahl" aria-haspopup="dialog" aria-label="Tag wählen"><span id="heuteTitelText">Heute</span><span class="titel-pfeil" aria-hidden="true"></span></button></h1><div class="bar-spacer"></div></header>
     <div class="scroll">
+      <button type="button" id="heuteZurueck" class="heute-zurueck" hidden>Zurück zu heute</button>
       <!--
         Die Kalorien sind der Grund, warum jemand diese Seite aufmacht. Vorher
         stand hier eine abgeleitete Punktzahl über die halbe Bildschirmhöhe,
@@ -299,7 +300,7 @@ try {
         </div>
         <div id="gewichtKurve" class="gk-flaeche"></div>
         <div class="field-row">
-          <div class="field"><label for="weightInput">Heute gewogen, in kg</label>
+          <div class="field"><label for="weightInput" id="weightLabel">Heute gewogen, in kg</label>
             <input id="weightInput" type="number" inputmode="decimal" step="0.1" min="30" max="300" placeholder="87,0"></div>
           <div class="field"><label for="btnWeight">&nbsp;</label>
             <button id="btnWeight" class="primary" style="width:100%">Eintragen</button></div>
@@ -307,10 +308,12 @@ try {
         <p class="fineprint" id="weightTrend" style="margin-bottom:0"></p>
       </div>
 
-      <h2 class="abschnitt">Nächste Erinnerungen</h2>
-      <ul id="reminderList" class="list"></ul>
+      <div id="heuteErinnerungen">
+        <h2 class="abschnitt">Nächste Erinnerungen</h2>
+        <ul id="reminderList" class="list"></ul>
+      </div>
 
-      <h2 class="abschnitt">Heute gegessen</h2>
+      <h2 class="abschnitt" id="heuteGegessenTitel">Heute gegessen</h2>
       <ul id="mealList" class="list"></ul>
       <button type="button" id="btnVerlaufOeffnen" class="ghost breit">Frühere Tage und Wochenschnitt</button>
     </div>
@@ -411,6 +414,30 @@ try {
     Griff, Sprechen zwei, Barcode drei, Suchen am meisten. Wer die Liste von
     oben liest, findet den schnellsten Weg zuerst.
   -->
+  <!--
+    Den Tag auf Heute wählen. Ein Tipp auf den Titel öffnet den Monat, und
+    die ganze Seite zeigt danach diesen Tag: Ring, Makros, Wasser, Gewicht
+    und Mahlzeiten. Eintragen geht dann in genau diesen Tag.
+  -->
+  <div id="tagWahlBlatt" class="blatt" hidden>
+    <div class="blatt-innen" role="dialog" aria-modal="true" aria-labelledby="twTitel">
+      <header class="blatt-kopf">
+        <h2 id="twTitel">Tag wählen</h2>
+        <button id="twSchliessen" class="icon-btn" aria-label="Schließen"><span class="kreuz"></span></button>
+      </header>
+      <div class="blatt-scroll">
+        <div class="ev-monat">
+          <button type="button" class="icon-btn" id="twZurueck" aria-label="Voriger Monat"><span class="chev"></span></button>
+          <b id="twMonat"></b>
+          <button type="button" class="icon-btn ev-vor" id="twVor" aria-label="Nächster Monat"><span class="chev"></span></button>
+        </div>
+        <div id="twKalender" class="ev-kalender"></div>
+        <button type="button" id="twAnzeigen" class="primary breit tw-anzeigen">Anzeigen</button>
+        <button type="button" id="twHeute" class="ghost breit">Heute</button>
+      </div>
+    </div>
+  </div>
+
   <div id="erfassenBlatt" class="blatt" hidden>
     <div class="blatt-innen" role="dialog" aria-modal="true" aria-labelledby="ebTitel">
       <header class="blatt-kopf">

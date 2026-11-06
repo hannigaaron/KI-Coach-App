@@ -96,6 +96,10 @@ let day = todayIso();
 /** Der Tag und der Monat, die der Verlauf unter Mahlzeiten zeigt. */
 let evTag = day;
 let evMonat = day.slice(0, 7);
+/** Der Tag, den die Seite Heute zeigt. Ohne Wahl ist es heute. */
+let heuteTag = day;
+let twTag = day;
+let twMonat = day.slice(0, 7);
 let lastMealId = null;
 let orb = null;
 let listener = null;
@@ -1091,8 +1095,8 @@ function messwert({ name, wert, zusatz = "", anteil, ton, ziel, ueber = false })
 }
 
 function renderTagWertung() {
-  const heute = tagesnutzungFuer(day);
-  const gesternTag = new Date(`${day}T12:00:00`);
+  const heute = tagesnutzungFuer(heuteTag);
+  const gesternTag = new Date(`${heuteTag}T12:00:00`);
   gesternTag.setDate(gesternTag.getDate() - 1);
   const gestern = tagesnutzungFuer(gesternTag.toISOString().slice(0, 10));
 
@@ -1546,7 +1550,7 @@ const TEIL_TON = {
 function renderHeuteBalance() {
   const el = $("heuteBalance");
   if (!el) return;
-  const b = balanceFuer(1, day);
+  const b = balanceFuer(1, heuteTag);
   el.innerHTML = "";
   for (const stand of b.bereiche) {
     el.appendChild(messwert({
@@ -1572,7 +1576,20 @@ function renderHeuteBalance() {
 }
 
 function renderToday() {
-  const n = dayNumbers(day);
+  const jetzt = todayIso();
+  if (heuteTag > jetzt) heuteTag = jetzt;
+  const istHeute = heuteTag === jetzt;
+  $("heuteTitelText").textContent = tagTitel(heuteTag);
+  $("heuteZurueck").hidden = istHeute;
+  $("heuteErinnerungen").hidden = !istHeute;
+  $("heuteGegessenTitel").textContent = istHeute ? "Heute gegessen" : "Gegessen";
+  $("weightLabel").textContent = istHeute ? "Heute gewogen, in kg" : "An diesem Tag gewogen, in kg";
+  $("btnVerlaufOeffnen").hidden = !istHeute;
+  const sub = $("btnErfassenHeute").querySelector(".erfassen-sub");
+  const titel = $("btnErfassenHeute").querySelector(".erfassen-titel");
+  titel.textContent = istHeute ? "Essen erfassen" : "Essen nachtragen";
+  sub.textContent = istHeute ? "Foto, Barcode, Suche oder sprechen" : `Für ${tagTitel(heuteTag)}, über Suche oder Barcode`;
+  const n = dayNumbers(heuteTag);
   const ratio = n.targets.kcal > 0 ? Math.min(1, n.totals.kcal / n.targets.kcal) : 0;
   const circumference = 2 * Math.PI * 52;
   $("ringKcal").style.strokeDashoffset = String(circumference * (1 - ratio));
@@ -1590,7 +1607,7 @@ function renderToday() {
   setBar("c", n.totals.carbsG, n.targets.carbsG, "g");
   setBar("w", n.totals.waterMl, n.targets.waterMl, "ml", { obergrenze: false });
 
-  const reminders = tagesErinnerungen(day);
+  const reminders = istHeute ? tagesErinnerungen(day) : [];
   const time = nowTime();
   const upcoming = reminders.filter((r) => r.at >= time).slice(0, 3);
   const list = upcoming.length ? upcoming : reminders.slice(-2);
@@ -1604,7 +1621,7 @@ function renderToday() {
   renderTagWertung();
   renderHeuteBalance();
   renderWeight();
-  renderMeals("mealList");
+  renderMeals("mealList", heuteTag);
 }
 
 /**
@@ -1618,7 +1635,7 @@ function renderToday() {
 let gewichtTage = 90;
 
 function renderWeight() {
-  const heute = store.getDay(day).weightKg;
+  const heute = store.getDay(heuteTag).weightKg;
   const feld = $("weightInput");
   if (document.activeElement !== feld) feld.value = heute ?? "";
   for (const knopf of document.querySelectorAll("#gewichtZeitraum .seg-btn")) {
@@ -1729,6 +1746,74 @@ function tagTitel(tag) {
   return new Date(`${tag}T12:00:00`).toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" });
 }
 
+/** Der erste Tag mit einer Mahlzeit. Weiter zurück blättern zeigt nur leere Monate. */
+function fruehesterTag() {
+  return store.allDays().filter((t) => (store.getDay(t).meals || []).length).sort()[0] || todayIso();
+}
+
+/**
+ * Ein Monat als Raster: je Tag Kalorien und der Punkt für den Stand gegen
+ * das Ziel. Derselbe Bau unter Mahlzeiten und in der Tagwahl auf Heute.
+ */
+function monatsKalender(monatIso, gewaehlt) {
+  const heute = todayIso();
+  const [jahr, monat] = monatIso.split("-").map(Number);
+  const versatz = (new Date(jahr, monat - 1, 1).getDay() + 6) % 7;
+  const tage = new Date(jahr, monat, 0).getDate();
+  let html = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"].map((w) => `<span class="ev-wt">${w}</span>`).join("");
+  html += '<span class="ev-leer"></span>'.repeat(versatz);
+  for (let d = 1; d <= tage; d++) {
+    const iso = `${monatIso}-${String(d).padStart(2, "0")}`;
+    const zukunft = iso > heute;
+    const t = zukunft ? null : verlaufTag(iso);
+    // Heute läuft noch: unter der Hälfte heisst dort nicht unvollständig.
+    const stand = t ? (iso === heute && tagStand(t) === "unvollstaendig" ? "laeuft" : tagStand(t)) : "leer";
+    const kcal = t && t.mahlzeiten ? t.kcal : 0;
+    const klassen = ["ev-tag", stand, iso === gewaehlt ? "gewaehlt" : "", iso === heute ? "heute" : ""].filter(Boolean).join(" ");
+    const label = `${tagTitel(iso)}, ${kcal ? `${kcal} kcal` : "nichts eingetragen"}`;
+    html += `<button type="button" class="${klassen}" data-ev-tag="${iso}"${zukunft ? " disabled" : ""} aria-pressed="${iso === gewaehlt}" aria-label="${escapeHtml(label)}">`
+      + `<span class="ev-zahl">${d}</span><span class="ev-kcal">${kcal || ""}</span><i class="ev-punkt ${stand}"></i></button>`;
+  }
+  return html;
+}
+
+function monatText(monatIso) {
+  const [jahr, monat] = monatIso.split("-").map(Number);
+  return new Date(jahr, monat - 1, 15).toLocaleDateString("de-DE", { month: "long", year: "numeric" });
+}
+
+function monatPlus(monatIso, n) {
+  const [j, m] = monatIso.split("-").map(Number);
+  const d = new Date(j, m - 1 + n, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/* Die Tagwahl auf Heute */
+function tagWahlZeichnen() {
+  const heute = todayIso();
+  $("twMonat").textContent = monatText(twMonat);
+  $("twVor").disabled = twMonat >= heute.slice(0, 7);
+  $("twZurueck").disabled = twMonat <= fruehesterTag().slice(0, 7);
+  $("twKalender").innerHTML = monatsKalender(twMonat, twTag);
+  $("twAnzeigen").textContent = twTag === heute ? "Heute anzeigen" : `${tagTitel(twTag)} anzeigen`;
+}
+function tagWahlOeffnen() {
+  twTag = heuteTag;
+  twMonat = heuteTag.slice(0, 7);
+  tagWahlZeichnen();
+  $("tagWahlBlatt").hidden = false;
+  document.body.classList.add("blatt-offen");
+}
+function tagWahlSchliessen() {
+  $("tagWahlBlatt").hidden = true;
+  document.body.classList.remove("blatt-offen");
+}
+function heuteZeigen(tag) {
+  heuteTag = tag;
+  renderToday();
+  $("heuteTitel").closest(".view")?.querySelector(".scroll")?.scrollTo({ top: 0 });
+}
+
 /**
  * Kalender, gewählter Tag und Wochenschnitt unter Mahlzeiten.
  *
@@ -1742,29 +1827,11 @@ function renderVerlauf() {
   const heute = todayIso();
   if (evTag > heute) evTag = heute;
   if (evMonat > heute.slice(0, 7)) evMonat = heute.slice(0, 7);
-  const [jahr, monat] = evMonat.split("-").map(Number);
-  $("evMonat").textContent = new Date(jahr, monat - 1, 15).toLocaleDateString("de-DE", { month: "long", year: "numeric" });
+  $("evMonat").textContent = monatText(evMonat);
   $("evVor").disabled = evMonat >= heute.slice(0, 7);
-  const fruehester = store.allDays().filter((t) => (store.getDay(t).meals || []).length).sort()[0] || heute;
-  $("evZurueck").disabled = evMonat <= fruehester.slice(0, 7);
+  $("evZurueck").disabled = evMonat <= fruehesterTag().slice(0, 7);
 
-  const versatz = (new Date(jahr, monat - 1, 1).getDay() + 6) % 7;
-  const tage = new Date(jahr, monat, 0).getDate();
-  let html = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"].map((w) => `<span class="ev-wt">${w}</span>`).join("");
-  html += '<span class="ev-leer"></span>'.repeat(versatz);
-  for (let d = 1; d <= tage; d++) {
-    const iso = `${evMonat}-${String(d).padStart(2, "0")}`;
-    const zukunft = iso > heute;
-    const t = zukunft ? null : verlaufTag(iso);
-    // Heute läuft noch: unter der Hälfte heisst dort nicht unvollständig.
-    const stand = t ? (iso === heute && tagStand(t) === "unvollstaendig" ? "laeuft" : tagStand(t)) : "leer";
-    const kcal = t && t.mahlzeiten ? t.kcal : 0;
-    const klassen = ["ev-tag", stand, iso === evTag ? "gewaehlt" : "", iso === heute ? "heute" : ""].filter(Boolean).join(" ");
-    const label = `${tagTitel(iso)}, ${kcal ? `${kcal} kcal` : "nichts eingetragen"}`;
-    html += `<button type="button" class="${klassen}" data-ev-tag="${iso}"${zukunft ? " disabled" : ""} aria-pressed="${iso === evTag}" aria-label="${escapeHtml(label)}">`
-      + `<span class="ev-zahl">${d}</span><span class="ev-kcal">${kcal || ""}</span><i class="ev-punkt ${stand}"></i></button>`;
-  }
-  $("evKalender").innerHTML = html;
+  $("evKalender").innerHTML = monatsKalender(evMonat, evTag);
 
   // Der gewählte Tag
   const t = verlaufTag(evTag);
@@ -3076,6 +3143,8 @@ $("btnMenu").addEventListener("click", () => { menuSeite("start"); $("menu").hid
 $("btnMenuClose").addEventListener("click", () => { $("menu").hidden = true; });
 $("menu").addEventListener("click", (event) => {
   const item = event.target.closest("[data-go]");
+  // Aus dem Menü heisst Heute wieder heute, auch wenn vorher ein anderer Tag gewählt war.
+  if (item?.dataset.go === "heute") heuteTag = todayIso();
   if (item) { showView(item.dataset.go); return; }
   const gruppe = event.target.closest("[data-menu-gruppe]");
   if (gruppe) { menuSeite(gruppe.dataset.menuGruppe); return; }
@@ -3190,6 +3259,13 @@ $("btnSpeaker").addEventListener("click", () => {
 
 for (const chip of document.querySelectorAll("[data-water]")) {
   chip.addEventListener("click", async () => {
+    // Auf einem früheren Tag geht das Wasser in diesen Tag.
+    if (heuteTag !== todayIso()) {
+      store.addWater(heuteTag, Number(chip.dataset.water));
+      refreshAll();
+      toast(`${chip.dataset.water} ml für ${tagTitel(heuteTag)} eingetragen`);
+      return;
+    }
     await buildActions({ onChange: refreshAll }).wasserEintragen(Number(chip.dataset.water));
     toast(`${chip.dataset.water} ml eingetragen`);
   });
@@ -3420,7 +3496,7 @@ let herkunftAusloeser = null;
 
 function herkunftZeigen() {
   const info = HERKUNFT[herkunftMakro];
-  const n = dayNumbers(day);
+  const n = dayNumbers(heuteTag);
   const h = makroHerkunft(n.data.meals, herkunftMakro);
   const zahl = (v) => Math.round(v);
   const prozent = (a) => `${Math.round(a * 100)} %`;
@@ -3539,6 +3615,12 @@ let erfassenAuslöser = null;
 const ERFASSEN_KNOEPFE = ["btnErfassen", "btnErfassenHeute"];
 
 function erfassenOeffnen(event) {
+  // Auf Heute mit einem früheren Tag geht es direkt in den Editor für diesen
+  // Tag. Foto und Sprache tragen für heute ein und würden den Tag verfehlen.
+  if (event?.currentTarget?.id === "btnErfassenHeute" && heuteTag !== todayIso()) {
+    mahlzeitNeu("suche", heuteTag);
+    return;
+  }
   erfassenAuslöser = event?.currentTarget ?? $("btnErfassen");
   $("erfassenBlatt").hidden = false;
   document.body.classList.add("blatt-offen");
@@ -3720,6 +3802,14 @@ $("gewichtZeitraum").addEventListener("click", (event) => {
 $("btnWeight").addEventListener("click", async () => {
   const kg = Number(String($("weightInput").value).replace(",", "."));
   if (!(kg >= 30 && kg <= 300)) { toast("Das Gewicht muss zwischen 30 und 300 kg liegen."); return; }
+  // Eine Wiegung von früher geht nur in ihren Tag. Das Profil trägt das
+  // aktuelle Gewicht, und ein Nachtrag ist nicht das aktuelle.
+  if (heuteTag !== todayIso()) {
+    store.setWeight(heuteTag, Math.round(kg * 10) / 10);
+    refreshAll();
+    toast(`Gewicht für ${tagTitel(heuteTag)} eingetragen`);
+    return;
+  }
   const antwort = await buildActions({ onChange: refreshAll }).gewichtEintragen(Math.round(kg * 10) / 10);
   renderWeight();
   toast(antwort.split(".")[0]);
@@ -5383,7 +5473,7 @@ for (const id of ["mealList", "mealList2"]) {
   $(id)?.addEventListener("click", (event) => {
     const zeile = event.target.closest("[data-meal]");
     // Unter Mahlzeiten steht der gewählte Tag des Verlaufs, nicht immer heute.
-    if (zeile) mahlzeitOeffnen(zeile.dataset.meal, id === "mealList2" ? evTag : day);
+    if (zeile) mahlzeitOeffnen(zeile.dataset.meal, id === "mealList2" ? evTag : heuteTag);
   });
 }
 
@@ -5393,18 +5483,25 @@ $("evKalender").addEventListener("click", (event) => {
   evTag = knopf.dataset.evTag;
   renderVerlauf();
 });
-$("evZurueck").addEventListener("click", () => {
-  const [j, m] = evMonat.split("-").map(Number);
-  const d = new Date(j, m - 2, 1);
-  evMonat = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-  renderVerlauf();
+$("evZurueck").addEventListener("click", () => { evMonat = monatPlus(evMonat, -1); renderVerlauf(); });
+$("evVor").addEventListener("click", () => { evMonat = monatPlus(evMonat, 1); renderVerlauf(); });
+
+$("heuteTitel").addEventListener("click", tagWahlOeffnen);
+$("heuteZurueck").addEventListener("click", () => heuteZeigen(todayIso()));
+$("twSchliessen").addEventListener("click", tagWahlSchliessen);
+$("tagWahlBlatt").addEventListener("click", (event) => {
+  if (event.target === $("tagWahlBlatt")) tagWahlSchliessen();
 });
-$("evVor").addEventListener("click", () => {
-  const [j, m] = evMonat.split("-").map(Number);
-  const d = new Date(j, m, 1);
-  evMonat = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-  renderVerlauf();
+$("twKalender").addEventListener("click", (event) => {
+  const knopf = event.target.closest("[data-ev-tag]");
+  if (!knopf || knopf.disabled) return;
+  twTag = knopf.dataset.evTag;
+  tagWahlZeichnen();
 });
+$("twZurueck").addEventListener("click", () => { twMonat = monatPlus(twMonat, -1); tagWahlZeichnen(); });
+$("twVor").addEventListener("click", () => { twMonat = monatPlus(twMonat, 1); tagWahlZeichnen(); });
+$("twAnzeigen").addEventListener("click", () => { tagWahlSchliessen(); heuteZeigen(twTag); });
+$("twHeute").addEventListener("click", () => { tagWahlSchliessen(); heuteZeigen(todayIso()); });
 $("evWochen").addEventListener("click", (event) => {
   const zeile = event.target.closest("[data-ev-woche]");
   if (!zeile) return;
@@ -6665,7 +6762,8 @@ kiStandZeigen();
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "visible" || !profile) return;
   const current = todayIso();
-  if (current !== day) day = current;
+  // Nach Mitternacht wandert eine Seite, die auf heute stand, mit.
+  if (current !== day) { if (heuteTag === day) heuteTag = current; day = current; }
   refreshAll();
 });
 

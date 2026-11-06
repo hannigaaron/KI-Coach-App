@@ -2015,6 +2015,16 @@ ein Tipp auf eine Mahlzeit öffnet den Editor auf genau diesem Tag, und
 "Für diesen Tag nachtragen" legt eine Mahlzeit um 12:00 dort an. Auf Heute
 führt "Frühere Tage und Wochenschnitt" auf gestern.
 
+Auf Heute ist der Titel ein Knopf, `tagWahlOeffnen` in `app.js`, das Blatt
+`#tagWahlBlatt`: derselbe Monat über `monatsKalender`, "Anzeigen" stellt
+die Seite auf den Tag, `heuteTag`. Ring, Makros, Wasser, Gewicht, Herkunft
+und Mahlzeiten zeigen dann diesen Tag, und Wasser und Gewicht gehen in ihn.
+Ein Gewicht von früher ändert das Profil nicht, das trägt das aktuelle.
+"Essen nachtragen" öffnet dort den Editor mit Suche für diesen Tag: Foto und
+Sprache tragen für heute ein. Erinnerungen fehlen an einem anderen Tag.
+"Zurück zu heute" steht oben, und aus dem Menü öffnet Heute immer heute.
+`day` bleibt dabei heute, alles andere rechnet weiter mit dem echten Tag.
+
 Darunter der Wochenschnitt der Woche des gewählten Tages, Montag bis
 Sonntag, `wochenschnittFuer` in `assistant.js`: Kalorien, Protein, Fett und
 Kohlenhydrate gegen das Ziel, Verbrauch und Bilanz, darunter die letzten
