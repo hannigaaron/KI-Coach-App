@@ -4125,3 +4125,44 @@ button.hoert:not(.co-btn) { background: var(--stark); color: var(--auf-stark); a
 .mg-zyklus b { display: block; }
 .mg-zyklus small { color: var(--muted); font-size: var(--t-xs); }
 .mg-zyklus p { margin: var(--s-2) 0 0; line-height: 1.5; font-size: var(--t-sm); }
+
+/* ---------- Verlauf unter Mahlzeiten ----------
+ *
+ * Ein Monat als Raster aus sieben Spalten. Jeder Tag trägt seine Kalorien
+ * und einen Punkt für den Stand gegen das Ziel. Der Knopf trägt Daten,
+ * deshalb die Textschrift und nicht die Serife der Knöpfe. Ein Tag ohne
+ * Eintrag bleibt ohne Punkt: nicht eingetragen ist kein Fehler.
+ */
+.ev-monat { display: flex; align-items: center; justify-content: space-between; margin: var(--s-2) 0 var(--s-3); }
+.ev-monat b { font-size: var(--t-md); font-weight: 650; }
+.ev-monat .icon-btn:disabled { opacity: 0.3; }
+.ev-vor .chev { transform: rotate(-135deg); margin-left: 0; margin-right: 4px; }
+.ev-kalender { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.ev-wt { text-align: center; font-size: var(--t-2xs); color: var(--muted); padding-bottom: var(--s-1); }
+.ev-tag {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+  gap: 1px; min-height: 52px; padding: 6px 0 12px; border: 0; border-radius: var(--r-sm);
+  background: var(--flaeche); color: var(--text); font-family: var(--schrift-text); font-size: var(--t-sm);
+  letter-spacing: normal; cursor: pointer; transition: background 0.15s var(--kurve);
+}
+.ev-tag:disabled { background: none; color: var(--muted); opacity: 0.45; cursor: default; }
+.ev-tag.heute .ev-zahl { color: var(--accent-text); font-weight: 700; }
+.ev-tag.gewaehlt { background: var(--text); color: var(--bg); }
+.ev-tag.gewaehlt .ev-kcal, .ev-tag.gewaehlt.heute .ev-zahl { color: var(--bg); }
+.ev-zahl { font-weight: 600; font-variant-numeric: tabular-nums; }
+.ev-kcal { font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; min-height: 12px; line-height: 12px; }
+.ev-tag .ev-punkt { position: absolute; bottom: 5px; left: 50%; margin-left: -3px; }
+.ev-punkt { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: transparent; }
+.ev-punkt.im_ziel { background: var(--good); }
+.ev-punkt.drunter { background: var(--makro-wasser); }
+.ev-punkt.drueber { background: var(--bad); }
+.ev-punkt.unvollstaendig { box-shadow: inset 0 0 0 1.5px var(--muted); }
+.ev-tag.gewaehlt .ev-punkt.unvollstaendig { box-shadow: inset 0 0 0 1.5px var(--bg); }
+.ev-legende { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-4); margin: var(--s-3) 0 0; font-size: var(--t-xs); color: var(--muted); }
+.ev-legende span { display: inline-flex; align-items: center; gap: 6px; }
+.ev-tag-kopf { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); margin: var(--s-6) 0 0; }
+.ev-tag-kopf h3 { margin: 0; font-size: var(--t-lg); }
+.ev-tag-kopf span { font-size: var(--t-sm); color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+#evNachtragen { margin-top: var(--s-3); }
+.ev-bilanz { margin: var(--s-4) 0 0; font-size: var(--t-sm); line-height: 1.55; }
+.ev-wochen li.aktiv .li-title { color: var(--accent-text); }

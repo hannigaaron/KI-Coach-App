@@ -79,7 +79,7 @@ Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
 
-Der Assistent hat fünfundfünfzig Werkzeuge und verändert die App wirklich. Zahlen
+Der Assistent hat sechsundfünfzig Werkzeuge und verändert die App wirklich. Zahlen
 über den Nutzer kommen immer aus Werkzeugen, nie aus dem Modell. Allgemeines
 Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
@@ -682,7 +682,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1363 Tests
+npm test           # 1374 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -2002,6 +2002,44 @@ mehr als 900 kcal. Passen Kalorien und Makros nicht zusammen, wird
 gespeichert und der Unterschied genannt, denn der Nutzer hat die Packung vor
 sich und die App nicht. Gleicher Name ersetzt. Höchstens 500, ohne Grenze
 je Abo: das ist Grundausstattung beim Tracken.
+
+## Der Verlauf der Ernährung
+
+`packages/core/src/essensverlauf.ts` rechnet, `renderVerlauf` in `app.js`
+zeigt, unter Mahlzeiten. Heute zeigte nur heute, und was gestern gegessen
+wurde, stand nirgends. Jetzt steht dort ein Monat als Kalender: je Tag die
+Kalorien und ein Punkt für den Stand gegen das Ziel, `tagStand`, im Ziel bis
+10 Prozent daneben, darunter, darüber, unvollständig. Ein Tag ohne Eintrag
+bleibt ohne Punkt. Ein Tipp auf einen Tag zeigt seine Makros und Mahlzeiten,
+ein Tipp auf eine Mahlzeit öffnet den Editor auf genau diesem Tag, und
+"Für diesen Tag nachtragen" legt eine Mahlzeit um 12:00 dort an. Auf Heute
+führt "Frühere Tage und Wochenschnitt" auf gestern.
+
+Darunter der Wochenschnitt der Woche des gewählten Tages, Montag bis
+Sonntag, `wochenschnittFuer` in `assistant.js`: Kalorien, Protein, Fett und
+Kohlenhydrate gegen das Ziel, Verbrauch und Bilanz, darunter die letzten
+acht Wochen zum Antippen. Dieselben Regeln wie im Wochenrückblick: ein Tag
+ohne Eintrag ist vergessen und zählt nicht, ein Tag unter der Hälfte des
+Ziels gilt als unvollständig und zählt nicht, beide werden genannt. Heute
+zählt nie mit, der Tag läuft noch, und um neun Uhr stünde er als
+unvollständig da.
+
+Die Bilanz ist Aufnahme minus Verbrauch. Der Verbrauch ist gemessen, sobald
+`estimateTdee` ihn aus 28 Tagen bestimmen kann, sonst die Formel je Tag mit
+den gemessenen Schritten, und die Ausgabe sagt, welches von beiden. Die Kilo
+je Woche sind eine Rechnung mit 7700 kcal je kg nach Wishnofsky und stehen
+auch so da. Das Ziel eines früheren Tages rechnet mit dem Profil von heute,
+ein Gewicht von damals kennt das Profil nicht.
+
+`verlaufTag` geht nicht über `dayNumbers`: das liest bei jedem Aufruf alle
+Tage für die Serie, und der Kalender fragt 31 Tage auf einmal ab.
+
+Im Gespräch: Werkzeug `essensverlauf_abrufen` mit Regelpfad
+`essensverlaufAus` in `agent.ts`. "Was hab ich gestern gegessen" bekam
+vorher die Zahlen von heute. Erkannt werden gestern, vorgestern, "vor drei
+Tagen" und Wochentage, nur als Frage: "gestern hab ich noch Pizza gegessen"
+ist ein Nachtrag. Wochenschnitt, Defizit und Durchschnitt mit einem Wort
+fürs Essen gehen an den Schnitt, "letzte Woche" an die Woche davor.
 
 ## Eine Mahlzeit nachträglich ändern
 

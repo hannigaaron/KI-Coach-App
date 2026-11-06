@@ -4,7 +4,7 @@ import {
   mahlzeitAusFoto, modellFuerBilder, naehrwerteImNetz, produktPerBarcode, produkteSuchen, summiere, vorratAusFoto,
   todoistAbhaken, todoistAufgaben, todoistIdVon, todoistWiederOeffnen, PERSONA_TEILE,
 } from "@daevo/coach";
-import { foldUmlauts, wochenrueckblick, wochenbeginn, rueckblickArt, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, einzeltrainingBauen, FOKUS_NAME, alternativen, planNachrechnen } from "@daevo/core";
+import { foldUmlauts, wochenrueckblick, wochenbeginn, wochenschnitt, wochenschnittText, tagKurz, tagStand, rueckblickArt, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, einzeltrainingBauen, FOKUS_NAME, alternativen, planNachrechnen } from "@daevo/core";
 import { trainingsTageAusQuellen } from "./luecke.js";
 import { UEBUNGEN } from "./uebungen-daten.js";
 import { GERAETE, uebungenFiltern } from "./uebungen.js";
@@ -3545,6 +3545,17 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
     async wochenrueckblick() {
       return wochenrueckblickFuer().text;
     },
+    async essensverlaufAbrufen({ tag, tageZurueck, woche = false, wochenZurueck = 0 } = {}) {
+      const heute = todayIso();
+      if (woche) {
+        const n = Math.max(0, Math.min(52, Math.round(Number(wochenZurueck) || 0)));
+        const t = /^\d{4}-\d{2}-\d{2}$/.test(String(tag || "")) && tag <= heute ? tag : tagPlusIso(heute, -7 * n);
+        return wochenschnittText(wochenschnittFuer(t));
+      }
+      const zurueck = Number.isFinite(Number(tageZurueck)) ? Math.max(0, Math.min(400, Math.round(Number(tageZurueck)))) : 1;
+      const t = /^\d{4}-\d{2}-\d{2}$/.test(String(tag || "")) && tag <= heute ? tag : tagPlusIso(heute, -zurueck);
+      return tagesverlaufText(t);
+    },
     async essensplanAbrufen({ inTagen = 0 } = {}) {
       if (!essensplanFreiFuerCoach()) {
         return "NICHT_GESPEICHERT: Der Essensplan für die Woche gehört zu Pro. Einzelne Rezepte passend zum Rest des Tages gibt es unter Rezepte.";
@@ -4274,6 +4285,73 @@ export function wochenrueckblickFuer(heute = todayIso()) {
     });
   }
   return wochenrueckblick(tage, { art, ziel: store.getProfile()?.goal });
+}
+
+/**
+ * Ein Tag als Zeile für den Essensverlauf. Ohne dayNumbers, das bei jedem
+ * Aufruf alle Tage für die Serie liest: der Kalender fragt 31 Tage auf
+ * einmal ab. Das Ziel rechnet mit dem Profil von heute und den gemessenen
+ * Schritten dieses Tages. Ein Gewicht von damals kennt das Profil nicht.
+ */
+export function verlaufTag(tag, verbrauch = null) {
+  const data = store.getDay(tag);
+  const profile = profilFuerTag(tag);
+  const summe = { kcal: 0, proteinG: 0, fatG: 0, carbsG: 0 };
+  let mahlzeiten = 0;
+  for (const m of data.meals || []) {
+    if ((m.entries || []).length) mahlzeiten++;
+    for (const e of m.entries || []) for (const k of Object.keys(summe)) summe[k] += Number(e[k]) || 0;
+  }
+  const ziel = profile ? macroTargets(profile) : { kcal: 0, proteinG: 0, fatG: 0, carbsG: 0 };
+  return {
+    tag, mahlzeiten,
+    kcal: Math.round(summe.kcal), proteinG: Math.round(summe.proteinG),
+    fatG: Math.round(summe.fatG), carbsG: Math.round(summe.carbsG),
+    zielKcal: ziel.kcal, zielProteinG: ziel.proteinG, zielFatG: ziel.fatG, zielCarbsG: ziel.carbsG,
+    verbrauchKcal: verbrauch ?? (profile ? energyBreakdown(profile).tdeeKcal : null),
+  };
+}
+
+/** Der gemessene Verbrauch aus 28 Tagen, wenn trend.ts ihn bestimmen kann. */
+export function gemessenerVerbrauch() {
+  const s = estimateTdee(verlaufPunkte(28));
+  return s.tdeeKcal && s.tdeeKcal > 0 ? s.tdeeKcal : null;
+}
+
+/**
+ * Der Schnitt der Woche, in der `tagIso` liegt, Montag bis Sonntag. Nur
+ * abgeschlossene Tage: heute läuft noch, und um neun Uhr morgens stünde er
+ * mit 400 kcal im Schnitt oder als unvollständig da, obwohl nichts fehlt.
+ * Der Verbrauch ist gemessen, sobald es geht, sonst nach Formel je Tag.
+ */
+export function wochenschnittFuer(tagIso = todayIso(), gemessen = gemessenerVerbrauch()) {
+  const heute = todayIso();
+  const von = wochenbeginn(tagIso);
+  const tage = [];
+  for (let i = 0; i < 7; i++) {
+    const t = tagPlusIso(von, i);
+    if (t >= heute) break;
+    tage.push(verlaufTag(t, gemessen));
+  }
+  return wochenschnitt(tage, { verbrauchQuelle: gemessen ? "gemessen" : "formel" });
+}
+
+/** Was an einem Tag gegessen wurde, als Text für Coach und Regelweg. */
+export function tagesverlaufText(tagIso) {
+  const t = verlaufTag(tagIso);
+  const kopf = tagKurz(tagIso);
+  const meals = (store.getDay(tagIso).meals || []).filter((m) => (m.entries || []).length);
+  if (!meals.length) return `${kopf}: nichts eingetragen. Das heisst nicht, dass du nichts gegessen hast. Sag mir, was es war, dann trage ich es für diesen Tag nach.`;
+  const zeilen = [
+    `${kopf}: ${t.kcal} von ${t.zielKcal} kcal, Protein ${t.proteinG} g, Fett ${t.fatG} g, Kohlenhydrate ${t.carbsG} g.`,
+    ...meals.map((m) => {
+      const kcal = Math.round(m.entries.reduce((s, e) => s + e.kcal, 0));
+      const was = m.source === "health" ? m.text : m.entries.map((e) => `${e.quantity} ${e.name}`).join(", ");
+      return `- ${m.at} Uhr: ${was}, ${kcal} kcal`;
+    }),
+  ];
+  if (tagIso !== todayIso() && tagStand(t) === "unvollstaendig") zeilen.push("Das liegt unter der Hälfte deines Ziels und sieht unvollständig aus. Fehlt etwas, sag es mir.");
+  return zeilen.join("\n");
 }
 
 /** Ein Tausch im Training für heute gilt auch beim nächsten Mal mit denselben Partien. */

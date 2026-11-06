@@ -874,6 +874,24 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     input_schema: { type: "object", properties: {} },
   },
   {
+    name: "essensverlauf_abrufen",
+    description:
+      "Liest, was an einem früheren Tag gegessen wurde, mit Uhrzeit, Posten und Summen, oder den Schnitt einer Woche: " +
+      "Kalorien, Protein, Fett, Kohlenhydrate gegen das Ziel, Verbrauch und Defizit oder Überschuss. Nehmen bei " +
+      "\"was hab ich gestern gegessen\", \"wie viel hatte ich am Montag\", \"mein Wochenschnitt\", \"wie groß ist mein " +
+      "Defizit\". Für heute gibt es tagesstand_abrufen. Tage ohne Eintrag und Tage unter der Hälfte des Ziels zählen " +
+      "nicht in den Schnitt, das rechnet die App schon so. Zahlen nie selbst ergänzen.",
+    input_schema: {
+      type: "object",
+      properties: {
+        tag: { type: "string", description: "JJJJ-MM-TT, nicht in der Zukunft. Bei woche die Woche, in der der Tag liegt." },
+        tageZurueck: { type: "number", description: "Statt tag: 1 gestern, 2 vorgestern. Ohne Angabe gestern." },
+        woche: { type: "boolean", description: "true für den Wochenschnitt Montag bis Sonntag statt eines Tages." },
+        wochenZurueck: { type: "number", description: "Mit woche: 0 diese Woche, 1 letzte Woche." },
+      },
+    },
+  },
+  {
     name: "einkaufsliste_ergaenzen",
     description:
       "Setzt Posten auf die Einkaufsliste, die der Nutzer selbst nennt: \"setz Reis und Brokkoli auf die Liste\". " +

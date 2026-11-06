@@ -65,6 +65,8 @@ export interface AgentActions {
   trainingHeute?(input: { gruppen: string[]; minuten?: number; neu?: boolean; tag?: string; uhrzeit?: string; weglassen?: string[]; tauschen?: string[] }): Promise<string>;
   essensplanAbrufen?(input: { inTagen?: number }): Promise<string>;
   wochenrueckblick?(): Promise<string>;
+  /** Was an einem früheren Tag gegessen wurde, oder der Schnitt einer Woche. */
+  essensverlaufAbrufen?(input: { tag?: string; tageZurueck?: number; woche?: boolean; wochenZurueck?: number }): Promise<string>;
   uebungenSuchen?(input: { suche?: string; ersatzFuer?: string }): Promise<string>;
   zyklus?(input: { aktion: string; tag?: string; symptome?: string[] }): Promise<string>;
   lebensmittelAnlegen?(input: { name: string; kcal: number; proteinG?: number; fatG?: number; carbsG?: number; portionG?: number }): Promise<string>;
@@ -599,7 +601,7 @@ export const NUR_LESEN = new Set([
   "tagesstand_abrufen", "verlauf_abrufen", "kalender_abrufen", "gespraeche_durchsuchen",
   "produkt_nachschlagen", "balance_abrufen", "muster_erkennen", "bericht_erstellen",
   "belastung_abrufen", "bereitschaft_abrufen", "widersprueche_pruefen",
-  "trainingsplan_abrufen", "essensplan_abrufen", "wochenrueckblick", "standards_abrufen", "gedaechtnis_durchsuchen", "uebungen_suchen",
+  "trainingsplan_abrufen", "essensplan_abrufen", "wochenrueckblick", "essensverlauf_abrufen", "standards_abrufen", "gedaechtnis_durchsuchen", "uebungen_suchen",
 ]);
 
 async function execute(
@@ -931,6 +933,18 @@ async function execute(
       case "wochenrueckblick": {
         if (!actions.wochenrueckblick) return { text: "Den Wochenrückblick gibt es in dieser Fassung nicht.", fehler: true };
         return { text: await actions.wochenrueckblick() };
+      }
+      case "essensverlauf_abrufen": {
+        if (!actions.essensverlaufAbrufen) return { text: "Den Verlauf gibt es in dieser Fassung nicht.", fehler: true };
+        const zahl = (x: unknown) => (x === undefined || x === null || !Number.isFinite(Number(x)) ? undefined : Number(x));
+        return {
+          text: await actions.essensverlaufAbrufen({
+            tag: typeof input.tag === "string" ? input.tag : undefined,
+            tageZurueck: zahl(input.tageZurueck),
+            woche: input.woche === true,
+            wochenZurueck: zahl(input.wochenZurueck),
+          }),
+        };
       }
       case "essensplan_abrufen": {
         const inTagen = Number.isFinite(Number(input.inTagen)) ? clamp(Number(input.inTagen), 0, 6) : 0;
@@ -1352,6 +1366,38 @@ export function istAbsicht(roh: string): boolean {
   return !vergangenheit;
 }
 
+const WOCHENTAGE_WORT = ["sonntag", "montag", "dienstag", "mittwoch", "donnerstag", "freitag", "samstag"];
+
+/**
+ * Liest eine Frage nach dem Essensverlauf: ein früherer Tag oder der
+ * Schnitt einer Woche. Nur Fragen, nie ein Eintrag: "gestern hab ich Pizza
+ * gegessen" ist ein Nachtrag und geht an die Erfassung.
+ */
+export function essensverlaufAus(satz: string, jetzt = new Date()): { tageZurueck?: number; woche?: boolean; wochenZurueck?: number } | null {
+  const text = foldUmlauts(satz.toLowerCase());
+  const frage = /\?\s*$/.test(text) || /^(was|wie ?viel\w*|welche\w*|zeig|wo|hab ich|habe ich)\b/.test(text);
+  const essen = /\b(gegessen|getrunken|kalorien|kcal|makros?|protein|eiweiss|fett|kohlenhydrate|essen|ernaehrung)\b/.test(text);
+  if (/\b(wochenschnitt|wochendurchschnitt|kaloriendefizit|kalorienschnitt|kalorienbilanz)\b/.test(text)
+    || ((/\b(defizit|ueberschuss)\b/.test(text) || (/\b(schnitt|durchschnitt|durchschnittlich)\b/.test(text) && essen))
+      && (frage || /\b(woche|wochen)\b/.test(text)))) {
+    return { woche: true, wochenZurueck: /\b(letzte|vorige|vergangene)n? woche\b/.test(text) ? 1 : 0 };
+  }
+  if (!frage || !/\b(gegessen|getrunken)\b/.test(text)) return null;
+  if (/\bvorgestern\b/.test(text)) return { tageZurueck: 2 };
+  if (/\bgestern\b/.test(text)) return { tageZurueck: 1 };
+  const vor = text.match(/\bvor (\d{1,3}|zwei|drei|vier|fuenf|sechs|sieben) tagen\b/);
+  if (vor) {
+    const n = Number(vor[1]) || ["", "", "zwei", "drei", "vier", "fuenf", "sechs", "sieben"].indexOf(vor[1]!);
+    if (n > 0) return { tageZurueck: n };
+  }
+  const wt = WOCHENTAGE_WORT.findIndex((w) => new RegExp(`\\b(am |letzten )?${w}\\b`).test(text));
+  if (wt >= 0) {
+    const zurueck = (jetzt.getDay() - wt + 7) % 7 || 7;
+    return { tageZurueck: zurueck };
+  }
+  return null;
+}
+
 function pattern(...woerter: string[]): RegExp {
   return new RegExp(woerter.map(foldUmlauts).join("|"));
 }
@@ -1579,6 +1625,13 @@ export async function runOffline(
   if (actions.wochenrueckblick && (/\b(wochenrueckblick|wochenbilanz|zwischenstand|wochenabschluss)\b/.test(text)
     || /\bwie\b.{0,20}\b(lief|war|laeuft)\b.{0,20}\b(meine|die|diese)\s+woche\b/.test(text))) {
     return { text: await actions.wochenrueckblick(), ausgeführt: [], source: "offline" };
+  }
+
+  // Frühere Tage und der Wochenschnitt. "Was hab ich gestern gegessen" traf
+  // vorher die Frage nach dem eigenen Tag und bekam die Zahlen von heute.
+  if (actions.essensverlaufAbrufen) {
+    const verlauf = essensverlaufAus(text);
+    if (verlauf) return { text: await actions.essensverlaufAbrufen(verlauf), ausgeführt: [], source: "offline" };
   }
 
   // "Was esse ich morgen laut Plan" und "was soll ich heute essen" lesen den
