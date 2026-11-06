@@ -16,7 +16,7 @@
  * Bis `morgenStarten` fasst das Modul weder `document` noch `window` an.
  */
 import {
-  MORGEN_FRAGEN, BELASTBARKEIT_NAME, PHASE_NAME, SYMPTOM_NAME, zyklusEmpfehlung, zyklusStand, NACHFRAGE_UHRZEIT, morgenAuswerten, morgenUhrzeit, morgenVollstaendig, nachfrageAuswerten, nachfrageNoetig, tagesrandFuer,
+  bereichVon, MORGEN_FRAGEN, BELASTBARKEIT_NAME, PHASE_NAME, SYMPTOM_NAME, zyklusEmpfehlung, zyklusStand, NACHFRAGE_UHRZEIT, morgenAuswerten, morgenUhrzeit, morgenVollstaendig, nachfrageAuswerten, nachfrageNoetig, tagesrandFuer,
 } from "@daevo/core";
 import { newId, nowTime } from "./storage.js";
 import { bestellteEinheit } from "./vorhaben.js";
@@ -39,6 +39,45 @@ export function morgenVonHeute(store, tag) {
  * die Krafttage der Woche der Reihe nach, Montag zuerst, A, B, C im Wechsel.
  */
 export function trainingHeute(store, tag) {
+  return mitKalender(trainingAusPlan(store, tag), store, tag);
+}
+
+const hhmm = (ms) => { const d = new Date(ms); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
+const ortsTag = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+
+/**
+ * Der Kalender schlägt das Profil. Im Betrieb stand "Krafttraining um 15:00:
+ * wie geplant", während um 15:00 eine Vertretung im Kalender stand und das
+ * Krafttraining dort um 16:15. Ein eigenes Training im Kalender gibt Uhrzeit
+ * und Dauer vor, über dieselbe Zuordnung wie das Balance Board, dazu alles,
+ * was daevo eingetragen hat. Steht keins dort und liegt zur Uhrzeit aus dem
+ * Profil ein anderer Termin, sagt der Check-in das, statt "wie geplant".
+ */
+function mitKalender(geplant, store, tag) {
+  const termine = (store.getKalender?.().termine || [])
+    .filter((t) => !t.ganztags && Number.isFinite(Number(t.von)) && ortsTag(Number(t.von)) === tag)
+    .sort((a, b) => a.von - b.von);
+  if (!termine.length) return geplant;
+  const istTraining = (t) => t.daevo || bereichVon(String(t.titel || "")) === "fitness";
+  const mannschaft = (t) => /volleyball|spiel|turnier|wettkampf|mannschaft/i.test(String(t.titel || ""));
+  const frei = termine.filter(istTraining);
+  return geplant.map((g) => {
+    const passend = frei.filter((t) => (g.art === "team_sport") === mannschaft(t));
+    if (passend.length) {
+      const ziel = g.uhrzeit ? min(g.uhrzeit) : 0;
+      const t = passend.sort((a, b) => Math.abs(min(hhmm(a.von)) - ziel) - Math.abs(min(hhmm(b.von)) - ziel))[0];
+      frei.splice(frei.indexOf(t), 1);
+      return { ...g, uhrzeit: hhmm(t.von), minuten: Math.round((t.bis - t.von) / 60000) || g.minuten };
+    }
+    if (!g.uhrzeit) return g;
+    const von = min(g.uhrzeit);
+    const bis = von + (Number(g.minuten) || 60);
+    const stoer = termine.find((t) => !istTraining(t) && min(hhmm(t.von)) < bis && min(hhmm(t.bis)) > von && ortsTag(Number(t.bis)) === tag);
+    return stoer ? { ...g, konflikt: String(stoer.titel || "ein Termin") } : g;
+  });
+}
+
+function trainingAusPlan(store, tag) {
   const wochentag = new Date(`${tag}T12:00:00`).getDay();
   const sessions = store.getProfile()?.sessions || [];
   const plan = store.getSettings().plan;

@@ -682,7 +682,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1359 Tests
+npm test           # 1363 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1233,6 +1233,17 @@ sagt das. Dazu eine halbe Stunde früher ins Bett, und bei
 Krankheitsgefühl trinken, ruhen, bei Fieber zum Arzt. Der Grund ist ein
 Nebensatz mit dem Verb am Ende, ein Test hält das fest: die erste Fassung
 schrieb "weil du bist wenig erholt aufgewacht".
+
+Das Training des Tages kommt aus dem Kalender, wenn dort eines steht,
+`mitKalender` in `morgen.js`: Uhrzeit und Dauer des Termins schlagen das
+Profil, erkannt über die Zuordnung des Balance Boards und alles, was daevo
+eingetragen hat. Im Betrieb stand "Krafttraining um 15:00: wie geplant",
+während um 15:00 eine Vertretung im Kalender stand und das Krafttraining
+um 16:15. Steht keins dort und liegt zur Uhrzeit aus dem Profil ein anderer
+Termin, trägt es `konflikt`, und statt "wie geplant" steht, welcher Termin
+dort liegt. Uhrzeiten, die im Titel stehen und dem Beginn entsprechen,
+fallen im Briefing weg, `ohneEigeneUhrzeit`: "13:15 13:15 Uhr Silke Call"
+las sich wie ein Fehler.
 
 Gespeichert wird als Check-in der Art `morning` mit `morgen`,
 `morgenWert` und `belastbarkeit`, dazu Schlaf und Energie auf 1 bis 10

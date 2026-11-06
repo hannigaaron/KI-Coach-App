@@ -90,3 +90,10 @@ test("der Fokus sagt nur 'zuerst', wenn die Aufgabe wirklich als erste dran ist"
   const frueh = briefing("morgen", [], [{ text: "Slide schreiben", um: "08:45", wichtig: true }, { text: "Denise antworten", um: "11:00" }]);
   assert.match(frueh.abschnitte.find((a) => a.titel === "Fokus")!.zeilen[0]!, /eingeplant um 08:45\. Das zuerst/);
 });
+
+test("ohneEigeneUhrzeit: die Uhrzeit im Titel fällt nur weg, wenn sie dem Beginn entspricht", async () => {
+  const { ohneEigeneUhrzeit } = await import("./tagesbriefing.js");
+  assert.equal(ohneEigeneUhrzeit("13:15 Uhr Silke Call", "13:15"), "Silke Call");
+  assert.equal(ohneEigeneUhrzeit("14:00 Uhr Simone Pt", "13:00"), "14:00 Uhr Simone Pt");
+  assert.equal(ohneEigeneUhrzeit("Arbeit dafits Studio", "08:00"), "Arbeit dafits Studio");
+});

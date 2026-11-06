@@ -111,3 +111,13 @@ test("Der Grund ist ein Nebensatz mit dem Verb am Ende", () => {
   const r = morgenAuswerten({ antworten: { schlaf: 2, einschlafen: 3, erholt: 2, gesund: 2 }, training: [] });
   assert.equal(r.warum, "Weil du dich nicht ganz fit fühlst, du wenig erholt aufgewacht bist und die Nacht schlecht war.");
 });
+
+test("Liegt zur geplanten Zeit ein anderer Termin, steht nicht wie geplant da", async () => {
+  const { morgenAuswerten } = await import("./morgencheck.js");
+  const r = morgenAuswerten({
+    antworten: { schlaf: 4, einschlafen: 4, erholt: 3, gesund: 4 },
+    training: [{ art: "strength", minuten: 90, uhrzeit: "15:00", konflikt: "YAN Vertretung" }],
+  });
+  assert.ok(!r.training.some((z) => /wie geplant/.test(z)), r.training.join(" | "));
+  assert.ok(r.training.some((z) => /YAN Vertretung/.test(z)));
+});

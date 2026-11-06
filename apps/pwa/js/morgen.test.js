@@ -117,3 +117,24 @@ test("der Morgen nennt den Zyklus nur, wenn er eingeschaltet ist, und die Anpass
   const kraempfe = zyklusZeileHtml({ an: true, perioden: [{ beginn: "2026-11-01" }], symptome: { "2026-11-02": ["kraempfe"] } }, "2026-11-02");
   assert.match(kraempfe, /drei Vierteln der Sätze/);
 });
+
+test("Der Kalender schlägt das Profil: Uhrzeit und Dauer kommen aus dem Termin", () => {
+  frisch();
+  const am = (h, m) => new Date(`${HEUTE}T${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00`).getTime();
+  store.setKalender({ quellen: [], termine: [
+    { uid: "a", titel: "YAN Vertretung", von: am(18, 0), bis: am(19, 0) },
+    { uid: "b", titel: "Krafttraining", von: am(16, 15), bis: am(17, 45) },
+  ] });
+  const t = trainingHeute(store, HEUTE);
+  assert.equal(t[0].uhrzeit, "16:15");
+  assert.equal(t[0].minuten, 90);
+  assert.equal(t[0].konflikt, undefined);
+});
+
+test("Ohne Training im Kalender nennt der Check-in den Termin, der zur geplanten Zeit liegt", () => {
+  frisch();
+  const am = (h) => new Date(`${HEUTE}T${String(h).padStart(2, "0")}:00:00`).getTime();
+  store.setKalender({ quellen: [], termine: [{ uid: "a", titel: "YAN Vertretung", von: am(18), bis: am(19) }] });
+  const t = trainingHeute(store, HEUTE);
+  assert.equal(t[0].konflikt, "YAN Vertretung");
+});

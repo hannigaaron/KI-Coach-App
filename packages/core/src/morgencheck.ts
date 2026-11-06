@@ -56,6 +56,11 @@ export interface GeplantesTraining {
   uhrzeit?: string;
   /** Titel der Einheit aus dem Plan, etwa "Ganzkörper A". */
   titel?: string;
+  /**
+   * Ein anderer Termin, der zur Uhrzeit aus dem Profil im Kalender steht.
+   * Dann ist "wie geplant" falsch, denn dort ist er bei einem Kunden.
+   */
+  konflikt?: string;
 }
 
 export interface MorgenEingabe {
@@ -263,8 +268,11 @@ function trainingFuer(b: Belastbarkeit, geplant: GeplantesTraining[], a: MorgenA
       zeilen.push(t.art === "strength"
         ? `${name}${wann}: wie geplant. Guter Tag, um bei der ersten Übung das Gewicht zu steigern, wenn die Technik sitzt.`
         : `${name}${wann}: wie geplant, du kannst Gas geben.`);
-    } else {
+    } else if (!t.konflikt) {
       zeilen.push(`${name}${wann}: wie geplant, ${t.minuten} Minuten.`);
+    }
+    if (t.konflikt && b !== "schonen") {
+      zeilen.push(`Um ${t.uhrzeit} steht \u201e${t.konflikt}\u201c im Kalender, dort passt das ${name} nicht. Leg es auf eine freie Zeit, oder sag mir, dass ich es verschieben soll.`);
     }
   }
   return zeilen;
