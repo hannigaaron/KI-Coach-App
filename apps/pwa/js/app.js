@@ -17,6 +17,7 @@ import {
   erinnerungZeile,
   istEinmalig,
   vorausblickText,
+  bilanzSatz, tageListe, tagStand, zeitraumText,
 } from "@daevo/core";
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, PREISE_STAND, aktuellesModell, produktPerBarcode, produkteSuchen } from "@daevo/coach";
 import { Coach, AnthropicProvider, FOODS } from "@daevo/coach";
@@ -48,6 +49,7 @@ import {
   vorausblickePlan,
   vorausblickFuer,
   offOptionen, uhrKiZugang,
+  verlaufTag, wochenschnittFuer, gemessenerVerbrauch,
 } from "./assistant.js";
 import { zyklusAnsicht, zyklusSichtbar } from "./zyklus-ui.js";
 import { uhrEreignisseAnwenden, uhrMeldung, uhrPaket } from "./uhr.js";
@@ -91,6 +93,9 @@ const KIND_LABEL = {
 
 let profile = store.getProfile();
 let day = todayIso();
+/** Der Tag und der Monat, die der Verlauf unter Mahlzeiten zeigt. */
+let evTag = day;
+let evMonat = day.slice(0, 7);
 let lastMealId = null;
 let orb = null;
 let listener = null;
@@ -955,7 +960,7 @@ function showView(name) {
   if (name !== "uebungen") uebungen?.schliessen();
   if (name === "uebungen") uebungen?.modus(aufPlaene ? "plaene" : "uebungen");
   if (name === "heute") renderToday();
-  if (name === "essen") { $("fridgeInput").value = store.getFridge().join(", "); renderMeals("mealList2"); renderRestDesTages(); }
+  if (name === "essen") { $("fridgeInput").value = store.getFridge().join(", "); renderVerlauf(); renderRestDesTages(); }
   if (name === "checkin") renderCheckins();
   if (name === "reflexion") renderMemories();
   if (name === "einkauf") renderEinkauf();
@@ -1013,7 +1018,7 @@ function refreshAll() {
   if (!visible) return;
   const name = visible.dataset.view;
   if (name === "heute") renderToday();
-  if (name === "essen") renderMeals("mealList2");
+  if (name === "essen") renderVerlauf();
   if (name === "checkin") renderCheckins();
   if (name === "reflexion") renderMemories();
   if (name === "einkauf") renderEinkauf();
@@ -1661,10 +1666,10 @@ function setBar(prefix, actual, target, unit, { obergrenze = true } = {}) {
   $(`${prefix}Txt`).textContent = `${actual} / ${target} ${unit}`;
 }
 
-function renderMeals(targetId) {
+function renderMeals(targetId, tag = day) {
   const el = $(targetId);
   if (!el) return;
-  const meals = store.getDay(day).meals;
+  const meals = store.getDay(tag).meals;
   el.innerHTML = meals.length
     ? meals.map((meal) => {
         const kcal = Math.round(meal.entries.reduce((s, e) => s + e.kcal, 0));
@@ -1682,14 +1687,145 @@ function renderMeals(targetId) {
           (meal.source === "health" && meal.text !== `Mahlzeit aus ${meal.quelle}` ? `, aus ${escapeHtml(meal.quelle || "Apple Health")}` : "") +
           `</div></div><div class="li-side"><b>${kcal}</b>kcal</div></li>`;
       }).join("")
-    : `<li><div class="li-main"><div class="li-sub">Noch nichts erfasst.</div></div></li>`;
+    : `<li><div class="li-main"><div class="li-sub">${tag === todayIso() ? "Noch nichts erfasst." : "Nichts eingetragen. Das heisst nicht, dass du nichts gegessen hast."}</div></div></li>`;
   // Was aus Health kam und nicht zählt, steht sichtbar da. Ein stiller
   // Filter, der Essen verschluckt, wäre derselbe Fehler wie doppelt zählen.
-  const weg = store.getDay(day).healthUebersprungen || [];
+  const weg = store.getDay(tag).healthUebersprungen || [];
   if (weg.length) {
     el.innerHTML += weg.map((w) => `<li><div class="li-main"><div class="li-sub">Nicht mitgezählt: ${w.kcal} kcal aus ${escapeHtml(w.quelle)} um ${escapeHtml(w.uhrzeit)} Uhr. `
       + `Du hast um ${escapeHtml(w.eigeneUm)} Uhr selbst eine Mahlzeit eingetragen, vermutlich dieselbe.</div></div></li>`).join("");
   }
+}
+
+/* ---------- Verlauf und Wochenschnitt ---------- */
+
+const MAKRO_ZEILEN = [
+  ["Protein", "proteinG", "--makro-protein"],
+  ["Fett", "fatG", "--makro-fett"],
+  ["Kohlenhydrate", "carbsG", "--makro-kohlenhydrate"],
+];
+
+function isoPlus(iso, n) {
+  const d = new Date(`${iso}T12:00:00`);
+  d.setDate(d.getDate() + n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** Makrozeilen gegen ein Ziel, dieselbe Form wie auf Heute. */
+function makroZeilen(el, ist, ziel) {
+  for (const [name, feld, ton] of MAKRO_ZEILEN) {
+    const z = ziel[feld] || 0;
+    el.appendChild(messwert({
+      name, wert: `${ist[feld]} g`, zusatz: z ? `von ${z} g` : "",
+      anteil: z ? ist[feld] / z : 0, ton: `var(${ton})`,
+    }));
+  }
+}
+
+function tagTitel(tag) {
+  const heute = todayIso();
+  if (tag === heute) return "Heute";
+  if (tag === isoPlus(heute, -1)) return "Gestern";
+  return new Date(`${tag}T12:00:00`).toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" });
+}
+
+/**
+ * Kalender, gewählter Tag und Wochenschnitt unter Mahlzeiten.
+ *
+ * Der Kalender zeigt je Tag die Kalorien und einen Punkt für den Stand
+ * gegen das Ziel, gerechnet in `tagStand` im Kern. Ein Tag ohne Eintrag
+ * bleibt leer und wird nicht rot: nicht eingetragen heisst vergessen und
+ * nicht nichts gegessen. Der Wochenschnitt folgt dem gewählten Tag.
+ */
+function renderVerlauf() {
+  if (!$("evKalender")) return;
+  const heute = todayIso();
+  if (evTag > heute) evTag = heute;
+  if (evMonat > heute.slice(0, 7)) evMonat = heute.slice(0, 7);
+  const [jahr, monat] = evMonat.split("-").map(Number);
+  $("evMonat").textContent = new Date(jahr, monat - 1, 15).toLocaleDateString("de-DE", { month: "long", year: "numeric" });
+  $("evVor").disabled = evMonat >= heute.slice(0, 7);
+  const fruehester = store.allDays().filter((t) => (store.getDay(t).meals || []).length).sort()[0] || heute;
+  $("evZurueck").disabled = evMonat <= fruehester.slice(0, 7);
+
+  const versatz = (new Date(jahr, monat - 1, 1).getDay() + 6) % 7;
+  const tage = new Date(jahr, monat, 0).getDate();
+  let html = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"].map((w) => `<span class="ev-wt">${w}</span>`).join("");
+  html += '<span class="ev-leer"></span>'.repeat(versatz);
+  for (let d = 1; d <= tage; d++) {
+    const iso = `${evMonat}-${String(d).padStart(2, "0")}`;
+    const zukunft = iso > heute;
+    const t = zukunft ? null : verlaufTag(iso);
+    // Heute läuft noch: unter der Hälfte heisst dort nicht unvollständig.
+    const stand = t ? (iso === heute && tagStand(t) === "unvollstaendig" ? "laeuft" : tagStand(t)) : "leer";
+    const kcal = t && t.mahlzeiten ? t.kcal : 0;
+    const klassen = ["ev-tag", stand, iso === evTag ? "gewaehlt" : "", iso === heute ? "heute" : ""].filter(Boolean).join(" ");
+    const label = `${tagTitel(iso)}, ${kcal ? `${kcal} kcal` : "nichts eingetragen"}`;
+    html += `<button type="button" class="${klassen}" data-ev-tag="${iso}"${zukunft ? " disabled" : ""} aria-pressed="${iso === evTag}" aria-label="${escapeHtml(label)}">`
+      + `<span class="ev-zahl">${d}</span><span class="ev-kcal">${kcal || ""}</span><i class="ev-punkt ${stand}"></i></button>`;
+  }
+  $("evKalender").innerHTML = html;
+
+  // Der gewählte Tag
+  const t = verlaufTag(evTag);
+  $("evTagTitel").textContent = tagTitel(evTag);
+  $("evTagSumme").textContent = t.mahlzeiten ? `${t.kcal} von ${t.zielKcal} kcal` : "";
+  const makros = $("evTagMakros");
+  makros.innerHTML = "";
+  if (t.mahlzeiten) makroZeilen(makros, t, { proteinG: t.zielProteinG, fatG: t.zielFatG, carbsG: t.zielCarbsG });
+  $("evTagHinweis").textContent = evTag !== heute && tagStand(t) === "unvollstaendig"
+    ? "Unter der Hälfte deines Ziels. Das sieht unvollständig aus und zählt nicht in den Wochenschnitt."
+    : "Tipp auf eine Mahlzeit, um Mengen zu ändern oder etwas hinzuzufügen.";
+  renderMeals("mealList2", evTag);
+  $("evNachtragen").hidden = evTag === heute;
+
+  // Der Schnitt der Woche, in der dieser Tag liegt
+  const gemessen = gemessenerVerbrauch();
+  const w = wochenschnittFuer(evTag, gemessen);
+  $("evWocheZeitraum").textContent = w.tage
+    ? `${zeitraumText(w.von, w.bis)}, gezählt an ${w.gezaehlt} von ${w.tage} ${w.tage === 1 ? "Tag" : "Tagen"}.${isoPlus(w.bis, 1) === heute ? " Heute zählt erst, wenn er vorbei ist." : ""}`
+    : "Die Woche hat heute begonnen. Der Schnitt zählt abgeschlossene Tage.";
+  const woche = $("evWoche");
+  woche.innerHTML = "";
+  if (w.schnitt && w.ziel) {
+    const kz = messwert({
+      name: "Kalorien im Schnitt", wert: `${w.schnitt.kcal} kcal`, zusatz: `von ${w.ziel.kcal}`,
+      anteil: w.ziel.kcal ? w.schnitt.kcal / w.ziel.kcal : 0, ton: "var(--brand)",
+    });
+    kz.classList.add("gross");
+    woche.appendChild(kz);
+    makroZeilen(woche, w.schnitt, w.ziel);
+    $("evBilanz").textContent = bilanzSatz(w);
+    $("evBilanz").hidden = false;
+  } else {
+    woche.innerHTML = w.tage ? `<p class="sub">${w.mitEintrag ? "In dieser Woche ist noch kein Tag vollständig eingetragen." : "In dieser Woche ist nichts eingetragen."}</p>` : "";
+    $("evBilanz").hidden = true;
+  }
+  const hinweise = [];
+  const liste = tageListe;
+  if (w.leer.length && w.mitEintrag) hinweise.push(`Ohne Eintrag: ${liste(w.leer)}`);
+  if (w.unvollstaendig.length) hinweise.push(`Wohl unvollständig, zählt nicht: ${liste(w.unvollstaendig)}`);
+  if (w.schnitt) hinweise.push("Tage ohne Eintrag zählen nicht als Tage ohne Essen.");
+  $("evWocheHinweis").textContent = hinweise.join(" ");
+
+  // Die letzten acht Wochen, jede antippbar
+  const zeilen = [];
+  for (let i = 0; i < 8; i++) {
+    const x = wochenschnittFuer(isoPlus(heute, -7 * i), gemessen);
+    if (!x.mitEintrag) continue;
+    const bilanz = x.bilanzKcal === null ? "" : Math.abs(x.bilanzKcal) < 50 ? ", ausgeglichen" : x.bilanzKcal < 0 ? `, Defizit ${-x.bilanzKcal} kcal am Tag` : `, Überschuss ${x.bilanzKcal} kcal am Tag`;
+    const sub = x.schnitt ? `Protein ${x.schnitt.proteinG} g, ${x.gezaehlt} von ${x.tage} Tagen gezählt${bilanz}` : `${x.mitEintrag} ${x.mitEintrag === 1 ? "Tag" : "Tage"} eingetragen, keiner vollständig`;
+    const aktiv = evTag >= x.von && evTag <= x.bis;
+    zeilen.push(`<li class="tippbar${aktiv ? " aktiv" : ""}" data-ev-woche="${x.bis}"><div class="li-main"><div class="li-title">${escapeHtml(zeitraumText(x.von, x.bis))}</div>`
+      + `<div class="li-sub">${escapeHtml(sub)}</div></div><div class="li-side">${x.schnitt ? `<b>${x.schnitt.kcal}</b>kcal` : ""}</div></li>`);
+  }
+  $("evWochen").innerHTML = zeilen.join("") || `<li><div class="li-main"><div class="li-sub">Noch keine Woche mit Einträgen.</div></div></li>`;
+}
+
+function verlaufZeigen(tag) {
+  evTag = tag;
+  evMonat = tag.slice(0, 7);
+  renderVerlauf();
 }
 
 function renderCheckins() {
@@ -3253,7 +3389,7 @@ $("fbAuswerten").addEventListener("click", async () => {
     fotoSchritt(2);
     fotoBlattSchliessen();
     zeigeFeedback("mealFeedback", text);
-    renderMeals("mealList2");
+    renderVerlauf();
     refreshAll();
   } catch (error) {
     feedback.hidden = false;
@@ -3499,7 +3635,7 @@ $("feelingRow").addEventListener("click", (event) => {
   store.setMealFeeling(day, lastMealId, button.dataset.feel);
   for (const other of $("feelingRow").children) other.classList.remove("on");
   button.classList.add("on");
-  renderMeals("mealList2");
+  renderVerlauf();
   toast("Notiert");
 });
 
@@ -4780,12 +4916,14 @@ function mahlzeitSchliessen() {
  * eine bestehende Mahlzeit. Damit war der beste Weg der einzige, den man nicht
  * von vorn beginnen konnte.
  */
-function mahlzeitNeu(fokus) {
+function mahlzeitNeu(fokus, tag = day) {
   const id = newId();
-  store.addMeal(day, {
-    id, text: "", at: nowTime(), source: "hand", entries: [], feeling: null,
+  // Ein Nachtrag für einen früheren Tag bekommt Mittag als Uhrzeit. Die
+  // Uhrzeit von jetzt stünde dort wie eine Angabe und ist keine.
+  store.addMeal(tag, {
+    id, text: "", at: tag === day ? nowTime() : "12:00", source: "hand", entries: [], feeling: null,
   });
-  mahlzeitOeffnen(id);
+  mahlzeitOeffnen(id, tag);
   // Nach dem Öffnen, weil mahlzeitOeffnen die Marke zurücksetzt. Danach die
   // Liste noch einmal zeichnen, sonst steht dort der Satz für eine geleerte
   // Mahlzeit statt der Einladung für eine neue.
@@ -5244,9 +5382,41 @@ function meTrefferZeichnen(treffer) {
 for (const id of ["mealList", "mealList2"]) {
   $(id)?.addEventListener("click", (event) => {
     const zeile = event.target.closest("[data-meal]");
-    if (zeile) mahlzeitOeffnen(zeile.dataset.meal);
+    // Unter Mahlzeiten steht der gewählte Tag des Verlaufs, nicht immer heute.
+    if (zeile) mahlzeitOeffnen(zeile.dataset.meal, id === "mealList2" ? evTag : day);
   });
 }
+
+$("evKalender").addEventListener("click", (event) => {
+  const knopf = event.target.closest("[data-ev-tag]");
+  if (!knopf || knopf.disabled) return;
+  evTag = knopf.dataset.evTag;
+  renderVerlauf();
+});
+$("evZurueck").addEventListener("click", () => {
+  const [j, m] = evMonat.split("-").map(Number);
+  const d = new Date(j, m - 2, 1);
+  evMonat = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  renderVerlauf();
+});
+$("evVor").addEventListener("click", () => {
+  const [j, m] = evMonat.split("-").map(Number);
+  const d = new Date(j, m, 1);
+  evMonat = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  renderVerlauf();
+});
+$("evWochen").addEventListener("click", (event) => {
+  const zeile = event.target.closest("[data-ev-woche]");
+  if (!zeile) return;
+  verlaufZeigen(zeile.dataset.evWoche);
+  $("evTagTitel").scrollIntoView({ behavior: "smooth", block: "start" });
+});
+$("evNachtragen").addEventListener("click", () => mahlzeitNeu(undefined, evTag));
+$("btnVerlaufOeffnen").addEventListener("click", () => {
+  verlaufZeigen(isoPlus(todayIso(), -1));
+  showView("essen");
+  requestAnimationFrame(() => $("evAnker").scrollIntoView({ block: "start" }));
+});
 
 $("meSchliessen").addEventListener("click", mahlzeitSchliessen);
 $("mahlzeitEditor").addEventListener("click", (event) => {

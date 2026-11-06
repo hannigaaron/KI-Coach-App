@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Agent, aufgabeMitFrist, trainingHeuteAus, denktiefe, istAbsicht, listeAbhakenAus, naehrwertFrage, postenFuerListe, profilAus, runOffline, schnellweg, zyklusAus, type AgentActions } from "./agent.js";
+import { Agent, aufgabeMitFrist, essensverlaufAus, trainingHeuteAus, denktiefe, istAbsicht, listeAbhakenAus, naehrwertFrage, postenFuerListe, profilAus, runOffline, schnellweg, zyklusAus, type AgentActions } from "./agent.js";
 import type { ChatMessage, CoachProvider, ContentBlock, ConverseRequest, ConverseResponse, JsonRequest } from "./provider.js";
 import { standardAenderungAus } from "@daevo/core";
 
@@ -1070,4 +1070,27 @@ test("Nach einem Werkzeug gibt es keinen zweiten Versuch und keinen Regelweg obe
   assert.deepEqual(log, ["wasser:500"], "das Wasser steht genau einmal da");
   assert.match(reply.text, /Netz/);
   assert.match(reply.text, /schon erledigt/);
+});
+
+test("Frühere Tage und der Wochenschnitt kommen aus dem Verlauf, nicht vom heutigen Tag", async () => {
+  // Freitag, 6. November 2026
+  const fr = new Date("2026-11-06T12:00:00");
+  assert.deepEqual(essensverlaufAus("Was hab ich gestern gegessen?", fr), { tageZurueck: 1 });
+  assert.deepEqual(essensverlaufAus("was habe ich vorgestern gegessen", fr), { tageZurueck: 2 });
+  assert.deepEqual(essensverlaufAus("Was hab ich am Montag gegessen?", fr), { tageZurueck: 4 });
+  assert.deepEqual(essensverlaufAus("was hab ich am freitag gegessen?", fr), { tageZurueck: 7 });
+  assert.deepEqual(essensverlaufAus("Wie groß ist mein Defizit?", fr), { woche: true, wochenZurueck: 0 });
+  assert.deepEqual(essensverlaufAus("Wie viele Kalorien hatte ich letzte Woche im Schnitt?", fr), { woche: true, wochenZurueck: 1 });
+  assert.deepEqual(essensverlaufAus("Zeig mir meinen Wochenschnitt", fr), { woche: true, wochenZurueck: 0 });
+  // Ein Nachtrag ist keine Frage, und heute hat seinen eigenen Weg.
+  assert.equal(essensverlaufAus("Gestern hab ich noch eine Pizza gegessen", fr), null);
+  assert.equal(essensverlaufAus("Was hab ich heute gegessen?", fr), null);
+
+  const log: string[] = [];
+  const a = stubActions(log);
+  a.essensverlaufAbrufen = async (i) => { log.push(`verlauf:${i.woche ? "woche" : i.tageZurueck}`); return "Verlauf."; };
+  await runOffline("Was hab ich gestern gegessen?", a);
+  await runOffline("Wie groß ist mein Kaloriendefizit diese Woche?", a);
+  await runOffline("Was hab ich heute gegessen?", a);
+  assert.deepEqual(log, ["verlauf:1", "verlauf:woche", "stand"]);
 });

@@ -312,6 +312,7 @@ try {
 
       <h2 class="abschnitt">Heute gegessen</h2>
       <ul id="mealList" class="list"></ul>
+      <button type="button" id="btnVerlaufOeffnen" class="ghost breit">Frühere Tage und Wochenschnitt</button>
     </div>
   </section>
 
@@ -363,9 +364,41 @@ try {
       <div id="restAusgabe" class="feedback" hidden></div>
       <div id="suggestOut" class="card" hidden></div>
 
-      <h2 class="abschnitt">Verlauf heute</h2>
-      <p class="sub">Tipp auf eine Mahlzeit, um Mengen zu ändern oder etwas hinzuzufügen.</p>
+      <!--
+        Der Verlauf. Heute zeigte nur heute, und was gestern auf dem Teller
+        lag, stand nirgends. Ein Monat als Kalender, ein Tipp auf einen Tag
+        zeigt seine Mahlzeiten, darunter der Schnitt der Woche dieses Tages.
+      -->
+      <h2 class="abschnitt" id="evAnker">Verlauf</h2>
+      <div class="ev-monat">
+        <button type="button" class="icon-btn" id="evZurueck" aria-label="Voriger Monat"><span class="chev"></span></button>
+        <b id="evMonat"></b>
+        <button type="button" class="icon-btn ev-vor" id="evVor" aria-label="Nächster Monat"><span class="chev"></span></button>
+      </div>
+      <div id="evKalender" class="ev-kalender"></div>
+      <div class="ev-legende" aria-hidden="true">
+        <span><i class="ev-punkt im_ziel"></i>im Ziel</span>
+        <span><i class="ev-punkt drunter"></i>darunter</span>
+        <span><i class="ev-punkt drueber"></i>darüber</span>
+        <span><i class="ev-punkt unvollstaendig"></i>unvollständig</span>
+      </div>
+
+      <div class="ev-tag-kopf">
+        <h3 id="evTagTitel">Heute</h3>
+        <span id="evTagSumme"></span>
+      </div>
+      <div id="evTagMakros" class="messwerte"></div>
+      <p class="sub" id="evTagHinweis">Tipp auf eine Mahlzeit, um Mengen zu ändern oder etwas hinzuzufügen.</p>
       <ul id="mealList2" class="list"></ul>
+      <button type="button" id="evNachtragen" class="ghost breit" hidden>Für diesen Tag nachtragen</button>
+
+      <h2 class="abschnitt">Wochenschnitt</h2>
+      <p class="sub" id="evWocheZeitraum"></p>
+      <div id="evWoche" class="messwerte"></div>
+      <p id="evBilanz" class="ev-bilanz" hidden></p>
+      <p id="evWocheHinweis" class="feld-hilfe"></p>
+      <h3 class="section-title">Die letzten Wochen</h3>
+      <ul id="evWochen" class="list ev-wochen"></ul>
     </div>
   </section>
 
@@ -1659,7 +1692,7 @@ try {
         <h2 class="menu-seitentitel">Ernährung</h2>
         <div class="menu-liste">
           <button class="menu-zeile" data-go="heute"><span class="menu-sym" data-sym="ring"></span><span><b>Heute</b><small>Kalorien, Makros, Wasser</small></span></button>
-          <button class="menu-zeile" data-go="essen"><span class="menu-sym" data-sym="liste"></span><span><b>Mahlzeiten</b><small>Verlauf, Rest aufteilen, Gefühl danach</small></span></button>
+          <button class="menu-zeile" data-go="essen"><span class="menu-sym" data-sym="liste"></span><span><b>Mahlzeiten</b><small>Verlauf, Wochenschnitt, Rest aufteilen</small></span></button>
           <button class="menu-zeile" data-go="rezepte"><span class="menu-sym" data-sym="loeffel"></span><span><b>Rezepte</b><small>Passend zu deinem Rest und deinen Angaben</small></span></button>
           <button class="menu-zeile" data-go="einkauf"><span class="menu-sym" data-sym="tasche"></span><span><b>Einkaufen</b><small>Liste aus deinen Zielen</small></span></button>
         </div>
