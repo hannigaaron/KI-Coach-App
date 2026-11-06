@@ -1,4 +1,7 @@
 import Foundation
+// ObservableObject und @Published kommen aus Combine. Neue Ziele in Xcode 26
+// importieren Module nicht mehr über andere mit, ohne diese Zeile baut es nicht.
+import Combine
 import AVFoundation
 
 /// Das Gespräch auf der Uhr.

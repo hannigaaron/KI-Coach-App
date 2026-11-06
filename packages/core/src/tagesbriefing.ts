@@ -4,6 +4,20 @@ import type { Tagesessen } from "./tagesessen.js";
 import type { Vorausblick } from "./vorausblick.js";
 
 /**
+ * Viele tragen die Uhrzeit in den Titel: "13:15 Uhr Silke Call" um 13:15.
+ * Davor steht ohnehin die Uhrzeit, und doppelt liest es sich wie ein Fehler.
+ * Entfernt wird sie nur, wenn sie genau dem Beginn entspricht. Eine andere
+ * Uhrzeit im Titel ist eine Information und bleibt.
+ */
+export function ohneEigeneUhrzeit(titel: string, beginn: string): string {
+  const m = /^\s*(\d{1,2})[:.](\d{2})\s*(uhr)?\s*[-,:]?\s*/i.exec(titel);
+  if (!m) return titel;
+  const zeit = `${m[1]!.padStart(2, "0")}:${m[2]}`;
+  const rest = titel.slice(m[0].length);
+  return zeit === beginn && rest.trim() ? rest : titel;
+}
+
+/**
  * Das Briefing, morgens für heute und abends für morgen.
  *
  * Vorher waren es zwei Textblöcke: der Tagesablauf als Liste mit jedem
@@ -148,7 +162,7 @@ export function tagesbriefing(e: BriefingEingaben): TagesBriefing {
       kopf = `${a.termine.length} ${a.termine.length === 1 ? "Termin" : "Termine"}, der erste um ${uhrzeit(erster.von)}, `
         + `fertig um ${uhrzeit(letzter.bis)}.`;
       tag.push(`${kopf} Verplant ${dauer(a.belegtMinuten)}.`);
-      for (const t of a.termine.slice(0, MAX_TERMINE)) tag.push(`${uhrzeit(t.von)} ${t.titel}`);
+      for (const t of a.termine.slice(0, MAX_TERMINE)) tag.push(`${uhrzeit(t.von)} ${ohneEigeneUhrzeit(t.titel, uhrzeit(t.von))}`);
       if (a.termine.length > MAX_TERMINE) tag.push(`und ${a.termine.length - MAX_TERMINE} weitere`);
       if (a.fokusblock) {
         // Das Training aus dem Profil steht nicht im Kalender, liegt aber oft
@@ -224,7 +238,7 @@ export function briefingPunkte(e: BriefingEingaben): BriefingPunkt[] {
   const tag = e.ablauf?.tag ?? (e.essen?.mahlzeiten[0] ? new Date(e.essen.mahlzeiten[0].um).toISOString().slice(0, 10) : "");
   const punkte: BriefingPunkt[] = [];
   for (const t of e.ablauf?.termine ?? []) {
-    punkte.push({ art: "termin", um: t.von, bis: t.bis, titel: t.titel, unter: `Termin bis ${uhrzeit(t.bis)}` });
+    punkte.push({ art: "termin", um: t.von, bis: t.bis, titel: ohneEigeneUhrzeit(t.titel, uhrzeit(t.von)), unter: `Termin bis ${uhrzeit(t.bis)}` });
   }
   for (const a of e.aufgaben) {
     punkte.push({ art: "aufgabe", um: tag && a.um ? amTag(tag, a.um) : null, titel: a.text, unter: a.wichtig ? "Aufgabe, wichtig" : "Aufgabe", id: a.id, wichtig: a.wichtig });

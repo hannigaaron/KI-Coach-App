@@ -30,7 +30,11 @@ und Play wie bisher.
 
 1. `npm run ios` im Hauptordner. Xcode öffnet das Projekt.
 2. Menü File, New, Target. Oben watchOS, dann **App**, Next.
-3. Product Name: `daevo Watch App`. Wähle **Watch App for Existing iOS App**
+3. Product Name: nur `daevo`. Xcode hängt " Watch App" selbst an, Ziel und
+   Ordner heissen danach `daevo Watch App`. Wer den ganzen Namen eintippt,
+   bekommt "daevo Watch App Watch App", und die Befehle unten finden den
+   Ordner nicht. Team wie bei der iPhone App, Organization Identifier
+   `de.daevo.app`, ohne beides bleibt Finish grau. Wähle **Watch App for Existing iOS App**
    und als iOS App **App**. Interface SwiftUI, Häkchen bei Tests weg. Finish.
    Fragt Xcode nach dem Schema, nimm Activate.
 4. Im Terminal, im Hauptordner:
