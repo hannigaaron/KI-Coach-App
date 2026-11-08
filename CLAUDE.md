@@ -314,30 +314,38 @@ Strichfiguren, keine Clip Art, keine Karten mit Rahmen um Text.
   dem Kopf, ein liegendes Trizepsstrecken mit nur einem sichtbaren Arm,
   ein Schrägbankcurl mit den Ellbogen vor der Brust. Der Bilddienst nimmt
   rund drei Aufträge gleichzeitig an, mehr kommen mit 429 zurück.
-- Vom Nutzer abgelehnt und neu zu erzeugen: Klimmzug eng, Reverse Butterfly
-  am Kabel und an der Maschine, Rudermaschine eng und breit, High Row. Seine
-  Vorgaben, wörtlich in jeden Auftrag:
-  - Klimmzug eng: eine normale Klimmzugstation. Oben ein rechteckiger Rahmen
-    aus vorderer und hinterer Stange, in der Mitte verbunden durch zwei kurze
-    parallele Querstreben von vorn nach hinten, etwa 20 cm auseinander, auf
-    gleicher Höhe wie der Rahmen. Gegriffen wird an diesen beiden Streben,
-    Handflächen zueinander. Keine Stummel, die nach unten hängen oder von
-    einer einzelnen Stange abstehen. Vorlage war das Foto einer Power Tower
-    Station, das der Nutzer geschickt hat.
-  - Kabel: jeder Griff hängt mittig am Karabiner am Ende des Kabels, das
-    Kabel läuft gerade von der Rolle zum Karabiner. Beim Reverse Butterfly
-    kreuzen die Kabel vor der Brust.
-  - Rudermaschine: das Polster ist vor der Brust, nie hinter dem Rücken, die
-    Griffe liegen vor dem Polster am Hebelarm.
-  - Reverse Butterfly Maschine: der Aufbau der Maschine muss stimmen, der
-    Drehpunkt der Arme liegt mittig hinter dem Brustpolster.
+- Ein Bild, ein Versuch: jeder Credit kostet den Nutzer Geld. Der Auftrag
+  wird vor dem Absenden selbst geprüft und beschreibt den Aufbau Teil für
+  Teil: woraus die Maschine besteht und wo jedes Teil sitzt, wo der
+  Widerstand herkommt, woran der Griff hängt, welche Hand was greift, wo die
+  Kamera steht, dass beide Seiten gespiegelt sind. Bewährt hat sich:
+  - die Startposition mit fast gestreckten Armen statt der Endposition,
+  - die Kamera 30 bis 45 Grad seitlich, damit beide Arme sichtbar sind,
+  - jedes Kabel einzeln beschreiben, von welcher Rolle zu welcher Hand,
+    dazu der Satz, dass kein Kabel zur Hand derselben Seite läuft,
+  - Karabiner mittig oben am Griff und in Zugrichtung, nicht senkrecht,
+  - bei Maschinen ausdrücklich "kein Rückenpolster, der Rücken ist frei",
+    sonst setzt das Modell das Brustpolster hinter den Rücken,
+  - für eine Variante derselben Maschine das gelungene Bild als zweite
+    Vorlage und nur den Griff ändern, so entstand Rudermaschine breit,
+  - für einen bestimmten Aufbau ein Foto des Nutzers als Vorlage, nur für
+    die Konstruktion, so entstand die Klimmzugstation.
+  Der Bilddienst nimmt zwei Aufträge gleichzeitig an, mehr kommen mit 429
+  zurück, und ein abgelehnter Auftrag kostet nichts.
+- Klimmzug eng: eine normale Klimmzugstation, oben ein Rahmen aus vorderer
+  und hinterer Stange, in der Mitte zwei parallele Streben von vorn nach
+  hinten, daran neutral gegriffen. Reverse Butterfly am Kabel: Kabel von der
+  linken Rolle zur rechten Hand und umgekehrt, gekreuzt vor der Brust.
+  Reverse Butterfly an der Maschine: Brustpolster vorn, zwei Drehachsen oben
+  mittig, Arme gespiegelt. Rudermaschine eng und breit: Polster vor der
+  Brust, Griffe am Hebelarm davor. Alle vom Nutzer vorgegeben, nachdem die
+  ersten Fassungen falsch waren.
 - Maschinen für den Rücken: Rudermaschine eng (neutrale Griffe), Rudermaschine
   breit (Obergriff, Ellbogen aussen), High Row (Hebel von oben, Zug schräg
   nach unten hinten, `vertical_pull`, für Einsteiger wie der Latzug). Dazu
   Reverse Butterfly an der Maschine und Trizepsstrecken über Kopf liegend
   mit Kurzhanteln. Der Curl auf der Schrägbank ist beidarmig gleichzeitig,
-  Schritte und Foto zeigen das. Klimmzug eng zeigt zwei kurze Griffe, die
-  quer von der Stange abstehen, neutral und eng.
+  Schritte und Foto zeigen das.
 - Die Suche: trifft kein Eintrag jedes Wort, kommen die mit den meisten
   Treffern, solange ein Wort ab vier Zeichen im Namen trifft. "Isolation
   Curl" fand im Studio nichts, obwohl zehn Curls dastehen. Aliase wie
