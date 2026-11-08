@@ -314,6 +314,7 @@ try {
       </div>
 
       <h2 class="abschnitt" id="heuteGegessenTitel">Heute gegessen</h2>
+      <p class="sub">Tipp auf eine Mahlzeit, um sie zu ändern. Das Kreuz löscht sie.</p>
       <ul id="mealList" class="list"></ul>
       <button type="button" id="btnVerlaufOeffnen" class="ghost breit">Frühere Tage und Wochenschnitt</button>
     </div>
@@ -391,7 +392,7 @@ try {
         <span id="evTagSumme"></span>
       </div>
       <div id="evTagMakros" class="messwerte"></div>
-      <p class="sub" id="evTagHinweis">Tipp auf eine Mahlzeit, um Mengen zu ändern oder etwas hinzuzufügen.</p>
+      <p class="sub" id="evTagHinweis">Tipp auf eine Mahlzeit, um sie zu ändern. Das Kreuz löscht sie.</p>
       <ul id="mealList2" class="list"></ul>
       <button type="button" id="evNachtragen" class="ghost breit" hidden>Für diesen Tag nachtragen</button>
 
@@ -614,6 +615,20 @@ try {
       <div class="rb-knoepfe">
         <button type="button" id="rbHeute" class="primary breit">Für heute eintragen</button>
         <button type="button" id="rbMorgen" class="ghost breit">Für morgen eintragen</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="abschlussBlatt" class="blatt ab-blatt" hidden>
+    <div class="blatt-innen" role="dialog" aria-modal="true" aria-labelledby="abTitel">
+      <header class="blatt-kopf">
+        <h2 id="abTitel">Training abgeschlossen</h2>
+        <button id="abSchliessen" class="icon-btn" aria-label="Schließen"><span class="kreuz"></span></button>
+      </header>
+      <div class="blatt-scroll" id="abInhalt"></div>
+      <div class="blatt-fuss">
+        <button type="button" id="abTeilen" class="ghost">Als Bild teilen</button>
+        <button type="button" id="abFertig" class="primary">Fertig</button>
       </div>
     </div>
   </div>

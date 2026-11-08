@@ -45,8 +45,8 @@ test("Einsteiger bekommen nur Einsteigerübungen, auch mit echten Daten", () => 
   }
 });
 
-test("Für Einsteiger kommt das Ziehen von oben aus Latzug oder Klimmzug mit Unterstützung", () => {
-  const erlaubt = new Set(["latzug", "latzug-enger-griff", "klimmzug-breit-maschine", "klimmzug-eng-maschine"]);
+test("Für Einsteiger kommt das Ziehen von oben aus Latzug, High Row oder Klimmzug mit Unterstützung", () => {
+  const erlaubt = new Set(["latzug", "latzug-enger-griff", "klimmzug-breit-maschine", "klimmzug-eng-maschine", "high-row-maschine"]);
   const gesehen = new Set();
   for (let variante = 0; variante < 12; variante++) {
     for (const e of planFuer({ ...STANDARD_WUNSCH, tage: 3, niveau: "beginner", minuten: 60, variante }).einheiten) {

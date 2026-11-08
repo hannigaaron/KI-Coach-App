@@ -350,7 +350,7 @@ export function verlaufHtml(log, grenze = 10) {
       const s2 = e.saetze.map((x) => `${String(x.kg).replace(".", ",")} kg × ${x.wdh}${x.rir !== null && x.rir !== undefined ? `, ${x.rir} RIR` : ""}`).join(" · ");
       return `<li><b>${esc(name)}</b><span>${esc(s2)}</span></li>`;
     }).join("");
-    return `<details class="pl-verlauf-tag"><summary><b>${esc(tag)}</b><span>${esc(einheit || "Training")} · ${liste.length} ${liste.length === 1 ? "Übung" : "Übungen"}, ${saetze} ${saetze === 1 ? "Satz" : "Sätze"}</span></summary><ul>${details}</ul></details>`;
+    return `<details class="pl-verlauf-tag"><summary><b>${esc(tag)}</b><span>${esc(einheit || "Training")} · ${liste.length} ${liste.length === 1 ? "Übung" : "Übungen"}, ${saetze} ${saetze === 1 ? "Satz" : "Sätze"}</span></summary><ul>${details}</ul><button type="button" class="ghost pl-abschluss" data-pl-abschluss="${esc(k)}">Muskelkarte und Teilen</button></details>`;
   });
   if (!zeilen.length) return "";
   return `<h3 class="ue-abschnitt">Deine letzten Trainings</h3>${zeilen.join("")}`;
@@ -371,7 +371,7 @@ const $ = (id) => document.getElementById(id);
  * eine kurze Rückmeldung. Alle drei kommen von außen, damit diese Datei weder
  * den Speicher noch die Oberfläche der App kennen muss.
  */
-export function plaeneStarten({ speicher, oeffne, melde, starte = () => {}, frei = () => {}, starteEinheit = () => {}, log = () => [], heute = () => new Date().toISOString().slice(0, 10), heuteBestellt = () => null }) {
+export function plaeneStarten({ speicher, oeffne, melde, starte = () => {}, frei = () => {}, starteEinheit = () => {}, log = () => [], heute = () => new Date().toISOString().slice(0, 10), heuteBestellt = () => null, abschluss = () => {} }) {
   // Acht Wochen um: Fortschritt prüfen, bevor irgendetwas gezeigt wird.
   const geprueft = planPruefen(gespeicherterPlan(speicher.lesen()), log(), heute());
   if (geprueft) speicher.schreiben(geprueft);
@@ -460,6 +460,12 @@ export function plaeneStarten({ speicher, oeffne, melde, starte = () => {}, frei
     if (event.target.id === "plDeload") neu({ deload: event.target.checked });
   });
   $("plFrei").addEventListener("click", () => frei());
+  $("plVerlauf").addEventListener("click", (event) => {
+    const knopf = event.target.closest("[data-pl-abschluss]");
+    if (!knopf) return;
+    const [datum, einheit] = knopf.dataset.plAbschluss.split("|");
+    abschluss(datum, einheit);
+  });
   $("plHeute").addEventListener("click", (event) => {
     const k = (sel) => event.target.closest(sel);
     let x;

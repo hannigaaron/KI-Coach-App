@@ -79,6 +79,8 @@ import { berechtigungenFragen, berechtigungenOffen, berechtigungenText, kontenTe
 import { nativAufruf } from "./nativ.js";
 import { spueren } from "./haptik.js";
 import { anteilAmZiel, eigeneLebensmittel, eigeneSuche, eigenerPosten, lebensmittelLoeschen, lebensmittelSpeichern, eigeneRezepte, essensplanFrei, hauptMakro, rezeptGrenze, rezeptLoeschen, rezeptSpeichern, summe as postenSumme, tabellenBild, tabellenPosten, tabellenSuche, zuletztGegessen } from "./bibliothek.js";
+import { abschlussDaten, abschlussHtml, storyTeilen } from "./abschluss.js";
+import { bewegungStarten, wischenZumLoeschen, zahlenZaehlen, zeileRaus } from "./bewegung.js";
 import { einwilligungOffen, einwilligungSetzen, einwilligungText, kiErlaubt } from "./einwilligung.js";
 import { ABO_STUFEN, ABO_TAKTE, aboPreis, ersparnisProzent, aboAnlass, aboAnlassLeer, aboLeiste, aboLink, kontoLoeschen, kontoSicherstellen, kontoStand, kontoText } from "./konto.js";
 
@@ -1702,7 +1704,9 @@ function renderMeals(targetId, tag = day) {
           (meal.feeling ? `, danach ${escapeHtml(meal.feeling)}` : "") +
           (meal.source === "offline" ? ", Tabellenwert" : "") +
           (meal.source === "health" && meal.text !== `Mahlzeit aus ${meal.quelle}` ? `, aus ${escapeHtml(meal.quelle || "Apple Health")}` : "") +
-          `</div></div><div class="li-side"><b>${kcal}</b>kcal</div></li>`;
+          `</div></div><div class="li-side"><b>${kcal}</b>kcal</div>` +
+          `<button type="button" class="aufgabe-knopf meal-weg" data-meal-weg="${meal.id}" title="Löschen" aria-label="Mahlzeit löschen">` +
+          `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg></button></li>`;
       }).join("")
     : `<li><div class="li-main"><div class="li-sub">${tag === todayIso() ? "Noch nichts erfasst." : "Nichts eingetragen. Das heisst nicht, dass du nichts gegessen hast."}</div></div></li>`;
   // Was aus Health kam und nicht zählt, steht sichtbar da. Ein stiller
@@ -1842,7 +1846,7 @@ function renderVerlauf() {
   if (t.mahlzeiten) makroZeilen(makros, t, { proteinG: t.zielProteinG, fatG: t.zielFatG, carbsG: t.zielCarbsG });
   $("evTagHinweis").textContent = evTag !== heute && tagStand(t) === "unvollstaendig"
     ? "Unter der Hälfte deines Ziels. Das sieht unvollständig aus und zählt nicht in den Wochenschnitt."
-    : "Tipp auf eine Mahlzeit, um Mengen zu ändern oder etwas hinzuzufügen.";
+    : "Tipp auf eine Mahlzeit, um sie zu ändern. Das Kreuz löscht sie.";
   renderMeals("mealList2", evTag);
   $("evNachtragen").hidden = evTag === heute;
 
@@ -3168,11 +3172,17 @@ const training = trainingStarten({
   melde: (text) => toast(text),
   // Eine beendete Einheit steht danach auch im Tag. Sonst fragt die
   // Trainingslücke nach vier Tagen, obwohl jeder Satz eingetragen ist.
-  fertig: ({ titel, minuten }) => {
+  fertig: ({ titel, datum, minuten, eintraege }) => {
     store.addTraining(todayIso(), { id: newId(), type: "strength", minutes: minuten, at: nowTime(), note: titel });
+    // Die Dauer steht im Protokoll nicht. Gemerkt je Tag und Einheit, damit
+    // der Abschluss im Verlauf sie auch später noch nennt.
+    const dauer = { ...(store.getSettings().trainingDauer ?? {}), [`${datum}|${titel}`]: minuten };
+    const schluessel = Object.keys(dauer).sort().slice(-60);
+    store.setSettings({ ...store.getSettings(), trainingDauer: Object.fromEntries(schluessel.map((k) => [k, dauer[k]])) });
     $("plOffen").hidden = true;
     plaene.verlaufNeu();
     refreshAll();
+    abschlussOeffnen(abschlussDaten(eintraege, { titel, datum, minuten }));
   },
   geaendert: () => plaene.laden(),
   // Getauscht im Training für heute gilt auch beim nächsten Mal mit denselben Partien.
@@ -3209,6 +3219,45 @@ const plaene = plaeneStarten({
   log: trainingslog,
   heute: todayIso,
   heuteBestellt: () => bestellteEinheit(store.getSettings(), todayIso()),
+  abschluss: (datum, einheit) => {
+    const eintraege = trainingslog().filter((e) => e.datum === datum && (e.einheit ?? "") === einheit);
+    if (!eintraege.length) return;
+    const minuten = store.getSettings().trainingDauer?.[`${datum}|${einheit}`] ?? null;
+    abschlussOeffnen(abschlussDaten(eintraege, { titel: einheit || "Training", datum, minuten }));
+  },
+});
+
+/* Der Abschluss eines Trainings, nach Beenden und aus dem Verlauf. */
+let abStand = null;
+const hellerModus = () => document.documentElement.dataset.theme === "light"
+  || (document.documentElement.dataset.theme !== "dark" && globalThis.matchMedia?.("(prefers-color-scheme: light)").matches);
+function abschlussOeffnen(daten) {
+  abStand = daten;
+  $("abInhalt").innerHTML = abschlussHtml(daten, { hell: hellerModus() });
+  $("abInhalt").scrollTop = 0;
+  $("abschlussBlatt").hidden = false;
+  document.body.classList.add("blatt-offen");
+  zahlenZaehlen($("abInhalt"));
+}
+function abschlussSchliessen() {
+  $("abschlussBlatt").hidden = true;
+  document.body.classList.remove("blatt-offen");
+}
+$("abSchliessen").addEventListener("click", abschlussSchliessen);
+$("abFertig").addEventListener("click", abschlussSchliessen);
+$("abschlussBlatt").addEventListener("click", (ev) => { if (ev.target === $("abschlussBlatt")) abschlussSchliessen(); });
+$("abTeilen").addEventListener("click", async () => {
+  if (!abStand) return;
+  const knopf = $("abTeilen");
+  knopf.disabled = true;
+  try {
+    const r = await storyTeilen(abStand);
+    if (r === "gespeichert") toast("Bild gespeichert");
+  } catch {
+    toast("Das Bild ließ sich nicht erstellen.");
+  } finally {
+    knopf.disabled = false;
+  }
 });
 $("plOffen").hidden = !training.offen();
 // "Training starten" unter der Antwort des Coaches. Läuft die Einheit
@@ -3532,6 +3581,10 @@ function herkunftZeigen() {
       <div class="hk-sub">${escapeHtml(m.titel)}</div>
       <div class="hk-makros"><b>${zahl(m.kcal)}</b> kcal · Protein <b>${zahl(m.proteinG)}</b> g · Fett <b>${zahl(m.fatG)}</b> g · KH <b>${zahl(m.carbsG)}</b> g</div>
       <div class="hk-spur"><i style="width:${(m.anteil * 100).toFixed(1)}%"></i></div>
+      <div class="hk-aktionen">
+        <button type="button" class="hk-aktion" data-hk-aendern="${escapeHtml(m.id)}">Ändern</button>
+        <button type="button" class="hk-aktion gefahr" data-hk-loeschen="${escapeHtml(m.id)}">Löschen</button>
+      </div>
     </li>`;
   }).join("");
 
@@ -3564,6 +3617,21 @@ function herkunftSchliessen() {
   document.body.classList.remove("blatt-offen");
   herkunftAusloeser?.focus?.();
 }
+
+// Ändern und Löschen direkt dort, wo man die Mahlzeit sieht. Im Betrieb
+// stand sie im Blatt mit allen Zahlen, und der einzige Weg zum Editor lag
+// in der Liste ganz unten auf Heute, ohne dass etwas darauf hinwies.
+$("hkMahlzeiten").addEventListener("click", (event) => {
+  const aendern = event.target.closest("[data-hk-aendern]");
+  const loeschen = event.target.closest("[data-hk-loeschen]");
+  if (aendern) {
+    herkunftSchliessen();
+    mahlzeitOeffnen(aendern.dataset.hkAendern, heuteTag);
+  } else if (loeschen) {
+    mahlzeitLoeschen(heuteTag, loeschen.dataset.hkLoeschen);
+    herkunftZeigen();
+  }
+});
 
 for (const el of document.querySelectorAll("[data-herkunft]")) {
   el.addEventListener("click", () => herkunftOeffnen(el.dataset.herkunft, el));
@@ -5006,6 +5074,32 @@ function mahlzeitSchliessen() {
  * eine bestehende Mahlzeit. Damit war der beste Weg der einzige, den man nicht
  * von vorn beginnen konnte.
  */
+/**
+ * Löscht eine Mahlzeit und bietet sechs Sekunden Rückgängig an. Eine
+ * Rückfrage vorher wäre ein Tipp mehr bei jedem Löschen, und ein Fehltipp
+ * lässt sich so trotzdem zurückholen. Rückgängig setzt die Mahlzeit an
+ * ihre alte Stelle und nimmt bei Apple Health die Sperre wieder weg, sonst
+ * käme sie beim nächsten Abgleich nicht zurück.
+ */
+function mahlzeitLoeschen(tag, id) {
+  const vorher = store.getDay(tag);
+  const stelle = vorher.meals.findIndex((m) => m.id === id);
+  if (stelle < 0) return;
+  const mahlzeit = vorher.meals[stelle];
+  store.removeMeal(tag, id);
+  refreshAll();
+  const kcal = Math.round((mahlzeit.entries || []).reduce((a, e) => a + (Number(e.kcal) || 0), 0));
+  toastAktion(`Gelöscht, ${kcal} kcal`, "Rückgängig", () => {
+    const d = store.getDay(tag);
+    if (d.meals.some((m) => m.id === id)) return;
+    d.meals.splice(Math.min(stelle, d.meals.length), 0, mahlzeit);
+    if (Array.isArray(d.healthEntfernt)) d.healthEntfernt = d.healthEntfernt.filter((x) => x !== id);
+    store.setDay(tag, d);
+    refreshAll();
+    if (!$("herkunftBlatt").hidden) herkunftZeigen();
+  });
+}
+
 function mahlzeitNeu(fokus, tag = day) {
   const id = newId();
   // Ein Nachtrag für einen früheren Tag bekommt Mittag als Uhrzeit. Die
@@ -5471,9 +5565,23 @@ function meTrefferZeichnen(treffer) {
 // Heute und von Essen aus gleich funktioniert.
 for (const id of ["mealList", "mealList2"]) {
   $(id)?.addEventListener("click", (event) => {
-    const zeile = event.target.closest("[data-meal]");
     // Unter Mahlzeiten steht der gewählte Tag des Verlaufs, nicht immer heute.
-    if (zeile) mahlzeitOeffnen(zeile.dataset.meal, id === "mealList2" ? evTag : heuteTag);
+    const tag = id === "mealList2" ? evTag : heuteTag;
+    const weg = event.target.closest("[data-meal-weg]");
+    if (weg) {
+      spueren("leicht");
+      zeileRaus(weg.closest("li"), () => mahlzeitLoeschen(tag, weg.dataset.mealWeg));
+      return;
+    }
+    const zeile = event.target.closest("[data-meal]");
+    if (zeile) mahlzeitOeffnen(zeile.dataset.meal, tag);
+  });
+  // Nach links wischen löscht, wie in den Listen von iOS. Das Kreuz bleibt
+  // stehen: wer nicht weiss, dass man wischen kann, findet es trotzdem.
+  wischenZumLoeschen($(id), "li[data-meal]", (li) => {
+    spueren("leicht");
+    const tag = id === "mealList2" ? evTag : heuteTag;
+    zeileRaus(li, () => mahlzeitLoeschen(tag, li.dataset.meal));
   });
 }
 
@@ -5611,11 +5719,13 @@ $("meHandAdd").addEventListener("click", () => {
 
 $("meLoeschen").addEventListener("click", () => {
   if (!meMahlzeit) return;
-  if (!confirm("Diese Mahlzeit wirklich löschen?")) return;
-  store.removeMeal(meTag, meMahlzeit.id);
+  const { id } = meMahlzeit;
+  const tag = meTag;
+  // Erst schliessen, dann löschen: mahlzeitSchliessen räumt eine neue, leere
+  // Mahlzeit selbst weg, und Rückgängig soll die gespeicherte zurückholen.
+  meNeu = false;
   mahlzeitSchliessen();
-  refreshAll();
-  toast("Mahlzeit gelöscht");
+  mahlzeitLoeschen(tag, id);
 });
 
 $("meSpeichern").addEventListener("click", () => {
@@ -6967,3 +7077,6 @@ setTimeout(() => uhrAbgleichen().then(() => refreshAll()), 2500);
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") uhrAbgleichen().then(() => refreshAll());
 });
+
+// Ringe, Balken und Zahlen laufen auf ihren neuen Stand, siehe bewegung.js.
+bewegungStarten();

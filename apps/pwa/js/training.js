@@ -480,12 +480,13 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
     }
     const r = entwurfAbschliessen(entwurf, logSpeicher.lesen());
     logSpeicher.schreiben(r.log);
-    fertig({ titel: entwurf.titel, minuten: r.minuten, saetze: r.saetze });
+    // Der Abschluss zeigt, was gespeichert ist. Eine Meldung darüber wäre
+    // derselbe Satz zweimal.
+    fertig({ titel: entwurf.titel, datum: entwurf.datum, minuten: r.minuten, saetze: r.saetze, eintraege: r.eintraege });
     entwurfSpeicher.schreiben(null);
     entwurf = null;
     schliessen();
     spueren("erfolg");
-    melde(`${r.saetze} Sätze gespeichert`);
   };
 
   inhalt.addEventListener("input", (event) => {
@@ -533,7 +534,14 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
       const si = Number(k.dataset.trHaken);
       const warFertig = entwurf.uebungen[entwurf.aktiv].saetze[si].fertig;
       entwurf = satzAbhaken(entwurf, entwurf.aktiv, si);
-      if (!warFertig) { spueren("leicht"); pauseStart(entwurf.uebungen[entwurf.aktiv].ziel.pauseSek); }
+      if (!warFertig) {
+        spueren("leicht"); pauseStart(entwurf.uebungen[entwurf.aktiv].ziel.pauseSek);
+        // Nur der eben abgehakte Satz springt. Alle fertigen bei jedem
+        // Neuzeichnen springen zu lassen, wäre Lärm.
+        merken(); zeichnen();
+        inhalt.querySelector(`[data-tr-haken="${si}"]`)?.classList.add("gerade");
+        return;
+      }
     } else if ((k = z("[data-tr-satzweg]"))) {
       entwurf = satzWeg(entwurf, entwurf.aktiv, Number(k.dataset.trSatzweg));
     } else if ((k = z("[data-tr-satz]"))) {

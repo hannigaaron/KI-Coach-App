@@ -88,20 +88,29 @@ const norm = (text) => foldUmlauts(String(text ?? "").toLowerCase());
 
 /**
  * Filtert die Datenbank. Der Suchtext trifft Name, englischen Namen, die
- * Suchwörter in `alias`, Muskeln und Gerät. Jedes Wort muss irgendwo vorkommen, die Reihenfolge ist egal.
+ * Suchwörter in `alias`, Muskeln und Gerät. Jedes Wort muss irgendwo vorkommen, die Reihenfolge ist egal. Trifft so nichts, zählen die Einträge mit den meisten Treffern.
  * Ohne Umlautfaltung fände "Gesaess" das Gesäß nicht und "Gesäß" nicht
  * "Gesaess".
  */
 export function uebungenFiltern({ text = "", gruppe = "alle", geraet = "alle" } = {}, liste = UEBUNGEN) {
   const woerter = norm(text).split(/\s+/).filter(Boolean);
-  return liste.filter((u) => {
-    if (gruppe !== "alle" && u.gruppe !== gruppe) return false;
-    if (geraet !== "alle" && u.equipment !== geraet) return false;
-    if (!woerter.length) return true;
+  const passend = liste.filter((u) => (gruppe === "alle" || u.gruppe === gruppe) && (geraet === "alle" || u.equipment === geraet));
+  if (!woerter.length) return passend;
+  const treffer = passend.map((u) => {
     const muskeln = [...u.primaryMuscles, ...u.secondaryMuscles];
     const heu = norm([u.name, u.nameEn, ...(u.alias ?? []), ...muskeln, ...muskeln.map((m) => MUSKEL_ALIAS[m] ?? ""), GERAETE[u.equipment]].join(" "));
-    return woerter.every((w) => trifft(heu, w));
+    return { u, zahl: woerter.filter((w) => trifft(heu, w)).length };
   });
+  const alle = treffer.filter((t) => t.zahl === woerter.length).map((t) => t.u);
+  if (alle.length || woerter.length < 2) return alle;
+  // Trifft kein Eintrag jedes Wort, kommen die mit den meisten Treffern. Im
+  // Studio fiel "Isolation Curl" ins Leere, obwohl zehn Curls dastehen: ein
+  // leeres Ergebnis ist schlechter als eines, das fast passt. Mindestens ein
+  // Wort mit vier Zeichen muss treffen, sonst trüge "an" die Liste.
+  const lang = woerter.filter((w) => w.length >= 4);
+  const beste = Math.max(0, ...treffer.map((t) => t.zahl));
+  if (!beste || !lang.length) return [];
+  return treffer.filter((t) => t.zahl === beste && lang.some((w) => trifft(norm([t.u.name, t.u.nameEn, ...(t.u.alias ?? [])].join(" ")), w))).map((t) => t.u);
 }
 
 export function uebungNach(id, liste = UEBUNGEN) {
