@@ -79,6 +79,8 @@ import { berechtigungenFragen, berechtigungenOffen, berechtigungenText, kontenTe
 import { nativAufruf } from "./nativ.js";
 import { spueren } from "./haptik.js";
 import { anteilAmZiel, eigeneLebensmittel, eigeneSuche, eigenerPosten, lebensmittelLoeschen, lebensmittelSpeichern, eigeneRezepte, essensplanFrei, hauptMakro, rezeptGrenze, rezeptLoeschen, rezeptSpeichern, summe as postenSumme, tabellenBild, tabellenPosten, tabellenSuche, zuletztGegessen } from "./bibliothek.js";
+import { abschlussDaten, abschlussHtml, storyTeilen } from "./abschluss.js";
+import { bewegungStarten, wischenZumLoeschen, zahlenZaehlen, zeileRaus } from "./bewegung.js";
 import { einwilligungOffen, einwilligungSetzen, einwilligungText, kiErlaubt } from "./einwilligung.js";
 import { ABO_STUFEN, ABO_TAKTE, aboPreis, ersparnisProzent, aboAnlass, aboAnlassLeer, aboLeiste, aboLink, kontoLoeschen, kontoSicherstellen, kontoStand, kontoText } from "./konto.js";
 
@@ -3170,11 +3172,17 @@ const training = trainingStarten({
   melde: (text) => toast(text),
   // Eine beendete Einheit steht danach auch im Tag. Sonst fragt die
   // Trainingslücke nach vier Tagen, obwohl jeder Satz eingetragen ist.
-  fertig: ({ titel, minuten }) => {
+  fertig: ({ titel, datum, minuten, eintraege }) => {
     store.addTraining(todayIso(), { id: newId(), type: "strength", minutes: minuten, at: nowTime(), note: titel });
+    // Die Dauer steht im Protokoll nicht. Gemerkt je Tag und Einheit, damit
+    // der Abschluss im Verlauf sie auch später noch nennt.
+    const dauer = { ...(store.getSettings().trainingDauer ?? {}), [`${datum}|${titel}`]: minuten };
+    const schluessel = Object.keys(dauer).sort().slice(-60);
+    store.setSettings({ ...store.getSettings(), trainingDauer: Object.fromEntries(schluessel.map((k) => [k, dauer[k]])) });
     $("plOffen").hidden = true;
     plaene.verlaufNeu();
     refreshAll();
+    abschlussOeffnen(abschlussDaten(eintraege, { titel, datum, minuten }));
   },
   geaendert: () => plaene.laden(),
   // Getauscht im Training für heute gilt auch beim nächsten Mal mit denselben Partien.
@@ -3211,6 +3219,45 @@ const plaene = plaeneStarten({
   log: trainingslog,
   heute: todayIso,
   heuteBestellt: () => bestellteEinheit(store.getSettings(), todayIso()),
+  abschluss: (datum, einheit) => {
+    const eintraege = trainingslog().filter((e) => e.datum === datum && (e.einheit ?? "") === einheit);
+    if (!eintraege.length) return;
+    const minuten = store.getSettings().trainingDauer?.[`${datum}|${einheit}`] ?? null;
+    abschlussOeffnen(abschlussDaten(eintraege, { titel: einheit || "Training", datum, minuten }));
+  },
+});
+
+/* Der Abschluss eines Trainings, nach Beenden und aus dem Verlauf. */
+let abStand = null;
+const hellerModus = () => document.documentElement.dataset.theme === "light"
+  || (document.documentElement.dataset.theme !== "dark" && globalThis.matchMedia?.("(prefers-color-scheme: light)").matches);
+function abschlussOeffnen(daten) {
+  abStand = daten;
+  $("abInhalt").innerHTML = abschlussHtml(daten, { hell: hellerModus() });
+  $("abInhalt").scrollTop = 0;
+  $("abschlussBlatt").hidden = false;
+  document.body.classList.add("blatt-offen");
+  zahlenZaehlen($("abInhalt"));
+}
+function abschlussSchliessen() {
+  $("abschlussBlatt").hidden = true;
+  document.body.classList.remove("blatt-offen");
+}
+$("abSchliessen").addEventListener("click", abschlussSchliessen);
+$("abFertig").addEventListener("click", abschlussSchliessen);
+$("abschlussBlatt").addEventListener("click", (ev) => { if (ev.target === $("abschlussBlatt")) abschlussSchliessen(); });
+$("abTeilen").addEventListener("click", async () => {
+  if (!abStand) return;
+  const knopf = $("abTeilen");
+  knopf.disabled = true;
+  try {
+    const r = await storyTeilen(abStand);
+    if (r === "gespeichert") toast("Bild gespeichert");
+  } catch {
+    toast("Das Bild ließ sich nicht erstellen.");
+  } finally {
+    knopf.disabled = false;
+  }
 });
 $("plOffen").hidden = !training.offen();
 // "Training starten" unter der Antwort des Coaches. Läuft die Einheit
@@ -5521,9 +5568,20 @@ for (const id of ["mealList", "mealList2"]) {
     // Unter Mahlzeiten steht der gewählte Tag des Verlaufs, nicht immer heute.
     const tag = id === "mealList2" ? evTag : heuteTag;
     const weg = event.target.closest("[data-meal-weg]");
-    if (weg) { mahlzeitLoeschen(tag, weg.dataset.mealWeg); return; }
+    if (weg) {
+      spueren("leicht");
+      zeileRaus(weg.closest("li"), () => mahlzeitLoeschen(tag, weg.dataset.mealWeg));
+      return;
+    }
     const zeile = event.target.closest("[data-meal]");
     if (zeile) mahlzeitOeffnen(zeile.dataset.meal, tag);
+  });
+  // Nach links wischen löscht, wie in den Listen von iOS. Das Kreuz bleibt
+  // stehen: wer nicht weiss, dass man wischen kann, findet es trotzdem.
+  wischenZumLoeschen($(id), "li[data-meal]", (li) => {
+    spueren("leicht");
+    const tag = id === "mealList2" ? evTag : heuteTag;
+    zeileRaus(li, () => mahlzeitLoeschen(tag, li.dataset.meal));
   });
 }
 
@@ -7019,3 +7077,6 @@ setTimeout(() => uhrAbgleichen().then(() => refreshAll()), 2500);
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") uhrAbgleichen().then(() => refreshAll());
 });
+
+// Ringe, Balken und Zahlen laufen auf ihren neuen Stand, siehe bewegung.js.
+bewegungStarten();

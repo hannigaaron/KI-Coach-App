@@ -990,7 +990,12 @@ export const UEBUNGEN = [
    "titel": "Die richtige Haltung bei Butterfly (Fly) an der Maschine - Technikcheck",
    "kanal": "Power & Fitness",
    "dauer": "1:00"
-  }
+  },
+  "alias": [
+   "Butterfly",
+   "Pec Deck",
+   "Fliegende Maschine"
+  ]
  },
  {
   "id": "schulterdruecken-langhantel",
@@ -1672,7 +1677,10 @@ export const UEBUNGEN = [
    "titel": "Rudermaschine, richtige Ausführung und Technik (Tutorial) Muskel richtig treffen und ansteuern",
    "kanal": "Muscle Man Fitness by Shaun",
    "dauer": "1:31"
-  }
+  },
+  "alias": [
+   "Rudermaschine"
+  ]
  },
  {
   "id": "straight-arm-pulldown",
@@ -1864,10 +1872,10 @@ export const UEBUNGEN = [
   "mechanics": "isolation",
   "repRange": "8-12",
   "steps": [
-   "Rücken auf Bank (ca. 60 Grad), Arme hängen",
-   "Ellbogen bleiben hinter dem Körper",
-   "Hanteln hochcurlen",
-   "Langsam absenken"
+   "Lehne auf etwa 60 Grad, Rücken und Kopf am Polster, je eine Hantel im Untergriff",
+   "Oberarme hängen senkrecht, die Ellbogen bleiben hinter dem Körper",
+   "Beide Hanteln gleichzeitig hochcurlen, ohne die Ellbogen nach vorn zu nehmen",
+   "Beide langsam absenken, bis die Arme fast gestreckt sind"
   ],
   "gruppe": "arme",
   "video": {
@@ -1875,7 +1883,12 @@ export const UEBUNGEN = [
    "titel": "Bizeps Curls auf der Schrägbank, richtige Ausführung und Technik (Tutorial)",
    "kanal": "Muscle Man Fitness by Shaun",
    "dauer": "1:14"
-  }
+  },
+  "alias": [
+   "Incline Curl",
+   "Schrägbank Curl beidarmig",
+   "Bizeps Curl Schrägbank"
+  ]
  },
  {
   "id": "preacher-curl",
@@ -1902,7 +1915,13 @@ export const UEBUNGEN = [
    "titel": "Für einen massiven Bizeps | Preacher Curls",
    "kanal": "Jan Saffe",
    "dauer": "4:42"
-  }
+  },
+  "alias": [
+   "Isolation Curl",
+   "Bizepsmaschine",
+   "Scott Curl",
+   "Bizeps Isolation"
+  ]
  },
  {
   "id": "trizeps-druecken-kabel",
@@ -1990,7 +2009,9 @@ export const UEBUNGEN = [
   },
   "alias": [
    "Trizeps Extension",
-   "Overhead Extension"
+   "Overhead Extension",
+   "Overhead Extensions Kabel",
+   "Trizeps über Kopf Kabel"
   ]
  },
  {
@@ -3209,6 +3230,190 @@ export const UEBUNGEN = [
    "Cable Crossover von unten",
    "Low to High",
    "Butterfly Kabel"
+  ]
+ },
+ {
+  "id": "rudern-maschine-eng",
+  "name": "Rudermaschine eng",
+  "nameEn": "Seated Machine Row (Close Grip)",
+  "pattern": "horizontal_pull",
+  "primaryMuscles": [
+   "Latissimus",
+   "Rhomboiden"
+  ],
+  "secondaryMuscles": [
+   "Bizeps",
+   "hintere Schulter"
+  ],
+  "equipment": "machine",
+  "level": "beginner",
+  "mechanics": "compound",
+  "repRange": "8-12",
+  "steps": [
+   "Sitz so einstellen, dass die Griffe auf Höhe der unteren Brust liegen, Brust ans Polster",
+   "Enge Griffe fassen, Handflächen zueinander",
+   "Ellbogen eng am Körper nach hinten ziehen, bis die Hände an den Rippen sind",
+   "Schulterblätter zusammen, dann langsam strecken"
+  ],
+  "gruppe": "ruecken",
+  "video": {
+   "id": "qPiF6y_HOBs",
+   "titel": "Rudermaschine, richtige Ausführung und Technik (Tutorial) Muskel richtig treffen und ansteuern",
+   "kanal": "Muscle Man Fitness by Shaun",
+   "dauer": "1:31"
+  },
+  "alias": [
+   "Rudern Maschine eng",
+   "Seated Row",
+   "Rudergerät eng",
+   "Low Row"
+  ]
+ },
+ {
+  "id": "rudern-maschine-breit",
+  "name": "Rudermaschine breit",
+  "nameEn": "Seated Machine Row (Wide Grip)",
+  "pattern": "horizontal_pull",
+  "primaryMuscles": [
+   "oberer Rücken",
+   "hintere Schulter"
+  ],
+  "secondaryMuscles": [
+   "Rhomboiden",
+   "Trapez",
+   "Bizeps"
+  ],
+  "equipment": "machine",
+  "level": "beginner",
+  "mechanics": "compound",
+  "repRange": "8-12",
+  "steps": [
+   "Brust ans Polster, Griffe auf Höhe der oberen Brust",
+   "Breite Griffe im Obergriff fassen, Hände weiter als die Schultern",
+   "Ellbogen seitlich nach außen und hinten ziehen, Oberarme etwa 70 Grad vom Körper",
+   "Schulterblätter zusammen, dann langsam strecken"
+  ],
+  "gruppe": "ruecken",
+  "video": {
+   "id": "mWom2KmO5Qc",
+   "titel": "Rückenmuskulatur aufbauen mit der Rudermaschine - Richtige Ausführung",
+   "kanal": "Peter Burianek",
+   "dauer": ""
+  },
+  "alias": [
+   "Rudern Maschine breit",
+   "Wide Row",
+   "Rudergerät breit",
+   "Breites Rudern"
+  ]
+ },
+ {
+  "id": "high-row-maschine",
+  "name": "High Row (Maschine)",
+  "nameEn": "Machine High Row",
+  "pattern": "vertical_pull",
+  "primaryMuscles": [
+   "Latissimus",
+   "oberer Rücken"
+  ],
+  "secondaryMuscles": [
+   "Rhomboiden",
+   "Bizeps",
+   "hintere Schulter"
+  ],
+  "equipment": "machine",
+  "level": "beginner",
+  "mechanics": "compound",
+  "repRange": "8-12",
+  "steps": [
+   "Sitz so einstellen, dass die Griffe vorn über dir gerade erreichbar sind, Oberschenkel unter das Polster",
+   "Griffe fassen, Brust hoch, Oberkörper leicht zurück",
+   "Griffe schräg nach unten hinten zur oberen Brust ziehen, Ellbogen am Körper vorbei nach unten",
+   "Kurz halten, dann langsam zurück nach oben strecken"
+  ],
+  "gruppe": "ruecken",
+  "video": {
+   "id": "SFK9ED66yao",
+   "titel": "High Row am Gerät korrekt ausgeführt - Fitness Tutorials",
+   "kanal": "ALTE ZIEGELEI",
+   "dauer": ""
+  },
+  "alias": [
+   "High Row",
+   "Highrow",
+   "Rudern von oben",
+   "Iso Lateral High Row",
+   "Hammer Strength High Row"
+  ]
+ },
+ {
+  "id": "trizeps-liegend-kurzhantel",
+  "name": "Trizepsstrecken über Kopf liegend (Kurzhantel)",
+  "nameEn": "Lying Dumbbell Overhead Triceps Extension",
+  "pattern": "elbow_extension",
+  "primaryMuscles": [
+   "Trizeps (langer Kopf)"
+  ],
+  "secondaryMuscles": [],
+  "equipment": "dumbbell",
+  "level": "intermediate",
+  "mechanics": "isolation",
+  "repRange": "10-15",
+  "steps": [
+   "Rücklings auf die Flachbank, Füße auf dem Boden, je eine Hantel im neutralen Griff",
+   "Oberarme leicht nach hinten über den Kopf geneigt, Ellbogen zeigen zur Decke",
+   "Nur die Ellbogen beugen, die Hanteln neben und hinter den Kopf absenken",
+   "Oberarme ruhig halten und die Arme wieder strecken"
+  ],
+  "gruppe": "arme",
+  "video": {
+   "id": "U90UgB9rbWo",
+   "titel": "Trizepsdrücken mit Kurzhante",
+   "kanal": "P4P Deutsch",
+   "dauer": ""
+  },
+  "alias": [
+   "Overhead Extension liegend",
+   "Overhead Extensions Kurzhantel",
+   "Skull Crusher Kurzhantel",
+   "French Press Kurzhantel",
+   "Trizeps Extension liegend"
+  ]
+ },
+ {
+  "id": "reverse-butterfly-maschine",
+  "name": "Reverse Butterfly (Maschine)",
+  "nameEn": "Machine Reverse Fly",
+  "pattern": "shoulder_isolation",
+  "primaryMuscles": [
+   "hintere Schulter"
+  ],
+  "secondaryMuscles": [
+   "Rhomboiden",
+   "Trapez"
+  ],
+  "equipment": "machine",
+  "level": "beginner",
+  "mechanics": "isolation",
+  "repRange": "12-20",
+  "steps": [
+   "Mit der Brust zum Polster sitzen, Griffe auf Schulterhöhe",
+   "Griffe im neutralen Griff fassen, Ellbogen leicht gebeugt",
+   "Arme im Bogen nach hinten öffnen, bis sie in einer Linie mit den Schultern sind",
+   "Kontrolliert zurück nach vorn"
+  ],
+  "gruppe": "schultern",
+  "video": {
+   "id": "O6ZFK5A9b8g",
+   "titel": "Die richtige Haltung bei Butterfly Reverse! - Technikcheck",
+   "kanal": "Power & Fitness",
+   "dauer": ""
+  },
+  "alias": [
+   "Butterfly Reverse",
+   "Reverse Fly Maschine",
+   "Rear Delt Maschine",
+   "Reverse Pec Deck"
   ]
  }
 ];

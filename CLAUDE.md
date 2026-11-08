@@ -304,6 +304,28 @@ Strichfiguren, keine Clip Art, keine Karten mit Rahmen um Text.
   es sonst gut aussieht: lieber neu erzeugen, je zwei Fassungen, und die
   bessere nehmen. Beim Hip Thrust half das vorhandene Foto mit Langhantel als
   Vorlage, mit der Anweisung, nur das Gerät zu tauschen.
+- Jeder Bildauftrag trägt den Satz, dass alles anatomisch, biomechanisch,
+  geometrisch und physikalisch stimmen muss, und nennt es einzeln: wie das
+  Kabel von der Rolle zur Hand läuft, wie Hantel oder Griff gehalten wird,
+  wo die Stange liegt, wie die Person sitzt, wie die Bank steht, woran ein
+  Griff befestigt ist. Eine Regel des Nutzers. Abgelehnt wurden dabei schon:
+  Reverse Butterfly am Kabel mit Kabeln zur Hand derselben Seite (zieht nach
+  aussen, gibt also keinen Widerstand), ein Klimmzug mit einer Hand hinter
+  dem Kopf, ein liegendes Trizepsstrecken mit nur einem sichtbaren Arm,
+  ein Schrägbankcurl mit den Ellbogen vor der Brust. Der Bilddienst nimmt
+  rund drei Aufträge gleichzeitig an, mehr kommen mit 429 zurück.
+- Maschinen für den Rücken: Rudermaschine eng (neutrale Griffe), Rudermaschine
+  breit (Obergriff, Ellbogen aussen), High Row (Hebel von oben, Zug schräg
+  nach unten hinten, `vertical_pull`, für Einsteiger wie der Latzug). Dazu
+  Reverse Butterfly an der Maschine und Trizepsstrecken über Kopf liegend
+  mit Kurzhanteln. Der Curl auf der Schrägbank ist beidarmig gleichzeitig,
+  Schritte und Foto zeigen das. Klimmzug eng zeigt zwei kurze Griffe, die
+  quer von der Stange abstehen, neutral und eng.
+- Die Suche: trifft kein Eintrag jedes Wort, kommen die mit den meisten
+  Treffern, solange ein Wort ab vier Zeichen im Namen trifft. "Isolation
+  Curl" fand im Studio nichts, obwohl zehn Curls dastehen. Aliase wie
+  "Isolation Curl" und "Scott Curl" stehen am Preacher Curl, "High Row" und
+  "Rudern von oben" an der High Row.
 
 ### Trainingspläne
 
@@ -371,7 +393,7 @@ das, statt mit Sätzen aufzufüllen, die nichts bringen.
 
 Die Übung je Platz kommt aus der Datenbank über `pattern`, `mechanics` und
 `gruppe`. Einsteiger bekommen nur Einsteigerübungen. Für das Ziehen von oben
-heißt das Latzug oder Klimmzug mit Unterstützung (Maschine). Wer in dieser Woche
+heißt das Latzug, High Row oder Klimmzug mit Unterstützung (Maschine). Wer in dieser Woche
 schon dran war, kommt später; danach zählt der Abstand zum eigenen Niveau, dann
 ein stabiler Streuwert. "Andere Übungen" erhöht die Variante.
 
@@ -636,6 +658,38 @@ Unter den Plänen steht "Deine letzten Trainings", die letzten zehn je Tag
 und Einheit, aufklappbar mit Kilo, Wiederholungen und RIR: ein Protokoll,
 in das man nur schreibt, wirkt wie eines, das nichts behält.
 
+### Der Abschluss eines Trainings
+
+`apps/pwa/js/abschluss.js` und `apps/pwa/js/muskelkarte.js`, das Blatt
+`#abschlussBlatt`. Nach "Beenden" steht oben Datum und Einheit, darunter
+Minuten, Übungen, Sätze und bewegte Kilo, dann der Körper von vorn und
+hinten, jede Partie so kräftig blau, wie viele Sätze sie bekommen hat,
+darunter Sätze je Muskel und die Übungen mit dem besten Satz. Unter "Deine
+letzten Trainings" öffnet "Muskelkarte und Teilen" denselben Abschluss für
+jedes frühere Training. Die Minuten stehen nicht im Protokoll, sie liegen je
+Tag und Einheit in `settings.trainingDauer`, die letzten 60. Fehlen sie,
+steht keine Dauer da.
+
+Gezählt wird in Sätzen und nicht in Kilo mal Wiederholungen: für den
+Muskelaufbau zählt die Zahl harter Sätze (Schoenfeld und andere 2017).
+Hauptmuskel voll, Hilfsmuskel halb, eine Regel der App. Brust und obere
+Brust einer Übung sind ein Satz Brust und nicht zwei. Die Farbe folgt einer
+festen Skala und nicht dem Maximum des Tages: ein Satz ist zart, ab acht
+Sätzen voll, `staerke`. Sonst sähe ein Training mit je einem Satz für alles
+so kräftig aus wie zwanzig Sätze Rücken. Ein Test prüft, dass jede Übung
+mindestens eine Partie färbt und jede Partie gezeichnet ist.
+
+Die Figur ist für daevo gezeichnet, Flächen mit schmalen Fugen auf einer
+Körperfläche, die rechte Hälfte gespiegelt. Die Karte nimmt echte Farbwerte
+und keine CSS Variablen, `KARTE_DUNKEL` und `KARTE_HELL`: dieselbe
+Zeichenkette geht als Bild auf die Leinwand, und dort gibt es keine
+Variablen.
+
+"Als Bild teilen" zeichnet eine Story mit 1080 mal 1920, `storyBild`, und
+gibt sie an `navigator.share`, sonst als Datei. Gezeichnet und kein
+Screenshot: ein Screenshot trüge die Leisten des Telefons mit. Die Wortmarke
+kommt als Datei mit Pfaden auf das Bild, nie als gesetzter Text.
+
 ### Nach acht Wochen
 
 `packages/core/src/trainingslog.ts`, `planPruefen` in `plaene.js`. Gemessen
@@ -682,7 +736,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1374 Tests
+npm test           # 1384 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -4301,6 +4355,33 @@ Instrument Serif steht unter der SIL Open Font License 1.1 und liegt mit
 Lizenz in `apps/pwa/schrift`. Beide Schriften kommen vom eigenen Server und
 nie von Google: die App muss ohne Netz starten, und jeder Abruf verrät, wann
 jemand die App öffnet.
+
+## Bewegung
+
+`apps/pwa/js/bewegung.js`, die Regeln unter "Bewegung" am Ende von
+`styles.css`. Ringe und Balken laufen von ihrem letzten Stand auf den neuen,
+Zahlen wie die offenen Kalorien zählen dorthin, eine gelöschte Zeile gleitet
+heraus und klappt zusammen, Meldungen gleiten herein, ein abgehakter Satz
+springt. Jede Bewegung sagt, was sich geändert hat und wohin.
+
+Gesteuert über einen Beobachter auf dem Dokument und nicht an jeder Stelle,
+die zeichnet: die App baut Ringe und Balken bei jeder Änderung neu, und eine
+Übergangsregel greift bei einem neuen Element nie. Gemerkt wird je Ring der
+letzte Wert über die Kennung des nächsten Vorfahren mit `id` und die Stelle
+darin. Ein Element, das schon gelaufen ist, übernimmt danach die
+Übergangsregel im Stylesheet, sonst ruckeln zwei Bewegungen übereinander.
+Eine Zahl, die gerade zählt, ist beschäftigt: jedes Bild ändert ihren Text,
+und der Beobachter sähe darin sonst eine neue Zahl. Schreibt die App
+währenddessen selbst einen Wert, gilt der.
+
+Mahlzeiten lassen sich nach links wischen, wie in den Listen von iOS, ab
+einem Drittel der Breite oder mit Schwung, darunter federt die Zeile
+zurück. Entschieden wird nach acht Pixeln, senkrecht bleibt Scrollen. Das
+Kreuz bleibt stehen, wer das Wischen nicht kennt, findet es so. Gelöscht
+wird über denselben Weg mit Rückgängig.
+
+Weniger Bewegung in den Bedienungshilfen schaltet alles davon ab, die Werte
+stimmen trotzdem.
 
 ## Der Wechsel zwischen Ansichten
 
