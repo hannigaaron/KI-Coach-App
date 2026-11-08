@@ -705,7 +705,8 @@ so kräftig aus wie zwanzig Sätze Rücken. Ein Test prüft, dass jede Übung
 mindestens eine Partie färbt und jede Partie gezeichnet ist.
 
 Die Figur ist für daevo gezeichnet, im Stil einer anatomischen
-Strichzeichnung, den der Nutzer per Beispiel vorgegeben hat: heller Umriss
+Strichzeichnung, den der Nutzer per Beispiel vorgegeben hat: vorn ein Arm
+mit angespanntem Bizeps, Fäuste, die Beine leicht geöffnet, heller Umriss
 mit Händen und Füssen, die Muskeln als halbdurchsichtige Flächen mit feinen
 Linien, einzelne Bauchmuskeln, drei Köpfe am Oberschenkel, zwei an der
 Beinrückseite. Die erste Fassung aus Flächen wie Bauklötzen hat er

@@ -120,39 +120,62 @@ export function partienListe(saetze) {
 /*
  * Die Figur. Jede Ansicht steht in einem Feld von 200 mal 430, die Mitte
  * liegt bei x 100, acht Kopflängen von 10 bis 414. Gezeichnet ist die linke
- * Hälfte des Bildes, die rechte entsteht gespiegelt. `MITTE` liegt auf der
- * Achse und wird nicht gespiegelt.
+ * Hälfte des Bildes, die rechte entsteht gespiegelt. Was auf der Achse
+ * liegt, wird nicht gespiegelt.
  *
- * Der Stil ist eine anatomische Strichzeichnung: heller Umriss, die Muskeln
- * als halbdurchsichtige Flächen mit feinen Linien dazwischen, was trainiert
- * wurde, in Blau. Vorher standen dort Flächen wie Bauklötze, ohne Hände,
- * Füsse und Gelenke, und der Körper las sich als Puppe.
+ * Der Stil folgt dem Beispiel, das der Nutzer vorgegeben hat: eine
+ * anatomische Strichzeichnung mit hellem Umriss, die Muskeln als Flächen mit
+ * feinen Linien dazwischen, vorn eine Pose mit angespanntem Bizeps, Fäuste,
+ * die Beine leicht geöffnet. Die Zeichnung selbst ist für daevo gemacht und
+ * nicht aus dem Beispiel übernommen. Was trainiert wurde, steht in Blau.
+ *
+ * Die Beine sind um die Hüfte gedreht, `BEIN_DREHUNG`, statt jede Form neu
+ * zu zeichnen. Eine Drehung um denselben Punkt hält Umriss und Muskeln
+ * zusammen, und die Beinstellung lässt sich an einer Stelle ändern.
  */
 
-// Umriss der linken Hälfte, offen: vom Hals um Schulter, Arm, Hand, Rumpf,
-// Bein und Fuss bis in den Schritt. Zum Füllen wird er über die Mitte
-// geschlossen, gezogen wird nur der offene Teil, sonst stünde auf der Achse
-// ein Strich.
-const UMRISS = "M92 57C91 63 91 68 89 72C82 76 72 78 63 81C52 84 46 95 46 109"
-  + "C44 128 44 148 46 165C42 184 42 204 45 224C41 236 43 251 50 258C55 261 59 255 57 246"
-  + "C58 237 56 229 55 224C58 205 60 188 60 171C62 153 64 136 66 119"
-  + "C68 140 70 160 72 178C70 190 70 200 74 211C70 240 70 270 76 299"
-  + "C74 321 72 346 76 370C78 384 80 391 80 397C74 404 74 412 83 414L95 414C98 408 96 400 94 396"
+const HALS = "M92 57C91 63 91 68 89 72C82 76 72 78 63 81";
+// Der hängende Arm mit Faust, vom Schulterdach bis in die Achsel.
+const ARM_HAENGEND = "C52 84 46 95 46 109C44 128 44 148 46 165C42 184 42 204 45 224"
+  + "C40 230 41 241 48 243C55 244 58 237 57 230C57 227 56 225 55 224"
+  + "C58 205 60 188 60 171C62 153 64 136 66 119";
+// Der angespannte Arm: Oberarm waagerecht nach aussen, Unterarm senkrecht nach oben.
+const ARM_GEBEUGT = "C54 81 46 85 42 90C36 82 28 82 26 88C27 76 28 64 27 54"
+  + "C29 46 25 38 18 38C10 38 6 46 9 54C8 68 7 84 8 98"
+  + "C8 110 14 118 24 118C40 120 54 120 66 119";
+const RUMPF = "C68 140 70 160 72 178C70 190 70 200 74 211";
+const BEIN = "M74 211C70 240 70 270 76 299C74 321 72 346 76 370C78 384 80 391 80 397"
+  + "C74 404 74 412 83 414L95 414C98 408 96 400 94 396"
   + "C94 370 96 342 94 318C95 300 97 270 99 240C99 228 100 218 100 212";
-const FLAECHE = `${UMRISS}L100 57Z`;
+const BEIN_DREHUNG = 'transform="rotate(5 86 212)"';
 
-const VORN = [
-  ["trapez", "M92 62C89 68 84 73 76 78L86 79C90 74 92 69 94 64Z"],
+const oben = (arm) => HALS + arm + RUMPF;
+
+const SCHULTER_HAENGEND = [
   ["schulter_seite", "M66 81C54 84 47 95 46 109C48 116 52 118 55 116C56 104 60 92 70 86Z"],
   ["schulter_vorn", "M85 78C77 79 71 82 67 86C61 94 57 104 56 116C61 112 67 104 72 96C74 90 77 85 83 82Z"],
-  ["brust", "M100 80C92 78 85 80 79 84C74 90 71 100 70 111C77 121 89 124 100 122Z"],
+];
+const ARM_VORN_HAENGEND = [
   ["bizeps", "M56 117C50 128 48 146 50 160C54 166 60 166 62 160C64 146 65 130 66 119C62 116 59 116 56 117Z"],
   ["unterarme", "M47 168C43 186 43 204 45 222L56 222C58 206 60 188 60 171C56 166 50 166 47 168Z"],
+];
+const ARM_VORN_GEBEUGT = [
+  ["schulter_seite", "M66 81C56 81 47 85 42 91C44 100 47 108 52 112C54 100 58 92 66 86Z"],
+  ["schulter_vorn", "M85 78C77 79 71 82 66 86C60 92 56 100 54 112C60 108 66 102 72 96C74 90 77 85 83 82Z"],
+  ["bizeps", "M52 109C50 96 42 86 32 85C26 85 24 92 26 100C27 106 31 110 38 111C44 112 49 111 52 109Z"],
+  ["trizeps", "M22 114C36 117 52 118 64 118L66 119C52 120 34 120 20 117Z"],
+  ["unterarme", "M10 96C9 82 10 66 11 56L26 56C27 66 27 78 26 88C20 90 14 92 10 96Z"],
+];
+const VORN_RUMPF = [
+  ["trapez", "M92 62C89 68 84 73 76 78L86 79C90 74 92 69 94 64Z"],
+  ["brust", "M100 80C92 78 85 80 79 84C74 90 71 100 70 111C77 121 89 124 100 122Z"],
   ["seitbauch", "M68 121C70 142 71 160 73 178C78 188 84 194 88 194L88 126C82 124 75 122 68 121Z"],
+];
+const VORN_BEIN = [
   ["quadrizeps", "M75 214C70 240 71 268 77 292C79 286 80 276 80 262C80 244 79 228 78 216Z"],
   ["quadrizeps", "M79 216C82 214 88 218 91 228C93 248 92 270 88 290C85 294 82 292 81 286C82 264 82 240 79 216Z"],
   ["quadrizeps", "M93 258C96 268 97 284 95 296C91 302 85 301 83 297C88 290 91 276 93 258Z"],
-  ["adduktoren", "M100 212C96 214 93 222 92 230C95 240 97 250 97 258C98 244 99 228 100 216Z"],
+  ["adduktoren", "M100 213C96 215 93 222 92 230C95 240 97 250 97 258C98 244 99 228 100 216Z"],
   ["waden", "M78 312C74 330 74 352 78 372L84 376C86 352 86 330 84 312Z"],
   ["waden", "M86 312C92 326 94 346 92 368L86 374C88 350 88 330 86 312Z"],
 ];
@@ -166,12 +189,11 @@ const VORN_MITTE = [
   ["bauch", "M89 179L99 178L99 202C94 200 90 196 88 190Z"],
   ["bauch", "M101 178L111 179L112 190C110 196 106 200 101 202Z"],
 ];
-// Schlüsselbein, Hals, Bauch, Knie: Linien, die den Körper lesbar machen.
-const LINIEN_VORN = "M93 75C86 77 80 78 74 80M94 58C95 64 97 70 99 76M100 82V122"
-  + "M80 300C84 308 92 309 95 302M84 384C86 390 88 394 90 396"
-  + "M49 238L48 252M52 240L52 256M55 239L56 252M73 110C80 116 90 118 98 116";
+// Schlüsselbein, Hals, Brust, Knie: Linien, die den Körper lesbar machen.
+const LINIEN_VORN = "M93 75C86 77 80 78 74 80M94 58C95 64 97 70 99 76M100 82V122M73 110C80 116 90 118 98 116M75 200C82 208 91 214 99 218";
+const LINIEN_VORN_BEIN = "M80 300C84 308 92 309 95 302M84 384C86 390 88 394 90 396";
 
-const HINTEN = [
+const HINTEN_RUMPF = [
   ["trapez", "M100 58C97 64 92 70 80 78C75 80 71 82 70 84C80 86 88 88 93 92C96 108 98 124 100 140Z"],
   ["schulter_hinten", "M70 84C62 84 55 90 51 100C52 108 56 112 58 110C62 100 68 94 78 90C76 88 73 86 70 84Z"],
   ["schulter_seite", "M66 81C54 84 47 95 46 109C48 114 50 114 51 100C55 90 62 84 70 84Z"],
@@ -182,34 +204,53 @@ const HINTEN = [
   ["trizeps", "M54 116C47 130 47 150 50 164C55 168 61 166 63 158C65 144 66 128 66 118C62 114 57 114 54 116Z"],
   ["unterarme", "M47 168C43 186 43 204 45 222L56 222C58 206 60 188 60 171C56 166 50 166 47 168Z"],
   ["gesaess", "M100 200C88 198 77 202 74 214C72 230 80 244 94 246C97 246 99 244 100 242Z"],
+];
+const HINTEN_BEIN = [
   ["beinbeuger", "M77 250C72 268 74 286 79 298L86 300C86 284 87 266 87 249C83 248 80 249 77 250Z"],
   ["beinbeuger", "M89 249C92 248 95 249 98 252C98 266 98 282 96 298L88 300C89 284 89 266 89 249Z"],
   ["waden", "M78 312C71 326 71 346 77 362C82 370 90 368 92 358C94 342 93 324 90 312C86 308 82 308 78 312Z"],
 ];
-const HINTEN_MITTE = [];
-const LINIEN_HINTEN = "M100 60V200M100 246V230M80 304C86 309 92 309 96 304M49 238L48 252M52 240L52 256M55 239L56 252"
-  + "M84 314C85 330 85 346 84 362M84 366C85 380 86 390 88 396";
+const LINIEN_HINTEN = "M100 60V200M100 246V230";
+const LINIEN_HINTEN_BEIN = "M80 304C86 309 92 309 96 304M84 314C85 330 85 346 84 362M84 366C85 380 86 390 88 396";
 
 const SPIEGEL = 'transform="translate(200 0) scale(-1 1)"';
 
-function figur(formen, mitte, linien, saetze, f) {
+/**
+ * Eine Hälfte des Körpers. `arm` und `armFormen` wählen die Haltung, damit
+ * vorn ein Arm hängt und der andere den Bizeps anspannt.
+ */
+function haelfte({ arm, armFormen, rumpf, bein, linien, linienBein }, saetze, f) {
   const strich = `stroke="${f.linie}" stroke-linejoin="round" stroke-linecap="round" fill="none"`;
-  const flaeche = (id, d) => {
+  const flaeche = ([id, d]) => {
     const a = staerke(saetze[id] ?? 0);
-    return `<path d="${d}" fill="${a ? f.akzent : f.muskel}" fill-opacity="${a ? Math.max(0.35, a) : 1}" stroke="${f.linie}" stroke-opacity="0.55" stroke-width="0.8"/>`;
+    return `<path d="${d}" fill="${a ? f.akzent : f.muskel}" fill-opacity="${a ? Math.max(0.35, a) : 1}" stroke="${f.linie}" stroke-opacity="0.6" stroke-width="0.7"/>`;
   };
-  const haelfte = formen.map(([id, d]) => flaeche(id, d)).join("")
-    + `<path d="${linien}" ${strich} stroke-width="0.8" stroke-opacity="0.45"/>`
-    + `<path d="${UMRISS}" ${strich} stroke-width="1.4" stroke-opacity="0.9"/>`;
-  const kopf = `<ellipse cx="100" cy="35" rx="18" ry="23" fill="${f.grund}" stroke="${f.linie}" stroke-width="1.4" stroke-opacity="0.9"/>`;
-  return `<path d="${FLAECHE}" fill="${f.grund}"/><path d="${FLAECHE}" fill="${f.grund}" ${SPIEGEL}/>`
-    + `<g>${haelfte}</g><g ${SPIEGEL}>${haelfte}</g>`
-    + mitte.map(([id, d]) => flaeche(id, d)).join("")
-    + kopf;
+  const umriss = oben(arm);
+  return `<path d="${umriss}L100 211L100 57Z" fill="${f.grund}"/>`
+    + `<g ${BEIN_DREHUNG}><path d="${BEIN}Z" fill="${f.grund}"/>${bein.map(flaeche).join("")}`
+    + `<path d="${linienBein}" ${strich} stroke-width="0.7" stroke-opacity="0.5"/>`
+    + `<path d="${BEIN}" ${strich} stroke-width="1.3"/></g>`
+    + [...rumpf, ...armFormen].map(flaeche).join("")
+    + `<path d="${linien}" ${strich} stroke-width="0.7" stroke-opacity="0.5"/>`
+    + `<path d="${umriss}" ${strich} stroke-width="1.3"/>`;
 }
 
-export const KARTE_DUNKEL = { grund: "#1d232c", muskel: "#46505e", linie: "#dfe7f0", akzent: "#96d8f0", text: "#8b97a8" };
-export const KARTE_HELL = { grund: "#e9eef4", muskel: "#c3ccd8", linie: "#4a5666", akzent: "#1e7fa8", text: "#5b6675" };
+function figur(links, rechts, mitte, saetze, f) {
+  const kopf = `<ellipse cx="100" cy="35" rx="17" ry="22" fill="${f.grund}" stroke="${f.linie}" stroke-width="1.3"/>`;
+  const flaeche = ([id, d]) => {
+    const a = staerke(saetze[id] ?? 0);
+    return `<path d="${d}" fill="${a ? f.akzent : f.muskel}" fill-opacity="${a ? Math.max(0.35, a) : 1}" stroke="${f.linie}" stroke-opacity="0.6" stroke-width="0.7"/>`;
+  };
+  return `<g>${haelfte(links, saetze, f)}</g><g ${SPIEGEL}>${haelfte(rechts, saetze, f)}</g>`
+    + mitte.map(flaeche).join("") + kopf;
+}
+
+const VORN_LINKS = { arm: ARM_HAENGEND, armFormen: [...SCHULTER_HAENGEND, ...ARM_VORN_HAENGEND], rumpf: VORN_RUMPF, bein: VORN_BEIN, linien: LINIEN_VORN, linienBein: LINIEN_VORN_BEIN };
+const VORN_RECHTS = { ...VORN_LINKS, arm: ARM_GEBEUGT, armFormen: ARM_VORN_GEBEUGT };
+const HINTEN_SEITE = { arm: ARM_HAENGEND, armFormen: [], rumpf: HINTEN_RUMPF, bein: HINTEN_BEIN, linien: LINIEN_HINTEN, linienBein: LINIEN_HINTEN_BEIN };
+
+export const KARTE_DUNKEL = { grund: "#2a313b", muskel: "#5b6574", linie: "#eef2f6", akzent: "#96d8f0", text: "#8b97a8" };
+export const KARTE_HELL = { grund: "#e3e8ee", muskel: "#bcc6d2", linie: "#3c4757", akzent: "#1e7fa8", text: "#5b6675" };
 
 /**
  * Beide Ansichten nebeneinander als SVG. `farben` trägt echte Farbwerte und
@@ -223,10 +264,10 @@ export function muskelkarteSvg(saetze, { farben = KARTE_DUNKEL, beschriftung = t
     ? `<text x="100" y="432" ${schrift} fill="${f.text}">Vorn</text><text x="320" y="432" ${schrift} fill="${f.text}">Hinten</text>`
     : "";
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 ${beschriftung ? 438 : 418}" role="img" aria-label="Trainierte Muskeln, vorn und hinten">`
-    + `<g>${figur(VORN, VORN_MITTE, LINIEN_VORN, saetze, f)}</g>`
-    + `<g transform="translate(220 0)">${figur(HINTEN, HINTEN_MITTE, LINIEN_HINTEN, saetze, f)}</g>`
+    + `<g>${figur(VORN_LINKS, VORN_RECHTS, VORN_MITTE, saetze, f)}</g>`
+    + `<g transform="translate(220 0)">${figur(HINTEN_SEITE, HINTEN_SEITE, [], saetze, f)}</g>`
     + `${text}</svg>`;
 }
 
 /** Alle Partien, die die Karte zeichnet. Für den Test, dass keine fehlt. */
-export const GEZEICHNET = new Set([...VORN, ...VORN_MITTE, ...HINTEN, ...HINTEN_MITTE].map(([id]) => id));
+export const GEZEICHNET = new Set([...SCHULTER_HAENGEND, ...ARM_VORN_HAENGEND, ...ARM_VORN_GEBEUGT, ...VORN_RUMPF, ...VORN_BEIN, ...VORN_MITTE, ...HINTEN_RUMPF, ...HINTEN_BEIN].map(([id]) => id));
