@@ -144,7 +144,7 @@ export async function storyBild(d) {
 
   const svg = muskelkarteSvg(d.jePartie, { farben: { ...KARTE_DUNKEL, grund: "#121820" }, beschriftung: false });
   const karte = await bildLaden(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`);
-  const kb = 940, kh = kb * (416 / 420);
+  const kb = 940, kh = kb * (418 / 420);
   g.drawImage(karte, (B - kb) / 2, 560, kb, kh);
   g.fillStyle = "#5f6b7c";
   g.font = schrift(500, 32);

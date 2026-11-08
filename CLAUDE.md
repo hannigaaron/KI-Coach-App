@@ -679,8 +679,13 @@ Sätzen voll, `staerke`. Sonst sähe ein Training mit je einem Satz für alles
 so kräftig aus wie zwanzig Sätze Rücken. Ein Test prüft, dass jede Übung
 mindestens eine Partie färbt und jede Partie gezeichnet ist.
 
-Die Figur ist für daevo gezeichnet, Flächen mit schmalen Fugen auf einer
-Körperfläche, die rechte Hälfte gespiegelt. Die Karte nimmt echte Farbwerte
+Die Figur ist für daevo gezeichnet, im Stil einer anatomischen
+Strichzeichnung, den der Nutzer per Beispiel vorgegeben hat: heller Umriss
+mit Händen und Füssen, die Muskeln als halbdurchsichtige Flächen mit feinen
+Linien, einzelne Bauchmuskeln, drei Köpfe am Oberschenkel, zwei an der
+Beinrückseite. Die erste Fassung aus Flächen wie Bauklötzen hat er
+abgelehnt. Die Zeichnung des Beispiels ist nicht übernommen, sie gehört
+einer anderen App. Die rechte Hälfte entsteht gespiegelt. Die Karte nimmt echte Farbwerte
 und keine CSS Variablen, `KARTE_DUNKEL` und `KARTE_HELL`: dieselbe
 Zeichenkette geht als Bild auf die Leinwand, und dort gibt es keine
 Variablen.
