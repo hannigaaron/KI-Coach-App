@@ -70,6 +70,33 @@ test("eine erfasste Mahlzeit landet mit Menge und Kalorien im Tag", async () => 
   assert.ok(kcalVon(tag) > 0, "die Mahlzeit muss Kalorien tragen");
 });
 
+test("gestern Abend landet gestern um 19 Uhr und nicht jetzt", async () => {
+  frischerTag();
+  const d = new Date(); d.setDate(d.getDate() - 1);
+  const gestern = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  store.setDay(gestern, { ...store.getDay(gestern), meals: [] });
+  const antwort = await buildActions({}).mahlzeitErfassen("gestern Abend 200 g Magerquark");
+  const mahlzeit = store.getDay(gestern).meals.at(-1);
+  assert.equal(mahlzeit?.at, "19:00");
+  assert.match(antwort, /Für gestern, 19:00 Uhr \(abends\)/);
+  assert.match(antwort, /Gestern liegst du damit bei/);
+  assert.equal(store.getDay(todayIso()).meals.length, 0, "heute bleibt leer");
+});
+
+test("heute Morgen ist Frühstück, nie eine Uhrzeit, die noch nicht war", async () => {
+  const tag = frischerTag();
+  await buildActions({}).mahlzeitErfassen("heute Morgen 200 g Magerquark");
+  const at = store.getDay(tag).meals.at(-1)?.at;
+  const jetzt = new Date().toTimeString().slice(0, 5);
+  assert.equal(at, jetzt < "08:00" ? jetzt : "08:00");
+});
+
+test("eine Uhrzeit vom Modell schlägt das Lesen des Satzes", async () => {
+  const tag = frischerTag();
+  await buildActions({}).mahlzeitErfassen("200 g Magerquark", { uhrzeit: "00:01" });
+  assert.equal(store.getDay(tag).meals.at(-1)?.at, "00:01");
+});
+
 test("derselbe Posten wird innerhalb von zwei Stunden nicht zweimal gezählt", async () => {
   // Der Fehler aus dem Betrieb: das Modell schickt beim nächsten Eintrag die
   // ganze bisherige Liste nochmal mit, und aus 1700 wurden 5172 Kalorien.

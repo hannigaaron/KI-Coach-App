@@ -23,7 +23,15 @@ export const AGENT_TOOLS: ToolDefinition[] = [
       properties: {
         beschreibung: {
           type: "string",
-          description: "Was gegessen wurde, so wörtlich wie möglich, inklusive Mengen.",
+          description: "Was gegessen wurde, so wörtlich wie möglich, inklusive Mengen und der Zeitangabe des Nutzers.",
+        },
+        tag: {
+          type: "string",
+          description: "Nur wenn der Nutzer einen früheren Tag nennt: das Datum JJJJ-MM-TT, höchstens vorgestern.",
+        },
+        uhrzeit: {
+          type: "string",
+          description: "Nur wenn der Nutzer sagt, wann er gegessen hat: HH:MM. Heute Morgen 08:00, mittags 12:30, nachmittags 15:30, abends 19:00, sonst die genannte Uhrzeit. Ohne Angabe weglassen, dann gilt jetzt.",
         },
       },
       required: ["beschreibung"],

@@ -4,7 +4,7 @@ import {
   mahlzeitAusFoto, modellFuerBilder, naehrwerteImNetz, produktPerBarcode, produkteSuchen, summiere, vorratAusFoto,
   todoistAbhaken, todoistAufgaben, todoistIdVon, todoistWiederOeffnen, PERSONA_TEILE,
 } from "@daevo/coach";
-import { foldUmlauts, wochenrueckblick, wochenbeginn, wochenschnitt, wochenschnittText, tagKurz, tagStand, rueckblickArt, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, einzeltrainingBauen, FOKUS_NAME, alternativen, planNachrechnen } from "@daevo/core";
+import { essenszeitAus, foldUmlauts, wochenrueckblick, wochenbeginn, wochenschnitt, wochenschnittText, tagKurz, tagStand, rueckblickArt, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, einzeltrainingBauen, FOKUS_NAME, alternativen, planNachrechnen } from "@daevo/core";
 import { trainingsTageAusQuellen } from "./luecke.js";
 import { UEBUNGEN } from "./uebungen-daten.js";
 import { GERAETE, uebungenFiltern } from "./uebungen.js";
@@ -2577,6 +2577,13 @@ export function nachtragZeit(tag, uhrzeit, jetzt = new Date()) {
   return { day, at };
 }
 
+/** Der Tag `n` Tage vor `iso`, in Ortszeit gerechnet wie `todayIso`. */
+function isoMinus(iso, n) {
+  const d = new Date(`${iso}T12:00:00`);
+  d.setDate(d.getDate() - n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 /** "2026-10-23" wird "Fr 23. Okt". Daten werden gesagt, nicht gesetzt. */
 function datumKurz(iso) {
   const d = new Date(`${iso}T12:00:00`);
@@ -2605,8 +2612,21 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
   const bilder = anhaenge.filter((a) => a.mediaType && a.data && !a.fehler);
 
   return {
-    async mahlzeitErfassen(beschreibung) {
-      const day = todayIso();
+    async mahlzeitErfassen(beschreibung, { tag, uhrzeit } = {}) {
+      // Wann gegessen wurde, steht oft im Satz: "heute Morgen", "gestern
+      // Abend", "um 13 Uhr". Vorher bekam jeder Eintrag die Uhrzeit des
+      // Eintragens, und das Frühstück stand um 13:48 als Mittagessen da.
+      // Was das Modell ausdrücklich angibt, schlägt das Lesen des Satzes.
+      const gelesen = essenszeitAus(beschreibung);
+      const heute = todayIso();
+      const tagIso = typeof tag === "string" && /^\d{4}-\d{2}-\d{2}$/.test(tag) ? tag
+        : gelesen?.tageZurueck ? isoMinus(heute, gelesen.tageZurueck) : undefined;
+      const zeitAngabe = typeof uhrzeit === "string" && uhrzeit ? uhrzeit : gelesen?.uhrzeit ?? undefined;
+      // Ein früherer Tag ohne Uhrzeit bekommt Mittag. Die Uhrzeit von jetzt
+      // stünde dort wie eine Angabe und ist keine.
+      const zeit = nachtragZeit(tagIso, zeitAngabe ?? (tagIso && tagIso !== heute ? "12:00" : undefined));
+      const day = zeit.day;
+      const nachtrag = day !== heute || zeit.at !== nowTime();
       const parsed = mitEigenenLebensmitteln(await coach.parseMeal(beschreibung), store.getSettings());
       // Lief das Modell nicht, steht das in der Antwort, mit Grund. Vorher
       // fiel die App still auf die Tabelle zurück, und ein Satz mit sechs
@@ -2629,7 +2649,7 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       // Tages im Kontext und schickt beim nächsten Eintrag die ganze bisherige
       // Liste erneut mit. An einem echten Tag standen dadurch 5172 statt rund
       // 1700 Kalorien da. Siehe packages/core/src/doppelt.ts.
-      const jetzt = nowTime();
+      const jetzt = zeit.at;
       const bestehend = (store.getDay(day).meals || []).flatMap((m) =>
         (m.entries || []).map((eintrag) => ({ eintrag, at: m.at || jetzt })),
       );
@@ -2651,12 +2671,24 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
         entries: behalten,
         feeling: null,
       });
+      // Ein Nachtrag gehört an seine Stelle im Tag und nicht ans Ende.
+      if (nachtrag) {
+        const daten = store.getDay(day);
+        daten.meals.sort((a, b) => String(a.at).localeCompare(String(b.at)));
+        store.setDay(day, daten);
+      }
       changed();
       const kcal = Math.round(behalten.reduce((s, e) => s + e.kcal, 0));
       const protein = Math.round(behalten.reduce((s, e) => s + e.proteinG, 0));
       const posten = behalten.map((e) => `${e.quantity} ${e.name}`).join(", ");
       const warnung = parsed.warnings.length ? ` ${parsed.warnings.join(" ")}` : "";
-      const n = dayNumbers();
+      const zurueck = tageZurueck(day, heute);
+      const n = dayNumbers(day);
+      const tagWort = zurueck === 0 ? "heute" : zurueck === 1 ? "gestern" : "vorgestern";
+      const wann = nachtrag ? `Für ${tagWort}, ${jetzt} Uhr${gelesen?.grund && !uhrzeit && !gelesen.grund.startsWith("um") ? ` (${gelesen.grund})` : ""}.` : "";
+      const stand = zurueck === 0
+        ? restText(n.rest)
+        : `${zurueck === 1 ? "Gestern" : "Vorgestern"} liegst du damit bei ${Math.round(n.totals.kcal)} von ${n.targets.kcal} kcal.`;
       // Der Hinweis steht vorn. Eine Korrektur am Ende einer Antwort wird
       // überlesen, und genau sie ist der Grund, warum die Zahlen stimmen.
       const unplausibel = plausibelHinweis(day);
@@ -2667,8 +2699,9 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
         ohneModell,
         schonDa,
         `Eingetragen: ${posten}. Zusammen ${kcal} kcal und ${protein} g Protein.`,
+        wann,
         parsed.followUpQuestion,
-        `${restText(n.rest)}${warnung}`,
+        `${stand}${warnung}`,
         unplausibel,
       ].filter(Boolean).join(" ").trimEnd();
     },

@@ -736,7 +736,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1384 Tests
+npm test           # 1394 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -3318,6 +3318,27 @@ Fortschritt, den man kaum lesen kann, ist keiner.
 Beim Schliessen wird die Adresse des Bildes freigegeben. Ohne das hält der
 Browser jedes Foto der Sitzung im Speicher, und bei zehn Tellern am Tag
 summiert sich das auf einem Handy.
+
+## Wann gegessen wurde, steht im Satz
+
+`packages/core/src/essenszeit.ts`, `essenszeitAus`, angewendet in
+`mahlzeitErfassen` in `assistant.js`. "Heute Morgen hatte ich 3 Eier" stand im
+Betrieb um 13:48 als Mittagessen da, weil jeder Eintrag die Uhrzeit des
+Eintragens bekam. Jetzt gilt der Tag aus heute, gestern oder vorgestern und
+die Zeit aus dem Satz: eine genannte Uhrzeit genau ("um 13:30", "um halb 8",
+"um 8 abends" wird 20:00), sonst ein Wort mit fester Zeit in seinem Fenster,
+Frühstück und morgens 8:00, vormittags 10:00, mittags 12:30, nachmittags
+15:30, abends 19:00, nachts 22:00. Die Zeiten liegen so, dass
+`artZurUhrzeit` dieselbe Mahlzeit daraus liest, ein Test hält das fest. Ein
+früherer Tag ohne Uhrzeit bekommt 12:00, wie beim Nachtragen im Verlauf.
+
+Das Werkzeug `mahlzeit_erfassen` trägt dafür `tag` und `uhrzeit`, und was
+das Modell dort angibt, schlägt das Lesen des Satzes. Der Regelweg gibt den
+ganzen Satz weiter, die Zeit liest dann die App. Eine Uhrzeit von heute, die
+noch nicht war, wird jetzt: gegessen ist, was schon passiert ist,
+`nachtragZeit`. Ein Nachtrag wird in den Tag einsortiert, die Antwort nennt
+Tag und Uhrzeit, für einen früheren Tag den Stand dieses Tages statt des
+Rests von heute.
 
 ## Nachtragen aus der Mediathek
 

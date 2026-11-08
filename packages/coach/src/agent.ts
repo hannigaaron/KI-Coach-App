@@ -36,7 +36,7 @@ export interface AgentContext {
 
 /** Was der Assistent in der App auslösen kann. Die App liefert die Umsetzung. */
 export interface AgentActions {
-  mahlzeitErfassen(beschreibung: string): Promise<string>;
+  mahlzeitErfassen(beschreibung: string, wann?: { tag?: string; uhrzeit?: string }): Promise<string>;
   produktNachschlagen(input: { suche: string; gramm?: number; erfassen?: boolean }): Promise<string>;
   tageszeitenSetzen(input: { tag?: string; aufstehen?: string; schlafen?: string }): Promise<string>;
   gespraecheDurchsuchen(input: { suche: string }): Promise<string>;
@@ -612,7 +612,10 @@ async function execute(
   try {
     switch (name) {
       case "mahlzeit_erfassen": {
-        const text = await actions.mahlzeitErfassen(String(input.beschreibung ?? ""));
+        const text = await actions.mahlzeitErfassen(String(input.beschreibung ?? ""), {
+          tag: typeof input.tag === "string" ? input.tag : undefined,
+          uhrzeit: typeof input.uhrzeit === "string" ? input.uhrzeit : undefined,
+        });
         return { text, notiz: "Mahlzeit eingetragen" };
       }
       case "mahlzeit_korrigieren": {
