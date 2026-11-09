@@ -767,7 +767,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1394 Tests
+npm test           # 1400 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1544,6 +1544,16 @@ den Startbildschirm. Der Weg aus Siri läuft über das Postfach.
 
 `?sag=` bleibt ebenfalls, in Safari und auf dem Rechner funktioniert es.
 
+## Essen sprechen: Fertig heisst eintragen
+
+Beim Diktieren auf der Essen Seite trägt "Fertig" sofort ein, `nachFertig`
+an `diktatKnopf`. Vorher folgte auf Fertig ein zweiter Knopf, Erfassen.
+Ausgelöst wird beim letzten Text und nicht beim Wechsel auf Ruhe: die native
+Erkennung liefert das letzte Wort erst nach dem Anhalten. Danach steht acht
+Sekunden "Eingetragen. Mengen prüfen?" mit "Ändern", das die Mahlzeit im
+Editor öffnet. Gesprochene Mengen sind eine Schätzung, und korrigieren soll
+ein Tipp sein.
+
 ## Diktieren bis zum Stopp
 
 `bisStopp` am `Listener` in `voice.js`, die Anzeige in `diktatAnzeige` in
@@ -2030,8 +2040,16 @@ rät, meldet Fehler, die keine sind.
 
 `apps/pwa/js/bibliothek.js`, gezeichnet in `meBibliothekZeichnen` in
 `app.js`. Ohne Suchtext stehen unter dem Suchfeld die eigenen Rezepte und
-das zuletzt Gegessene, beim Tippen sofort die Treffer aus der eigenen
-Nährwerttabelle, Open Food Facts erst mit Enter. Wer drei Tage Tofu isst,
+das zuletzt Gegessene. Beim Tippen kommt ab dem ersten Buchstaben alles, was
+ohne Netz da ist, `vorschlaege` in `bibliothek.js`: Gegessenes der letzten
+180 Tage nach Häufigkeit und Frische, eigene Lebensmittel, gemerkte
+Produkte, eigene Rezepte, ab zwei Buchstaben die Tabelle. Gesucht wird auf
+Wortanfänge, "ri" trifft "ESN Rice Pudding", mitten im Wort erst ab drei
+Zeichen. 350 Millisekunden nach dem letzten Buchstaben und ab drei Zeichen
+kommen Produkte von Open Food Facts von selbst darunter, `meLiveSuche`, eine
+überholte Antwort wird verworfen. Vorher gab es Produkte nur mit Enter, und
+"ri" brachte Rinderhack statt des Puddings, der jede Woche gegessen wird.
+Ein gewähltes Produkt wird gemerkt, `produktGemerkt`. Wer drei Tage Tofu isst,
 sucht ihn am vierten nicht. Zuletzt gegessen bringt die zuletzt gegessene
 Menge mit, die isst man meistens wieder. Mahlzeiten aus Apple Health zählen
 dort nicht.
@@ -2708,10 +2726,19 @@ steckt in "Kardamom", und eine falsche Erkennung liefert am Ende ein fremdes
 Produkt. Mit Schlüssel entscheidet das Modell über `produkt_nachschlagen` und
 kennt weit mehr Marken als die Liste.
 
-Der Barcode Scanner in `apps/pwa/js/app.js` nutzt `BarcodeDetector`, wo der
-Browser ihn hat, sonst bleibt das Eingabefeld. Eine Kamerabibliothek wäre die
-erste Laufzeitabhängigkeit der App und rund 300 Kilobyte je Aufruf. Dreizehn
-Ziffern tippt man in zehn Sekunden.
+Der Barcode Scanner, `meScanStarten` in `apps/pwa/js/app.js`, hat drei
+Wege. In der iPhone App liest Apple selbst über AVFoundation,
+`ScannerPlugin.swift`, als Vollbild mit Rahmen und Abbrechen. Im Browser die
+Kamera über `getUserMedia`, gelesen von `BarcodeDetector`, wo es ihn gibt,
+sonst von `apps/pwa/js/ean.js`. Vorher gab es nur `BarcodeDetector`, und den
+kennt das iPhone weder in Safari noch in der Web Ansicht: ein Tipp auf den
+Scanner tat im Betrieb sichtbar nichts. `ean.js` liest EAN-13, EAN-8 und
+UPC-A ohne Bibliothek, zeilenweise mit örtlicher Schwelle, vorwärts und
+rückwärts, nur mit gültiger Prüfziffer und erst, wenn zwei Zeilen dasselbe
+lesen: ein falsch gelesener Code bringt ein fremdes Produkt in den Tag. Im
+Browser mit einem Kamerabild aus einer Videodatei geprüft, das Plugin ist
+nicht kompiliert. Ein gescannter Code ist eindeutig und kommt deshalb direkt
+in die Mahlzeit, `meScanTreffer`, und das Produkt in `settings.produkte`.
 
 ### Drei Stufen, bevor daevo nach dem Etikett fragt
 

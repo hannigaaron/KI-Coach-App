@@ -78,7 +78,8 @@ import { mitteilungenPlanen } from "./mitteilungen.js";
 import { berechtigungenFragen, berechtigungenOffen, berechtigungenText, kontenText } from "./berechtigungen.js";
 import { nativAufruf } from "./nativ.js";
 import { spueren } from "./haptik.js";
-import { anteilAmZiel, eigeneLebensmittel, eigeneSuche, eigenerPosten, lebensmittelLoeschen, lebensmittelSpeichern, eigeneRezepte, essensplanFrei, hauptMakro, rezeptGrenze, rezeptLoeschen, rezeptSpeichern, summe as postenSumme, tabellenBild, tabellenPosten, tabellenSuche, zuletztGegessen } from "./bibliothek.js";
+import { eanAusBild } from "./ean.js";
+import { anteilAmZiel, eigeneLebensmittel, eigeneSuche, eigenerPosten, lebensmittelLoeschen, lebensmittelSpeichern, eigeneRezepte, essensplanFrei, hauptMakro, rezeptGrenze, rezeptLoeschen, rezeptSpeichern, summe as postenSumme, tabellenBild, tabellenPosten, tabellenSuche, zuletztGegessen, vorschlaege, produktGemerkt, produktPosten } from "./bibliothek.js";
 import { abschlussDaten, abschlussHtml, storyTeilen } from "./abschluss.js";
 import { bewegungStarten, wischenZumLoeschen, zahlenZaehlen, zeileRaus } from "./bewegung.js";
 import { einwilligungOffen, einwilligungSetzen, einwilligungText, kiErlaubt } from "./einwilligung.js";
@@ -3357,6 +3358,10 @@ $("btnParse").addEventListener("click", async () => {
       lastMealId = after[after.length - 1].id;
       $("mealText").value = "";
       feedback.className = "feedback ok";
+      // Gesprochen oder getippt, die Mengen sind eine Schätzung. Ein Tipp
+      // öffnet die Mahlzeit, dort lässt sich jede Menge ändern.
+      const id = lastMealId; const tag = day;
+      setTimeout(() => toastAktion("Eingetragen. Mengen prüfen?", "Ändern", () => mahlzeitOeffnen(id, tag), 8000), 50);
     } else {
       feedback.className = "feedback err";
     }
@@ -3751,12 +3756,14 @@ function diktatErstesMal() {
  * gedrückt wird, und heisst solange "Fertig". Pausen beenden nichts: wer
  * aufzählt, was er gegessen hat, überlegt zwischen den Posten.
  */
-function diktatKnopf(knopfId, feldId, hinweis) {
+function diktatKnopf(knopfId, feldId, hinweis, { nachFertig } = {}) {
   let laufend = null;
+  let fertigGedrueckt = false;
   const knopf = $(knopfId);
   const ruhe = knopf.textContent;
   knopf.addEventListener("click", () => {
-    if (laufend?.active) { laufend.stop(); return; }
+    if (laufend?.active) { fertigGedrueckt = true; laufend.stop(); return; }
+    fertigGedrueckt = false;
     if (!listener?.supported) { toast("Dieser Browser kann keine Spracherkennung."); return; }
     stopSpeaking();
     const vorher = $(feldId).value.trim();
@@ -3764,7 +3771,14 @@ function diktatKnopf(knopfId, feldId, hinweis) {
     laufend = new Listener({
       bisStopp: true,
       onPartial: (t) => { $(feldId).value = mit(t); },
-      onFinal: (t) => { $(feldId).value = mit(t); },
+      onFinal: (t) => {
+        $(feldId).value = mit(t);
+        // Wer auf Fertig drückt, ist fertig. Ein zweiter Knopf zum Erfassen
+        // war ein Schritt, den niemand braucht. Erst hier und nicht beim
+        // Wechsel auf "idle": die native Erkennung liefert das letzte Wort
+        // nach dem Anhalten.
+        if (fertigGedrueckt && nachFertig && $(feldId).value.trim()) { fertigGedrueckt = false; nachFertig(); }
+      },
       onState: (state, detail) => {
         const an = state === "listening";
         knopf.textContent = an ? "Fertig" : ruhe;
@@ -3776,7 +3790,9 @@ function diktatKnopf(knopfId, feldId, hinweis) {
     if (diktatErstesMal()) toast(hinweis);
   });
 }
-diktatKnopf("btnVoice", "mealText", "Sprich in Ruhe. Tipp auf Fertig, wenn du durch bist.");
+diktatKnopf("btnVoice", "mealText", "Sprich in Ruhe. Tipp auf Fertig, dann trägt daevo ein.", {
+  nachFertig: () => $("btnParse").click(),
+});
 
 $("feelingRow").addEventListener("click", (event) => {
   const button = event.target.closest("[data-feel]");
@@ -5329,6 +5345,7 @@ let meReiterWahl = "zuletzt";
 function meBibliothekZeichnen() {
   const box = $("meBibliothek");
   const begriff = $("meSuche").value.trim();
+  if (!begriff) { clearTimeout(meLiveTimer); meLiveNummer++; $("meTreffer").hidden = true; }
   $("meSuchen").hidden = !begriff;
   $("meReiter").hidden = Boolean(begriff);
   for (const k of $("meReiter").querySelectorAll("[data-reiter]")) k.classList.toggle("an", k.dataset.reiter === meReiterWahl);
@@ -5336,16 +5353,26 @@ function meBibliothekZeichnen() {
   const liste = (zeilen) => `<ul class="bib-liste">${zeilen.join("")}</ul>`;
   const leer = (text) => `<p class="me-leer">${text}</p>`;
   if (begriff) {
-    // Beim Tippen sofort die eigene Tabelle, ohne Netz. Open Food Facts kommt
-    // erst mit Enter, sonst ginge bei jedem Buchstaben eine Anfrage raus.
-    // Eigene Lebensmittel zuerst: wer etwas selbst angelegt hat, meint fast
-    // immer genau das und nicht den Eintrag aus der Tabelle.
-    const eigene = eigeneSuche(begriff, store.getSettings()).map((l) => eigenerPosten(l));
-    const treffer = [...eigene, ...tabellenSuche(begriff)];
-    box.innerHTML = (treffer.length
-      ? liste(treffer.map((e) => bibZeile(e, meBibliothekPosten.push({ art: "posten", e }) - 1, e.eigen ? { unter: `<span class="me-kcal-text">${Math.round(e.kcal)} kcal</span> · ${e.quantity} · eigenes` } : undefined)))
-      : leer("Weder in deinen Lebensmitteln noch in der Nährwerttabelle. Unten kannst du es anlegen."))
-      + `<p class="feld-hilfe">Enter sucht zusätzlich nach Marken und Produkten.</p>`;
+    // Beim Tippen sofort alles, was ohne Netz da ist, ab dem ersten
+    // Buchstaben: Gegessenes, eigene Lebensmittel, gemerkte Produkte,
+    // Rezepte, Tabelle, `vorschlaege` in bibliothek.js. Produkte aus dem Netz
+    // kommen kurz danach von selbst darunter, `meLiveSuche`.
+    const tage = store.allDays().slice(-180).map((d) => ({ ...store.getDay(d), date: d }));
+    const treffer = vorschlaege(begriff, { tage, settings: store.getSettings(), heute: todayIso() });
+    const QUELLE = { zuletzt: (v) => `${v.anzahl > 1 ? `${v.anzahl}× gegessen` : "schon gegessen"}`, eigen: () => "eigenes", produkt: () => "Produkt", rezept: () => "Rezept", tabelle: () => "" };
+    box.innerHTML = treffer.length
+      ? liste(treffer.map((v) => {
+        if (v.art === "rezept") {
+          const sum = postenSumme(v.r.posten);
+          const e = { name: v.r.name, kcal: sum.kcal, proteinG: sum.proteinG, fatG: sum.fatG, carbsG: sum.carbsG, bild: v.r.posten.find((x) => x.bild)?.bild };
+          return bibZeile(e, meBibliothekPosten.push({ art: "rezept", r: v.r }) - 1, { unter: `<span class="me-kcal-text">${Math.round(sum.kcal)} kcal</span> · Rezept` });
+        }
+        const zusatz = QUELLE[v.quelle]?.(v) || "";
+        const unter = `<span class="me-kcal-text">${Math.round(v.e.kcal)} kcal</span> · ${escapeHtml(v.e.quantity ?? "")}${zusatz ? ` · ${zusatz}` : ""}`;
+        return bibZeile(v.e, meBibliothekPosten.push({ art: "posten", e: v.e }) - 1, { unter });
+      }))
+      : (begriff.length < 3 ? leer("Tipp weiter, ab drei Buchstaben sucht daevo auch nach Marken und Produkten.") : "");
+    meLiveSuche(begriff);
     return;
   }
   if (meReiterWahl === "rezepte") {
@@ -5386,6 +5413,38 @@ function meBibliothekZeichnen() {
   box.innerHTML = zuletzt.length
     ? liste(zuletzt.map((e) => bibZeile(e, meBibliothekPosten.push({ art: "posten", e }) - 1)))
     : leer("Hier stehen bald die Lebensmittel, die du zuletzt gegessen hast.");
+}
+
+/**
+ * Produkte aus dem Netz, während getippt wird. Vorher erst mit Enter, und
+ * wer nicht wusste, dass Enter mehr findet, fand seine Marke nie. Gesucht
+ * wird 350 Millisekunden nach dem letzten Buchstaben und ab drei Zeichen,
+ * sonst ginge bei jedem Buchstaben eine Anfrage raus. Eine Antwort, die
+ * nach einer neueren Suche ankommt, wird verworfen: sonst überschreibt
+ * "ric" die Treffer für "rice pudding".
+ */
+var meLiveTimer = 0;
+var meLiveNummer = 0;
+function meLiveSuche(begriff) {
+  clearTimeout(meLiveTimer);
+  const nummer = ++meLiveNummer;
+  const q = begriff.trim();
+  if (q.length < 3 || /^\d+$/.test(q.replace(/\s/g, ""))) { $("meTreffer").hidden = true; return; }
+  meLiveTimer = setTimeout(async () => {
+    $("meSuchHinweis").textContent = "Suche Produkte";
+    try {
+      const treffer = await produkteSuchen(q, { anzahl: 8, ...offOptionen() });
+      if (nummer !== meLiveNummer) return;
+      $("meSuchHinweis").textContent = "";
+      if (treffer.length) meTrefferZeichnen(treffer, { titel: "Produkte" });
+      else {
+        $("meTreffer").hidden = true;
+        if (!meBibliothekPosten.length) $("meBibliothek").innerHTML = `<p class="me-leer">Nichts gefunden. Scann den Barcode oder leg es unten als eigenes Lebensmittel an.</p>`;
+      }
+    } catch {
+      if (nummer === meLiveNummer) $("meSuchHinweis").textContent = "Produktsuche gerade nicht erreichbar. Deine eigenen Treffer stehen oben.";
+    }
+  }, 350);
 }
 
 $("meReiter").addEventListener("click", (event) => {
@@ -5523,10 +5582,10 @@ async function meSuchen() {
   }
 }
 
-function meTrefferZeichnen(treffer) {
+function meTrefferZeichnen(treffer, { titel = "" } = {}) {
   const liste = $("meTreffer");
   liste.hidden = false;
-  liste.innerHTML = treffer.map((t, i) => {
+  liste.innerHTML = (titel ? `<li class="me-treffer-titel">${escapeHtml(titel)}</li>` : "") + treffer.map((t, i) => {
     const p = t.produkt;
     const titel = [p.marke, p.name].filter(Boolean).join(" ");
     // Die vorgeschlagene Portion kommt vom Hersteller, sonst 100 Gramm. Eine
@@ -5555,6 +5614,7 @@ function meTrefferZeichnen(treffer) {
       gramm,
       kcal: n.kcal, proteinG: n.proteinG, fatG: n.fatG, carbsG: n.carbsG,
       bild: t.produkt.bild,
+      produkt: t.produkt,
     };
   }));
 }
@@ -5681,6 +5741,8 @@ $("meTreffer").addEventListener("click", (event) => {
     carbsG: runde1(t.carbsG),
     ...(t.bild ? { bild: t.bild } : {}),
   });
+  // Gemerkt, damit es beim nächsten Mal ab dem ersten Buchstaben ohne Netz vorn steht.
+  if (t.produkt) store.setSettings(produktGemerkt(store.getSettings(), t.produkt, $("meSuche").value));
   $("meTreffer").hidden = true;
   $("meSuche").value = "";
   meBibliothekZeichnen();
@@ -5759,51 +5821,121 @@ $("meSpeichern").addEventListener("click", () => {
 /**
  * Der Scanner im Editor.
  *
- * Er benutzt `BarcodeDetector`, wo der Browser ihn hat. Eine Kamerabibliothek
- * wäre die erste Laufzeitabhängigkeit der App und rund 300 Kilobyte je Aufruf.
- * Fehlt der Detektor, bleibt das Suchfeld: dreizehn Ziffern tippt man in zehn
- * Sekunden.
+ * Drei Wege, der erste, der geht, gewinnt. In der iPhone App liest Apple
+ * selbst, `ScannerPlugin.swift`. Im Browser die Kamera über `getUserMedia`,
+ * gelesen von `BarcodeDetector`, wo es ihn gibt, sonst von `ean.js`. Vorher
+ * gab es nur `BarcodeDetector`, den das iPhone nicht kennt, und ein Tipp auf
+ * den Scanner tat dort sichtbar nichts: der Hinweis stand klein unter dem
+ * Suchfeld, oft unter der Tastatur.
+ *
+ * Die Kamera im Browser steht als Vollbild mit Rahmen und "Abbrechen", wie
+ * nativ. Ein Video von Daumengrösse im Blatt zielt niemand auf eine Packung.
  */
 let meScanStrom = null;
 let meScanTimer = 0;
 
+function meScanFehler(text) {
+  $("meSuchHinweis").textContent = text;
+  toast(text, 6000);
+}
+
+/**
+ * Ein gescannter Code ist eindeutig, deshalb kommt das Produkt direkt in die
+ * Mahlzeit, mit der Portion des Herstellers. Vorher stand es als Treffer da
+ * und wollte noch einmal angetippt werden. Kennt Open Food Facts den Code
+ * nicht, steht er im Suchfeld, und unten lässt sich das Produkt anlegen.
+ */
+async function meScanTreffer(code) {
+  spueren("erfolg");
+  $("meSuchHinweis").textContent = "Suche den Barcode";
+  try {
+    const t = await produktPerBarcode(code, offOptionen());
+    if (t?.produkt) {
+      const e = produktPosten(t.produkt);
+      mePostenAnhaengen({ ...e, kcal: Math.round(e.kcal) });
+      store.setSettings(produktGemerkt(store.getSettings(), t.produkt));
+      $("meSuche").value = "";
+      $("meSuchHinweis").textContent = t.einwaende?.length ? t.einwaende.join(" ") : "";
+      meBibliothekZeichnen();
+      toast(`${e.name} hinzugefügt. Die Menge lässt sich oben ändern.`, 4000);
+      return;
+    }
+  } catch { /* weiter wie ohne Treffer */ }
+  $("meSuche").value = code;
+  meBibliothekZeichnen();
+  $("meSuchHinweis").textContent = "Diesen Barcode kennt Open Food Facts nicht. Leg das Produkt unten mit den Werten von der Packung an.";
+  document.querySelector(".me-hand")?.setAttribute("open", "");
+}
+
 async function meScanStarten() {
   if (meScanLaeuft) { meScanStoppen(); return; }
-  if (!("BarcodeDetector" in window)) {
-    $("meSuchHinweis").textContent =
-      "Dieser Browser kann keinen Barcode lesen. Tipp die Ziffern der Packung ins Suchfeld.";
+  if (istNativ()) {
+    try {
+      const { code } = await nativAufruf("Scanner", "scannen");
+      if (code) meScanTreffer(String(code));
+      return;
+    } catch (fehler) {
+      const grund = String(fehler?.message ?? fehler);
+      if (grund.includes("abgebrochen")) return;
+      if (grund.includes("keinZugriff")) {
+        meScanFehler("daevo darf die Kamera nicht benutzen. Erlaub es unter Einstellungen, daevo, Kamera, oder tipp die Ziffern ein.");
+        return;
+      }
+      // Eine ältere Fassung der App ohne das Plugin: weiter mit der Kamera der Web Ansicht.
+    }
+  }
+  if (!navigator.mediaDevices?.getUserMedia) {
+    meScanFehler("Hier gibt es keinen Kamerazugriff. Tipp die Ziffern unter dem Barcode ins Suchfeld.");
     $("meSuche").focus();
     return;
   }
   try {
-    meScanStrom = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+    meScanStrom = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false,
+    });
   } catch {
-    $("meSuchHinweis").textContent = "Ohne Kamerazugriff geht der Scanner nicht. Tipp die Ziffern ein.";
+    meScanFehler("Ohne Kamerazugriff geht der Scanner nicht. Erlaub die Kamera oder tipp die Ziffern ein.");
     return;
   }
   meScanLaeuft = true;
-  $("meSuchHinweis").textContent = "Halte den Barcode ins Bild.";
-  const video = document.createElement("video");
-  video.playsInline = true;
-  video.muted = true;
+  const blatt = document.createElement("div");
+  blatt.className = "scan-blatt";
+  blatt.innerHTML = `<video playsinline muted autoplay></video>
+    <div class="scan-rahmen" aria-hidden="true"></div>
+    <p class="scan-hinweis">Halte den Barcode in den Rahmen</p>
+    <button type="button" class="scan-abbrechen">Abbrechen</button>`;
+  document.body.append(blatt);
+  blatt.querySelector(".scan-abbrechen").addEventListener("click", meScanStoppen);
+  const video = blatt.querySelector("video");
   video.srcObject = meScanStrom;
-  video.className = "me-video";
-  $("meSuchHinweis").after(video);
   await video.play().catch(() => {});
 
-  const detektor = new BarcodeDetector({ formats: ["ean_13", "ean_8", "upc_a", "upc_e"] });
+  const detektor = "BarcodeDetector" in window
+    ? new BarcodeDetector({ formats: ["ean_13", "ean_8", "upc_a", "upc_e"] })
+    : null;
+  const leinwand = document.createElement("canvas");
+  const g = leinwand.getContext("2d", { willReadFrequently: true });
   const suchen = async () => {
     if (!meScanLaeuft) return;
+    let code = null;
     try {
-      const codes = await detektor.detect(video);
-      if (codes.length && codes[0].rawValue) {
-        $("meSuche").value = codes[0].rawValue;
-        meScanStoppen();
-        meSuchen();
-        return;
+      if (detektor) {
+        const codes = await detektor.detect(video);
+        code = codes[0]?.rawValue || null;
+      }
+      if (!code && video.videoWidth) {
+        // Nur der mittlere Streifen, dort liegt der Rahmen. Weniger Pixel,
+        // schneller gelesen, und ein zweiter Code am Rand stört nicht.
+        const w = video.videoWidth; const h = video.videoHeight;
+        const sw = Math.min(w, 1280); const sh = Math.round(h * 0.4);
+        leinwand.width = sw; leinwand.height = sh;
+        g.drawImage(video, (w - sw) / 2, (h - sh) / 2, sw, sh, 0, 0, sw, sh);
+        code = eanAusBild(g.getImageData(0, 0, sw, sh));
       }
     } catch { /* ein einzelnes Bild ohne Treffer ist kein Fehler */ }
-    meScanTimer = setTimeout(suchen, 350);
+    if (code) { meScanStoppen(); meScanTreffer(code); return; }
+    meScanTimer = setTimeout(suchen, 120);
   };
   suchen();
 }
@@ -5811,7 +5943,7 @@ async function meScanStarten() {
 function meScanStoppen() {
   meScanLaeuft = false;
   clearTimeout(meScanTimer);
-  document.querySelector(".me-video")?.remove();
+  document.querySelector(".scan-blatt")?.remove();
   if (meScanStrom) {
     for (const spur of meScanStrom.getTracks()) spur.stop();
     meScanStrom = null;

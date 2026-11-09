@@ -4,7 +4,7 @@
  *
  * Kein `document`, kein `window`: das Modul läuft auch in den Tests.
  */
-import { foldUmlauts } from "@daevo/core";
+import { foldUmlauts, naehrwerteFuer, portionsVorschlag } from "@daevo/core";
 import { FOODS } from "@daevo/coach";
 import { BILDER } from "./lebensmittel-bilder.js";
 
@@ -307,4 +307,120 @@ export function eigenesIn(text, settings) {
 
 function r1(x) {
   return Math.round((Number(x) || 0) * 10) / 10;
+}
+
+/* ---------- Vorschläge beim Tippen ---------- */
+
+/**
+ * Wie gut ein Name zum Getippten passt, 0 heisst gar nicht.
+ *
+ * Gesucht wird auf Wortanfänge: "ri" trifft "ESN Rice Pudding", "ri pu"
+ * ebenso, jedes getippte Wort muss ein Wort im Namen beginnen. Mitten im
+ * Wort zählt erst ab drei Zeichen, sonst steckt "ei" in Reis.
+ */
+export function passung(name, begriff) {
+  const q = norm(begriff);
+  const n = norm(name);
+  if (!q || !n) return 0;
+  if (n === q) return 100;
+  if (n.startsWith(q)) return 85;
+  const nw = n.split(/[^a-z0-9]+/).filter(Boolean);
+  const qw = q.split(/[^a-z0-9]+/).filter(Boolean);
+  if (qw.length && qw.every((w) => nw.some((x) => x.startsWith(w)))) return nw[0]?.startsWith(qw[0]) ? 75 : 70;
+  if (q.length >= 3 && n.includes(q)) return 40;
+  return 0;
+}
+
+/** Ein gemerktes Produkt von Open Food Facts als Posten, mit seiner Portion oder 100 g. */
+export function produktPosten(p) {
+  const gramm = portionsVorschlag(p)?.gramm ?? 100;
+  const n = naehrwerteFuer(p, gramm);
+  return {
+    name: [p.marke, p.name].filter(Boolean).join(" ") || "Ohne Namen",
+    quantity: `${Math.round(gramm)} g`,
+    ...n,
+    ...(p.bild ? { bild: p.bild } : {}),
+  };
+}
+
+/**
+ * Was zum Getippten passt, aus allem, was ohne Netz da ist, ab dem ersten
+ * Buchstaben.
+ *
+ * Vorher kamen beim Tippen nur die Nährwerttabelle und die eigenen
+ * Lebensmittel, und alles andere erst mit Enter aus dem Netz. Wer den ESN
+ * Rice Pudding jede Woche isst, tippte "ri" und bekam Rinderhack. Jetzt
+ * zählen fünf Quellen, mit einem Vorsprung für das, was man selbst kennt:
+ * schon Gegessenes nach Häufigkeit und Frische, eigene Lebensmittel,
+ * gemerkte Produkte, eigene Rezepte, dann die Tabelle. Mit einem Buchstaben
+ * nur die eigenen Quellen, die Tabelle erst ab zwei.
+ *
+ * Jeder Name kommt einmal, mit der Quelle, die am besten passt. Gegessenes
+ * bringt die zuletzt gegessene Menge mit, die isst man meistens wieder.
+ */
+export function vorschlaege(begriff, { tage = [], settings = {}, tabelle = FOODS, anzahl = 12, heute } = {}) {
+  const q = norm(begriff);
+  if (!q) return [];
+  const kandidaten = [];
+  const dazu = (name, wert, eintrag) => {
+    const p = passung(name, q);
+    if (p > 0) kandidaten.push({ ...eintrag, wert: p + wert, schluessel: norm(name) });
+  };
+
+  // Schon gegessen, je Name gezählt. Mahlzeiten aus Apple Health zählen
+  // nicht, die hat jemand anderswo eingetragen.
+  const verlauf = new Map();
+  for (const tag of [...tage].sort((a, b) => String(b.date).localeCompare(String(a.date)))) {
+    for (const m of tag.meals || []) {
+      if (m.source === "health") continue;
+      for (const e of m.entries || []) {
+        const k = norm(e.name);
+        if (!k || !(Number(e.kcal) >= 0)) continue;
+        const v = verlauf.get(k);
+        if (v) v.anzahl++;
+        else verlauf.set(k, { e, anzahl: 1, datum: tag.date });
+      }
+    }
+  }
+  const tageHer = (datum) => (heute && datum ? Math.round((Date.parse(heute) - Date.parse(datum)) / 864e5) : 99);
+  for (const { e, anzahl: n, datum } of verlauf.values()) {
+    const frisch = tageHer(datum) <= 7 ? 8 : 0;
+    dazu(e.name, 20 + Math.min(30, n * 5) + frisch, { art: "posten", e: { ...e }, quelle: "zuletzt", anzahl: n });
+  }
+  for (const l of eigeneLebensmittel(settings)) dazu(l.name, 25, { art: "posten", e: eigenerPosten(l), quelle: "eigen" });
+  for (const g of Array.isArray(settings.produkte) ? settings.produkte : []) {
+    if (!g?.produkt?.per100) continue;
+    const e = produktPosten(g.produkt);
+    dazu(e.name, 15, { art: "posten", e, quelle: "produkt" });
+  }
+  for (const r of eigeneRezepte(settings)) dazu(r.name, 15, { art: "rezept", r, quelle: "rezept" });
+  if (q.length >= 2) {
+    for (const f of tabelle) {
+      const best = Math.max(...[f.label, ...(f.aliases || [])].map((n) => passung(n, q)));
+      if (best > 0) kandidaten.push({ art: "posten", e: tabellenPosten(f), quelle: "tabelle", wert: best, schluessel: norm(f.label) });
+    }
+  }
+
+  const beste = new Map();
+  for (const k of kandidaten) {
+    const alt = beste.get(k.schluessel);
+    if (!alt || k.wert > alt.wert) beste.set(k.schluessel, k);
+  }
+  return [...beste.values()]
+    .sort((a, b) => b.wert - a.wert || a.schluessel.length - b.schluessel.length)
+    .slice(0, anzahl)
+    .map(({ wert: _w, schluessel: _s, ...v }) => v);
+}
+
+/**
+ * Merkt ein Produkt aus Suche oder Barcode, damit es beim nächsten Tippen
+ * ohne Netz vorn steht. Dieselbe Liste wie beim Nachschlagen im Gespräch,
+ * `settings.produkte`, höchstens 300.
+ */
+export function produktGemerkt(settings, produkt, suche = "") {
+  if (!produkt?.per100) return settings;
+  const liste = (Array.isArray(settings.produkte) ? settings.produkte : [])
+    .filter((x) => !(produkt.barcode && x.produkt?.barcode === produkt.barcode));
+  liste.unshift({ suche: norm(suche || [produkt.marke, produkt.name].filter(Boolean).join(" ")), produkt, am: new Date().toISOString().slice(0, 10) });
+  return { ...settings, produkte: liste.slice(0, 300) };
 }
