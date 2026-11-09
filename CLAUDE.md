@@ -3727,7 +3727,7 @@ Gemessen am 21. Oktober 2026 mit echten Sätzen über den Worker: Essen
 eintragen und kurze Aufträge auf Haiku 5.5 kosten rund 0,1 Cent, eine
 Fachfrage auf Sonnet 2 bis 7 Cent, ein Gespräch auf Opus 3 bis 15 Cent, im
 Schnitt rund 2 Cent je Nachricht. Daraus die Stufen: Testphase 60
-Nachrichten und 1,50 Dollar, Plus 250 und 7 Dollar, Pro 700 und 15 Dollar.
+Nachrichten und 1,50 Dollar, Plus 250 und 5 Dollar, Pro 700 und 15 Dollar.
 Die Zahl ist so gewählt, dass das Budget sie beim Schnitt trägt. Wer fast
 nur auf Opus redet, erreicht das Budget früher, deshalb steht in der App
 "bis zu". Vorher standen 800 und 2500 da, und das Budget von 12 Dollar
@@ -3763,9 +3763,16 @@ keiner, und die App legt nach der Ablehnung über `kontoStand` ein neues an.
 Jedes neue Konto hat sieben Tage Testphase, Stufe `test` mit `bis`. Danach
 fällt es auf `frei`, und `frei` heisst: keine KI, aber alles ohne Modell. Das
 ist eine harte Paywall und eine Entscheidung des Betreibers. Der Regelweg
-bleibt in jeder Stufe frei, denn er kostet nichts. Preise: Plus 9,99 Euro,
-Pro 19,99 Euro im Monat, oder jährlich 79,99 und 159,99 Euro. Das Jahr
-kostet acht Monate, 33 Prozent weniger, und ist im Abo Fenster vorgewählt.
+bleibt in jeder Stufe frei, denn er kostet nichts. Preise: Plus 11,99 Euro,
+Pro 19,99 Euro im Monat, oder jährlich 99,99 und 159,99 Euro. Das Jahr
+spart bei Plus 30 und bei Pro 33 Prozent und ist im Abo Fenster vorgewählt.
+Plus kostete vorher 9,99 und 79,99 Euro mit 7 Dollar Budget. Nachgerechnet
+mit 19 Prozent Umsatzsteuer, 15 Prozent Apple und rund 2 Cent KI je
+Nachricht: beim Jahresabo blieben 4,76 Euro im Monat, ein Nutzer an der
+Grenze kostete 6,30 Euro. Jetzt bleiben monatlich 8,56 und jährlich 5,95
+Euro, das Budget von 5 Dollar liegt bei rund 4,50 Euro. Das Small Business
+Program von Apple gehört vor den ersten Verkauf beantragt, sonst nimmt Apple
+im ersten Jahr 30 Prozent.
 Die Preise stehen in Cent in `ABO_STUFEN`, die Ersparnis wird gerechnet.
 Das Kontingent bleibt auch beim Jahresabo je Monat. Je Zahlweise gibt es
 einen eigenen Link, `plusJahrUrl` und `proJahrUrl` in `KONFIG.abo`. Fehlt

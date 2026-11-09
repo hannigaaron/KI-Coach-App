@@ -37,15 +37,20 @@ export interface Stufe {
  * nur mit Abo, der Regelpfad läuft in jeder Stufe weiter und taucht hier nicht
  * auf. "frei" heisst damit: alles ohne Modell, nichts mit.
  *
- * Preise: Plus 9,99 Euro, Pro 19,99 Euro im Monat. Gemessen am 21. Oktober
+ * Preise: Plus 11,99 Euro, Pro 19,99 Euro im Monat, jährlich 99,99 und 159,99. Gemessen am 21. Oktober
  * 2026 über den Worker kostet eine Nachricht im Schnitt rund 2 Cent: Essen
  * eintragen auf Haiku 0,1 Cent, eine Fachfrage auf Sonnet 2 bis 7 Cent, ein
  * Gespräch auf Opus 3 bis 15 Cent. Die Zahl der Nachrichten ist so gewählt,
- * dass das Budget sie bei diesem Schnitt trägt: 250 mal 2 Cent sind 5 Dollar
- * gegen 7 im Budget, 700 mal 2 Cent 14 gegen 15. Wer fast nur auf Opus redet,
- * erreicht das Budget früher, deshalb steht in der App "bis zu". Nach Steuer
- * und App Store bleiben je Abo rund 7,14 und 14,28 Euro, das Budget liegt in
- * beiden Fällen darunter.
+ * dass das Budget sie bei diesem Schnitt trägt: 250 mal 2 Cent sind 5 Dollar,
+ * 700 mal 2 Cent 14 gegen 15. Wer fast nur auf Opus redet, erreicht das
+ * Budget früher, deshalb steht in der App "bis zu". Plus hatte vorher 7
+ * Dollar Budget, und genau der Puffer machte das Jahresabo bei Vielnutzern
+ * zum Verlust. Nach Umsatzsteuer und 15 Prozent Apple bleiben je Monat rund
+ * 8,56 Euro bei Plus monatlich, 5,95 Euro bei Plus jährlich und 14,28 Euro bei
+ * Pro monatlich. Das volle Budget von Plus kostet bei 1 Dollar zu 0,90 Euro
+ * rund 4,50 Euro und liegt damit überall darunter. Bei 30 Prozent Apple, also
+ * ohne Small Business Program, bleiben beim Jahresabo 4,90 Euro, und ein
+ * Nutzer an der Grenze lässt dann nur noch rund 0,40 Euro übrig.
  *
  * Gezählt wird je Nachricht des Nutzers, nicht je Anfrage, siehe
  * `x-daevo-folge` in `chat.ts`. Essen per Text und Sprache zählt gar nicht,
@@ -58,7 +63,7 @@ export interface Stufe {
 export const STUFEN: Record<string, Stufe> = {
   frei: { name: "Ohne Abo", nachrichten: 0, budgetMikro: 0 },
   test: { name: "Testphase", nachrichten: 60, budgetMikro: 1_500_000 },
-  plus: { name: "Plus", nachrichten: 250, budgetMikro: 7_000_000 },
+  plus: { name: "Plus", nachrichten: 250, budgetMikro: 5_000_000 },
   pro: { name: "Pro", nachrichten: 700, budgetMikro: 15_000_000 },
 };
 
