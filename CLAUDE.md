@@ -780,7 +780,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1400 Tests
+npm test           # 1402 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -2699,6 +2699,42 @@ Vortag. Gespeichert werden nur Beginn und Variante, `settings.essensplan`,
 der Plan wird gerechnet: ändert sich das Gewicht, passt er danach zu den neuen
 Angaben. "Zutaten in die Einkaufsliste" ersetzt Posten aus einem früheren
 Plan statt sie zu addieren, was im Vorrat liegt, kommt als zuhause hinein.
+
+### Snacks, Vorlieben und fleischlose Tage
+
+Snacks im Plan kommen aus der Liste von Coach Aaron, `standard` am Rezept:
+Proteinshake, Proteinriegel, Skyr mit Beeren und Flavour Pulver, High
+Protein Grießpudding und Pudding, Magerquark mit Beeren. Schneller Zucker,
+`zucker` am Rezept, also Reiswaffeln mit Zimt, Datteln und Banane, nur an
+Tagen mit einer Einheit im Profil, `trainingstag` am Plan. Andere Snacks
+bleiben als Reserve und zahlen in der Bewertung. Das Flavour Pulver ist
+nicht mitgerechnet, verlässliche Werte gab es nicht, und das Rezept sagt es.
+
+Wer nicht vegetarisch isst, bekommt höchstens ein fleischloses Hauptgericht
+am Tag ohne Aufpreis in der Bewertung, und dieselbe Eiweissquelle zweimal
+zahlt mehr. Im Betrieb standen Linsen Curry und Linsen Bolognese am selben
+Tag bei jemandem, der nie vegetarisch angegeben hatte.
+
+Was jemand nicht mag, kommt auch aus dem Gedächtnis, `meidenAusNotizen` in
+`assistant.js`: "mag keinen Frischkäse" stand nur als Notiz, und der Plan las
+nur das Profil. Frischkäse sperrt auch Hüttenkäse, `MEIDEN_GRUPPEN` im Kern.
+
+Bewertet wird ein Tag so, wie er nach dem Verkleinern wirklich aussieht.
+Wraps und Eier gibt es nur ganz, und ein linear verkleinerter Tag lag im
+Plan bei 1700 und auf dem Teller bei 1815 kcal. Über 5 Prozent neben dem
+Kalorienziel nimmt der Plan einen Tag nur, wenn es keinen besseren gibt.
+
+## Die Tabelle schlägt die Schätzung
+
+`tabellenTreffer` in `packages/coach/src/foods.ts`, `mitTabellenwert` in
+`skills.ts`. Das Modell schätzt beim Eintragen die Werte je Posten selbst.
+Im Betrieb kamen 400 g Putenhack mit 880 statt rund 640 kcal und Express Reis
+mit den Werten von rohem Reis in den Tag. Kennt die Tabelle den Namen genau,
+ohne beschreibende Wörter, gelten ihre Werte. Bei Reis, Nudeln und Kartoffeln
+nur mit einem Wort für gegart im Namen, denn "180 g Reis" kann roh gewogen
+sein. Putenhack, Express Reis und Rinderhack tragen Etikettwerte aus Open
+Food Facts, Quelle im Kommentar. Die Antwort nennt die Kalorien je Posten:
+ohne sie konnte niemand sehen, welcher Posten falsch war.
 
 ## Protein nie unter 1,6 g je kg
 

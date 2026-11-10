@@ -950,3 +950,17 @@ test("aufgabenAufraeumen nimmt Satzreste wie „dass ich das machen muss“ einm
   assert.equal(aufgabenAufraeumen(), 0);
   store.setSettings({ ...store.getSettings(), aufgabenGeprueft: s0.aufgabenGeprueft });
 });
+
+test("Abneigungen aus dem Gespräch sperren Rezepte, Frischkäse auch Hüttenkäse", async () => {
+  const { meidenAusNotizen } = await import("./assistant.js");
+  const { rezeptGesperrt, REZEPTE } = await import("@daevo/core");
+  const meiden = meidenAusNotizen([
+    { text: "Mag keinen Frischkäse.", tags: ["ernährung"] },
+    { text: "Hat heute keine Zeit für Training.", tags: ["training"] },
+  ]);
+  assert.deepEqual(meiden, ["Frischkäse"]);
+  const huette = REZEPTE.find((r) => r.id === "huettenkaese-reiswaffeln");
+  assert.ok(rezeptGesperrt(huette, { meiden }));
+  const quark = REZEPTE.find((r) => r.id === "quark-beeren");
+  assert.equal(rezeptGesperrt(quark, { meiden }), null);
+});

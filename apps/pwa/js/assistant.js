@@ -948,6 +948,35 @@ export function tagesErinnerungen(day = todayIso()) {
 /* ---------- Einkaufsliste ---------- */
 
 /** Was der Nutzer nicht verträgt, aus dem Gedächtnis gelesen. */
+/**
+ * Was jemand nicht essen will, aus dem Profil und aus dem Gedächtnis.
+ *
+ * Im Betrieb stand "mag keinen Frischkäse" nur als Notiz im Gedächtnis, weil
+ * es im Gespräch gesagt wurde und nicht im Fragebogen. Der Essensplan las nur
+ * das Profil und brachte trotzdem Hüttenkäse auf Reiswaffeln. Gelesen werden
+ * Sätze wie "mag keinen X", "esse keine X", "kein X", "ohne X" in Notizen
+ * zum Essen.
+ */
+export function meidenAusNotizen(notizen = brain.all()) {
+  const funde = [];
+  for (const e of notizen) {
+    const text = String(e.text || "");
+    const zumEssen = (e.tags || []).some((t) => /ern(ä|ae)hrung|essen|vorliebe|praeferenz|präferenz/.test(t))
+      || /\b(mag|esse|isst|vertr(ä|ae)gt)\b/i.test(text);
+    if (!zumEssen) continue;
+    const re = /\b(?:mag|esse|isst|will|möchte|moechte)\s+(?:gar\s+|absolut\s+|überhaupt\s+)?(?:kein|keine|keinen|nicht\s+gern\w*)\s+([A-Za-zÄÖÜäöüß-]{3,}(?:\s+(?:und|oder)\s+[A-Za-zÄÖÜäöüß-]{3,})*)/gi;
+    for (const m of text.matchAll(re)) funde.push(...m[1].split(/\s+(?:und|oder)\s+/));
+  }
+  return [...new Set(funde.map((w) => w.trim()).filter((w) => w.length >= 3 && !/^(lust|zeit|hunger|appetit)$/i.test(w)))];
+}
+
+/** Die Ernährungsangaben für Rezepte und Plan, mit allem, was gemieden wird. */
+export function ernaehrungMitNotizen(profil = store.getProfile() || {}) {
+  const e = profil.ernaehrung || {};
+  const meiden = [...new Set([...(e.meiden || []), ...meidenAusNotizen()])];
+  return { ...e, meiden };
+}
+
 function unvertraeglichkeiten() {
   return brain
     .all()
@@ -1813,7 +1842,7 @@ export function tagesessenFuer(tagIso = todayIso(), jetzt = Date.now()) {
     gegessen: heute ? gegessen : [],
     jetzt: heute ? jetzt : undefined,
     trainings: trainingAusProfil(profile.sessions, tagIso),
-    ernaehrung: profile.ernaehrung || {},
+    ernaehrung: ernaehrungMitNotizen(profile),
     vorrat: store.getFridge(),
   });
 }
@@ -1974,7 +2003,7 @@ export function rezeptVorschlaege({ art, jetzt = new Date() } = {}) {
   }
   const ziel = { kcal: anteil.kcal, proteinG: anteil.proteinG, fatG: anteil.fatG, carbsG: anteil.carbsG };
   const { empfehlungen, ausgeblendet } = rezeptEmpfehlungen({
-    ziel, art: gewaehlt, ernaehrung: profil.ernaehrung || {}, vorrat: store.getFridge(),
+    ziel, art: gewaehlt, ernaehrung: ernaehrungMitNotizen(profil), vorrat: store.getFridge(),
   });
   return { art: gewaehlt, offen, morgen, rest: n.rest, ziel, empfehlungen, ausgeblendet, hinweis };
 }
@@ -2002,7 +2031,9 @@ export function essensplanRechnen({ neu = false, andere = false, heute = todayIs
   };
   return essensplanBauen({
     ziel: ziel(stand.start), zielFuer: ziel, start: stand.start, variante: stand.variante || 0,
-    ernaehrung: profil.ernaehrung || {}, vorrat: store.getFridge(),
+    ernaehrung: ernaehrungMitNotizen(profil), vorrat: store.getFridge(),
+    // Zucker nur ums Training: an Tagen mit Krafttraining oder Sport im Profil.
+    trainingstag: (tag) => (profil.sessions || []).some((x) => x.weekday === new Date(`${tag}T12:00:00`).getDay()),
   });
 }
 
@@ -2680,7 +2711,10 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       changed();
       const kcal = Math.round(behalten.reduce((s, e) => s + e.kcal, 0));
       const protein = Math.round(behalten.reduce((s, e) => s + e.proteinG, 0));
-      const posten = behalten.map((e) => `${e.quantity} ${e.name}`).join(", ");
+      // Je Posten mit Kalorien. Ohne die Zahl je Zeile konnte im Betrieb weder
+      // der Nutzer noch der Coach sehen, welcher Posten falsch war: auf "der
+      // Reis kann nicht stimmen" kam "einen Einzelwert habe ich nicht".
+      const posten = behalten.map((e) => `${e.quantity} ${e.name} (${Math.round(e.kcal)} kcal)`).join(", ");
       const warnung = parsed.warnings.length ? ` ${parsed.warnings.join(" ")}` : "";
       const zurueck = tageZurueck(day, heute);
       const n = dayNumbers(day);
@@ -2698,7 +2732,7 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       return [
         ohneModell,
         schonDa,
-        `Eingetragen: ${posten}. Zusammen ${kcal} kcal und ${protein} g Protein.`,
+        `Eingetragen: ${posten}. Diese Mahlzeit zusammen ${kcal} kcal und ${protein} g Protein.`,
         wann,
         parsed.followUpQuestion,
         `${stand}${warnung}`,

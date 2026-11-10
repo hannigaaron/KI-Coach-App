@@ -145,3 +145,18 @@ test("scheitert das Modell, kommt der Grund mit und kein Posten fällt still weg
   assert.match(ergebnis.followUpQuestion, /Nicht eingetragen.*Rice Pudding/);
   assert.doesNotMatch(ergebnis.followUpQuestion, /Wie viel/);
 });
+
+test("Tabelle schlägt die Schätzung des Modells, wenn der Name eindeutig ist", async () => {
+  const { mitTabellenwert } = await import("./skills.js");
+  // Aus dem Betrieb: das Modell schätzte 400 g Putenhack mit 880 kcal.
+  const hack = mitTabellenwert({ name: "Putenhackfleisch", quantity: "400 g", kcal: 880, proteinG: 80, fatG: 60, carbsG: 0 });
+  assert.equal(hack.kcal, 640);
+  const reis = mitTabellenwert({ name: "Express Reis", quantity: "180 g", kcal: 630, proteinG: 12, fatG: 1, carbsG: 140 });
+  assert.equal(reis.kcal, 288);
+  // Ein Markenname mit einem Tabellenwort ist kein Treffer.
+  const sauce = { name: "Kania Light Barbecue Sauce", quantity: "15 g", kcal: 12, proteinG: 0, fatG: 0, carbsG: 3 };
+  assert.deepEqual(mitTabellenwert(sauce), sauce);
+  // "Reis" ohne gegart kann roh gewogen sein, die Schätzung bleibt.
+  const roh = { name: "Reis", quantity: "80 g", kcal: 280, proteinG: 6, fatG: 0.5, carbsG: 62 };
+  assert.deepEqual(mitTabellenwert(roh), roh);
+});

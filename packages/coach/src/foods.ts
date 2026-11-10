@@ -30,7 +30,16 @@ export interface FoodRef {
 export const FOODS: FoodRef[] = [
   { key: "haehnchenbrust", label: "Hähnchenbrust", aliases: ["hähnchenbrust", "hähnchen", "hühnerbrust", "chicken", "hähnchengeschnetzeltes", "hähnchenstreifen", "hähnchenbrustfilet"], per100: { kcal: 120, proteinG: 23, fatG: 2.6, carbsG: 0 }, state: "roh" },
   { key: "putenbrust", label: "Putenbrust", aliases: ["putenbrust", "pute", "truthahn", "putengeschnetzeltes", "putengeschnetzeltem", "putenstreifen", "putenfleisch", "putenbrustfilet"], per100: { kcal: 110, proteinG: 24, fatG: 1, carbsG: 0 }, state: "roh" },
-  { key: "rinderhack", label: "Rinderhack", aliases: ["rinderhack", "hackfleisch", "hack"], per100: { kcal: 137, proteinG: 21.5, fatG: 5, carbsG: 0 }, state: "roh" },
+  // Etikettwerte aus Open Food Facts, abgerufen am 10.11.2026: sechs Rinderhack
+  // Produkte deutscher Händler lagen bei 127 bis 272 kcal, die Mitte bei 218.
+  // Vorher stand hier ein mageres Hack mit 137 kcal, und das liegt unter fast
+  // jeder Packung im Kühlregal.
+  { key: "rinderhack", label: "Rinderhack", aliases: ["rinderhack", "rinderhackfleisch", "hackfleisch", "hack", "hackfleisch gemischt", "gemischtes hack"], per100: { kcal: 215, proteinG: 18.5, fatG: 15.5, carbsG: 0 }, state: "roh" },
+  // Etikettwerte aus Open Food Facts, abgerufen am 10.11.2026: Dulano (Lidl) 161,
+  // Rewe 157, Mühlenhof 168, Aldi 159, Edeka 159 kcal je 100 g. Gerundet auf
+  // die Mitte. Ohne diese Zeile schätzte das Modell 220 kcal, und 400 g
+  // Putenhack standen mit 880 statt rund 640 kcal im Tag.
+  { key: "putenhack", label: "Putenhackfleisch", aliases: ["putenhack", "putenhackfleisch", "puten hack", "pute hack", "puten hackfleisch", "hackfleisch pute", "geflügelhack", "geflügelhackfleisch"], per100: { kcal: 160, proteinG: 17.6, fatG: 9.6, carbsG: 0.5 }, state: "roh" },
   { key: "lachs", label: "Lachs", aliases: ["lachs", "salmon"], per100: { kcal: 208, proteinG: 20, fatG: 13, carbsG: 0 }, state: "roh" },
   { key: "thunfisch", label: "Thunfisch", aliases: ["thunfisch", "tuna"], per100: { kcal: 116, proteinG: 26, fatG: 1, carbsG: 0 }, state: "zubereitet" },
   { key: "ei", label: "Ei", aliases: ["ei", "eier", "spiegelei", "rührei", "rührei"], per100: { kcal: 143, proteinG: 12.6, fatG: 9.5, carbsG: 0.7 }, pieceG: 58 },
@@ -47,6 +56,12 @@ export const FOODS: FoodRef[] = [
   // BLS 4.0 M402600, Gouda 48 % Fett i. Tr. Eine Scheibe sind 25 g, eine Annahme der App.
   { key: "gouda", label: "Gouda", aliases: ["gouda", "käse", "scheibe käse"], per100: { kcal: 379, proteinG: 22.5, fatG: 31.6, carbsG: 0 }, pieceG: 25 },
   { key: "haferflocken", label: "Haferflocken", aliases: ["haferflocken", "oats", "porridge"], per100: { kcal: 372, proteinG: 13.5, fatG: 7, carbsG: 58.7 }, state: "roh" },
+  // Fertig gegarter Reis aus dem Beutel. Etikettwerte aus Open Food Facts,
+  // abgerufen am 10.11.2026: sieben Produkte von Ben's Original, Rewe, Gut &
+  // Günstig und Bonrisi zwischen 142 und 182 kcal, die Mitte bei 164. Das Öl
+  // im Beutel macht ihn etwas reicher als selbst gekochten Reis. Gewogen wird
+  // er gegart, eine Schätzung als roher Reis lag beim Dreifachen.
+  { key: "express_reis", label: "Express Reis", aliases: ["express reis", "expressreis", "reis express", "mikrowellenreis", "mikrowellen reis", "fertigreis", "beutelreis gegart", "express basmati", "express basmatireis"], per100: { kcal: 160, proteinG: 3.3, fatG: 2, carbsG: 32 }, state: "zubereitet" },
   { key: "reis_gekocht", label: "Reis", aliases: ["reis", "reis gekocht", "basmati"], per100: { kcal: 130, proteinG: 2.7, fatG: 0.3, carbsG: 28 }, state: "gekocht" },
   { key: "nudeln_gekocht", label: "Nudeln", aliases: ["nudeln", "pasta", "spaghetti", "penne"], per100: { kcal: 158, proteinG: 5.8, fatG: 0.9, carbsG: 30.9 }, state: "gekocht" },
   { key: "kartoffeln", label: "Kartoffeln", aliases: ["kartoffeln", "kartoffel", "salzkartoffeln"], per100: { kcal: 77, proteinG: 2, fatG: 0.1, carbsG: 17 }, state: "gekocht" },
@@ -214,6 +229,31 @@ export function findFood(text: string): FoodRef | null {
     }
   }
   return best;
+}
+
+// Wörter, die einen Namen beschreiben, ohne das Lebensmittel zu ändern.
+const BESCHREIBEND = new Set(["frisch", "frisches", "frischer", "frische", "natur", "bio", "roh", "rohes", "roher", "gekocht", "gekochter", "gekochte", "gegart", "gegarter", "gegarte", "von", "der", "die", "das", "dem", "vom", "aus"]);
+const GAR_WORT = /\b(gekocht|gegart|express|mikrowelle|fertig)/;
+
+/**
+ * Das Lebensmittel der Tabelle, wenn ein Name genau eines ist.
+ *
+ * Für Modellantworten. Das Modell schätzt Werte je 100 g selbst, und beim
+ * Putenhack lag die Schätzung 37 Prozent über jeder Packung im Kühlregal.
+ * Kennt die Tabelle das Lebensmittel, gelten ihre Werte. Abgeglichen wird nur
+ * ein ganzer Name gegen einen ganzen Eintrag, ohne beschreibende Wörter: eine
+ * "Kania Light Barbecue Sauce" ist keine Sauce aus der Tabelle, und ein
+ * falscher Treffer wäre schlimmer als die Schätzung. Bei Reis, Nudeln und
+ * Kartoffeln steht gegart in der Tabelle. Ohne ein Wort dafür im Namen bleibt
+ * die Schätzung, denn "180 g Reis" kann roh gewogen sein.
+ */
+export function tabellenTreffer(name: string): FoodRef | null {
+  const woerter = normalize(name).split(" ").filter((w) => w && !BESCHREIBEND.has(w));
+  if (woerter.length === 0) return null;
+  const food = INDEX.get(woerter.join(" "));
+  if (!food) return null;
+  if (food.state === "gekocht" && !GAR_WORT.test(normalize(name))) return null;
+  return food;
 }
 
 function containsSequence(words: string[], sequence: string[]): boolean {

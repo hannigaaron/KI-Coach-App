@@ -22,7 +22,13 @@ Markenprodukte wie ESN Flexpresso oder ein Instant Milchreis schätzt du nach
 den üblichen Etikettwerten dieser Produktart und nennst die Schätzung in
 assumption. Haushaltsmasse rechnest du um: Teelöffel rund 5 g, gehäuft rund
 10 g, Esslöffel rund 15 g. followUpQuestion nur, wenn wirklich eine Menge
-fehlt, sonst leer.`;
+fehlt, sonst leer.
+
+Roh oder gegart: Express Reis, Mikrowellenreis und Reis aus dem Beutel sind
+gegart gewogen, rund 160 kcal je 100 g, nie die Werte von rohem Reis. Fleisch
+und Hack aus der Packung sind roh gewogen. Putenhack liegt bei rund 160 kcal
+je 100 g, Rinderhack bei rund 215. Nenne beim Namen nur das Lebensmittel,
+ohne Menge, etwa "Putenhackfleisch" und nicht "Putenhack 400 g".`;
 
 export const MEAL_SUGGEST_SYSTEM = `${COACH_PERSONA}
 

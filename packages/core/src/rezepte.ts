@@ -68,11 +68,24 @@ function ausschlussTrifft(ausschluss: string, z: Zutat): boolean {
   return false;
 }
 
+/**
+ * Begriffe, die mehr meinen als ihren Wortlaut. Hüttenkäse ist körniger
+ * Frischkäse, und wer keinen Frischkäse mag, bekam im Betrieb trotzdem
+ * Hüttenkäse auf Reiswaffeln. Quark und Skyr gehören rechtlich auch zu den
+ * Frischkäsen, sind hier aber bewusst nicht dabei: kaum jemand meint sie mit
+ * dem Wort, und ohne sie fehlt die halbe Proteinliste.
+ */
+const MEIDEN_GRUPPEN: Array<[RegExp, RegExp]> = [
+  [/frischkaese/, /frischkaese|huettenkaese|koerniger/],
+  [/huettenkaese/, /huettenkaese|koerniger/],
+];
+
 /** Ob ein freier Begriff wie "Zwiebeln" eine Zutat wie "Zwiebel" meint. */
 function meidenTrifft(begriff: string, z: Zutat): boolean {
   const b = foldUmlauts(begriff.toLowerCase()).trim();
   const n = foldUmlauts(z.name.toLowerCase());
   if (b.length < 3) return false;
+  for (const [wenn, trifft] of MEIDEN_GRUPPEN) if (wenn.test(b) && trifft.test(n)) return true;
   // Beide Richtungen und ohne Endung: "Zwiebeln" soll "Zwiebel" treffen, und
   // "Tomate" soll "Passierte Tomaten" treffen.
   const stamm = b.replace(/(en|n|e|s)$/, "");
