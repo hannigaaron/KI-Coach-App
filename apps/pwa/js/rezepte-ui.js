@@ -44,6 +44,10 @@ export function rezepteAnsicht({ wurzel, toast, beiEintrag, planFrei = () => tru
       b.classList.toggle("on", an);
       b.setAttribute("aria-selected", String(an));
     }
+    // Was Pro braucht, trägt das schon am Reiter. Wer erst nach dem Tippen
+    // erfährt, dass es gesperrt ist, fühlt sich hereingelegt.
+    const reiter = wurzel.querySelector('[data-rz-modus="woche"]');
+    if (reiter) reiter.innerHTML = planFrei() ? "Wochenplan" : 'Wochenplan <span class="pro-chip">Pro</span>';
     return woche ? wocheZeichnen() : einzelnZeichnen();
   }
 
@@ -52,19 +56,22 @@ export function rezepteAnsicht({ wurzel, toast, beiEintrag, planFrei = () => tru
    * Gerichten sind 28 Zeilen, und darin findet niemand den Donnerstag.
    */
   function wocheZeichnen() {
-    if (!planFrei()) {
-      el("epZiel").textContent = "";
-      el("epTage").innerHTML = "";
-      el("epHinweis").textContent = "";
-      wurzel.querySelector(".ep-aktionen").hidden = true;
-      el("epTag").innerHTML = `<div class="ep-sperre">
+    // Ohne Pro steht der echte Plan verschwommen hinter einem Schloss, wie bei
+    // Sleep Cycle. Ein leerer Kasten mit "gehört zu Pro" zeigt nicht, was man
+    // bekäme, und wer es nicht sieht, will es auch nicht.
+    const gesperrt = !planFrei();
+    el("rzWoche").classList.toggle("pro-gesperrt", gesperrt);
+    el("rzWoche").querySelector(".pro-schleier")?.remove();
+    if (gesperrt) {
+      el("rzWoche").insertAdjacentHTML("beforeend", `<div class="pro-schleier">
+        <div class="pro-schloss">${symbol("schloss", { groesse: 22 })}</div>
+        <span class="pro-chip">Pro</span>
         <h2>Dein Essensplan für die Woche</h2>
-        <p>Sieben Tage aus den Rezepten, gerechnet auf deine Kalorien und Makros, mit Abendessen zum Vorkochen und fertiger Einkaufsliste. Das gehört zu Pro.</p>
-        <button type="button" class="primary breit" data-ep-pro>Pro ansehen</button>
-      </div>`;
-      return;
+        <p>Sieben Tage aus den Rezepten, gerechnet auf deine Kalorien und Makros, mit Abendessen zum Vorkochen und fertiger Einkaufsliste.</p>
+        <button type="button" class="primary breit" data-ep-pro>Mit Pro freischalten</button>
+      </div>`);
     }
-    wurzel.querySelector(".ep-aktionen").hidden = false;
+    wurzel.querySelector(".ep-aktionen").hidden = gesperrt;
     const plan = zustand.plan ?? (zustand.plan = essensplanRechnen());
     if (zustand.tag >= plan.tage.length) zustand.tag = 0;
     const tag = plan.tage[zustand.tag];

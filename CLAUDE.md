@@ -780,7 +780,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1407 Tests
+npm test           # 1408 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -3934,6 +3934,19 @@ Offen: Lesen und Schreiben des Verbrauchs sind zwei Schritte im
 Schlüsselspeicher. Zwei gleichzeitige Nachrichten desselben Kontos können
 sich eine Buchung wegnehmen. Für echtes Geld gehört dort ein Durable Object
 hin.
+
+## Was Pro ist, steht gesperrt in der App
+
+`proFrei` in `apps/pwa/js/bibliothek.js`: offen bei Pro und in der
+Testphase, gesperrt bei Plus und ohne Abo, ohne eigenen Server immer offen.
+Zwei Funktionen hängen daran: der Essensplan für die Woche und die Anpassung
+des Trainingsplans nach acht Wochen. Gesperrt heisst nicht versteckt: der
+echte Plan steht verschwommen hinter einem Schloss, `.pro-gesperrt` und
+`.pro-schleier` im Stylesheet, und der Reiter trägt "Pro". Wie bei Sleep
+Cycle: wer sieht, was er bekäme, entscheidet sich leichter als vor einem
+leeren Kasten. Der Knopf öffnet das Abo Fenster mit Pro vorgewählt. Eine
+App mit Stufen, keine zweite App: dieselbe Fassung für alle, freigeschaltet
+über das Konto.
 
 ## Die iPhone App
 

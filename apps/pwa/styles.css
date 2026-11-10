@@ -4024,9 +4024,28 @@ button small, button .erfassen-sub, button .me-werte, button .me-werte *,
 .ep-detail { padding: 0 0 var(--s-4); }
 .ep-ergaenzung { font-size: var(--t-sm); margin: var(--s-4) 0 0; color: var(--text); }
 .ep-aktionen { display: flex; flex-direction: column; gap: var(--s-2); margin: var(--s-6) 0 var(--s-3); }
-.ep-sperre { padding: var(--s-6) 0; }
-.ep-sperre h2 { margin: 0 0 var(--s-2); }
-.ep-sperre p { color: var(--muted); margin: 0 0 var(--s-5); }
+/* Pro gesperrt: der echte Inhalt verschwommen dahinter, wie bei Sleep Cycle.
+   Wer sieht, was er bekäme, entscheidet sich leichter als vor einem leeren Kasten. */
+.pro-gesperrt { position: relative; min-height: 420px; }
+.pro-gesperrt > :not(.pro-schleier) { filter: blur(7px); opacity: 0.55; pointer-events: none; user-select: none; }
+.pro-schleier {
+  position: absolute; inset: 0; z-index: 2;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--s-3); padding: var(--s-6) var(--s-4); text-align: center;
+}
+.pro-schleier h2 { margin: 0; font-size: var(--t-xl); }
+.pro-schleier p { margin: 0 0 var(--s-2); color: var(--muted); max-width: 32ch; }
+.pro-schloss {
+  width: 48px; height: 48px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--flaeche); box-shadow: var(--haarlinie); color: var(--brand-text);
+}
+.pro-chip {
+  display: inline-block; padding: 2px 9px; border-radius: var(--r-pill);
+  font-size: var(--t-2xs); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  background: var(--brand); color: #0b0d10; vertical-align: middle;
+}
+.pro-sperre-karte b { display: flex; align-items: center; gap: var(--s-2); }
 
 /* Das Briefing auf der Kalenderseite. Ein Punkt gross, der Rest blass:
    wer den ganzen Tag gleich laut sieht, sieht dreissig Aufgaben und fängt

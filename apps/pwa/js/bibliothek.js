@@ -140,6 +140,17 @@ export function rezeptGrenze(settings, konfig) {
  * nehmen soll. Ohne eigenen Server gibt es keine Grenze, wie bei den Rezepten.
  */
 export function essensplanFrei(settings, konfig) {
+  return proFrei(settings, konfig);
+}
+
+/**
+ * Ob die Funktionen von Pro offen sind: der Wochenplan fürs Essen, der
+ * Trainingsplan, der sich nach acht Wochen selbst anpasst, der neue Plan im
+ * Wochenrückblick und eigene Rezepte ohne Grenze. In der Testphase offen,
+ * denn wer Pro nie gesehen hat, weiss nicht, wofür er es nehmen soll. Ohne
+ * eigenen Server gibt es keine Stufen, dann ist alles offen.
+ */
+export function proFrei(settings, konfig) {
   if (!konfig?.chatUrl) return true;
   return ["pro", "test"].includes(settings?.kontoStufe || "test");
 }

@@ -153,3 +153,14 @@ test("Sofortsuche: ab dem ersten Buchstaben, Gegessenes vor der Tabelle", async 
   assert.equal(v[0].e.kcal, 160, "die ganze Packung als Portion");
   assert.equal(vorschlaege("", { tage }).length, 0);
 });
+
+test("Pro Funktionen sind bei Plus und ohne Abo gesperrt, in Testphase und Pro offen", async () => {
+  const { proFrei } = await import("./bibliothek.js");
+  const k = { chatUrl: "https://worker.example" };
+  assert.equal(proFrei({ kontoStufe: "pro" }, k), true);
+  assert.equal(proFrei({ kontoStufe: "test" }, k), true);
+  assert.equal(proFrei({ kontoStufe: "plus" }, k), false);
+  assert.equal(proFrei({ kontoStufe: "frei" }, k), false);
+  // Ohne eigenen Server gibt es keine Stufen, die Entwicklerfassung bleibt offen.
+  assert.equal(proFrei({ kontoStufe: "plus" }, {}), true);
+});

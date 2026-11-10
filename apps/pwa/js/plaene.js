@@ -371,10 +371,18 @@ const $ = (id) => document.getElementById(id);
  * eine kurze Rückmeldung. Alle drei kommen von außen, damit diese Datei weder
  * den Speicher noch die Oberfläche der App kennen muss.
  */
-export function plaeneStarten({ speicher, oeffne, melde, starte = () => {}, frei = () => {}, starteEinheit = () => {}, log = () => [], heute = () => new Date().toISOString().slice(0, 10), heuteBestellt = () => null, abschluss = () => {} }) {
-  // Acht Wochen um: Fortschritt prüfen, bevor irgendetwas gezeigt wird.
-  const geprueft = planPruefen(gespeicherterPlan(speicher.lesen()), log(), heute());
-  if (geprueft) speicher.schreiben(geprueft);
+export function plaeneStarten({ speicher, oeffne, melde, starte = () => {}, frei = () => {}, starteEinheit = () => {}, log = () => [], heute = () => new Date().toISOString().slice(0, 10), heuteBestellt = () => null, abschluss = () => {}, mitwachsen = () => true, proOeffnen = () => {} }) {
+  // Acht Wochen um: Fortschritt prüfen, bevor irgendetwas gezeigt wird. Den
+  // Plan, der mitwächst, gibt es mit Pro. Ohne Pro bleibt der Plan, wie er
+  // ist, und eine Karte sagt, dass jetzt angepasst würde.
+  let anpassungGesperrt = false;
+  const pruefen = () => {
+    const geprueft = planPruefen(gespeicherterPlan(speicher.lesen()), log(), heute());
+    if (!geprueft) return;
+    if (mitwachsen()) speicher.schreiben(geprueft);
+    else anpassungGesperrt = true;
+  };
+  pruefen();
   let gespeichert = gespeicherterPlan(speicher.lesen());
   let wunsch = wunschPruefen(gespeichert?.wunsch);
   let plan = gespeichert ?? planFuer(wunsch);
@@ -401,7 +409,11 @@ export function plaeneStarten({ speicher, oeffne, melde, starte = () => {}, frei
     $("plSteuerung").innerHTML = steuerHtml(wunsch);
     const dauer = plan.einheiten.map((e) => e.dauerMin);
     const schnitt = dauer.length ? Math.round(dauer.reduce((a, b) => a + b, 0) / dauer.length) : 0;
-    $("plUpdate").innerHTML = istGespeichert ? aktualisierungHtml(plan, heute()) : "";
+    $("plUpdate").innerHTML = !istGespeichert ? ""
+      : anpassungGesperrt ? `<div class="pl-update pro-sperre-karte"><b>Acht Wochen sind um <span class="pro-chip">Pro</span></b>`
+        + `<p>Jetzt würde daevo prüfen, wo du stärker geworden bist, und festgefahrene Übungen gegen neue für dieselbe Bewegung tauschen. Den Plan, der mitwächst, gibt es mit Pro.</p>`
+        + `<div class="pl-update-knoepfe"><button type="button" class="pl-mini" data-pro-anpassung>Pro ansehen</button></div></div>`
+      : aktualisierungHtml(plan, heute());
     $("plKopf").innerHTML = `<b>${plan.einheiten.length} Einheiten pro Woche</b><span>etwa ${schnitt} Min. je Einheit${wunsch.deload ? " · Entlastung" : ""}${plan.bearbeitet ? " · von dir angepasst" : ""}</span>`;
     $("plEinheiten").innerHTML = plan.einheiten
       .map((e, ei) => einheitHtml(e, ei, { bearbeitet, tausch, zusatz: bearbeitet === ei ? zusatzListe(plan, ei) : [] }))
@@ -496,6 +508,7 @@ export function plaeneStarten({ speicher, oeffne, melde, starte = () => {}, frei
   });
   $("plAndere").addEventListener("click", () => neu({ variante: wunsch.variante + 1 }));
   $("plUpdate").addEventListener("click", (event) => {
+    if (event.target.closest("[data-pro-anpassung]")) { proOeffnen(); return; }
     const k = event.target.closest("[data-update]");
     if (!k || !plan.aktualisierung) return;
     let neuerPlan = { ...plan, aktualisierung: { ...plan.aktualisierung, gesehen: true } };
@@ -601,8 +614,7 @@ export function plaeneStarten({ speicher, oeffne, melde, starte = () => {}, frei
       heuteZeichnen();
     },
     laden() {
-      const geprueft = planPruefen(gespeicherterPlan(speicher.lesen()), log(), heute());
-      if (geprueft) speicher.schreiben(geprueft);
+      pruefen();
       const neu = gespeicherterPlan(speicher.lesen());
       if (!neu) return;
       gespeichert = neu;

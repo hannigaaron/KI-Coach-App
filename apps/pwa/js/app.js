@@ -80,7 +80,7 @@ import { berechtigungenFragen, berechtigungenOffen, berechtigungenText, kontenTe
 import { nativAufruf } from "./nativ.js";
 import { spueren } from "./haptik.js";
 import { eanAusBild } from "./ean.js";
-import { anteilAmZiel, eigeneLebensmittel, eigeneSuche, eigenerPosten, lebensmittelLoeschen, lebensmittelSpeichern, eigeneRezepte, essensplanFrei, hauptMakro, rezeptGrenze, rezeptLoeschen, rezeptSpeichern, summe as postenSumme, tabellenBild, tabellenPosten, tabellenSuche, zuletztGegessen, vorschlaege, produktGemerkt, produktPosten } from "./bibliothek.js";
+import { anteilAmZiel, eigeneLebensmittel, eigeneSuche, eigenerPosten, lebensmittelLoeschen, lebensmittelSpeichern, eigeneRezepte, essensplanFrei, proFrei, hauptMakro, rezeptGrenze, rezeptLoeschen, rezeptSpeichern, summe as postenSumme, tabellenBild, tabellenPosten, tabellenSuche, zuletztGegessen, vorschlaege, produktGemerkt, produktPosten } from "./bibliothek.js";
 import { abschlussDaten, abschlussHtml, storyTeilen } from "./abschluss.js";
 import { bewegungStarten, wischenZumLoeschen, zahlenZaehlen, zeileRaus } from "./bewegung.js";
 import { einwilligungOffen, einwilligungSetzen, einwilligungText, kiErlaubt } from "./einwilligung.js";
@@ -3226,6 +3226,9 @@ const training = trainingStarten({
 });
 const plaene = plaeneStarten({
   speicher: planSpeicher,
+  mitwachsen: () => proFrei(store.getSettings(), KONFIG),
+  proOeffnen: () => aboOeffnen({ marke: "Pro", titel: "Dein Plan, der mitwächst", empfohlen: "pro",
+    text: "Nach acht Wochen prüft daevo jede Übung und tauscht, wo du nicht mehr stärker wirst." }),
   oeffne: (id) => uebungen.oeffne(id),
   melde: (text) => toast(text),
   // Gestrichen heisst gestrichen. Wer sich besser fühlt, sagt es im

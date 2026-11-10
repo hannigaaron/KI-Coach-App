@@ -51,6 +51,7 @@ const PFADE = {
   // alle anderen, damit Menü, Fragebogen und Blätter eine Familie bleiben.
   sprechblase: '<path d="M4.5 6.5a2.5 2.5 0 0 1 2.5-2.5h10a2.5 2.5 0 0 1 2.5 2.5v7a2.5 2.5 0 0 1-2.5 2.5H11l-4.5 3.5V16h0a2 2 0 0 1-2-2z"/>',
   ring: '<path d="M12 4a8 8 0 1 1-7.4 5"/><path d="M12 8.5a3.5 3.5 0 1 1-3.3 2.3"/>',
+  schloss: '<rect x="5" y="11" width="14" height="9.5" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
   plus: '<path d="M12 5v14"/><path d="M5 12h14"/>',
   loeffel: '<path d="M8 3v7a2.5 2.5 0 0 0 5 0V3"/><path d="M10.5 3v18"/><path d="M17 3c-1.7 1.2-2.5 3.2-2.5 6 0 1.4.9 2.3 2.5 2.5V21"/>',
   tasche: '<path d="M5.5 8h13l-1 12h-11z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/>',
