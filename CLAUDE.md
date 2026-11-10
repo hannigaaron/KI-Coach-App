@@ -1019,6 +1019,19 @@ Briefing in den Chat. Morgens unter dem Ergebnis des Guten Morgen Check-ins,
 `briefingHtml` in `morgen.js`, und nicht als zweite Mitteilung zur selben
 Zeit. `briefing()` für Coach und Regelpfad gibt denselben Text.
 
+Unter dem Morgen Check-in steht das Briefing als Fokus auf eigener Fläche
+und darunter der Tag als Zeitleiste mit Uhrzeiten, `briefingHtml` in
+`morgen.js` über `briefingPunkte`. Vorher eine Textliste, und wer um sieben
+Uhr auf das Handy schaut, sucht die nächste Uhrzeit. Vor dem Briefing liest
+die App den Kalender frisch, höchstens vier Sekunden, `kalenderFrisch`. Offen
+gleicht sie ihn alle 15 Minuten ab, `ABGLEICH_ABSTAND_MS`. Die Zeilen heissen
+`.mg-zeile`, denn `.mg-punkt` sind die Knöpfe der Skala, und derselbe Name
+gab den Zeilen im ersten Versuch Pillen und feste Höhen.
+
+Snacks in den Mahlzeiten nach dem Kalender folgen derselben Regel wie im
+Wochenplan: Standard zuerst, Zucker nur ums Training, `snackRegel` in
+`tagesessen.ts`.
+
 Termine mit Titeln wie SLEEP oder Schlafenszeit sind Marker und keine
 Termine, `istSchlafMarker`. Derselbe Termin aus zwei Kalendern zählt einmal,
 etwa ein Feiertag in iCloud und Google.

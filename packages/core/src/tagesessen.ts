@@ -254,8 +254,19 @@ export function tagesessen(p: {
       ziel: { kcal: anteil.kcal, proteinG: anteil.proteinG, fatG: anteil.fatG, carbsG: anteil.carbsG },
       art, ernaehrung: p.ernaehrung, vorrat: p.vorrat, rezepte: p.rezepte ?? REZEPTE,
     }).empfehlungen;
+    // Snacks nach der Liste von Coach Aaron, schneller Zucker nur ums
+    // Training. Im Betrieb kam spät abends Hüttenkäse auf Reiswaffeln, obwohl
+    // Shake, Skyr und Pudding passten.
+    const umsTraining = Boolean(rolle?.training);
+    const snackRegel = (liste: typeof ergebnis) => {
+      if (art !== "snack") return liste;
+      const erlaubt = liste.filter((e) => umsTraining || !e.rezept.zucker);
+      const standard = erlaubt.filter((e) => e.rezept.standard);
+      const basis = standard.length ? standard : erlaubt;
+      return umsTraining ? [...basis.filter((e) => e.rezept.zucker), ...basis.filter((e) => !e.rezept.zucker)] : basis;
+    };
     // Kein Rezept zweimal am Tag. Unterwegs lieber etwas Schnelles.
-    const kandidaten = ergebnis.filter((e) => !genutzt.has(e.rezept.id));
+    const kandidaten = snackRegel(ergebnis).filter((e) => !genutzt.has(e.rezept.id));
     const wahl = (mitnehmen ? kandidaten.find((e) => e.rezept.minuten <= 15 && e.passung >= kandidaten[0]!.passung - 10) : undefined)
       ?? kandidaten[0] ?? null;
     if (wahl) genutzt.add(wahl.rezept.id);

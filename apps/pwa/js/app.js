@@ -6275,7 +6275,17 @@ const morgen = morgenStarten({
   // nach der Nachfrage fällt sie wieder weg.
   gespeichert: () => { refreshAll(); mitteilungenNativ(); },
   tagesbriefing: () => { try { return tagesbriefingFuer("morgen"); } catch { return null; } },
+  kalenderFrisch: async () => {
+    const s = store.getSettings();
+    if (!s.appleKalender && !kalenderAbos(s).length) return;
+    await kalenderAbgleichen({ zwang: true });
+  },
 });
+
+// Solange die App offen ist, gleicht sie den Kalender alle 15 Minuten ab.
+// Wer daevo den Tag über offen hat, sieht sonst bis zum nächsten Start den
+// Stand vom Morgen.
+setInterval(() => { if (document.visibilityState === "visible") kalenderStill(); }, 15 * 60 * 1000);
 
 /**
  * Öffnet den Morgen Check-in, wenn es Zeit ist. Nie während der Einführung

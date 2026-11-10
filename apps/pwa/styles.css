@@ -3636,6 +3636,21 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 .mg-titel { margin: var(--s-5) 0 var(--s-2); font-size: var(--t-sm); font-weight: 600; }
 .mg-liste { margin: 0; padding-left: 1.1em; }
 .mg-liste li { margin-bottom: var(--s-2); line-height: 1.45; }
+/* Das Briefing: Fokus als Fläche, der Tag als Zeitleiste. */
+.mg-fokus { margin: var(--s-5) 0 var(--s-2); padding: var(--s-4); border-radius: var(--r-md); background: var(--flaeche); box-shadow: var(--haarlinie); }
+.mg-fokus span { display: block; font-size: var(--t-2xs); letter-spacing: .06em; text-transform: uppercase; color: var(--brand-text); font-weight: 600; margin-bottom: var(--s-1); }
+.mg-fokus p { margin: 0; font-size: var(--t-md); line-height: 1.4; }
+.mg-zeitleiste { list-style: none; margin: 0; padding: 0; }
+.mg-zeile { display: grid; grid-template-columns: 48px 14px 1fr; align-items: start; gap: var(--s-2); padding: var(--s-2) 0; position: relative; }
+.mg-zeile + .mg-zeile::before { content: ""; position: absolute; left: 54px; top: -10px; height: 18px; width: 2px; background: var(--border); border-radius: 1px; }
+.mg-uhr { font-size: var(--t-sm); color: var(--muted); padding-top: 1px; font-variant-numeric: tabular-nums; }
+.mg-pkt { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; background: var(--muted); }
+.mg-zeile[data-art="training"] .mg-pkt { background: var(--brand); }
+.mg-zeile[data-art="essen"] .mg-pkt { background: var(--makro-protein); }
+.mg-zeile[data-art="aufgabe"] .mg-pkt { background: transparent; box-shadow: inset 0 0 0 2px var(--brand-text); }
+.mg-was { display: flex; flex-direction: column; min-width: 0; }
+.mg-was b { font-weight: 600; font-size: var(--t-sm); overflow-wrap: anywhere; }
+.mg-was small { color: var(--muted); font-size: var(--t-xs); line-height: 1.35; }
 .mg-grenze { margin: var(--s-5) 0 0; font-size: var(--t-xs); color: var(--muted); }
 
 /* ---------- Freies Training ---------- */
