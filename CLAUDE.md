@@ -335,7 +335,7 @@ Strichfiguren, keine Clip Art, keine Karten mit Rahmen um Text.
 - Vor jedem Bildauftrag ein echtes Foto der Übung oder des Geräts ansehen,
   etwa die Produktfotos des Herstellers, und den Aufbau daraus Teil für Teil
   in den Auftrag schreiben. So saßen High Row, Rudermaschine eng und Klimmzug
-  eng beim ersten Versuch. Was dabei gelernt ist: bei der High Row steht das
+  eng beim ersten Versuch, die übrigen drei beim zweiten. Was dabei gelernt ist: bei der High Row steht das
   hohe Gestell hinter dem Rücken, der Hebel dreht sich oben hinter dem Kopf,
   die Scheiben hängen hinten. Beim Rudern dreht sich der Hebel unten am
   Rahmen, und das Brustpolster sitzt auf einem eigenen Pfosten. Eine breite
