@@ -780,7 +780,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1402 Tests
+npm test           # 1407 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -4113,6 +4113,31 @@ nur auf dem Mac, dort ist nichts gebaut. Die beiden Ziele legt der Betreiber
 einmal in Xcode an, `docs/WATCH.md`, die Projektdatei wird dafür nicht von
 Hand geändert. Neue Ziele in Xcode 26 stehen auf Default Actor Isolation
 MainActor, die Anleitung stellt sie auf nonisolated und Swift 5.
+
+## Ein Training von der Uhr
+
+`apps/pwa/js/training-erkannt.js`, `TrainingWache.swift`, `trainingNachtragen`
+in `kalender-schreiben.js`. Wer mit der Apple Watch trainiert, sagt es daevo
+nicht noch einmal. Vorher stand das Training still im Tag, und der Kalender
+zeigte weiter das Krafttraining um 18 Uhr, obwohl es um 16 Uhr erledigt war.
+
+`TrainingWache` lässt sich von iOS über einen `HKObserverQuery` mit
+Hintergrundlieferung wecken, sobald ein neues Training in Health steht, und
+schickt "Mega stark" als Mitteilung der Art `training`. Trainings der daevo
+Uhr App selbst meldet sie nicht, die kommen über die Uhr. Dafür steht
+`com.apple.developer.healthkit.background-delivery` in den Entitlements.
+
+Beim Öffnen oder Tippen liest die App Health. Neue Trainings von heute
+bekommen eine Nachricht im Chat, einmal je Training über
+`settings.trainingGemeldet`, und einen Termin "Training: Krafttraining" im
+Kalender, wenn dort zu der Zeit noch kein Training steht. Steht heute danach
+noch ein Training derselben Art im Kalender oder Profil, fragt daevo, ob es
+vorgezogen war. "Vorgezogen" nimmt einen eigenen Termin aus dem Kalender,
+"zweimal" lässt ihn stehen, beides ohne Modell. Volleyball am Abend nach
+Kraft am Nachmittag ist ein zweites Training und keine Frage wert. Gefragt
+und nicht gestrichen: zweimal am Tag ist bei diesem Nutzer normal.
+
+Ungeprüft: der Swift Teil ist nur auf Syntax geprüft, nicht auf einem Gerät.
 
 ## Zugriffe beim ersten Start
 

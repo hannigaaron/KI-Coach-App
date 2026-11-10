@@ -309,6 +309,26 @@ export async function kalenderTermin(auftrag = {}, { jetzt = Date.now() } = {}) 
 }
 
 /**
+ * Trägt ein schon gemachtes Training in den Kalender, wenn dort zu der Zeit
+ * noch keins steht. Für Trainings von der Uhr, die niemand vorher geplant
+ * hatte: wer seinen Tag im Kalender liest, soll sehen, dass trainiert wurde.
+ * Liegt schon ein Training im Zeitraum, bleibt der Kalender, wie er ist.
+ */
+export async function trainingNachtragen({ tag, uhrzeit, minuten, art }) {
+  if (!kannSchreiben() || !tag || !uhrzeit || !minuten) return null;
+  const von = tagBeginn(tag) + (Number(uhrzeit.slice(0, 2)) * 60 + Number(uhrzeit.slice(3, 5))) * 60000;
+  const bis = von + Math.round(minuten) * 60000;
+  const termine = store.getKalender().termine || [];
+  const schonDa = termine.some((t) => t.von < bis && t.bis > von && (t.daevo || /training|gym|studio|volleyball|laufen|workout/i.test(foldUmlauts(String(t.titel || "").toLowerCase()))));
+  if (schonDa) return null;
+  const titel = `Training: ${ART_TITEL[art] || "Training"}`;
+  const r = await nativAufruf("Kalender", "anlegen", { titel, von, bis, notiz: "Von der Apple Watch, eingetragen von daevo.", kalender: zielKalenderId() });
+  merken({ art: "angelegt", eid: r?.eid || "", titel, nachher: { von, bis }, gruppe: gruppeNeu() });
+  await neuLesen();
+  return r?.eid || "";
+}
+
+/**
  * Nimmt den letzten Auftrag zurück. Hat er zwei Termine bewegt, etwa den
  * Kunden und das Training dahinter, kommen beide zurück: der Nutzer hat
  * einen Satz gesagt und nimmt einen Satz zurück.

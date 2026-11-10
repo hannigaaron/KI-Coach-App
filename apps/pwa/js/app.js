@@ -71,6 +71,7 @@ import { NATIV_PUSH, gesundheitHolen, postfachHolen, pushAbmelden, pushAbo, push
 import { kodierungReparieren, newId, nowTime, store, todayIso } from "./storage.js";
 import { bestellteEinheit } from "./vorhaben.js";
 import { healthkitAbgleichen } from "./healthkit.js";
+import { antwortAufFrage, trainingErkannt } from "./training-erkannt.js";
 import { abosAbgleichen, kaufenNativ, startAnlass } from "./kauf.js";
 import { anmeldeWege, anmeldenApple, anmeldenGoogleNativ, anmeldungSenden, anmeldungText } from "./anmeldung.js";
 import { aboEntfernen, aboHinzufuegen, APPLE_QUELLE, appleKalenderTrennen, appleKalenderVerbinden, kalenderAbgleichen, kalenderAbos } from "./kalender-sync.js";
@@ -395,6 +396,39 @@ async function send(text, { vonUhr = false } = {}) {
     return;
   }
   offeneFrage = null;
+
+  // Die Antwort auf "vorgezogen oder zweimal" nach einem Training von der Uhr.
+  // Eindeutige Antworten erledigt die App selbst, alles andere geht wie
+  // immer an den Coach.
+  const tf = trainingFrage;
+  trainingFrage = null;
+  const gemeint = tf && nachricht && !busy ? antwortAufFrage(nachricht) : null;
+  if (gemeint) {
+    $("chatInput").value = "";
+    appendBubble("user", nachricht);
+    const um = `${String(Math.floor(tf.um / 60)).padStart(2, "0")}:${String(tf.um % 60).padStart(2, "0")}`;
+    let antwort;
+    if (gemeint === "vorgezogen") {
+      antwort = `Alles klar, dann war das dein Training für heute. ${tf.titel} um ${um} ist damit erledigt.`;
+      if (tf.eid) {
+        const { kalenderTermin } = await import("./kalender-schreiben.js");
+        const satz = await kalenderTermin({ aktion: "loeschen", eid: tf.eid, beginn: tf.von });
+        antwort += /^Noch nicht gespeichert/.test(satz) ? ` ${satz}` : " Ich hab den Termin aus dem Kalender genommen.";
+      } else {
+        antwort += " Dein Wochenplan bleibt, wie er ist.";
+      }
+    } else {
+      antwort = `Dann bleibt ${tf.titel} um ${um} stehen. Iss etwa 90 Minuten vorher eine Mahlzeit mit Protein und Kohlenhydraten, und trink bis dahin mindestens einen halben Liter.`;
+    }
+    const chat = store.getChat();
+    chat.push({ role: "user", text: nachricht, at: new Date().toISOString() });
+    chat.push({ role: "assistant", text: antwort, at: new Date().toISOString() });
+    store.setChat(chat);
+    gespraechNachziehen();
+    renderTranscript();
+    refreshAll();
+    return;
+  }
 
   const mit = anhaenge.filter((a) => !a.fehler && !a.laedt);
   if ((!nachricht && mit.length === 0) || busy) return;
@@ -6131,12 +6165,40 @@ async function healthNativ() {
   try {
     const bericht = await healthkitAbgleichen({ aufruf: nativAufruf, store, heute: todayIso() });
     if (bericht.tage || bericht.trainings || bericht.mahlzeiten || bericht.uebersprungen) refreshAll();
+    if (bericht.neueTrainings?.length) await trainingVonDerUhr(bericht.neueTrainings);
   } catch {
     // Ohne Erlaubnis oder ohne Health bleibt alles, wie es war. Der Weg über
     // den Export im Profil steht weiter offen.
   } finally {
     healthLaeuft = false;
   }
+}
+
+/**
+ * Ein Training aus Apple Health, das daevo noch nicht kannte.
+ *
+ * Lob in den Chat, ein Termin in den Kalender, wenn dort zu der Zeit noch
+ * kein Training steht, und die Frage, ob ein heute noch geplantes Training
+ * damit vorgezogen war. Siehe training-erkannt.js.
+ */
+let trainingFrage = null;
+async function trainingVonDerUhr(neue) {
+  const s = store.getSettings();
+  const gemeldet = s.trainingGemeldet || [];
+  const erkannt = trainingErkannt({
+    neue, heute: todayIso(), profil: store.getProfile() || {}, termine: store.getKalender().termine || [], gemeldet,
+  });
+  if (!erkannt) return;
+  store.setSettings({ ...store.getSettings(), trainingGemeldet: [...gemeldet, ...erkannt.ids].slice(-50) });
+  const { kannSchreiben, trainingNachtragen } = await import("./kalender-schreiben.js");
+  if (kannSchreiben()) {
+    try { await trainingNachtragen(erkannt.training); } catch { /* ohne Kalender bleibt es beim Eintrag im Tag */ }
+  }
+  const chat = store.getChat();
+  chat.push({ role: "assistant", text: erkannt.text, at: new Date().toISOString() });
+  store.setChat(chat);
+  renderTranscript();
+  trainingFrage = erkannt.naechstes;
 }
 
 /**
@@ -6162,7 +6224,10 @@ async function mitteilungenNativ() {
       }
       if (antwortVerarbeiten(eintrag, { store, brain })) toast("Antwort übernommen");
     }
-    if (geoeffnet?.art === "luecke") lueckeFrageOeffnen();
+    // Ein Training von der Uhr: Chat öffnen und Health lesen, dort entsteht
+    // die Nachricht mit Eintrag, Kalender und Frage.
+    if (geoeffnet?.art === "training") { showView("assistant"); healthNativ(); }
+    else if (geoeffnet?.art === "luecke") lueckeFrageOeffnen();
     else if (geoeffnet?.art && geoeffnet.art !== "runterfahren") impulsOeffnen({ art: geoeffnet.art });
 
     await mitteilungenNeuPlanen();
