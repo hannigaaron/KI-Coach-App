@@ -332,6 +332,19 @@ Strichfiguren, keine Clip Art, keine Karten mit Rahmen um Text.
     die Konstruktion, so entstand die Klimmzugstation.
   Der Bilddienst nimmt zwei Aufträge gleichzeitig an, mehr kommen mit 429
   zurück, und ein abgelehnter Auftrag kostet nichts.
+- Vor jedem Bildauftrag ein echtes Foto der Übung oder des Geräts ansehen,
+  etwa die Produktfotos des Herstellers, und den Aufbau daraus Teil für Teil
+  in den Auftrag schreiben. So saßen High Row, Rudermaschine eng und Klimmzug
+  eng beim ersten Versuch. Was dabei gelernt ist: bei der High Row steht das
+  hohe Gestell hinter dem Rücken, der Hebel dreht sich oben hinter dem Kopf,
+  die Scheiben hängen hinten. Beim Rudern dreht sich der Hebel unten am
+  Rahmen, und das Brustpolster sitzt auf einem eigenen Pfosten. Eine breite
+  Stange wird ausdrücklich quer zum Körper beschrieben und von schräg vorn
+  fotografiert, in der Seitenansicht lag sie längs. Beim Reverse Butterfly
+  an der Maschine steht die Maschine direkt vor dem Sitz, das Polster sitzt
+  vorn an ihr. Am Kabel stehen beide Türme gleich weit vor der Person, damit
+  der Zug nach hinten aussen geht, fotografiert von vorn und erhöht, sonst
+  sieht man am Boden nicht, wo die Türme stehen.
 - Klimmzug eng: eine normale Klimmzugstation, oben ein Rahmen aus vorderer
   und hinterer Stange, in der Mitte zwei parallele Streben von vorn nach
   hinten, daran neutral gegriffen. Reverse Butterfly am Kabel: Kabel von der
