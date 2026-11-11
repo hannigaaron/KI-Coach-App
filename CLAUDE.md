@@ -780,7 +780,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1408 Tests
+npm test           # 1411 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -4139,6 +4139,35 @@ nur auf dem Mac, dort ist nichts gebaut. Die beiden Ziele legt der Betreiber
 einmal in Xcode an, `docs/WATCH.md`, die Projektdatei wird dafür nicht von
 Hand geändert. Neue Ziele in Xcode 26 stehen auf Default Actor Isolation
 MainActor, die Anleitung stellt sie auf nonisolated und Swift 5.
+
+## Die Uhr ohne iPhone
+
+Vier Seiten: das d, Dein Tag, Heute, Training. Dein Tag zeigt Termine und
+Aufgaben, `uhrTermine` und `uhrAufgaben` in `uhr.js`, im Paket ab
+`UHR_FASSUNG` 2. Abgehakt wird auf der Uhr über `art: "aufgabe"`, das
+iPhone hakt mit `aufgabeErledigen` wirklich ab. Die Termine liest die Uhr
+selbst über EventKit, `kalenderLesen` in `Verbindung.swift`, aber nur, wenn
+`NSCalendarsFullAccessUsageDescription` im Ziel der Uhr steht: ohne den Satz
+beendet watchOS die App bei der Frage. Ist das Paket von gestern, zeigt
+Heute die Ziele und sagt, dass das Essen von heute fehlt, statt eine 0 als
+Stand. Die KI der Uhr bekommt Termine und Aufgaben in den Prompt,
+`kontextFuerKi`. Ohne iPhone rechnet die Uhr keine Kalorien: der Kern ist
+JavaScript, und eine Uhr führt keins aus.
+
+Das d leuchtet wie auf dem iPhone, zwei Schatten in der Markenfarbe auf dem
+fertig gezeichneten Bild, und kommt beim Öffnen aus der Unschärfe. Doppeltippen
+ab watchOS 11 öffnet das Diktat, `Doppeltipp`. Die Krone kann keine App
+belegen. Das Symbol der Uhr liegt in `apps/ios/watch/AppIcon.appiconset`,
+gerendert aus `daevo-icon.svg`, der Kreis von watchOS schneidet nichts ab.
+
+Fragen in Mitteilungen tragen die Kategorie `frage` mit einem Textfeld,
+`UNTextInputNotificationAction` in `MitteilungenPlugin.swift`. Auf der Uhr
+heisst das Diktat und Kritzeln statt nur "Schließen". Die Antwort läuft über
+`mitteilungAntworten` in `app.js` durch `send`, wie eine Antwort im Chat.
+Liegt die Web Ansicht noch im Speicher, ruft das Plugin
+`daevoMitteilungAntworten` sofort in einer Hintergrundaufgabe auf, und die
+Antwort von daevo kommt über `sofort` als Mitteilung zurück. Ungeprüft auf
+dem Gerät.
 
 ## Ein Training von der Uhr
 

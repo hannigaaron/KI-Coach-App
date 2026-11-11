@@ -85,7 +85,10 @@ export function mitteilungsPlan({ store, jetzt, luecke = null, vorausblicke = []
       const lage = i === 0 ? impulsLage(store, tag) : null;
       for (const impuls of impulseFuerTag(tag)) {
         if (lage && !impulsNoetig(impuls.art, lage)) continue;
-        plan.push({ id: `impuls-${impuls.art}-${tag}`, tag, uhrzeit: impuls.at, titel: impuls.titel, text: impuls.text, art: impuls.art });
+        // Eine Frage bekommt "Antworten": auf der Uhr und am Sperrbildschirm
+        // tippt oder diktiert man die Antwort, ohne die App zu öffnen. Ohne
+        // das stand auf der Uhr nur "Schließen" unter der Frage.
+        plan.push({ id: `impuls-${impuls.art}-${tag}`, tag, uhrzeit: impuls.at, titel: impuls.titel, text: impuls.text, art: impuls.art, ...(impuls.frage ? { kategorie: "frage" } : {}) });
       }
     }
     if (!aus.morgen && profil) {
@@ -141,7 +144,7 @@ export function mitteilungsPlan({ store, jetzt, luecke = null, vorausblicke = []
   // gerechnet aus Kalender und Profil.
   if (!aus.vorausblick) {
     for (const v of vorausblicke) {
-      plan.push({ id: `voraus-${v.tag}`, tag: v.tag, uhrzeit: v.uhrzeit, titel: v.titel, text: v.text, art: "vorausblick" });
+      plan.push({ id: `voraus-${v.tag}`, tag: v.tag, uhrzeit: v.uhrzeit, titel: v.titel, text: v.text, art: "vorausblick", kategorie: "frage" });
     }
   }
 

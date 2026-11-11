@@ -1,6 +1,8 @@
 import Foundation
 import Capacitor
 import UserNotifications
+import UIKit
+import WebKit
 
 /// Nimmt Antworten aus Mitteilungen entgegen, auch wenn die App gar nicht läuft.
 ///
@@ -12,6 +14,9 @@ final class MitteilungenZentrale: NSObject, UNUserNotificationCenterDelegate {
     static let shared = MitteilungenZentrale()
     static let antwortenSchluessel = "daevo.mitteilungen.antworten"
     static let geoeffnetSchluessel = "daevo.mitteilungen.geoeffnet"
+    /// Das Plugin der laufenden Web Ansicht, schwach wie bei der Uhr. Fehlt
+    /// es, war die App beendet, und die Antwort wartet bis zum Öffnen.
+    weak var plugin: MitteilungenPlugin?
 
     func einrichten() {
         let center = UNUserNotificationCenter.current()
@@ -30,7 +35,14 @@ final class MitteilungenZentrale: NSObject, UNUserNotificationCenterDelegate {
             UNNotificationAction(identifier: "umplanen", title: "Umplanen", options: [.foreground]),
             UNNotificationAction(identifier: "lassen", title: "Lassen", options: []),
         ], intentIdentifiers: [], options: [])
-        center.setNotificationCategories([luecke, kalender])
+        // Eine Frage wie "Wie ist dein Energielevel?" bekommt ein Textfeld.
+        // Auf der Apple Watch zeigt watchOS dafür Diktat, Kritzeln und
+        // Tastatur, am iPhone die Tastatur, beides ohne die App zu öffnen.
+        let frage = UNNotificationCategory(identifier: "frage", actions: [
+            UNTextInputNotificationAction(identifier: "antworten", title: "Antworten", options: [],
+                                          textInputButtonTitle: "Senden", textInputPlaceholder: "Deine Antwort"),
+        ], intentIdentifiers: [], options: [])
+        center.setNotificationCategories([luecke, kalender, frage])
     }
 
     // Auch bei offener App zeigen. Sonst geht die Erinnerung ans Runterfahren
@@ -57,8 +69,7 @@ final class MitteilungenZentrale: NSObject, UNUserNotificationCenterDelegate {
         case UNNotificationDismissActionIdentifier:
             break
         default:
-            var liste = defaults.array(forKey: Self.antwortenSchluessel) as? [[String: Any]] ?? []
-            liste.append([
+            var eintrag: [String: Any] = [
                 "aktion": response.actionIdentifier,
                 "art": art,
                 "frage": response.notification.request.content.title,
@@ -67,8 +78,25 @@ final class MitteilungenZentrale: NSObject, UNUserNotificationCenterDelegate {
                 // Beim Kalender: welches Training gemeint ist.
                 "eid": info["eid"] as? String ?? "",
                 "von": info["von"] as? Double ?? 0,
-            ])
+            ]
+            if let text = (response as? UNTextInputNotificationResponse)?.userText.trimmingCharacters(in: .whitespacesAndNewlines) {
+                eintrag["text"] = String(text.prefix(1000))
+            }
+            var liste = defaults.array(forKey: Self.antwortenSchluessel) as? [[String: Any]] ?? []
+            liste.append(eintrag)
             defaults.set(liste, forKey: Self.antwortenSchluessel)
+            // Eine getippte Antwort soll eine Antwort bekommen, nicht erst
+            // beim nächsten Öffnen. Liegt daevo noch im Speicher, läuft sie
+            // jetzt durch die App, und die Antwort kommt als Mitteilung
+            // zurück, auf der Uhr wie am iPhone. War die App beendet, gibt
+            // es keine Web Ansicht, dann wartet sie bis zum Öffnen.
+            if eintrag["text"] != nil {
+                DispatchQueue.main.async {
+                    guard let plugin = self.plugin else { completionHandler(); return }
+                    plugin.antwortenJetzt { completionHandler() }
+                }
+                return
+            }
         }
         completionHandler()
     }
@@ -86,7 +114,50 @@ public class MitteilungenPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "abholen", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "pauseStellen", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "pauseAbbrechen", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "sofort", returnType: CAPPluginReturnPromise),
     ]
+
+    override public func load() {
+        MitteilungenZentrale.shared.plugin = self
+    }
+
+    /// Lässt die Web App die abgelegten Antworten jetzt verarbeiten,
+    /// `daevoMitteilungAntworten` in `app.js`. Im Hintergrund gibt iOS dafür
+    /// rund 30 Sekunden, deshalb läuft es in einer Hintergrundaufgabe und
+    /// endet spätestens nach 25. Ungeprüft: ob WebKit das Skript im
+    /// Hintergrund ausführt, zeigt erst das Gerät. Klappt es nicht, bleibt
+    /// die Antwort liegen und kommt beim Öffnen dran.
+    func antwortenJetzt(fertig: @escaping () -> Void) {
+        guard let webView = bridge?.webView else { fertig(); return }
+        var aufgabe: UIBackgroundTaskIdentifier = .invalid
+        var beendet = false
+        let ende = {
+            guard !beendet else { return }
+            beendet = true
+            if aufgabe != .invalid { UIApplication.shared.endBackgroundTask(aufgabe) }
+            fertig()
+        }
+        aufgabe = UIApplication.shared.beginBackgroundTask(withName: "daevo.antwort") { ende() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 25) { ende() }
+        webView.callAsyncJavaScript(
+            "if (typeof window.daevoMitteilungAntworten === 'function') { await window.daevoMitteilungAntworten(); } return 1;",
+            arguments: [:], in: nil, in: .page
+        ) { _ in DispatchQueue.main.async { ende() } }
+    }
+
+    /// Eine Mitteilung sofort, für die Antwort auf eine Antwort aus einer
+    /// Mitteilung. Sie landet auch auf der Uhr, wenn das iPhone gesperrt ist.
+    @objc func sofort(_ call: CAPPluginCall) {
+        let inhalt = UNMutableNotificationContent()
+        inhalt.title = call.getString("titel") ?? "daevo"
+        inhalt.body = String((call.getString("text") ?? "").prefix(1500))
+        inhalt.sound = .default
+        inhalt.userInfo = ["art": "antwort"]
+        // Wer auf die Antwort wieder etwas sagen will, kann das direkt tun.
+        inhalt.categoryIdentifier = "frage"
+        let anfrage = UNNotificationRequest(identifier: "antwort.\(UUID().uuidString)", content: inhalt, trigger: nil)
+        UNUserNotificationCenter.current().add(anfrage) { _ in call.resolve() }
+    }
 
     private static let praefix = "daevo-"
     /// Ohne das Präfix oben, sonst löschte jedes neue Planen die laufende Pause.

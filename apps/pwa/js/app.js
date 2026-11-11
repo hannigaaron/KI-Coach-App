@@ -1,5 +1,5 @@
 import "./nativ.js";
-import { chatHtml } from "./chat-format.js";
+import { chatHtml, chatSprechbar } from "./chat-format.js";
 import {
   BEREICHE, BEREICH_NAME, CHECKIN_BOEGEN, CHECKIN_MITTE, STANDARD_ZIELE, WOCHENTAGE,
   MAHLZEITEN, bogenAmTag, bogenFuer, eintragAus100g, energyBreakdown, hatAngebot, mengeLesen,
@@ -48,11 +48,11 @@ import {
   erinnerungenAufgeraeumt, heuteGetauscht, heuteVerschoben,
   vorausblickePlan,
   vorausblickFuer,
-  offOptionen, uhrKiZugang,
+  offOptionen, uhrKiZugang, tagesplan,
   verlaufTag, wochenschnittFuer, gemessenerVerbrauch,
 } from "./assistant.js";
 import { zyklusAnsicht, zyklusSichtbar } from "./zyklus-ui.js";
-import { uhrEreignisseAnwenden, uhrMeldung, uhrPaket } from "./uhr.js";
+import { uhrAufgaben, uhrEreignisseAnwenden, uhrMeldung, uhrPaket, uhrTermine } from "./uhr.js";
 import { brain } from "./brain.js";
 import { Orb } from "./orb.js";
 import { anhangAusDatei, grossInKb } from "./media.js";
@@ -6215,6 +6215,7 @@ async function mitteilungenNativ() {
   try {
     const { antworten = [], geoeffnet = null } = await nativAufruf("Mitteilungen", "abholen");
     for (const eintrag of antworten) {
+      if (eintrag?.aktion === "antworten") { await mitteilungAntworten(eintrag); continue; }
       if (eintrag?.art === "kalender") {
         // "Lassen" heisst nichts tun. "Umplanen" rechnet den Platz hier,
         // denn die Mitteilung kam aus dem Hintergrund ohne Web Ansicht.
@@ -6230,6 +6231,7 @@ async function mitteilungenNativ() {
     // Ein Training von der Uhr: Chat öffnen und Health lesen, dort entsteht
     // die Nachricht mit Eintrag, Kalender und Frage.
     if (geoeffnet?.art === "training") { showView("assistant"); healthNativ(); }
+    else if (geoeffnet?.art === "antwort") showView("assistant");
     else if (geoeffnet?.art === "luecke") lueckeFrageOeffnen();
     else if (geoeffnet?.art && geoeffnet.art !== "runterfahren") impulsOeffnen({ art: geoeffnet.art });
 
@@ -6238,6 +6240,42 @@ async function mitteilungenNativ() {
     // Ohne Erlaubnis plant iOS nichts. Die App läuft trotzdem.
   }
 }
+
+/**
+ * Eine Antwort, die direkt in einer Mitteilung getippt oder auf der Uhr
+ * diktiert wurde. Sie läuft durch denselben Weg wie eine Antwort im Chat:
+ * erst steht die Frage im Gespräch, dann die Antwort, und eine blosse Zahl
+ * auf die Energiefrage rechnet `energieCheck` ohne Modell. Ist die App
+ * dabei nicht zu sehen, kommt die Antwort von daevo als Mitteilung zurück,
+ * sonst stünde sie nur im Chat, den gerade niemand ansieht.
+ */
+async function mitteilungAntworten(eintrag) {
+  const text = String(eintrag?.text || "").trim();
+  if (!text) return;
+  while (busy) await new Promise((weiter) => setTimeout(weiter, 300));
+  if (eintrag.art && eintrag.art !== "antwort") impulsOeffnen({ art: eintrag.art }, { still: true });
+  $("assistant").classList.add("has-chat");
+  const vorher = store.getChat().length;
+  await send(text);
+  const neu = store.getChat().slice(vorher).filter((m) => m.role === "assistant").pop();
+  if (neu?.text && document.visibilityState !== "visible") {
+    await nativAufruf("Mitteilungen", "sofort", { titel: "daevo", text: chatSprechbar(neu.text) }).catch(() => {});
+  }
+}
+
+/**
+ * Das Plugin ruft das auf, wenn eine Antwort aus einer Mitteilung kommt,
+ * während daevo noch im Speicher liegt. Holt nur die Antworten ab und plant
+ * nichts neu: dafür reicht die Zeit im Hintergrund nicht sicher.
+ */
+window.daevoMitteilungAntworten = async () => {
+  if (!istNativ()) return;
+  const { antworten = [] } = await nativAufruf("Mitteilungen", "abholen");
+  for (const eintrag of antworten) {
+    if (eintrag?.aktion === "antworten") await mitteilungAntworten(eintrag);
+    else if (antwortVerarbeiten(eintrag, { store, brain })) refreshAll();
+  }
+};
 
 async function mitteilungenNeuPlanen() {
   const d = new Date();
@@ -6614,7 +6652,7 @@ $("btnPushProbe").addEventListener("click", async () => {
  */
 let offeneFrage = null;
 
-function impulsOeffnen(daten) {
+function impulsOeffnen(daten, { still = false } = {}) {
   const art = daten?.art;
   if (!art) return;
   if (art === "morgen") { morgen.oeffnen(); return; }
@@ -6642,7 +6680,7 @@ function impulsOeffnen(daten) {
     renderTranscript();
   }
   offeneFrage = impuls.frage ? art : null;
-  $("chatInput").focus();
+  if (!still) $("chatInput").focus();
 }
 
 /** Eine blosse Zahl von 1 bis 10, sonst null. */
@@ -7210,6 +7248,10 @@ async function uhrAbgleichen() {
       const ergebnis = uhrEreignisseAnwenden(ereignisse, { store, heute: todayIso(), neueId: newId });
       const satz = uhrMeldung(ergebnis);
       if (satz) { toast(satz, 4500); plaene.verlaufNeu?.(); }
+      // Auf der Uhr abgehakt: hier wirklich abhaken, bei Todoist auch dort.
+      for (const id of ergebnis.erledigt) {
+        try { await aufgabeErledigen(id); } catch { /* gibt es nicht mehr oder kein Netz */ }
+      }
       // Was auf der Uhr ohne iPhone besprochen wurde, steht danach im
       // Gespräch, damit der Coach beim nächsten Mal davon weiss.
       if (ergebnis.gespraech.length) {
@@ -7249,7 +7291,12 @@ window.daevoUhrEingang = () => { uhrAbgleichen().then(() => refreshAll()); };
 
 async function uhrSenden() {
   if (!istNativ() || !uhrDa) return;
-  const paket = uhrPaket({ settings: store.getSettings(), zahlen: dayNumbers(), heute: todayIso(), gestrichen: trainingGestrichen(store, todayIso()), ki: uhrKiZugang() });
+  let aufgaben = [];
+  try { aufgaben = uhrAufgaben(tagesplan()); } catch { /* ohne Aufgaben eine leere Liste */ }
+  const paket = uhrPaket({
+    settings: store.getSettings(), zahlen: dayNumbers(), heute: todayIso(), gestrichen: trainingGestrichen(store, todayIso()), ki: uhrKiZugang(),
+    termine: uhrTermine(store.getKalender().termine || []), aufgaben,
+  });
   await nativAufruf("Uhr", "senden", { paket });
 }
 
@@ -7283,9 +7330,12 @@ function uhrSpaeter() {
   uhrTimer = setTimeout(() => uhrSenden().catch(() => {}), 1500);
 }
 
-setTimeout(() => uhrAbgleichen().then(() => refreshAll()), 2500);
+// Ohne Profil steht noch der Fragebogen da, und refreshAll hätte keinen Tag
+// zu rechnen: beim ersten Start warf das nach 2,5 Sekunden einen Fehler.
+const nachUhr = () => { if (store.getProfile()) refreshAll(); };
+setTimeout(() => uhrAbgleichen().then(nachUhr), 2500);
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") uhrAbgleichen().then(() => refreshAll());
+  if (document.visibilityState === "visible") uhrAbgleichen().then(nachUhr);
 });
 
 // Ringe, Balken und Zahlen laufen auf ihren neuen Stand, siehe bewegung.js.

@@ -81,7 +81,7 @@ final class Unterhaltung: NSObject, ObservableObject, AVSpeechSynthesizerDelegat
         let koerper: [String: Any] = [
             "model": ki.modell,
             "max_tokens": 4096,
-            "system": ki.system + "\n\nUhrzeit jetzt: " + Self.uhrzeit(),
+            "system": ki.system + "\n\nUhrzeit jetzt: " + Self.uhrzeit() + "\n\n" + Verbindung.shared.kontextFuerKi(),
             "messages": nachrichten,
             "output_config": ["effort": "low"],
             "tools": [[
