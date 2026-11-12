@@ -390,13 +390,19 @@ Mein Plan. Ein älterer Plan ohne `beginn` bekommt einmal den heutigen Tag.
 
 Die Empfehlung lässt sich vor dem Übernehmen bearbeiten, mit denselben
 Werkzeugen wie Mein Plan: Sätze, Tauschen, Entfernen, Hinzufügen und die
-Reihenfolge über Pfeile, `bearbeitenAnwenden` für beide. Im Entwurf gibt es
-kein Starten, `ohneStart`. Wer unter Anpassen den laufenden Plan ändert,
-bekommt "Änderungen übernehmen", `entwurfVomPlan`, und Beginn und Woche
-bleiben: ein getauschter Curl soll den Plan nicht auf Woche 1 setzen. Die
-Reihenfolge geht über Hoch und Runter und nicht über Ziehen: in einer
-Liste, die selbst scrollt, verwechselt ein Daumen beides, und ein Knopf
-geht auch mit VoiceOver. Im Trainingsmodus bleibt das Ziehen der Daumen.
+Reihenfolge, `bearbeitenAnwenden` für beide. Im Entwurf gibt es kein
+Starten, `ohneStart`. Wer unter Anpassen den laufenden Plan ändert, bekommt
+"Änderungen übernehmen", `entwurfVomPlan`, und Beginn und Woche bleiben:
+ein getauschter Curl soll den Plan nicht auf Woche 1 setzen.
+
+Die Reihenfolge ändert ein langer Druck, `zeilenZiehen` in `plaene.js`:
+420 Millisekunden halten hebt die Übung an, dann nach oben oder unten
+ziehen, die Nachbarn rutschen zur Seite. Dieselbe Geste wie bei den Daumen
+im Trainingsmodus, nur senkrecht, in Mein Plan auch ohne Bearbeiten.
+Bewegt sich der Finger vorher, ist es Scrollen. Der Klick nach dem
+Loslassen öffnet die Übung nicht. Eine erste Fassung hatte Pfeile hoch und
+runter, der Nutzer wollte ziehen. Der Kurzplan trägt kein `data-zieh`, er
+wird nur gestartet.
 
 Unter dem Plan steht "Stressige Woche?", `stressHtml`. Der Kurzplan,
 `kurzplanFuer`, hat 30 oder 45 Minuten und zwei oder drei Tage, ohne Fokus

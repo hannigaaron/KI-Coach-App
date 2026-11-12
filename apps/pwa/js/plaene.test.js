@@ -289,18 +289,19 @@ test("die stressige Woche gilt bis Sonntag und fällt danach von selbst weg", ()
   assert.equal(aktiverPlan({ plan, planWoche: { art: "kurz", bis: "2026-11-15" } }, "2026-11-13"), plan);
 });
 
-test("Bearbeiten zeigt Pfeile, oben und unten ist je einer gesperrt", async () => {
+test("Zeilen im Plan lassen sich ziehen, im Kurzplan und in der Vorschau ohne Knöpfe nicht", async () => {
   const { positionVerschieben } = await import("./plaene.js");
   const plan = planFuer({ ...STANDARD_WUNSCH, tage: 2, minuten: 60 });
   const e = plan.einheiten[0];
-  const html = einheitHtml(e, 0, { bearbeitet: 0, ohneStart: true });
+  const html = einheitHtml(e, 0, { ohneStart: true });
   assert.ok(!html.includes("data-tr-start"), "im Entwurf wird nichts gestartet");
-  assert.equal((html.match(/data-aktion="hoch"/g) ?? []).length, e.positionen.length);
-  assert.match(html, /data-aktion="hoch" data-ei="0" data-pi="0" disabled/);
-  assert.match(html, new RegExp(`data-aktion="runter" data-ei="0" data-pi="${e.positionen.length - 1}" disabled`));
+  assert.equal((html.match(/data-zieh/g) ?? []).length, e.positionen.length);
+  assert.ok(!html.includes("pl-pfeil"), "keine Pfeile mehr");
+  assert.ok(!einheitHtml(e, 0, { nurStart: true }).includes("data-zieh"));
+  assert.ok(!einheitHtml(e, 0, { ohneKnoepfe: true }).includes("data-zieh"));
   const ids = e.positionen.map((p) => p.id);
-  const neu = positionVerschieben(plan, 0, 1, 0);
-  assert.deepEqual(neu.einheiten[0].positionen.slice(0, 2).map((p) => p.id), [ids[1], ids[0]]);
+  const neu = positionVerschieben(plan, 0, 2, 0);
+  assert.deepEqual(neu.einheiten[0].positionen.slice(0, 3).map((p) => p.id), [ids[2], ids[0], ids[1]]);
   assert.equal(neu.bearbeitet, true);
   assert.deepEqual(plan.einheiten[0].positionen.map((p) => p.id), ids, "der Ausgangsplan bleibt unverändert");
 });

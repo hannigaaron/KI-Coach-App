@@ -16,6 +16,7 @@ import { UEBUNGEN } from "./uebungen-daten.js";
 import { GRUPPEN, vorschauPfad } from "./uebungen.js";
 import { trendKurz } from "./uebungskurve.js";
 import { naechsteEinheit } from "./vorhaben.js";
+import { spueren } from "./haptik.js";
 
 export const STANDARD_WUNSCH = {
   tage: 3, minuten: 45, niveau: "intermediate", ziel: "muskel", deload: false, variante: 0,
@@ -117,7 +118,7 @@ const TAUSCH_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9h12
  * müssen. `tauschAttr` sagt, welche Daten der Knopf trägt, denn der Plan
  * und das Training für heute tauschen über verschiedene Wege.
  */
-export function zeileHtml(p, { bearbeiten = false, ei = 0, pi = 0, anzahl = 1, tausch = null, tauschAttr = null, ohneTausch = false, trend = null } = {}) {
+export function zeileHtml(p, { bearbeiten = false, ei = 0, pi = 0, tausch = null, tauschAttr = null, ohneTausch = false, trend = null, ziehbar = false } = {}) {
   const u = nachId.get(p.id);
   const bild = u ? `<img class="pl-bild" src="${esc(vorschauPfad(u))}" alt="" width="56" height="70" loading="lazy" decoding="async">` : "";
   const pause = p.pauseSek < 90 ? `${p.pauseSek} s` : `${String(p.pauseSek / 60).replace(".", ",")} min`;
@@ -133,18 +134,16 @@ export function zeileHtml(p, { bearbeiten = false, ei = 0, pi = 0, anzahl = 1, t
       ? tausch.liste.map((a) => `<button type="button" class="ue-tab" ${nehmenAttr(a)}>${esc(a.name)}</button>`).join("")
       : "<p>Für diese Bewegung gibt es hier keine andere Übung, die zu Ort und Beschwerden passt.</p>"}</div>`
     : "";
-  if (!bearbeiten) return `<li${offen ? ' class="pl-offen"' : ""}>${zeile}${auswahl}</li>`;
-  // Hoch und Runter verschieben die Übung in der Einheit. Pfeile statt
-  // Ziehen: in einer Liste, die selbst scrollt, verwechselt ein Daumen
-  // beides, und ein Knopf geht auch mit VoiceOver.
-  const pfeil = (art, d, aus, label) => `<button type="button" class="pl-pfeil" data-aktion="${art}" ${ort}${aus ? " disabled" : ""} aria-label="${esc(p.name)} ${label}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg></button>`;
+  // Ziehbar heisst: lange drücken hebt die Zeile an, danach lässt sie sich
+  // nach oben oder unten ziehen, `zeilenZiehen`.
+  const zieh = ziehbar ? ` data-zieh data-ei="${ei}" data-pi="${pi}"` : "";
+  if (!bearbeiten) return `<li${offen ? ' class="pl-offen"' : ""}${zieh}>${zeile}${auswahl}</li>`;
   const werkzeug = `<div class="pl-werkzeug">
       <span class="pl-saetze-wahl"><button type="button" data-aktion="weniger" ${ort} aria-label="Ein Satz weniger">−</button>
       <b>${p.saetze} Sätze</b><button type="button" data-aktion="mehr" ${ort} aria-label="Ein Satz mehr">+</button></span>
-      <span class="pl-pfeile">${pfeil("hoch", "M12 18V6M6.5 11.5 12 6l5.5 5.5", pi === 0, "nach oben")}${pfeil("runter", "M12 6v12M6.5 12.5 12 18l5.5-5.5", pi >= anzahl - 1, "nach unten")}</span>
       <button type="button" class="pl-mini" data-aktion="entfernen" ${ort}>Entfernen</button>
     </div>`;
-  return `<li class="pl-bearbeiten">${zeile}${werkzeug}${auswahl}</li>`;
+  return `<li class="pl-bearbeiten"${zieh}>${zeile}${werkzeug}${auswahl}</li>`;
 }
 
 export function einheitHtml(e, ei = 0, { bearbeitet = -1, tausch = null, zusatz = [], ohneKnoepfe = false, nurStart = false, ohneStart = false, startAttr = null, trend = null } = {}) {
@@ -162,7 +161,7 @@ export function einheitHtml(e, ei = 0, { bearbeitet = -1, tausch = null, zusatz 
       zusatz.map((u) => `<option value="${esc(u.id)}">${esc(u.name)}</option>`).join("")}</select></label>`
     : "";
   return `<section class="pl-einheit"><header><div><h3>${esc(e.titel)}</h3><p>${esc(e.fokus)} · etwa ${e.dauerMin} Min.</p></div>${knopf}</header>
-    <ol class="pl-liste">${e.positionen.map((p, pi) => zeileHtml(p, { bearbeiten: an, ei, pi, anzahl: e.positionen.length, tausch, trend, ohneTausch: ohneKnoepfe || nurStart })).join("")}</ol>${dazu}</section>`;
+    <ol class="pl-liste">${e.positionen.map((p, pi) => zeileHtml(p, { bearbeiten: an, ei, pi, tausch, trend, ohneTausch: ohneKnoepfe || nurStart, ziehbar: !ohneKnoepfe && !nurStart })).join("")}</ol>${dazu}</section>`;
 }
 
 /* ---------- Von Hand ändern ---------- */
@@ -510,6 +509,81 @@ export function planText(plan) {
 const $ = (id) => document.getElementById(id);
 
 /**
+ * Verschieben einer Übung in der Einheit: lange auf die Zeile drücken, dann
+ * nach oben oder unten ziehen. Dieselbe Geste wie bei den Daumen im
+ * Trainingsmodus, nur senkrecht. Bewegt sich der Finger vor Ablauf der Zeit,
+ * ist es Scrollen und bleibt es. Der Klick nach dem Loslassen öffnet die
+ * Übung nicht, sonst landet jedes Verschieben auf der Detailseite.
+ */
+const ZIEH_ZEIT = 420;
+export function zeilenZiehen(behaelter, anwenden, spuer = () => {}) {
+  let zug = null;
+  let nachZiehen = false;
+  const ende = (uebernehmen) => {
+    if (!zug) return;
+    clearTimeout(zug.timer);
+    const { aktiv, von, nach, zeile, zeilen, liste, ei } = zug;
+    zug = null;
+    if (!aktiv) return;
+    zeile.classList.remove("zieht");
+    liste.classList.remove("sortieren");
+    zeilen.forEach((z) => { z.style.transform = ""; });
+    nachZiehen = true;
+    setTimeout(() => { nachZiehen = false; }, 400);
+    if (uebernehmen && nach !== von) { spuer(); anwenden(ei, von, nach); }
+  };
+  behaelter.addEventListener("pointerdown", (event) => {
+    const zeile = event.target.closest("li[data-zieh]");
+    // Knöpfe in der Zeile bleiben Knöpfe: Tauschen, Sätze, Entfernen.
+    if (!zeile || event.target.closest(".pl-tausch-knopf, .pl-werkzeug, .pl-tausch, select")) return;
+    const liste = zeile.parentElement;
+    const zeilen = [...liste.querySelectorAll(":scope > li[data-zieh]")];
+    const von = zeilen.indexOf(zeile);
+    zug = {
+      zeile, liste, zeilen, von, nach: von, ei: Number(zeile.dataset.ei), y0: event.clientY, x0: event.clientX, aktiv: false, id: event.pointerId,
+      mitten: zeilen.map((z) => { const b = z.getBoundingClientRect(); return b.top + b.height / 2; }),
+      hoehe: zeile.getBoundingClientRect().height,
+    };
+    zug.timer = setTimeout(() => {
+      if (!zug) return;
+      zug.aktiv = true;
+      zeile.classList.add("zieht");
+      liste.classList.add("sortieren");
+      try { zeile.setPointerCapture(zug.id); } catch { /* ohne Fang läuft es über die Liste weiter */ }
+      spuer();
+    }, ZIEH_ZEIT);
+  });
+  behaelter.addEventListener("pointermove", (event) => {
+    if (!zug || event.pointerId !== zug.id) return;
+    const dy = event.clientY - zug.y0;
+    if (!zug.aktiv) {
+      if (Math.abs(dy) > 8 || Math.abs(event.clientX - zug.x0) > 8) { clearTimeout(zug.timer); zug = null; }
+      return;
+    }
+    zug.zeile.style.transform = `translateY(${dy}px)`;
+    // Ziel ist der Platz, dessen Mitte dem Finger am nächsten liegt.
+    const y = zug.mitten[zug.von] + dy;
+    let nach = 0;
+    zug.mitten.forEach((m, i) => { if (Math.abs(m - y) < Math.abs(zug.mitten[nach] - y)) nach = i; });
+    zug.nach = nach;
+    zug.zeilen.forEach((z, i) => {
+      if (i === zug.von) return;
+      const schiebt = zug.von < nach ? (i > zug.von && i <= nach ? -1 : 0) : (i < zug.von && i >= nach ? 1 : 0);
+      z.style.transform = schiebt ? `translateY(${schiebt * zug.hoehe}px)` : "";
+    });
+  });
+  // Während des Ziehens darf die Seite nicht scrollen, auf iOS nur über
+  // touchmove mit passive false.
+  behaelter.addEventListener("touchmove", (event) => { if (zug?.aktiv) event.preventDefault(); }, { passive: false });
+  behaelter.addEventListener("pointerup", () => ende(true));
+  behaelter.addEventListener("pointercancel", () => ende(false));
+  behaelter.addEventListener("contextmenu", (event) => { if (event.target.closest("li[data-zieh]")) event.preventDefault(); });
+  behaelter.addEventListener("click", (event) => {
+    if (nachZiehen) { event.stopPropagation(); event.preventDefault(); }
+  }, true);
+}
+
+/**
  * Hängt die Pläne in die Übungsansicht. `speicher` liest und schreibt den
  * gespeicherten Plan, `kurz` den Kurzplan, `woche` die stressige Woche,
  * `oeffne` zeigt die Detailseite einer Übung, `melde` gibt eine kurze
@@ -790,7 +864,6 @@ export function plaeneStarten({
     const pi = Number(aktion.dataset.pi);
     const art = aktion.dataset.aktion;
     if (art === "mehr" || art === "weniger") return { plan: saetzeAendern(plan, ei, pi, art === "mehr" ? 1 : -1), tausch: offenerTausch };
-    if (art === "hoch" || art === "runter") return { plan: positionVerschieben(plan, ei, pi, art === "hoch" ? pi - 1 : pi + 1), tausch: null };
     if (art === "entfernen") return { plan: uebungEntfernen(plan, ei, pi), tausch: null };
     if (art === "tauschen") {
       const offen = offenerTausch && offenerTausch.ei === ei && offenerTausch.pi === pi;
@@ -841,6 +914,19 @@ export function plaeneStarten({
   };
   $("plStart").addEventListener("click", planKlick);
   $("plEinheiten").addEventListener("click", planKlick);
+  // Der Kurzplan trägt kein `data-zieh`, er wird nur gestartet.
+  zeilenZiehen($("plEinheiten"), (ei, von, nach) => {
+    if (!gespeichert || kurzAktiv()) return;
+    tausch = null;
+    planSichern(positionVerschieben(gespeichert, ei, von, nach));
+    ansichtZeichnen();
+  }, () => spueren("leicht"));
+  zeilenZiehen($("plVorschau"), (ei, von, nach) => {
+    if (entwurf === gespeichert) entwurfVomPlan = true;
+    entwurfTausch = null;
+    entwurf = positionVerschieben(entwurf, ei, von, nach);
+    konfigZeichnen();
+  }, () => spueren("leicht"));
   $("plEinheiten").addEventListener("change", (event) => {
     const feld = event.target.closest("[data-dazu]");
     if (!feld || !feld.value || !gespeichert) return;

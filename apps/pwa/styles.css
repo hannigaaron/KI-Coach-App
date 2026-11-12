@@ -3471,13 +3471,16 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
   display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%;
   background: var(--flaeche); box-shadow: var(--haarlinie); color: var(--text); font: inherit; font-size: 18px; line-height: 1; cursor: pointer;
 }
-.pl-pfeile { display: inline-flex; gap: var(--s-1); }
-.pl-pfeil {
-  display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%;
-  background: var(--flaeche); box-shadow: var(--haarlinie); color: var(--text); cursor: pointer;
+/* Lange drücken hebt eine Übung im Plan an, dann lässt sie sich ziehen.
+   Die Nachbarn rutschen weich zur Seite, die gehobene folgt dem Finger
+   ohne Verzögerung. */
+.pl-liste > li[data-zieh] { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.pl-liste.sortieren > li { transition: transform 0.18s var(--kurve); }
+.pl-liste > li.zieht {
+  position: relative; z-index: 3; transition: none;
+  background: var(--panel, var(--bg)); border-radius: var(--r-md, 16px); box-shadow: 0 0 0 2px var(--accent), var(--tief-karte);
 }
-.pl-pfeil svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.pl-pfeil:disabled { opacity: 0.3; cursor: default; }
+@media (prefers-reduced-motion: reduce) { .pl-liste.sortieren > li { transition: none; } }
 .pl-tausch { display: flex; flex-wrap: wrap; gap: var(--s-2); padding: 0 0 var(--s-3); border-bottom: 1px solid var(--linie); }
 .pl-tausch p { margin: 0; font-size: var(--t-xs); color: var(--muted); }
 .pl-dazu { display: grid; gap: var(--s-2); margin-top: var(--s-3); font-size: var(--t-xs); color: var(--muted); }
