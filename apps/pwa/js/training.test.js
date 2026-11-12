@@ -7,6 +7,7 @@ import {
   FREI_TITEL, auswahlHtml, auswahlListe, entwurfFrei, uebungHinzu, uebungRaus, uebungVerschieben,
   entwurfAbschliessen, entwurfBegonnen, entwurfNeu, entwurfTauschen, ersatzVorschlaege, satzAbhaken, satzDazu, satzSetzen,
   trainingHtml, zahlAus,
+  supersatzWeiter,
 } from "./training.js";
 
 const HEUTE = "2026-10-21";
@@ -314,4 +315,17 @@ test("Ersetzen geht mit jeder Übung, eine andere Bewegung bekommt ihre eigene D
   assert.match(html, /data-tr-ersatz="hammer-curl-sitzend"/);
   assert.match(html, /Kniebeuge ersetzen durch/);
   assert.ok(!html.includes("data-tr-dazu"));
+});
+
+test("Supersatz: nach dem Satz ohne Pause zum Partner, nach beiden Pause und zurück zur ersten", () => {
+  const satz = (fertig = false) => ({ kg: 20, wdh: 10, rir: 1, fertig });
+  const e = { aktiv: 0, uebungen: [
+    { id: "a", name: "Pushdown", superset: "A", ziel: {}, saetze: [satz(true), satz()] },
+    { id: "b", name: "Cable Crunch", superset: "A", ziel: {}, saetze: [satz(), satz()] },
+    { id: "c", name: "Bankdrücken", ziel: {}, saetze: [satz()] },
+  ] };
+  assert.deepEqual(supersatzWeiter(e, 0, 0), { ziel: 1, pause: false });
+  e.uebungen[1].saetze[0].fertig = true;
+  assert.deepEqual(supersatzWeiter(e, 1, 0), { ziel: 0, pause: true });
+  assert.equal(supersatzWeiter(e, 2, 0), null);
 });

@@ -824,7 +824,11 @@ export const AGENT_TOOLS: ToolDefinition[] = [
       "einmal, nimmt das Werkzeug dieselben Übungen wie letztes Mal und empfiehlt das. neu nur, wenn der Nutzer " +
       "ausdrücklich neue Übungen will. Eine einzelne Übung ändern: weglassen oder tauschen mit ihrem Namen, ohne " +
       "gruppen. Das gilt auch, wenn du selbst siehst, dass eine Übung nicht passt, etwa ein Drücken an einem " +
-      "Zugtag: dann änderst du sie mit diesem Werkzeug, statt dem Nutzer zu sagen, er soll sie weglassen.",
+      "Zugtag: dann änderst du sie mit diesem Werkzeug, statt dem Nutzer zu sagen, er soll sie weglassen. " +
+      "Nennt der Nutzer selbst Übungen, Sätze, Wiederholungen oder einen Supersatz, baut uebungen genau diese Einheit, in " +
+      "seiner Reihenfolge und mit seinen Zahlen, ohne Partien. Jede genannte Übung einzeln, auch Wiederholungen derselben " +
+      "Übung nicht zusammenfassen, und nichts weglassen oder dazuerfinden. Sagt er nur, dass etwas dazukommt oder sich " +
+      "eine Satzzahl ändert, hinzufuegen statt uebungen. Ausdauer wie Fahrrad oder Laufband gehört in cardio und nie in uebungen.",
     input_schema: {
       type: "object",
       properties: {
@@ -839,6 +843,41 @@ export const AGENT_TOOLS: ToolDefinition[] = [
         neu: { type: "boolean", description: "true, wenn der Nutzer andere Übungen als letztes Mal will. Ohne Partien gilt die Einheit von heute." },
         weglassen: { type: "array", items: { type: "string" }, description: "Namen von Übungen, die aus der Einheit für diesen Tag fallen." },
         tauschen: { type: "array", items: { type: "string" }, description: "Namen von Übungen, die gegen eine andere derselben Bewegung getauscht werden." },
+        uebungen: {
+          type: "array",
+          description: "Die ganze Einheit, wie der Nutzer sie gesagt hat. Ersetzt die Einheit des Tages.",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string", description: "Name der Übung, so wie gesagt, etwa \"Seitheben am Kabelzug\"." },
+              saetze: { type: "number", description: "Sätze, nur wenn genannt." },
+              wdh: { type: "string", description: "Wiederholungen, \"8\" oder \"8-12\", nur wenn genannt." },
+              reserve: { type: "number", description: "Wiederholungen in Reserve, nur wenn genannt." },
+              superset: { type: "string", description: "Name der Partnerübung, wenn beide im Supersatz laufen. An beiden Übungen setzen." },
+            },
+            required: ["name"],
+          },
+        },
+        hinzufuegen: {
+          type: "array",
+          description: "Übungen, die zur Einheit des Tages dazukommen oder deren Sätze sich ändern. Gleiche Felder wie uebungen.",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string" }, saetze: { type: "number" }, wdh: { type: "string" }, reserve: { type: "number" }, superset: { type: "string" },
+            },
+            required: ["name"],
+          },
+        },
+        cardio: {
+          type: "array",
+          description: "Ausdauer in der Einheit, etwa Fahrrad 30 Minuten 15 km.",
+          items: {
+            type: "object",
+            properties: { art: { type: "string" }, minuten: { type: "number" }, km: { type: "number" } },
+            required: ["art"],
+          },
+        },
       },
       required: [],
     },

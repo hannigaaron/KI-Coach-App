@@ -3995,6 +3995,9 @@ button small, button .erfassen-sub, button .me-werte, button .me-werte *,
 .tr-held .tr-mehr { background: rgba(255,255,255,.16); box-shadow: none; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
 .tr-held .tr-mehr i { background: #fff; }
 .tr-held .tr-ziel { color: rgba(255,255,255,.82); margin: var(--s-1) 0 0; }
+/* Der Partner im Supersatz, in der Akzentfarbe: er sagt, wohin es nach dem Haken geht. */
+.tr-supersatz { margin: calc(-1 * var(--s-2)) 0 var(--s-4); color: var(--accent-text); font-size: var(--t-sm); font-weight: 600; }
+.tr-held .tr-supersatz { color: var(--brand); margin: var(--s-1) 0 0; }
 .tr-kopf { padding-bottom: 0; }
 .tr-satz { margin: 0; padding: 6px 0; border-bottom: 1px solid var(--linie); }
 /* Über die Kennung, sonst gewinnt die allgemeine Regel für Felder. */

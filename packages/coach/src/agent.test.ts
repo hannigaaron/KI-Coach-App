@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Agent, aufgabeMitFrist, essensverlaufAus, trainingHeuteAus, denktiefe, istAbsicht, listeAbhakenAus, naehrwertFrage, postenFuerListe, profilAus, runOffline, schnellweg, zyklusAus, type AgentActions } from "./agent.js";
+import { Agent, aufgabeMitFrist, eigeneEinheitAus, essensverlaufAus, trainingHeuteAus, denktiefe, istAbsicht, listeAbhakenAus, naehrwertFrage, postenFuerListe, profilAus, runOffline, schnellweg, zyklusAus, type AgentActions } from "./agent.js";
 import type { ChatMessage, CoachProvider, ContentBlock, ConverseRequest, ConverseResponse, JsonRequest } from "./provider.js";
 import { standardAenderungAus } from "@daevo/core";
 
@@ -24,7 +24,10 @@ function stubActions(log: string[]): AgentActions {
     async einkaufslisteAbrufen() { log.push("einkauf:abrufen"); return "14 Posten, 3 davon zu Hause."; },
     async einkaufslisteAbhaken(i) { log.push(`einkauf:${i.posten}=${i.stand}`); return "Notiert."; },
     async trainingsplanAbrufen(i) { log.push(`planTag:${i.inTagen}`); return "Morgen Kraft."; },
-    async trainingHeute(i) { log.push(`heute:${i.gruppen.join("+")}:${i.minuten}${i.neu ? ":neu" : ""}`); return "Training für heute steht."; },
+    async trainingHeute(i) {
+      if (i.uebungen?.length) { log.push(`diktat:${i.uebungen.map((u) => `${u.saetze}x${u.name}`).join("+")}:${(i.cardio ?? []).map((c) => c.art).join("+")}`); return "Deine Einheit steht."; }
+      log.push(`heute:${i.gruppen.join("+")}:${i.minuten}${i.neu ? ":neu" : ""}`); return "Training für heute steht.";
+    },
     async einkaufslisteErgaenzen(i) { log.push(`einkaufDazu:${i.posten.join("|")}`); return "Auf der Liste."; },
     async standardsAbrufen() { log.push("standards"); return "Protein: an 5 von 7 Tagen gehalten."; },
     async standardSetzen(i) { log.push(`standard:${i.text}`); return "Standard steht."; },
@@ -1103,4 +1106,22 @@ test("Frühere Tage und der Wochenschnitt kommen aus dem Verlauf, nicht vom heut
   await runOffline("Wie groß ist mein Kaloriendefizit diese Woche?", a);
   await runOffline("Was hab ich heute gegessen?", a);
   assert.deepEqual(log, ["verlauf:1", "verlauf:woche", "stand"]);
+});
+
+test("Eine diktierte Einheit erkennt der Regelweg mit Sätzen, Supersatz und Cardio", async () => {
+  const satz = "Stell mir für heute folgendes Training zusammen: 3 Sätze Bankdrücken, 2 Sätze Schrägbank Brustpresse, "
+    + "drei Sätze Seitheben im Kabelzug, 3 Sätze Pushdowns im Superset mit Cable Crunches, 3 Sätze Cable Crunches. "
+    + "Dann noch die letzte halbe Stunde Fahrrad fahren auf 15 km.";
+  const r = eigeneEinheitAus(satz);
+  assert.deepEqual(r?.uebungen.map((u) => `${u.saetze} ${u.name}`), ["3 Bankdrücken", "2 Schrägbank Brustpresse", "3 Seitheben im Kabelzug", "3 Pushdowns", "3 Cable Crunches"]);
+  assert.equal(r?.uebungen[3]?.superset, "Cable Crunches");
+  assert.deepEqual(r?.cardio, [{ art: "Fahrrad", minuten: 30, km: 15 }]);
+  assert.deepEqual(eigeneEinheitAus("Heute: Bankdrücken 3x8, Dips 3x10 und French Press 2 Sätze")?.uebungen,
+    [{ name: "Bankdrücken", saetze: 3, wdh: "8" }, { name: "Dips", saetze: 3, wdh: "10" }, { name: "French Press", saetze: 2 }]);
+  // Vergangenes ist ein Eintrag, eine einzelne Satzzahl eine Frage.
+  assert.equal(eigeneEinheitAus("Ich hab 3 Sätze Bankdrücken und 3 Sätze Dips gemacht"), null);
+  assert.equal(eigeneEinheitAus("Wie viele Sätze soll ich machen?"), null);
+  const log: string[] = [];
+  await runOffline(satz, stubActions(log));
+  assert.deepEqual(log, ["diktat:3xBankdrücken+2xSchrägbank Brustpresse+3xSeitheben im Kabelzug+3xPushdowns+3xCable Crunches:Fahrrad"]);
 });

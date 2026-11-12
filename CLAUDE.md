@@ -637,6 +637,38 @@ Reihenfolge der Partien von damals. Ein Tausch im Trainingsmodus gilt über
 Coach, und die Übungen vom letzten Mal stehen dann hinten an, `zuletzt` im
 `EinzelWunsch`: nur die Variante zu erhöhen tauschte zwei von sieben.
 
+### Die eigene Einheit aus dem Diktat
+
+`uebungen`, `hinzufuegen` und `cardio` an `training_heute`,
+`eigeneEinheitSpeichern`, `einheitAusDiktat` und `uebungZuName` in
+`assistant.js`, Regelpfad `eigeneEinheitAus` in `agent.ts`. Im Betrieb
+diktierte der Nutzer seine Einheit mit Sätzen, Supersatz und Fahrrad, und
+der Coach antwortete, er könne keine Sätze festlegen und keine Übungen frei
+hinzufügen. Das ist der Fehler, der eine App gelöscht werden lässt. Jetzt
+gilt: wer seine Übungen nennt, bekommt genau diese, in seiner Reihenfolge,
+mit seinen Zahlen. Was er nicht sagt, kommt aus `positionFuer`. Die
+Persona verbietet, das abzulehnen oder durch eine gerechnete Einheit zu
+ersetzen.
+
+`uebungZuName` gleicht Studionamen gegen die Datenbank ab: Umlaute fallen
+auf den Vokal, damit "Klimmzüge" der Plural von "Klimmzug" bleibt,
+Endungen zählen nicht, ein genanntes Gerät wiegt mit, und jedes Wort im
+Namen, das niemand gesagt hat, kostet, eine Abart wie Hammer, liegend oder
+einarmig mehr. So sind "Pushdowns" das beidarmige Trizepsdrücken und nicht
+das liegende, "Curls am Kabel" der Curl mit Stange und nicht der Hammer
+Curl. Ein Test hält zehn Studionamen fest. Kennt die Datenbank eine Übung
+nicht, steht sie unter dem gesagten Namen mit `eigen-` Kennung drin, ohne
+Foto: sie wegzulassen hiesse, seine Einheit zu ändern.
+
+Ein Supersatz trägt an beiden Übungen dieselbe Marke, A, B, und beide
+stehen hintereinander. Im Trainingsmodus springt der Haken ohne Pause zur
+Partnerübung, nach beiden kommt die Pause und es geht zurück zur ersten,
+`supersatzWeiter` in `training.js`. Die Dauer zählt eine Pause für beide.
+Cardio steht in `einheit.cardio` und zählt zur Dauer. Unter Trainingspläne
+steht die diktierte Einheit über `fest` genau so da, ohne "Andere Übungen".
+`hinzufuegen` ändert die Sätze einer vorhandenen Übung oder hängt eine an,
+der Rest bleibt.
+
 ### Schweres Heben und Beugen nie am selben Tag
 
 `zuSchwerZusammen` im Kern. Kreuzheben, Sumo und Trap Bar Kreuzheben stehen
@@ -859,7 +891,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1426 Tests
+npm test           # 1431 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages

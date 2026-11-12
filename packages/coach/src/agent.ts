@@ -18,6 +18,23 @@ import { anhangBlock, ohneKaputteDenkbloecke, type Anhang, type ChatMessage, typ
  * Schlüssel benutzbar und nicht nur eine leere Hülle.
  */
 
+/** Eine Übung, wie der Nutzer sie diktiert hat. Abgeglichen wird in der App. */
+export interface DiktatUebung { name: string; saetze?: number; wdh?: string; reserve?: number; superset?: string }
+
+/** Liest die diktierten Übungen aus der Eingabe eines Werkzeugs. Höchstens zwanzig. */
+export function diktatListe(v: unknown): DiktatUebung[] {
+  if (!Array.isArray(v)) return [];
+  return v.filter((x): x is Record<string, unknown> => Boolean(x) && typeof x === "object" && String((x as Record<string, unknown>).name ?? "").trim() !== "")
+    .slice(0, 20)
+    .map((x) => ({
+      name: String(x.name).trim().slice(0, 80),
+      ...(Number(x.saetze) > 0 ? { saetze: Number(x.saetze) } : {}),
+      ...(x.wdh != null && String(x.wdh).trim() ? { wdh: String(x.wdh).trim().slice(0, 10) } : {}),
+      ...(x.reserve != null && Number.isFinite(Number(x.reserve)) ? { reserve: Number(x.reserve) } : {}),
+      ...(x.superset ? { superset: String(x.superset).slice(0, 60) } : {}),
+    }));
+}
+
 export interface AgentContext {
   /** Wer der Nutzer ist, in zwei bis vier Zeilen. */
   profil: string;
@@ -62,7 +79,10 @@ export interface AgentActions {
    * macht sie im Chat startbar. Die Übungen kommen aus dem Rechenkern, nie aus
    * dem Modell.
    */
-  trainingHeute?(input: { gruppen: string[]; minuten?: number; neu?: boolean; tag?: string; uhrzeit?: string; weglassen?: string[]; tauschen?: string[] }): Promise<string>;
+  trainingHeute?(input: {
+    gruppen: string[]; minuten?: number; neu?: boolean; tag?: string; uhrzeit?: string; weglassen?: string[]; tauschen?: string[];
+    uebungen?: DiktatUebung[]; hinzufuegen?: DiktatUebung[]; cardio?: Array<{ art: string; minuten?: number; km?: number }>;
+  }): Promise<string>;
   essensplanAbrufen?(input: { inTagen?: number }): Promise<string>;
   wochenrueckblick?(): Promise<string>;
   /** Was an einem früheren Tag gegessen wurde, oder der Schnitt einer Woche. */
@@ -921,7 +941,13 @@ async function execute(
         const namen = (v: unknown) => (Array.isArray(v) ? v.map(String).filter(Boolean).slice(0, 8) : []);
         const weglassen = namen(input.weglassen);
         const tauschen = namen(input.tauschen);
-        const text = await actions.trainingHeute({ gruppen, minuten, neu: input.neu === true, tag, uhrzeit, weglassen, tauschen });
+        const uebungen = diktatListe(input.uebungen);
+        const hinzufuegen = diktatListe(input.hinzufuegen);
+        const cardio = Array.isArray(input.cardio)
+          ? input.cardio.filter((c): c is Record<string, unknown> => Boolean(c) && typeof c === "object").slice(0, 4)
+            .map((c) => ({ art: String(c.art ?? ""), minuten: Number(c.minuten) || undefined, km: Number(c.km) || undefined }))
+          : [];
+        const text = await actions.trainingHeute({ gruppen, minuten, neu: input.neu === true, tag, uhrzeit, weglassen, tauschen, uebungen, hinzufuegen, cardio });
         if (weglassen.length || tauschen.length) {
           const geaendert = !text.startsWith(NICHT_GESPEICHERT);
           return geaendert ? { text, notiz: "Training angepasst" } : { text, fehler: true };
@@ -1185,6 +1211,61 @@ const PARTIE_WOERTER: Array<[RegExp, string[]]> = [
   [/\b(trizeps|triceps)\b/, ["trizeps"]],
   [/\b(core|bauch|rumpf)\b/, ["rumpf"]],
 ];
+
+/**
+ * Eine diktierte Einheit ohne Modell: "3 Sätze Bankdrücken, 2 Sätze
+ * Seitheben am Kabel, Pushdowns 3x12 im Supersatz mit Cable Crunches, danach
+ * 30 Minuten Fahrrad". Erkannt wird nur, was eine Satzzahl trägt, und erst ab
+ * zwei solchen Übungen: ein einzelnes "3 Sätze" ist eher eine Frage als eine
+ * Einheit. Was in der Vergangenheit steht, ist ein Eintrag und keine Einheit.
+ * Den Namen gleicht die App ab, hier wird nur geschnitten.
+ */
+export function eigeneEinheitAus(nachricht: string): { gruppen: string[]; uebungen: DiktatUebung[]; cardio: Array<{ art: string; minuten?: number; km?: number }> } | null {
+  const roh = nachricht.replace(/\s+/g, " ").trim();
+  const gefaltet = roh.toLowerCase().replace(/ä/g, "a").replace(/ö/g, "o").replace(/ü/g, "u").replace(/ß/g, "ss");
+  if (/\b(hab|habe|hatte|war|gemacht|trainiert)\b/.test(gefaltet) && !/\b(will|mochte|mach|mache|plan|stell|bau|trag|heute|morgen)\b/.test(gefaltet)) return null;
+  const ZAHL: Record<string, number> = { ein: 1, eine: 1, einen: 1, zwei: 2, drei: 3, vier: 4, funf: 5, fuenf: 5, fünf: 5, sechs: 6 };
+  const zahl = (t: string | undefined) => (t === undefined ? undefined : /^\d+$/.test(t) ? Number(t) : ZAHL[t.toLowerCase()]);
+  const Z = "(\\d{1,2}|ein|eine|einen|zwei|drei|vier|fünf|funf|sechs)";
+  const W = "(\\d{1,2}(?:\\s*(?:-|bis)\\s*\\d{1,2})?)";
+  const SATZ = "(?:sätze|saetze|satze|satz|sets?)";
+  const vorne = new RegExp(`^${Z}\\s*(?:x\\s*${W}\\s+|${SATZ}\\s+(?:(?:à|a|je|mit|zu)\\s+${W}\\s*(?:wdh\\.?|wiederholungen)?\\s+)?)(.+)$`, "i");
+  const hinten = new RegExp(`^(.+?)\\s*:?\\s+${Z}\\s*(?:x\\s*${W}|${SATZ}(?:\\s+(?:à|a|je|mit|zu)\\s+${W}\\s*(?:wdh\\.?|wiederholungen)?)?)\\s*$`, "i");
+  const CARDIO = /\b(fahrrad\w*|rad ?fahren|radfahren|ergometer|laufband|crosstrainer|rudergerat|stepper|joggen|laufen|treppensteiger)\b/;
+  const uebungen: DiktatUebung[] = [];
+  const cardio: Array<{ art: string; minuten?: number; km?: number }> = [];
+  const stuecke = roh.split(/[,;\n]|\.\s|\b(?:dann|danach|anschließend|anschliessend|zum schluss|am ende)\b|\bund\b/i)
+    .map((t) => t.trim()).filter(Boolean);
+  for (const stueck of stuecke) {
+    const f = stueck.toLowerCase().replace(/ä/g, "a").replace(/ö/g, "o").replace(/ü/g, "u").replace(/ß/g, "ss");
+    const c = CARDIO.exec(f);
+    if (c) {
+      const min = /(\d{1,3})\s*(?:min|minuten)\b/.exec(f);
+      const std = /\b(halbe|eine|1)\s+stunde\b/.exec(f);
+      const km = /(\d{1,3}(?:[.,]\d)?)\s*(?:km|kilometer)\b/.exec(f);
+      const art = /fahrrad|rad ?fahren|radfahren|ergometer/.test(c[1]!) ? "Fahrrad" : c[1]!.charAt(0).toUpperCase() + c[1]!.slice(1);
+      cardio.push({ art, ...(min ? { minuten: Number(min[1]) } : std ? { minuten: std[1] === "halbe" ? 30 : 60 } : {}), ...(km ? { km: Number(km[1]!.replace(",", ".")) } : {}) });
+      continue;
+    }
+    // "Stell mir folgendes zusammen: 3 Sätze Bankdrücken" und "Heute:
+    // Bankdrücken 3x8". Was vor dem Doppelpunkt steht, ist der Auftrag.
+    let text = stueck.replace(/^[^:]*:\s*/, "").replace(/^(?:und|noch|ich (?:mache|mach|will|möchte)|heute|machen wir|mach(?:e)?)\s+/i, "").trim();
+    let superset: string | undefined;
+    const ss = /\s*(?:,\s*)?(?:im\s+|als\s+)?super\s?(?:set|satz)\s+mit\s+(.+)$/i.exec(text);
+    if (ss) { superset = ss[1]!.replace(/\s+(?:die|in der)\s+letzte.*$/i, "").trim(); text = text.slice(0, ss.index).trim(); }
+    const a = vorne.exec(text);
+    const b = a ? null : hinten.exec(text);
+    const saetze = zahl(a ? a[1] : b?.[2]);
+    if (!saetze) continue;
+    const wdh = (a ? (a[2] ?? a[3]) : (b?.[3] ?? b?.[4]))?.replace(/\s*bis\s*/, "-").replace(/\s+/g, "");
+    let name = (a ? a[4] : b?.[1])!.replace(/^(?:(?:à|a|je|mit)\s+)?(?:den|die|das|der|dem)\s+/i, "").replace(/[.!?]+$/, "").trim();
+    name = name.replace(/\s+(?:im|am)\s+(?:supersatz|superset)$/i, "").trim();
+    if (name.length < 3) continue;
+    uebungen.push({ name, saetze, ...(wdh ? { wdh } : {}), ...(superset ? { superset } : {}) });
+  }
+  if (uebungen.length < 2) return null;
+  return { gruppen: [], uebungen, cardio };
+}
 
 /**
  * Ob jemand eine Einheit bestellt, für welchen Tag und welche. Nur mit einem
@@ -1663,6 +1744,14 @@ export async function runOffline(
   // "Neue Übungen" nach einer Einheit für heute, auch als Knopf unter der
   // Antwort. Kurz oder mit heute, sonst ist es eine Frage zum Wochenplan.
   const neuWunsch = /\b(neue|andere)\s+uebungen\b/.test(text) && (text.split(/\s+/).length <= 6 || /\bheute\b/.test(text));
+  // Eine diktierte Einheit geht vor den Partien: wer seine Übungen nennt,
+  // will diese und keine gerechnete.
+  const diktat = eigeneEinheitAus(nachricht);
+  if (diktat && actions.trainingHeute) {
+    const antwort = await actions.trainingHeute(diktat);
+    const ok = !antwort.startsWith(NICHT_GESPEICHERT);
+    return { text: antwort, ausgeführt: ok ? [...ausgeführt, "Training für heute bereit"] : ausgeführt, source: "offline" };
+  }
   const heute = neuWunsch ? { ...(trainingHeuteAus(text) ?? { gruppen: [] }), neu: true } : trainingHeuteAus(text);
   if (heute && actions.trainingHeute) {
     const antwort = await actions.trainingHeute(heute);

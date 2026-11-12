@@ -126,7 +126,7 @@ export function zeileHtml(p, { bearbeiten = false, ei = 0, pi = 0, tausch = null
   const attr = tauschAttr ?? `data-aktion="tauschen" ${ort}`;
   const offen = tausch && tausch.ei === ei && tausch.pi === pi;
   const zeile = `<div class="pl-zeile-rahmen"><button type="button" class="pl-zeile" data-uebung="${esc(p.id)}">${bild}
-    <span class="pl-text"><b>${esc(p.name)}</b><span>${p.saetze} × ${esc(p.wdh)}<i></i>Pause ${pause}<i></i>${p.reserve} in Reserve</span>${trend ? trend(p.id) : ""}</span></button>
+    <span class="pl-text"><b>${esc(p.name)}</b><span>${p.saetze} × ${esc(p.wdh)}<i></i>${p.superset ? `Supersatz ${esc(p.superset)}` : `Pause ${pause}`}<i></i>${p.reserve} in Reserve</span>${trend ? trend(p.id) : ""}</span></button>
     ${ohneTausch ? "" : `<button type="button" class="pl-tausch-knopf" ${attr} aria-expanded="${Boolean(offen)}" aria-label="${esc(p.name)} tauschen">${TAUSCH_SVG}</button>`}</div>`;
   const nehmenAttr = (a) => (tauschAttr ? `data-heute-nehmen="${esc(a.id)}" data-alt="${esc(p.id)}"` : `data-aktion="nehmen" data-id="${esc(a.id)}" ${ort}`);
   const auswahl = offen
@@ -429,8 +429,9 @@ export function heuteHtml(stand, einheit) {
   }).join("");
   const ergebnis = einheit
     ? `<section class="pl-einheit pl-heute-einheit"><header><div><h3>${esc(einheit.fokus)}</h3><p>${einheit.positionen.length} Übungen · etwa ${einheit.dauerMin} Min.</p></div>
-        <div class="pl-knoepfe"><button type="button" class="pl-mini pl-start" data-heute-start>Starten</button><button type="button" class="pl-mini" data-heute-andere>Andere Übungen</button></div></header>
-        <ol class="pl-liste">${einheit.positionen.map((p, pi) => zeileHtml(p, { pi, tausch: stand.tausch ?? null, tauschAttr: `data-heute-tausch="${pi}"` })).join("")}</ol></section>`
+        <div class="pl-knoepfe"><button type="button" class="pl-mini pl-start" data-heute-start>Starten</button>${stand.fest ? "" : '<button type="button" class="pl-mini" data-heute-andere>Andere Übungen</button>'}</div></header>
+        <ol class="pl-liste">${einheit.positionen.map((p, pi) => zeileHtml(p, { pi, tausch: stand.tausch ?? null, tauschAttr: `data-heute-tausch="${pi}"` })).join("")}</ol>
+        ${(einheit.cardio ?? []).map((c) => `<p class="pl-legende">Danach ${esc([c.art, c.minuten ? `${c.minuten} Minuten` : "", c.km ? `${String(c.km).replace(".", ",")} km` : ""].filter(Boolean).join(", "))}</p>`).join("")}</section>`
     : stand.gruppen.length ? "" : '<p class="pl-legende">Wähl mindestens eine Partie.</p>';
   return `<h3 class="ue-abschnitt">Training für heute</h3>
     <p class="sub">Wenn der Plan heute nicht passt: wie viel Zeit du hast und was diese Woche noch fehlt.</p>
@@ -637,12 +638,18 @@ export function plaeneStarten({
   // Hat der Coach heute schon eine Einheit gerechnet, steht genau die hier,
   // aufgeklappt, denn dann ist sie das Training des Tages.
   const bestellt = heuteBestellt();
-  if (bestellt?.tag === heute() && Array.isArray(bestellt.gruppen) && bestellt.gruppen.length) {
+  // Eine diktierte Einheit steht genau so da, wie sie gesagt wurde. Sie aus
+  // Partien neu zu rechnen hiesse, die Einheit des Nutzers zu ersetzen.
+  if (bestellt?.tag === heute() && bestellt.eigen && bestellt.einheit?.positionen?.length) {
+    heuteStand = { minuten: bestellt.minuten, gruppen: [], text: "So wie du sie daevo gesagt hast.", variante: 0, fest: bestellt.einheit };
+    $("plEinzeln").open = true;
+  } else if (bestellt?.tag === heute() && Array.isArray(bestellt.gruppen) && bestellt.gruppen.length) {
     heuteStand = { minuten: bestellt.minuten, gruppen: bestellt.gruppen.flatMap((g) => (g === "arme" ? ["bizeps", "trizeps"] : [g])), text: "Im Gespräch mit daevo zusammengestellt.", variante: 0 };
     $("plEinzeln").open = true;
   }
+  const heuteAktuell = () => heuteStand.fest ?? (heuteStand.gruppen.length ? heuteEinheit(heuteStand, wunsch) : null);
   const heuteZeichnen = () => {
-    $("plHeute").innerHTML = heuteHtml(heuteStand, heuteStand.gruppen.length ? heuteEinheit(heuteStand, wunsch) : null);
+    $("plHeute").innerHTML = heuteHtml(heuteStand, heuteAktuell());
   };
 
   // Welche Einheit gerade bearbeitet wird und welche Tauschliste offen ist.
@@ -819,25 +826,32 @@ export function plaeneStarten({
     if ((x = k("[data-heute-tausch]"))) {
       const pi = Number(x.dataset.heuteTausch);
       const offen = heuteStand.tausch?.pi === pi;
-      heuteStand = { ...heuteStand, tausch: offen ? null : { ei: 0, pi, liste: heuteTauschListe(heuteEinheit(heuteStand, wunsch), pi, wunsch) } };
+      heuteStand = { ...heuteStand, tausch: offen ? null : { ei: 0, pi, liste: heuteTauschListe(heuteAktuell(), pi, wunsch) } };
     } else if ((x = k("[data-heute-nehmen]"))) {
       // Getauscht wird über die ursprüngliche Kennung, damit ein zweiter
       // Tausch derselben Zeile den ersten ersetzt und nicht verkettet.
+      if (heuteStand.fest) {
+        const neu = nachId.get(x.dataset.heuteNehmen);
+        const fest = neu ? { ...heuteStand.fest, positionen: heuteStand.fest.positionen.map((p) => (p.id === x.dataset.alt ? { ...p, id: neu.id, name: neu.name } : p)) } : heuteStand.fest;
+        heuteStand = { ...heuteStand, fest, tausch: null };
+        heuteZeichnen();
+        return;
+      }
       const ersetzt = { ...(heuteStand.ersetzt ?? {}) };
       const ursprung = Object.keys(ersetzt).find((alt) => ersetzt[alt] === x.dataset.alt) ?? x.dataset.alt;
       ersetzt[ursprung] = x.dataset.heuteNehmen;
       heuteStand = { ...heuteStand, ersetzt, tausch: null };
-    } else if ((x = k("[data-heute-min]"))) heuteStand = { ...heuteStand, minuten: Number(x.dataset.heuteMin), variante: 0, ersetzt: {}, tausch: null };
+    } else if ((x = k("[data-heute-min]"))) heuteStand = { ...heuteStand, minuten: Number(x.dataset.heuteMin), variante: 0, ersetzt: {}, tausch: null, fest: undefined };
     else if ((x = k("[data-heute-gruppe]"))) {
       const g = x.dataset.heuteGruppe;
       const gruppen = heuteStand.gruppen.includes(g) ? heuteStand.gruppen.filter((y) => y !== g) : [...heuteStand.gruppen, g];
-      heuteStand = { ...heuteStand, gruppen, variante: 0, ersetzt: {}, tausch: null };
-    } else if (k("[data-heute-andere]")) heuteStand = { ...heuteStand, variante: heuteStand.variante + 1, ersetzt: {}, tausch: null };
+      heuteStand = { ...heuteStand, gruppen, variante: 0, ersetzt: {}, tausch: null, fest: undefined };
+    } else if (k("[data-heute-andere]")) heuteStand = { ...heuteStand, variante: heuteStand.variante + 1, ersetzt: {}, tausch: null, fest: undefined };
     else if (k("[data-heute-start]")) {
-      const einheit = heuteEinheit(heuteStand, wunsch);
+      const einheit = heuteAktuell();
       if (einheit) starteEinheit(einheit);
       return;
-    } else if ((x = k("[data-uebung]"))) { oeffne(x.dataset.uebung); return; }
+    } else if ((x = k("[data-uebung]"))) { if (nachId.has(x.dataset.uebung)) oeffne(x.dataset.uebung); return; }
     else return;
     heuteZeichnen();
   });

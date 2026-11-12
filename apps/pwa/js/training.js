@@ -138,7 +138,7 @@ export function auswahlListe(text, entwurf, log, wunsch = STANDARD_WUNSCH, grenz
 function uebungImEntwurf(p, log, heute) {
   const letzt = letzteEinheit(log, p.id, heute);
   return {
-    id: p.id, name: p.name,
+    id: p.id, name: p.name, ...(p.superset ? { superset: p.superset } : {}),
     ziel: { saetze: p.saetze, wdh: p.wdh, reserve: p.reserve, pauseSek: p.pauseSek },
     saetze: Array.from({ length: p.saetze }, (_, i) => {
       const vorher = letzt?.saetze[i] ?? letzt?.saetze[letzt.saetze.length - 1];
@@ -163,6 +163,24 @@ export function satzAbhaken(entwurf, ui, si) {
   const s = entwurf.uebungen[ui]?.saetze[si];
   if (!s) return entwurf;
   return satzSetzen(entwurf, ui, si, "fertig", !s.fertig);
+}
+
+/**
+ * Wohin es nach einem abgehakten Satz im Supersatz geht. Steht in derselben
+ * Gruppe hinter dieser Übung noch derselbe Satz offen, geht es ohne Pause
+ * dorthin. Sonst kommt die Pause, und danach geht es zurück an die erste
+ * Übung der Gruppe mit offenem Satz. Ohne Supersatz `null`: dann bleibt
+ * alles wie bisher.
+ */
+export function supersatzWeiter(entwurf, ui, si) {
+  const u = entwurf.uebungen[ui];
+  if (!u?.superset) return null;
+  const gruppe = entwurf.uebungen.map((x, i) => ({ x, i })).filter(({ x }) => x.superset === u.superset);
+  if (gruppe.length < 2) return null;
+  const danach = gruppe.find(({ x, i }) => i > ui && x.saetze[si] && !x.saetze[si].fertig);
+  if (danach) return { ziel: danach.i, pause: false };
+  const zurueck = gruppe.find(({ x }) => x.saetze.some((s) => !s.fertig));
+  return { ziel: zurueck ? zurueck.i : ui, pause: true };
 }
 
 export function satzDazu(entwurf, ui) {
@@ -354,10 +372,12 @@ export function trainingHtml(entwurf, log, { menue = false, vorschlaege = [], pa
   // Wo man in der Einheit steht, als Zahl und als Balken. Die Daumen allein
   // sagen das nicht, sobald die Leiste breiter als der Bildschirm ist.
   const n = entwurf.uebungen.length;
+  const partner = u.superset ? entwurf.uebungen.filter((x) => x !== u && x.superset === u.superset).map((x) => x.name) : [];
+  const partnerHtml = partner.length ? `<p class="tr-supersatz">Supersatz mit ${esc(partner.join(" und "))}</p>` : "";
   const fortschritt = `<div class="tr-fortschritt"><span>Übung ${entwurf.aktiv + 1} von ${n}</span><i style="--anteil:${((entwurf.aktiv + 1) / n).toFixed(3)}"></i></div>`;
   const titel = `<div class="tr-titelzeile"><h2 class="tr-name">${esc(u.name)}</h2>
       <button type="button" class="tr-mehr" data-tr-menue aria-expanded="${menue}" aria-label="Übung ersetzen oder Anleitung"><i></i><i></i><i></i></button></div>
-    <p class="tr-ziel">${esc(geraet)}${geraet ? " · " : ""}${u.ziel.saetze} × ${esc(u.ziel.wdh)} Wdh · ${u.ziel.reserve} RIR</p>`;
+    <p class="tr-ziel">${esc(geraet)}${geraet ? " · " : ""}${u.ziel.saetze} × ${esc(u.ziel.wdh)} Wdh · ${u.ziel.reserve} RIR</p>${partnerHtml}`;
   // Das Foto trägt die Übung, Name und Ziel stehen darauf. Ohne Foto in der
   // Datenbank bleibt die Zeile ohne Bild, ein leerer Kasten wäre schlimmer.
   const kopf = info
@@ -541,11 +561,24 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
       const warFertig = entwurf.uebungen[entwurf.aktiv].saetze[si].fertig;
       entwurf = satzAbhaken(entwurf, entwurf.aktiv, si);
       if (!warFertig) {
-        spueren("leicht"); pauseStart(entwurf.uebungen[entwurf.aktiv].ziel.pauseSek);
+        spueren("leicht");
+        // Im Supersatz geht es ohne Pause zur Partnerübung, die Pause kommt
+        // nach beiden.
+        const weiter = supersatzWeiter(entwurf, entwurf.aktiv, si);
+        if (weiter && !weiter.pause) {
+          entwurf = { ...entwurf, aktiv: weiter.ziel };
+          melde(`Supersatz: weiter mit ${entwurf.uebungen[weiter.ziel].name}`);
+          merken(); zeichnen(); inhalt.scrollTop = 0;
+          return;
+        }
+        pauseStart(entwurf.uebungen[entwurf.aktiv].ziel.pauseSek);
+        const sprung = weiter && weiter.ziel !== entwurf.aktiv;
+        if (weiter) entwurf = { ...entwurf, aktiv: weiter.ziel };
         // Nur der eben abgehakte Satz springt. Alle fertigen bei jedem
         // Neuzeichnen springen zu lassen, wäre Lärm.
         merken(); zeichnen();
-        inhalt.querySelector(`[data-tr-haken="${si}"]`)?.classList.add("gerade");
+        if (!sprung) inhalt.querySelector(`[data-tr-haken="${si}"]`)?.classList.add("gerade");
+        else inhalt.scrollTop = 0;
         return;
       }
     } else if ((k = z("[data-tr-satzweg]"))) {

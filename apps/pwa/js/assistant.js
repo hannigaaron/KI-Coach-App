@@ -4,7 +4,7 @@ import {
   mahlzeitAusFoto, modellFuerBilder, naehrwerteImNetz, produktPerBarcode, produkteSuchen, summiere, vorratAusFoto,
   todoistAbhaken, todoistAufgaben, todoistIdVon, todoistWiederOeffnen, PERSONA_TEILE,
 } from "@daevo/coach";
-import { essenszeitAus, foldUmlauts, wochenrueckblick, wochenbeginn, wochenschnitt, wochenschnittText, tagKurz, tagStand, rueckblickArt, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, einzeltrainingBauen, FOKUS_NAME, alternativen, planNachrechnen } from "@daevo/core";
+import { essenszeitAus, foldUmlauts, wochenrueckblick, wochenbeginn, wochenschnitt, wochenschnittText, tagKurz, tagStand, rueckblickArt, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, einzeltrainingBauen, FOKUS_NAME, alternativen, planNachrechnen, positionFuer } from "@daevo/core";
 import { trainingsTageAusQuellen } from "./luecke.js";
 import { UEBUNGEN } from "./uebungen-daten.js";
 import { GERAETE, uebungenFiltern } from "./uebungen.js";
@@ -3629,7 +3629,7 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       return essensplanTagText(tag) + (plan.hinweise.length ? `\n${plan.hinweise.join(" ")}` : "");
     },
 
-    async trainingHeute({ gruppen = [], minuten, neu = false, tag: wunschTag, uhrzeit, weglassen = [], tauschen = [] } = {}) {
+    async trainingHeute({ gruppen = [], minuten, neu = false, tag: wunschTag, uhrzeit, weglassen = [], tauschen = [], uebungen = [], hinzufuegen = [], cardio = [] } = {}) {
       const heuteIso = todayIso();
       // Ein Tag in der Vergangenheit ist keine Bestellung. Weiter als eine
       // Woche voraus auch nicht: bis dahin hat sich der Plan geändert.
@@ -3643,6 +3643,18 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       }
       const s = store.getSettings();
       const jetzt = bestellteEinheit(s, tag);
+      // Die eigene Einheit des Nutzers geht vor jeder Rechnung. Wer seine
+      // Übungen und Sätze diktiert, will genau die, und keine Einheit, die
+      // daevo aus den Partien baut.
+      const liste = (x) => (Array.isArray(x) ? x.filter((p) => p && typeof p === "object" && String(p.name ?? "").trim()) : []);
+      const cardioListe = (Array.isArray(cardio) ? cardio : []).map((c) => ({
+        art: String(c?.art ?? "").trim().slice(0, 40),
+        ...(Number(c?.minuten) > 0 ? { minuten: Math.min(300, Math.round(Number(c.minuten))) } : {}),
+        ...(Number(c?.km) > 0 ? { km: Math.min(300, Math.round(Number(c.km) * 10) / 10) } : {}),
+      })).filter((c) => c.art);
+      if (liste(uebungen).length || liste(hinzufuegen).length || cardioListe.length) {
+        return eigeneEinheitSpeichern({ tag, zukunft, um, jetzt, uebungen: liste(uebungen), hinzufuegen: liste(hinzufuegen), cardio: cardioListe, minuten }, changed);
+      }
       // "Neue Übungen" ohne Partien meint die Einheit von heute.
       const SPLIT = { arme: ["bizeps", "trizeps"], push: ["brust", "schultern", "trizeps"], pull: ["ruecken", "bizeps"], beine: ["beine", "po"] };
       let partien = [...new Set(gruppen.map(String).flatMap((g) => SPLIT[g] ?? [g]))].filter((g) => FOKUS_NAME[g]);
@@ -4396,6 +4408,230 @@ export function wochenschnittFuer(tagIso = todayIso(), gemessen = gemessenerVerb
   }
   return wochenschnitt(tage, { verbrauchQuelle: gemessen ? "gemessen" : "formel" });
 }
+
+/**
+ * Findet zu einem gesagten Namen die Übung in der Datenbank. Im Studio heisst
+ * es "Seitheben am Kabelzug" oder "Pushdowns", in der Datenbank "Einarmiges
+ * Seitheben am Kabel" oder "Trizepsdrücken am Kabel". Zuerst zählt ein
+ * gleicher Name oder Alias, dann die Suche wie unter Übungen, und unter den
+ * Treffern gewinnt, wer die meisten gesagten Wörter im Namen trägt. Was am
+ * Trainingsort und mit den Beschwerden geht, liegt vorn. Ohne Treffer null:
+ * eine geratene Übung im Training ist schlimmer als eine ohne Foto.
+ */
+export function uebungZuName(name, wunsch = {}) {
+  // Umlaute fallen ganz auf den Vokal, nicht auf ae, oe, ue: sonst ist
+  // "Klimmzüge" ("klimmzuege") kein Plural von "Klimmzug" mehr.
+  const f = (t) => foldUmlauts(String(t ?? "").toLowerCase()).replace(/ae/g, "a").replace(/oe/g, "o").replace(/ue/g, "u")
+    .replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+  const q = f(name);
+  if (q.length < 3) return null;
+  const erlaubt = (u) => uebungErlaubt(u, { ort: wunsch.ort, beschwerden: wunsch.beschwerden, meiden: wunsch.meiden });
+  const namen = (u) => [u.name, u.nameEn, ...(u.alias ?? [])].map(f);
+  const ohneLeer = (t) => t.replace(/ /g, "");
+  const gleich = UEBUNGEN.filter((u) => namen(u).some((n) => n === q || ohneLeer(n) === ohneLeer(q)));
+  if (gleich.length) return gleich.find(erlaubt) ?? gleich[0];
+  // Das Gerät steht im Satz, aber oft nicht im Namen: "Seitheben am
+  // Kabelzug" heisst in der Datenbank "Einarmiges Seitheben am Kabel".
+  const GERAET_WORT = { kabel: "cable", kabelzug: "cable", seilzug: "cable", cable: "cable", kurzhantel: "dumbbell", kurzhanteln: "dumbbell", kh: "dumbbell",
+    dumbbell: "dumbbell", langhantel: "barbell", lh: "barbell", barbell: "barbell", maschine: "machine", gerat: "machine", machine: "machine",
+    multipresse: "smith_machine", smith: "smith_machine", korpergewicht: "bodyweight" };
+  const ABART = new Set(["hammer", "einarmig", "einarmiges", "einarmiger", "einbeinig", "liegend", "sitzend", "stehend", "reverse", "eng", "enger", "breit", "breiter", "schragbank", "negativ", "front", "sumo"]);
+  const FUELL = new Set(["am", "an", "der", "die", "das", "mit", "im", "auf", "dem", "den", "und", "fuer", "von", "zum", "zur", "ein", "eine", "the", "fur"]);
+  // Was im Studio anders heisst als in der Datenbank.
+  const GLEICH = { latziehen: "latzug", latzugmaschine: "latzug", pecdeck: "butterfly", flys: "fly", flyes: "fly" };
+  const woerter = q.split(" ").filter((w) => !FUELL.has(w)).map((w) => GLEICH[w] ?? w);
+  const geraet = woerter.map((w) => GERAET_WORT[w]).find(Boolean);
+  const kern = woerter.filter((w) => !GERAET_WORT[w] && w.length >= 3);
+  if (!kern.length) return null;
+  // Gleich heisst: dasselbe Wort bis auf die Endung, "Kniebeugen" und
+  // "Kniebeuge", "Curls" und "Curl", oder ein Teil eines zusammengesetzten
+  // Worts, "Pushdown" in "Trizepspushdown".
+  const passt = (w, n) => n === w || (Math.min(w.length, n.length) >= 3 && (n.startsWith(w) || w.startsWith(n)) && Math.abs(n.length - w.length) <= (Math.min(w.length, n.length) >= 5 ? 3 : 2))
+    || (w.length >= 5 && n.includes(w));
+  let beste = null;
+  let besterWert = -Infinity;
+  for (const u of UEBUNGEN) {
+    const nameW = f(u.name).split(" ").filter((w) => !FUELL.has(w));
+    const weitere = namen(u).slice(1).join(" ").split(" ");
+    const muskeln = f([...u.primaryMuscles, ...u.secondaryMuscles].join(" ")).split(" ");
+    // Je gesagtem Wort zählt der beste Ort: im Namen viel, in Alias oder
+    // englischem Namen weniger, bei den Muskeln am wenigsten.
+    let treffer = 0;
+    let wert = 0;
+    for (const w of kern) {
+      const p = nameW.some((n) => passt(w, n)) ? 10 : weitere.some((n) => passt(w, n)) ? 6 : muskeln.some((n) => passt(w, n)) ? 4 : 0;
+      if (p >= 6) treffer++;
+      wert += p;
+    }
+    if (!treffer) continue;
+    if (geraet) wert += u.equipment === geraet ? 8 : -4;
+    // Jedes Wort im Namen, das niemand gesagt hat, kostet etwas: "Hammer
+    // Curls" ist der Hammer-Curl und nicht der einarmige am Kabel.
+    // Ein Wort, das eine Abart beschreibt, kostet mehr: wer "Curls am Kabel"
+    // sagt, meint nicht den Hammer Curl, und "Pushdowns" sind nicht die
+    // liegenden. "beidarmig" ist die Grundform und kostet nichts.
+    for (const n of nameW) {
+      if (kern.some((w) => passt(w, n)) || GERAET_WORT[n] || n === "beidarmig") continue;
+      wert -= ABART.has(n) ? 5 : 3;
+    }
+    if (erlaubt(u)) wert += 3;
+    if (wert > besterWert || (wert === besterWert && beste && u.name.length < beste.name.length)) { beste = u; besterWert = wert; }
+  }
+  return beste;
+}
+
+/** Zahl aus Ziffer oder Zahlwort, für Sätze und Wiederholungen. */
+const ZAHLWORT = { ein: 1, eins: 1, einen: 1, eine: 1, zwei: 2, drei: 3, vier: 4, fuenf: 5, sechs: 6, sieben: 7, acht: 8 };
+
+/**
+ * Baut eine Einheit genau aus dem, was der Nutzer diktiert hat: seine
+ * Übungen, seine Sätze, seine Wiederholungen, seine Supersätze. Vorher
+ * rechnete daevo aus den Partien eine eigene Einheit und konnte danach nur
+ * tauschen und streichen, und wer seine Einheit kennt, musste sie in der App
+ * von Hand nachbauen. Was der Nutzer nicht sagt, kommt aus `positionFuer`,
+ * derselben Regel wie beim Plan. Eine Übung, die die Datenbank nicht kennt,
+ * steht unter dem gesagten Namen in der Einheit, ohne Foto: sie fehlen zu
+ * lassen hiesse, die Einheit des Nutzers zu ändern.
+ */
+export function einheitAusDiktat(posten, wunsch = {}, basis = []) {
+  const w = {
+    tage: 1, minuten: 60, niveau: ["beginner", "intermediate", "advanced"].includes(wunsch.niveau) ? wunsch.niveau : "intermediate",
+    ziel: typeof wunsch.ziel === "string" ? wunsch.ziel : "muskel", ort: wunsch.ort, beschwerden: wunsch.beschwerden ?? [], meiden: wunsch.meiden ?? [],
+  };
+  const zahl = (x, min, max) => {
+    const n = Number.isFinite(Number(x)) ? Number(x) : ZAHLWORT[foldUmlauts(String(x ?? "").toLowerCase())];
+    return Number.isFinite(n) && n >= min ? Math.min(max, Math.round(n)) : null;
+  };
+  const wdhText = (x) => {
+    const t = String(x ?? "").replace(/\s+/g, "").replace(/bis|–|—/g, "-");
+    return /^\d{1,2}(-\d{1,2})?$/.test(t) ? t : null;
+  };
+  const f = (t) => foldUmlauts(String(t ?? "").toLowerCase()).trim();
+  const positionen = basis.map((p) => ({ ...p }));
+  const unbekannt = [];
+  const geaendert = [];
+  for (const roh of posten) {
+    const gesagt = String(roh?.name ?? "").trim();
+    if (!gesagt) continue;
+    const u = uebungZuName(gesagt, w);
+    const id = u ? u.id : `eigen-${f(gesagt).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
+    const vorhanden = positionen.find((p) => p.id === id
+      || (!u && f(p.name) === f(gesagt)));
+    const p = vorhanden ?? (u ? positionFuer(u, w) : { id, name: gesagt, saetze: 3, wdh: "8-12", pauseSek: 90, reserve: 2 });
+    const saetze = zahl(roh.saetze, 1, 10);
+    const wdh = wdhText(roh.wdh);
+    const reserve = zahl(roh.reserve, 0, 5) ?? (Number(roh.reserve) === 0 ? 0 : null);
+    if (saetze) p.saetze = saetze;
+    if (wdh) p.wdh = wdh;
+    if (reserve !== null) p.reserve = reserve;
+    if (roh.superset) p.superset = String(roh.superset).slice(0, 40);
+    if (vorhanden) geaendert.push(p.name);
+    else positionen.push(p);
+    if (!u) unbekannt.push(gesagt);
+  }
+  // Ein Supersatz kann als Name des Partners kommen ("mit Cable Crunches")
+  // oder als Buchstabe. Ein Name wird auf die Gruppe beider gelegt, damit
+  // der Trainingsmodus den Partner findet.
+  for (const p of positionen) {
+    if (!p.superset || p.superset.length <= 2) continue;
+    const partner = positionen.find((x) => x !== p && (f(x.name).includes(f(p.superset)) || f(p.superset).includes(f(x.name))
+      || uebungZuName(p.superset, w)?.id === x.id));
+    if (!partner) { delete p.superset; continue; }
+    const marke = partner.superset && partner.superset.length <= 2 ? partner.superset
+      : String.fromCharCode(65 + new Set(positionen.map((x) => x.superset).filter((x) => x && x.length <= 2)).size);
+    p.superset = marke;
+    partner.superset = marke;
+  }
+  for (const p of positionen) if (p.superset && positionen.filter((x) => x.superset === p.superset).length < 2) delete p.superset;
+  // Partner stehen direkt hintereinander, sonst springt der Trainingsmodus
+  // quer durch die Einheit.
+  const sortiert = [];
+  for (const p of positionen) {
+    if (sortiert.includes(p)) continue;
+    sortiert.push(p);
+    if (p.superset) for (const x of positionen) if (x !== p && x.superset === p.superset && !sortiert.includes(x)) sortiert.push(x);
+  }
+  return { positionen: sortiert, unbekannt, geaendert };
+}
+
+/** Ausdauer, die zur Einheit gehört, als Zeile: "Fahrrad, 30 Minuten, 15 km". */
+export function cardioText(c) {
+  return [c.art, c.minuten ? `${c.minuten} Minuten` : "", c.km ? `${String(c.km).replace(".", ",")} km` : ""].filter(Boolean).join(", ");
+}
+
+/** Der Partner im Supersatz, als Zusatz in der Übungszeile. */
+function supersatzZusatz(p, positionen) {
+  if (!p.superset) return "";
+  const partner = positionen.filter((x) => x !== p && x.superset === p.superset).map((x) => x.name);
+  return partner.length ? `, im Supersatz mit ${partner.join(" und ")}` : "";
+}
+
+/**
+ * Speichert die diktierte Einheit als Training des Tages. Mit `uebungen`
+ * ist es die ganze Einheit, mit `hinzufuegen` kommen Übungen dazu oder
+ * bekommen andere Sätze, die übrigen bleiben. Cardio steht mit in der
+ * Einheit und zählt zur Dauer.
+ */
+async function eigeneEinheitSpeichern({ tag, zukunft, um, jetzt, uebungen, hinzufuegen, cardio, minuten }, changed = () => {}) {
+  const s = store.getSettings();
+  const w = s.plan?.wunsch || {};
+  const ganz = uebungen.length > 0;
+  const basis = ganz ? [] : (jetzt?.einheit?.positionen ?? []);
+  const r = einheitAusDiktat([...uebungen, ...hinzufuegen], w, basis);
+  const cardioAlt = ganz ? [] : (jetzt?.cardio ?? []);
+  const cardioNeu = [...cardioAlt.filter((a) => !cardio.some((c) => foldUmlauts(c.art.toLowerCase()) === foldUmlauts(a.art.toLowerCase()))), ...cardio];
+  if (!r.positionen.length && !cardioNeu.length) return `${NICHT_GESPEICHERT} Ich habe keine Übung erkannt. Sag mir die Übungen mit Sätzen, etwa "3 Sätze Bankdrücken, 3 Sätze Seitheben am Kabel".`;
+  const nachId = new Map(UEBUNGEN.map((u) => [u.id, u]));
+  const gruppenNamen = { beine: "Beine", brust: "Brust", ruecken: "Rücken", schultern: "Schultern", arme: "Arme", rumpf: "Rumpf", ganzkoerper: "Ganzkörper" };
+  const fokus = [...new Set(r.positionen.map((p) => gruppenNamen[nachId.get(p.id)?.gruppe]).filter(Boolean))].join(", ")
+    || (cardioNeu.length ? "Cardio" : "Eigene Einheit");
+  const gerechnet = planNachrechnen({ wunsch: { tage: 1, minuten: 60, niveau: "intermediate", ziel: "muskel" }, einheiten: [{ titel: EINZEL_TITEL_EIGEN, fokus, positionen: r.positionen, dauerMin: 0 }] }, UEBUNGEN).einheiten[0];
+  // Im Supersatz gibt es eine Pause für beide Übungen, nicht zwei.
+  const ersparnis = r.positionen.filter((p, i) => p.superset && r.positionen.findIndex((x) => x.superset === p.superset) !== i)
+    .reduce((sum, p) => sum + p.saetze * p.pauseSek, 0) / 60;
+  const cardioMin = cardioNeu.reduce((sum, c) => sum + (c.minuten ?? 0), 0);
+  const einheit = { ...gerechnet, dauerMin: Math.max(cardioMin, Math.round(gerechnet.dauerMin - ersparnis + cardioMin)), ...(cardioNeu.length ? { cardio: cardioNeu } : {}) };
+  const schluessel = !ganz && jetzt?.schluessel ? jetzt.schluessel : `eigen-${tag}`;
+  const eintrag = {
+    tag, schluessel, gruppen: !ganz && jetzt?.gruppen ? jetzt.gruppen : [], minuten: einheit.dauerMin, variante: 0, ersetzt: {}, eigen: true,
+    einheit, ...(cardioNeu.length ? { cardio: cardioNeu } : {}), erstellt: new Date().toISOString(),
+    ...(um ? { uhrzeit: um } : !ganz && jetzt?.uhrzeit ? { uhrzeit: jetzt.uhrzeit } : {}), ...(zukunft ? { geplant: true } : {}),
+  };
+  const verlauf = Array.isArray(s.heuteVerlauf) ? s.heuteVerlauf : [];
+  const ohne = verlauf.filter((v) => !(v.tag === tag && (v.schluessel === schluessel || v.schluessel === jetzt?.schluessel || (zukunft && v.geplant))));
+  store.setSettings({ ...store.getSettings(), ...(zukunft ? {} : { heuteTraining: eintrag }), heuteVerlauf: [...ohne, eintrag].slice(-20) });
+  changed();
+  const wann = zukunft ? new Date(`${tag}T12:00:00`).toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" }) : "heute";
+  const zeilen = [ganz
+    ? `Deine Einheit für ${wann}${eintrag.uhrzeit ? ` um ${eintrag.uhrzeit}` : ""} steht, so wie du sie gesagt hast, etwa ${einheit.dauerMin} Minuten.${zukunft ? "" : ' Tipp auf "Training starten", dann läuft sie im Trainingsmodus.'}`
+    : `Einheit angepasst${r.geaendert.length ? `, geändert: ${r.geaendert.join(", ")}` : ""}. Sie dauert jetzt etwa ${einheit.dauerMin} Minuten.`];
+  const log = Array.isArray(s.trainingslog) ? s.trainingslog : [];
+  for (const p of einheit.positionen) {
+    const st = nachId.has(p.id) ? steigerung(letzteEinheit(log, p.id, tag), p.wdh, p.reserve) : null;
+    zeilen.push(`- ${p.name}: ${p.saetze} x ${p.wdh}, ${p.reserve} in Reserve${supersatzZusatz(p, einheit.positionen)}${st ? `. ${st.text}` : ""}`);
+  }
+  for (const c of cardioNeu) zeilen.push(`- ${cardioText(c)}`);
+  if (r.unbekannt.length) zeilen.push(`${r.unbekannt.join(", ")} kenne ich nicht aus der Übungsdatenbank. ${r.unbekannt.length > 1 ? "Sie stehen" : "Sie steht"} trotzdem unter deinem Namen drin, nur ohne Foto und Anleitung.`);
+  const gesagt = Number(minuten);
+  if (ganz && Number.isFinite(gesagt) && gesagt > 0 && Math.abs(gesagt - einheit.dauerMin) > 15) {
+    zeilen.push(`Du hast ${gesagt} Minuten gesagt. Mit diesen Sätzen und Pausen rechne ich mit etwa ${einheit.dauerMin}.`);
+  }
+  if (r.positionen.some((p) => p.superset)) zeilen.push("Im Supersatz springt der Trainingsmodus nach jedem Satz zur Partnerübung, die Pause kommt nach beiden.");
+  if (um) {
+    const { kalenderTermin, terminFinden, kannSchreiben } = await import("./kalender-schreiben.js");
+    if (kannSchreiben()) {
+      const alt = terminFinden(store.getKalender().termine || [], { suche: "training", tag });
+      const k = alt?.daevo
+        ? await kalenderTermin({ aktion: "verschieben", suche: alt.titel, tag, zielTag: tag, zielUhrzeit: um })
+        : await kalenderTermin({ aktion: "eintragen", titel: `Training: ${fokus}`, tag, uhrzeit: um, minuten: einheit.dauerMin, erbeten: true });
+      zeilen.push(k.replace(NICHT_GESPEICHERT, "Nicht im Kalender:").trim());
+    }
+  }
+  return zeilen.join("\n");
+}
+
+/** Titel der diktierten Einheit, im Protokoll wie jede andere Einheit für heute. */
+const EINZEL_TITEL_EIGEN = "Training für heute";
 
 /** Was an einem Tag gegessen wurde, als Text für Coach und Regelweg. */
 export function tagesverlaufText(tagIso) {
