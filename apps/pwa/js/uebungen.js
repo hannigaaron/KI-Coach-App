@@ -81,9 +81,19 @@ const MUSKEL_ALIAS = {
  */
 function trifft(heu, wort) {
   if (heu.includes(wort)) return true;
-  if (heu.replace(/[\s()-]/g, "").includes(wort)) return true;
-  return wort.length > 5 && wort.endsWith("s") && heu.includes(wort.slice(0, -1));
+  const zusammen = heu.replace(/[\s()-]/g, "");
+  if (zusammen.includes(wort)) return true;
+  // Endungen weg: "Face pulls" ist der Face Pull, "Crunches" der Crunch,
+  // "Kniebeugen" die Kniebeuge. Vorher fiel "pulls" durch, weil die Regel
+  // erst ab sechs Buchstaben galt.
+  for (const stamm of [wort.replace(/es$/, ""), wort.replace(/(s|n|e)$/, ""), wort.replace(/en$/, "")]) {
+    if (stamm !== wort && stamm.length >= 4 && zusammen.includes(stamm)) return true;
+  }
+  return false;
 }
+
+/** Wörter für ein Gerät. Sie tragen eine Suche nicht allein, sonst steht bei "Bankdrück Maschine" jede Maschine oben. */
+const GERAET_WOERTER = new Set(["maschine", "kabel", "kabelzug", "seilzug", "kurzhantel", "kurzhanteln", "langhantel", "multipresse", "smith", "machine", "cable", "dumbbell", "barbell", "kettlebell", "band"]);
 
 const norm = (text) => foldUmlauts(String(text ?? "").toLowerCase());
 
@@ -108,10 +118,18 @@ export function uebungenFiltern({ text = "", gruppe = "alle", geraet = "alle" } 
   // Studio fiel "Isolation Curl" ins Leere, obwohl zehn Curls dastehen: ein
   // leeres Ergebnis ist schlechter als eines, das fast passt. Mindestens ein
   // Wort mit vier Zeichen muss treffen, sonst trüge "an" die Liste.
-  const lang = woerter.filter((w) => w.length >= 4);
-  const beste = Math.max(0, ...treffer.map((t) => t.zahl));
-  if (!beste || !lang.length) return [];
-  return treffer.filter((t) => t.zahl === beste && lang.some((w) => trifft(norm([t.u.name, t.u.nameEn, ...(t.u.alias ?? [])].join(" ")), w))).map((t) => t.u);
+  // Ein Gerät allein trägt keinen Treffer: erst zählt, was die Übung ist,
+  // dann wiegt das Gerät mit.
+  const kern = woerter.filter((w) => w.length >= 4 && !GERAET_WOERTER.has(w));
+  if (!kern.length) return [];
+  const gewertet = treffer.map(({ u }) => {
+    const namen = norm([u.name, u.nameEn, ...(u.alias ?? [])].join(" "));
+    const k = kern.filter((w) => trifft(namen, w)).length;
+    const g = woerter.filter((w) => GERAET_WOERTER.has(w) && trifft(norm([u.name, GERAETE[u.equipment] ?? "", ...(u.alias ?? [])].join(" ")), w)).length;
+    return { u, k, wert: k * 10 + g };
+  }).filter((t) => t.k > 0);
+  const beste = Math.max(0, ...gewertet.map((t) => t.k));
+  return gewertet.filter((t) => t.k === beste).sort((a, b) => b.wert - a.wert).map((t) => t.u);
 }
 
 export function uebungNach(id, liste = UEBUNGEN) {

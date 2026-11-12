@@ -127,7 +127,8 @@ test("Die Auswahl findet über den Namen und zeigt zuletzt Gemachtes zuerst", ()
   assert.equal(leer[0].id, "klimmzug");
   assert.ok(leer[0].zuletzt);
   const bank = auswahlListe("bankdrücken", entwurfFrei(HEUTE), log);
-  assert.ok(bank.length > 0 && bank.every((u) => /bank/i.test(u.name)));
+  // Die Brustpresse heisst im Studio auch "Bankdrücken Maschine" und trifft über ihren Alias.
+  assert.ok(bank.length > 0 && bank.every((u) => /bank/i.test([u.name, ...(u.alias ?? [])].join(" "))));
   const ohne = auswahlListe("bankdrücken", uebungHinzu(entwurfFrei(HEUTE), "bankdruecken", []), log);
   assert.ok(!ohne.some((u) => u.id === "bankdruecken"));
 });

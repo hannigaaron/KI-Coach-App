@@ -844,7 +844,12 @@ export const UEBUNGEN = [
    "titel": "Brustpresse - Einstellung und Ausführung",
    "kanal": "Crimefood",
    "dauer": "0:58"
-  }
+  },
+  "alias": [
+   "Bankdrücken Maschine",
+   "Brustpresse Maschine",
+   "Chest Press"
+  ]
  },
  {
   "id": "liegestuetz",
@@ -1172,7 +1177,11 @@ export const UEBUNGEN = [
    "titel": "Butterfly Reverse (Technik Tutorial) | Hintere Schulter trainieren | Richtige Ausführung",
    "kanal": "Coach Stef",
    "dauer": "3:25"
-  }
+  },
+  "alias": [
+   "Hintere Schulter",
+   "Rear Delt Fly"
+  ]
  },
  {
   "id": "face-pull",
@@ -1202,7 +1211,11 @@ export const UEBUNGEN = [
    "titel": "How-To: Face Pulls am Kabelzug  I #6",
    "kanal": "Fitness First Germany",
    "dauer": "1:35"
-  }
+  },
+  "alias": [
+   "Face Pulls",
+   "Hintere Schulter Kabel"
+  ]
  },
  {
   "id": "klimmzug",
@@ -1586,7 +1599,11 @@ export const UEBUNGEN = [
    "titel": "Einarmiges Kurzhantel Rudern (Technik Tutorial) | Richtige Ausführung und häufige Fehler",
    "kanal": "Coach Stef",
    "dauer": "3:11"
-  }
+  },
+  "alias": [
+   "Kurzhantelrudern abgestützt",
+   "Einarmiges Rudern Bank"
+  ]
  },
  {
   "id": "rudern-kabel",
@@ -2011,7 +2028,9 @@ export const UEBUNGEN = [
    "Trizeps Extension",
    "Overhead Extension",
    "Overhead Extensions Kabel",
-   "Trizeps über Kopf Kabel"
+   "Trizeps über Kopf Kabel",
+   "Trizeps Extension am Kabel über Kopf",
+   "Overhead Extension Kabel"
   ]
  },
  {
@@ -2337,7 +2356,10 @@ export const UEBUNGEN = [
    "titel": "Kettlebell Swing Tutorial | Richtige Ausführung, Technik und Fehlerquellen (deutsch)",
    "kanal": "Coach Stef",
    "dauer": "4:53"
-  }
+  },
+  "alias": [
+   "Swings"
+  ]
  },
  {
   "id": "box-jump",
@@ -2584,7 +2606,8 @@ export const UEBUNGEN = [
   },
   "alias": [
    "Smith Machine",
-   "Overhead Press"
+   "Overhead Press",
+   "Schulterdrücken Smith Machine"
   ]
  },
  {
