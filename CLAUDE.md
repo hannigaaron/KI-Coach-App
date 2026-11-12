@@ -385,8 +385,18 @@ vom letzten Mal vorbelegt wie bisher. Änderungen über Bearbeiten speichern
 sofort, Fertig schliesst nur.
 
 Anpassen, `konfigZeichnen`: Tage, Minuten, Erfahrung, Ziel und Fokus mit
-Vorschau ohne Knöpfe. Speichern setzt `beginn` neu und springt zurück auf
+dem Entwurf darunter. Speichern setzt `beginn` neu und springt zurück auf
 Mein Plan. Ein älterer Plan ohne `beginn` bekommt einmal den heutigen Tag.
+
+Die Empfehlung lässt sich vor dem Übernehmen bearbeiten, mit denselben
+Werkzeugen wie Mein Plan: Sätze, Tauschen, Entfernen, Hinzufügen und die
+Reihenfolge über Pfeile, `bearbeitenAnwenden` für beide. Im Entwurf gibt es
+kein Starten, `ohneStart`. Wer unter Anpassen den laufenden Plan ändert,
+bekommt "Änderungen übernehmen", `entwurfVomPlan`, und Beginn und Woche
+bleiben: ein getauschter Curl soll den Plan nicht auf Woche 1 setzen. Die
+Reihenfolge geht über Hoch und Runter und nicht über Ziehen: in einer
+Liste, die selbst scrollt, verwechselt ein Daumen beides, und ein Knopf
+geht auch mit VoiceOver. Im Trainingsmodus bleibt das Ziehen der Daumen.
 
 Unter dem Plan steht "Stressige Woche?", `stressHtml`. Der Kurzplan,
 `kurzplanFuer`, hat 30 oder 45 Minuten und zwei oder drei Tage, ohne Fokus
@@ -843,7 +853,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1425 Tests
+npm test           # 1426 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
