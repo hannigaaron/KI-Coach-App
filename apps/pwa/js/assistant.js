@@ -3789,7 +3789,7 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
           zeilen.push(`- ${p.name}: ${p.saetze} x ${p.wdh}, ${p.reserve} in Reserve${st ? `. ${st.text}` : ""}`);
         }
       } else if (heute.some((s) => s.type === "strength")) {
-        zeilen.push("Einen Plan mit Übungen hast du noch nicht gespeichert. Den rechnet dir die App unter Training, Trainingspläne.");
+        zeilen.push("Einen Plan mit Übungen hast du noch nicht gespeichert. Den rechnet dir die App unter Training, Anpassen.");
       }
       return zeilen.join("\n");
     },

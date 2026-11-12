@@ -4310,3 +4310,40 @@ button.hoert:not(.co-btn) { background: var(--stark); color: var(--auf-stark); a
   .toast:not([hidden]), .blatt:not([hidden]), .tr-haken.gerade, .tr-haken.gerade svg path,
   .msg:last-child, .ab-zahl, .ab-karte { animation: none; }
 }
+
+/* Training: Mein Plan, Anpassen, Übungen. Drei Reiter gleicher Breite. */
+.ue-modus { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 1fr; }
+
+/* Der Kopf des Plans trägt die Seite: Woche, Fortschritt und die nächste
+   Einheit mit Start. Wer Training öffnet, will trainieren. */
+.pl-plankopf {
+  background: var(--flaeche); box-shadow: var(--haarlinie), var(--tief-karte);
+  border-radius: 22px; padding: var(--s-5); margin: 0 0 var(--s-5);
+}
+.pl-plankopf .pl-ueber { margin: 0 0 var(--s-2); font-size: var(--t-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--brand-text); }
+.pl-plankopf h3 { margin: 0 0 var(--s-2); font-size: var(--t-xl); }
+.pl-plankopf p { margin: 0 0 var(--s-3); color: var(--muted); }
+.pl-einstieg .primary { margin-top: var(--s-2); }
+.pl-fortschritt { height: 6px; border-radius: var(--r-pill); background: var(--spur, var(--panel-2)); overflow: hidden; margin: 0 0 var(--s-3); }
+.pl-fortschritt span { display: block; height: 100%; border-radius: inherit; background: var(--brand-text); }
+.pl-umfang { font-size: var(--t-sm); }
+.pl-fertig { color: var(--text) !important; }
+.pl-naechste { display: flex; align-items: center; gap: var(--s-3); padding-top: var(--s-3); border-top: 1px solid var(--border); }
+.pl-naechste > div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pl-naechste small { color: var(--muted); font-size: var(--t-xs); }
+.pl-naechste b { font-size: var(--t-lg); line-height: 1.25; }
+.pl-naechste span { color: var(--muted); font-size: var(--t-sm); }
+.pl-naechste .primary { flex: 0 0 auto; padding: 12px 22px; }
+
+/* Der Kurzplan: eine ruhige Fläche unter dem Plan, keine Werbung. */
+.pl-stress { background: var(--flaeche); box-shadow: var(--haarlinie); border-radius: 22px; padding: var(--s-4) var(--s-5); margin: var(--s-5) 0; }
+.pl-stress b { display: block; margin-bottom: var(--s-1); }
+.pl-stress p { margin: 0 0 var(--s-3); color: var(--muted); }
+.pl-stress.an { box-shadow: inset 0 0 0 1.5px var(--brand-text); }
+.pl-stress .pl-feld { margin-bottom: var(--s-2); }
+
+.pl-einzeln { margin: var(--s-4) 0; }
+.pl-einzeln > summary { cursor: pointer; list-style: none; padding: var(--s-3) 0; font-weight: 600; color: var(--brand-text); }
+.pl-einzeln > summary::-webkit-details-marker { display: none; }
+.pl-einzeln > summary::after { content: ""; display: inline-block; width: 7px; height: 7px; margin-left: 8px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: translateY(-3px) rotate(45deg); transition: transform 0.2s ease; }
+.pl-einzeln[open] > summary::after { transform: translateY(0) rotate(-135deg); }

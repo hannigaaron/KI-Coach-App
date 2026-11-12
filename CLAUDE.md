@@ -367,7 +367,37 @@ Strichfiguren, keine Clip Art, keine Karten mit Rahmen um Text.
 
 ### Trainingspläne
 
-Reiter in derselben Ansicht, Menüpunkt "Trainingspläne". Der Plan wird gerechnet
+Menüpunkt "Trainingsplan", drei Reiter: Mein Plan, Anpassen, Übungen. Ein
+Tipp auf Training öffnet den gespeicherten Plan, nicht den Rechner. Vorher
+stand dort jedes Mal die Auswahl von Tagen und Minuten, und wer trainieren
+wollte, sah zuerst ein Formular.
+
+Mein Plan, `ansichtZeichnen` in `plaeneStarten`: oben `planKopfHtml` mit
+"Woche X von 12" und Balken, darunter "Als Nächstes" mit Starten. Die
+nächste Einheit kommt aus dem Trainingsprotokoll, `naechsteEinheit`: die
+Einheit nach der zuletzt gemachten, über den Titel, im Kreis. Ein Plan
+läuft `PLAN_WOCHEN`, zwölf Wochen, ab `beginn`, eine Regel von Coach
+Aaron: Fortschritt zeigt sich nur an einem Plan, den man durchzieht. Danach
+sagt der Kopf, dass die zwölf Wochen um sind, und verweist auf Anpassen.
+Ohne Plan steht `planEinstiegHtml` da, eine Einführung mit "Plan
+erstellen". Die Felder im Training bleiben mit Kilo, Wiederholungen und RIR
+vom letzten Mal vorbelegt wie bisher. Änderungen über Bearbeiten speichern
+sofort, Fertig schliesst nur.
+
+Anpassen, `konfigZeichnen`: Tage, Minuten, Erfahrung, Ziel und Fokus mit
+Vorschau ohne Knöpfe. Speichern setzt `beginn` neu und springt zurück auf
+Mein Plan. Ein älterer Plan ohne `beginn` bekommt einmal den heutigen Tag.
+
+Unter dem Plan steht "Stressige Woche?", `stressHtml`. Der Kurzplan,
+`kurzplanFuer`, hat 30 oder 45 Minuten und zwei oder drei Tage Ganzkörper,
+ohne Fokus und ohne Entlastung, gespeichert in `settings.planKurz`. "Diese
+Woche nutzen" setzt `settings.planWoche` = { art: "kurz", bis: Sonntag },
+`wochenEnde`. Solange das gilt, zeigt Mein Plan den Kurzplan, ab Montag
+wieder den normalen, `aktiverPlan` in `vorhaben.js`. Die zwölf Wochen laufen
+dabei weiter. Bisher liest nur die Uhr `aktiverPlan`, Morgen Check-in,
+Briefing und `trainingsplan_abrufen` lesen weiter `settings.plan`.
+
+Der Plan wird gerechnet
 und nicht von einem Modell geschrieben: `packages/core/src/trainingsplan.ts`,
 Darstellung in `apps/pwa/js/plaene.js`. Er läuft ohne Schlüssel, ist bei
 gleicher Eingabe immer derselbe und jede Zahl hängt an einer Regel im Code.
@@ -780,7 +810,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1411 Tests
+npm test           # 1415 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages

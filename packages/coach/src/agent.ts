@@ -1861,7 +1861,7 @@ export async function runOffline(
   if (beschwerde) {
     await actions.merken({ text: `Beschwerden: ${nachricht.trim()}`, art: "fakt", wichtigkeit: 5 });
     return {
-      text: `Notiert, mit höchster Wichtigkeit: ${beschwerde}. Unter Training, Trainingspläne kannst du die Stelle als Beschwerde angeben, ` +
+      text: `Notiert, mit höchster Wichtigkeit: ${beschwerde}. Unter Training, Anpassen kannst du die Stelle als Beschwerde angeben, ` +
         "dann fallen Übungen weg, die sie stark belasten. Lass weg, was weh tut. Bleibt der Schmerz, gehört er zu Arzt oder Physiotherapie.",
       ausgeführt: ["Beschwerde gemerkt"],
       source: "offline",

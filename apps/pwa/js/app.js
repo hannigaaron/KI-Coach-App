@@ -3226,6 +3226,11 @@ const training = trainingStarten({
 });
 const plaene = plaeneStarten({
   speicher: planSpeicher,
+  // Der Kurzplan für stressige Wochen und ob er diese Woche gilt. Beides in
+  // den Einstellungen und damit in der Sicherung.
+  kurz: { lesen: () => store.getSettings().planKurz ?? null, schreiben: (planKurz) => { store.setSettings({ ...store.getSettings(), planKurz }); uhrSpaeter(); } },
+  woche: { lesen: () => store.getSettings().planWoche ?? null, schreiben: (planWoche) => { store.setSettings({ ...store.getSettings(), planWoche }); uhrSpaeter(); } },
+  zuModus: (name) => { uebungen?.modus(name); document.querySelector('[data-view="uebungen"] .scroll')?.scrollTo({ top: 0 }); },
   mitwachsen: () => proFrei(store.getSettings(), KONFIG),
   proOeffnen: () => aboOeffnen({ marke: "Pro", titel: "Dein Plan, der mitwächst", empfohlen: "pro",
     text: "Nach acht Wochen prüft daevo jede Übung und tauscht, wo du nicht mehr stärker wirst." }),

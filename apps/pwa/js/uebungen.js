@@ -274,18 +274,28 @@ export function uebungenStarten() {
     if (u) zeigeDetail(u);
   });
 
-  /** Übungen oder Trainingspläne. Die Pläne werden erst beim ersten Öffnen aufgebaut. */
+  /**
+   * Mein Plan, Anpassen oder Übungen. Mein Plan und Anpassen teilen sich
+   * einen Bereich, `plAnsicht` und `plKonfig` darin. Die Fragen stehen nicht
+   * mehr über dem Plan: wer Training öffnet, will trainieren und nicht jedes
+   * Mal Tage und Minuten einstellen.
+   */
+  const MODI = { plaene: "ueModusPlaene", anpassen: "ueModusAnpassen", uebungen: "ueModusUebungen" };
   const modus = (name) => {
-    const plaene = name === "plaene";
+    if (!MODI[name]) name = "uebungen";
+    const plaene = name !== "uebungen";
     $("ueBereichUebungen").hidden = plaene;
     $("ueBereichPlaene").hidden = !plaene;
-    $("ueModusUebungen").classList.toggle("on", !plaene);
-    $("ueModusPlaene").classList.toggle("on", plaene);
-    $("ueModusUebungen").setAttribute("aria-selected", String(!plaene));
-    $("ueModusPlaene").setAttribute("aria-selected", String(plaene));
+    $("plAnsicht").hidden = name !== "plaene";
+    $("plKonfig").hidden = name !== "anpassen";
+    for (const [n, id] of Object.entries(MODI)) {
+      $(id).classList.toggle("on", n === name);
+      $(id).setAttribute("aria-selected", String(n === name));
+    }
+    document.dispatchEvent(new CustomEvent("daevo-planmodus", { detail: name }));
   };
-  for (const knopf of [$("ueModusUebungen"), $("ueModusPlaene")]) {
-    knopf.addEventListener("click", () => modus(knopf.dataset.modus));
+  for (const id of Object.values(MODI)) {
+    $(id).addEventListener("click", () => { modus($(id).dataset.modus); $(id).closest(".scroll")?.scrollTo({ top: 0 }); });
   }
 
   zeichnen();

@@ -14,7 +14,7 @@
  * Kein `document`, kein `window`: das Modul läuft in den Tests.
  */
 import { entwurfAbschliessen, entwurfNeu } from "./training.js";
-import { bestellteEinheit } from "./vorhaben.js";
+import { aktiverPlan, bestellteEinheit } from "./vorhaben.js";
 import { istSchlafMarker } from "@daevo/core";
 
 export const UHR_FASSUNG = 2;
@@ -137,7 +137,9 @@ export function uhrPaket({ settings, zahlen, heute, gestrichen = false, ki = nul
     const e = entwurfNeu({ einheiten: [ht.einheit] }, 0, log, heute);
     if (e) trainings.push({ schluessel: `heute-${ht.schluessel || heute}`, quelle: "heute", titel: "Training für heute", entwurf: schlank({ ...e, titel: "Training für heute" }) });
   }
-  const plan = settings.plan;
+  // In einer stressigen Woche bekommt die Uhr den Kurzplan, sonst stünden
+  // dort Einheiten, die diese Woche niemand trainiert.
+  const plan = aktiverPlan(settings, heute);
   (plan?.einheiten || []).forEach((einheit, ei) => {
     const e = entwurfNeu(plan, ei, log, heute);
     if (e) trainings.push({ schluessel: `plan-${ei}`, quelle: "plan", titel: einheit.titel, entwurf: schlank(e) });

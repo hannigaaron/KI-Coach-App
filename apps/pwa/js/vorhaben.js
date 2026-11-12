@@ -14,3 +14,18 @@ export function bestellteEinheit(settings, tag) {
   const verlauf = Array.isArray(s.heuteVerlauf) ? s.heuteVerlauf : [];
   return [...verlauf].reverse().find((v) => v.tag === tag && v.geplant && v.einheit) ?? null;
 }
+
+/**
+ * Ob diese Woche der Kurzplan gilt. Gesetzt unter Trainingsplan mit "Diese
+ * Woche nutzen", gilt bis Sonntag und fällt danach von selbst weg: wer es
+ * vergisst zurückzustellen, soll nicht wochenlang kurz trainieren.
+ */
+export function kurzwocheAktiv(settings, heute) {
+  const w = settings?.planWoche;
+  return Boolean(w?.art === "kurz" && w.bis && String(heute) <= String(w.bis) && settings?.planKurz?.einheiten?.length);
+}
+
+/** Der Plan, der diese Woche gilt: der Kurzplan in einer stressigen Woche, sonst der normale. */
+export function aktiverPlan(settings, heute) {
+  return kurzwocheAktiv(settings, heute) ? settings.planKurz : settings?.plan ?? null;
+}

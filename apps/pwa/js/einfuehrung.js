@@ -24,7 +24,7 @@ export const EINFUEHRUNG_SCHRITTE = [
   { ansicht: "heute", ziel: "btnErfassenHeute", text: "Hier trägst du Essen ein: per Foto, Sprache, Barcode oder Suche." },
   { ansicht: "rezepte", ziel: "rzKarte", bisZu: "rzAktionen", text: "Rezepte, die in deinen Rest passen und zu deinen Angaben im Fragebogen." },
   { ansicht: "uebungen", ziel: "ueListe", text: "Die Übungsbibliothek: jede Übung mit Foto, Muskeln, Ausführung und Video." },
-  { ansicht: "uebungen", ziel: "ueModusPlaene", text: "Hier rechnet daevo dir einen Trainingsplan aus Tagen, Zeit und Ziel." },
+  { ansicht: "uebungen", ziel: "ueModusPlaene", text: "Hier steht dein Trainingsplan für zwölf Wochen. Unter Anpassen stellst du Tage, Zeit und Ziel ein." },
   { ansicht: "tag", ziel: "aufgabenHeute", text: "Dein Tag: Aufgaben in einer sinnvollen Reihenfolge, passend zu deinem Kalender." },
   { ansicht: "balance", ziel: "balanceNetz", text: "Das Balance Board zeigt dir, womit du deine Zeit tatsächlich verbringst, im Vergleich zu dem, was du dir vorgenommen hast." },
   { ansicht: "bericht", ziel: "berichtWerte", text: "Der Bericht fasst deine Wochen in Zahlen zusammen, zum Ansehen und Weitergeben." },
