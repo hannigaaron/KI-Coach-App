@@ -168,6 +168,8 @@ export interface PlanPosition {
   pauseSek: number;
   /** Wiederholungen, die am Ende des Satzes noch gegangen wären. */
   reserve: number;
+  /** Seit wann diese Übung an diesem Platz steht, JJJJ-MM-TT. Setzt der Tausch nach Stillstand. */
+  seit?: string;
 }
 
 export interface PlanEinheit {

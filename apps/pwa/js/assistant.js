@@ -111,7 +111,7 @@ import { kiErlaubt } from "./einwilligung.js";
 import { NACHTRAG_TAGE, tageZurueck } from "./exif.js";
 import { eigeneLebensmittel, eigenerPosten, eigenesIn, lebensmittelSpeichern } from "./bibliothek.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
-import { bestellteEinheit } from "./vorhaben.js";
+import { aktiverPlan, bestellteEinheit, planEinheitFuer } from "./vorhaben.js";
 
 const WEEKDAYS = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
 
@@ -1878,12 +1878,8 @@ function trainingFuerBriefing(tagIso) {
   let titel = kalender ? kalender.titel
     : ({ strength: "Krafttraining", team_sport: "Mannschaftstraining", cardio: "Ausdauer", mobility: "Mobilität" }[s.type] || "Training");
   let uebungen;
-  const plan = store.getSettings().plan;
-  if (s?.type === "strength" && plan?.einheiten?.length) {
-    const kraft = (profile.sessions || []).filter((x) => x.type === "strength")
-      .sort((a, b) => ((a.weekday + 6) % 7) - ((b.weekday + 6) % 7));
-    const index = Math.max(0, kraft.findIndex((x) => x.weekday === wochentag));
-    const einheit = plan.einheiten[index % plan.einheiten.length];
+  if (s?.type === "strength") {
+    const einheit = planEinheitFuer(store.getSettings(), profile, tagIso, todayIso());
     if (einheit) { titel = `Krafttraining, ${einheit.titel}`; uebungen = einheit.positionen?.length; }
   }
   const morgens = tagIso === todayIso()
@@ -3758,6 +3754,7 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       const d = new Date(`${todayIso()}T12:00:00`);
       d.setDate(d.getDate() + inTagen);
       const wochentag = d.getDay();
+      const tag = new Date(Date.parse(`${todayIso()}T12:00:00Z`) + inTagen * 86_400_000).toISOString().slice(0, 10);
       const wann = inTagen === 0 ? "Heute" : inTagen === 1 ? "Morgen" : `Am ${WEEKDAYS[wochentag]}`;
       const sessions = store.getProfile()?.sessions || [];
       const heute = sessions.filter((s) => s.weekday === wochentag).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
@@ -3771,14 +3768,11 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
         zeilen.push(`Heute gestrichen: du hast dich auch mittags nur bei ${morgens.nachgefragt?.gesund ?? morgens.morgen.gesund} von 5 gefühlt. Der Tag gehört der Erholung.`);
         return zeilen.join("\n");
       }
-      // Welche Einheit des gespeicherten Plans dran ist: die Krafttage der
-      // Woche der Reihe nach, Montag zuerst, und die Einheiten A, B, C im
-      // Wechsel darüber. Das ist dieselbe Zuordnung wie im Kalender.
-      const plan = store.getSettings().plan;
-      if (plan?.einheiten?.length && heute.some((s) => s.type === "strength")) {
-        const kraft = sessions.filter((s) => s.type === "strength").sort((a, b) => ((a.weekday + 6) % 7) - ((b.weekday + 6) % 7));
-        const index = Math.max(0, kraft.findIndex((s) => s.weekday === wochentag));
-        const einheit = plan.einheiten[index % plan.einheiten.length];
+      // Welche Einheit des gültigen Plans dran ist, dieselbe wie unter Mein
+      // Plan "Als Nächstes". In einer stressigen Woche ist das der Kurzplan.
+      const einheit = heute.some((s) => s.type === "strength") ? planEinheitFuer(store.getSettings(), store.getProfile(), tag, todayIso()) : null;
+      if (einheit) {
+        if (aktiverPlan(store.getSettings(), tag) === store.getSettings().planKurz) zeilen.push("Diese Woche gilt dein Kurzplan.");
         zeilen.push(`Aus deinem Plan: ${einheit.titel}, ${einheit.fokus}, etwa ${einheit.dauerMin} Minuten.`);
         // Der Vorschlag für heute steht dabei, gerechnet aus dem Protokoll.
         // Sonst rät der Coach ein Gewicht, und eine Zahl aus dem Modell ist

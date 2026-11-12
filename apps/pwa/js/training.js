@@ -23,6 +23,7 @@ import { spueren } from "./haptik.js";
 import { pauseMitteilung, pauseMitteilungAus } from "./nativ.js";
 import { fotoPfad, GERAETE, uebungenFiltern, vorschauPfad } from "./uebungen.js";
 import { STANDARD_WUNSCH, positionVerschieben, tauschListe, uebungTauschen } from "./plaene.js";
+import { fortschrittHtml } from "./uebungskurve.js";
 
 const nachId = new Map(UEBUNGEN.map((u) => [u.id, u]));
 const esc = (text) => String(text ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
@@ -304,7 +305,7 @@ const datumKurz = (iso) => {
 
 /* ---------- Darstellung ---------- */
 
-export function trainingHtml(entwurf, log, { menue = false, vorschlaege = [], pause = null, waehlen = false, auswahl = [], suche = "", ersetzen = false } = {}) {
+export function trainingHtml(entwurf, log, { menue = false, vorschlaege = [], pause = null, waehlen = false, auswahl = [], suche = "", ersetzen = false, entwicklung = false } = {}) {
   const u = entwurf.uebungen[entwurf.aktiv];
   if (!u) {
     return `<p class="tr-erstes">Freies Training ohne Plan. Nimm die Übungen dazu, die du heute machst. Jeder Satz wird gespeichert und zählt für deinen Fortschritt.</p>${auswahlHtml(auswahl, suche)}`;
@@ -371,6 +372,7 @@ export function trainingHtml(entwurf, log, { menue = false, vorschlaege = [], pa
       <div class="tr-satzknoepfe"><button type="button" class="tr-satz-plus" data-tr-satz="dazu" aria-label="Satz hinzufügen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v12M6 12h12"/></svg></button></div>
     </div>
     ${vorher}
+    ${letzt ? `<details class="tr-entwicklung" data-tr-entwicklung${entwicklung ? " open" : ""}><summary>Fortschritt ansehen</summary>${entwicklung ? fortschrittHtml(log, u.id, entwurf.datum) : ""}</details>` : ""}
     <p class="tr-rir-hilfe">RIR heißt Wiederholungen in Reserve: wie viele noch gegangen wären, bevor nichts mehr geht.</p>
 `;
 }
@@ -423,6 +425,10 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
   let suche = "";
   // Ob die Auswahl die aktive Übung ersetzt statt eine dazu zu nehmen.
   let ersetzen = false;
+  // Ob der Fortschritt aufgeklappt ist. Er bleibt offen, solange man im
+  // Training ist: jeder Haken zeichnet neu, und ein Abschnitt, der danach
+  // zuklappt, ist bei jedem Satz neu zu öffnen.
+  let entwicklung = false;
   const wunsch = () => planSpeicher.lesen()?.wunsch ?? STANDARD_WUNSCH;
   const auswahl = () => (entwurf ? auswahlListe(suche, entwurf, logSpeicher.lesen(), wunsch()) : []);
 
@@ -434,7 +440,7 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
     const u = entwurf.uebungen[entwurf.aktiv];
     const offenWahl = waehlen || !u;
     inhalt.innerHTML = trainingHtml(entwurf, logSpeicher.lesen(), {
-      menue, pause, waehlen: offenWahl, suche, ersetzen: ersetzen && Boolean(u), auswahl: offenWahl ? auswahl() : [],
+      menue, pause, entwicklung, waehlen: offenWahl, suche, ersetzen: ersetzen && Boolean(u), auswahl: offenWahl ? auswahl() : [],
       vorschlaege: menue && u && (plan || entwurf.frei) ? ersatzVorschlaege(plan, entwurf.ei, u.id, entwurf) : [],
     });
     fuss.innerHTML = fussHtml(entwurf, pause, offenWahl);
@@ -582,6 +588,14 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
     zeichnen();
   };
   inhalt.addEventListener("click", klick);
+  // "toggle" steigt nicht auf, deshalb in der Einfangphase. Gerechnet wird
+  // erst beim Aufklappen, sonst liefe die Kurve bei jedem Haken mit.
+  inhalt.addEventListener("toggle", (event) => {
+    const d = event.target;
+    if (!d.matches?.("[data-tr-entwicklung]") || d.open === entwicklung) return;
+    entwicklung = d.open;
+    if (entwicklung) zeichnen();
+  }, true);
   fuss.addEventListener("click", klick);
 
   // Verschieben: lange auf einen Daumen drücken, dann seitlich ziehen. Wer

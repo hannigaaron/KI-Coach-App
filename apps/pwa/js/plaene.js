@@ -14,6 +14,8 @@ import {
 } from "@daevo/core";
 import { UEBUNGEN } from "./uebungen-daten.js";
 import { GRUPPEN, vorschauPfad } from "./uebungen.js";
+import { trendKurz } from "./uebungskurve.js";
+import { naechsteEinheit } from "./vorhaben.js";
 
 export const STANDARD_WUNSCH = {
   tage: 3, minuten: 45, niveau: "intermediate", ziel: "muskel", deload: false, variante: 0,
@@ -115,7 +117,7 @@ const TAUSCH_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9h12
  * müssen. `tauschAttr` sagt, welche Daten der Knopf trägt, denn der Plan
  * und das Training für heute tauschen über verschiedene Wege.
  */
-export function zeileHtml(p, { bearbeiten = false, ei = 0, pi = 0, tausch = null, tauschAttr = null, ohneTausch = false } = {}) {
+export function zeileHtml(p, { bearbeiten = false, ei = 0, pi = 0, tausch = null, tauschAttr = null, ohneTausch = false, trend = null } = {}) {
   const u = nachId.get(p.id);
   const bild = u ? `<img class="pl-bild" src="${esc(vorschauPfad(u))}" alt="" width="56" height="70" loading="lazy" decoding="async">` : "";
   const pause = p.pauseSek < 90 ? `${p.pauseSek} s` : `${String(p.pauseSek / 60).replace(".", ",")} min`;
@@ -123,7 +125,7 @@ export function zeileHtml(p, { bearbeiten = false, ei = 0, pi = 0, tausch = null
   const attr = tauschAttr ?? `data-aktion="tauschen" ${ort}`;
   const offen = tausch && tausch.ei === ei && tausch.pi === pi;
   const zeile = `<div class="pl-zeile-rahmen"><button type="button" class="pl-zeile" data-uebung="${esc(p.id)}">${bild}
-    <span class="pl-text"><b>${esc(p.name)}</b><span>${p.saetze} × ${esc(p.wdh)}<i></i>Pause ${pause}<i></i>${p.reserve} in Reserve</span></span></button>
+    <span class="pl-text"><b>${esc(p.name)}</b><span>${p.saetze} × ${esc(p.wdh)}<i></i>Pause ${pause}<i></i>${p.reserve} in Reserve</span>${trend ? trend(p.id) : ""}</span></button>
     ${ohneTausch ? "" : `<button type="button" class="pl-tausch-knopf" ${attr} aria-expanded="${Boolean(offen)}" aria-label="${esc(p.name)} tauschen">${TAUSCH_SVG}</button>`}</div>`;
   const nehmenAttr = (a) => (tauschAttr ? `data-heute-nehmen="${esc(a.id)}" data-alt="${esc(p.id)}"` : `data-aktion="nehmen" data-id="${esc(a.id)}" ${ort}`);
   const auswahl = offen
@@ -140,7 +142,7 @@ export function zeileHtml(p, { bearbeiten = false, ei = 0, pi = 0, tausch = null
   return `<li class="pl-bearbeiten">${zeile}${werkzeug}${auswahl}</li>`;
 }
 
-export function einheitHtml(e, ei = 0, { bearbeitet = -1, tausch = null, zusatz = [], ohneKnoepfe = false, nurStart = false, startAttr = null } = {}) {
+export function einheitHtml(e, ei = 0, { bearbeitet = -1, tausch = null, zusatz = [], ohneKnoepfe = false, nurStart = false, startAttr = null, trend = null } = {}) {
   const an = bearbeitet === ei;
   // Unter Anpassen ist der Plan eine Vorschau: dort wird nichts gestartet
   // und nichts bearbeitet, sonst liefe ein Training aus einem Plan, der
@@ -154,7 +156,7 @@ export function einheitHtml(e, ei = 0, { bearbeitet = -1, tausch = null, zusatz 
       zusatz.map((u) => `<option value="${esc(u.id)}">${esc(u.name)}</option>`).join("")}</select></label>`
     : "";
   return `<section class="pl-einheit"><header><div><h3>${esc(e.titel)}</h3><p>${esc(e.fokus)} · etwa ${e.dauerMin} Min.</p></div>${knopf}</header>
-    <ol class="pl-liste">${e.positionen.map((p, pi) => zeileHtml(p, { bearbeiten: an, ei, pi, tausch, ohneTausch: ohneKnoepfe || nurStart })).join("")}</ol>${dazu}</section>`;
+    <ol class="pl-liste">${e.positionen.map((p, pi) => zeileHtml(p, { bearbeiten: an, ei, pi, tausch, trend, ohneTausch: ohneKnoepfe || nurStart })).join("")}</ol>${dazu}</section>`;
 }
 
 /* ---------- Von Hand ändern ---------- */
@@ -242,7 +244,7 @@ export function aktualisierungHtml(plan, heute) {
   const alter = Math.round((Date.parse(`${heute}T00:00:00Z`) - Date.parse(`${a.datum}T00:00:00Z`)) / 86_400_000);
   if (alter > 14) return "";
   const zeilen = a.text.split("\n").map((z) => `<p>${esc(z)}</p>`).join("");
-  return `<div class="pl-update"><b>Dein Plan nach acht Wochen</b>${zeilen}<div class="pl-update-knoepfe">`
+  return `<div class="pl-update"><b>Übung getauscht nach acht Wochen Stillstand</b>${zeilen}<div class="pl-update-knoepfe">`
     + `<button type="button" class="pl-mini" data-update="ok">Verstanden</button>`
     + (a.vorher ? `<button type="button" class="pl-mini" data-update="zurueck">Alten Plan behalten</button>` : "")
     + "</div></div>";
@@ -290,21 +292,8 @@ export function planWoche(plan, heute) {
   return { woche: Math.min(woche, PLAN_WOCHEN), von: PLAN_WOCHEN, fertig: woche > PLAN_WOCHEN };
 }
 
-/**
- * Welche Einheit als Nächstes dran ist: die nach der zuletzt trainierten
- * Einheit dieses Plans. Gezählt wird über den Titel im Protokoll, denn der
- * Wochentag sagt bei wechselnden Arbeitszeiten nichts. Ohne Training aus dem
- * Plan ist es die erste.
- */
-export function naechsteEinheit(plan, log) {
-  const titel = (plan?.einheiten || []).map((e) => e.titel);
-  if (!titel.length) return 0;
-  const letzte = [...(Array.isArray(log) ? log : [])]
-    .filter((e) => titel.includes(e.einheit))
-    .sort((a, b) => String(a.datum).localeCompare(String(b.datum)))
-    .pop();
-  return letzte ? (titel.indexOf(letzte.einheit) + 1) % titel.length : 0;
-}
+/** Steht in `vorhaben.js`, damit Briefing und Coach dieselbe Einheit nennen. */
+export { naechsteEinheit };
 
 /** Der Kopf des Plans: Woche, Fortschritt und die nächste Einheit gross. */
 export function planKopfHtml(plan, { woche, naechste, kurz = false }) {
@@ -349,7 +338,7 @@ export const KURZ_TAGE = [2, 3];
  * Grundbewegungen. Die Titel tragen "kurz", sonst mischte das Protokoll
  * die Einheiten beider Pläne bei der nächsten Einheit und beim letzten Mal.
  */
-export function kurzplanFuer(basis, { minuten = 30, tage = 2 } = {}) {
+export function kurzplanFuer(basis, { minuten = 30, tage = 2, gruppen = [] } = {}) {
   const w = wunschPruefen({
     ...basis,
     minuten: KURZ_MINUTEN.includes(minuten) ? minuten : 30,
@@ -357,7 +346,20 @@ export function kurzplanFuer(basis, { minuten = 30, tage = 2 } = {}) {
     fokus: [], deload: false, variante: 0,
   });
   const plan = planFuer(w);
-  return { ...plan, kurz: true, einheiten: plan.einheiten.map((e) => ({ ...e, titel: `${e.titel}, kurz` })) };
+  const wahl = [...new Set((Array.isArray(gruppen) ? gruppen : []).filter((g) => PARTIEN.includes(g)))];
+  if (!wahl.length) return { ...plan, kurz: true, kurzGruppen: [], einheiten: plan.einheiten.map((e) => ({ ...e, titel: `${e.titel}, kurz` })) };
+  // Gewählte Partien: jede Einheit rechnet `einzeltrainingBauen`, dieselbe
+  // Funktion wie Training für heute, mit Schwere, Einsteigergeräten und
+  // Beschwerden. Die Variante wechselt je Einheit, damit A und B nicht
+  // dieselben Übungen tragen. Jede Woche bleiben es dieselben.
+  const namen = wahl.map((g) => FOKUS_NAME[g]).join(", ");
+  const einheiten = Array.from({ length: w.tage }, (_, i) => einzeltrainingBauen({
+    minuten: w.minuten, gruppen: wahl, niveau: w.niveau, ziel: w.ziel, ort: w.ort,
+    beschwerden: w.beschwerden, meiden: w.meiden, variante: i,
+  }, UEBUNGEN)).filter(Boolean)
+    .map((e, i) => ({ ...e, titel: `Kurz ${"ABC"[i]}, ${namen}` }));
+  if (!einheiten.length) return { ...plan, kurz: true, kurzGruppen: [], einheiten: plan.einheiten.map((e) => ({ ...e, titel: `${e.titel}, kurz` })) };
+  return { ...plan, kurz: true, kurzGruppen: wahl, einheiten };
 }
 
 /** Sonntag der Woche, in der `heute` liegt. Bis dahin gilt die stressige Woche. */
@@ -376,15 +378,19 @@ export function stressHtml({ kurz, aktiv, wahl }) {
   }
   const minuten = KURZ_MINUTEN.map((m) => `<button type="button" class="ue-tab${wahl.minuten === m ? " on" : ""}" data-kurz-min="${m}" aria-pressed="${wahl.minuten === m}">${m} Min.</button>`).join("");
   const tage = KURZ_TAGE.map((t) => `<button type="button" class="ue-tab${wahl.tage === t ? " on" : ""}" data-kurz-tage="${t}" aria-pressed="${wahl.tage === t}">${t} mal</button>`).join("");
+  const gewaehlt = wahl.gruppen ?? [];
+  const partien = [`<button type="button" class="ue-tab${gewaehlt.length ? "" : " on"}" data-kurz-gruppe="" aria-pressed="${!gewaehlt.length}">Ganzkörper</button>`,
+    ...PARTIEN.map((g) => `<button type="button" class="ue-tab${gewaehlt.includes(g) ? " on" : ""}" data-kurz-gruppe="${g}" aria-pressed="${gewaehlt.includes(g)}">${FOKUS_NAME[g]}</button>`)].join("");
   if (kurz && !wahl.offen) {
     const m = kurz.einheiten[0]?.dauerMin ?? wahl.minuten;
     return `<div class="pl-stress"><b>Stressige Woche?</b>
-      <p>Dann nimm deinen Kurzplan: ${kurz.einheiten.length} mal etwa ${m} Minuten Ganzkörper, mit denselben Übungen jede Woche.</p>
+      <p>Dann nimm deinen Kurzplan: ${kurz.einheiten.length} mal etwa ${m} Minuten ${kurz.kurzGruppen?.length ? esc(kurz.kurzGruppen.map((g) => FOKUS_NAME[g]).join(", ")) : "Ganzkörper"}, mit denselben Übungen jede Woche.</p>
       <div class="pl-update-knoepfe"><button type="button" class="pl-mini pl-start" data-kurz-an>Diese Woche nutzen</button><button type="button" class="pl-mini" data-kurz-aendern>Kurzplan ändern</button></div></div>`;
   }
   return `<div class="pl-stress"><b>Stressige Woche?</b>
-    <p>Leg dir einmal einen Kurzplan an. Ganzkörper, 30 oder 45 Minuten, zwei oder drei Mal. Dann ist er da, wenn die Woche voll wird, und du musst nichts neu zusammenstellen.</p>
+    <p>Leg dir einmal einen Kurzplan an: 30 oder 45 Minuten, zwei oder drei Mal, Ganzkörper oder die Partien, die dir wichtig sind. Dann ist er da, wenn die Woche voll wird, und du musst nichts neu zusammenstellen.</p>
     <div class="pl-feld"><p class="pl-name">Minuten</p><div class="pl-reihe">${minuten}</div></div>
+    <div class="pl-feld"><p class="pl-name">Was trainiert wird</p><div class="pl-reihe">${partien}</div></div>
     <div class="pl-feld"><p class="pl-name">Wie oft in der Woche</p><div class="pl-reihe">${tage}</div></div>
     <button type="button" class="pl-mini pl-start" data-kurz-speichern>${kurz ? "Kurzplan speichern" : "Kurzplan anlegen"}</button></div>`;
 }
@@ -537,7 +543,8 @@ export function plaeneStarten({
   // "Für zwölf Wochen nehmen".
   let entwurf = gespeichert ?? planFuer(wunsch);
   let kurzplan = gespeicherterPlan(kurzSpeicher.lesen());
-  let kurzWahl = { minuten: kurzplan?.wunsch?.minuten ?? 30, tage: kurzplan?.einheiten?.length ?? 2, offen: false };
+  let kurzWahl = { minuten: kurzplan?.wunsch?.minuten ?? 30, tage: kurzplan?.einheiten?.length ?? 2, gruppen: kurzplan?.kurzGruppen ?? [], offen: false };
+  const trendFuer = (id) => trendKurz(log(), id, heute());
   const kurzAktiv = () => {
     const w = wocheSpeicher.lesen();
     return Boolean(kurzplan && w?.art === "kurz" && w.bis && heute() <= w.bis);
@@ -566,8 +573,8 @@ export function plaeneStarten({
     const aktiv = kurzAktiv();
     const plan = aktiv ? kurzplan : gespeichert;
     $("plUpdate").innerHTML = !gespeichert || aktiv ? ""
-      : anpassungGesperrt ? `<div class="pl-update pro-sperre-karte"><b>Acht Wochen sind um <span class="pro-chip">Pro</span></b>`
-        + `<p>Jetzt würde daevo prüfen, wo du stärker geworden bist, und festgefahrene Übungen gegen neue für dieselbe Bewegung tauschen. Den Plan, der mitwächst, gibt es mit Pro.</p>`
+      : anpassungGesperrt ? `<div class="pl-update pro-sperre-karte"><b>Eine Übung steckt fest <span class="pro-chip">Pro</span></b>`
+        + `<p>Mindestens eine Übung kam acht Wochen lang nicht voran. Mit Pro tauscht daevo sie gegen eine für dieselbe Bewegung, Sätze und Pausen bleiben. Wie es je Übung läuft, siehst du unter Fortschritt, wenn du auf die Übung tippst.</p>`
         + `<div class="pl-update-knoepfe"><button type="button" class="pl-mini" data-pro-anpassung>Pro ansehen</button></div></div>`
       : aktualisierungHtml(gespeichert, heute());
     if (!plan) {
@@ -579,8 +586,8 @@ export function plaeneStarten({
       // Der Kurzplan lässt sich nicht bearbeiten, nur starten. Er ist ein
       // Notfallplan, und wer ihn anders will, legt ihn unten neu an.
       $("plEinheiten").innerHTML = aktiv
-        ? plan.einheiten.map((e, ei) => einheitHtml(e, ei, { nurStart: true, startAttr: `data-kurz-start="${ei}"` })).join("")
-        : plan.einheiten.map((e, ei) => einheitHtml(e, ei, { bearbeitet, tausch, zusatz: bearbeitet === ei ? zusatzListe(plan, ei) : [] })).join("");
+        ? plan.einheiten.map((e, ei) => einheitHtml(e, ei, { nurStart: true, trend: trendFuer, startAttr: `data-kurz-start="${ei}"` })).join("")
+        : plan.einheiten.map((e, ei) => einheitHtml(e, ei, { bearbeitet, tausch, trend: trendFuer, zusatz: bearbeitet === ei ? zusatzListe(plan, ei) : [] })).join("");
       $("plStress").innerHTML = stressHtml({ kurz: kurzplan, aktiv, wahl: kurzWahl });
     }
     $("plVerlauf").innerHTML = verlaufHtml(log());
@@ -756,8 +763,11 @@ export function plaeneStarten({
       ansichtZeichnen();
       return;
     }
+    // Aus dem eigenen Plan öffnet eine Übung auf dem Fortschritt, sobald es
+    // dafür Einträge gibt: wer im Plan auf seine Übung tippt, will wissen,
+    // wie es dort läuft, die Anleitung kennt er.
     const knopf = event.target.closest("[data-uebung]");
-    if (knopf) oeffne(knopf.dataset.uebung);
+    if (knopf) oeffne(knopf.dataset.uebung, log().some((e) => e.uebung === knopf.dataset.uebung) ? "fortschritt" : "info");
   };
   $("plStart").addEventListener("click", planKlick);
   $("plEinheiten").addEventListener("click", planKlick);
@@ -773,6 +783,12 @@ export function plaeneStarten({
     let x;
     if ((x = k("[data-kurz-min]"))) kurzWahl = { ...kurzWahl, minuten: Number(x.dataset.kurzMin) };
     else if ((x = k("[data-kurz-tage]"))) kurzWahl = { ...kurzWahl, tage: Number(x.dataset.kurzTage) };
+    else if ((x = k("[data-kurz-gruppe]"))) {
+      // Ganzkörper leert die Wahl, jede Partie schaltet sich um.
+      const g = x.dataset.kurzGruppe;
+      const alt = kurzWahl.gruppen ?? [];
+      kurzWahl = { ...kurzWahl, gruppen: !g ? [] : alt.includes(g) ? alt.filter((y) => y !== g) : [...alt, g] };
+    }
     else if (k("[data-kurz-aendern]")) kurzWahl = { ...kurzWahl, offen: true };
     else if (k("[data-kurz-speichern]")) {
       kurzplan = { ...kurzplanFuer(wunsch, kurzWahl), gespeichertAm: new Date().toISOString() };

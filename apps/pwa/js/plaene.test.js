@@ -255,6 +255,27 @@ test("der Kurzplan ist Ganzkörper in 30 oder 45 Minuten und trägt kurz im Tite
   assert.ok(kurz.einheiten.every((e) => !normal.einheiten.some((n) => n.titel === e.titel)));
 });
 
+test("der Kurzplan mit gewählten Partien trainiert genau diese", async () => {
+  const { UEBUNGEN } = await import("./uebungen-daten.js");
+  const gruppe = new Map(UEBUNGEN.map((u) => [u.id, u.gruppe]));
+  for (const minuten of [30, 45]) for (const tage of [2, 3]) {
+    const k = kurzplanFuer(STANDARD_WUNSCH, { minuten, tage, gruppen: ["brust", "ruecken"] });
+    assert.equal(k.einheiten.length, tage);
+    assert.deepEqual(k.kurzGruppen, ["brust", "ruecken"]);
+    for (const e of k.einheiten) {
+      assert.ok(e.titel.startsWith("Kurz ") && e.titel.includes("Brust, Rücken"), e.titel);
+      assert.ok(e.positionen.length > 0);
+      assert.ok(e.positionen.some((p) => gruppe.get(p.id) === "brust") && e.positionen.some((p) => gruppe.get(p.id) === "ruecken"), e.titel);
+      assert.ok(e.dauerMin <= minuten + 8, `${e.titel} ${e.dauerMin}`);
+    }
+  }
+  // Zwei Einheiten tragen nicht genau dieselben Übungen.
+  const k = kurzplanFuer(STANDARD_WUNSCH, { minuten: 45, tage: 2, gruppen: ["beine", "po"] });
+  assert.notDeepEqual(k.einheiten[0].positionen.map((p) => p.id), k.einheiten[1].positionen.map((p) => p.id));
+  // Unbekanntes fällt weg, ohne Wahl bleibt es Ganzkörper.
+  assert.deepEqual(kurzplanFuer(STANDARD_WUNSCH, { gruppen: ["quatsch"] }).kurzGruppen, []);
+});
+
 test("die stressige Woche gilt bis Sonntag und fällt danach von selbst weg", () => {
   assert.equal(wochenEnde("2026-11-12"), "2026-11-15");
   assert.equal(wochenEnde("2026-11-15"), "2026-11-15");

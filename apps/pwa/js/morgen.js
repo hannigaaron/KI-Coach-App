@@ -19,7 +19,7 @@ import {
   bereichVon, MORGEN_FRAGEN, BELASTBARKEIT_NAME, PHASE_NAME, SYMPTOM_NAME, zyklusEmpfehlung, zyklusStand, NACHFRAGE_UHRZEIT, morgenAuswerten, morgenUhrzeit, morgenVollstaendig, nachfrageAuswerten, nachfrageNoetig, tagesrandFuer,
 } from "@daevo/core";
 import { newId, nowTime } from "./storage.js";
-import { bestellteEinheit } from "./vorhaben.js";
+import { bestellteEinheit, planEinheitFuer } from "./vorhaben.js";
 import { spueren } from "./haptik.js";
 
 /** Bis zu dieser Uhrzeit öffnet sich der Check-in von selbst. */
@@ -80,8 +80,6 @@ function mitKalender(geplant, store, tag) {
 function trainingAusPlan(store, tag) {
   const wochentag = new Date(`${tag}T12:00:00`).getDay();
   const sessions = store.getProfile()?.sessions || [];
-  const plan = store.getSettings().plan;
-  const kraft = sessions.filter((s) => s.type === "strength").sort((a, b) => ((a.weekday + 6) % 7) - ((b.weekday + 6) % 7));
   // Eine Einheit, die er für diesen Tag bestellt hat, ersetzt das Krafttraining
   // aus dem Wochenplan. Sonst sagt der Morgen "kein Training", obwohl er am
   // Abend vorher "morgen um 14 Uhr Pull" gesagt hat.
@@ -97,11 +95,9 @@ function trainingAusPlan(store, tag) {
     .filter((s) => s.weekday === wochentag)
     .sort((a, b) => String(a.startsAt).localeCompare(String(b.startsAt)))
     .map((s) => {
-      let titel;
-      if (s.type === "strength" && plan?.einheiten?.length) {
-        const i = Math.max(0, kraft.findIndex((k) => k.weekday === wochentag));
-        titel = plan.einheiten[i % plan.einheiten.length]?.titel;
-      }
+      // Dieselbe Einheit wie "Als Nächstes" unter Mein Plan, in einer
+      // stressigen Woche aus dem Kurzplan.
+      const titel = s.type === "strength" ? planEinheitFuer(store.getSettings(), store.getProfile(), tag, tag)?.titel : undefined;
       return { art: s.type, minuten: s.minutes, uhrzeit: s.startsAt, titel };
     });
 }

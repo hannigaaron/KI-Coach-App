@@ -561,7 +561,7 @@ body { padding-top: env(safe-area-inset-top); }
   background: linear-gradient(to top, var(--bg) 70%, transparent);
 }
 .setup-knopf {
-  width: 100%; height: 58px; border-radius: var(--r-pill); border: 0;
+  width: 100%; min-height: 58px; border-radius: var(--r-pill); border: 0;
   background: var(--stark); color: var(--auf-stark); font-size: var(--t-lg); font-weight: 600;
 }
 .setup-knopf:disabled { opacity: 0.4; }
@@ -2655,7 +2655,7 @@ h1,
   background: linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--bg) 88%, transparent) 38%, var(--bg) 70%);
 }
 .ue-cta-knopf {
-  display: flex; align-items: center; justify-content: center; gap: 12px; height: 56px; border-radius: var(--r-pill);
+  display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 56px; border-radius: var(--r-pill);
   background: var(--stark); color: var(--auf-stark); text-decoration: none;
   font-family: var(--schrift-display); font-size: 16px; font-weight: 600; letter-spacing: 0.005em;
   box-shadow: 0 10px 30px -10px color-mix(in srgb, var(--stark) 70%, transparent);
@@ -2893,13 +2893,13 @@ h1,
 .pl-spur::after { content: ""; position: absolute; left: 50%; top: -4px; bottom: -4px; width: 1px; background: var(--muted); opacity: 0.7; }
 .pl-legende { margin: 12px 0 0; font-size: 12.5px; color: var(--muted); }
 
-.pl-aktionen { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 30px; }
+.pl-aktionen { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 30px; }
 .pl-knopf {
-  height: 50px; border-radius: var(--r-pill); border: 1px solid var(--linie); background: none; color: var(--text);
+  min-height: 50px; border-radius: var(--r-pill); border: 1px solid var(--linie); background: none; color: var(--text);
   font-family: var(--schrift-display); font-size: 15px; font-weight: 600; transition: transform 0.15s ease;
 }
 .pl-knopf:active { transform: scale(0.98); }
-.pl-knopf.haupt { grid-column: 1 / -1; height: 56px; background: var(--stark); border-color: transparent; color: var(--auf-stark); font-size: 16px; }
+.pl-knopf.haupt { grid-column: 1 / -1; min-height: 56px; background: var(--stark); border-color: transparent; color: var(--auf-stark); font-size: 16px; }
 .pl-knopf:disabled { opacity: 0.7; }
 
 .pl-hinweise { list-style: none; margin: 8px 0 0; padding: 0; }
@@ -4347,3 +4347,38 @@ button.hoert:not(.co-btn) { background: var(--stark); color: var(--auf-stark); a
 .pl-einzeln > summary::-webkit-details-marker { display: none; }
 .pl-einzeln > summary::after { content: ""; display: inline-block; width: 7px; height: 7px; margin-left: 8px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: translateY(-3px) rotate(45deg); transition: transform 0.2s ease; }
 .pl-einzeln[open] > summary::after { transform: translateY(0) rotate(-135deg); }
+
+/* Text bleibt im Knopf. Knöpfe mit Text haben eine Mindesthöhe und keine
+   feste: ein Wort, das in der Serife breiter läuft als gedacht, bricht dann
+   um und macht den Knopf höher, statt unter dem Rand herauszuhängen. Im
+   Betrieb stand "Andere Übungen" halb unter der Pille. Geprüft wird das
+   gerendert, jede Ansicht in zwei Breiten und beiden Modi. */
+button { overflow-wrap: anywhere; text-wrap: balance; }
+
+/* Fortschritt einer Übung, Detailseite und Trainingsmodus. Keine Karte mit
+   Rahmen: die Kurve trägt den Abschnitt. Das Urteil ist die einzige Farbe,
+   Grün für steigt, Gelb für steht, Rot für schwächer. Grün und Gelb sind
+   zu 40 Prozent mit der Textfarbe gemischt: pur liegen sie auf hellem Grund
+   unter 2,5 zu 1. */
+.ue-detail-reiter { margin: var(--s-4) var(--s-4) 0; }
+.uf { display: grid; gap: var(--s-3); }
+.uf-kopf { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-3); }
+.uf-kopf > div { min-width: 0; }
+.uf-wert { margin: 0; font-size: var(--t-2xl); font-weight: 700; letter-spacing: -0.01em; }
+.uf-strecke { margin: 2px 0 0; color: var(--muted); font-size: var(--t-sm); }
+.uf-urteil { flex: none; padding: 6px 12px; border-radius: var(--r-pill); font-size: var(--t-sm); font-weight: 600; background: var(--flaeche); color: var(--muted); }
+.uf-urteil.steigt { background: color-mix(in srgb, var(--good) 16%, transparent); color: color-mix(in srgb, var(--good) 60%, var(--text)); }
+.uf-urteil.haelt { background: color-mix(in srgb, var(--warn) 18%, transparent); color: color-mix(in srgb, var(--warn) 60%, var(--text)); }
+.uf-urteil.faellt { background: color-mix(in srgb, var(--bad) 16%, transparent); color: var(--bad); }
+.uf-text { margin: 0; font-size: var(--t-md); line-height: 1.45; }
+.uf-fuss, .uf-leer { margin: 0; color: var(--muted); font-size: var(--t-sm); line-height: 1.45; }
+.uf-liste { list-style: none; margin: 0; padding: 0; }
+.uf-liste li { display: flex; justify-content: space-between; gap: var(--s-3); padding: 10px 0; box-shadow: inset 0 -1px 0 var(--linie); font-size: var(--t-sm); }
+.uf-liste li span { color: var(--muted); }
+.uf-mini { flex: none; font-size: var(--t-xs); font-weight: 600; color: var(--muted); white-space: nowrap; }
+.uf-mini.steigt { color: color-mix(in srgb, var(--good) 60%, var(--text)); }
+.uf-mini.faellt { color: var(--bad); }
+.tr-entwicklung { margin-top: var(--s-4); }
+.tr-entwicklung summary { cursor: pointer; color: var(--accent-text, var(--accent)); font-weight: 600; font-size: var(--t-sm); list-style: none; padding: 8px 0; }
+.tr-entwicklung summary::-webkit-details-marker { display: none; }
+.tr-entwicklung[open] summary { margin-bottom: var(--s-2); }

@@ -11,6 +11,7 @@
  */
 import { foldUmlauts } from "@daevo/core";
 import { UEBUNGEN } from "./uebungen-daten.js";
+import { fortschrittHtml } from "./uebungskurve.js";
 
 export const GRUPPEN = [
   { id: "alle", name: "Alle" },
@@ -204,7 +205,7 @@ const $ = (id) => document.getElementById(id);
 /**
  * Hängt die Ansicht ein. Wird einmal beim Start gerufen.
  */
-export function uebungenStarten() {
+export function uebungenStarten({ log = () => [], heute = () => new Date().toISOString().slice(0, 10) } = {}) {
   const zustand = { text: "", gruppe: "alle", geraet: "alle" };
 
   $("ueGruppen").innerHTML = GRUPPEN.map((g) => `<button type="button" class="ue-tab${g.id === "alle" ? " on" : ""}" data-gruppe="${g.id}" role="tab" aria-selected="${g.id === "alle"}">${g.name}</button>`).join("");
@@ -250,7 +251,26 @@ export function uebungenStarten() {
   };
   $("ueDetailZu").addEventListener("click", schliessen);
 
-  const zeigeDetail = (u) => {
+  // Übung oder Fortschritt. Der Fortschritt wird beim Umschalten neu
+  // gerechnet, denn zwischen zwei Blicken kann ein Training liegen.
+  let offen = null;
+  const reiter = (name) => {
+    const fort = name === "fortschritt";
+    $("ueInfo").hidden = fort;
+    $("ueFortschritt").hidden = !fort;
+    $("ueVideo").hidden = fort;
+    for (const [id, an] of [["ueReiterInfo", !fort], ["ueReiterFortschritt", fort]]) {
+      $(id).classList.toggle("on", an);
+      $(id).setAttribute("aria-selected", String(an));
+    }
+    if (fort && offen) $("ueFortschritt").innerHTML = fortschrittHtml(log(), offen.id, heute());
+  };
+  $("ueReiterInfo").addEventListener("click", () => reiter("info"));
+  $("ueReiterFortschritt").addEventListener("click", () => reiter("fortschritt"));
+
+  const zeigeDetail = (u, ansicht = "info") => {
+    offen = u;
+    reiter(ansicht);
     $("ueFoto").src = fotoPfad(u);
     $("ueFoto").alt = `${u.name}: so sieht die Ausführung aus`;
     $("ueGruppe").textContent = gruppenName(u);
@@ -299,5 +319,5 @@ export function uebungenStarten() {
   }
 
   zeichnen();
-  return { schliessen, modus, oeffne: (id) => { const u = uebungNach(id); if (u) zeigeDetail(u); } };
+  return { schliessen, modus, oeffne: (id, ansicht) => { const u = uebungNach(id); if (u) zeigeDetail(u, ansicht); } };
 }

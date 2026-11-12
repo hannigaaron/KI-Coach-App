@@ -389,13 +389,24 @@ Vorschau ohne Knöpfe. Speichern setzt `beginn` neu und springt zurück auf
 Mein Plan. Ein älterer Plan ohne `beginn` bekommt einmal den heutigen Tag.
 
 Unter dem Plan steht "Stressige Woche?", `stressHtml`. Der Kurzplan,
-`kurzplanFuer`, hat 30 oder 45 Minuten und zwei oder drei Tage Ganzkörper,
-ohne Fokus und ohne Entlastung, gespeichert in `settings.planKurz`. "Diese
+`kurzplanFuer`, hat 30 oder 45 Minuten und zwei oder drei Tage, ohne Fokus
+und ohne Entlastung, gespeichert in `settings.planKurz`. Ohne Wahl ist er
+Ganzkörper. Mit gewählten Partien, `kurzGruppen`, rechnet jede Einheit
+`einzeltrainingBauen` wie Training für heute, mit der Variante je Einheit,
+damit A und B verschiedene Übungen tragen, Titel "Kurz A, Brust, Rücken". "Diese
 Woche nutzen" setzt `settings.planWoche` = { art: "kurz", bis: Sonntag },
 `wochenEnde`. Solange das gilt, zeigt Mein Plan den Kurzplan, ab Montag
 wieder den normalen, `aktiverPlan` in `vorhaben.js`. Die zwölf Wochen laufen
-dabei weiter. Bisher liest nur die Uhr `aktiverPlan`, Morgen Check-in,
-Briefing und `trainingsplan_abrufen` lesen weiter `settings.plan`.
+dabei weiter.
+
+Welche Einheit an einem Tag dran ist, sagt überall `planEinheitFuer` in
+`vorhaben.js`: Morgen Check-in, Briefing, `trainingsplan_abrufen` und Mein
+Plan nennen dieselbe. Heute ist es die Einheit nach dem letzten Training
+vor heute, `naechsteEinheit` über den Titel im Protokoll, für spätere Tage
+je Krafttag im Profil dazwischen eine weiter. Vorher zählten Briefing und
+Check-in die Krafttage ab Montag ab und nannten nach einer verschobenen
+Einheit eine andere als der Plan. In der stressigen Woche ist es der
+Kurzplan, und der Coach sagt das dazu.
 
 Der Plan wird gerechnet
 und nicht von einem Modell geschrieben: `packages/core/src/trainingsplan.ts`,
@@ -764,19 +775,41 @@ gibt sie an `navigator.share`, sonst als Datei. Gezeichnet und kein
 Screenshot: ein Screenshot trüge die Leisten des Telefons mit. Die Wortmarke
 kommt als Datei mit Pfaden auf das Bild, nie als gesetzter Text.
 
-### Nach acht Wochen
+### Acht Wochen ohne Zuwachs
 
-`packages/core/src/trainingslog.ts`, `planPruefen` in `plaene.js`. Gemessen
-wird je Übung eine geschätzte Maximalkraft nach Epley, mit der Reserve zu
-den Wiederholungen gezählt, der beste Satz je Einheit. Anfang und Ende sind
-je der Schnitt aus zwei Einheiten, damit kein einzelner Tag das Urteil
-trägt. Unter 2,5 Prozent Zuwachs gilt eine Übung als festgefahren und wird
-gegen eine für dieselbe Bewegung getauscht, mit derselben Dosis. Was wächst,
-bleibt. Unter drei Einheiten wird nichts geraten, die Übung bleibt. Bei
-einem Training pro Woche bleiben alle Übungen: acht Einheiten sind zu wenig,
-um zu wechseln, und der einfache Plan lebt davon, an denselben Übungen
-stärker zu werden. Die Karte darüber nennt Tausch, Prozent und die drei
-stärksten Übungen und bietet "Alten Plan behalten" an.
+`planAktualisieren` in `packages/core/src/trainingslog.ts`, `planPruefen`
+in `plaene.js`. Gemessen wird je Übung eine geschätzte Maximalkraft nach
+Epley, mit der Reserve zu den Wiederholungen gezählt, der beste Satz je
+Einheit. Anfang und Ende sind je der Schnitt aus zwei Einheiten, damit kein
+einzelner Tag das Urteil trägt. Gemessen wird über die letzten acht Wochen
+und laufend, nicht einmal nach acht Wochen Planalter: eine Übung, die in
+Woche 9 feststeckte, blieb vorher bis zum Ende des Plans. Jeder Platz trägt
+`seit`, eine getauschte Übung bekommt ihre eigenen acht Wochen. Unter 2,5
+Prozent Zuwachs gilt eine Übung als festgefahren und wird gegen eine für
+dieselbe Bewegung getauscht, mit derselben Dosis. Was wächst, bleibt. Unter
+drei Einheiten wird nichts geraten. Bei einem Training pro Woche bleiben
+alle Übungen. Die Karte darüber nennt Tausch und Prozent und bietet "Alten
+Plan behalten" an. Der Tausch gehört zu Pro, ohne Pro sagt eine Karte, dass
+eine Übung feststeckt.
+
+### Der Fortschritt einer Übung
+
+`uebungsTrend` und `uebungsPunkte` im Kern, gezeichnet in
+`apps/pwa/js/uebungskurve.js`. Die Detailseite einer Übung hat zwei Reiter,
+Übung und Fortschritt. Aus dem eigenen Plan öffnet eine Übung mit Einträgen
+gleich auf Fortschritt: die Anleitung kennt man, wissen will man, wie es
+läuft. Im Trainingsmodus steht "Fortschritt ansehen" unter dem letzten Mal
+und bleibt offen, bis das Training zu ist, denn jeder Haken zeichnet neu.
+In der Planzeile steht ein Pfeil mit Prozent, `trendKurz`.
+
+Gezeichnet wird das schwerste Gewicht je Einheit über höchstens sechzehn
+Wochen, ohne Zusatzgewicht die Wiederholungen. Geurteilt wird mit derselben
+Rechnung wie beim Tausch: steigt ab 2,5 Prozent, schwächer ab minus 2,5,
+dazwischen stagniert. Das Gewicht allein nennt zehn Wiederholungen mit 80
+kg schlechter als fünf mit 82,5, deshalb steht unter der Kurve, womit
+gerechnet ist. Fällt die Kraft, sagt der Text Schlaf, Essen und Pausen statt
+mehr Gewicht. Grün und Gelb sind zu 40 Prozent mit der Textfarbe gemischt,
+pur liegen sie auf hellem Grund unter 2,5 zu 1.
 
 ### Eine einzelne Übung tauschen
 
@@ -810,7 +843,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1415 Tests
+npm test           # 1425 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -4569,6 +4602,16 @@ Seite. Ein Knopf ohne Wirkung ist schlimmer als keiner.
 
 Dieselbe Aussage steht auch in der Ansicht und nicht nur in der Mitteilung.
 Wer sie weggewischt hat und später selbst nachsieht, soll dasselbe lesen.
+
+## Text bleibt im Knopf
+
+Knöpfe mit Text haben eine Mindesthöhe und keine feste, und `button` bricht
+lange Wörter um. Im Betrieb hing "Andere Übungen" in der Serife halb unter
+der Pille, weil 50 Pixel Höhe fest standen und der Text zweizeilig wurde.
+Geprüft wird gerendert: ein Skript öffnet jede Ansicht und jeden Reiter in
+360 und 390 Pixeln Breite und beiden Modi, dazu Abo, Erfassen, Morgen
+Check-in und Training, und misst, ob ein Textstück über den Rand seines
+Knopfs reicht. Wer einen Knopf mit fester Höhe baut, nimmt `min-height`.
 
 ## Satoshi mit Serife als Akzent
 

@@ -26,7 +26,9 @@ function frisch() {
     wakeTime: "06:30", sleepTime: "23:00",
     sessions: [{ type: "strength", weekday: 1, minutes: 60, startsAt: "18:00" }, { type: "strength", weekday: 3, minutes: 60, startsAt: "18:00" }],
   });
-  store.setSettings({ ...store.getSettings(), plan: { einheiten: [{ titel: "Ganzkörper A", positionen: [] }, { titel: "Ganzkörper B", positionen: [] }] } });
+  // Am Montag lief A, heute ist deshalb B dran, wie unter Mein Plan "Als Nächstes".
+  store.setSettings({ ...store.getSettings(), plan: { einheiten: [{ titel: "Ganzkörper A", positionen: [] }, { titel: "Ganzkörper B", positionen: [] }] },
+    trainingslog: [{ datum: "2026-10-19", uebung: "x", einheit: "Ganzkörper A", saetze: [{ kg: 50, wdh: 8, rir: 2 }] }] });
 }
 
 const alle = (v) => ({ schlaf: v, einschlafen: v, erholt: v, gesund: v });

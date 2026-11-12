@@ -3189,7 +3189,8 @@ $("menu").addEventListener("click", (event) => {
   if (gruppe) { menuSeite(gruppe.dataset.menuGruppe); return; }
   if (event.target.closest("[data-menu-zurueck]")) menuSeite("start");
 });
-uebungen = uebungenStarten();
+// Das Protokoll wird erst beim Antippen gelesen, `trainingslog` steht weiter unten.
+uebungen = uebungenStarten({ log: () => trainingslog(), heute: () => todayIso() });
 const planSpeicher = {
   lesen: () => store.getSettings().plan ?? null,
   schreiben: (plan) => store.setSettings({ ...store.getSettings(), plan }),
@@ -3203,7 +3204,7 @@ const training = trainingStarten({
     schreiben: (trainingEntwurf) => store.setSettings({ ...store.getSettings(), trainingEntwurf }),
   },
   heute: todayIso,
-  oeffne: (id) => uebungen.oeffne(id),
+  oeffne: (id, ansicht) => uebungen.oeffne(id, ansicht),
   melde: (text) => toast(text),
   // Eine beendete Einheit steht danach auch im Tag. Sonst fragt die
   // Trainingslücke nach vier Tagen, obwohl jeder Satz eingetragen ist.
@@ -3234,7 +3235,7 @@ const plaene = plaeneStarten({
   mitwachsen: () => proFrei(store.getSettings(), KONFIG),
   proOeffnen: () => aboOeffnen({ marke: "Pro", titel: "Dein Plan, der mitwächst", empfohlen: "pro",
     text: "Nach acht Wochen prüft daevo jede Übung und tauscht, wo du nicht mehr stärker wirst." }),
-  oeffne: (id) => uebungen.oeffne(id),
+  oeffne: (id, ansicht) => uebungen.oeffne(id, ansicht),
   melde: (text) => toast(text),
   // Gestrichen heisst gestrichen. Wer sich besser fühlt, sagt es im
   // Check-in, dann ist das Training wieder frei.
