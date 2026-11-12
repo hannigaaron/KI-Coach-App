@@ -345,6 +345,19 @@ Strichfiguren, keine Clip Art, keine Karten mit Rahmen um Text.
   vorn an ihr. Am Kabel stehen beide Türme gleich weit vor der Person, damit
   der Zug nach hinten aussen geht, fotografiert von vorn und erhöht, sonst
   sieht man am Boden nicht, wo die Türme stehen.
+- Ablauf je Bild, ohne Ausnahme, auch wenn viele auf einmal anstehen:
+  1. ein echtes Foto oder Video der Übung herunterladen und ansehen, nicht
+     nur einen Text darüber lesen,
+  2. Aufbau, Abstand zum Gerät, Kabelverlauf und Gelenkwinkel aus diesem
+     Foto Teil für Teil in den Auftrag schreiben,
+  3. den Auftrag gegen die Punkte oben prüfen, dann absenden, höchstens zwei
+     gleichzeitig,
+  4. das Ergebnis nach der Liste prüfen und dem Nutzer zur Freigabe zeigen.
+  Das Video einer neuen Übung wird über sein Vorschaubild geprüft, nicht nur
+  über den Titel. Im November 2026 lief eine Runde mit neun Bildern ohne
+  Schritt 1: der Bayesian Curl stand weit weg vom Turm statt direkt vor der
+  unteren Rolle, beim Seagull Row lag die Person nicht auf der Bank, und das
+  Video "Seagull Rows" zeigte eine andere Übung.
 - Klimmzug eng: eine normale Klimmzugstation, oben ein Rahmen aus vorderer
   und hinterer Stange, in der Mitte zwei parallele Streben von vorn nach
   hinten, daran neutral gegriffen. Reverse Butterfly am Kabel: Kabel von der
