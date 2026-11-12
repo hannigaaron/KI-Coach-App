@@ -314,13 +314,51 @@ Strichfiguren, keine Clip Art, keine Karten mit Rahmen um Text.
   dem Kopf, ein liegendes Trizepsstrecken mit nur einem sichtbaren Arm,
   ein Schrägbankcurl mit den Ellbogen vor der Brust. Der Bilddienst nimmt
   rund drei Aufträge gleichzeitig an, mehr kommen mit 429 zurück.
+- Ein Bild, ein Versuch: jeder Credit kostet den Nutzer Geld. Der Auftrag
+  wird vor dem Absenden selbst geprüft und beschreibt den Aufbau Teil für
+  Teil: woraus die Maschine besteht und wo jedes Teil sitzt, wo der
+  Widerstand herkommt, woran der Griff hängt, welche Hand was greift, wo die
+  Kamera steht, dass beide Seiten gespiegelt sind. Bewährt hat sich:
+  - die Startposition mit fast gestreckten Armen statt der Endposition,
+  - die Kamera 30 bis 45 Grad seitlich, damit beide Arme sichtbar sind,
+  - jedes Kabel einzeln beschreiben, von welcher Rolle zu welcher Hand,
+    dazu der Satz, dass kein Kabel zur Hand derselben Seite läuft,
+  - Karabiner mittig oben am Griff und in Zugrichtung, nicht senkrecht,
+  - bei Maschinen ausdrücklich "kein Rückenpolster, der Rücken ist frei",
+    sonst setzt das Modell das Brustpolster hinter den Rücken,
+  - für eine Variante derselben Maschine das gelungene Bild als zweite
+    Vorlage und nur den Griff ändern, so entstand Rudermaschine breit,
+  - für einen bestimmten Aufbau ein Foto des Nutzers als Vorlage, nur für
+    die Konstruktion, so entstand die Klimmzugstation.
+  Der Bilddienst nimmt zwei Aufträge gleichzeitig an, mehr kommen mit 429
+  zurück, und ein abgelehnter Auftrag kostet nichts.
+- Vor jedem Bildauftrag ein echtes Foto der Übung oder des Geräts ansehen,
+  etwa die Produktfotos des Herstellers, und den Aufbau daraus Teil für Teil
+  in den Auftrag schreiben. So saßen High Row, Rudermaschine eng und Klimmzug
+  eng beim ersten Versuch, die übrigen drei beim zweiten. Was dabei gelernt ist: bei der High Row steht das
+  hohe Gestell hinter dem Rücken, der Hebel dreht sich oben hinter dem Kopf,
+  die Scheiben hängen hinten. Beim Rudern dreht sich der Hebel unten am
+  Rahmen, und das Brustpolster sitzt auf einem eigenen Pfosten. Eine breite
+  Stange wird ausdrücklich quer zum Körper beschrieben und von schräg vorn
+  fotografiert, in der Seitenansicht lag sie längs. Beim Reverse Butterfly
+  an der Maschine steht die Maschine direkt vor dem Sitz, das Polster sitzt
+  vorn an ihr. Am Kabel stehen beide Türme gleich weit vor der Person, damit
+  der Zug nach hinten aussen geht, fotografiert von vorn und erhöht, sonst
+  sieht man am Boden nicht, wo die Türme stehen.
+- Klimmzug eng: eine normale Klimmzugstation, oben ein Rahmen aus vorderer
+  und hinterer Stange, in der Mitte zwei parallele Streben von vorn nach
+  hinten, daran neutral gegriffen. Reverse Butterfly am Kabel: Kabel von der
+  linken Rolle zur rechten Hand und umgekehrt, gekreuzt vor der Brust.
+  Reverse Butterfly an der Maschine: Brustpolster vorn, zwei Drehachsen oben
+  mittig, Arme gespiegelt. Rudermaschine eng und breit: Polster vor der
+  Brust, Griffe am Hebelarm davor. Alle vom Nutzer vorgegeben, nachdem die
+  ersten Fassungen falsch waren.
 - Maschinen für den Rücken: Rudermaschine eng (neutrale Griffe), Rudermaschine
   breit (Obergriff, Ellbogen aussen), High Row (Hebel von oben, Zug schräg
   nach unten hinten, `vertical_pull`, für Einsteiger wie der Latzug). Dazu
   Reverse Butterfly an der Maschine und Trizepsstrecken über Kopf liegend
   mit Kurzhanteln. Der Curl auf der Schrägbank ist beidarmig gleichzeitig,
-  Schritte und Foto zeigen das. Klimmzug eng zeigt zwei kurze Griffe, die
-  quer von der Stange abstehen, neutral und eng.
+  Schritte und Foto zeigen das.
 - Die Suche: trifft kein Eintrag jedes Wort, kommen die mit den meisten
   Treffern, solange ein Wort ab vier Zeichen im Namen trifft. "Isolation
   Curl" fand im Studio nichts, obwohl zehn Curls dastehen. Aliase wie
@@ -329,7 +367,48 @@ Strichfiguren, keine Clip Art, keine Karten mit Rahmen um Text.
 
 ### Trainingspläne
 
-Reiter in derselben Ansicht, Menüpunkt "Trainingspläne". Der Plan wird gerechnet
+Menüpunkt "Trainingsplan", drei Reiter: Mein Plan, Anpassen, Übungen. Ein
+Tipp auf Training öffnet den gespeicherten Plan, nicht den Rechner. Vorher
+stand dort jedes Mal die Auswahl von Tagen und Minuten, und wer trainieren
+wollte, sah zuerst ein Formular.
+
+Mein Plan, `ansichtZeichnen` in `plaeneStarten`: oben `planKopfHtml` mit
+"Woche X von 12" und Balken, darunter "Als Nächstes" mit Starten. Die
+nächste Einheit kommt aus dem Trainingsprotokoll, `naechsteEinheit`: die
+Einheit nach der zuletzt gemachten, über den Titel, im Kreis. Ein Plan
+läuft `PLAN_WOCHEN`, zwölf Wochen, ab `beginn`, eine Regel von Coach
+Aaron: Fortschritt zeigt sich nur an einem Plan, den man durchzieht. Danach
+sagt der Kopf, dass die zwölf Wochen um sind, und verweist auf Anpassen.
+Ohne Plan steht `planEinstiegHtml` da, eine Einführung mit "Plan
+erstellen". Die Felder im Training bleiben mit Kilo, Wiederholungen und RIR
+vom letzten Mal vorbelegt wie bisher. Änderungen über Bearbeiten speichern
+sofort, Fertig schliesst nur.
+
+Anpassen, `konfigZeichnen`: Tage, Minuten, Erfahrung, Ziel und Fokus mit
+Vorschau ohne Knöpfe. Speichern setzt `beginn` neu und springt zurück auf
+Mein Plan. Ein älterer Plan ohne `beginn` bekommt einmal den heutigen Tag.
+
+Unter dem Plan steht "Stressige Woche?", `stressHtml`. Der Kurzplan,
+`kurzplanFuer`, hat 30 oder 45 Minuten und zwei oder drei Tage, ohne Fokus
+und ohne Entlastung, gespeichert in `settings.planKurz`. Ohne Wahl ist er
+Ganzkörper. Mit gewählten Partien, `kurzGruppen`, rechnet jede Einheit
+`einzeltrainingBauen` wie Training für heute, mit der Variante je Einheit,
+damit A und B verschiedene Übungen tragen, Titel "Kurz A, Brust, Rücken". "Diese
+Woche nutzen" setzt `settings.planWoche` = { art: "kurz", bis: Sonntag },
+`wochenEnde`. Solange das gilt, zeigt Mein Plan den Kurzplan, ab Montag
+wieder den normalen, `aktiverPlan` in `vorhaben.js`. Die zwölf Wochen laufen
+dabei weiter.
+
+Welche Einheit an einem Tag dran ist, sagt überall `planEinheitFuer` in
+`vorhaben.js`: Morgen Check-in, Briefing, `trainingsplan_abrufen` und Mein
+Plan nennen dieselbe. Heute ist es die Einheit nach dem letzten Training
+vor heute, `naechsteEinheit` über den Titel im Protokoll, für spätere Tage
+je Krafttag im Profil dazwischen eine weiter. Vorher zählten Briefing und
+Check-in die Krafttage ab Montag ab und nannten nach einer verschobenen
+Einheit eine andere als der Plan. In der stressigen Woche ist es der
+Kurzplan, und der Coach sagt das dazu.
+
+Der Plan wird gerechnet
 und nicht von einem Modell geschrieben: `packages/core/src/trainingsplan.ts`,
 Darstellung in `apps/pwa/js/plaene.js`. Er läuft ohne Schlüssel, ist bei
 gleicher Eingabe immer derselbe und jede Zahl hängt an einer Regel im Code.
@@ -679,8 +758,14 @@ Sätzen voll, `staerke`. Sonst sähe ein Training mit je einem Satz für alles
 so kräftig aus wie zwanzig Sätze Rücken. Ein Test prüft, dass jede Übung
 mindestens eine Partie färbt und jede Partie gezeichnet ist.
 
-Die Figur ist für daevo gezeichnet, Flächen mit schmalen Fugen auf einer
-Körperfläche, die rechte Hälfte gespiegelt. Die Karte nimmt echte Farbwerte
+Die Figur ist für daevo gezeichnet, im Stil einer anatomischen
+Strichzeichnung, den der Nutzer per Beispiel vorgegeben hat: vorn ein Arm
+mit angespanntem Bizeps, Fäuste, die Beine leicht geöffnet, heller Umriss
+mit Händen und Füssen, die Muskeln als halbdurchsichtige Flächen mit feinen
+Linien, einzelne Bauchmuskeln, drei Köpfe am Oberschenkel, zwei an der
+Beinrückseite. Die erste Fassung aus Flächen wie Bauklötzen hat er
+abgelehnt. Die Zeichnung des Beispiels ist nicht übernommen, sie gehört
+einer anderen App. Die rechte Hälfte entsteht gespiegelt. Die Karte nimmt echte Farbwerte
 und keine CSS Variablen, `KARTE_DUNKEL` und `KARTE_HELL`: dieselbe
 Zeichenkette geht als Bild auf die Leinwand, und dort gibt es keine
 Variablen.
@@ -690,19 +775,41 @@ gibt sie an `navigator.share`, sonst als Datei. Gezeichnet und kein
 Screenshot: ein Screenshot trüge die Leisten des Telefons mit. Die Wortmarke
 kommt als Datei mit Pfaden auf das Bild, nie als gesetzter Text.
 
-### Nach acht Wochen
+### Acht Wochen ohne Zuwachs
 
-`packages/core/src/trainingslog.ts`, `planPruefen` in `plaene.js`. Gemessen
-wird je Übung eine geschätzte Maximalkraft nach Epley, mit der Reserve zu
-den Wiederholungen gezählt, der beste Satz je Einheit. Anfang und Ende sind
-je der Schnitt aus zwei Einheiten, damit kein einzelner Tag das Urteil
-trägt. Unter 2,5 Prozent Zuwachs gilt eine Übung als festgefahren und wird
-gegen eine für dieselbe Bewegung getauscht, mit derselben Dosis. Was wächst,
-bleibt. Unter drei Einheiten wird nichts geraten, die Übung bleibt. Bei
-einem Training pro Woche bleiben alle Übungen: acht Einheiten sind zu wenig,
-um zu wechseln, und der einfache Plan lebt davon, an denselben Übungen
-stärker zu werden. Die Karte darüber nennt Tausch, Prozent und die drei
-stärksten Übungen und bietet "Alten Plan behalten" an.
+`planAktualisieren` in `packages/core/src/trainingslog.ts`, `planPruefen`
+in `plaene.js`. Gemessen wird je Übung eine geschätzte Maximalkraft nach
+Epley, mit der Reserve zu den Wiederholungen gezählt, der beste Satz je
+Einheit. Anfang und Ende sind je der Schnitt aus zwei Einheiten, damit kein
+einzelner Tag das Urteil trägt. Gemessen wird über die letzten acht Wochen
+und laufend, nicht einmal nach acht Wochen Planalter: eine Übung, die in
+Woche 9 feststeckte, blieb vorher bis zum Ende des Plans. Jeder Platz trägt
+`seit`, eine getauschte Übung bekommt ihre eigenen acht Wochen. Unter 2,5
+Prozent Zuwachs gilt eine Übung als festgefahren und wird gegen eine für
+dieselbe Bewegung getauscht, mit derselben Dosis. Was wächst, bleibt. Unter
+drei Einheiten wird nichts geraten. Bei einem Training pro Woche bleiben
+alle Übungen. Die Karte darüber nennt Tausch und Prozent und bietet "Alten
+Plan behalten" an. Der Tausch gehört zu Pro, ohne Pro sagt eine Karte, dass
+eine Übung feststeckt.
+
+### Der Fortschritt einer Übung
+
+`uebungsTrend` und `uebungsPunkte` im Kern, gezeichnet in
+`apps/pwa/js/uebungskurve.js`. Die Detailseite einer Übung hat zwei Reiter,
+Übung und Fortschritt. Aus dem eigenen Plan öffnet eine Übung mit Einträgen
+gleich auf Fortschritt: die Anleitung kennt man, wissen will man, wie es
+läuft. Im Trainingsmodus steht "Fortschritt ansehen" unter dem letzten Mal
+und bleibt offen, bis das Training zu ist, denn jeder Haken zeichnet neu.
+In der Planzeile steht ein Pfeil mit Prozent, `trendKurz`.
+
+Gezeichnet wird das schwerste Gewicht je Einheit über höchstens sechzehn
+Wochen, ohne Zusatzgewicht die Wiederholungen. Geurteilt wird mit derselben
+Rechnung wie beim Tausch: steigt ab 2,5 Prozent, schwächer ab minus 2,5,
+dazwischen stagniert. Das Gewicht allein nennt zehn Wiederholungen mit 80
+kg schlechter als fünf mit 82,5, deshalb steht unter der Kurve, womit
+gerechnet ist. Fällt die Kraft, sagt der Text Schlaf, Essen und Pausen statt
+mehr Gewicht. Grün und Gelb sind zu 40 Prozent mit der Textfarbe gemischt,
+pur liegen sie auf hellem Grund unter 2,5 zu 1.
 
 ### Eine einzelne Übung tauschen
 
@@ -736,7 +843,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1384 Tests
+npm test           # 1425 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -974,6 +1081,19 @@ sie genau das, sonst Termine und Fokus. Ein Tipp schreibt das ganze
 Briefing in den Chat. Morgens unter dem Ergebnis des Guten Morgen Check-ins,
 `briefingHtml` in `morgen.js`, und nicht als zweite Mitteilung zur selben
 Zeit. `briefing()` für Coach und Regelpfad gibt denselben Text.
+
+Unter dem Morgen Check-in steht das Briefing als Fokus auf eigener Fläche
+und darunter der Tag als Zeitleiste mit Uhrzeiten, `briefingHtml` in
+`morgen.js` über `briefingPunkte`. Vorher eine Textliste, und wer um sieben
+Uhr auf das Handy schaut, sucht die nächste Uhrzeit. Vor dem Briefing liest
+die App den Kalender frisch, höchstens vier Sekunden, `kalenderFrisch`. Offen
+gleicht sie ihn alle 15 Minuten ab, `ABGLEICH_ABSTAND_MS`. Die Zeilen heissen
+`.mg-zeile`, denn `.mg-punkt` sind die Knöpfe der Skala, und derselbe Name
+gab den Zeilen im ersten Versuch Pillen und feste Höhen.
+
+Snacks in den Mahlzeiten nach dem Kalender folgen derselben Regel wie im
+Wochenplan: Standard zuerst, Zucker nur ums Training, `snackRegel` in
+`tagesessen.ts`.
 
 Termine mit Titeln wie SLEEP oder Schlafenszeit sind Marker und keine
 Termine, `istSchlafMarker`. Derselbe Termin aus zwei Kalendern zählt einmal,
@@ -1513,6 +1633,16 @@ den Startbildschirm. Der Weg aus Siri läuft über das Postfach.
 
 `?sag=` bleibt ebenfalls, in Safari und auf dem Rechner funktioniert es.
 
+## Essen sprechen: Fertig heisst eintragen
+
+Beim Diktieren auf der Essen Seite trägt "Fertig" sofort ein, `nachFertig`
+an `diktatKnopf`. Vorher folgte auf Fertig ein zweiter Knopf, Erfassen.
+Ausgelöst wird beim letzten Text und nicht beim Wechsel auf Ruhe: die native
+Erkennung liefert das letzte Wort erst nach dem Anhalten. Danach steht acht
+Sekunden "Eingetragen. Mengen prüfen?" mit "Ändern", das die Mahlzeit im
+Editor öffnet. Gesprochene Mengen sind eine Schätzung, und korrigieren soll
+ein Tipp sein.
+
 ## Diktieren bis zum Stopp
 
 `bisStopp` am `Listener` in `voice.js`, die Anzeige in `diktatAnzeige` in
@@ -1999,8 +2129,16 @@ rät, meldet Fehler, die keine sind.
 
 `apps/pwa/js/bibliothek.js`, gezeichnet in `meBibliothekZeichnen` in
 `app.js`. Ohne Suchtext stehen unter dem Suchfeld die eigenen Rezepte und
-das zuletzt Gegessene, beim Tippen sofort die Treffer aus der eigenen
-Nährwerttabelle, Open Food Facts erst mit Enter. Wer drei Tage Tofu isst,
+das zuletzt Gegessene. Beim Tippen kommt ab dem ersten Buchstaben alles, was
+ohne Netz da ist, `vorschlaege` in `bibliothek.js`: Gegessenes der letzten
+180 Tage nach Häufigkeit und Frische, eigene Lebensmittel, gemerkte
+Produkte, eigene Rezepte, ab zwei Buchstaben die Tabelle. Gesucht wird auf
+Wortanfänge, "ri" trifft "ESN Rice Pudding", mitten im Wort erst ab drei
+Zeichen. 350 Millisekunden nach dem letzten Buchstaben und ab drei Zeichen
+kommen Produkte von Open Food Facts von selbst darunter, `meLiveSuche`, eine
+überholte Antwort wird verworfen. Vorher gab es Produkte nur mit Enter, und
+"ri" brachte Rinderhack statt des Puddings, der jede Woche gegessen wird.
+Ein gewähltes Produkt wird gemerkt, `produktGemerkt`. Wer drei Tage Tofu isst,
 sucht ihn am vierten nicht. Zuletzt gegessen bringt die zuletzt gegessene
 Menge mit, die isst man meistens wieder. Mahlzeiten aus Apple Health zählen
 dort nicht.
@@ -2638,6 +2776,42 @@ der Plan wird gerechnet: ändert sich das Gewicht, passt er danach zu den neuen
 Angaben. "Zutaten in die Einkaufsliste" ersetzt Posten aus einem früheren
 Plan statt sie zu addieren, was im Vorrat liegt, kommt als zuhause hinein.
 
+### Snacks, Vorlieben und fleischlose Tage
+
+Snacks im Plan kommen aus der Liste von Coach Aaron, `standard` am Rezept:
+Proteinshake, Proteinriegel, Skyr mit Beeren und Flavour Pulver, High
+Protein Grießpudding und Pudding, Magerquark mit Beeren. Schneller Zucker,
+`zucker` am Rezept, also Reiswaffeln mit Zimt, Datteln und Banane, nur an
+Tagen mit einer Einheit im Profil, `trainingstag` am Plan. Andere Snacks
+bleiben als Reserve und zahlen in der Bewertung. Das Flavour Pulver ist
+nicht mitgerechnet, verlässliche Werte gab es nicht, und das Rezept sagt es.
+
+Wer nicht vegetarisch isst, bekommt höchstens ein fleischloses Hauptgericht
+am Tag ohne Aufpreis in der Bewertung, und dieselbe Eiweissquelle zweimal
+zahlt mehr. Im Betrieb standen Linsen Curry und Linsen Bolognese am selben
+Tag bei jemandem, der nie vegetarisch angegeben hatte.
+
+Was jemand nicht mag, kommt auch aus dem Gedächtnis, `meidenAusNotizen` in
+`assistant.js`: "mag keinen Frischkäse" stand nur als Notiz, und der Plan las
+nur das Profil. Frischkäse sperrt auch Hüttenkäse, `MEIDEN_GRUPPEN` im Kern.
+
+Bewertet wird ein Tag so, wie er nach dem Verkleinern wirklich aussieht.
+Wraps und Eier gibt es nur ganz, und ein linear verkleinerter Tag lag im
+Plan bei 1700 und auf dem Teller bei 1815 kcal. Über 5 Prozent neben dem
+Kalorienziel nimmt der Plan einen Tag nur, wenn es keinen besseren gibt.
+
+## Die Tabelle schlägt die Schätzung
+
+`tabellenTreffer` in `packages/coach/src/foods.ts`, `mitTabellenwert` in
+`skills.ts`. Das Modell schätzt beim Eintragen die Werte je Posten selbst.
+Im Betrieb kamen 400 g Putenhack mit 880 statt rund 640 kcal und Express Reis
+mit den Werten von rohem Reis in den Tag. Kennt die Tabelle den Namen genau,
+ohne beschreibende Wörter, gelten ihre Werte. Bei Reis, Nudeln und Kartoffeln
+nur mit einem Wort für gegart im Namen, denn "180 g Reis" kann roh gewogen
+sein. Putenhack, Express Reis und Rinderhack tragen Etikettwerte aus Open
+Food Facts, Quelle im Kommentar. Die Antwort nennt die Kalorien je Posten:
+ohne sie konnte niemand sehen, welcher Posten falsch war.
+
 ## Protein nie unter 1,6 g je kg
 
 `PROTEIN_MIN_G_JE_KG` und `PROTEIN_DIAET_G_JE_KG` in `energy.ts`. Eine Regel
@@ -2677,10 +2851,19 @@ steckt in "Kardamom", und eine falsche Erkennung liefert am Ende ein fremdes
 Produkt. Mit Schlüssel entscheidet das Modell über `produkt_nachschlagen` und
 kennt weit mehr Marken als die Liste.
 
-Der Barcode Scanner in `apps/pwa/js/app.js` nutzt `BarcodeDetector`, wo der
-Browser ihn hat, sonst bleibt das Eingabefeld. Eine Kamerabibliothek wäre die
-erste Laufzeitabhängigkeit der App und rund 300 Kilobyte je Aufruf. Dreizehn
-Ziffern tippt man in zehn Sekunden.
+Der Barcode Scanner, `meScanStarten` in `apps/pwa/js/app.js`, hat drei
+Wege. In der iPhone App liest Apple selbst über AVFoundation,
+`ScannerPlugin.swift`, als Vollbild mit Rahmen und Abbrechen. Im Browser die
+Kamera über `getUserMedia`, gelesen von `BarcodeDetector`, wo es ihn gibt,
+sonst von `apps/pwa/js/ean.js`. Vorher gab es nur `BarcodeDetector`, und den
+kennt das iPhone weder in Safari noch in der Web Ansicht: ein Tipp auf den
+Scanner tat im Betrieb sichtbar nichts. `ean.js` liest EAN-13, EAN-8 und
+UPC-A ohne Bibliothek, zeilenweise mit örtlicher Schwelle, vorwärts und
+rückwärts, nur mit gültiger Prüfziffer und erst, wenn zwei Zeilen dasselbe
+lesen: ein falsch gelesener Code bringt ein fremdes Produkt in den Tag. Im
+Browser mit einem Kamerabild aus einer Videodatei geprüft, das Plugin ist
+nicht kompiliert. Ein gescannter Code ist eindeutig und kommt deshalb direkt
+in die Mahlzeit, `meScanTreffer`, und das Produkt in `settings.produkte`.
 
 ### Drei Stufen, bevor daevo nach dem Etikett fragt
 
@@ -3319,6 +3502,27 @@ Beim Schliessen wird die Adresse des Bildes freigegeben. Ohne das hält der
 Browser jedes Foto der Sitzung im Speicher, und bei zehn Tellern am Tag
 summiert sich das auf einem Handy.
 
+## Wann gegessen wurde, steht im Satz
+
+`packages/core/src/essenszeit.ts`, `essenszeitAus`, angewendet in
+`mahlzeitErfassen` in `assistant.js`. "Heute Morgen hatte ich 3 Eier" stand im
+Betrieb um 13:48 als Mittagessen da, weil jeder Eintrag die Uhrzeit des
+Eintragens bekam. Jetzt gilt der Tag aus heute, gestern oder vorgestern und
+die Zeit aus dem Satz: eine genannte Uhrzeit genau ("um 13:30", "um halb 8",
+"um 8 abends" wird 20:00), sonst ein Wort mit fester Zeit in seinem Fenster,
+Frühstück und morgens 8:00, vormittags 10:00, mittags 12:30, nachmittags
+15:30, abends 19:00, nachts 22:00. Die Zeiten liegen so, dass
+`artZurUhrzeit` dieselbe Mahlzeit daraus liest, ein Test hält das fest. Ein
+früherer Tag ohne Uhrzeit bekommt 12:00, wie beim Nachtragen im Verlauf.
+
+Das Werkzeug `mahlzeit_erfassen` trägt dafür `tag` und `uhrzeit`, und was
+das Modell dort angibt, schlägt das Lesen des Satzes. Der Regelweg gibt den
+ganzen Satz weiter, die Zeit liest dann die App. Eine Uhrzeit von heute, die
+noch nicht war, wird jetzt: gegessen ist, was schon passiert ist,
+`nachtragZeit`. Ein Nachtrag wird in den Tag einsortiert, die Antwort nennt
+Tag und Uhrzeit, für einen früheren Tag den Stand dieses Tages statt des
+Rests von heute.
+
 ## Nachtragen aus der Mediathek
 
 Wer beim Essen schnell ein Foto macht, trägt meist erst Stunden später ein.
@@ -3648,7 +3852,7 @@ Gemessen am 21. Oktober 2026 mit echten Sätzen über den Worker: Essen
 eintragen und kurze Aufträge auf Haiku 5.5 kosten rund 0,1 Cent, eine
 Fachfrage auf Sonnet 2 bis 7 Cent, ein Gespräch auf Opus 3 bis 15 Cent, im
 Schnitt rund 2 Cent je Nachricht. Daraus die Stufen: Testphase 60
-Nachrichten und 1,50 Dollar, Plus 250 und 7 Dollar, Pro 700 und 15 Dollar.
+Nachrichten und 1,50 Dollar, Plus 250 und 5 Dollar, Pro 700 und 15 Dollar.
 Die Zahl ist so gewählt, dass das Budget sie beim Schnitt trägt. Wer fast
 nur auf Opus redet, erreicht das Budget früher, deshalb steht in der App
 "bis zu". Vorher standen 800 und 2500 da, und das Budget von 12 Dollar
@@ -3684,9 +3888,16 @@ keiner, und die App legt nach der Ablehnung über `kontoStand` ein neues an.
 Jedes neue Konto hat sieben Tage Testphase, Stufe `test` mit `bis`. Danach
 fällt es auf `frei`, und `frei` heisst: keine KI, aber alles ohne Modell. Das
 ist eine harte Paywall und eine Entscheidung des Betreibers. Der Regelweg
-bleibt in jeder Stufe frei, denn er kostet nichts. Preise: Plus 9,99 Euro,
-Pro 19,99 Euro im Monat, oder jährlich 79,99 und 159,99 Euro. Das Jahr
-kostet acht Monate, 33 Prozent weniger, und ist im Abo Fenster vorgewählt.
+bleibt in jeder Stufe frei, denn er kostet nichts. Preise: Plus 11,99 Euro,
+Pro 19,99 Euro im Monat, oder jährlich 99,99 und 159,99 Euro. Das Jahr
+spart bei Plus 30 und bei Pro 33 Prozent und ist im Abo Fenster vorgewählt.
+Plus kostete vorher 9,99 und 79,99 Euro mit 7 Dollar Budget. Nachgerechnet
+mit 19 Prozent Umsatzsteuer, 15 Prozent Apple und rund 2 Cent KI je
+Nachricht: beim Jahresabo blieben 4,76 Euro im Monat, ein Nutzer an der
+Grenze kostete 6,30 Euro. Jetzt bleiben monatlich 8,56 und jährlich 5,95
+Euro, das Budget von 5 Dollar liegt bei rund 4,50 Euro. Das Small Business
+Program von Apple gehört vor den ersten Verkauf beantragt, sonst nimmt Apple
+im ersten Jahr 30 Prozent.
 Die Preise stehen in Cent in `ABO_STUFEN`, die Ersparnis wird gerechnet.
 Das Kontingent bleibt auch beim Jahresabo je Monat. Je Zahlweise gibt es
 einen eigenen Link, `plusJahrUrl` und `proJahrUrl` in `KONFIG.abo`. Fehlt
@@ -3786,6 +3997,19 @@ Offen: Lesen und Schreiben des Verbrauchs sind zwei Schritte im
 Schlüsselspeicher. Zwei gleichzeitige Nachrichten desselben Kontos können
 sich eine Buchung wegnehmen. Für echtes Geld gehört dort ein Durable Object
 hin.
+
+## Was Pro ist, steht gesperrt in der App
+
+`proFrei` in `apps/pwa/js/bibliothek.js`: offen bei Pro und in der
+Testphase, gesperrt bei Plus und ohne Abo, ohne eigenen Server immer offen.
+Zwei Funktionen hängen daran: der Essensplan für die Woche und die Anpassung
+des Trainingsplans nach acht Wochen. Gesperrt heisst nicht versteckt: der
+echte Plan steht verschwommen hinter einem Schloss, `.pro-gesperrt` und
+`.pro-schleier` im Stylesheet, und der Reiter trägt "Pro". Wie bei Sleep
+Cycle: wer sieht, was er bekäme, entscheidet sich leichter als vor einem
+leeren Kasten. Der Knopf öffnet das Abo Fenster mit Pro vorgewählt. Eine
+App mit Stufen, keine zweite App: dieselbe Fassung für alle, freigeschaltet
+über das Konto.
 
 ## Die iPhone App
 
@@ -3978,6 +4202,60 @@ nur auf dem Mac, dort ist nichts gebaut. Die beiden Ziele legt der Betreiber
 einmal in Xcode an, `docs/WATCH.md`, die Projektdatei wird dafür nicht von
 Hand geändert. Neue Ziele in Xcode 26 stehen auf Default Actor Isolation
 MainActor, die Anleitung stellt sie auf nonisolated und Swift 5.
+
+## Die Uhr ohne iPhone
+
+Vier Seiten: das d, Dein Tag, Heute, Training. Dein Tag zeigt Termine und
+Aufgaben, `uhrTermine` und `uhrAufgaben` in `uhr.js`, im Paket ab
+`UHR_FASSUNG` 2. Abgehakt wird auf der Uhr über `art: "aufgabe"`, das
+iPhone hakt mit `aufgabeErledigen` wirklich ab. Die Termine liest die Uhr
+selbst über EventKit, `kalenderLesen` in `Verbindung.swift`, aber nur, wenn
+`NSCalendarsFullAccessUsageDescription` im Ziel der Uhr steht: ohne den Satz
+beendet watchOS die App bei der Frage. Ist das Paket von gestern, zeigt
+Heute die Ziele und sagt, dass das Essen von heute fehlt, statt eine 0 als
+Stand. Die KI der Uhr bekommt Termine und Aufgaben in den Prompt,
+`kontextFuerKi`. Ohne iPhone rechnet die Uhr keine Kalorien: der Kern ist
+JavaScript, und eine Uhr führt keins aus.
+
+Das d leuchtet wie auf dem iPhone, zwei Schatten in der Markenfarbe auf dem
+fertig gezeichneten Bild, und kommt beim Öffnen aus der Unschärfe. Doppeltippen
+ab watchOS 11 öffnet das Diktat, `Doppeltipp`. Die Krone kann keine App
+belegen. Das Symbol der Uhr liegt in `apps/ios/watch/AppIcon.appiconset`,
+gerendert aus `daevo-icon.svg`, der Kreis von watchOS schneidet nichts ab.
+
+Fragen in Mitteilungen tragen die Kategorie `frage` mit einem Textfeld,
+`UNTextInputNotificationAction` in `MitteilungenPlugin.swift`. Auf der Uhr
+heisst das Diktat und Kritzeln statt nur "Schließen". Die Antwort läuft über
+`mitteilungAntworten` in `app.js` durch `send`, wie eine Antwort im Chat.
+Liegt die Web Ansicht noch im Speicher, ruft das Plugin
+`daevoMitteilungAntworten` sofort in einer Hintergrundaufgabe auf, und die
+Antwort von daevo kommt über `sofort` als Mitteilung zurück. Ungeprüft auf
+dem Gerät.
+
+## Ein Training von der Uhr
+
+`apps/pwa/js/training-erkannt.js`, `TrainingWache.swift`, `trainingNachtragen`
+in `kalender-schreiben.js`. Wer mit der Apple Watch trainiert, sagt es daevo
+nicht noch einmal. Vorher stand das Training still im Tag, und der Kalender
+zeigte weiter das Krafttraining um 18 Uhr, obwohl es um 16 Uhr erledigt war.
+
+`TrainingWache` lässt sich von iOS über einen `HKObserverQuery` mit
+Hintergrundlieferung wecken, sobald ein neues Training in Health steht, und
+schickt "Mega stark" als Mitteilung der Art `training`. Trainings der daevo
+Uhr App selbst meldet sie nicht, die kommen über die Uhr. Dafür steht
+`com.apple.developer.healthkit.background-delivery` in den Entitlements.
+
+Beim Öffnen oder Tippen liest die App Health. Neue Trainings von heute
+bekommen eine Nachricht im Chat, einmal je Training über
+`settings.trainingGemeldet`, und einen Termin "Training: Krafttraining" im
+Kalender, wenn dort zu der Zeit noch kein Training steht. Steht heute danach
+noch ein Training derselben Art im Kalender oder Profil, fragt daevo, ob es
+vorgezogen war. "Vorgezogen" nimmt einen eigenen Termin aus dem Kalender,
+"zweimal" lässt ihn stehen, beides ohne Modell. Volleyball am Abend nach
+Kraft am Nachmittag ist ein zweites Training und keine Frage wert. Gefragt
+und nicht gestrichen: zweimal am Tag ist bei diesem Nutzer normal.
+
+Ungeprüft: der Swift Teil ist nur auf Syntax geprüft, nicht auf einem Gerät.
 
 ## Zugriffe beim ersten Start
 
@@ -4324,6 +4602,16 @@ Seite. Ein Knopf ohne Wirkung ist schlimmer als keiner.
 
 Dieselbe Aussage steht auch in der Ansicht und nicht nur in der Mitteilung.
 Wer sie weggewischt hat und später selbst nachsieht, soll dasselbe lesen.
+
+## Text bleibt im Knopf
+
+Knöpfe mit Text haben eine Mindesthöhe und keine feste, und `button` bricht
+lange Wörter um. Im Betrieb hing "Andere Übungen" in der Serife halb unter
+der Pille, weil 50 Pixel Höhe fest standen und der Text zweizeilig wurde.
+Geprüft wird gerendert: ein Skript öffnet jede Ansicht und jeden Reiter in
+360 und 390 Pixeln Breite und beiden Modi, dazu Abo, Erfassen, Morgen
+Check-in und Training, und misst, ob ein Textstück über den Rand seines
+Knopfs reicht. Wer einen Knopf mit fester Höhe baut, nimmt `min-height`.
 
 ## Satoshi mit Serife als Akzent
 

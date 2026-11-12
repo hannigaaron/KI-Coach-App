@@ -4,7 +4,7 @@ import {
   mahlzeitAusFoto, modellFuerBilder, naehrwerteImNetz, produktPerBarcode, produkteSuchen, summiere, vorratAusFoto,
   todoistAbhaken, todoistAufgaben, todoistIdVon, todoistWiederOeffnen, PERSONA_TEILE,
 } from "@daevo/coach";
-import { foldUmlauts, wochenrueckblick, wochenbeginn, wochenschnitt, wochenschnittText, tagKurz, tagStand, rueckblickArt, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, einzeltrainingBauen, FOKUS_NAME, alternativen, planNachrechnen } from "@daevo/core";
+import { essenszeitAus, foldUmlauts, wochenrueckblick, wochenbeginn, wochenschnitt, wochenschnittText, tagKurz, tagStand, rueckblickArt, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, einzeltrainingBauen, FOKUS_NAME, alternativen, planNachrechnen } from "@daevo/core";
 import { trainingsTageAusQuellen } from "./luecke.js";
 import { UEBUNGEN } from "./uebungen-daten.js";
 import { GERAETE, uebungenFiltern } from "./uebungen.js";
@@ -111,7 +111,7 @@ import { kiErlaubt } from "./einwilligung.js";
 import { NACHTRAG_TAGE, tageZurueck } from "./exif.js";
 import { eigeneLebensmittel, eigenerPosten, eigenesIn, lebensmittelSpeichern } from "./bibliothek.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
-import { bestellteEinheit } from "./vorhaben.js";
+import { aktiverPlan, bestellteEinheit, planEinheitFuer } from "./vorhaben.js";
 
 const WEEKDAYS = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
 
@@ -948,6 +948,35 @@ export function tagesErinnerungen(day = todayIso()) {
 /* ---------- Einkaufsliste ---------- */
 
 /** Was der Nutzer nicht verträgt, aus dem Gedächtnis gelesen. */
+/**
+ * Was jemand nicht essen will, aus dem Profil und aus dem Gedächtnis.
+ *
+ * Im Betrieb stand "mag keinen Frischkäse" nur als Notiz im Gedächtnis, weil
+ * es im Gespräch gesagt wurde und nicht im Fragebogen. Der Essensplan las nur
+ * das Profil und brachte trotzdem Hüttenkäse auf Reiswaffeln. Gelesen werden
+ * Sätze wie "mag keinen X", "esse keine X", "kein X", "ohne X" in Notizen
+ * zum Essen.
+ */
+export function meidenAusNotizen(notizen = brain.all()) {
+  const funde = [];
+  for (const e of notizen) {
+    const text = String(e.text || "");
+    const zumEssen = (e.tags || []).some((t) => /ern(ä|ae)hrung|essen|vorliebe|praeferenz|präferenz/.test(t))
+      || /\b(mag|esse|isst|vertr(ä|ae)gt)\b/i.test(text);
+    if (!zumEssen) continue;
+    const re = /\b(?:mag|esse|isst|will|möchte|moechte)\s+(?:gar\s+|absolut\s+|überhaupt\s+)?(?:kein|keine|keinen|nicht\s+gern\w*)\s+([A-Za-zÄÖÜäöüß-]{3,}(?:\s+(?:und|oder)\s+[A-Za-zÄÖÜäöüß-]{3,})*)/gi;
+    for (const m of text.matchAll(re)) funde.push(...m[1].split(/\s+(?:und|oder)\s+/));
+  }
+  return [...new Set(funde.map((w) => w.trim()).filter((w) => w.length >= 3 && !/^(lust|zeit|hunger|appetit)$/i.test(w)))];
+}
+
+/** Die Ernährungsangaben für Rezepte und Plan, mit allem, was gemieden wird. */
+export function ernaehrungMitNotizen(profil = store.getProfile() || {}) {
+  const e = profil.ernaehrung || {};
+  const meiden = [...new Set([...(e.meiden || []), ...meidenAusNotizen()])];
+  return { ...e, meiden };
+}
+
 function unvertraeglichkeiten() {
   return brain
     .all()
@@ -1813,7 +1842,7 @@ export function tagesessenFuer(tagIso = todayIso(), jetzt = Date.now()) {
     gegessen: heute ? gegessen : [],
     jetzt: heute ? jetzt : undefined,
     trainings: trainingAusProfil(profile.sessions, tagIso),
-    ernaehrung: profile.ernaehrung || {},
+    ernaehrung: ernaehrungMitNotizen(profile),
     vorrat: store.getFridge(),
   });
 }
@@ -1849,12 +1878,8 @@ function trainingFuerBriefing(tagIso) {
   let titel = kalender ? kalender.titel
     : ({ strength: "Krafttraining", team_sport: "Mannschaftstraining", cardio: "Ausdauer", mobility: "Mobilität" }[s.type] || "Training");
   let uebungen;
-  const plan = store.getSettings().plan;
-  if (s?.type === "strength" && plan?.einheiten?.length) {
-    const kraft = (profile.sessions || []).filter((x) => x.type === "strength")
-      .sort((a, b) => ((a.weekday + 6) % 7) - ((b.weekday + 6) % 7));
-    const index = Math.max(0, kraft.findIndex((x) => x.weekday === wochentag));
-    const einheit = plan.einheiten[index % plan.einheiten.length];
+  if (s?.type === "strength") {
+    const einheit = planEinheitFuer(store.getSettings(), profile, tagIso, todayIso());
     if (einheit) { titel = `Krafttraining, ${einheit.titel}`; uebungen = einheit.positionen?.length; }
   }
   const morgens = tagIso === todayIso()
@@ -1974,7 +1999,7 @@ export function rezeptVorschlaege({ art, jetzt = new Date() } = {}) {
   }
   const ziel = { kcal: anteil.kcal, proteinG: anteil.proteinG, fatG: anteil.fatG, carbsG: anteil.carbsG };
   const { empfehlungen, ausgeblendet } = rezeptEmpfehlungen({
-    ziel, art: gewaehlt, ernaehrung: profil.ernaehrung || {}, vorrat: store.getFridge(),
+    ziel, art: gewaehlt, ernaehrung: ernaehrungMitNotizen(profil), vorrat: store.getFridge(),
   });
   return { art: gewaehlt, offen, morgen, rest: n.rest, ziel, empfehlungen, ausgeblendet, hinweis };
 }
@@ -2002,7 +2027,9 @@ export function essensplanRechnen({ neu = false, andere = false, heute = todayIs
   };
   return essensplanBauen({
     ziel: ziel(stand.start), zielFuer: ziel, start: stand.start, variante: stand.variante || 0,
-    ernaehrung: profil.ernaehrung || {}, vorrat: store.getFridge(),
+    ernaehrung: ernaehrungMitNotizen(profil), vorrat: store.getFridge(),
+    // Zucker nur ums Training: an Tagen mit Krafttraining oder Sport im Profil.
+    trainingstag: (tag) => (profil.sessions || []).some((x) => x.weekday === new Date(`${tag}T12:00:00`).getDay()),
   });
 }
 
@@ -2577,6 +2604,13 @@ export function nachtragZeit(tag, uhrzeit, jetzt = new Date()) {
   return { day, at };
 }
 
+/** Der Tag `n` Tage vor `iso`, in Ortszeit gerechnet wie `todayIso`. */
+function isoMinus(iso, n) {
+  const d = new Date(`${iso}T12:00:00`);
+  d.setDate(d.getDate() - n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 /** "2026-10-23" wird "Fr 23. Okt". Daten werden gesagt, nicht gesetzt. */
 function datumKurz(iso) {
   const d = new Date(`${iso}T12:00:00`);
@@ -2605,8 +2639,21 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
   const bilder = anhaenge.filter((a) => a.mediaType && a.data && !a.fehler);
 
   return {
-    async mahlzeitErfassen(beschreibung) {
-      const day = todayIso();
+    async mahlzeitErfassen(beschreibung, { tag, uhrzeit } = {}) {
+      // Wann gegessen wurde, steht oft im Satz: "heute Morgen", "gestern
+      // Abend", "um 13 Uhr". Vorher bekam jeder Eintrag die Uhrzeit des
+      // Eintragens, und das Frühstück stand um 13:48 als Mittagessen da.
+      // Was das Modell ausdrücklich angibt, schlägt das Lesen des Satzes.
+      const gelesen = essenszeitAus(beschreibung);
+      const heute = todayIso();
+      const tagIso = typeof tag === "string" && /^\d{4}-\d{2}-\d{2}$/.test(tag) ? tag
+        : gelesen?.tageZurueck ? isoMinus(heute, gelesen.tageZurueck) : undefined;
+      const zeitAngabe = typeof uhrzeit === "string" && uhrzeit ? uhrzeit : gelesen?.uhrzeit ?? undefined;
+      // Ein früherer Tag ohne Uhrzeit bekommt Mittag. Die Uhrzeit von jetzt
+      // stünde dort wie eine Angabe und ist keine.
+      const zeit = nachtragZeit(tagIso, zeitAngabe ?? (tagIso && tagIso !== heute ? "12:00" : undefined));
+      const day = zeit.day;
+      const nachtrag = day !== heute || zeit.at !== nowTime();
       const parsed = mitEigenenLebensmitteln(await coach.parseMeal(beschreibung), store.getSettings());
       // Lief das Modell nicht, steht das in der Antwort, mit Grund. Vorher
       // fiel die App still auf die Tabelle zurück, und ein Satz mit sechs
@@ -2629,7 +2676,7 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       // Tages im Kontext und schickt beim nächsten Eintrag die ganze bisherige
       // Liste erneut mit. An einem echten Tag standen dadurch 5172 statt rund
       // 1700 Kalorien da. Siehe packages/core/src/doppelt.ts.
-      const jetzt = nowTime();
+      const jetzt = zeit.at;
       const bestehend = (store.getDay(day).meals || []).flatMap((m) =>
         (m.entries || []).map((eintrag) => ({ eintrag, at: m.at || jetzt })),
       );
@@ -2651,12 +2698,27 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
         entries: behalten,
         feeling: null,
       });
+      // Ein Nachtrag gehört an seine Stelle im Tag und nicht ans Ende.
+      if (nachtrag) {
+        const daten = store.getDay(day);
+        daten.meals.sort((a, b) => String(a.at).localeCompare(String(b.at)));
+        store.setDay(day, daten);
+      }
       changed();
       const kcal = Math.round(behalten.reduce((s, e) => s + e.kcal, 0));
       const protein = Math.round(behalten.reduce((s, e) => s + e.proteinG, 0));
-      const posten = behalten.map((e) => `${e.quantity} ${e.name}`).join(", ");
+      // Je Posten mit Kalorien. Ohne die Zahl je Zeile konnte im Betrieb weder
+      // der Nutzer noch der Coach sehen, welcher Posten falsch war: auf "der
+      // Reis kann nicht stimmen" kam "einen Einzelwert habe ich nicht".
+      const posten = behalten.map((e) => `${e.quantity} ${e.name} (${Math.round(e.kcal)} kcal)`).join(", ");
       const warnung = parsed.warnings.length ? ` ${parsed.warnings.join(" ")}` : "";
-      const n = dayNumbers();
+      const zurueck = tageZurueck(day, heute);
+      const n = dayNumbers(day);
+      const tagWort = zurueck === 0 ? "heute" : zurueck === 1 ? "gestern" : "vorgestern";
+      const wann = nachtrag ? `Für ${tagWort}, ${jetzt} Uhr${gelesen?.grund && !uhrzeit && !gelesen.grund.startsWith("um") ? ` (${gelesen.grund})` : ""}.` : "";
+      const stand = zurueck === 0
+        ? restText(n.rest)
+        : `${zurueck === 1 ? "Gestern" : "Vorgestern"} liegst du damit bei ${Math.round(n.totals.kcal)} von ${n.targets.kcal} kcal.`;
       // Der Hinweis steht vorn. Eine Korrektur am Ende einer Antwort wird
       // überlesen, und genau sie ist der Grund, warum die Zahlen stimmen.
       const unplausibel = plausibelHinweis(day);
@@ -2666,9 +2728,10 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       return [
         ohneModell,
         schonDa,
-        `Eingetragen: ${posten}. Zusammen ${kcal} kcal und ${protein} g Protein.`,
+        `Eingetragen: ${posten}. Diese Mahlzeit zusammen ${kcal} kcal und ${protein} g Protein.`,
+        wann,
         parsed.followUpQuestion,
-        `${restText(n.rest)}${warnung}`,
+        `${stand}${warnung}`,
         unplausibel,
       ].filter(Boolean).join(" ").trimEnd();
     },
@@ -3691,6 +3754,7 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       const d = new Date(`${todayIso()}T12:00:00`);
       d.setDate(d.getDate() + inTagen);
       const wochentag = d.getDay();
+      const tag = new Date(Date.parse(`${todayIso()}T12:00:00Z`) + inTagen * 86_400_000).toISOString().slice(0, 10);
       const wann = inTagen === 0 ? "Heute" : inTagen === 1 ? "Morgen" : `Am ${WEEKDAYS[wochentag]}`;
       const sessions = store.getProfile()?.sessions || [];
       const heute = sessions.filter((s) => s.weekday === wochentag).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
@@ -3704,14 +3768,11 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
         zeilen.push(`Heute gestrichen: du hast dich auch mittags nur bei ${morgens.nachgefragt?.gesund ?? morgens.morgen.gesund} von 5 gefühlt. Der Tag gehört der Erholung.`);
         return zeilen.join("\n");
       }
-      // Welche Einheit des gespeicherten Plans dran ist: die Krafttage der
-      // Woche der Reihe nach, Montag zuerst, und die Einheiten A, B, C im
-      // Wechsel darüber. Das ist dieselbe Zuordnung wie im Kalender.
-      const plan = store.getSettings().plan;
-      if (plan?.einheiten?.length && heute.some((s) => s.type === "strength")) {
-        const kraft = sessions.filter((s) => s.type === "strength").sort((a, b) => ((a.weekday + 6) % 7) - ((b.weekday + 6) % 7));
-        const index = Math.max(0, kraft.findIndex((s) => s.weekday === wochentag));
-        const einheit = plan.einheiten[index % plan.einheiten.length];
+      // Welche Einheit des gültigen Plans dran ist, dieselbe wie unter Mein
+      // Plan "Als Nächstes". In einer stressigen Woche ist das der Kurzplan.
+      const einheit = heute.some((s) => s.type === "strength") ? planEinheitFuer(store.getSettings(), store.getProfile(), tag, todayIso()) : null;
+      if (einheit) {
+        if (aktiverPlan(store.getSettings(), tag) === store.getSettings().planKurz) zeilen.push("Diese Woche gilt dein Kurzplan.");
         zeilen.push(`Aus deinem Plan: ${einheit.titel}, ${einheit.fokus}, etwa ${einheit.dauerMin} Minuten.`);
         // Der Vorschlag für heute steht dabei, gerechnet aus dem Protokoll.
         // Sonst rät der Coach ein Gewicht, und eine Zahl aus dem Modell ist
@@ -3722,7 +3783,7 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
           zeilen.push(`- ${p.name}: ${p.saetze} x ${p.wdh}, ${p.reserve} in Reserve${st ? `. ${st.text}` : ""}`);
         }
       } else if (heute.some((s) => s.type === "strength")) {
-        zeilen.push("Einen Plan mit Übungen hast du noch nicht gespeichert. Den rechnet dir die App unter Training, Trainingspläne.");
+        zeilen.push("Einen Plan mit Übungen hast du noch nicht gespeichert. Den rechnet dir die App unter Training, Anpassen.");
       }
       return zeilen.join("\n");
     },

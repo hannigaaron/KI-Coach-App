@@ -288,6 +288,16 @@ test("Grundnahrungsmittel gehen weiter an die Mahlzeit", async () => {
   assert.match(log[0]!, /^mahlzeit:/);
 });
 
+test("Heute Morgen und gestern Abend gehen samt Zeitangabe an die Mahlzeit", async () => {
+  // Die Zeit liest mahlzeitErfassen selbst aus dem Satz, siehe essenszeit.ts.
+  // Der Regelweg muss den Satz dafür ganz weitergeben.
+  for (const satz of ["Heute Morgen hatte ich 3 Eier und 2 Scheiben Toast", "Gestern Abend hab ich 300 g Reis gegessen"]) {
+    const log: string[] = [];
+    await runOffline(satz, stubActions(log));
+    assert.equal(log[0], `mahlzeit:${satz}`);
+  }
+});
+
 test("ein Supermarkt ist keine Marke und loest keine Produktsuche aus", async () => {
   // Der echte Fall aus dem Betrieb: der Satz ging komplett als Suchbegriff an
   // Open Food Facts, fand nichts, und die Mahlzeit wurde nie erfasst.

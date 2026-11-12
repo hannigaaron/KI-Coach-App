@@ -40,6 +40,12 @@ export interface EssensplanEingabe {
    */
   vorkochen?: boolean;
   rezepte?: Rezept[];
+  /**
+   * Ob an einem Tag trainiert wird. Snacks mit schnellem Zucker kommen nur an
+   * diesen Tagen in den Plan. Fehlt die Angabe, gilt kein Tag als
+   * Trainingstag, und es gibt Zucker nirgends.
+   */
+  trainingstag?: (datum: string) => boolean;
 }
 
 export interface PlanMahlzeit {
@@ -153,7 +159,22 @@ export function essensplanBauen(e: EssensplanEingabe): Essensplan {
   const anzahlTage = Math.max(1, Math.min(14, Math.round(e.tage ?? 7)));
   const variante = Math.max(0, Math.round(e.variante ?? 0));
   const vorkochen = e.vorkochen ?? true;
-  const rezepte = e.rezepte ?? REZEPTE;
+  // Snacks aus der Liste von Coach Aaron, sobald genug davon zu den Angaben
+  // passen. Vorher kamen Hummus, Hüttenkäse und Apfel mit Erdnussbutter mit
+  // derselben Chance wie der Shake.
+  const alle = e.rezepte ?? REZEPTE;
+  const standardSnacks = alle.filter((r) => r.art === "snack" && r.standard && !r.zucker && !rezeptGesperrt(r, e.ernaehrung));
+  // Die übrigen bleiben als Reserve und zahlen dafür in der Bewertung. Ganz
+  // ohne sie lag ein Tag der Diät 7 Prozent über dem Ziel, weil kein Snack
+  // die Lücke zwischen den Gerichten schliessen konnte.
+  const reserve = (r: Rezept) => standardSnacks.length >= 2 && r.art === "snack" && !r.standard;
+  const rezepte = alle;
+  const ohneZucker = rezepte.filter((r) => !r.zucker);
+  // Wer nicht vegetarisch isst, bekommt nicht zwei fleischlose Hauptgerichte
+  // an einem Tag. Im Betrieb standen Linsen Curry und Linsen Bolognese am
+  // selben Tag bei jemandem, der nie vegetarisch angegeben hatte: Linsen
+  // treffen Protein und Kohlenhydrate gut, und deshalb gewannen sie immer.
+  const isstFleisch = !e.ernaehrung?.form || e.ernaehrung.form === "omnivor" || e.ernaehrung.form === "flexitarisch";
   const hinweise = [...verteileRest(e.ziel, arten).hinweise];
 
   // Je Rezeptart: wie oft sie in der Woche gebraucht wird und wie viele
@@ -191,7 +212,8 @@ export function essensplanBauen(e: EssensplanEingabe): Essensplan {
     // bei knapper Auswahl kommt so erst jedes Rezept einmal dran.
     const listen = anteile.map((anteil, i) => {
       const ziel = { kcal: anteil.kcal, proteinG: anteil.proteinG, fatG: anteil.fatG, carbsG: anteil.carbsG };
-      const { empfehlungen } = rezeptEmpfehlungen({ ziel, art: anteil.art, ernaehrung: e.ernaehrung, vorrat: e.vorrat, rezepte });
+      const tagesRezepte = e.trainingstag?.(datum) ? rezepte : ohneZucker;
+      const { empfehlungen } = rezeptEmpfehlungen({ ziel, art: anteil.art, ernaehrung: e.ernaehrung, vorrat: e.vorrat, rezepte: tagesRezepte });
       // Der zweite Tag eines Paars isst, was am Vortag doppelt gekocht wurde,
       // mit der Portion für sein eigenes Ziel. Fehlt das Gericht heute in der
       // Liste, gilt der Tag wie jeder andere.
@@ -221,7 +243,7 @@ export function essensplanBauen(e: EssensplanEingabe): Essensplan {
       const frei = gut.length >= 3 ? gut : moeglich.slice(0, Math.max(3, gut.length));
       if (!frei.length) return [];
       // Schon benutzte rutschen nach hinten, um 10 Punkte je Mal.
-      const rang = (x: RezeptEmpfehlung) => x.passung - 10 * (benutzt.get(x.rezept.id) ?? 0);
+      const rang = (x: RezeptEmpfehlung) => x.passung - 10 * (benutzt.get(x.rezept.id) ?? 0) - (reserve(x.rezept) ? 15 : 0);
       const sortiert = frei.slice().sort((a, b) => rang(b) - rang(a));
       const bester = rang(sortiert[0]!);
       const eng = sortiert.filter((x) => rang(x) >= bester - SPIELRAUM);
@@ -244,11 +266,18 @@ export function essensplanBauen(e: EssensplanEingabe): Essensplan {
         ergaenzung = ergaenzen(skaliert(summe, f), tagesziel, quellen);
         f = kleinerFaktor(summe, ergaenzung, tagesziel);
       }
-      const gesamt = summeAus([...ergaenzung, { ...summe, key: "reis", name: "", gramm: 0, menge: "",
-        kcal: summe.kcal * f, proteinG: summe.proteinG * f, fatG: summe.fatG * f, carbsG: summe.carbsG * f }]);
+      // Gerechnet wird mit den Gerichten, wie sie nach dem Verkleinern
+      // wirklich aussehen. Wraps und Eier gibt es nur ganz, und ein linear
+      // verkleinerter Tag lag im Plan bei 1700 kcal und auf dem Teller bei 1815.
+      const echt = f < 1 ? summeAus(wahl.map((w) => kleiner(w, f)).flatMap((w) => w.posten)) : summe;
+      const gesamt = summeAus([...ergaenzung, { ...echt, key: "reis", name: "", gramm: 0, menge: "" }]);
       const doppelt = wahl.length - new Set(wahl.map(eiweissQuelle)).size;
       const wieder = wahl.reduce((n, w) => n + (benutzt.get(w.rezept.id) ?? 0), 0);
-      return { ergaenzung, faktor: f, fehler: tagesfehler(gesamt, tagesziel) + doppelt * 0.03 + ergaenzung.length * 0.01 + wieder * 0.04 };
+      // Fleischlose Hauptgerichte über eines hinaus zahlen deutlich. Dieselbe
+      // Eiweissquelle zweimal am Tag zahlt mehr als vorher: mit 0,03 standen
+      // zwei Linsengerichte trotzdem nebeneinander.
+      const veg = isstFleisch ? wahl.filter((w) => w.rezept.art === "hauptmahlzeit" && fleischlos(w.rezept)).length : 0;
+      return { ergaenzung, faktor: f, fehler: tagesfehler(gesamt, tagesziel) + doppelt * 0.06 + Math.max(0, veg - 1) * 0.08 + wahl.filter((w) => reserve(w.rezept)).length * 0.05 + ergaenzung.length * 0.01 + wieder * 0.04 };
     };
     // Gibt es keine Kombination ohne doppeltes Gericht am selben Tag, wird
     // das in Kauf genommen. Ein doppeltes Gericht ist besser als ein leerer Tag.
@@ -385,7 +414,11 @@ function tagesfehler(ist: Werte, ziel: Werte): number {
   // Über 4 Prozent bei den Kalorien zählt jeder weitere Prozentpunkt fünffach:
   // ein Tag mit 120 Kalorien zu viel wiegt in der Diät mehr als 10 Gramm
   // Kohlenhydrate daneben.
-  return 0.35 * k + Math.max(0, k - 0.04) * 1.5
+  // Über 5 Prozent daneben ist ein Tag, den der Plan nur nimmt, wenn es gar
+  // keinen besseren gibt. Mit den neuen Snacks aus Stückzutaten wie Riegel und
+  // Banane gewann sonst ein Tag mit 7 Prozent zu viel gegen einen mit 2, nur
+  // weil darin ein schon benutztes Gericht stand.
+  return 0.35 * k + Math.max(0, k - 0.04) * 1.5 + (k > 0.05 ? 1 : 0)
     + 0.35 * (p > 0 ? p * 1.5 : -p)
     + 0.15 * Math.abs(rel(ist.fatG, ziel.fatG))
     + 0.15 * Math.abs(rel(ist.carbsG, ziel.carbsG));
@@ -504,6 +537,14 @@ export function essensplanText(p: Essensplan): string {
     return `${tag}: ${m || "nichts Passendes"}. ${t.summe.kcal} kcal, ${t.summe.proteinG} g Protein.`;
   });
   return [...zeilen, ...p.hinweise].join("\n");
+}
+
+/** Ein Gericht ohne Fleisch, Fisch und Meeresfrüchte. */
+function fleischlos(r: Rezept): boolean {
+  return !r.zutaten.some(({ z }) => {
+    const h = (ZUTATEN[z] as Zutat).herkunft;
+    return h === "fleisch" || h === "fisch" || h === "meeresfrucht";
+  });
 }
 
 /** Die Zutat, die in einer Portion das meiste Protein trägt. */

@@ -21,17 +21,29 @@ struct Orb: View {
 
     @Environment(\.isLuminanceReduced) private var gedimmt
 
+    /// Wie stark das d leuchtet, wie `--glow` auf dem iPhone: ruhig etwas
+    /// schwächer, beim Zuhören, Denken und Sprechen voll.
+    private var glanz: Double { zustand == .bereit ? 0.8 : 1 }
+
     var body: some View {
         // Im gedimmten Modus der Uhr läuft nichts, ein Bild je Minute reicht.
         TimelineView(.animation(minimumInterval: gedimmt ? 60 : 1.0 / 30, paused: gedimmt)) { zeit in
             Canvas { ctx, groesse in
                 OrbPunkte.shared.zeichnen(in: &ctx, groesse: groesse, zeit: zeit.date.timeIntervalSinceReferenceDate, zustand: zustand, gedimmt: gedimmt)
             }
+            // Das Leuchten wie auf dem iPhone, `.orb-canvas` in styles.css:
+            // ein enger und ein weiter Schein aus der Markenfarbe. Vorher
+            // standen die Punkte ohne Schein da, und das d glomm nicht.
+            // Erst als ein Bild zusammengesetzt, dann der Schein, sonst
+            // rechnet die Uhr je Punkt einen eigenen Schatten.
+            .drawingGroup()
+            .shadow(color: Farben.marke.opacity(gedimmt ? 0.25 : 0.85 * glanz), radius: 3)
+            .shadow(color: Farben.marke.opacity(gedimmt ? 0.12 : 0.45 * glanz), radius: 11)
         }
         .aspectRatio(1, contentMode: .fit)
         .background(
             // Der Schein hinter dem Buchstaben, aus derselben Farbe.
-            RadialGradient(colors: [Farben.marke.opacity(gedimmt ? 0.08 : 0.22), .clear], center: .center, startRadius: 0, endRadius: 90)
+            RadialGradient(colors: [Farben.marke.opacity(gedimmt ? 0.08 : 0.30 * glanz), .clear], center: .center, startRadius: 0, endRadius: 95)
         )
         .accessibilityLabel("daevo")
     }

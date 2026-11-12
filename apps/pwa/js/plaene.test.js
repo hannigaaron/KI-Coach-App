@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { UEBUNGEN } from "./uebungen-daten.js";
-import { FELDER, STANDARD_WUNSCH, einheitHtml, gespeicherterPlan, planFuer, planText, saetzeHtml, steuerHtml, wunschPruefen, zeileHtml } from "./plaene.js";
+import { FELDER, PLAN_WOCHEN, STANDARD_WUNSCH, einheitHtml, gespeicherterPlan, kurzplanFuer, naechsteEinheit, planFuer, planKopfHtml, planText, planWoche, saetzeHtml, steuerHtml, wochenEnde, wunschPruefen, zeileHtml } from "./plaene.js";
+import { aktiverPlan, kurzwocheAktiv } from "./vorhaben.js";
 
 /**
  * Pläne gegen die echte Übungsdatenbank.
@@ -212,4 +213,78 @@ test("Training für heute: eine einzelne Übung tauschen, Dosis bleibt", async (
   assert.equal(neu.positionen[pi].id, liste[0].id);
   assert.equal(neu.positionen[pi].saetze, e.positionen[pi].saetze);
   assert.match(zeileHtml(e.positionen[0], { tauschAttr: 'data-heute-tausch="0"' }), /data-heute-tausch="0"/);
+});
+
+test("ein Plan läuft zwölf Wochen, gezählt ab seinem ersten Tag", () => {
+  const plan = { beginn: "2026-11-02", einheiten: [] };
+  assert.deepEqual(planWoche(plan, "2026-11-02"), { woche: 1, von: PLAN_WOCHEN, fertig: false });
+  assert.equal(planWoche(plan, "2026-11-16").woche, 3);
+  assert.equal(planWoche(plan, "2027-01-24").woche, 12);
+  assert.equal(planWoche(plan, "2027-01-25").fertig, true);
+  // Ältere Pläne kennen nur den Zeitpunkt des Speicherns.
+  assert.equal(planWoche({ gespeichertAm: "2026-11-02T18:00:00.000Z" }, "2026-11-09").woche, 2);
+});
+
+test("als Nächstes kommt die Einheit nach der zuletzt trainierten, ohne Training die erste", () => {
+  const plan = planFuer({ ...STANDARD_WUNSCH, tage: 3 });
+  const [a, b, c] = plan.einheiten.map((e) => e.titel);
+  assert.equal(naechsteEinheit(plan, []), 0);
+  assert.equal(naechsteEinheit(plan, [{ datum: "2026-11-02", einheit: a }, { datum: "2026-11-04", einheit: b }]), 2);
+  assert.equal(naechsteEinheit(plan, [{ datum: "2026-11-06", einheit: c }]), 0);
+  // Ein freies Training zählt nicht als Einheit des Plans.
+  assert.equal(naechsteEinheit(plan, [{ datum: "2026-11-02", einheit: a }, { datum: "2026-11-03", einheit: "Freies Training" }]), 1);
+  const html = planKopfHtml(plan, { woche: { woche: 3, von: 12, fertig: false }, naechste: 1 });
+  assert.match(html, /Woche 3 von 12/);
+  assert.match(html, new RegExp(`Als Nächstes</small><b>${b}`));
+  assert.match(html, /data-tr-start="1"/);
+});
+
+test("der Kurzplan ist Ganzkörper in 30 oder 45 Minuten und trägt kurz im Titel", () => {
+  const basis = { ...STANDARD_WUNSCH, tage: 5, minuten: 75, fokus: ["arme"], ort: "studio" };
+  for (const minuten of [30, 45]) {
+    for (const tage of [2, 3]) {
+      const k = kurzplanFuer(basis, { minuten, tage });
+      assert.equal(k.einheiten.length, tage);
+      assert.ok(k.einheiten.every((e) => / kurz$/.test(e.titel) && e.dauerMin <= minuten + 5), `${tage} x ${minuten}`);
+      assert.deepEqual(k.wunsch.fokus, []);
+    }
+  }
+  // Andere Titel als der normale Plan, sonst mischte das Protokoll beide.
+  const normal = planFuer({ ...STANDARD_WUNSCH, tage: 2 });
+  const kurz = kurzplanFuer(STANDARD_WUNSCH, { minuten: 30, tage: 2 });
+  assert.ok(kurz.einheiten.every((e) => !normal.einheiten.some((n) => n.titel === e.titel)));
+});
+
+test("der Kurzplan mit gewählten Partien trainiert genau diese", async () => {
+  const { UEBUNGEN } = await import("./uebungen-daten.js");
+  const gruppe = new Map(UEBUNGEN.map((u) => [u.id, u.gruppe]));
+  for (const minuten of [30, 45]) for (const tage of [2, 3]) {
+    const k = kurzplanFuer(STANDARD_WUNSCH, { minuten, tage, gruppen: ["brust", "ruecken"] });
+    assert.equal(k.einheiten.length, tage);
+    assert.deepEqual(k.kurzGruppen, ["brust", "ruecken"]);
+    for (const e of k.einheiten) {
+      assert.ok(e.titel.startsWith("Kurz ") && e.titel.includes("Brust, Rücken"), e.titel);
+      assert.ok(e.positionen.length > 0);
+      assert.ok(e.positionen.some((p) => gruppe.get(p.id) === "brust") && e.positionen.some((p) => gruppe.get(p.id) === "ruecken"), e.titel);
+      assert.ok(e.dauerMin <= minuten + 8, `${e.titel} ${e.dauerMin}`);
+    }
+  }
+  // Zwei Einheiten tragen nicht genau dieselben Übungen.
+  const k = kurzplanFuer(STANDARD_WUNSCH, { minuten: 45, tage: 2, gruppen: ["beine", "po"] });
+  assert.notDeepEqual(k.einheiten[0].positionen.map((p) => p.id), k.einheiten[1].positionen.map((p) => p.id));
+  // Unbekanntes fällt weg, ohne Wahl bleibt es Ganzkörper.
+  assert.deepEqual(kurzplanFuer(STANDARD_WUNSCH, { gruppen: ["quatsch"] }).kurzGruppen, []);
+});
+
+test("die stressige Woche gilt bis Sonntag und fällt danach von selbst weg", () => {
+  assert.equal(wochenEnde("2026-11-12"), "2026-11-15");
+  assert.equal(wochenEnde("2026-11-15"), "2026-11-15");
+  const planKurz = { einheiten: [{ titel: "A, kurz", positionen: [] }] };
+  const plan = { einheiten: [{ titel: "A", positionen: [] }] };
+  const s = { plan, planKurz, planWoche: { art: "kurz", bis: "2026-11-15" } };
+  assert.equal(kurzwocheAktiv(s, "2026-11-15"), true);
+  assert.equal(aktiverPlan(s, "2026-11-13"), planKurz);
+  assert.equal(kurzwocheAktiv(s, "2026-11-16"), false);
+  assert.equal(aktiverPlan(s, "2026-11-16"), plan);
+  assert.equal(aktiverPlan({ plan, planWoche: { art: "kurz", bis: "2026-11-15" } }, "2026-11-13"), plan);
 });

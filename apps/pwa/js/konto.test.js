@@ -117,19 +117,22 @@ test("die Leiste auf dem Start zählt die Testphase herunter und schweigt bei Pr
   assert.equal(aboLeiste({ stufe: "pro" }, "2026-10-30"), null);
 });
 
-test("das Jahr kostet acht Monate, und die Ersparnis ist gerechnet", async () => {
+test("das Jahr spart mindestens 30 Prozent, und die Ersparnis ist gerechnet", async () => {
   const { ABO_STUFEN, aboPreis, ersparnisProzent, euro } = await import("./konto.js");
   assert.equal(euro(7999), "79,99 €");
   assert.equal(euro(1005), "10,05 €");
   for (const s of ABO_STUFEN) {
-    // Acht Monatspreise, abgerundet auf ,99. Steigt der Jahrespreis über
-    // zwölf Monate, wäre das Angebot eine Falle.
+    // Steigt der Jahrespreis über zwölf Monate, wäre das Angebot eine Falle.
     assert.ok(s.jahrCent < s.monatCent * 12, s.id);
-    assert.equal(ersparnisProzent(s), 33, s.id);
+    assert.ok(ersparnisProzent(s) >= 30, s.id);
+  }
+  assert.equal(ersparnisProzent(ABO_STUFEN.find((s) => s.id === "plus")), 30);
+  assert.equal(ersparnisProzent(ABO_STUFEN.find((s) => s.id === "pro")), 33);
+  {
   }
   const plus = ABO_STUFEN.find((s) => s.id === "plus");
-  assert.deepEqual(aboPreis(plus, "monat"), { preis: "9,99 €", zeitraum: "im Monat", zusatz: "" });
-  assert.deepEqual(aboPreis(plus, "jahr"), { preis: "79,99 €", zeitraum: "im Jahr", zusatz: "6,66 € im Monat" });
+  assert.deepEqual(aboPreis(plus, "monat"), { preis: "11,99 €", zeitraum: "im Monat", zusatz: "" });
+  assert.deepEqual(aboPreis(plus, "jahr"), { preis: "99,99 €", zeitraum: "im Jahr", zusatz: "8,33 € im Monat" });
 });
 
 test("jährlich führt zum Jahreslink und nie still zum Monatslink", async () => {

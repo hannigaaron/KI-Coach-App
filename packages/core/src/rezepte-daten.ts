@@ -70,6 +70,16 @@ export const ZUTATEN = {
 
   vollkornbrot: { name: "Vollkornbrot", per100: { kcal: 210, proteinG: 7, fatG: 1.2, carbsG: 40 }, allergene: ["Gluten"], stueckG: 45, stueckName: ["Scheibe Vollkornbrot", "Scheiben Vollkornbrot"] },
   wrap: { name: "Weizenwrap", per100: { kcal: 310, proteinG: 8, fatG: 7, carbsG: 52 }, allergene: ["Gluten"], stueckG: 65, stueckName: ["Wrap", "Wraps"] },
+  // Etikettwerte aus Open Food Facts, abgerufen am 10.11.2026. Datteln: sechs
+  // Produkte zwischen 265 und 296 kcal. Grießpudding: Milbona Pur 81, Milsani
+  // 79, Gut & Günstig 82 kcal. Pudding: Ehrmann 80, Elite 80, Milbona 77 kcal.
+  // Proteinriegel: die Marken liegen weit auseinander, gerechnet wird mit
+  // einem mittleren Riegel wie Layenberger, 367 kcal und 31 g Protein.
+  datteln: { name: "Datteln, getrocknet", per100: { kcal: 290, proteinG: 2.3, fatG: 0.4, carbsG: 66 }, stueckG: 10, stueckName: ["Dattel", "Datteln"] },
+  griesspudding_hp: { name: "High Protein Grießpudding", per100: { kcal: 81, proteinG: 8, fatG: 1.5, carbsG: 8.7 }, allergene: ["Milch", "Gluten"], unvertraeglich: ["Laktose"], herkunft: "milch" },
+  proteinpudding: { name: "High Protein Pudding", per100: { kcal: 80, proteinG: 10, fatG: 1.8, carbsG: 6 }, allergene: ["Milch"], unvertraeglich: ["Laktose"], herkunft: "milch" },
+  proteinriegel: { name: "Proteinriegel", per100: { kcal: 370, proteinG: 31, fatG: 15, carbsG: 28 }, allergene: ["Milch"], unvertraeglich: ["Laktose"], herkunft: "milch", stueckG: 45, stueckName: ["Proteinriegel", "Proteinriegel"] },
+  zimt: { name: "Zimt", per100: { kcal: 247, proteinG: 4, fatG: 1.2, carbsG: 55 } },
   reiswaffeln: { name: "Reiswaffeln", per100: { kcal: 387, proteinG: 8, fatG: 3, carbsG: 81 }, stueckG: 8, stueckName: ["Reiswaffel", "Reiswaffeln"] },
   reis: { name: "Reis, roh", per100: { kcal: 350, proteinG: 7, fatG: 0.6, carbsG: 78 } },
   nudeln: { name: "Vollkornnudeln, roh", per100: { kcal: 345, proteinG: 13, fatG: 2.5, carbsG: 64 }, allergene: ["Gluten"] },
@@ -137,6 +147,17 @@ export interface Rezept {
   geraete: string[];
   /** Es gibt ein Foto unter `img/rezepte/<id>.jpg`. Ohne Foto trägt die Karte ein Zeichen. */
   foto?: boolean;
+  /**
+   * Ein Snack aus der Liste von Coach Aaron: Shake, Riegel, Reiswaffeln mit
+   * Zimt, Datteln, Banane, Skyr mit Beeren, High Protein Pudding. Gibt es
+   * davon genug, kommen andere Snacks nicht in den Plan.
+   */
+  standard?: boolean;
+  /**
+   * Schneller Zucker. Gehört ums Training, nicht in einen ruhigen Nachmittag,
+   * eine Regel von Coach Aaron. Im Wochenplan nur an Trainingstagen.
+   */
+  zucker?: boolean;
 }
 
 export const REZEPTE: Rezept[] = [
@@ -264,9 +285,50 @@ export const REZEPTE: Rezept[] = [
     schritte: ["Nudeln kochen.", "Hähnchen würfeln und mit der Zwiebel in Öl anbraten.", "Passierte Tomaten dazu, würzen und zehn Minuten köcheln.", "Mit den Nudeln mischen und Parmesan darüber reiben."],
   },
 
-  // Snacks
+  // Snacks. Die mit standard stammen aus der Liste von Coach Aaron, Zucker
+  // nur ums Training.
   {
-    id: "quark-beeren", foto: true, name: "Magerquark mit Beeren", art: "snack", minuten: 3, geraete: [],
+    id: "proteinshake", name: "Proteinshake", art: "snack", minuten: 2, geraete: [], standard: true,
+    zutaten: [{ z: "whey", g: 30 }, { z: "milch", g: 300 }],
+    schritte: ["Whey mit Milch im Shaker kräftig schütteln.", "Wer weniger Kalorien will, nimmt Wasser statt Milch."],
+  },
+  {
+    id: "proteinriegel", name: "Proteinriegel", art: "snack", minuten: 1, geraete: [], standard: true,
+    zutaten: [{ z: "proteinriegel", g: 45 }],
+    schritte: ["Einen Riegel mit mindestens 15 g Protein nehmen.", "Die Werte stehen auf der Packung, im Zweifel den Barcode scannen."],
+  },
+  {
+    id: "skyr-beeren-flavour", name: "Skyr mit Beeren und Flavour Pulver", art: "snack", minuten: 3, geraete: [], standard: true,
+    zutaten: [{ z: "skyr", g: 250 }, { z: "beeren", g: 100 }],
+    schritte: ["Skyr mit einem Teelöffel Flavour Pulver glatt rühren.", "Beeren darauf geben. Das Pulver ist nicht mitgerechnet, die Werte stehen auf der Dose."],
+  },
+  {
+    id: "griesspudding-hp", name: "High Protein Grießpudding", art: "snack", minuten: 1, geraete: [], standard: true,
+    zutaten: [{ z: "griesspudding_hp", g: 200 }, { z: "zimt", g: 1 }],
+    schritte: ["Einen Becher High Protein Grießpudding nehmen.", "Nach Geschmack mit Zimt bestreuen."],
+  },
+  {
+    id: "proteinpudding", name: "High Protein Pudding mit Beeren", art: "snack", minuten: 1, geraete: [], standard: true,
+    zutaten: [{ z: "proteinpudding", g: 200 }, { z: "beeren", g: 50 }],
+    schritte: ["Einen Becher High Protein Pudding nehmen.", "Beeren darauf geben."],
+  },
+  {
+    id: "reiswaffeln-zimt", name: "Reiswaffeln mit Zimt", art: "snack", minuten: 1, geraete: [], standard: true, zucker: true,
+    zutaten: [{ z: "reiswaffeln", g: 16 }, { z: "zimt", g: 1 }],
+    schritte: ["Zwei Reiswaffeln nehmen und mit Zimt bestreuen.", "Am besten 30 bis 60 Minuten vor dem Training oder direkt danach."],
+  },
+  {
+    id: "datteln", name: "Datteln", art: "snack", minuten: 1, geraete: [], standard: true, zucker: true,
+    zutaten: [{ z: "datteln", g: 30 }],
+    schritte: ["Zwei bis drei Datteln essen.", "Schneller Zucker, am besten vor oder direkt nach dem Training."],
+  },
+  {
+    id: "banane-snack", name: "Banane", art: "snack", minuten: 1, geraete: [], standard: true, zucker: true,
+    zutaten: [{ z: "banane", g: 120 }],
+    schritte: ["Eine Banane essen.", "Am besten vor oder direkt nach dem Training."],
+  },
+  {
+    id: "quark-beeren", foto: true, name: "Magerquark mit Beeren", art: "snack", minuten: 3, geraete: [], standard: true,
     zutaten: [{ z: "magerquark", g: 250 }, { z: "beeren", g: 100 }],
     schritte: ["Quark glatt rühren.", "Beeren darauf geben."],
   },
@@ -276,7 +338,7 @@ export const REZEPTE: Rezept[] = [
     schritte: ["Hüttenkäse auf die Reiswaffeln streichen.", "Gurke in Scheiben darauf legen, mit Pfeffer würzen."],
   },
   {
-    id: "whey-shake", foto: true, name: "Whey Shake mit Banane", art: "snack", minuten: 2, geraete: [],
+    id: "whey-shake", foto: true, name: "Whey Shake mit Banane", art: "snack", minuten: 2, geraete: [], standard: true, zucker: true,
     zutaten: [{ z: "whey", g: 30 }, { z: "milch", g: 300 }, { z: "banane", g: 120 }],
     schritte: ["Whey mit Milch im Shaker mischen.", "Banane dazu essen oder mit in den Mixer geben."],
   },

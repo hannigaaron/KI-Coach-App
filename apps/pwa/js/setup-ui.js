@@ -283,7 +283,7 @@ export class SetupFlow {
     const beschwerde = ergebnis.planWunsch.beschwerden.length || ergebnis.planWunsch.meiden.length
       ? "<p class=\"feld-hilfe\">Übungen, die deine Beschwerden belasten, sind raus.</p>" : "";
     return `${einheiten}${beschwerde}${termine}
-      <p class="feld-hilfe">Unter Training, Trainingspläne tauschst du Übungen, änderst Sätze oder baust den Plan neu.</p>`;
+      <p class="feld-hilfe">Unter Training, Mein Plan tauschst du Übungen und änderst Sätze, unter Anpassen baust du den Plan neu.</p>`;
   }
 
   /** Kopf mit Pfeil zurück, Abschnitt, Zähler und Fortschritt. */

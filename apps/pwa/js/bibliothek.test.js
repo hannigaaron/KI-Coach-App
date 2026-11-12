@@ -129,3 +129,38 @@ test("eigene Lebensmittel: speichern, ersetzen, prüfen und finden", async () =>
   assert.deepEqual(eigenerPosten(s.eigeneLebensmittel[0], 200), { name: "omas kuchen", quantity: "200 g", kcal: 720, proteinG: 10, fatG: 38, carbsG: 80, eigen: true });
   assert.equal(lebensmittelLoeschen(s, s.eigeneLebensmittel[0].id).eigeneLebensmittel.length, 0);
 });
+
+test("Sofortsuche: ab dem ersten Buchstaben, Gegessenes vor der Tabelle", async () => {
+  const { vorschlaege, passung, produktGemerkt } = await import("./bibliothek.js");
+  const tage = [
+    { date: "2026-11-08", meals: [{ entries: [{ name: "ESN Rice Pudding", quantity: "60 g", kcal: 230, proteinG: 20, fatG: 3, carbsG: 30 }] }] },
+    { date: "2026-11-05", meals: [{ entries: [{ name: "ESN Rice Pudding", quantity: "60 g", kcal: 230, proteinG: 20, fatG: 3, carbsG: 30 }] }] },
+    { date: "2026-11-04", meals: [{ source: "health", entries: [{ name: "Riegel aus YAZIO", quantity: "1", kcal: 200, proteinG: 1, fatG: 1, carbsG: 40 }] }] },
+  ];
+  const namen = (q, o = {}) => vorschlaege(q, { tage, heute: "2026-11-09", ...o }).map((v) => v.e?.name ?? v.r?.name);
+  assert.equal(namen("r")[0], "ESN Rice Pudding");
+  assert.equal(namen("ri")[0], "ESN Rice Pudding");
+  assert.equal(namen("ri pu")[0], "ESN Rice Pudding");
+  assert.ok(!namen("ri").includes("Riegel aus YAZIO"), "Health zählt nicht");
+  assert.equal(vorschlaege("ri", { tage, heute: "2026-11-09" })[0].anzahl, 2);
+  // Die Tabelle erst ab zwei Buchstaben, mitten im Wort erst ab drei.
+  assert.ok(namen("haf").some((n) => /Hafer/.test(n)));
+  assert.equal(passung("Reis", "ei"), 0);
+  // Ein gemerktes Produkt steht danach ohne Netz zur Wahl.
+  const settings = produktGemerkt({}, { barcode: "4260107220015", name: "Protein Pudding", marke: "More", menge: "200 g", per100: { kcal: 80, proteinG: 10, fatG: 1, carbsG: 7 }, quelle: "openfoodfacts" }, "more pud");
+  const v = vorschlaege("mo pu", { settings });
+  assert.equal(v[0].e.name, "More Protein Pudding");
+  assert.equal(v[0].e.kcal, 160, "die ganze Packung als Portion");
+  assert.equal(vorschlaege("", { tage }).length, 0);
+});
+
+test("Pro Funktionen sind bei Plus und ohne Abo gesperrt, in Testphase und Pro offen", async () => {
+  const { proFrei } = await import("./bibliothek.js");
+  const k = { chatUrl: "https://worker.example" };
+  assert.equal(proFrei({ kontoStufe: "pro" }, k), true);
+  assert.equal(proFrei({ kontoStufe: "test" }, k), true);
+  assert.equal(proFrei({ kontoStufe: "plus" }, k), false);
+  assert.equal(proFrei({ kontoStufe: "frei" }, k), false);
+  // Ohne eigenen Server gibt es keine Stufen, die Entwicklerfassung bleibt offen.
+  assert.equal(proFrei({ kontoStufe: "plus" }, {}), true);
+});

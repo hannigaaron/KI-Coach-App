@@ -38,7 +38,7 @@ test("Ein Satz ist zart, acht Sätze sind voll, mehr bleibt voll", () => {
 test("Die Karte färbt nur, was trainiert wurde", () => {
   const svg = muskelkarteSvg({ bizeps: 4 });
   assert.match(svg, /^<svg/);
-  assert.equal((svg.match(/fill-opacity/g) ?? []).length, 2, "Bizeps links und rechts");
+  assert.equal((svg.match(/fill="#96d8f0"/g) ?? []).length, 2, "Bizeps links und rechts");
   assert.ok(!svg.includes("var(--"), "keine CSS Variablen, sonst bleibt das Bild zum Teilen leer");
 });
 

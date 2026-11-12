@@ -20,7 +20,7 @@ import { store } from "./storage.js";
 import { kalenderFenster, kalenderTermineSetzen } from "./assistant.js";
 import { nativAufruf } from "./nativ.js";
 
-export const ABGLEICH_ABSTAND_MS = 30 * 60 * 1000;
+export const ABGLEICH_ABSTAND_MS = 15 * 60 * 1000;
 export const APPLE_QUELLE = "Apple Kalender";
 const MAX_ABOS = 6;
 

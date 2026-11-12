@@ -34,7 +34,7 @@ function minutenVon(uhrzeit) {
  * höheren Wasserbedarf. Steht schon ein Eintrag gleicher Art in der Nähe der
  * Uhrzeit, bleibt der des Nutzers und der aus Health fällt weg.
  */
-export function workoutsSchreiben(workouts, { store, heute }) {
+export function workoutsSchreiben(workouts, { store, heute, neueListe = [] }) {
   let neu = 0;
   for (const w of Array.isArray(workouts) ? workouts : []) {
     if (!w || !/^\d{4}-\d{2}-\d{2}$/.test(String(w.tag)) || w.tag > heute) continue;
@@ -54,6 +54,7 @@ export function workoutsSchreiben(workouts, { store, heute }) {
     });
     if (doppelt) continue;
     store.addTraining(w.tag, { id, type: w.art, minutes: minuten, at: w.uhrzeit || "", note: "aus Apple Health", quelle: "health" });
+    neueListe.push({ id: w.id, tag: w.tag, uhrzeit: w.uhrzeit || "", minuten, art: w.art });
     neu++;
   }
   return neu;
@@ -201,7 +202,9 @@ export function healthkitSchreiben(antwort, { store, heute }) {
     perioden = (zyklus.perioden || []).length - vorher;
     store.setSettings({ ...store.getSettings(), zyklus });
   }
-  return { ...bericht, trainings: workoutsSchreiben(antwort?.workouts, { store, heute }), ...essen, perioden };
+  const neueTrainings = [];
+  const trainings = workoutsSchreiben(antwort?.workouts, { store, heute, neueListe: neueTrainings });
+  return { ...bericht, trainings, neueTrainings, ...essen, perioden };
 }
 
 /**

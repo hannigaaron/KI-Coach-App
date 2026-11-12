@@ -29,7 +29,7 @@ Bestehende Konten bleiben, wie sie sind. Dein eigenes Pro bleibt Pro.
 2. In App Store Connect die App mit der Bundle ID `de.daevo.app` anlegen.
 3. Unter Abonnements eine Gruppe "daevo" mit vier Abos:
    `de.daevo.plus.monat`, `de.daevo.plus.jahr`, `de.daevo.pro.monat`,
-   `de.daevo.pro.jahr`. Preise wie in der App: 9,99, 79,99, 19,99, 159,99 Euro.
+   `de.daevo.pro.jahr`. Preise wie in der App: 11,99, 99,99, 19,99, 159,99 Euro.
 4. Je Abo ein Einführungsangebot: Kostenlos, Dauer 1 Woche.
 5. Unter App Informationen, App Store Server Notifications, Fassung 2, für
    Produktion und Sandbox dieselbe Adresse:

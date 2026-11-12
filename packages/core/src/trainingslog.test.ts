@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { uebungsplanBauen, zuSchwerZusammen, type PlanUebung, type Uebungsplan } from "./trainingsplan.js";
 import {
-  einheitHaeltZns, fortschritt, letzteEinheit, planAktualisieren, satzWert, steigerung, type LogEintrag,
+  einheitHaeltZns, fortschritt, letzteEinheit, planAktualisieren, satzWert, steigerung, uebungsPunkte, uebungsTrend, type LogEintrag,
 } from "./trainingslog.js";
 
 const u = (id: string, pattern: string, gruppe: string, equipment = "barbell", level: PlanUebung["level"] = "intermediate", mechanics: PlanUebung["mechanics"] = "compound"): PlanUebung => ({
@@ -75,8 +75,48 @@ test("Nach acht Wochen bleibt, was wächst, und Festgefahrenes wird getauscht", 
   assert.ok(!neuIds.includes(steht!) && neuIds.includes(t!.neu.id));
   assert.ok(neuIds.includes(waechst!));
   assert.equal((r.plan as { aktualisiertAm?: string }).aktualisiertAm, tag(60));
-  assert.ok(r.text.includes("Acht Wochen"));
+  assert.ok(r.text.includes("acht Wochen"));
+  assert.equal(r.plan.einheiten.flatMap((e) => e.positionen).find((p) => p.id === t!.neu.id)!.seit, tag(60));
   for (const e of r.plan.einheiten) assert.ok(einheitHaeltZns(e.positionen.map((p) => p.id)));
+});
+
+test("Eine getauschte Übung bekommt ihre eigenen acht Wochen", () => {
+  const plan = mitDatum(uebungsplanBauen({ tage: 2, minuten: 60, niveau: "intermediate", ziel: "muskel" }, LIB), tag(0));
+  const steht = plan.einheiten[0]!.positionen[0]!.id;
+  const log = reihe(steht, [80, 80, 80, 80, 80, 80, 80, 80]);
+  const erst = planAktualisieren(plan, log, LIB, tag(60));
+  const neu = erst.getauscht[0]!.neu.id;
+  // Die neue Übung steht nach drei Wochen still, aber erst seit drei Wochen: sie bleibt.
+  const log2 = [...log, ...[61, 68, 75, 80].map((n) => ({ datum: tag(n), uebung: neu, saetze: [{ kg: 50, wdh: 8, rir: 2 }] }))];
+  const danach = planAktualisieren(erst.plan, log2, LIB, tag(81));
+  assert.equal(danach.getauscht.length, 0);
+  assert.equal(danach.faellig, false);
+});
+
+test("Eine Übung, die erst in Woche zehn feststeckt, wird dann getauscht und nicht erst am Ende", () => {
+  const plan = mitDatum(uebungsplanBauen({ tage: 2, minuten: 60, niveau: "intermediate", ziel: "muskel" }, LIB), tag(0));
+  const id = plan.einheiten[0]!.positionen[0]!.id;
+  // Erst sechs Wochen Zuwachs, dann neun Wochen auf derselben Last.
+  const kgs = [60, 62.5, 65, 67.5, 70, 72.5, ...Array(9).fill(72.5)];
+  const log = reihe(id, kgs);
+  assert.equal(planAktualisieren(plan, log, LIB, tag(49)).getauscht.length, 0);
+  assert.ok(planAktualisieren(plan, log, LIB, tag(100)).getauscht.some((t) => t.alt.id === id));
+});
+
+test("Trend einer Übung: steigt, hält, fällt, offen", () => {
+  assert.equal(uebungsTrend(reihe("a", [60, 62.5, 65, 67.5, 70]), "a", tag(30)).art, "steigt");
+  assert.equal(uebungsTrend(reihe("a", [60, 60, 60, 60]), "a", tag(25)).art, "haelt");
+  assert.equal(uebungsTrend(reihe("a", [70, 68, 64, 60]), "a", tag(25)).art, "faellt");
+  assert.equal(uebungsTrend(reihe("a", [60, 62]), "a", tag(10)).art, "offen");
+  const lange = uebungsTrend(reihe("a", [60, 60, 60, 60, 60, 60, 60, 60, 60]), "a", tag(56));
+  assert.equal(lange.stillstand, true);
+  assert.ok(lange.text.includes("tauscht daevo"));
+  assert.equal(uebungsTrend(reihe("a", [60, 60, 60, 60]), "a", tag(25)).stillstand, false);
+  // Mehr Wiederholungen bei gleichem Gewicht ist ein Zuwachs.
+  const wdh = [6, 7, 8, 9, 10].map((w, i) => ({ datum: tag(i * 7), uebung: "b", saetze: [{ kg: 80, wdh: w, rir: 1 }] }));
+  assert.equal(uebungsTrend(wdh, "b", tag(30)).art, "steigt");
+  const pk = uebungsPunkte(reihe("a", [60, 62.5]), "a");
+  assert.deepEqual(pk.map((x) => [x.kg, x.wdh]), [[60, 8], [62.5, 8]]);
 });
 
 test("Einmal die Woche bleiben die Übungen", () => {

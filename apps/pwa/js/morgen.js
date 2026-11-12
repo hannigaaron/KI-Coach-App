@@ -19,7 +19,7 @@ import {
   bereichVon, MORGEN_FRAGEN, BELASTBARKEIT_NAME, PHASE_NAME, SYMPTOM_NAME, zyklusEmpfehlung, zyklusStand, NACHFRAGE_UHRZEIT, morgenAuswerten, morgenUhrzeit, morgenVollstaendig, nachfrageAuswerten, nachfrageNoetig, tagesrandFuer,
 } from "@daevo/core";
 import { newId, nowTime } from "./storage.js";
-import { bestellteEinheit } from "./vorhaben.js";
+import { bestellteEinheit, planEinheitFuer } from "./vorhaben.js";
 import { spueren } from "./haptik.js";
 
 /** Bis zu dieser Uhrzeit öffnet sich der Check-in von selbst. */
@@ -80,8 +80,6 @@ function mitKalender(geplant, store, tag) {
 function trainingAusPlan(store, tag) {
   const wochentag = new Date(`${tag}T12:00:00`).getDay();
   const sessions = store.getProfile()?.sessions || [];
-  const plan = store.getSettings().plan;
-  const kraft = sessions.filter((s) => s.type === "strength").sort((a, b) => ((a.weekday + 6) % 7) - ((b.weekday + 6) % 7));
   // Eine Einheit, die er für diesen Tag bestellt hat, ersetzt das Krafttraining
   // aus dem Wochenplan. Sonst sagt der Morgen "kein Training", obwohl er am
   // Abend vorher "morgen um 14 Uhr Pull" gesagt hat.
@@ -97,11 +95,9 @@ function trainingAusPlan(store, tag) {
     .filter((s) => s.weekday === wochentag)
     .sort((a, b) => String(a.startsAt).localeCompare(String(b.startsAt)))
     .map((s) => {
-      let titel;
-      if (s.type === "strength" && plan?.einheiten?.length) {
-        const i = Math.max(0, kraft.findIndex((k) => k.weekday === wochentag));
-        titel = plan.einheiten[i % plan.einheiten.length]?.titel;
-      }
+      // Dieselbe Einheit wie "Als Nächstes" unter Mein Plan, in einer
+      // stressigen Woche aus dem Kurzplan.
+      const titel = s.type === "strength" ? planEinheitFuer(store.getSettings(), store.getProfile(), tag, tag)?.titel : undefined;
       return { art: s.type, minuten: s.minutes, uhrzeit: s.startsAt, titel };
     });
 }
@@ -240,16 +236,39 @@ export function ergebnisHtml(r) {
  * in dem jemand ohnehin auf den Tag schaut, und eine zweite Mitteilung zur
  * selben Zeit wäre Lärm. Ohne Briefing bleibt der Teil leer.
  */
+const ART_WORT = { termin: "Termin", aufgabe: "Aufgabe", essen: "Essen", training: "Training" };
+
+/**
+ * Das Briefing unter dem Morgen Check-in.
+ *
+ * Der Fokus steht oben als eigene Fläche, darunter der Tag als Zeitleiste mit
+ * Uhrzeiten: Termine, Training, Mahlzeiten und Aufgaben in der Reihenfolge,
+ * in der sie kommen. Vorher stand alles als Textliste untereinander, und wer
+ * um sieben Uhr auf das Handy schaut, liest keine Liste, er sucht die nächste
+ * Uhrzeit. Was keine Uhrzeit hat, steht am Ende ohne Zeit.
+ */
 export function briefingHtml(b) {
   if (!b?.abschnitte?.length) return "";
-  const teile = b.abschnitte.filter((a) => a.titel !== "Deine Untergrenze");
-  return `<div class="mg-ergebnis mg-tag">${teile.map((a) => `<h3 class="mg-titel">${esc(a.titel)}</h3>`
-    + (a.zeilen.length > 1 ? `<ul class="mg-liste">${a.zeilen.map((z) => `<li>${esc(z)}</li>`).join("")}</ul>` : `<p class="mg-warum">${esc(a.zeilen[0] || "")}</p>`)).join("")}</div>`;
+  const punkte = (b.punkte || []).slice(0, 12);
+  const fokus = b.abschnitte.find((a) => a.titel === "Fokus");
+  const rest = b.abschnitte.filter((a) => a.titel !== "Deine Untergrenze" && a.titel !== "Fokus"
+    && !(punkte.length && (a.titel === "Dein Tag" || a.titel === "Zu tun" || a.titel === "Essen")));
+  const zeit = (ms) => (ms === null || ms === undefined ? "" : new Date(ms).toTimeString().slice(0, 5));
+  const leiste = punkte.length
+    ? `<h3 class="mg-titel">Dein Tag</h3><ol class="mg-zeitleiste">${punkte.map((p) => `<li class="mg-zeile" data-art="${esc(p.art)}">`
+      + `<span class="mg-uhr">${esc(zeit(p.um))}</span><span class="mg-pkt" aria-hidden="true"></span>`
+      + `<span class="mg-was"><b>${esc(p.titel)}</b><small>${esc(p.unter || ART_WORT[p.art] || "")}</small></span></li>`).join("")}</ol>`
+    : "";
+  const abschnitt = (a) => `<h3 class="mg-titel">${esc(a.titel)}</h3>`
+    + (a.zeilen.length > 1 ? `<ul class="mg-liste">${a.zeilen.map((z) => `<li>${esc(z)}</li>`).join("")}</ul>` : `<p class="mg-warum">${esc(a.zeilen[0] || "")}</p>`);
+  return `<div class="mg-ergebnis mg-tag">`
+    + (fokus ? `<div class="mg-fokus"><span>Fokus heute</span><p>${esc(fokus.zeilen.join(" "))}</p></div>` : "")
+    + leiste + rest.map(abschnitt).join("") + `</div>`;
 }
 
 /* ---------- Oberfläche ---------- */
 
-export function morgenStarten({ store, heute, melde, gespeichert, tagesbriefing }) {
+export function morgenStarten({ store, heute, melde, gespeichert, tagesbriefing, kalenderFrisch }) {
   const blatt = document.getElementById("morgenBlatt");
   const inhalt = document.getElementById("morgenInhalt");
   const knopf = document.getElementById("morgenAuswerten");
@@ -296,12 +315,20 @@ export function morgenStarten({ store, heute, melde, gespeichert, tagesbriefing 
     spueren("leicht");
     zeichnen();
   });
-  knopf.addEventListener("click", () => {
+  knopf.addEventListener("click", async () => {
     if (fertig) { schliessen(); return; }
     const r = modus === "morgen" ? morgenSpeichern(store, heute(), antworten) : nachfrageSpeichern(store, heute(), jetzt);
     if (!r) return;
     fertig = true;
     spueren("erfolg");
+    // Der Kalender wird vor dem Briefing frisch gelesen, höchstens vier
+    // Sekunden lang. Ein Termin, der seit gestern Abend dazukam, gehört in
+    // das Briefing von heute Morgen.
+    if (modus === "morgen" && kalenderFrisch) {
+      knopf.disabled = true;
+      knopf.textContent = "Kalender wird gelesen";
+      await Promise.race([kalenderFrisch().catch(() => {}), new Promise((ok) => setTimeout(ok, 4000))]);
+    }
     inhalt.innerHTML = ergebnisHtml(r) + zyklusZeileHtml(store.getSettings?.().zyklus, heute()) + briefingHtml(modus === "morgen" ? tagesbriefing?.() : null);
     inhalt.scrollTop = 0;
     knopf.textContent = "Fertig";

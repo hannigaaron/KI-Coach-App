@@ -1,6 +1,7 @@
 import type { FoodEntry, MacroTargets } from "@daevo/core";
 import { remainingBudget, sumEntries, type RemainingBudget } from "@daevo/core";
-import { parseMealOffline } from "./parse-offline.js";
+import { extractGrams, parseMealOffline } from "./parse-offline.js";
+import { tabellenTreffer } from "./foods.js";
 import { CHECKIN_SYSTEM, MEAL_PARSE_SYSTEM, MEAL_SUGGEST_SYSTEM } from "./prompts.js";
 import { MEAL_SCHEMA, MESSAGE_SCHEMA, SUGGESTION_SCHEMA } from "./schemas.js";
 import { HAIKU } from "./modelle.js";
@@ -59,6 +60,27 @@ export function naechsteFrage(erkannt: number, offen: string[]): string {
   return "";
 }
 
+/**
+ * Ersetzt die Schätzung des Modells durch die Tabelle, wenn die Tabelle das
+ * Lebensmittel genau kennt und die Menge in Gramm, Millilitern oder Stück
+ * lesbar ist. Siehe tabellenTreffer.
+ */
+export function mitTabellenwert(eintrag: FoodEntry): FoodEntry {
+  const food = tabellenTreffer(eintrag.name);
+  if (!food) return eintrag;
+  const menge = extractGrams(eintrag.quantity, food.pieceG);
+  if (!menge || menge.grams <= 0) return eintrag;
+  const f = menge.grams / 100;
+  const r1 = (x: number) => Math.round(x * 10) / 10;
+  return {
+    ...eintrag,
+    kcal: Math.round(food.per100.kcal * f),
+    proteinG: r1(food.per100.proteinG * f),
+    fatG: r1(food.per100.fatG * f),
+    carbsG: r1(food.per100.carbsG * f),
+  };
+}
+
 export interface MealParseResult {
   entries: FoodEntry[];
   assumption: string;
@@ -107,7 +129,7 @@ export class Coach {
         const validated = validateEntries(raw.entries);
         if (validated.entries.length > 0) {
           return {
-            entries: validated.entries,
+            entries: validated.entries.map(mitTabellenwert),
             assumption: raw.assumption ?? "",
             followUpQuestion: raw.followUpQuestion ?? "",
             warnings: validated.warnings,

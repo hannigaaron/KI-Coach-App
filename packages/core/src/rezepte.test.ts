@@ -20,7 +20,8 @@ test("jedes Rezept hat Zutaten aus der Tabelle, Schritte und eine eindeutige Ken
   for (const r of REZEPTE) {
     assert.equal(ids.has(r.id), false, r.id);
     ids.add(r.id);
-    assert.ok(r.zutaten.length >= 2 && r.schritte.length >= 2, r.id);
+    // Ein Snack darf eine Zutat sein: eine Banane ist ein Snack und kein Rezept.
+    assert.ok(r.zutaten.length >= (r.art === "snack" ? 1 : 2) && r.schritte.length >= 2, r.id);
     for (const { z } of r.zutaten) assert.ok(ZUTATEN[z], `${r.id}: ${z}`);
     for (const s of r.schritte) assert.doesNotMatch(s, /[—–]/, `Gedankenstrich in ${r.id}`);
   }

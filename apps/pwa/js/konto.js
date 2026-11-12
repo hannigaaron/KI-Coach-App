@@ -102,12 +102,15 @@ export function kontoText(stand) {
  * liest. Ändert sich dort eine Zahl, ändert sie sich hier mit.
  *
  * Preise in Cent, damit die Ersparnis gerechnet und nicht abgeschrieben wird.
- * Das Jahr kostet acht Monate: wer jährlich zahlt, bringt das Geld sofort und
- * kündigt seltener, und dafür gibt es vier Monate geschenkt.
+ * Pro kostet im Jahr acht Monate, Plus rund achteinhalb: wer jährlich zahlt,
+ * bringt das Geld sofort und kündigt seltener. Plus liegt seit November 2026
+ * bei 11,99 und 99,99 Euro statt 9,99 und 79,99. Gerechnet nach Umsatzsteuer,
+ * Apple Provision und KI: beim Jahresabo zu 79,99 Euro blieben nach 15 Prozent
+ * Apple 4,76 Euro im Monat, ein Nutzer an der Grenze kostete 6,30 Euro KI.
  */
 export const ABO_STUFEN = [
   {
-    id: "plus", name: "Plus", monatCent: 999, jahrCent: 7999,
+    id: "plus", name: "Plus", monatCent: 1199, jahrCent: 9999,
     punkte: [
       "Dein Coach, der mitdenkt, plant und mit dir redet",
       "Fotos von Teller, Etikett und Kühlschrank auswerten",
@@ -142,7 +145,7 @@ export function ersparnisProzent(stufe) {
 /**
  * Preis und Zeitraum für die Anzeige.
  *
- * Beim Jahr steht der Monatswert daneben, weil 79,99 neben 9,99 sonst teurer
+ * Beim Jahr steht der Monatswert daneben, weil 99,99 neben 11,99 sonst teurer
  * aussieht. Abgerundet: aufgerundet stünde dort ein Cent mehr, als es kostet.
  */
 export function aboPreis(stufe, takt = "monat") {

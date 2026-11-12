@@ -14,9 +14,10 @@
  * Kein `document`, kein `window`: das Modul läuft in den Tests.
  */
 import { entwurfAbschliessen, entwurfNeu } from "./training.js";
-import { bestellteEinheit } from "./vorhaben.js";
+import { aktiverPlan, bestellteEinheit } from "./vorhaben.js";
+import { istSchlafMarker } from "@daevo/core";
 
-export const UHR_FASSUNG = 1;
+export const UHR_FASSUNG = 2;
 /** So viele Trainings gehen höchstens mit. Fünf Tage Plan plus heute plus ein offener Entwurf. */
 const MAX_TRAININGS = 7;
 /** Erledigte Ereignisse, damit ein doppelt zugestelltes nicht zweimal zählt. */
@@ -61,12 +62,70 @@ export function alsPropertyList(wert) {
   return false;
 }
 
+/** So viele Termine und Aufgaben gehen höchstens mit. Eine Uhr ist für einen Blick gemacht. */
+const MAX_TERMINE = 30;
+const MAX_AUFGABEN = 12;
+/** Termine so weit voraus. Weiter schaut niemand auf der Uhr, und jedes Byte geht über Bluetooth. */
+const TERMINE_TAGE = 7;
+
+/**
+ * Die Termine der nächsten Tage für die Uhr, ab jetzt. Was schon vorbei ist,
+ * fällt weg, ein laufender Termin bleibt. Derselbe Termin aus zwei
+ * Kalendern zählt einmal, wie im Briefing. Zeiten in Millisekunden: die Uhr
+ * zeigt sie in ihrer eigenen Zeitzone, und die stimmt mit dem iPhone überein.
+ */
+export function uhrTermine(termine, jetzt = Date.now()) {
+  const bis = jetzt + TERMINE_TAGE * 86_400_000;
+  const gesehen = new Set();
+  const aus = [];
+  for (const t of [...(Array.isArray(termine) ? termine : [])].sort((a, b) => a.von - b.von)) {
+    if (!(Number(t?.bis) > jetzt) || !(Number(t?.von) < bis)) continue;
+    const titel = String(t.titel || "").trim();
+    if (!titel || istSchlafMarker(titel)) continue;
+    const schluessel = `${titel.toLowerCase()}|${t.von}`;
+    if (gesehen.has(schluessel)) continue;
+    gesehen.add(schluessel);
+    aus.push(ohneLeeres({ titel: titel.slice(0, 80), von: Number(t.von), bis: Number(t.bis), ganztags: Boolean(t.ganztags), ort: t.ort ? String(t.ort).slice(0, 60) : undefined }));
+    if (aus.length >= MAX_TERMINE) break;
+  }
+  return aus;
+}
+
+/**
+ * Die Aufgaben für die Uhr, in der Reihenfolge des Plans: heute zuerst, mit
+ * Uhrzeit, wenn der Tagesplan einen Platz gefunden hat, dann was auf morgen
+ * gerutscht ist. Dieselbe Rangfolge wie auf Dein Tag, sonst stünde auf der
+ * Uhr eine andere Aufgabe oben als am iPhone.
+ */
+export function uhrAufgaben({ plan, zeiten } = {}) {
+  const uhrzeit = new Map();
+  for (const b of zeiten?.bloecke || []) {
+    if (b?.aufgabe?.id && Number.isFinite(b.von)) {
+      const d = new Date(b.von);
+      uhrzeit.set(b.aufgabe.id, `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`);
+    }
+  }
+  const zeile = (a, wann) => ohneLeeres({
+    id: String(a.id),
+    text: String(a.text || "").slice(0, 120),
+    wann,
+    uhrzeit: uhrzeit.get(a.id),
+    faellig: a.faellig || undefined,
+    wichtig: Number(a.wichtigkeit) >= 3,
+    todoist: String(a.quelle || "") === "todoist",
+  });
+  return [
+    ...(plan?.heute || []).map((a) => zeile(a, "heute")),
+    ...(plan?.morgen || []).map((a) => zeile(a, "spaeter")),
+  ].filter((a) => a.id && a.text).slice(0, MAX_AUFGABEN);
+}
+
 /**
  * Das Paket für die Uhr. `zahlen` ist das Ergebnis von `dayNumbers`, die
  * Trainings kommen in dieser Reihenfolge: ein offener Entwurf von heute,
  * das Training für heute aus dem Gespräch, dann die Einheiten des Plans.
  */
-export function uhrPaket({ settings, zahlen, heute, gestrichen = false, ki = null }) {
+export function uhrPaket({ settings, zahlen, heute, gestrichen = false, ki = null, termine = [], aufgaben = [] }) {
   const log = Array.isArray(settings.trainingslog) ? settings.trainingslog : [];
   const trainings = [];
   const offen = settings.trainingEntwurf;
@@ -78,7 +137,9 @@ export function uhrPaket({ settings, zahlen, heute, gestrichen = false, ki = nul
     const e = entwurfNeu({ einheiten: [ht.einheit] }, 0, log, heute);
     if (e) trainings.push({ schluessel: `heute-${ht.schluessel || heute}`, quelle: "heute", titel: "Training für heute", entwurf: schlank({ ...e, titel: "Training für heute" }) });
   }
-  const plan = settings.plan;
+  // In einer stressigen Woche bekommt die Uhr den Kurzplan, sonst stünden
+  // dort Einheiten, die diese Woche niemand trainiert.
+  const plan = aktiverPlan(settings, heute);
   (plan?.einheiten || []).forEach((einheit, ei) => {
     const e = entwurfNeu(plan, ei, log, heute);
     if (e) trainings.push({ schluessel: `plan-${ei}`, quelle: "plan", titel: einheit.titel, entwurf: schlank(e) });
@@ -95,6 +156,11 @@ export function uhrPaket({ settings, zahlen, heute, gestrichen = false, ki = nul
     },
     gestrichen: Boolean(gestrichen),
     trainings: trainings.filter((t) => t.entwurf.uebungen.length).slice(0, MAX_TRAININGS),
+    termine,
+    aufgaben,
+    // Wann gerechnet wurde. Die Uhr sagt damit, wie alt ein Stand ist,
+    // statt einen von gestern als heutigen zu zeigen.
+    stamp: Date.now(),
     // Ohne Einwilligung oder Konto fehlt das Feld, und die Uhr fragt nur über das iPhone.
     ...(ki && alsPropertyList(ki) ? { ki } : {}),
   };
@@ -108,7 +174,7 @@ export function uhrPaket({ settings, zahlen, heute, gestrichen = false, ki = nul
 export function uhrEreignisseAnwenden(ereignisse, { store, heute, neueId, jetzt = () => new Date() }) {
   const settings = store.getSettings();
   const erledigt = new Set(Array.isArray(settings.uhrErledigt) ? settings.uhrErledigt : []);
-  const ergebnis = { wasserMl: 0, trainings: [], saetze: [], gespraech: [] };
+  const ergebnis = { wasserMl: 0, trainings: [], saetze: [], gespraech: [], erledigt: [] };
   let log = Array.isArray(settings.trainingslog) ? settings.trainingslog : [];
 
   for (const e of Array.isArray(ereignisse) ? ereignisse : []) {
@@ -131,6 +197,14 @@ export function uhrEreignisseAnwenden(ereignisse, { store, heute, neueId, jetzt 
       const frage = String(e.frage || "").trim().slice(0, 1000);
       const antwort = String(e.antwort || "").trim().slice(0, 2000);
       if (frage && antwort) ergebnis.gespraech.push({ frage, antwort, at: String(e.at || "") });
+      continue;
+    }
+
+    // Eine Aufgabe, die auf der Uhr abgehakt wurde. Abgehakt wird danach in
+    // der App über `aufgabeErledigen`, bei Todoist also auch dort.
+    if (e.art === "aufgabe") {
+      const aufgabeId = String(e.aufgabeId || "").trim();
+      if (aufgabeId && !ergebnis.erledigt.includes(aufgabeId)) ergebnis.erledigt.push(aufgabeId);
       continue;
     }
 

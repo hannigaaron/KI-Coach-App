@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { planFuer } from "./plaene.js";
-import { alsPropertyList, uhrEreignisseAnwenden, uhrMeldung, uhrPaket } from "./uhr.js";
+import { alsPropertyList, uhrAufgaben, uhrEreignisseAnwenden, uhrMeldung, uhrPaket, uhrTermine } from "./uhr.js";
 
 const HEUTE = "2026-11-02";
 
@@ -97,4 +97,44 @@ test("Vorgemerktes und Gespräche von der Uhr kommen getrennt zurück, doppelt z
   assert.deepEqual(e.saetze, ["200 g Magerquark gegessen"]);
   assert.equal(e.gespraech.length, 1);
   assert.equal(e.gespraech[0].antwort, "Noch 82 Gramm.");
+});
+
+test("Termine für die Uhr: nur ab jetzt, ohne Schlafmarker, derselbe Termin einmal", () => {
+  const jetzt = new Date(`${HEUTE}T10:00:00`).getTime();
+  const h = 3_600_000;
+  const t = uhrTermine([
+    { titel: "Vorbei", von: jetzt - 3 * h, bis: jetzt - 2 * h },
+    { titel: "Läuft", von: jetzt - h / 2, bis: jetzt + h / 2 },
+    { titel: "Kunde Müller", von: jetzt + 2 * h, bis: jetzt + 3 * h, ort: "Studio" },
+    { titel: "Kunde Müller", von: jetzt + 2 * h, bis: jetzt + 3 * h },
+    { titel: "SLEEP", von: jetzt + 12 * h, bis: jetzt + 20 * h },
+    { titel: "In drei Wochen", von: jetzt + 21 * 24 * h, bis: jetzt + 21 * 24 * h + h },
+  ], jetzt);
+  assert.deepEqual(t.map((x) => x.titel), ["Läuft", "Kunde Müller"]);
+  assert.equal(t[1].ort, "Studio");
+  assert.ok(alsPropertyList(t));
+});
+
+test("Aufgaben für die Uhr in der Reihenfolge des Plans, mit Uhrzeit aus dem Tagesplan", () => {
+  const von = new Date(`${HEUTE}T14:30:00`).getTime();
+  const a = uhrAufgaben({
+    plan: {
+      heute: [{ id: "a1", text: "Angebot schreiben", wichtigkeit: 3, quelle: "nutzer" }, { id: "td-9", text: "Rechnung", wichtigkeit: 2, quelle: "todoist" }],
+      morgen: [{ id: "a3", text: "Steuer", wichtigkeit: 2, faellig: "2026-11-05" }],
+    },
+    zeiten: { bloecke: [{ aufgabe: { id: "a1" }, von, bis: von + 3_600_000 }] },
+  });
+  assert.deepEqual(a.map((x) => [x.id, x.wann, x.uhrzeit ?? null, x.wichtig, x.todoist]), [
+    ["a1", "heute", "14:30", true, false],
+    ["td-9", "heute", null, false, true],
+    ["a3", "spaeter", null, false, false],
+  ]);
+  assert.ok(alsPropertyList(a));
+});
+
+test("auf der Uhr abgehakte Aufgaben kommen als Kennungen zurück, doppelt zugestellt einmal", () => {
+  const store = speicher({});
+  const e = { id: "u1", art: "aufgabe", aufgabeId: "a1" };
+  const r = uhrEreignisseAnwenden([e, e, { id: "u2", art: "aufgabe", aufgabeId: "a1" }], { store, heute: HEUTE, neueId: () => "x" });
+  assert.deepEqual(r.erledigt, ["a1"]);
 });

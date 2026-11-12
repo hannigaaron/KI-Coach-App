@@ -1,13 +1,19 @@
 # daevo auf der Apple Watch
 
-Die Uhr hat drei Seiten und eine Komplikation.
+Die Uhr hat vier Seiten und eine Komplikation.
 
 - **daevo**: das leuchtende d wie auf dem iPhone, als Partikelkreis mit
   derselben Geometrie und Bewegung. Ein Tipp auf das d öffnet das Diktat,
   die Frage geht danach von selbst raus, die Antwort steht darunter und wird
   vorgelesen. Ein Tipp während daevo spricht hält die Stimme an.
+- **Dein Tag**: die nächsten Termine heute und morgen, der nächste gross in
+  der Markenfarbe, darunter die offenen Aufgaben in der Reihenfolge des
+  Plans. Ein Tipp auf den Kreis hakt ab, das iPhone übernimmt es beim
+  nächsten Abgleich, bei Todoist auch dort. Die Termine liest die Uhr aus
+  ihrem eigenen Kalender, wenn sie darf, sonst kommen sie vom iPhone.
 - **Heute**: offene Kalorien als Ring, Eiweiß und Wasser, ein Knopf für 250 ml
-  Wasser.
+  Wasser. Ist das iPhone seit Mitternacht nicht offen gewesen, stehen die
+  Ziele da und der Satz, dass das Essen von heute noch fehlt.
 - **Training**: die Trainings, die das iPhone vorbereitet hat, mit den Werten
   vom letzten Mal in jedem Satz. Je Satz Kilo und Wiederholungen über die
   Krone, ein Haken, danach die Pause mit Vibration am Ende. Beim Beenden gehen
@@ -90,6 +96,23 @@ wählen, dann startet sie direkt auf der Uhr. Die Komplikation fügst du auf
 dem Zifferblatt hinzu: lange drücken, Bearbeiten, eine Stelle antippen,
 daevo wählen.
 
+### Update November 2026: Dein Tag, Symbol, Leuchten, Antworten
+
+Neue Dateien gibt es keine, nur geänderte. Im Terminal, im Hauptordner:
+
+```bash
+git pull origin claude/ai-coaching-nutrition-fitness-ur9o1d
+cp "apps/ios/watch/daevo Watch App/"*.swift "apps/ios/ios/App/daevo Watch App/"
+cp apps/ios/watch/AppIcon.appiconset/* "apps/ios/ios/App/daevo Watch App/Assets.xcassets/AppIcon.appiconset/"
+npm run ios
+```
+
+Dann in Xcode, Ziel `daevo Watch App`, Reiter Info, eine Zeile dazu:
+`Privacy - Calendars Full Access Usage Description`: daevo zeigt deine
+nächsten Termine auf der Uhr. Ohne die Zeile fragt die Uhr nicht nach dem
+Kalender und zeigt die Termine vom iPhone. Danach Play mit dem Schema
+**App** wie immer, die Uhr App kommt mit.
+
 ### Hast du die Uhr schon eingerichtet
 
 Dann nur die neuen Dateien nachholen: den `cp` Befehl aus Schritt 4 noch
@@ -141,6 +164,28 @@ Nicht geprüft: SwiftUI, WatchKit, HealthKit und WidgetKit gibt es nur auf
 einem Mac. Ob die Ansichten bauen und auf der Uhr so aussehen wie gedacht,
 zeigt die erste Runde in Xcode. Meldet Xcode einen Fehler, schick ihn mir mit
 Datei und Zeile.
+
+## Auf Mitteilungen antworten
+
+Fragen wie "Wie ist dein Energielevel?" tragen einen Knopf **Antworten**.
+Auf der Uhr öffnet er Diktat, Kritzeln und Tastatur, am gesperrten iPhone die
+Tastatur. Die Antwort läuft durch die App wie eine Antwort im Chat, eine
+blosse Zahl auf die Energiefrage rechnet daevo ohne KI. Liegt daevo noch im
+Speicher des iPhones, kommt die Antwort von daevo gleich danach als
+Mitteilung, auch auf der Uhr. War die App ganz beendet, wird die Antwort
+beim nächsten Öffnen verarbeitet. Ob iOS das Skript im Hintergrund wirklich
+ausführt, zeigt erst das Gerät.
+
+## Was die Uhr nicht kann
+
+- Die Krone belegen. Drücken gehört watchOS, Halten Siri, keine App kommt
+  daran. Ab watchOS 11 auf Series 9, Ultra 2 und neuer öffnet Doppeltippen
+  mit Daumen und Zeigefinger das Diktat, auf älteren Uhren der Tipp auf das d.
+- Das Diktat beim Öffnen von selbst starten. watchOS öffnet es nur auf einen
+  Tipp.
+- Kalorien von heute ohne iPhone. Gerechnet wird im Rechenkern auf dem
+  iPhone, und eine Uhr kann kein JavaScript ausführen. Was du der Uhr sagst,
+  merkt sie vor und das iPhone trägt es beim nächsten Öffnen ein.
 
 ## Offen
 

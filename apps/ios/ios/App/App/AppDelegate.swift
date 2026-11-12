@@ -13,6 +13,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         UhrZentrale.shared.einrichten()
         // Muss vor dem Ende dieser Methode stehen, sonst lehnt iOS die Aufgabe ab.
         KalenderWache.shared.registrieren()
+        // Ein Training von der Uhr meldet sich auch bei geschlossener App.
+        TrainingWache.shared.starten()
         return true
     }
 

@@ -1,5 +1,5 @@
 import "./nativ.js";
-import { chatHtml } from "./chat-format.js";
+import { chatHtml, chatSprechbar } from "./chat-format.js";
 import {
   BEREICHE, BEREICH_NAME, CHECKIN_BOEGEN, CHECKIN_MITTE, STANDARD_ZIELE, WOCHENTAGE,
   MAHLZEITEN, bogenAmTag, bogenFuer, eintragAus100g, energyBreakdown, hatAngebot, mengeLesen,
@@ -48,11 +48,11 @@ import {
   erinnerungenAufgeraeumt, heuteGetauscht, heuteVerschoben,
   vorausblickePlan,
   vorausblickFuer,
-  offOptionen, uhrKiZugang,
+  offOptionen, uhrKiZugang, tagesplan,
   verlaufTag, wochenschnittFuer, gemessenerVerbrauch,
 } from "./assistant.js";
 import { zyklusAnsicht, zyklusSichtbar } from "./zyklus-ui.js";
-import { uhrEreignisseAnwenden, uhrMeldung, uhrPaket } from "./uhr.js";
+import { uhrAufgaben, uhrEreignisseAnwenden, uhrMeldung, uhrPaket, uhrTermine } from "./uhr.js";
 import { brain } from "./brain.js";
 import { Orb } from "./orb.js";
 import { anhangAusDatei, grossInKb } from "./media.js";
@@ -71,6 +71,7 @@ import { NATIV_PUSH, gesundheitHolen, postfachHolen, pushAbmelden, pushAbo, push
 import { kodierungReparieren, newId, nowTime, store, todayIso } from "./storage.js";
 import { bestellteEinheit } from "./vorhaben.js";
 import { healthkitAbgleichen } from "./healthkit.js";
+import { antwortAufFrage, trainingErkannt } from "./training-erkannt.js";
 import { abosAbgleichen, kaufenNativ, startAnlass } from "./kauf.js";
 import { anmeldeWege, anmeldenApple, anmeldenGoogleNativ, anmeldungSenden, anmeldungText } from "./anmeldung.js";
 import { aboEntfernen, aboHinzufuegen, APPLE_QUELLE, appleKalenderTrennen, appleKalenderVerbinden, kalenderAbgleichen, kalenderAbos } from "./kalender-sync.js";
@@ -78,7 +79,8 @@ import { mitteilungenPlanen } from "./mitteilungen.js";
 import { berechtigungenFragen, berechtigungenOffen, berechtigungenText, kontenText } from "./berechtigungen.js";
 import { nativAufruf } from "./nativ.js";
 import { spueren } from "./haptik.js";
-import { anteilAmZiel, eigeneLebensmittel, eigeneSuche, eigenerPosten, lebensmittelLoeschen, lebensmittelSpeichern, eigeneRezepte, essensplanFrei, hauptMakro, rezeptGrenze, rezeptLoeschen, rezeptSpeichern, summe as postenSumme, tabellenBild, tabellenPosten, tabellenSuche, zuletztGegessen } from "./bibliothek.js";
+import { eanAusBild } from "./ean.js";
+import { anteilAmZiel, eigeneLebensmittel, eigeneSuche, eigenerPosten, lebensmittelLoeschen, lebensmittelSpeichern, eigeneRezepte, essensplanFrei, proFrei, hauptMakro, rezeptGrenze, rezeptLoeschen, rezeptSpeichern, summe as postenSumme, tabellenBild, tabellenPosten, tabellenSuche, zuletztGegessen, vorschlaege, produktGemerkt, produktPosten } from "./bibliothek.js";
 import { abschlussDaten, abschlussHtml, storyTeilen } from "./abschluss.js";
 import { bewegungStarten, wischenZumLoeschen, zahlenZaehlen, zeileRaus } from "./bewegung.js";
 import { einwilligungOffen, einwilligungSetzen, einwilligungText, kiErlaubt } from "./einwilligung.js";
@@ -394,6 +396,39 @@ async function send(text, { vonUhr = false } = {}) {
     return;
   }
   offeneFrage = null;
+
+  // Die Antwort auf "vorgezogen oder zweimal" nach einem Training von der Uhr.
+  // Eindeutige Antworten erledigt die App selbst, alles andere geht wie
+  // immer an den Coach.
+  const tf = trainingFrage;
+  trainingFrage = null;
+  const gemeint = tf && nachricht && !busy ? antwortAufFrage(nachricht) : null;
+  if (gemeint) {
+    $("chatInput").value = "";
+    appendBubble("user", nachricht);
+    const um = `${String(Math.floor(tf.um / 60)).padStart(2, "0")}:${String(tf.um % 60).padStart(2, "0")}`;
+    let antwort;
+    if (gemeint === "vorgezogen") {
+      antwort = `Alles klar, dann war das dein Training für heute. ${tf.titel} um ${um} ist damit erledigt.`;
+      if (tf.eid) {
+        const { kalenderTermin } = await import("./kalender-schreiben.js");
+        const satz = await kalenderTermin({ aktion: "loeschen", eid: tf.eid, beginn: tf.von });
+        antwort += /^Noch nicht gespeichert/.test(satz) ? ` ${satz}` : " Ich hab den Termin aus dem Kalender genommen.";
+      } else {
+        antwort += " Dein Wochenplan bleibt, wie er ist.";
+      }
+    } else {
+      antwort = `Dann bleibt ${tf.titel} um ${um} stehen. Iss etwa 90 Minuten vorher eine Mahlzeit mit Protein und Kohlenhydraten, und trink bis dahin mindestens einen halben Liter.`;
+    }
+    const chat = store.getChat();
+    chat.push({ role: "user", text: nachricht, at: new Date().toISOString() });
+    chat.push({ role: "assistant", text: antwort, at: new Date().toISOString() });
+    store.setChat(chat);
+    gespraechNachziehen();
+    renderTranscript();
+    refreshAll();
+    return;
+  }
 
   const mit = anhaenge.filter((a) => !a.fehler && !a.laedt);
   if ((!nachricht && mit.length === 0) || busy) return;
@@ -3154,7 +3189,8 @@ $("menu").addEventListener("click", (event) => {
   if (gruppe) { menuSeite(gruppe.dataset.menuGruppe); return; }
   if (event.target.closest("[data-menu-zurueck]")) menuSeite("start");
 });
-uebungen = uebungenStarten();
+// Das Protokoll wird erst beim Antippen gelesen, `trainingslog` steht weiter unten.
+uebungen = uebungenStarten({ log: () => trainingslog(), heute: () => todayIso() });
 const planSpeicher = {
   lesen: () => store.getSettings().plan ?? null,
   schreiben: (plan) => store.setSettings({ ...store.getSettings(), plan }),
@@ -3168,7 +3204,7 @@ const training = trainingStarten({
     schreiben: (trainingEntwurf) => store.setSettings({ ...store.getSettings(), trainingEntwurf }),
   },
   heute: todayIso,
-  oeffne: (id) => uebungen.oeffne(id),
+  oeffne: (id, ansicht) => uebungen.oeffne(id, ansicht),
   melde: (text) => toast(text),
   // Eine beendete Einheit steht danach auch im Tag. Sonst fragt die
   // Trainingslücke nach vier Tagen, obwohl jeder Satz eingetragen ist.
@@ -3191,7 +3227,15 @@ const training = trainingStarten({
 });
 const plaene = plaeneStarten({
   speicher: planSpeicher,
-  oeffne: (id) => uebungen.oeffne(id),
+  // Der Kurzplan für stressige Wochen und ob er diese Woche gilt. Beides in
+  // den Einstellungen und damit in der Sicherung.
+  kurz: { lesen: () => store.getSettings().planKurz ?? null, schreiben: (planKurz) => { store.setSettings({ ...store.getSettings(), planKurz }); uhrSpaeter(); } },
+  woche: { lesen: () => store.getSettings().planWoche ?? null, schreiben: (planWoche) => { store.setSettings({ ...store.getSettings(), planWoche }); uhrSpaeter(); } },
+  zuModus: (name) => { uebungen?.modus(name); document.querySelector('[data-view="uebungen"] .scroll')?.scrollTo({ top: 0 }); },
+  mitwachsen: () => proFrei(store.getSettings(), KONFIG),
+  proOeffnen: () => aboOeffnen({ marke: "Pro", titel: "Dein Plan, der mitwächst", empfohlen: "pro",
+    text: "Nach acht Wochen prüft daevo jede Übung und tauscht, wo du nicht mehr stärker wirst." }),
+  oeffne: (id, ansicht) => uebungen.oeffne(id, ansicht),
   melde: (text) => toast(text),
   // Gestrichen heisst gestrichen. Wer sich besser fühlt, sagt es im
   // Check-in, dann ist das Training wieder frei.
@@ -3357,6 +3401,10 @@ $("btnParse").addEventListener("click", async () => {
       lastMealId = after[after.length - 1].id;
       $("mealText").value = "";
       feedback.className = "feedback ok";
+      // Gesprochen oder getippt, die Mengen sind eine Schätzung. Ein Tipp
+      // öffnet die Mahlzeit, dort lässt sich jede Menge ändern.
+      const id = lastMealId; const tag = day;
+      setTimeout(() => toastAktion("Eingetragen. Mengen prüfen?", "Ändern", () => mahlzeitOeffnen(id, tag), 8000), 50);
     } else {
       feedback.className = "feedback err";
     }
@@ -3751,12 +3799,14 @@ function diktatErstesMal() {
  * gedrückt wird, und heisst solange "Fertig". Pausen beenden nichts: wer
  * aufzählt, was er gegessen hat, überlegt zwischen den Posten.
  */
-function diktatKnopf(knopfId, feldId, hinweis) {
+function diktatKnopf(knopfId, feldId, hinweis, { nachFertig } = {}) {
   let laufend = null;
+  let fertigGedrueckt = false;
   const knopf = $(knopfId);
   const ruhe = knopf.textContent;
   knopf.addEventListener("click", () => {
-    if (laufend?.active) { laufend.stop(); return; }
+    if (laufend?.active) { fertigGedrueckt = true; laufend.stop(); return; }
+    fertigGedrueckt = false;
     if (!listener?.supported) { toast("Dieser Browser kann keine Spracherkennung."); return; }
     stopSpeaking();
     const vorher = $(feldId).value.trim();
@@ -3764,7 +3814,14 @@ function diktatKnopf(knopfId, feldId, hinweis) {
     laufend = new Listener({
       bisStopp: true,
       onPartial: (t) => { $(feldId).value = mit(t); },
-      onFinal: (t) => { $(feldId).value = mit(t); },
+      onFinal: (t) => {
+        $(feldId).value = mit(t);
+        // Wer auf Fertig drückt, ist fertig. Ein zweiter Knopf zum Erfassen
+        // war ein Schritt, den niemand braucht. Erst hier und nicht beim
+        // Wechsel auf "idle": die native Erkennung liefert das letzte Wort
+        // nach dem Anhalten.
+        if (fertigGedrueckt && nachFertig && $(feldId).value.trim()) { fertigGedrueckt = false; nachFertig(); }
+      },
       onState: (state, detail) => {
         const an = state === "listening";
         knopf.textContent = an ? "Fertig" : ruhe;
@@ -3776,7 +3833,9 @@ function diktatKnopf(knopfId, feldId, hinweis) {
     if (diktatErstesMal()) toast(hinweis);
   });
 }
-diktatKnopf("btnVoice", "mealText", "Sprich in Ruhe. Tipp auf Fertig, wenn du durch bist.");
+diktatKnopf("btnVoice", "mealText", "Sprich in Ruhe. Tipp auf Fertig, dann trägt daevo ein.", {
+  nachFertig: () => $("btnParse").click(),
+});
 
 $("feelingRow").addEventListener("click", (event) => {
   const button = event.target.closest("[data-feel]");
@@ -5329,6 +5388,7 @@ let meReiterWahl = "zuletzt";
 function meBibliothekZeichnen() {
   const box = $("meBibliothek");
   const begriff = $("meSuche").value.trim();
+  if (!begriff) { clearTimeout(meLiveTimer); meLiveNummer++; $("meTreffer").hidden = true; }
   $("meSuchen").hidden = !begriff;
   $("meReiter").hidden = Boolean(begriff);
   for (const k of $("meReiter").querySelectorAll("[data-reiter]")) k.classList.toggle("an", k.dataset.reiter === meReiterWahl);
@@ -5336,16 +5396,26 @@ function meBibliothekZeichnen() {
   const liste = (zeilen) => `<ul class="bib-liste">${zeilen.join("")}</ul>`;
   const leer = (text) => `<p class="me-leer">${text}</p>`;
   if (begriff) {
-    // Beim Tippen sofort die eigene Tabelle, ohne Netz. Open Food Facts kommt
-    // erst mit Enter, sonst ginge bei jedem Buchstaben eine Anfrage raus.
-    // Eigene Lebensmittel zuerst: wer etwas selbst angelegt hat, meint fast
-    // immer genau das und nicht den Eintrag aus der Tabelle.
-    const eigene = eigeneSuche(begriff, store.getSettings()).map((l) => eigenerPosten(l));
-    const treffer = [...eigene, ...tabellenSuche(begriff)];
-    box.innerHTML = (treffer.length
-      ? liste(treffer.map((e) => bibZeile(e, meBibliothekPosten.push({ art: "posten", e }) - 1, e.eigen ? { unter: `<span class="me-kcal-text">${Math.round(e.kcal)} kcal</span> · ${e.quantity} · eigenes` } : undefined)))
-      : leer("Weder in deinen Lebensmitteln noch in der Nährwerttabelle. Unten kannst du es anlegen."))
-      + `<p class="feld-hilfe">Enter sucht zusätzlich nach Marken und Produkten.</p>`;
+    // Beim Tippen sofort alles, was ohne Netz da ist, ab dem ersten
+    // Buchstaben: Gegessenes, eigene Lebensmittel, gemerkte Produkte,
+    // Rezepte, Tabelle, `vorschlaege` in bibliothek.js. Produkte aus dem Netz
+    // kommen kurz danach von selbst darunter, `meLiveSuche`.
+    const tage = store.allDays().slice(-180).map((d) => ({ ...store.getDay(d), date: d }));
+    const treffer = vorschlaege(begriff, { tage, settings: store.getSettings(), heute: todayIso() });
+    const QUELLE = { zuletzt: (v) => `${v.anzahl > 1 ? `${v.anzahl}× gegessen` : "schon gegessen"}`, eigen: () => "eigenes", produkt: () => "Produkt", rezept: () => "Rezept", tabelle: () => "" };
+    box.innerHTML = treffer.length
+      ? liste(treffer.map((v) => {
+        if (v.art === "rezept") {
+          const sum = postenSumme(v.r.posten);
+          const e = { name: v.r.name, kcal: sum.kcal, proteinG: sum.proteinG, fatG: sum.fatG, carbsG: sum.carbsG, bild: v.r.posten.find((x) => x.bild)?.bild };
+          return bibZeile(e, meBibliothekPosten.push({ art: "rezept", r: v.r }) - 1, { unter: `<span class="me-kcal-text">${Math.round(sum.kcal)} kcal</span> · Rezept` });
+        }
+        const zusatz = QUELLE[v.quelle]?.(v) || "";
+        const unter = `<span class="me-kcal-text">${Math.round(v.e.kcal)} kcal</span> · ${escapeHtml(v.e.quantity ?? "")}${zusatz ? ` · ${zusatz}` : ""}`;
+        return bibZeile(v.e, meBibliothekPosten.push({ art: "posten", e: v.e }) - 1, { unter });
+      }))
+      : (begriff.length < 3 ? leer("Tipp weiter, ab drei Buchstaben sucht daevo auch nach Marken und Produkten.") : "");
+    meLiveSuche(begriff);
     return;
   }
   if (meReiterWahl === "rezepte") {
@@ -5386,6 +5456,38 @@ function meBibliothekZeichnen() {
   box.innerHTML = zuletzt.length
     ? liste(zuletzt.map((e) => bibZeile(e, meBibliothekPosten.push({ art: "posten", e }) - 1)))
     : leer("Hier stehen bald die Lebensmittel, die du zuletzt gegessen hast.");
+}
+
+/**
+ * Produkte aus dem Netz, während getippt wird. Vorher erst mit Enter, und
+ * wer nicht wusste, dass Enter mehr findet, fand seine Marke nie. Gesucht
+ * wird 350 Millisekunden nach dem letzten Buchstaben und ab drei Zeichen,
+ * sonst ginge bei jedem Buchstaben eine Anfrage raus. Eine Antwort, die
+ * nach einer neueren Suche ankommt, wird verworfen: sonst überschreibt
+ * "ric" die Treffer für "rice pudding".
+ */
+var meLiveTimer = 0;
+var meLiveNummer = 0;
+function meLiveSuche(begriff) {
+  clearTimeout(meLiveTimer);
+  const nummer = ++meLiveNummer;
+  const q = begriff.trim();
+  if (q.length < 3 || /^\d+$/.test(q.replace(/\s/g, ""))) { $("meTreffer").hidden = true; return; }
+  meLiveTimer = setTimeout(async () => {
+    $("meSuchHinweis").textContent = "Suche Produkte";
+    try {
+      const treffer = await produkteSuchen(q, { anzahl: 8, ...offOptionen() });
+      if (nummer !== meLiveNummer) return;
+      $("meSuchHinweis").textContent = "";
+      if (treffer.length) meTrefferZeichnen(treffer, { titel: "Produkte" });
+      else {
+        $("meTreffer").hidden = true;
+        if (!meBibliothekPosten.length) $("meBibliothek").innerHTML = `<p class="me-leer">Nichts gefunden. Scann den Barcode oder leg es unten als eigenes Lebensmittel an.</p>`;
+      }
+    } catch {
+      if (nummer === meLiveNummer) $("meSuchHinweis").textContent = "Produktsuche gerade nicht erreichbar. Deine eigenen Treffer stehen oben.";
+    }
+  }, 350);
 }
 
 $("meReiter").addEventListener("click", (event) => {
@@ -5523,10 +5625,10 @@ async function meSuchen() {
   }
 }
 
-function meTrefferZeichnen(treffer) {
+function meTrefferZeichnen(treffer, { titel = "" } = {}) {
   const liste = $("meTreffer");
   liste.hidden = false;
-  liste.innerHTML = treffer.map((t, i) => {
+  liste.innerHTML = (titel ? `<li class="me-treffer-titel">${escapeHtml(titel)}</li>` : "") + treffer.map((t, i) => {
     const p = t.produkt;
     const titel = [p.marke, p.name].filter(Boolean).join(" ");
     // Die vorgeschlagene Portion kommt vom Hersteller, sonst 100 Gramm. Eine
@@ -5555,6 +5657,7 @@ function meTrefferZeichnen(treffer) {
       gramm,
       kcal: n.kcal, proteinG: n.proteinG, fatG: n.fatG, carbsG: n.carbsG,
       bild: t.produkt.bild,
+      produkt: t.produkt,
     };
   }));
 }
@@ -5681,6 +5784,8 @@ $("meTreffer").addEventListener("click", (event) => {
     carbsG: runde1(t.carbsG),
     ...(t.bild ? { bild: t.bild } : {}),
   });
+  // Gemerkt, damit es beim nächsten Mal ab dem ersten Buchstaben ohne Netz vorn steht.
+  if (t.produkt) store.setSettings(produktGemerkt(store.getSettings(), t.produkt, $("meSuche").value));
   $("meTreffer").hidden = true;
   $("meSuche").value = "";
   meBibliothekZeichnen();
@@ -5759,51 +5864,121 @@ $("meSpeichern").addEventListener("click", () => {
 /**
  * Der Scanner im Editor.
  *
- * Er benutzt `BarcodeDetector`, wo der Browser ihn hat. Eine Kamerabibliothek
- * wäre die erste Laufzeitabhängigkeit der App und rund 300 Kilobyte je Aufruf.
- * Fehlt der Detektor, bleibt das Suchfeld: dreizehn Ziffern tippt man in zehn
- * Sekunden.
+ * Drei Wege, der erste, der geht, gewinnt. In der iPhone App liest Apple
+ * selbst, `ScannerPlugin.swift`. Im Browser die Kamera über `getUserMedia`,
+ * gelesen von `BarcodeDetector`, wo es ihn gibt, sonst von `ean.js`. Vorher
+ * gab es nur `BarcodeDetector`, den das iPhone nicht kennt, und ein Tipp auf
+ * den Scanner tat dort sichtbar nichts: der Hinweis stand klein unter dem
+ * Suchfeld, oft unter der Tastatur.
+ *
+ * Die Kamera im Browser steht als Vollbild mit Rahmen und "Abbrechen", wie
+ * nativ. Ein Video von Daumengrösse im Blatt zielt niemand auf eine Packung.
  */
 let meScanStrom = null;
 let meScanTimer = 0;
 
+function meScanFehler(text) {
+  $("meSuchHinweis").textContent = text;
+  toast(text, 6000);
+}
+
+/**
+ * Ein gescannter Code ist eindeutig, deshalb kommt das Produkt direkt in die
+ * Mahlzeit, mit der Portion des Herstellers. Vorher stand es als Treffer da
+ * und wollte noch einmal angetippt werden. Kennt Open Food Facts den Code
+ * nicht, steht er im Suchfeld, und unten lässt sich das Produkt anlegen.
+ */
+async function meScanTreffer(code) {
+  spueren("erfolg");
+  $("meSuchHinweis").textContent = "Suche den Barcode";
+  try {
+    const t = await produktPerBarcode(code, offOptionen());
+    if (t?.produkt) {
+      const e = produktPosten(t.produkt);
+      mePostenAnhaengen({ ...e, kcal: Math.round(e.kcal) });
+      store.setSettings(produktGemerkt(store.getSettings(), t.produkt));
+      $("meSuche").value = "";
+      $("meSuchHinweis").textContent = t.einwaende?.length ? t.einwaende.join(" ") : "";
+      meBibliothekZeichnen();
+      toast(`${e.name} hinzugefügt. Die Menge lässt sich oben ändern.`, 4000);
+      return;
+    }
+  } catch { /* weiter wie ohne Treffer */ }
+  $("meSuche").value = code;
+  meBibliothekZeichnen();
+  $("meSuchHinweis").textContent = "Diesen Barcode kennt Open Food Facts nicht. Leg das Produkt unten mit den Werten von der Packung an.";
+  document.querySelector(".me-hand")?.setAttribute("open", "");
+}
+
 async function meScanStarten() {
   if (meScanLaeuft) { meScanStoppen(); return; }
-  if (!("BarcodeDetector" in window)) {
-    $("meSuchHinweis").textContent =
-      "Dieser Browser kann keinen Barcode lesen. Tipp die Ziffern der Packung ins Suchfeld.";
+  if (istNativ()) {
+    try {
+      const { code } = await nativAufruf("Scanner", "scannen");
+      if (code) meScanTreffer(String(code));
+      return;
+    } catch (fehler) {
+      const grund = String(fehler?.message ?? fehler);
+      if (grund.includes("abgebrochen")) return;
+      if (grund.includes("keinZugriff")) {
+        meScanFehler("daevo darf die Kamera nicht benutzen. Erlaub es unter Einstellungen, daevo, Kamera, oder tipp die Ziffern ein.");
+        return;
+      }
+      // Eine ältere Fassung der App ohne das Plugin: weiter mit der Kamera der Web Ansicht.
+    }
+  }
+  if (!navigator.mediaDevices?.getUserMedia) {
+    meScanFehler("Hier gibt es keinen Kamerazugriff. Tipp die Ziffern unter dem Barcode ins Suchfeld.");
     $("meSuche").focus();
     return;
   }
   try {
-    meScanStrom = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+    meScanStrom = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false,
+    });
   } catch {
-    $("meSuchHinweis").textContent = "Ohne Kamerazugriff geht der Scanner nicht. Tipp die Ziffern ein.";
+    meScanFehler("Ohne Kamerazugriff geht der Scanner nicht. Erlaub die Kamera oder tipp die Ziffern ein.");
     return;
   }
   meScanLaeuft = true;
-  $("meSuchHinweis").textContent = "Halte den Barcode ins Bild.";
-  const video = document.createElement("video");
-  video.playsInline = true;
-  video.muted = true;
+  const blatt = document.createElement("div");
+  blatt.className = "scan-blatt";
+  blatt.innerHTML = `<video playsinline muted autoplay></video>
+    <div class="scan-rahmen" aria-hidden="true"></div>
+    <p class="scan-hinweis">Halte den Barcode in den Rahmen</p>
+    <button type="button" class="scan-abbrechen">Abbrechen</button>`;
+  document.body.append(blatt);
+  blatt.querySelector(".scan-abbrechen").addEventListener("click", meScanStoppen);
+  const video = blatt.querySelector("video");
   video.srcObject = meScanStrom;
-  video.className = "me-video";
-  $("meSuchHinweis").after(video);
   await video.play().catch(() => {});
 
-  const detektor = new BarcodeDetector({ formats: ["ean_13", "ean_8", "upc_a", "upc_e"] });
+  const detektor = "BarcodeDetector" in window
+    ? new BarcodeDetector({ formats: ["ean_13", "ean_8", "upc_a", "upc_e"] })
+    : null;
+  const leinwand = document.createElement("canvas");
+  const g = leinwand.getContext("2d", { willReadFrequently: true });
   const suchen = async () => {
     if (!meScanLaeuft) return;
+    let code = null;
     try {
-      const codes = await detektor.detect(video);
-      if (codes.length && codes[0].rawValue) {
-        $("meSuche").value = codes[0].rawValue;
-        meScanStoppen();
-        meSuchen();
-        return;
+      if (detektor) {
+        const codes = await detektor.detect(video);
+        code = codes[0]?.rawValue || null;
+      }
+      if (!code && video.videoWidth) {
+        // Nur der mittlere Streifen, dort liegt der Rahmen. Weniger Pixel,
+        // schneller gelesen, und ein zweiter Code am Rand stört nicht.
+        const w = video.videoWidth; const h = video.videoHeight;
+        const sw = Math.min(w, 1280); const sh = Math.round(h * 0.4);
+        leinwand.width = sw; leinwand.height = sh;
+        g.drawImage(video, (w - sw) / 2, (h - sh) / 2, sw, sh, 0, 0, sw, sh);
+        code = eanAusBild(g.getImageData(0, 0, sw, sh));
       }
     } catch { /* ein einzelnes Bild ohne Treffer ist kein Fehler */ }
-    meScanTimer = setTimeout(suchen, 350);
+    if (code) { meScanStoppen(); meScanTreffer(code); return; }
+    meScanTimer = setTimeout(suchen, 120);
   };
   suchen();
 }
@@ -5811,7 +5986,7 @@ async function meScanStarten() {
 function meScanStoppen() {
   meScanLaeuft = false;
   clearTimeout(meScanTimer);
-  document.querySelector(".me-video")?.remove();
+  document.querySelector(".scan-blatt")?.remove();
   if (meScanStrom) {
     for (const spur of meScanStrom.getTracks()) spur.stop();
     meScanStrom = null;
@@ -5999,12 +6174,40 @@ async function healthNativ() {
   try {
     const bericht = await healthkitAbgleichen({ aufruf: nativAufruf, store, heute: todayIso() });
     if (bericht.tage || bericht.trainings || bericht.mahlzeiten || bericht.uebersprungen) refreshAll();
+    if (bericht.neueTrainings?.length) await trainingVonDerUhr(bericht.neueTrainings);
   } catch {
     // Ohne Erlaubnis oder ohne Health bleibt alles, wie es war. Der Weg über
     // den Export im Profil steht weiter offen.
   } finally {
     healthLaeuft = false;
   }
+}
+
+/**
+ * Ein Training aus Apple Health, das daevo noch nicht kannte.
+ *
+ * Lob in den Chat, ein Termin in den Kalender, wenn dort zu der Zeit noch
+ * kein Training steht, und die Frage, ob ein heute noch geplantes Training
+ * damit vorgezogen war. Siehe training-erkannt.js.
+ */
+let trainingFrage = null;
+async function trainingVonDerUhr(neue) {
+  const s = store.getSettings();
+  const gemeldet = s.trainingGemeldet || [];
+  const erkannt = trainingErkannt({
+    neue, heute: todayIso(), profil: store.getProfile() || {}, termine: store.getKalender().termine || [], gemeldet,
+  });
+  if (!erkannt) return;
+  store.setSettings({ ...store.getSettings(), trainingGemeldet: [...gemeldet, ...erkannt.ids].slice(-50) });
+  const { kannSchreiben, trainingNachtragen } = await import("./kalender-schreiben.js");
+  if (kannSchreiben()) {
+    try { await trainingNachtragen(erkannt.training); } catch { /* ohne Kalender bleibt es beim Eintrag im Tag */ }
+  }
+  const chat = store.getChat();
+  chat.push({ role: "assistant", text: erkannt.text, at: new Date().toISOString() });
+  store.setChat(chat);
+  renderTranscript();
+  trainingFrage = erkannt.naechstes;
 }
 
 /**
@@ -6018,6 +6221,7 @@ async function mitteilungenNativ() {
   try {
     const { antworten = [], geoeffnet = null } = await nativAufruf("Mitteilungen", "abholen");
     for (const eintrag of antworten) {
+      if (eintrag?.aktion === "antworten") { await mitteilungAntworten(eintrag); continue; }
       if (eintrag?.art === "kalender") {
         // "Lassen" heisst nichts tun. "Umplanen" rechnet den Platz hier,
         // denn die Mitteilung kam aus dem Hintergrund ohne Web Ansicht.
@@ -6030,7 +6234,11 @@ async function mitteilungenNativ() {
       }
       if (antwortVerarbeiten(eintrag, { store, brain })) toast("Antwort übernommen");
     }
-    if (geoeffnet?.art === "luecke") lueckeFrageOeffnen();
+    // Ein Training von der Uhr: Chat öffnen und Health lesen, dort entsteht
+    // die Nachricht mit Eintrag, Kalender und Frage.
+    if (geoeffnet?.art === "training") { showView("assistant"); healthNativ(); }
+    else if (geoeffnet?.art === "antwort") showView("assistant");
+    else if (geoeffnet?.art === "luecke") lueckeFrageOeffnen();
     else if (geoeffnet?.art && geoeffnet.art !== "runterfahren") impulsOeffnen({ art: geoeffnet.art });
 
     await mitteilungenNeuPlanen();
@@ -6038,6 +6246,42 @@ async function mitteilungenNativ() {
     // Ohne Erlaubnis plant iOS nichts. Die App läuft trotzdem.
   }
 }
+
+/**
+ * Eine Antwort, die direkt in einer Mitteilung getippt oder auf der Uhr
+ * diktiert wurde. Sie läuft durch denselben Weg wie eine Antwort im Chat:
+ * erst steht die Frage im Gespräch, dann die Antwort, und eine blosse Zahl
+ * auf die Energiefrage rechnet `energieCheck` ohne Modell. Ist die App
+ * dabei nicht zu sehen, kommt die Antwort von daevo als Mitteilung zurück,
+ * sonst stünde sie nur im Chat, den gerade niemand ansieht.
+ */
+async function mitteilungAntworten(eintrag) {
+  const text = String(eintrag?.text || "").trim();
+  if (!text) return;
+  while (busy) await new Promise((weiter) => setTimeout(weiter, 300));
+  if (eintrag.art && eintrag.art !== "antwort") impulsOeffnen({ art: eintrag.art }, { still: true });
+  $("assistant").classList.add("has-chat");
+  const vorher = store.getChat().length;
+  await send(text);
+  const neu = store.getChat().slice(vorher).filter((m) => m.role === "assistant").pop();
+  if (neu?.text && document.visibilityState !== "visible") {
+    await nativAufruf("Mitteilungen", "sofort", { titel: "daevo", text: chatSprechbar(neu.text) }).catch(() => {});
+  }
+}
+
+/**
+ * Das Plugin ruft das auf, wenn eine Antwort aus einer Mitteilung kommt,
+ * während daevo noch im Speicher liegt. Holt nur die Antworten ab und plant
+ * nichts neu: dafür reicht die Zeit im Hintergrund nicht sicher.
+ */
+window.daevoMitteilungAntworten = async () => {
+  if (!istNativ()) return;
+  const { antworten = [] } = await nativAufruf("Mitteilungen", "abholen");
+  for (const eintrag of antworten) {
+    if (eintrag?.aktion === "antworten") await mitteilungAntworten(eintrag);
+    else if (antwortVerarbeiten(eintrag, { store, brain })) refreshAll();
+  }
+};
 
 async function mitteilungenNeuPlanen() {
   const d = new Date();
@@ -6078,7 +6322,17 @@ const morgen = morgenStarten({
   // nach der Nachfrage fällt sie wieder weg.
   gespeichert: () => { refreshAll(); mitteilungenNativ(); },
   tagesbriefing: () => { try { return tagesbriefingFuer("morgen"); } catch { return null; } },
+  kalenderFrisch: async () => {
+    const s = store.getSettings();
+    if (!s.appleKalender && !kalenderAbos(s).length) return;
+    await kalenderAbgleichen({ zwang: true });
+  },
 });
+
+// Solange die App offen ist, gleicht sie den Kalender alle 15 Minuten ab.
+// Wer daevo den Tag über offen hat, sieht sonst bis zum nächsten Start den
+// Stand vom Morgen.
+setInterval(() => { if (document.visibilityState === "visible") kalenderStill(); }, 15 * 60 * 1000);
 
 /**
  * Öffnet den Morgen Check-in, wenn es Zeit ist. Nie während der Einführung
@@ -6404,7 +6658,7 @@ $("btnPushProbe").addEventListener("click", async () => {
  */
 let offeneFrage = null;
 
-function impulsOeffnen(daten) {
+function impulsOeffnen(daten, { still = false } = {}) {
   const art = daten?.art;
   if (!art) return;
   if (art === "morgen") { morgen.oeffnen(); return; }
@@ -6432,7 +6686,7 @@ function impulsOeffnen(daten) {
     renderTranscript();
   }
   offeneFrage = impuls.frage ? art : null;
-  $("chatInput").focus();
+  if (!still) $("chatInput").focus();
 }
 
 /** Eine blosse Zahl von 1 bis 10, sonst null. */
@@ -7000,6 +7254,10 @@ async function uhrAbgleichen() {
       const ergebnis = uhrEreignisseAnwenden(ereignisse, { store, heute: todayIso(), neueId: newId });
       const satz = uhrMeldung(ergebnis);
       if (satz) { toast(satz, 4500); plaene.verlaufNeu?.(); }
+      // Auf der Uhr abgehakt: hier wirklich abhaken, bei Todoist auch dort.
+      for (const id of ergebnis.erledigt) {
+        try { await aufgabeErledigen(id); } catch { /* gibt es nicht mehr oder kein Netz */ }
+      }
       // Was auf der Uhr ohne iPhone besprochen wurde, steht danach im
       // Gespräch, damit der Coach beim nächsten Mal davon weiss.
       if (ergebnis.gespraech.length) {
@@ -7039,7 +7297,12 @@ window.daevoUhrEingang = () => { uhrAbgleichen().then(() => refreshAll()); };
 
 async function uhrSenden() {
   if (!istNativ() || !uhrDa) return;
-  const paket = uhrPaket({ settings: store.getSettings(), zahlen: dayNumbers(), heute: todayIso(), gestrichen: trainingGestrichen(store, todayIso()), ki: uhrKiZugang() });
+  let aufgaben = [];
+  try { aufgaben = uhrAufgaben(tagesplan()); } catch { /* ohne Aufgaben eine leere Liste */ }
+  const paket = uhrPaket({
+    settings: store.getSettings(), zahlen: dayNumbers(), heute: todayIso(), gestrichen: trainingGestrichen(store, todayIso()), ki: uhrKiZugang(),
+    termine: uhrTermine(store.getKalender().termine || []), aufgaben,
+  });
   await nativAufruf("Uhr", "senden", { paket });
 }
 
@@ -7073,9 +7336,12 @@ function uhrSpaeter() {
   uhrTimer = setTimeout(() => uhrSenden().catch(() => {}), 1500);
 }
 
-setTimeout(() => uhrAbgleichen().then(() => refreshAll()), 2500);
+// Ohne Profil steht noch der Fragebogen da, und refreshAll hätte keinen Tag
+// zu rechnen: beim ersten Start warf das nach 2,5 Sekunden einen Fehler.
+const nachUhr = () => { if (store.getProfile()) refreshAll(); };
+setTimeout(() => uhrAbgleichen().then(nachUhr), 2500);
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") uhrAbgleichen().then(() => refreshAll());
+  if (document.visibilityState === "visible") uhrAbgleichen().then(nachUhr);
 });
 
 // Ringe, Balken und Zahlen laufen auf ihren neuen Stand, siehe bewegung.js.

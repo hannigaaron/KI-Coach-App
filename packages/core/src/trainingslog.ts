@@ -109,22 +109,37 @@ export interface Tausch {
 }
 
 export interface PlanPruefung {
-  /** Ob die acht Wochen um sind. Vorher ändert sich nichts. */
+  /** Ob sich etwas geändert hat. Vorher bleibt der Plan, wie er ist. */
   faellig: boolean;
   plan: Uebungsplan;
   getauscht: Tausch[];
-  /** Übungen mit Zuwachs, die bleiben, mit Prozent. */
+  /** Geprüfte Übungen mit Zuwachs, die bleiben, mit Prozent. */
   behalten: Array<{ id: string; name: string; prozent: number }>;
-  /** Übungen ohne genug Daten. Sie bleiben, weil die App nichts über sie weiss. */
+  /** Fällige Übungen ohne genug Daten. Sie bleiben, weil die App nichts über sie weiss. */
   ohneDaten: string[];
   text: string;
 }
 
+/** So lange muss eine Übung an ihrem Platz stehen, bevor sie wegen Stillstand geht. */
+export const STILLSTAND_WOCHEN = PLAN_WOCHEN;
+
+function tagMinus(iso: string, tage: number): string {
+  return new Date(Date.parse(`${iso}T00:00:00Z`) - tage * 86_400_000).toISOString().slice(0, 10);
+}
+
 /**
- * Nach acht Wochen: Übungen mit Fortschritt bleiben, festgefahrene werden
- * gegen eine andere Übung derselben Bewegung getauscht. Sätze,
- * Wiederholungen und Pause bleiben, die Rolle im Plan ist dieselbe.
+ * Prüft jeden Platz des Plans für sich: steht eine Übung seit acht Wochen
+ * dort und ist in diesen acht Wochen kaum stärker geworden, wird sie gegen
+ * eine andere Übung derselben Bewegung getauscht. Sätze, Wiederholungen und
+ * Pause bleiben, die Rolle im Plan ist dieselbe.
  *
+ * Laufend und nicht einmal nach acht Wochen Planalter. Vorher wurde nur am
+ * Stichtag geprüft, und eine Übung, die in Woche 9 festfuhr, blieb bis zum
+ * Ende des Plans. Jeder Platz trägt dafür `seit`: eine getauschte Übung
+ * bekommt ihre eigenen acht Wochen, bevor sie wieder geprüft wird.
+ *
+ * Gemessen wird über die letzten acht Wochen, nicht seit Beginn des Plans:
+ * wer im ersten Monat 15 Prozent zulegt und danach zwei Monate steht, steht.
  * Ausnahmen, und jede hat einen Grund. Wer einmal die Woche trainiert, behält
  * seine Übungen: bei acht Einheiten in acht Wochen ist jeder Wechsel ein
  * Neuanfang, und der einfache Plan lebt davon, an denselben Grundübungen
@@ -132,19 +147,15 @@ export interface PlanPruefung {
  * ohne Zahlen wäre ein Tausch geraten.
  */
 export function planAktualisieren(
-  plan: Uebungsplan & { aktualisiertAm?: string; gespeichertAm?: string },
+  plan: Uebungsplan & { aktualisiertAm?: string; gespeichertAm?: string; beginn?: string },
   log: LogEintrag[],
   uebungen: PlanUebung[],
   heute: string,
 ): PlanPruefung {
-  const seit = (plan.aktualisiertAm ?? plan.gespeichertAm ?? heute).slice(0, 10);
-  const faellig = tageZwischen(seit, heute) >= PLAN_WOCHEN * 7;
-  const leer = { faellig, plan, getauscht: [], behalten: [], ohneDaten: [], text: "" };
-  if (!faellig) return leer;
-  const neuerStand = { ...plan, aktualisiertAm: heute };
-  if (plan.wunsch.tage === 1) {
-    return { ...leer, plan: neuerStand, text: "Acht Wochen sind um. Bei einem Training pro Woche bleiben die Übungen gleich, damit du an genau diesen stärker wirst." };
-  }
+  const planSeit = (plan.beginn ?? plan.gespeichertAm ?? heute).slice(0, 10);
+  const leer: PlanPruefung = { faellig: false, plan, getauscht: [], behalten: [], ohneDaten: [], text: "" };
+  if (plan.wunsch.tage === 1) return leer;
+  const ab = tagMinus(heute, STILLSTAND_WOCHEN * 7);
 
   const getauscht: Tausch[] = [];
   const behalten: PlanPruefung["behalten"] = [];
@@ -154,7 +165,11 @@ export function planAktualisieren(
 
   plan.einheiten.forEach((einheit, ei) => {
     einheit.positionen.forEach((p, pi) => {
-      const f = fortschritt(log, p.id, seit);
+      // Die spätere von beidem: ein älterer Plan kennt `seit` nicht, und ein
+      // neuer Plan prüft auch eine alte Übung erst nach acht Wochen.
+      const seit = [p.seit, plan.aktualisiertAm, planSeit].filter(Boolean).map((x) => String(x).slice(0, 10)).sort().pop()!;
+      if (tageZwischen(seit, heute) < STILLSTAND_WOCHEN * 7) return;
+      const f = fortschritt(log, p.id, ab);
       if (f.prozent === null) { if (!ohneDaten.includes(p.name)) ohneDaten.push(p.name); return; }
       if (f.prozent >= FORTSCHRITT_MIN) { behalten.push({ id: p.id, name: p.name, prozent: f.prozent }); return; }
       // Nicht wieder dieselbe festgefahrene Übung aus einer anderen Einheit nehmen.
@@ -165,25 +180,88 @@ export function planAktualisieren(
       arbeit = {
         ...arbeit,
         einheiten: arbeit.einheiten.map((e, i) => i !== ei ? e : {
-          ...e, positionen: e.positionen.map((q, j) => (j === pi ? { ...q, id: kandidat.id, name: kandidat.name } : q)),
+          ...e, positionen: e.positionen.map((q, j) => (j === pi ? { ...q, id: kandidat.id, name: kandidat.name, seit: heute } : q)),
         }),
       };
     });
   });
 
+  if (!getauscht.length) return { ...leer, behalten, ohneDaten };
   const fertig = { ...planNachrechnen(arbeit, uebungen), aktualisiertAm: heute };
   const zahl = (x: number) => String(x).replace(".", ",");
   const zeilen: string[] = [];
-  if (getauscht.length) {
-    zeilen.push(`Acht Wochen sind um. ${getauscht.length} ${getauscht.length === 1 ? "Übung kam" : "Übungen kamen"} kaum voran und ${getauscht.length === 1 ? "ist" : "sind"} getauscht, gegen eine für dieselbe Bewegung:`);
-    for (const t of getauscht) zeilen.push(`${t.alt.name} (${zahl(t.prozent)} %) wird ${t.neu.name}, ${t.einheit}`);
-  } else {
-    zeilen.push("Acht Wochen sind um. Keine Übung musste getauscht werden.");
-  }
+  zeilen.push(getauscht.length === 1
+    ? "Eine Übung kam in den letzten acht Wochen kaum voran. daevo hat sie gegen eine für dieselbe Bewegung getauscht, Sätze und Pausen bleiben:"
+    : `${getauscht.length} Übungen kamen in den letzten acht Wochen kaum voran. daevo hat sie gegen andere für dieselbe Bewegung getauscht, Sätze und Pausen bleiben:`);
+  for (const t of getauscht) zeilen.push(`${t.alt.name} (${t.prozent > 0 ? "+" : ""}${zahl(t.prozent)} %) wird ${t.neu.name}, ${t.einheit}`);
   const stark = [...behalten].sort((a, b) => b.prozent - a.prozent).slice(0, 3);
-  if (stark.length) zeilen.push(`Bleiben, weil du dort am meisten zugelegt hast: ${stark.map((b) => `${b.name} +${zahl(b.prozent)} %`).join(", ")}.`);
-  if (ohneDaten.length) zeilen.push(`Ohne genug Einträge und deshalb unverändert: ${ohneDaten.join(", ")}.`);
-  return { faellig, plan: fertig, getauscht, behalten, ohneDaten, text: zeilen.join("\n") };
+  if (stark.length) zeilen.push(`Bleiben, weil du dort zugelegt hast: ${stark.map((b) => `${b.name} +${zahl(b.prozent)} %`).join(", ")}.`);
+  return { faellig: true, plan: fertig, getauscht, behalten, ohneDaten, text: zeilen.join("\n") };
+}
+
+/* ---------- Fortschritt einer Übung ---------- */
+
+export interface UebungsPunkt {
+  datum: string;
+  /** Schwerstes Gewicht der Einheit, 0 ohne Zusatzgewicht. */
+  kg: number;
+  /** Wiederholungen beim schwersten Gewicht, der beste Satz davon. */
+  wdh: number;
+  /** Geschätzte Maximalkraft des besten Satzes, siehe `satzWert`. */
+  wert: number;
+}
+
+/** Je Einheit ein Punkt, älteste zuerst. */
+export function uebungsPunkte(log: LogEintrag[], uebung: string): UebungsPunkt[] {
+  return verlaufFuer(log, uebung).map((e) => {
+    const g = e.saetze.filter(gueltig);
+    const kg = Math.max(...g.map((s) => s.kg));
+    const wdh = Math.max(...g.filter((s) => s.kg === kg).map((s) => s.wdh));
+    return { datum: e.datum, kg, wdh, wert: Math.round(einheitWert(e) * 10) / 10 };
+  });
+}
+
+export type TrendArt = "steigt" | "haelt" | "faellt" | "offen";
+
+export interface UebungsTrend {
+  art: TrendArt;
+  /** Zuwachs der geschätzten Kraft über die letzten acht Wochen, null bei zu wenig Daten. */
+  prozent: number | null;
+  einheiten: number;
+  /** Seit wann gemessen wird, die erste Einheit im Fenster. */
+  seit: string | null;
+  /** Ob die Übung acht Wochen ohne Zuwachs steht und damit getauscht würde. */
+  stillstand: boolean;
+  text: string;
+}
+
+/**
+ * Wie sich eine Übung entwickelt, über die letzten acht Wochen und mit
+ * derselben Rechnung wie der Tausch: geschätzte Maximalkraft, Schnitt der
+ * ersten und letzten zwei Einheiten, 2,5 Prozent als Grenze. Unter minus 2,5
+ * heisst schwächer. Das Gewicht allein sagt das nicht: 80 kg mal 10 sind
+ * mehr als 82,5 kg mal 5, und genau so sieht eine gute Steigerung aus.
+ */
+export function uebungsTrend(log: LogEintrag[], uebung: string, heute: string): UebungsTrend {
+  const ab = tagMinus(heute, STILLSTAND_WOCHEN * 7);
+  const fenster = verlaufFuer(log, uebung, ab);
+  const f = fortschritt(log, uebung, ab);
+  const seit = fenster[0]?.datum ?? null;
+  if (f.prozent === null) {
+    const fehlen = EINHEITEN_MIN - f.einheiten;
+    return { art: "offen", prozent: null, einheiten: f.einheiten, seit, stillstand: false,
+      text: f.einheiten === 0 ? "In den letzten acht Wochen noch nicht gemacht." : `Noch ${fehlen} ${fehlen === 1 ? "Einheit" : "Einheiten"}, dann sagt daevo, wohin es geht.` };
+  }
+  const p = f.prozent;
+  const art: TrendArt = p >= FORTSCHRITT_MIN ? "steigt" : p <= -FORTSCHRITT_MIN ? "faellt" : "haelt";
+  // Stillstand erst, wenn die Messung fast die ganzen acht Wochen trägt.
+  const stillstand = art !== "steigt" && seit !== null && tageZwischen(seit, heute) >= (STILLSTAND_WOCHEN - 1) * 7;
+  const zahl = `${p > 0 ? "+" : ""}${String(p).replace(".", ",")} %`;
+  const text = art === "steigt" ? `${zahl} geschätzte Kraft in ${f.einheiten} Einheiten. Du wirst stärker.`
+    : art === "faellt" ? `${zahl} geschätzte Kraft in ${f.einheiten} Einheiten. Schlaf, Essen und Pausen prüfen, bevor du mehr Gewicht nimmst.`
+    : `${zahl} geschätzte Kraft in ${f.einheiten} Einheiten. Das ist Stillstand.`;
+  return { art, prozent: p, einheiten: f.einheiten, seit, stillstand,
+    text: stillstand ? `${text} Acht Wochen ohne Zuwachs: im Plan tauscht daevo sie gegen eine Übung für dieselbe Bewegung.` : text };
 }
 
 export interface Steigerung {
