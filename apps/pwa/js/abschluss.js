@@ -14,7 +14,7 @@
  * an, die Tests laufen ohne Browser.
  */
 import { UEBUNGEN } from "./uebungen-daten.js";
-import { KARTE_DUNKEL, KARTE_HELL, muskelkarteSvg, partienListe, saetzeJePartie } from "./muskelkarte.js";
+import { KARTE_DUNKEL, KARTE_HELL, KARTE_RAHMEN, muskelkarteSvg, partienListe, saetzeJePartie } from "./muskelkarte.js";
 import { vorschauPfad } from "./uebungen.js";
 
 const nachId = new Map(UEBUNGEN.map((u) => [u.id, u]));
@@ -142,14 +142,15 @@ export async function storyBild(d) {
     g.fillText(t, x, 470);
   });
 
-  const svg = muskelkarteSvg(d.jePartie, { farben: { ...KARTE_DUNKEL, grund: "#121820" }, beschriftung: false });
+  const svg = muskelkarteSvg(d.jePartie, { farben: { ...KARTE_DUNKEL, linie: "#121820" }, beschriftung: false });
   const karte = await bildLaden(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`);
-  const kb = 940, kh = kb * (418 / 420);
-  g.drawImage(karte, (B - kb) / 2, 560, kb, kh);
+  const R = KARTE_RAHMEN;
+  const kb = 940, kh = kb * (R.hoehe / R.breite), kx = (B - kb) / 2;
+  g.drawImage(karte, kx, 560, kb, kh);
   g.fillStyle = "#5f6b7c";
   g.font = schrift(500, 32);
-  g.fillText("Vorn", B / 2 - kb / 4 - 10, 560 + kh + 40);
-  g.fillText("Hinten", B / 2 + kb / 4 + 10, 560 + kh + 40);
+  g.fillText("Vorn", kx + ((R.vorn - R.x) / R.breite) * kb, 560 + kh + 40);
+  g.fillText("Hinten", kx + ((R.hinten - R.x) / R.breite) * kb, 560 + kh + 40);
 
   // Die drei stärksten Partien.
   const top = d.partien.slice(0, 3).map((p) => `${p.name} ${zahl(p.saetze)}`).join("   ·   ");
