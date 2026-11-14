@@ -4416,3 +4416,21 @@ button { overflow-wrap: anywhere; text-wrap: balance; }
 .tr-entwicklung summary { cursor: pointer; color: var(--accent-text, var(--accent)); font-weight: 600; font-size: var(--t-sm); list-style: none; padding: 8px 0; }
 .tr-entwicklung summary::-webkit-details-marker { display: none; }
 .tr-entwicklung[open] summary { margin-bottom: var(--s-2); }
+
+/* Bewegung und Erholung auf Heute. Kacheln ohne Rahmen auf einer Tonfläche,
+   die Zahl trägt, Name und Quelle klein darüber und darunter. */
+.bw-raster { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: var(--s-2); margin: var(--s-3) 0; }
+.bw-kachel {
+  display: flex; flex-direction: column; gap: 2px; padding: var(--s-3); border-radius: var(--r-md);
+  background: var(--flaeche); box-shadow: var(--haarlinie); min-width: 0;
+}
+.bw-kachel span { font-size: var(--t-xs); color: var(--muted); }
+.bw-kachel b { font-size: var(--t-lg); font-weight: 650; font-variant-numeric: tabular-nums; }
+.bw-kachel small { font-size: var(--t-2xs, 11px); color: var(--muted); }
+.bw-trainings { list-style: none; margin: 0 0 var(--s-2); padding: 0; }
+.bw-trainings li {
+  display: flex; justify-content: space-between; gap: var(--s-3); padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--line, rgba(127, 127, 127, 0.18)); font-size: var(--t-sm);
+}
+.bw-trainings li > span:last-child { color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.bw-trainings small { color: var(--muted); }

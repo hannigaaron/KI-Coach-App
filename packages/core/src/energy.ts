@@ -96,6 +96,42 @@ export function energyBreakdown(profile: UserProfile): EnergyBreakdown {
   };
 }
 
+export interface AktivitaetsAbgleich {
+  /** Aktive Kalorien, mit denen das Ziel schon rechnet. */
+  geplantKcal: number;
+  /** Aktive Kalorien laut Apple Health an diesem Tag. */
+  gemessenKcal: number;
+  /** Was auf das Tagesziel kommt. Null, solange die Messung unter der Planung liegt. */
+  zuschlagKcal: number;
+}
+
+/**
+ * Was die Uhr über dem eingeplanten Verbrauch misst.
+ *
+ * Das Ziel rechnet schon mit Bewegung: der Aktivitätsfaktor trägt Schritte
+ * und Trainingsminuten der Woche, gleichmässig auf jeden Tag verteilt. Die
+ * aktiven Kalorien der Uhr einfach dazuzuzählen hiesse, das Training
+ * zweimal zu essen. Eingeplant sind deshalb der Verbrauch ohne Grundumsatz
+ * und ohne die Verdauung, die rund zehn Prozent des Gesamtverbrauchs
+ * ausmacht (Westerterp, Nutrition and Metabolism 2004). Was die Uhr darüber
+ * misst, kommt dazu, im Defizit und im Aufbau mit demselben Anteil wie das
+ * Ziel selbst. Gesenkt wird nie: der Tag läuft noch, und morgens hat
+ * niemand schon seinen Verbrauch erreicht.
+ *
+ * Die aktiven Kalorien der Apple Watch sind eine Schätzung aus Puls und
+ * Bewegung, keine Messung im Labor. Höchstens 1500 kcal Zuschlag, damit ein
+ * falscher Wert das Ziel nicht verdoppelt. Eine Regel der App.
+ */
+export function aktivitaetsZuschlag(profile: UserProfile, aktivKcal: number): AktivitaetsAbgleich | null {
+  if (!Number.isFinite(aktivKcal) || aktivKcal <= 0) return null;
+  const e = energyBreakdown(profile);
+  const geplant = Math.max(0, round(e.tdeeKcal * 0.9 - e.bmrKcal));
+  const gemessen = round(aktivKcal);
+  const ueber = Math.max(0, gemessen - geplant);
+  const zuschlag = Math.min(1500, round(ueber * (1 + GOAL_FACTOR[profile.goal])));
+  return { geplantKcal: geplant, gemessenKcal: gemessen, zuschlagKcal: zuschlag };
+}
+
 /**
  * Makroverteilung.
  *

@@ -29,6 +29,8 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
         let mengen: [HKQuantityTypeIdentifier] = [
             .stepCount, .activeEnergyBurned, .restingHeartRate, .heartRateVariabilitySDNN, .bodyMass,
             .bodyFatPercentage, .vo2Max, .appleExerciseTime,
+            // Der Puls, für Schnitt und Höchstwert eines Trainings.
+            .heartRate,
         ]
         for id in mengen {
             if let t = HKObjectType.quantityType(forIdentifier: id) { typen.insert(t) }
@@ -201,7 +203,7 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
             sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
         ) { _, proben, _ in
             let liste = (proben as? [HKWorkout] ?? []).map { w -> [String: Any] in
-                [
+                var d: [String: Any] = [
                     "id": w.uuid.uuidString,
                     "start": ISO8601DateFormatter().string(from: w.startDate),
                     "tag": GesundheitPlugin.tagText(w.startDate),
@@ -209,6 +211,23 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
                     "minuten": (w.duration / 60).rounded(),
                     "art": GesundheitPlugin.art(w.workoutActivityType),
                 ]
+                // Aktive Kalorien und Puls des Trainings. Ohne sie stand eine
+                // Stunde Pull im Tag, aber nicht, was sie verbraucht hat.
+                if #available(iOS 16.0, *) {
+                    if let typ = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned),
+                       let summe = w.statistics(for: typ)?.sumQuantity() {
+                        d["kcal"] = summe.doubleValue(for: .kilocalorie()).rounded()
+                    }
+                    let proMinute = HKUnit.count().unitDivided(by: .minute())
+                    if let typ = HKQuantityType.quantityType(forIdentifier: .heartRate), let stat = w.statistics(for: typ) {
+                        if let schnitt = stat.averageQuantity() { d["puls"] = schnitt.doubleValue(for: proMinute).rounded() }
+                        if let hoch = stat.maximumQuantity() { d["pulsMax"] = hoch.doubleValue(for: proMinute).rounded() }
+                    }
+                }
+                if d["kcal"] == nil, let gesamt = w.totalEnergyBurned {
+                    d["kcal"] = gesamt.doubleValue(for: .kilocalorie()).rounded()
+                }
+                return d
             }
             sperre.lock()
             workouts = liste

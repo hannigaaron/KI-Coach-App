@@ -328,3 +328,32 @@ test("Wochenrückblick mittwochs und sonntags im Plan, ohne Zahlen in der Mittei
   assert.deepEqual(r.map((m) => [m.tag, m.uhrzeit]), [["2026-10-21", "18:30"], ["2026-10-25", "20:00"]]);
   assert.ok(r.every((m) => !/\d/.test(m.text)));
 });
+
+test("Kalorien und Puls aus Health kommen an ein schon eingetragenes Training, statt mit ihm wegzufallen", () => {
+  frisch();
+  store.addTraining("2026-10-18", { id: "eigen", type: "strength", minutes: 60, at: "12:00", note: "Freies Training" });
+  const w = [{ id: "B2", tag: "2026-10-18", uhrzeit: "12:02", minuten: 61, art: "strength", kcal: 287, puls: 118, pulsMax: 162 }];
+  assert.equal(workoutsSchreiben(w, { store, heute: HEUTE }), 0);
+  const t = store.getDay("2026-10-18").trainings;
+  assert.equal(t.length, 1);
+  assert.equal(t[0].kcal, 287);
+  assert.equal(t[0].puls, 118);
+  assert.equal(t[0].pulsMax, 162);
+  // Beim nächsten Lesen nicht noch einmal und nicht als zweites Training.
+  workoutsSchreiben(w, { store, heute: HEUTE });
+  assert.equal(store.getDay("2026-10-18").trainings.length, 1);
+});
+
+test("Aktive Kalorien über der Planung heben das Tagesziel, darunter bleibt es", async () => {
+  frisch();
+  const { dayNumbers } = await import("./assistant.js");
+  const ohne = dayNumbers("2026-10-18").targets.kcal;
+  healthkitSchreiben({ tage: [{ tag: "2026-10-18", aktivKcal: 100 }] }, { store, heute: HEUTE });
+  assert.equal(dayNumbers("2026-10-18").targets.kcal, ohne);
+  healthkitSchreiben({ tage: [{ tag: "2026-10-18", aktivKcal: 2500 }] }, { store, heute: HEUTE });
+  const n = dayNumbers("2026-10-18");
+  assert.ok(n.targets.kcal > ohne, `${n.targets.kcal} > ${ohne}`);
+  assert.equal(n.targets.kcal - ohne, n.aktivitaet.zuschlagKcal);
+  store.setSettings({ ...store.getSettings(), aktivZumZiel: false });
+  assert.equal(dayNumbers("2026-10-18").targets.kcal, ohne);
+});

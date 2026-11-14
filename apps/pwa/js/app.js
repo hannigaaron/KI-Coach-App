@@ -1049,6 +1049,12 @@ function feldWachsen(el) {
 document.addEventListener("input", (event) => {
   if (event.target instanceof HTMLTextAreaElement) feldWachsen(event.target);
 });
+document.addEventListener("click", (event) => {
+  if (!event.target.closest?.("#bwZielSchalter")) return;
+  const s = store.getSettings();
+  store.setSettings({ ...s, aktivZumZiel: s.aktivZumZiel === false });
+  refreshAll();
+});
 
 function refreshAll() {
   uhrSpaeter();
@@ -1584,6 +1590,61 @@ const TEIL_TON = {
   Ruhe: "var(--bereich-me_time)",
 };
 
+/**
+ * Was Apple Health für den gezeigten Tag weiss. Nur was gemessen ist, steht
+ * da: eine Kachel ohne Wert wäre eine Null, die niemand gemessen hat. In der
+ * iPhone App steht der Abschnitt immer, damit sichtbar ist, ob der Abgleich
+ * läuft, im Browser nur mit Daten aus Export oder Kurzbefehl.
+ */
+function renderBewegung(n, istHeute) {
+  const d = n.data;
+  const g = d.gesundheit || {};
+  const kacheln = [];
+  const zahlText = (x) => Math.round(x).toLocaleString("de-DE");
+  if (Number.isFinite(d.steps)) {
+    const ziel = Number(n.profile.dailySteps) || 0;
+    kacheln.push(["Schritte", zahlText(d.steps), ziel ? `Schnitt im Profil ${zahlText(ziel)}` : ""]);
+  }
+  if (Number.isFinite(g.aktivKcal)) kacheln.push(["Aktive Kalorien", `${zahlText(g.aktivKcal)} kcal`, "laut Apple Watch"]);
+  if (Number.isFinite(g.schlafMinuten)) kacheln.push(["Schlaf", `${Math.floor(g.schlafMinuten / 60)} h ${String(Math.round(g.schlafMinuten % 60)).padStart(2, "0")}`, "Nacht davor"]);
+  if (Number.isFinite(g.ruhepuls)) kacheln.push(["Ruhepuls", `${Math.round(g.ruhepuls)}`, "Schläge je Minute"]);
+  if (Number.isFinite(g.hrv)) kacheln.push(["HRV", `${Math.round(g.hrv)} ms`, "Schnitt des Tages"]);
+  if (Number.isFinite(g.trainingsMinuten)) kacheln.push(["Trainingsminuten", `${Math.round(g.trainingsMinuten)}`, "Apple Ring"]);
+  $("bwRaster").innerHTML = kacheln.map(([name, wert, zusatz]) =>
+    `<div class="bw-kachel"><span>${escapeHtml(name)}</span><b>${escapeHtml(wert)}</b>${zusatz ? `<small>${escapeHtml(zusatz)}</small>` : ""}</div>`).join("");
+
+  const trainings = (d.trainings || []).filter((t) => t.minutes > 0);
+  const ART = { strength: "Krafttraining", cardio: "Ausdauer", team_sport: "Mannschaftssport", mobility: "Mobilität" };
+  $("bwTrainings").innerHTML = trainings.length
+    ? `<ul class="bw-trainings">${trainings.map((t) => {
+        const teile = [`${t.minutes} min`, t.kcal ? `${zahlText(t.kcal)} kcal` : "", t.puls ? `Puls ${t.puls}${t.pulsMax ? `, max ${t.pulsMax}` : ""}` : ""].filter(Boolean);
+        return `<li><span><b>${escapeHtml(ART[t.type] ?? "Training")}</b>${t.at ? ` <small>${escapeHtml(t.at)}</small>` : ""}</span><span>${escapeHtml(teile.join(" · "))}</span></li>`;
+      }).join("")}</ul>`
+    : "";
+
+  const a = n.aktivitaet;
+  const aus = store.getSettings().aktivZumZiel === false;
+  $("bwZiel").innerHTML = a
+    ? `${aus ? "Die Uhr misst" : "Dein Ziel rechnet schon mit"} ${aus ? `${zahlText(a.gemessenKcal)} kcal Bewegung, aufs Ziel kommt davon nichts, so ist es eingestellt.` : `${zahlText(a.geplantKcal)} kcal Bewegung am Tag. Die Uhr misst ${zahlText(a.gemessenKcal)} kcal${a.zuschlagKcal > 0 ? `, ${zahlText(a.zuschlagKcal)} kcal sind deshalb aufs Ziel gekommen.` : ". Was darüber liegt, kommt aufs Ziel, bisher nichts."}`}`
+      + ` <button type="button" class="link-knopf" id="bwZielSchalter">${aus ? "Wieder aufs Ziel rechnen" : "Nicht aufs Ziel rechnen"}</button>`
+    : "";
+
+  const stand = store.getSettings().healthNativ || store.getSettings().healthKurzbefehl || store.getSettings().healthImport;
+  const nativ = istNativ();
+  if (!kacheln.length && !trainings.length) {
+    $("bwStand").textContent = nativ
+      ? (stand?.at
+        ? `Für ${istHeute ? "heute" : "diesen Tag"} steht noch nichts aus Apple Health da. Fehlt etwas, prüf in den iPhone Einstellungen unter Health, Datenzugriff und Geräte, daevo, ob alles erlaubt ist.`
+        : "Noch kein Abgleich mit Apple Health. Erlaube daevo den Zugriff in den iPhone Einstellungen unter Health, Datenzugriff und Geräte, daevo, und öffne die App neu.")
+      : "";
+  } else {
+    $("bwStand").textContent = stand?.at
+      ? `Aus Apple Health, abgeglichen ${new Date(stand.at).toLocaleString("de-DE", { weekday: "short", hour: "2-digit", minute: "2-digit" })}.`
+      : "Aus Apple Health.";
+  }
+  $("heuteBewegung").hidden = !nativ && !kacheln.length && !trainings.length;
+}
+
 function renderHeuteBalance() {
   const el = $("heuteBalance");
   if (!el) return;
@@ -1655,6 +1716,7 @@ function renderToday() {
         `<div class="li-side"><b>${r.at}</b>${r.at < time ? "vorbei" : "geplant"}</div></li>`).join("")
     : `<li><div class="li-main"><div class="li-sub">Für heute ist alles erledigt.</div></div></li>`;
 
+  renderBewegung(n, istHeute);
   renderTagWertung();
   renderHeuteBalance();
   renderWeight();
@@ -6162,6 +6224,9 @@ function rechteFragen() {
 /* ---------- Apple Health in der iPhone App ---------- */
 
 let healthLaeuft = false;
+// Offen alle zehn Minuten. Vorher nur beim Öffnen, und wer daevo nach dem
+// Training offen hatte, sah die Kalorien der Stunde davor nie.
+setInterval(() => { if (document.visibilityState === "visible") healthNativ(); }, 10 * 60_000);
 
 /**
  * Liest Apple Health beim Start und bei jedem Zurückholen der App. Läuft

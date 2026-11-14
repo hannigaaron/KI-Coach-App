@@ -2241,6 +2241,181 @@ export const UEBUNGEN = [
   }
  },
  {
+  "id": "crunch",
+  "name": "Crunch",
+  "nameEn": "Crunch",
+  "pattern": "core_flexion",
+  "primaryMuscles": [
+   "Bauch"
+  ],
+  "secondaryMuscles": [],
+  "equipment": "bodyweight",
+  "level": "beginner",
+  "mechanics": "isolation",
+  "repRange": "12-20",
+  "steps": [
+   "Rücklings auf die Matte, Knie gebeugt, Füße flach am Boden",
+   "Hände an die Schläfen, Ellbogen bleiben offen",
+   "Brustkorb zum Becken einrollen, bis die Schulterblätter vom Boden kommen",
+   "Kurz halten und langsam ablegen, ohne am Kopf zu ziehen"
+  ],
+  "gruppe": "rumpf",
+  "video": {
+   "id": "McwAT4O3DDk",
+   "titel": "Tutorial: So gehen Crunches richtig | InForm by SWR Sport",
+   "kanal": "SWR Sport",
+   "dauer": "0:59"
+  },
+  "alias": [
+   "Crunches",
+   "Bauchpresse"
+  ],
+  "fotoFolgt": true
+ },
+ {
+  "id": "sit-up",
+  "name": "Sit-up",
+  "nameEn": "Sit-up",
+  "pattern": "core_flexion",
+  "primaryMuscles": [
+   "Bauch"
+  ],
+  "secondaryMuscles": [
+   "Hüftbeuger"
+  ],
+  "equipment": "bodyweight",
+  "level": "beginner",
+  "mechanics": "isolation",
+  "repRange": "10-20",
+  "steps": [
+   "Rücklings auf die Matte, Knie gebeugt, Füße am Boden, bei Bedarf unter etwas eingehakt",
+   "Hände an die Schläfen oder vor der Brust gekreuzt",
+   "Wirbel für Wirbel aufrollen, bis der Oberkörper aufrecht sitzt",
+   "Langsam abrollen, nicht fallen lassen"
+  ],
+  "gruppe": "rumpf",
+  "video": {
+   "id": "czKvGbo5zAo",
+   "titel": "Freeletics: Sit Ups richtig machen",
+   "kanal": "AOK - Der Gesundheitskanal",
+   "dauer": "1:02"
+  },
+  "alias": [
+   "Sit-ups",
+   "Situps",
+   "Sit ups",
+   "Aufrichter"
+  ],
+  "fotoFolgt": true
+ },
+ {
+  "id": "russian-twist",
+  "name": "Russian Twist",
+  "nameEn": "Russian Twist",
+  "pattern": "core_rotation",
+  "primaryMuscles": [
+   "Seitliche Bauchmuskeln"
+  ],
+  "secondaryMuscles": [
+   "Bauch"
+  ],
+  "equipment": "bodyweight",
+  "level": "beginner",
+  "mechanics": "isolation",
+  "repRange": "10-15 je Seite",
+  "steps": [
+   "Auf die Matte setzen, Knie gebeugt, Oberkörper leicht nach hinten gelehnt",
+   "Rücken gerade, Hände vor der Brust, wer mag mit einer Scheibe oder Kurzhantel",
+   "Oberkörper langsam nach rechts drehen, dann nach links, die Hände folgen",
+   "Schwerer wird es mit den Füßen in der Luft"
+  ],
+  "gruppe": "rumpf",
+  "video": {
+   "id": "E7AYxBYOkL0",
+   "titel": "How to: Russian Twist | Russian Twists richtig ausführen",
+   "kanal": "Akademie für Sport und Gesundheit",
+   "dauer": "2:30"
+  },
+  "alias": [
+   "Russian Twists",
+   "Twist",
+   "Rumpfdrehen"
+  ],
+  "fotoFolgt": true
+ },
+ {
+  "id": "bicycle-crunch",
+  "name": "Bicycle Crunch",
+  "nameEn": "Bicycle Crunch",
+  "pattern": "core_rotation",
+  "primaryMuscles": [
+   "Bauch",
+   "Seitliche Bauchmuskeln"
+  ],
+  "secondaryMuscles": [
+   "Hüftbeuger"
+  ],
+  "equipment": "bodyweight",
+  "level": "beginner",
+  "mechanics": "isolation",
+  "repRange": "10-20 je Seite",
+  "steps": [
+   "Rücklings auf die Matte, Hände an die Schläfen, Schulterblätter leicht angehoben",
+   "Rechtes Knie zur Brust, das linke Bein gestreckt über dem Boden",
+   "Linken Ellbogen zum rechten Knie drehen, dann die Seite wechseln",
+   "Langsam und kontrolliert, der untere Rücken bleibt am Boden"
+  ],
+  "gruppe": "rumpf",
+  "video": {
+   "id": "HTbvCKgV1qI",
+   "titel": "BICYCLE CRUNCH richtig ausführen - inklusive der drei größten Fehlerquellen | in 3MIN erklärt",
+   "kanal": "Cynthia Noack",
+   "dauer": "3:12"
+  },
+  "alias": [
+   "Bicycles",
+   "Bicycle Crunches",
+   "Crunch mit Rotation"
+  ],
+  "fotoFolgt": true
+ },
+ {
+  "id": "reverse-crunch-boden",
+  "name": "Hüftheben am Boden",
+  "nameEn": "Reverse Crunch",
+  "pattern": "core_flexion",
+  "primaryMuscles": [
+   "Bauch"
+  ],
+  "secondaryMuscles": [
+   "Hüftbeuger"
+  ],
+  "equipment": "bodyweight",
+  "level": "beginner",
+  "mechanics": "isolation",
+  "repRange": "10-15",
+  "steps": [
+   "Rücklings auf die Matte, Arme neben dem Körper, Beine angewinkelt angehoben",
+   "Becken einrollen und vom Boden lösen, Knie Richtung Brust",
+   "Oben kurz halten, ohne Schwung aus den Beinen",
+   "Wirbel für Wirbel langsam abrollen, bis das Becken wieder liegt"
+  ],
+  "gruppe": "rumpf",
+  "video": {
+   "id": "YAfhsVJhgyM",
+   "titel": "REVERSE CRUNCHES - Ausführung und Anatomie",
+   "kanal": "Fitness Einfach Erklärt",
+   "dauer": "2:57"
+  },
+  "alias": [
+   "Reverse Crunch",
+   "Reverse Crunches",
+   "Hip Raise",
+   "Beckenheben Bauch"
+  ],
+  "fotoFolgt": true
+ },
+ {
   "id": "cable-crunch",
   "name": "Cable Crunch",
   "nameEn": "Cable Crunch",

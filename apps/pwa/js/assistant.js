@@ -58,7 +58,7 @@ import {
   wochenText,
   currentStreak,
   energyBreakdown,
-  macroTargets,
+  macroTargets, aktivitaetsZuschlag,
   remainingBudget,
   scoreDay,
   estimateTdee,
@@ -345,6 +345,15 @@ export function dayNumbers(day = todayIso()) {
   const targets = { ...macroTargets(profile), waterMl: waterTargetMl(profile, trainingMinutes) };
 
   const data = store.getDay(day);
+  // Was die Uhr über dem eingeplanten Verbrauch misst, kommt aufs Ziel, als
+  // Kohlenhydrate: Protein und Fett hängen am Gewicht und nicht am Tag.
+  // Ausschalten über `settings.aktivZumZiel`, siehe aktivitaetsZuschlag.
+  const aktivKcal = Number(data.gesundheit?.aktivKcal);
+  const aktivitaet = Number.isFinite(aktivKcal) && aktivKcal > 0 ? aktivitaetsZuschlag(profile, aktivKcal) : null;
+  if (aktivitaet?.zuschlagKcal > 0 && store.getSettings().aktivZumZiel !== false) {
+    targets.kcal += aktivitaet.zuschlagKcal;
+    targets.carbsG += Math.round(aktivitaet.zuschlagKcal / 4);
+  } else if (aktivitaet) aktivitaet.zuschlagKcal = 0;
   const totals = { kcal: 0, proteinG: 0, fatG: 0, carbsG: 0, waterMl: data.waterMl || 0 };
   for (const meal of data.meals) {
     for (const entry of meal.entries) {
@@ -362,6 +371,7 @@ export function dayNumbers(day = todayIso()) {
     trainingMinutes,
     profile,
     targets,
+    aktivitaet,
     totals,
     data,
     rest: remainingBudget(totals, targets),
@@ -371,6 +381,27 @@ export function dayNumbers(day = todayIso()) {
       today: day,
     }),
   };
+}
+
+/**
+ * Was Apple Health für den Tag weiss, als Sätze für den Coach. Ohne das
+ * antwortete er auf "wie viel hab ich verbrannt" mit einer Schätzung aus dem
+ * Profil, obwohl die Uhr gemessen hatte.
+ */
+function gesundheitZeilen(n) {
+  const g = n.data.gesundheit || {};
+  const z = [];
+  if (Number.isFinite(n.data.steps)) z.push(`Schritte laut Apple Health: ${n.data.steps}.`);
+  if (n.aktivitaet) {
+    z.push(`Aktive Kalorien laut Apple Health: ${n.aktivitaet.gemessenKcal}, eingeplant im Ziel sind ${n.aktivitaet.geplantKcal}`
+      + (n.aktivitaet.zuschlagKcal > 0 ? `, ${n.aktivitaet.zuschlagKcal} kcal sind deshalb aufs Ziel gekommen.` : ", das Ziel bleibt."));
+  }
+  const tr = (n.data.trainings || []).filter((t) => Number(t.kcal) > 0 || Number(t.puls) > 0);
+  for (const t of tr) z.push(`Training ${t.at || ""} ${t.minutes} Minuten${t.kcal ? `, ${t.kcal} kcal aktiv` : ""}${t.puls ? `, Puls im Schnitt ${t.puls}` : ""}.`);
+  if (Number.isFinite(g.schlafMinuten)) z.push(`Schlaf letzte Nacht: ${Math.floor(g.schlafMinuten / 60)} h ${g.schlafMinuten % 60} min.`);
+  if (Number.isFinite(g.ruhepuls)) z.push(`Ruhepuls ${Math.round(g.ruhepuls)}.`);
+  if (Number.isFinite(g.hrv)) z.push(`HRV ${Math.round(g.hrv)} ms.`);
+  return z;
 }
 
 function daySummaryText(n) {
@@ -390,6 +421,7 @@ function daySummaryText(n) {
     `Fett ${n.totals.fatG} von ${n.targets.fatG} g, Kohlenhydrate ${n.totals.carbsG} von ${n.targets.carbsG} g.`,
     `Wasser ${n.totals.waterMl} von ${n.targets.waterMl} ml.`,
     `Mahlzeiten heute: ${n.data.meals.length}. Serie: ${n.streak} ${n.streak === 1 ? "Tag" : "Tage"}. Heute ${training}.`,
+    ...gesundheitZeilen(n),
   ].join(" ");
 }
 

@@ -14,8 +14,8 @@
 import { zyklusAusHealth } from "@daevo/core";
 import { healthSchreiben } from "./gesundheit.js";
 
-/** Welche Fassung der Leseberechtigung zuletzt erfragt wurde. 2 brachte die Ernährung, 3 Körperfett, VO2max und Trainingsminuten. */
-export const HEALTH_FASSUNG = 4;
+/** Welche Fassung der Leseberechtigung zuletzt erfragt wurde. 2 brachte die Ernährung, 3 Körperfett, VO2max und Trainingsminuten, 4 die Periode, 5 den Puls im Training. */
+export const HEALTH_FASSUNG = 5;
 
 /** Trainings innerhalb dieses Abstands zu einem eigenen Eintrag gleicher Art gelten als derselbe. */
 const GLEICH_MINUTEN = 90;
@@ -45,15 +45,33 @@ export function workoutsSchreiben(workouts, { store, heute, neueListe = [] }) {
     const id = `hk-${w.id}`;
     const day = store.getDay(w.tag);
     const vorhanden = day.trainings || [];
-    if (vorhanden.some((t) => t.id === id)) continue;
+    if (vorhanden.some((t) => t.id === id || t.healthId === id)) continue;
     const start = minutenVon(w.uhrzeit);
-    const doppelt = vorhanden.some((t) => {
+    const kcal = Number(w.kcal) > 0 ? Math.round(Number(w.kcal)) : undefined;
+    const puls = Number(w.puls) > 0 ? Math.round(Number(w.puls)) : undefined;
+    const pulsMax = Number(w.pulsMax) > 0 ? Math.round(Number(w.pulsMax)) : undefined;
+    const doppelt = vorhanden.find((t) => {
       if (t.type !== w.art) return false;
       const andere = minutenVon(t.at);
       return start === null || andere === null || Math.abs(andere - start) <= GLEICH_MINUTEN;
     });
-    if (doppelt) continue;
-    store.addTraining(w.tag, { id, type: w.art, minutes: minuten, at: w.uhrzeit || "", note: "aus Apple Health", quelle: "health" });
+    if (doppelt) {
+      // Dasselbe Training, schon eingetragen, etwa aus dem Trainingsmodus.
+      // Vorher fiel das aus Health dann ganz weg, mitsamt den Kalorien und
+      // dem Puls, die nur die Uhr kennt. Jetzt kommen sie an den Eintrag.
+      if (!doppelt.healthId && (kcal || puls)) {
+        const tag = store.getDay(w.tag);
+        tag.trainings = (tag.trainings || []).map((t) => (t === doppelt || t.id === doppelt.id
+          ? { ...t, healthId: id, ...(kcal ? { kcal } : {}), ...(puls ? { puls } : {}), ...(pulsMax ? { pulsMax } : {}) }
+          : t));
+        store.setDay(w.tag, tag);
+      }
+      continue;
+    }
+    store.addTraining(w.tag, {
+      id, type: w.art, minutes: minuten, at: w.uhrzeit || "", note: "aus Apple Health", quelle: "health",
+      ...(kcal ? { kcal } : {}), ...(puls ? { puls } : {}), ...(pulsMax ? { pulsMax } : {}),
+    });
     neueListe.push({ id: w.id, tag: w.tag, uhrzeit: w.uhrzeit || "", minuten, art: w.art });
     neu++;
   }

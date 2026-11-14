@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { KORREKTUR_GRENZE, bmrMifflinStJeor, activityFactor, energyBreakdown, macroTargets, waterTargetMl } from "./energy.js";
+import { KORREKTUR_GRENZE, aktivitaetsZuschlag, bmrMifflinStJeor, activityFactor, energyBreakdown, macroTargets, waterTargetMl } from "./energy.js";
 import type { UserProfile } from "./types.js";
 
 const aaron: UserProfile = {
@@ -131,4 +131,17 @@ test("eine Korrektur ausserhalb der Grenzen wird gedeckelt", () => {
   assert.equal(energyBreakdown({ ...basis, zielKorrektur: { kcal: 9000 } }).targetKcal, vorher + KORREKTUR_GRENZE.kcal);
   assert.equal(energyBreakdown({ ...basis, zielKorrektur: { kcal: Number.NaN } }).targetKcal, vorher);
   assert.equal(energyBreakdown({ ...basis, zielKorrektur: null }).targetKcal, vorher);
+});
+
+test("Aktive Kalorien der Uhr: nur was über der Planung liegt, kommt dazu", () => {
+  const e = energyBreakdown(aaron);
+  const geplant = Math.round(e.tdeeKcal * 0.9 - e.bmrKcal);
+  const wenig = aktivitaetsZuschlag(aaron, geplant - 100)!;
+  assert.equal(wenig.zuschlagKcal, 0);
+  assert.equal(wenig.geplantKcal, geplant);
+  assert.equal(aktivitaetsZuschlag(aaron, geplant + 300)!.zuschlagKcal, 300);
+  // Im Defizit mit demselben Abschlag wie das Ziel.
+  assert.equal(aktivitaetsZuschlag({ ...aaron, goal: "fat_loss" }, geplant + 300)!.zuschlagKcal, Math.round(300 * 0.82));
+  assert.equal(aktivitaetsZuschlag(aaron, 0), null);
+  assert.ok(aktivitaetsZuschlag(aaron, 99999)!.zuschlagKcal <= 1500);
 });

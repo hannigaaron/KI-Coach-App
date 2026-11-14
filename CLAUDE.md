@@ -372,6 +372,12 @@ Strichfiguren, keine Clip Art, keine Karten mit Rahmen um Text.
   Reverse Butterfly an der Maschine und Trizepsstrecken über Kopf liegend
   mit Kurzhanteln. Der Curl auf der Schrägbank ist beidarmig gleichzeitig,
   Schritte und Foto zeigen das.
+- Bauch am Boden: Crunch, Sit-up, Russian Twist, Bicycle Crunch und
+  Hüftheben am Boden (Reverse Crunch, langsam abrollen). Russian Twist und
+  Bicycle tragen `core_rotation`. Ihre Videos sind über die Vorschaubilder
+  geprüft. Die Fotos fehlen noch, `fotoFolgt: true`: bis Credits da sind,
+  stehen dort weichgezeichnete Studiohintergründe aus einem vorhandenen
+  Foto. Sie werden nach dem Ablauf je Bild ersetzt.
 - Die Suche: trifft kein Eintrag jedes Wort, kommen die mit den meisten
   Treffern, solange ein Wort ab vier Zeichen im Namen trifft. "Isolation
   Curl" fand im Studio nichts, obwohl zehn Curls dastehen. Aliase wie
@@ -930,7 +936,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1435 Tests
+npm test           # 1438 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -4183,6 +4189,28 @@ lässt sie sich, sobald die Werte darin erlaubt sind.
 Die Leseberechtigung hat eine Fassung, `HEALTH_FASSUNG`. iOS fragt nur nach
 neuen Typen, wenn die App erneut fragt, und wer vorher zugestimmt hatte,
 wäre sonst nie nach der Ernährung gefragt worden.
+
+Auf Heute steht "Bewegung und Erholung", `renderBewegung` in `app.js`:
+Schritte, aktive Kalorien, Schlaf, Ruhepuls, HRV und die Trainings mit
+Minuten, Kalorien und Puls. Vorher lag das alles in den Tagen und stand
+nirgends. Nur Gemessenes bekommt eine Kachel, und der Abschnitt nennt den
+letzten Abgleich oder den Weg zur Erlaubnis in den iPhone Einstellungen.
+Offen gleicht die App alle zehn Minuten ab, nicht nur beim Öffnen.
+
+Ein Training aus Health, das schon im Tag steht, etwa aus dem
+Trainingsmodus, fiel vorher ganz weg, mitsamt Kalorien und Puls. Jetzt
+kommen `kcal`, `puls` und `pulsMax` an den vorhandenen Eintrag, über
+`healthId` nur einmal. Das Plugin liest sie je Training über
+`statistics(for:)`, dafür fragt `HEALTH_FASSUNG` 5 nach dem Puls.
+
+Die aktiven Kalorien gehen aufs Tagesziel, aber nicht doppelt:
+`aktivitaetsZuschlag` in `energy.ts`. Der Aktivitätsfaktor rechnet Schritte
+und Training schon ein, eingeplant sind Verbrauch minus Grundumsatz minus
+zehn Prozent Verdauung. Nur was die Uhr darüber misst, kommt dazu, als
+Kohlenhydrate, im Defizit mit demselben Abschlag, höchstens 1500 kcal, nie
+nach unten. Der Satz unter den Kacheln nennt beide Zahlen, und
+`settings.aktivZumZiel` schaltet es ab. Der Coach bekommt dieselben Werte
+über `gesundheitZeilen` im Kontext.
 
 Sobald Schritte aus Health an vier der letzten sieben Tage dastehen, rechnet
 das Kalorienziel mit ihrem Schnitt statt mit der Schätzung aus dem

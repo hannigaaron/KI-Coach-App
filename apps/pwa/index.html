@@ -272,6 +272,19 @@ try {
       </button>
 
       <!--
+        Was die Apple Watch misst: Schritte, aktive Kalorien, Trainings mit
+        Puls, Schlaf, Ruhepuls und HRV. Vorher lag das alles in den Tagen und
+        stand nirgends, und wer eine Stunde trainiert hatte, sah davon nichts.
+      -->
+      <section id="heuteBewegung" class="bw" hidden aria-labelledby="heuteBewegungTitel">
+        <h2 class="abschnitt" id="heuteBewegungTitel">Bewegung und Erholung</h2>
+        <div class="bw-raster" id="bwRaster"></div>
+        <div id="bwTrainings"></div>
+        <p class="sub" id="bwZiel"></p>
+        <p class="fineprint" id="bwStand"></p>
+      </section>
+
+      <!--
         Die Tagesnutzung ist eine abgeleitete Zahl und steht deshalb hinter
         dem, woraus sie abgeleitet ist. Als Leiste und nicht als Ring: ein
         Ring in der Grösse eines Helden behauptet, er sei einer.
