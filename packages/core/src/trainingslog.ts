@@ -23,6 +23,10 @@ export interface SatzEintrag {
   wdh: number;
   /** Wiederholungen in Reserve. Null, wenn nicht angegeben. */
   rir: number | null;
+  /** Sekunden, Minuten oder Meter, wenn die Übung nicht in Wiederholungen läuft. Dann ist `wdh` 0. */
+  menge?: number;
+  /** Stufe, Tempo, Strecke oder Watt, wenn die erste Spalte nicht Kilo ist. */
+  last?: number;
 }
 
 export interface LogEintrag {
@@ -32,6 +36,8 @@ export interface LogEintrag {
   /** Titel der Einheit, etwa "Ganzkörper A". */
   einheit?: string;
   saetze: SatzEintrag[];
+  /** Nur wenn nicht Kilo und Wiederholungen, siehe `apps/pwa/js/masse.js`. */
+  masse?: { last: string; menge: string };
 }
 
 /** Ein Plan bleibt acht Wochen, dann wird er überprüft. */

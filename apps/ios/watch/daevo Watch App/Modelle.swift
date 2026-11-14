@@ -114,6 +114,14 @@ func heuteText(_ datum: Date = Date()) -> String {
     return f.string(from: datum)
 }
 
+/// Ein Datum zum Lesen, etwa "12. Nov.".
+func datumKurzText(_ datum: Date) -> String {
+    let f = DateFormatter()
+    f.locale = Locale(identifier: "de_DE")
+    f.dateFormat = "d. MMM"
+    return f.string(from: datum)
+}
+
 /// Kilo mit Komma und ohne ",0".
 func kiloText(_ kg: Double?) -> String {
     guard let kg, kg > 0 else { return "ohne" }

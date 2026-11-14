@@ -15,6 +15,7 @@ import {
 import { UEBUNGEN } from "./uebungen-daten.js";
 import { GRUPPEN, vorschauPfad } from "./uebungen.js";
 import { trendKurz } from "./uebungskurve.js";
+import { satzText } from "./masse.js";
 import { naechsteEinheit } from "./vorhaben.js";
 import { spueren } from "./haptik.js";
 
@@ -491,7 +492,9 @@ export function verlaufHtml(log, grenze = 10) {
     const saetze = liste.reduce((s, e) => s + e.saetze.length, 0);
     const details = liste.map((e) => {
       const name = nachId.get(e.uebung)?.name ?? e.uebung;
-      const s2 = e.saetze.map((x) => `${String(x.kg).replace(".", ",")} kg × ${x.wdh}${x.rir !== null && x.rir !== undefined ? `, ${x.rir} RIR` : ""}`).join(" · ");
+      const s2 = e.masse
+        ? e.saetze.map((x) => satzText(x, e.masse)).join(" · ")
+        : e.saetze.map((x) => `${String(x.kg).replace(".", ",")} kg × ${x.wdh}${x.rir !== null && x.rir !== undefined ? `, ${x.rir} RIR` : ""}`).join(" · ");
       return `<li><b>${esc(name)}</b><span>${esc(s2)}</span></li>`;
     }).join("");
     return `<details class="pl-verlauf-tag"><summary><b>${esc(tag)}</b><span>${esc(einheit || "Training")} · ${liste.length} ${liste.length === 1 ? "Übung" : "Übungen"}, ${saetze} ${saetze === 1 ? "Satz" : "Sätze"}</span></summary><ul>${details}</ul><button type="button" class="ghost pl-abschluss" data-pl-abschluss="${esc(k)}">Muskelkarte und Teilen</button></details>`;

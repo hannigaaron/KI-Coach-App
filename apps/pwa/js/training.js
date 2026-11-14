@@ -19,6 +19,7 @@
  */
 import { alternativen, letzteEinheit, positionFuer, steigerung, uebungErlaubt } from "@daevo/core";
 import { UEBUNGEN } from "./uebungen-daten.js";
+import { LAST_EINHEITEN, MENGE_EINHEITEN, masseVon, satzText, standardIst, standardMasse } from "./masse.js";
 import { spueren } from "./haptik.js";
 import { pauseMitteilung, pauseMitteilungAus } from "./nativ.js";
 import { fotoPfad, GERAETE, uebungenFiltern, vorschauPfad } from "./uebungen.js";
@@ -40,6 +41,30 @@ export function zahlAus(text) {
 }
 
 const komma = (n) => (n === null || n === undefined ? "" : String(n).replace(".", ","));
+
+export { LAST_EINHEITEN, MENGE_EINHEITEN, masseVon, satzText, standardMasse } from "./masse.js";
+
+/** Ändert die Einheit einer Spalte für eine Übung. Die Werte der anderen Einheit bleiben im Satz, falls jemand zurückwechselt. */
+export function masseSetzen(entwurf, ui, art, wert) {
+  const tabelle = art === "last" ? LAST_EINHEITEN : MENGE_EINHEITEN;
+  if (!tabelle[wert]) return entwurf;
+  return mitUebung(entwurf, ui, (u) => ({ ...u, masse: { ...masseVon(u), [art]: wert } }));
+}
+
+/**
+ * Das letzte Mal einer Übung. `letzteEinheit` im Kern kennt nur Sätze mit
+ * Wiederholungen und übersähe einen Plank in Sekunden. Steht als Letztes
+ * ein Eintrag mit eigenen Massen, gilt er, sonst der aus dem Kern.
+ */
+export function letztesMal(log, id, vor) {
+  let roh = null;
+  for (const e of Array.isArray(log) ? log : []) {
+    if (e?.uebung !== id || !e.saetze?.length || (vor && !(e.datum < vor))) continue;
+    if (!roh || e.datum >= roh.datum) roh = e;
+  }
+  if (roh?.masse && !standardIst(masseVon(roh))) return roh;
+  return letzteEinheit(log, id, vor);
+}
 
 /** Die Zielwiederholungen als Zahl für die Vorbelegung: das untere Ende des Bereichs. */
 function zielWdh(wdh) {
@@ -90,7 +115,7 @@ export function uebungHinzu(entwurf, id, log, wunsch = STANDARD_WUNSCH) {
   const schon = entwurf.uebungen.findIndex((x) => x.id === id);
   if (schon >= 0) return { ...entwurf, aktiv: schon };
   const p = positionFuer(u, wunsch);
-  const letzt = letzteEinheit(log, id, entwurf.datum);
+  const letzt = letztesMal(log, id, entwurf.datum);
   const pos = letzt ? { ...p, saetze: Math.max(1, Math.min(8, letzt.saetze.length)) } : p;
   const uebungen = [...entwurf.uebungen, uebungImEntwurf(pos, log, entwurf.datum)];
   return { ...entwurf, uebungen, aktiv: uebungen.length - 1 };
@@ -136,18 +161,25 @@ export function auswahlListe(text, entwurf, log, wunsch = STANDARD_WUNSCH, grenz
 }
 
 function uebungImEntwurf(p, log, heute) {
-  const letzt = letzteEinheit(log, p.id, heute);
+  const letzt = letztesMal(log, p.id, heute);
+  // Die Masse vom letzten Mal, sonst die, die zur Übung passt.
+  const masse = letzt?.masse ? masseVon(letzt) : standardMasse(nachId.get(p.id), p, p.name);
+  const mitWdh = masse.menge === "wdh";
   return {
     id: p.id, name: p.name, ...(p.superset ? { superset: p.superset } : {}),
+    ...(standardIst(masse) ? {} : { masse }),
     ziel: { saetze: p.saetze, wdh: p.wdh, reserve: p.reserve, pauseSek: p.pauseSek },
     saetze: Array.from({ length: p.saetze }, (_, i) => {
       const vorher = letzt?.saetze[i] ?? letzt?.saetze[letzt.saetze.length - 1];
-      return {
+      const satz = {
         kg: vorher ? vorher.kg : null,
-        wdh: vorher ? vorher.wdh : zielWdh(p.wdh),
-        rir: p.reserve,
+        wdh: mitWdh ? (vorher ? vorher.wdh : zielWdh(p.wdh)) : null,
+        rir: mitWdh ? p.reserve : null,
         fertig: false,
       };
+      if (!mitWdh) satz.menge = vorher?.menge ?? (masse.menge === "sek" ? zielWdh(p.wdh) : null);
+      if (!["kg", "ohne"].includes(masse.last)) satz.last = vorher?.last ?? null;
+      return satz;
     }),
   };
 }
@@ -186,7 +218,10 @@ export function supersatzWeiter(entwurf, ui, si) {
 export function satzDazu(entwurf, ui) {
   return mitUebung(entwurf, ui, (u) => {
     const letzt = u.saetze[u.saetze.length - 1];
-    return { ...u, saetze: [...u.saetze, { kg: letzt?.kg ?? null, wdh: letzt?.wdh ?? null, rir: letzt?.rir ?? u.ziel.reserve, fertig: false }] };
+    const neu = { kg: letzt?.kg ?? null, wdh: letzt?.wdh ?? null, rir: letzt?.rir ?? u.ziel.reserve, fertig: false };
+    if (letzt && "menge" in letzt) neu.menge = letzt.menge;
+    if (letzt && "last" in letzt) neu.last = letzt.last;
+    return { ...u, saetze: [...u.saetze, neu] };
   });
 }
 
@@ -298,10 +333,29 @@ export function auswahlListeHtml(liste, modus = "dazu") {
  */
 export function entwurfAbschliessen(entwurf, log, jetzt = Date.now()) {
   const eintraege = entwurf.uebungen
-    .map((u) => ({
-      datum: entwurf.datum, uebung: u.id, einheit: entwurf.titel,
-      saetze: u.saetze.filter((s) => s.fertig && s.wdh > 0).map((s) => ({ kg: s.kg ?? 0, wdh: s.wdh, rir: s.rir ?? null })),
-    }))
+    .map((u) => {
+      const m = masseVon(u);
+      if (standardIst(m)) {
+        return {
+          datum: entwurf.datum, uebung: u.id, einheit: entwurf.titel,
+          saetze: u.saetze.filter((s) => s.fertig && s.wdh > 0).map((s) => ({ kg: s.kg ?? 0, wdh: s.wdh, rir: s.rir ?? null })),
+        };
+      }
+      // Andere Masse: Kilo und Wiederholungen nur, wenn die Spalte sie
+      // trägt. Ein Satz ohne Wiederholungen gilt für Steigerung und Kurve
+      // nicht, und genau so soll es sein.
+      const mitWdh = m.menge === "wdh";
+      const gemacht = (s) => s.fertig && (mitWdh ? s.wdh > 0 : Number(s.menge) > 0);
+      return {
+        datum: entwurf.datum, uebung: u.id, einheit: entwurf.titel, masse: m,
+        saetze: u.saetze.filter(gemacht).map((s) => {
+          const satz = { kg: m.last === "kg" ? (s.kg ?? 0) : 0, wdh: mitWdh ? s.wdh : 0, rir: mitWdh ? (s.rir ?? null) : null };
+          if (!mitWdh) satz.menge = Number(s.menge);
+          if (!["kg", "ohne"].includes(m.last) && s.last !== null && s.last !== undefined) satz.last = Number(s.last);
+          return satz;
+        }),
+      };
+    })
     .filter((e) => e.saetze.length);
   // Dieselbe Übung am selben Tag in derselben Einheit ersetzt den alten Eintrag.
   // Wer die Einheit zweimal beendet, hat sie nicht zweimal gemacht.
@@ -323,7 +377,38 @@ const datumKurz = (iso) => {
 
 /* ---------- Darstellung ---------- */
 
-export function trainingHtml(entwurf, log, { menue = false, vorschlaege = [], pause = null, waehlen = false, auswahl = [], suche = "", ersetzen = false, entwicklung = false } = {}) {
+/** Das Ziel unter dem Namen, in den Massen der Übung. "20-60s Wdh" stand vorher beim Plank. */
+export function zielText(u, masse = masseVon(u)) {
+  const bereich = String(u.ziel.wdh ?? "").replace(/\s*(s|sek|sekunden)\s*$/i, "");
+  if (masse.menge === "wdh") return `${u.ziel.saetze} × ${u.ziel.wdh} Wdh · ${u.ziel.reserve} RIR`;
+  if (masse.menge === "sek") return `${u.ziel.saetze} × ${bereich} Sek`;
+  if (masse.menge === "min") return `${u.ziel.saetze} × in Minuten${masse.last === "stufe" ? " · Intensität als Stufe" : ""}`;
+  return `${u.ziel.saetze} × in Metern`;
+}
+
+function kopfKnopf(art, text, offen) {
+  return `<button type="button" class="tr-einheit tr-masse" data-tr-einheit="${art}" aria-expanded="${offen === art}" aria-label="Einheit ändern, jetzt ${esc(text)}">${esc(text)}<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5l3 3 3-3"/></svg></button>`;
+}
+
+function einheitWahlHtml(art, masse) {
+  const tabelle = art === "last" ? LAST_EINHEITEN : MENGE_EINHEITEN;
+  const jetzt = masse[art];
+  return `<div class="tr-einheiten" role="menu" aria-label="${art === "last" ? "Erste Spalte" : "Zweite Spalte"}">`
+    + Object.entries(tabelle).map(([k, e]) => `<button type="button" role="menuitemradio" aria-checked="${k === jetzt}" class="chip tr-masse${k === jetzt ? " an" : ""}" data-tr-masse="${art}:${k}" aria-label="${esc(e.name)}">${esc(e.wahl)}</button>`).join("")
+    + "</div>";
+}
+
+/** Das letzte Mal als Tabelle in den Massen von damals. */
+function vorherTabelle(letzt) {
+  const m = masseVon(letzt);
+  if (standardIst(m)) {
+    return `<div class="tr-vorher-kopf"><span>#</span><span>KG</span><span>WDH</span><span>RIR</span></div>
+        ${letzt.saetze.map((s, i) => `<div class="tr-vorher-zeile"><span>${i + 1}</span><span>${esc(komma(s.kg))}</span><span>${s.wdh}</span><span>${s.rir ?? ""}</span></div>`).join("")}`;
+  }
+  return letzt.saetze.map((s, i) => `<div class="tr-vorher-zeile tr-vorher-text"><span>${i + 1}</span><span>${esc(satzText(s, m))}</span></div>`).join("");
+}
+
+export function trainingHtml(entwurf, log, { menue = false, vorschlaege = [], pause = null, waehlen = false, auswahl = [], suche = "", ersetzen = false, entwicklung = false, einheitWahl = null } = {}) {
   const u = entwurf.uebungen[entwurf.aktiv];
   if (!u) {
     return `<p class="tr-erstes">Freies Training ohne Plan. Nimm die Übungen dazu, die du heute machst. Jeder Satz wird gespeichert und zählt für deinen Fortschritt.</p>${auswahlHtml(auswahl, suche)}`;
@@ -337,24 +422,31 @@ export function trainingHtml(entwurf, log, { menue = false, vorschlaege = [], pa
       + "</button>";
   }).join("") + `<button type="button" class="tr-daumen tr-plus${waehlen ? " an" : ""}" data-tr-waehlen aria-label="Übung hinzufügen"><span>+</span></button>`;
   const geraet = info ? GERAETE[info.equipment] ?? info.equipment : "";
+  const masse = masseVon(u);
+  const L = LAST_EINHEITEN[masse.last];
+  const M = MENGE_EINHEITEN[masse.menge];
+  const mitWdh = masse.menge === "wdh";
+  const lastFeld = masse.last === "kg" ? "kg" : "last";
+  const mengeFeld = mitWdh ? "wdh" : "menge";
   const zeilen = u.saetze.map((s, si) => `<div class="tr-satz${s.fertig ? " fertig" : ""}">
       <span class="tr-nr">${u.saetze.length > 1 ? `<button type="button" class="tr-satz-x" data-tr-satzweg="${si}" aria-label="Satz ${si + 1} entfernen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg></button>` : ""}${si + 1}</span>
-      <input class="tr-feld" inputmode="decimal" enterkeyhint="next" aria-label="Kilo Satz ${si + 1}" placeholder="kg" value="${esc(komma(s.kg))}" data-tr-feld="kg" data-si="${si}">
-      <input class="tr-feld" inputmode="numeric" enterkeyhint="next" aria-label="Wiederholungen Satz ${si + 1}" placeholder="Wdh" value="${esc(komma(s.wdh))}" data-tr-feld="wdh" data-si="${si}">
-      <input class="tr-feld" inputmode="numeric" enterkeyhint="done" aria-label="Wiederholungen in Reserve Satz ${si + 1}" placeholder="RIR" value="${esc(komma(s.rir))}" data-tr-feld="rir" data-si="${si}">
+      ${masse.last === "ohne" ? '<span class="tr-ohne" aria-hidden="true">–</span>' : `<input class="tr-feld" inputmode="decimal" enterkeyhint="next" aria-label="${esc(L.name)} Satz ${si + 1}" placeholder="${esc(L.platz)}" value="${esc(komma(s[lastFeld]))}" data-tr-feld="${lastFeld}" data-si="${si}">`}
+      <input class="tr-feld" inputmode="${masse.menge === "wdh" || masse.menge === "sek" ? "numeric" : "decimal"}" enterkeyhint="${mitWdh ? "next" : "done"}" aria-label="${esc(M.name)} Satz ${si + 1}" placeholder="${esc(M.platz)}" value="${esc(komma(s[mengeFeld]))}" data-tr-feld="${mengeFeld}" data-si="${si}">
+      ${mitWdh ? `<input class="tr-feld" inputmode="numeric" enterkeyhint="done" aria-label="Wiederholungen in Reserve Satz ${si + 1}" placeholder="RIR" value="${esc(komma(s.rir))}" data-tr-feld="rir" data-si="${si}">` : "<span></span>"}
       <button type="button" class="tr-haken" data-tr-haken="${si}" aria-pressed="${s.fertig}" aria-label="Satz ${si + 1} ${s.fertig ? "offen setzen" : "abschliessen"}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>
     </div>`).join("");
-  const letzt = letzteEinheit(log, u.id, entwurf.datum);
+  const letzt = letztesMal(log, u.id, entwurf.datum);
   // Was heute dran ist, gerechnet aus dem letzten Mal. Übernehmen setzt nur
   // die offenen Sätze, die Felder sind ohnehin mit dem letzten Mal vorbelegt.
-  const st = steigerung(letzt, u.ziel.wdh, u.ziel.reserve);
+  // Die Steigerung kennt nur Kilo und Wiederholungen. Für Sekunden oder
+  // Minuten rät sie nichts.
+  const st = standardIst(masse) ? steigerung(letzt, u.ziel.wdh, u.ziel.reserve) : null;
   const steigernHtml = st
     ? `<div class="tr-steigern"><p>${esc(st.text)}</p>${st.kg !== null || st.wdh !== null ? '<button type="button" class="pl-mini" data-tr-steigern>Übernehmen</button>' : ""}</div>`
     : "";
   const vorher = letzt
     ? `${steigernHtml}<div class="tr-vorher"><p>${esc(datumKurz(letzt.datum))}${letzt.einheit ? ` · ${esc(letzt.einheit)}` : ""}</p>
-        <div class="tr-vorher-kopf"><span>#</span><span>KG</span><span>WDH</span><span>RIR</span></div>
-        ${letzt.saetze.map((s, i) => `<div class="tr-vorher-zeile"><span>${i + 1}</span><span>${esc(komma(s.kg))}</span><span>${s.wdh}</span><span>${s.rir ?? ""}</span></div>`).join("")}</div>`
+        ${vorherTabelle(letzt)}</div>`
     : `<p class="tr-erstes">Das erste Mal mit dieser Übung. Ab dem nächsten Mal steht hier, was du gemacht hast.</p>`;
   const menueHtml = menue
     ? `<div class="tr-menue" role="menu">
@@ -377,7 +469,7 @@ export function trainingHtml(entwurf, log, { menue = false, vorschlaege = [], pa
   const fortschritt = `<div class="tr-fortschritt"><span>Übung ${entwurf.aktiv + 1} von ${n}</span><i style="--anteil:${((entwurf.aktiv + 1) / n).toFixed(3)}"></i></div>`;
   const titel = `<div class="tr-titelzeile"><h2 class="tr-name">${esc(u.name)}</h2>
       <button type="button" class="tr-mehr" data-tr-menue aria-expanded="${menue}" aria-label="Übung ersetzen oder Anleitung"><i></i><i></i><i></i></button></div>
-    <p class="tr-ziel">${esc(geraet)}${geraet ? " · " : ""}${u.ziel.saetze} × ${esc(u.ziel.wdh)} Wdh · ${u.ziel.reserve} RIR</p>${partnerHtml}`;
+    <p class="tr-ziel">${esc(geraet)}${geraet ? " · " : ""}${esc(zielText(u, masse))}</p>${partnerHtml}`;
   // Das Foto trägt die Übung, Name und Ziel stehen darauf. Ohne Foto in der
   // Datenbank bleibt die Zeile ohne Bild, ein leerer Kasten wäre schlimmer.
   const kopf = info
@@ -387,13 +479,14 @@ export function trainingHtml(entwurf, log, { menue = false, vorschlaege = [], pa
     ${kopf}
     ${menueHtml}
     <div class="tr-tabelle">
-      <div class="tr-kopf"><span>#</span><span>KG</span><span>WDH</span><span>RIR</span><span></span></div>
+      <div class="tr-kopf"><span>#</span>${kopfKnopf("last", masse.last === "ohne" ? "KG" : L.kopf, einheitWahl)}${kopfKnopf("menge", M.kopf, einheitWahl)}<span>${mitWdh ? "RIR" : ""}</span><span></span></div>
+      ${einheitWahl ? einheitWahlHtml(einheitWahl, masse) : ""}
       ${zeilen}
       <div class="tr-satzknoepfe"><button type="button" class="tr-satz-plus" data-tr-satz="dazu" aria-label="Satz hinzufügen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v12M6 12h12"/></svg></button></div>
     </div>
     ${vorher}
     ${letzt ? `<details class="tr-entwicklung" data-tr-entwicklung${entwicklung ? " open" : ""}><summary>Fortschritt ansehen</summary>${entwicklung ? fortschrittHtml(log, u.id, entwurf.datum) : ""}</details>` : ""}
-    <p class="tr-rir-hilfe">RIR heißt Wiederholungen in Reserve: wie viele noch gegangen wären, bevor nichts mehr geht.</p>
+    <p class="tr-rir-hilfe">${mitWdh ? "RIR heißt Wiederholungen in Reserve: wie viele noch gegangen wären, bevor nichts mehr geht. " : ""}Ein Tipp auf ${esc(mitWdh ? "KG oder WDH" : `${L.kopf} oder ${M.kopf}`)} wechselt die Einheit, etwa auf Sekunden, Minuten oder Stufe.</p>
 `;
 }
 
@@ -415,12 +508,12 @@ export function fussHtml(entwurf, pause = null, waehlen = false) {
  * Das Gewicht des ersten Satzes gilt meist für alle. Es wandert in die
  * folgenden Sätze, solange dort nichts steht und sie nicht abgehakt sind.
  */
-export function gewichtWeitergeben(entwurf, ui, si) {
+export function gewichtWeitergeben(entwurf, ui, si, feld = "kg") {
   const u = entwurf.uebungen[ui];
-  const kg = u?.saetze[si]?.kg;
-  if (kg === null || kg === undefined) return entwurf;
+  const wert = u?.saetze[si]?.[feld];
+  if (wert === null || wert === undefined) return entwurf;
   return mitUebung(entwurf, ui, (x) => ({
-    ...x, saetze: x.saetze.map((s, i) => (i > si && !s.fertig && (s.kg === null || s.kg === undefined) ? { ...s, kg } : s)),
+    ...x, saetze: x.saetze.map((s, i) => (i > si && !s.fertig && (s[feld] === null || s[feld] === undefined) ? { ...s, [feld]: wert } : s)),
   }));
 }
 
@@ -449,6 +542,8 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
   // Training ist: jeder Haken zeichnet neu, und ein Abschnitt, der danach
   // zuklappt, ist bei jedem Satz neu zu öffnen.
   let entwicklung = false;
+  // Welche Spalte gerade ihre Einheit wählt, "last" oder "menge".
+  let einheitWahl = null;
   const wunsch = () => planSpeicher.lesen()?.wunsch ?? STANDARD_WUNSCH;
   const auswahl = () => (entwurf ? auswahlListe(suche, entwurf, logSpeicher.lesen(), wunsch()) : []);
 
@@ -460,7 +555,7 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
     const u = entwurf.uebungen[entwurf.aktiv];
     const offenWahl = waehlen || !u;
     inhalt.innerHTML = trainingHtml(entwurf, logSpeicher.lesen(), {
-      menue, pause, entwicklung, waehlen: offenWahl, suche, ersetzen: ersetzen && Boolean(u), auswahl: offenWahl ? auswahl() : [],
+      menue, pause, entwicklung, einheitWahl, waehlen: offenWahl, suche, ersetzen: ersetzen && Boolean(u), auswahl: offenWahl ? auswahl() : [],
       vorschlaege: menue && u && (plan || entwurf.frei) ? ersatzVorschlaege(plan, entwurf.ei, u.id, entwurf) : [],
     });
     fuss.innerHTML = fussHtml(entwurf, pause, offenWahl);
@@ -530,15 +625,16 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
     merken();
   });
   inhalt.addEventListener("change", (event) => {
-    const feld = event.target.closest('[data-tr-feld="kg"]');
+    const feld = event.target.closest('[data-tr-feld="kg"], [data-tr-feld="last"]');
     if (!feld || !entwurf) return;
-    entwurf = gewichtWeitergeben(entwurf, entwurf.aktiv, Number(feld.dataset.si));
+    const name = feld.dataset.trFeld;
+    entwurf = gewichtWeitergeben(entwurf, entwurf.aktiv, Number(feld.dataset.si), name);
     merken();
     // Nur die Felder setzen, nicht neu zeichnen: wer vom Gewicht ins Feld
     // für die Wiederholungen tippt, verlöre sonst den Fokus und die Eingabe.
     entwurf.uebungen[entwurf.aktiv].saetze.forEach((s, si) => {
-      const kgFeld = inhalt.querySelector(`[data-tr-feld="kg"][data-si="${si}"]`);
-      if (kgFeld && kgFeld !== document.activeElement && kgFeld.value === "" && s.kg !== null) kgFeld.value = komma(s.kg);
+      const f = inhalt.querySelector(`[data-tr-feld="${name}"][data-si="${si}"]`);
+      if (f && f !== document.activeElement && f.value === "" && s[name] !== null && s[name] !== undefined) f.value = komma(s[name]);
     });
   });
   const klick = (event) => {
@@ -548,7 +644,14 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
     if (nachZiehen) { nachZiehen = false; return; }
     const z = (sel) => event.target.closest(sel);
     let k;
-    if ((k = z("[data-tr-gehe]"))) { entwurf = { ...entwurf, aktiv: Number(k.dataset.trGehe) }; menue = false; waehlen = false; ersetzen = false; }
+    if ((k = z("[data-tr-einheit]"))) { einheitWahl = einheitWahl === k.dataset.trEinheit ? null : k.dataset.trEinheit; menue = false; }
+    else if ((k = z("[data-tr-masse]"))) {
+      const [art, wert] = k.dataset.trMasse.split(":");
+      entwurf = masseSetzen(entwurf, entwurf.aktiv, art, wert);
+      einheitWahl = null;
+      spueren("leicht");
+    }
+    else if ((k = z("[data-tr-gehe]"))) { entwurf = { ...entwurf, aktiv: Number(k.dataset.trGehe) }; menue = false; waehlen = false; ersetzen = false; einheitWahl = null; }
     else if (z("[data-tr-waehlen]")) { waehlen = !waehlen || ersetzen; ersetzen = false; menue = false; suche = ""; }
     else if (z("[data-tr-ersatzsuche]")) { waehlen = true; ersetzen = true; menue = false; suche = ""; inhalt.scrollTop = 0; }
     else if (z("[data-tr-ersatzzu]")) { waehlen = false; ersetzen = false; suche = ""; }

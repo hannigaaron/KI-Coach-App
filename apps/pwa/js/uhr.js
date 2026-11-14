@@ -125,7 +125,7 @@ export function uhrAufgaben({ plan, zeiten } = {}) {
  * Trainings kommen in dieser Reihenfolge: ein offener Entwurf von heute,
  * das Training für heute aus dem Gespräch, dann die Einheiten des Plans.
  */
-export function uhrPaket({ settings, zahlen, heute, gestrichen = false, ki = null, termine = [], aufgaben = [] }) {
+export function uhrPaket({ settings, zahlen, heute, gestrichen = false, ki = null, termine = [], aufgaben = [], todoistToken = "" }) {
   const log = Array.isArray(settings.trainingslog) ? settings.trainingslog : [];
   const trainings = [];
   const offen = settings.trainingEntwurf;
@@ -161,6 +161,11 @@ export function uhrPaket({ settings, zahlen, heute, gestrichen = false, ki = nul
     // Wann gerechnet wurde. Die Uhr sagt damit, wie alt ein Stand ist,
     // statt einen von gestern als heutigen zu zeigen.
     stamp: Date.now(),
+    // Der Todoist Schlüssel für die Uhr. Sie fragt Todoist damit selbst, wenn
+    // das iPhone nicht vorn ist, und blendet aus, was dort schon erledigt
+    // ist. Er geht nur an die eigene Uhr und liegt dort im Schlüsselbund.
+    // Leer heisst: Verbindung gelöst, die Uhr löscht ihn.
+    todoistToken: String(todoistToken || ""),
     // Ohne Einwilligung oder Konto fehlt das Feld, und die Uhr fragt nur über das iPhone.
     ...(ki && alsPropertyList(ki) ? { ki } : {}),
   };

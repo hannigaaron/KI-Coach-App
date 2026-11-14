@@ -751,6 +751,30 @@ verhindert das Bildmenü von iOS. Der Klick nach dem Loslassen öffnet die
 nicht gespeichert ist, speichert ihn damit: ohne gespeicherten Plan gibt es
 nichts, woran nach acht Wochen gemessen wird.
 
+### Einheiten je Übung
+
+`apps/pwa/js/masse.js`, `masseSetzen` und `letztesMal` in `training.js`.
+Kilo und Wiederholungen passen nicht zu jeder Übung: im Betrieb stand beim
+Plank "2 × 20-60s Wdh · 2 RIR" mit einem Feld für Kilo. Jetzt trägt jede
+Übung im Training ihre Masse, `last` für die erste Spalte (Kilo, ohne
+Gewicht, Stufe, km/h, km, Watt) und `menge` für die zweite (Wiederholungen,
+Sekunden, Minuten, Meter). Ein Tipp auf den Kopf der Spalte öffnet die Wahl.
+RIR steht nur bei Wiederholungen. `standardMasse` wählt den Anfang: Ausdauer
+nach dem Namen in Minuten auf einer Stufe, Halteübungen in Sekunden, beim
+Plank ohne Gewicht, alles andere Kilo und Wiederholungen.
+
+Kilo und Wiederholungen bleiben in `kg` und `wdh`, alles andere steht in
+`last` und `menge`, und der Eintrag im Protokoll trägt `masse`. Ein Satz in
+Sekunden hat `wdh` 0 und gilt deshalb für Steigerung, Kurve und die Prüfung
+nach acht Wochen nicht: die rechnen nie mit Sekunden, als wären es
+Wiederholungen. `letzteEinheit` im Kern übersieht solche Einträge, deshalb
+liest das Training über `letztesMal`, und das nächste Mal beginnt mit
+denselben Massen und Werten. Abschluss und "Deine letzten Trainings"
+schreiben über `satzText` "45 s" oder "20 min · Stufe 8" statt "0 Wdh". Die
+Wahl ist in Satoshi und klein, `.tr-masse`: in der Serife der Knöpfe brach
+"Wiederholungen" mitten im Wort um. Offen: die Uhr zeigt solche Übungen
+weiter mit Kilo und Wiederholungen.
+
 ### Was heute dran ist
 
 `steigerung` in `trainingslog.ts`, angezeigt über dem letzten Mal, mit
@@ -906,7 +930,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1431 Tests
+npm test           # 1435 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -4265,6 +4289,32 @@ nur auf dem Mac, dort ist nichts gebaut. Die beiden Ziele legt der Betreiber
 einmal in Xcode an, `docs/WATCH.md`, die Projektdatei wird dafür nicht von
 Hand geändert. Neue Ziele in Xcode 26 stehen auf Default Actor Isolation
 MainActor, die Anleitung stellt sie auf nonisolated und Swift 5.
+
+## Die Uhr bleibt aktuell
+
+Im Betrieb zeigte die Uhr Aufgaben von vorgestern als heute offen, obwohl
+sie abgehakt waren: das Paket kam nur, wenn daevo auf dem iPhone offen war
+und sich dort etwas änderte, und die Aufgaben darin kamen aus dem Stand der
+letzten Planung. Jetzt, in `uhrSenden` in `app.js`:
+
+- vor jedem Paket liest die App Todoist neu, höchstens alle fünf Minuten,
+- offen schickt sie alle fünf Minuten ein Paket, auch ohne Änderung hier,
+- beim Wechsel in den Hintergrund noch einmal den letzten Stand.
+
+Auf der Uhr, `auffrischen` in `Verbindung.swift`, bei jedem Hochnehmen des
+Handgelenks über `scenePhase` und auf Dein Tag: sie bittet das iPhone mit
+`art: "aktualisieren"` um ein neues Paket, `neuSenden` in `UhrPlugin.swift`,
+das wirkt nur, wenn daevo dort vorn ist. Im Hintergrund hält iOS die Web
+Ansicht an, und das Paket rechnet nur die Web App. Deshalb fragt die Uhr
+Todoist selbst, Schnittstelle v1, höchstens alle zwei Minuten, und blendet
+aus, was dort nicht mehr offen ist. Abgehakt auf der Uhr wird eine Todoist
+Aufgabe gleich dort geschlossen. Der Schlüssel kommt als `todoistToken` im
+Paket, leer heisst getrennt, und liegt auf der Uhr im Schlüsselbund,
+`Schluesselbund`, nicht in den UserDefaults mit dem Paket. Eigene Aufgaben
+aus daevo kennt nur das iPhone. Ist das Paket von gestern, sagt Dein Tag
+"Stand vom 12. Nov." mit dem Weg zum neuen und schreibt nicht mehr "später"
+an Aufgaben eines alten Plans. Ungeprüft: der Swift Teil ist hier nicht
+kompiliert.
 
 ## Die Uhr ohne iPhone
 

@@ -3587,6 +3587,27 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 .tr-vorher-kopf, .tr-vorher-zeile { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); text-align: center; font-variant-numeric: tabular-nums; }
 .tr-vorher-kopf { font-size: var(--t-xs); color: var(--muted); padding-bottom: var(--s-1); }
 .tr-vorher-zeile { font-size: var(--t-sm); color: var(--muted); padding: 3px 0; }
+.tr-vorher-zeile.tr-vorher-text { grid-template-columns: 2.5em minmax(0, 1fr); text-align: left; }
+/* Der Kopf einer Spalte ist ein Knopf: ein Tipp wechselt die Einheit, etwa
+   von Wiederholungen auf Sekunden. Klein und in der Farbe des Kopfs, mit
+   einem Winkel, damit man sieht, dass dort etwas aufgeht. */
+.tr-einheit {
+  display: inline-flex; align-items: center; justify-content: center; gap: 3px; min-height: 32px; padding: 0 var(--s-2);
+  border: 0; border-radius: var(--r-pill); background: none; color: inherit; font: inherit; letter-spacing: inherit;
+  cursor: pointer;
+}
+.tr-einheit svg { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: transform var(--dauer-kurz, 160ms) var(--kurve, ease); }
+.tr-einheit[aria-expanded="true"] { background: var(--flaeche); color: var(--text); }
+.tr-einheit[aria-expanded="true"] svg { transform: rotate(180deg); }
+.tr-einheiten { display: flex; flex-wrap: wrap; gap: var(--s-2); padding: 0 0 var(--s-3); }
+/* Eine Wahl wie ein Reiter, deshalb Satoshi und klein: in der Serife der
+   Knöpfe brachen "Wiederholungen" und "Ohne Gewicht" mitten im Wort um. */
+.tr-einheiten .chip {
+  flex: none; min-height: 36px; padding: 0 var(--s-3); white-space: nowrap; border: 0;
+  background: var(--flaeche); box-shadow: var(--haarlinie); font-size: var(--t-sm); font-weight: 600;
+}
+.tr-einheiten .chip.an { background: var(--text); color: var(--bg); box-shadow: none; }
+.tr-ohne { text-align: center; color: var(--muted); font-size: var(--t-md); }
 .tr-erstes, .tr-rir-hilfe { font-size: var(--t-xs); color: var(--muted); margin: var(--s-3) 0 0; }
 .tr-fuss {
   flex: none; display: flex; gap: var(--s-3); align-items: center;
@@ -3957,9 +3978,9 @@ button, .chip, .pill {
   font-family: var(--schrift-akzent); font-weight: 400; letter-spacing: 0.005em;
   font-synthesis: none;
 }
-button:not(.seg-btn):not([role="tab"]):not(.bib-knopf):not(.balken-zeile):not(.icon-btn) { font-size: 1.15em; }
+button:not(.seg-btn):not([role="tab"]):not(.bib-knopf):not(.balken-zeile):not(.icon-btn):not(.tr-masse) { font-size: 1.15em; }
 .menu-zeile b, .menu-kachel b, .erfassen-titel, .weg-titel { font-family: var(--schrift-akzent); font-weight: 400; font-size: 1.1em; }
-.seg-btn, [role="tab"], .bib-knopf, .bib-knopf *, .pl-tausch .ue-tab, .tr-ersatz b, .balken-zeile, .balken-zeile *,
+.seg-btn, [role="tab"], .bib-knopf, .bib-knopf *, .pl-tausch .ue-tab, .tr-ersatz b, .balken-zeile, .balken-zeile *, .tr-masse,
 button small, button .erfassen-sub, button .me-werte, button .me-werte *,
 .menu-zeile small, .menu-kachel small, .held, .held * {
   font-family: var(--schrift-text); letter-spacing: normal;

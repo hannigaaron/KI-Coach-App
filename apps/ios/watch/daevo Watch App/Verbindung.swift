@@ -4,6 +4,7 @@ import Foundation
 import Combine
 import WatchConnectivity
 import WidgetKit
+import Security
 #if canImport(EventKit)
 import EventKit
 #endif
@@ -32,6 +33,11 @@ final class Verbindung: NSObject, ObservableObject, WCSessionDelegate {
     /// Termine direkt aus dem Kalender der Uhr. `nil` heisst: kein Zugriff,
     /// dann gelten die Termine aus dem Paket.
     @Published private(set) var kalenderTermine: [UhrTermin]?
+    /// Die offenen Aufgaben in Todoist, wie die Uhr sie selbst gelesen hat.
+    /// `nil` heisst: nicht gelesen, dann gilt das Paket allein.
+    @Published private(set) var todoistOffen: Set<String>?
+    /// Wann die Uhr Todoist zuletzt selbst gelesen hat.
+    @Published private(set) var todoistGelesen: Date?
 
     private let speicherSchluessel = "daevo.uhr.paket"
     private let wasserSchluessel = "daevo.uhr.wasser"
@@ -87,9 +93,54 @@ final class Verbindung: NSObject, ObservableObject, WCSessionDelegate {
         if let s = standHeute { Komplikation.schreiben(tag: heuteText(), kcal: s.kcal, kcalZiel: s.kcalZiel, protein: s.protein, proteinZiel: s.proteinZiel) }
     }
 
-    /// Die offenen Aufgaben, ohne die hier schon abgehakten.
+    /// Die offenen Aufgaben, ohne die hier schon abgehakten und ohne die,
+    /// die in Todoist nicht mehr offen sind. Im Betrieb standen auf der Uhr
+    /// Aufgaben von vorgestern, die längst abgehakt waren: das Paket kommt
+    /// nur, wenn daevo auf dem iPhone offen ist.
     var aufgaben: [UhrAufgabe] {
-        (paket?.aufgaben ?? []).filter { !erledigt.contains($0.id) }
+        (paket?.aufgaben ?? []).filter { a in
+            if erledigt.contains(a.id) { return false }
+            if let offen = todoistOffen, a.id.hasPrefix("todoist:") {
+                return offen.contains(String(a.id.dropFirst("todoist:".count)))
+            }
+            return true
+        }
+    }
+
+    /// Beim Öffnen der Uhr: das iPhone um den neuesten Stand bitten und
+    /// Todoist selbst fragen. Ist daevo auf dem iPhone vorn, kommt ein
+    /// neues Paket. Sonst bleibt das letzte, und Todoist sagt wenigstens,
+    /// was dort schon erledigt ist.
+    func auffrischen() async {
+        if WCSession.isSupported(), WCSession.default.activationState == .activated, WCSession.default.isReachable {
+            WCSession.default.sendMessage(["art": "aktualisieren"], replyHandler: { _ in }, errorHandler: { _ in })
+        }
+        await todoistLesen()
+    }
+
+    /// Liest die offenen Aufgaben aus Todoist, Schnittstelle v1, wie
+    /// `packages/coach/src/todoist.ts`. Höchstens alle zwei Minuten.
+    func todoistLesen() async {
+        guard let token = Schluesselbund.lesen(), !token.isEmpty else { todoistOffen = nil; return }
+        if let zuletzt = todoistGelesen, Date().timeIntervalSince(zuletzt) < 120 { return }
+        var ids = Set<String>()
+        var cursor: String?
+        for _ in 0..<5 {
+            var teile = URLComponents(string: "https://api.todoist.com/api/v1/tasks")!
+            teile.queryItems = [URLQueryItem(name: "limit", value: "200")] + (cursor.map { [URLQueryItem(name: "cursor", value: $0)] } ?? [])
+            var anfrage = URLRequest(url: teile.url!, timeoutInterval: 10)
+            anfrage.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            guard let ergebnis = try? await URLSession.shared.data(for: anfrage),
+                  (ergebnis.1 as? HTTPURLResponse)?.statusCode == 200,
+                  let json = try? JSONSerialization.jsonObject(with: ergebnis.0) as? [String: Any] else { return }
+            for roh in json["results"] as? [[String: Any]] ?? [] {
+                if let id = roh["id"] as? String { ids.insert(id) } else if let id = roh["id"] as? Int { ids.insert(String(id)) }
+            }
+            cursor = json["next_cursor"] as? String
+            if cursor?.isEmpty ?? true { break }
+        }
+        todoistOffen = ids
+        todoistGelesen = Date()
     }
 
     /// Abhaken auf der Uhr. Das iPhone hakt beim nächsten Abgleich wirklich
@@ -98,6 +149,18 @@ final class Verbindung: NSObject, ObservableObject, WCSessionDelegate {
         erledigt.insert(id)
         UserDefaults.standard.set(Array(erledigt), forKey: erledigtSchluessel)
         senden(["art": "aufgabe", "aufgabeId": id])
+        // Eine Todoist Aufgabe schliesst die Uhr gleich dort, sonst stünde sie
+        // in Todoist offen, bis daevo auf dem iPhone wieder aufgeht. Das
+        // iPhone hakt danach noch einmal ab, das schadet nicht.
+        if id.hasPrefix("todoist:"), let token = Schluesselbund.lesen(), !token.isEmpty {
+            let roh = String(id.dropFirst("todoist:".count))
+            guard let url = URL(string: "https://api.todoist.com/api/v1/tasks/\(roh)/close") else { return }
+            var anfrage = URLRequest(url: url, timeoutInterval: 10)
+            anfrage.httpMethod = "POST"
+            anfrage.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            let fertig = anfrage
+            Task { _ = try? await URLSession.shared.data(for: fertig) }
+        }
     }
 
     /// Die Termine ab jetzt: aus dem Kalender der Uhr, wenn sie darf, sonst
@@ -242,7 +305,13 @@ final class Verbindung: NSObject, ObservableObject, WCSessionDelegate {
     /// Hauptthread wandern, `Data` schon. Deshalb wird hier umgewandelt und
     /// erst auf dem Hauptthread gelesen.
     nonisolated private static func json(_ context: [String: Any]) -> Data? {
-        guard let roh = context["paket"], JSONSerialization.isValidJSONObject(roh) else { return nil }
+        guard var roh = context["paket"] as? [String: Any] else { return nil }
+        // Der Todoist Schlüssel geht in den Schlüsselbund und nicht mit dem
+        // Paket in die UserDefaults. Leer heisst: auf dem iPhone getrennt.
+        if let token = roh.removeValue(forKey: "todoistToken") as? String {
+            if token.isEmpty { Schluesselbund.loeschen() } else { Schluesselbund.schreiben(token) }
+        }
+        guard JSONSerialization.isValidJSONObject(roh) else { return nil }
         return try? JSONSerialization.data(withJSONObject: roh)
     }
 
@@ -269,5 +338,37 @@ final class Einmal: @unchecked Sendable {
         fortsetzung = nil
         sperre.unlock()
         f?.resume(returning: wert)
+    }
+}
+
+/// Der Todoist Schlüssel auf der Uhr. Im Schlüsselbund und nicht in den
+/// UserDefaults: dort läge er im Klartext in einer Datei der App.
+enum Schluesselbund {
+    private static let konto = "daevo.todoist"
+
+    private static var abfrage: [String: Any] {
+        [kSecClass as String: kSecClassGenericPassword, kSecAttrAccount as String: konto]
+    }
+
+    static func lesen() -> String? {
+        var q = abfrage
+        q[kSecReturnData as String] = true
+        q[kSecMatchLimit as String] = kSecMatchLimitOne
+        var ergebnis: AnyObject?
+        guard SecItemCopyMatching(q as CFDictionary, &ergebnis) == errSecSuccess, let daten = ergebnis as? Data else { return nil }
+        return String(data: daten, encoding: .utf8)
+    }
+
+    static func schreiben(_ token: String) {
+        guard lesen() != token else { return }
+        loeschen()
+        var q = abfrage
+        q[kSecValueData as String] = Data(token.utf8)
+        q[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+        SecItemAdd(q as CFDictionary, nil)
+    }
+
+    static func loeschen() {
+        SecItemDelete(abfrage as CFDictionary)
     }
 }

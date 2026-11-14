@@ -90,6 +90,22 @@ final class UhrZentrale: NSObject, WCSessionDelegate {
     /// Antwort käme erst nach dem Zeitlimit der Uhr. Dann sagt das iPhone
     /// sofort ab, und die Uhr fragt selbst über den Server.
     func session(_ session: WCSession, didReceiveMessage message: [String: Any], replyHandler: @escaping ([String: Any]) -> Void) {
+        // Die Uhr ist gerade aufgegangen und will den neuesten Stand. Ist
+        // daevo hier vorn, rechnet die Web App das Paket neu und schickt es
+        // als Application Context. Im Hintergrund läuft die Web Ansicht
+        // nicht, dann sagt das iPhone ab, und die Uhr bleibt beim letzten
+        // Stand und fragt Todoist selbst.
+        if message["art"] as? String == "aktualisieren" {
+            DispatchQueue.main.async {
+                guard UIApplication.shared.applicationState == .active, let plugin = self.plugin else {
+                    replyHandler(["fehler": "iphone"])
+                    return
+                }
+                plugin.neuSenden()
+                replyHandler(["ok": true])
+            }
+            return
+        }
         guard message["art"] as? String == "frage", let text = message["text"] as? String else {
             replyHandler(["fehler": "unbekannt"])
             return
@@ -152,6 +168,11 @@ public class UhrPlugin: CAPPlugin, CAPBridgedPlugin {
             guard UIApplication.shared.applicationState == .active, let webView = self?.bridge?.webView else { return }
             webView.evaluateJavaScript("typeof window.daevoUhrEingang === 'function' && window.daevoUhrEingang(); 0", completionHandler: nil)
         }
+    }
+
+    /// Lässt die Web App das Paket für die Uhr neu rechnen und senden.
+    func neuSenden() {
+        bridge?.webView?.evaluateJavaScript("typeof window.daevoUhrEingang === 'function' && window.daevoUhrEingang(); 0", completionHandler: nil)
     }
 
     /// Reicht die Frage an `daevoUhrFrage` in `app.js` weiter. Die Argumente

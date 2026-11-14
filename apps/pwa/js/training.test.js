@@ -7,8 +7,9 @@ import {
   FREI_TITEL, auswahlHtml, auswahlListe, entwurfFrei, uebungHinzu, uebungRaus, uebungVerschieben,
   entwurfAbschliessen, entwurfBegonnen, entwurfNeu, entwurfTauschen, ersatzVorschlaege, satzAbhaken, satzDazu, satzSetzen,
   trainingHtml, zahlAus,
-  supersatzWeiter,
+  supersatzWeiter, masseSetzen, satzText, standardMasse,
 } from "./training.js";
+import { abschlussDaten, abschlussHtml } from "./abschluss.js";
 
 const HEUTE = "2026-10-21";
 const plan = { ...planFuer({ tage: 3, minuten: 60, niveau: "intermediate", ziel: "muskel" }), gespeichertAm: "2026-08-01T10:00:00Z" };
@@ -329,4 +330,68 @@ test("Supersatz: nach dem Satz ohne Pause zum Partner, nach beiden Pause und zur
   e.uebungen[1].saetze[0].fertig = true;
   assert.deepEqual(supersatzWeiter(e, 1, 0), { ziel: 0, pause: true });
   assert.equal(supersatzWeiter(e, 2, 0), null);
+});
+
+test("Halteübungen laufen in Sekunden, Ausdauer in Minuten auf einer Stufe", () => {
+  assert.deepEqual(standardMasse(nachId.get("plank"), { wdh: "20-60s" }, "Plank"), { last: "ohne", menge: "sek" });
+  assert.deepEqual(standardMasse(null, { wdh: "10" }, "Fahrrad"), { last: "stufe", menge: "min" });
+  assert.deepEqual(standardMasse(null, { wdh: "10" }, "Rudergerät"), { last: "stufe", menge: "min" });
+  assert.deepEqual(standardMasse(nachId.get("bankdruecken"), { wdh: "6-10" }, "Bankdrücken"), { last: "kg", menge: "wdh" });
+});
+
+test("Ein Plank steht in Sekunden da, ohne Wdh und ohne RIR, und geht so ins Protokoll", () => {
+  const p = { ...positionFuer(nachId.get("plank"), STANDARD_WUNSCH), id: "plank", name: "Plank" };
+  let e = entwurfNeu({ einheiten: [{ titel: "Core", positionen: [p] }] }, 0, [], HEUTE);
+  const u = e.uebungen[0];
+  assert.deepEqual(u.masse, { last: "ohne", menge: "sek" });
+  assert.equal(u.saetze[0].menge, 20);
+  assert.equal(u.saetze[0].rir, null);
+  const html = trainingHtml(e, []);
+  assert.ok(html.includes(">SEK<"), "Kopf zeigt Sekunden");
+  assert.ok(!/Wdh ·/.test(html), "kein Wdh im Ziel");
+  assert.ok(html.includes("Sek"), html.match(/tr-ziel">[^<]*/)?.[0]);
+  e = satzSetzen(e, 0, 0, "menge", 45);
+  e = satzAbhaken(e, 0, 0);
+  const r = entwurfAbschliessen(e, [], Date.parse(e.start) + 600000);
+  assert.equal(r.eintraege.length, 1);
+  assert.deepEqual(r.eintraege[0].masse, { last: "ohne", menge: "sek" });
+  assert.equal(r.eintraege[0].saetze[0].menge, 45);
+  assert.equal(r.eintraege[0].saetze[0].wdh, 0);
+  // Das nächste Mal beginnt mit denselben Massen und dem Wert von damals.
+  const naechster = entwurfNeu({ einheiten: [{ titel: "Core", positionen: [p] }] }, 0, r.log, "2026-10-23");
+  assert.equal(naechster.uebungen[0].saetze[0].menge, 45);
+  // Im Abschluss steht der beste Satz in Sekunden, nicht "0 Wdh".
+  const d = abschlussDaten(r.eintraege, { titel: "Core", datum: HEUTE });
+  assert.ok(abschlussHtml(d).includes("bester 45 s"));
+});
+
+test("Die Einheit lässt sich je Spalte wechseln, Kilo und Wiederholungen bleiben unberührt", () => {
+  let e = entwurfNeu(plan, 0, [], HEUTE);
+  e = satzSetzen(e, 0, 0, "kg", 60);
+  e = masseSetzen(e, 0, "menge", "min");
+  e = masseSetzen(e, 0, "last", "stufe");
+  assert.deepEqual(e.uebungen[0].masse, { last: "stufe", menge: "min" });
+  assert.equal(e.uebungen[0].saetze[0].kg, 60);
+  const html = trainingHtml(e, [], { einheitWahl: "last" });
+  assert.ok(html.includes('data-tr-masse="last:kmh"'));
+  assert.ok(html.includes(">STUFE<") && html.includes(">MIN<"));
+  e = satzSetzen(e, 0, 0, "menge", 20);
+  e = satzSetzen(e, 0, 0, "last", 8);
+  e = satzAbhaken(e, 0, 0);
+  const r = entwurfAbschliessen(e, []);
+  assert.deepEqual(r.eintraege[0].saetze[0], { kg: 0, wdh: 0, rir: null, menge: 20, last: 8 });
+  assert.equal(satzText(r.eintraege[0].saetze[0], r.eintraege[0].masse), "20 min · Stufe 8");
+  // Unbekannte Einheiten ändern nichts.
+  assert.equal(masseSetzen(e, 0, "last", "pfund"), e);
+});
+
+test("Kilo und Wiederholungen bleiben im Protokoll wie bisher, ohne Masse", () => {
+  let e = entwurfNeu(plan, 0, [], HEUTE);
+  e = satzSetzen(e, 0, 0, "kg", 50);
+  e = satzSetzen(e, 0, 0, "wdh", 8);
+  e = satzAbhaken(e, 0, 0);
+  const r = entwurfAbschliessen(e, []);
+  assert.equal("masse" in r.eintraege[0], false);
+  assert.deepEqual(r.eintraege[0].saetze[0], { kg: 50, wdh: 8, rir: e.uebungen[0].saetze[0].rir });
+  assert.equal(satzText({ kg: 50, wdh: 8 }), "50 kg × 8");
 });

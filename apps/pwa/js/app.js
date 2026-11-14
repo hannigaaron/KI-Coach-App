@@ -7297,11 +7297,16 @@ window.daevoUhrEingang = () => { uhrAbgleichen().then(() => refreshAll()); };
 
 async function uhrSenden() {
   if (!istNativ() || !uhrDa) return;
+  // Todoist zuerst, höchstens alle fünf Minuten. Sonst ging der Stand von
+  // der letzten Planung an die Uhr, und was in Todoist längst abgehakt war,
+  // stand dort noch als offen.
+  await todoistAktualisieren().catch(() => "");
   let aufgaben = [];
   try { aufgaben = uhrAufgaben(tagesplan()); } catch { /* ohne Aufgaben eine leere Liste */ }
   const paket = uhrPaket({
     settings: store.getSettings(), zahlen: dayNumbers(), heute: todayIso(), gestrichen: trainingGestrichen(store, todayIso()), ki: uhrKiZugang(),
     termine: uhrTermine(store.getKalender().termine || []), aufgaben,
+    todoistToken: String(store.getSettings().todoistToken || "").trim(),
   });
   await nativAufruf("Uhr", "senden", { paket });
 }
@@ -7342,7 +7347,13 @@ const nachUhr = () => { if (store.getProfile()) refreshAll(); };
 setTimeout(() => uhrAbgleichen().then(nachUhr), 2500);
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") uhrAbgleichen().then(nachUhr);
+  // Beim Wechsel in den Hintergrund noch einmal der neueste Stand: danach
+  // rechnet hier nichts mehr, bis die App wieder offen ist.
+  else uhrSenden().catch(() => {});
 });
+// Offen alle fünf Minuten, auch ohne Änderung hier: Todoist und der Tag
+// ändern sich nebenher, und die Uhr soll nicht auf den nächsten Tipp warten.
+setInterval(() => { if (document.visibilityState === "visible") uhrSenden().catch(() => {}); }, 5 * 60_000);
 
 // Ringe, Balken und Zahlen laufen auf ihren neuen Stand, siehe bewegung.js.
 bewegungStarten();

@@ -89,14 +89,17 @@ struct TagAnsicht: View {
                 termineTeil
                 aufgabenTeil
                 if let stand = verbindung.abgleich {
-                    Text("Aufgaben vom iPhone, Stand \(Calendar.current.isDateInToday(stand) ? uhrzeitText(stand) : heuteText(stand))")
+                    Text(standText(stand))
                         .font(.caption2).foregroundStyle(.secondary)
                 }
             }
             .padding(.horizontal, 4)
         }
         .navigationTitle("Dein Tag")
-        .task { await verbindung.kalenderLesen() }
+        .task {
+            await verbindung.kalenderLesen()
+            await verbindung.auffrischen()
+        }
     }
 
     @ViewBuilder private var termineTeil: some View {
@@ -157,9 +160,19 @@ struct TagAnsicht: View {
         }
     }
 
+    /// Wie alt der Stand ist. Von gestern oder früher steht es deutlich da,
+    /// mit dem Weg zum neuen: ein alter Stand, der wie ein heutiger aussieht,
+    /// ist der Fehler, den die Uhr nicht machen darf.
+    private func standText(_ stand: Date) -> String {
+        let todoist = verbindung.todoistOffen != nil ? " Todoist gerade gelesen." : ""
+        if Calendar.current.isDateInToday(stand) { return "Vom iPhone, Stand \(uhrzeitText(stand)).\(todoist)" }
+        return "Stand vom \(datumKurzText(stand)). Öffne daevo auf dem iPhone für den neuen Plan.\(todoist)"
+    }
+
     private func zusatz(_ a: UhrAufgabe) -> String? {
         var teile: [String] = []
-        if a.wann != "heute" { teile.append("später") }
+        // "heute" aus einem Paket von gestern wäre falsch.
+        if a.wann != "heute" && !verbindung.standAlt { teile.append("später") }
         if let u = a.uhrzeit { teile.append("um \(u)") }
         if a.wichtig == true { teile.append("wichtig") }
         if a.todoist == true { teile.append("Todoist") }
