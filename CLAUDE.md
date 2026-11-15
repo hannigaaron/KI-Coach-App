@@ -1577,6 +1577,16 @@ Zahlen gegen den letzten gleichen Bogen, mit einer Schwelle: ein Punkt auf einer
 Skala bis 10 ist Rauschen, zehn Prozentpunkte auch. Ein einzelner Bogen ist eine
 Momentaufnahme, erst "Stress von 40 auf 75" ist eine Aussage.
 
+### Das Tagebuch der Bögen
+
+Unter dem Wochenbogen steht "Dein Tagebuch": alle Bögen, Mitte und Woche,
+neueste zuerst, die letzten 40, `renderWcVerlauf` in `app.js`. Ein Tipp
+klappt einen Bogen auf, jede Frage mit der eigenen Antwort und darunter die
+Antwort von daevo. Die steht seit diesem Stand am Bogen,
+`checkinAntwortSetzen` im Speicher. Vorher stand dort nur "17 von 17
+beantwortet", und die Auswertung war nach dem Verlassen der Seite weg.
+Ältere Bögen haben keine gespeicherte Antwort.
+
 ## Sprachausgabe
 
 `apps/pwa/js/voice.js` nahm bisher die erste deutsche Stimme aus der Liste des

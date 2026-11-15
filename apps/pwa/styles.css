@@ -4474,3 +4474,20 @@ button { overflow-wrap: anywhere; text-wrap: balance; }
 .bericht-rueckblick summary { cursor: pointer; font-weight: 650; list-style: none; }
 .bericht-rueckblick summary::-webkit-details-marker { display: none; }
 .bericht-rueckblick[open] summary { margin-bottom: var(--s-3); }
+
+/* Die bisherigen Wochenbögen als Tagebuch. Zu sind sie eine Zeile mit Tag
+   und Bogen, offen jede Frage mit Antwort und darunter daevo. Ohne Rahmen um
+   jede Antwort: es ist Text zum Lesen, keine Liste von Feldern. */
+#wcVerlauf { list-style: none; padding: 0; }
+.wc-tb { padding: 0; margin: 0 0 var(--s-3); border-radius: 22px; background: var(--flaeche); box-shadow: var(--haarlinie); }
+.wc-tb details { padding: var(--s-4); }
+.wc-tb summary { display: flex; justify-content: space-between; align-items: center; gap: var(--s-3); cursor: pointer; list-style: none; }
+.wc-tb summary::-webkit-details-marker { display: none; }
+.wc-tb summary > span:first-child { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.wc-tb summary small { color: var(--muted); font-size: var(--t-xs); }
+.wc-tb summary .meta { color: var(--muted); font-size: var(--t-xs); text-align: right; }
+.wc-tb dl { margin: var(--s-4) 0 0; display: grid; gap: var(--s-3); }
+.wc-tb-paar dt { font-size: var(--t-xs); color: var(--muted); margin-bottom: 2px; }
+.wc-tb-paar dd { margin: 0; font-size: var(--t-sm); line-height: 1.5; white-space: pre-line; }
+.wc-tb-daevo { margin-top: var(--s-4); padding-top: var(--s-4); border-top: 1px solid var(--linie); }
+.wc-tb-von { margin: 0 0 var(--s-2); font-size: var(--t-xs); letter-spacing: 0.06em; text-transform: uppercase; color: var(--brand-text); }

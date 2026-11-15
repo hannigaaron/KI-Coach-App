@@ -308,6 +308,16 @@ export const store = {
    * Einen Bogen speichern. Ein zweiter Bogen am selben Tag ersetzt den ersten,
    * sonst stehen zwei Wahrheiten für denselben Tag in der Auswertung.
    */
+  /**
+   * Die Antwort von daevo an einen Bogen hängen. Mit Antwort wird aus dem
+   * Verlauf ein Tagebuch: wer in drei Monaten nachliest, sieht, was er
+   * geschrieben hat und was daevo dazu gesagt hat.
+   */
+  checkinAntwortSetzen(tag, bogen, antwort) {
+    const liste = read("checkinBoegen", []).map((b) => (b.tag === tag && b.bogen === bogen ? { ...b, antwort: String(antwort || "").slice(0, 8000) } : b));
+    write("checkinBoegen", liste);
+  },
+
   addCheckinBogen(eintrag) {
     const liste = read("checkinBoegen", [])
       .filter((b) => !(b.tag === eintrag.tag && b.bogen === eintrag.bogen));

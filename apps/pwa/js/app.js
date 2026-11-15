@@ -2522,16 +2522,37 @@ function wcFrageHtml(f) {
     placeholder="">${escapeHtml(typeof wert === "string" ? wert : "")}</textarea>`);
 }
 
+/**
+ * Die bisherigen Bögen als Tagebuch, beide Arten, neueste zuerst. Ein Tipp
+ * klappt einen Bogen auf: jede Frage mit der eigenen Antwort und darunter,
+ * was daevo dazu gesagt hat. Vorher stand dort nur "17 von 17 beantwortet",
+ * und was man geschrieben hatte, war nicht mehr zu lesen.
+ */
+function wcWertText(frage, wert) {
+  if (typeof wert === "boolean") return wert ? "Ja" : "Nein";
+  if (Array.isArray(wert)) return wert.join(", ");
+  if (frage.typ === "dauer" && typeof wert === "number") {
+    const h = Math.floor(wert / 60);
+    const m = wert % 60;
+    return m ? `${h} Stunden ${m} Minuten` : `${h} Stunden`;
+  }
+  if (frage.typ === "zahl" && typeof wert === "number" && frage.max !== undefined) return `${wert} von ${frage.max}`;
+  return String(wert);
+}
+
 function renderWcVerlauf() {
-  const liste = store.getCheckinBoegen()
-    .filter((b) => b.bogen === wcBogen.id)
-    .slice(-6)
-    .reverse();
+  const liste = store.getCheckinBoegen().slice(-40).reverse();
   $("wcVerlaufTitel").hidden = liste.length === 0;
   $("wcVerlauf").innerHTML = liste.map((b) => {
-    const wann = new Date(`${b.tag}T12:00:00`).toLocaleDateString("de-DE", { day: "numeric", month: "long" });
-    const anzahl = Object.values(b.werte).filter((v) => v !== "" && v !== undefined).length;
-    return `<li><div><b>${wann}</b><span class="meta">${anzahl} von ${wcBogen.fragen.length} beantwortet</span></div></li>`;
+    const bogen = bogenFuer(b.bogen);
+    if (!bogen) return "";
+    const wann = new Date(`${b.tag}T12:00:00`).toLocaleDateString("de-DE", { weekday: "short", day: "numeric", month: "long" });
+    const fragen = bogen.fragen.filter((f) => { const v = b.werte[f.id]; return v !== undefined && v !== "" && !(Array.isArray(v) && !v.length); });
+    const antworten = fragen.map((f) => `<div class="wc-tb-paar"><dt>${escapeHtml(f.text)}</dt><dd>${escapeHtml(wcWertText(f, b.werte[f.id]))}</dd></div>`).join("");
+    const daevo = b.antwort
+      ? `<div class="wc-tb-daevo"><p class="wc-tb-von">daevo</p><div class="msg-text">${chatHtml(b.antwort)}</div></div>`
+      : "";
+    return `<li class="wc-tb"><details><summary><span><b>${escapeHtml(wann)}</b><small>${escapeHtml(bogen.titel)}</small></span><span class="meta">${fragen.length} von ${bogen.fragen.length}${b.antwort ? ", mit Antwort" : ""}</span></summary><dl>${antworten}</dl>${daevo}</details></li>`;
   }).join("");
 }
 
@@ -5094,6 +5115,7 @@ $("btnWcSpeichern").addEventListener("click", async () => {
   try {
     const text = await buildActions({ onChange: refreshAll }).checkinAuswerten({ bogen: wcBogen.id });
     feld.textContent = text;
+    store.checkinAntwortSetzen(eintrag.tag, eintrag.bogen, text);
   } catch (error) {
     feld.textContent = `Gespeichert. Die Auswertung hat nicht geklappt: ${error.message}`;
   } finally {
