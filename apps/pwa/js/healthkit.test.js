@@ -107,7 +107,7 @@ test("die Lücke steht mit Antwortknöpfen im Plan und geht vor, wenn gekürzt w
 
 test("wer selbst ausgeschaltet hat, bekommt nichts geplant", async () => {
   frisch();
-  store.setSettings({ ...store.getSettings(), mitteilungenAus: { impulse: true, runterfahren: true, morgen: true, rueckblick: true } });
+  store.setSettings({ ...store.getSettings(), mitteilungenAus: { impulse: true, runterfahren: true, morgen: true, rueckblick: true, wochencheck: true } });
   const { mitteilungsPlan } = await import("./mitteilungen.js");
   assert.equal(mitteilungsPlan({ store, jetzt: { tag: HEUTE, uhrzeit: "06:00" } }).length, 0);
 });

@@ -73,8 +73,10 @@
 	<string>daevo wandelt deine Sprache in Text um, damit du nicht tippen musst.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>daevo schätzt Mengen und Nährwerte aus einem Foto deines Tellers und liest Barcodes.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>daevo trägt ein Training, das du in daevo machst, als Krafttraining in Apple Health ein, damit es in Apple Fitness und deinen Ringen zählt.</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>daevo liest Schlaf, Schritte, Ruhepuls, HRV, aktive Kalorien, Gewicht, Trainings und Ernährung aus Apps wie YAZIO oder MyFitnessPal, damit Training, Kalorienziel und Tagesplan zu deinen echten Werten passen. daevo schreibt nichts in Health.</string>
+	<string>daevo liest Schlaf, Schritte, Ruhepuls, HRV, aktive Kalorien, Gewicht, Trainings und Ernährung aus Apps wie YAZIO oder MyFitnessPal, damit Training, Kalorienziel und Tagesplan zu deinen echten Werten passen. Schreiben tut daevo nur Trainings, die du in daevo machst.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>daevo wertet ein Foto aus deiner Mediathek aus, wenn du eines auswählst.</string>
 	<key>UISupportedInterfaceOrientations~ipad</key>

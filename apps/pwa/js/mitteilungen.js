@@ -13,7 +13,7 @@
  *
  * Kein `document`, kein `window`: das Modul läuft auch in den Tests.
  */
-import { LUECKE_UHRZEIT, NACHFRAGE_UHRZEIT, erinnerungAmTag, erinnerungUhrzeit, impulseFuerTag, impulsNoetig, morgenUhrzeit, rueckblickArt, nachfrageNoetig, schlafenszeitAusKalender, tagesrandFuer, wochentagVon } from "@daevo/core";
+import { CHECKIN_BOEGEN, LUECKE_UHRZEIT, NACHFRAGE_UHRZEIT, erinnerungAmTag, erinnerungUhrzeit, impulseFuerTag, impulsNoetig, morgenUhrzeit, rueckblickArt, nachfrageNoetig, schlafenszeitAusKalender, tagesrandFuer, wochentagVon } from "@daevo/core";
 
 /**
  * Aufsteh und Schlafenszeit eines Tages für die Mitteilungen. Was der Nutzer
@@ -63,6 +63,31 @@ function uhrzeitAus(min) {
  * weg: eine Mitteilung von heute Morgen, die abends nachgereicht wird, ist
  * keine Erinnerung mehr, sondern Lärm.
  */
+/**
+ * Wohin ein Tipp auf eine Mitteilung führt. Vorher landete fast jede im
+ * Chat auf der Startseite, auch der Wochenrückblick und die Erinnerung ans
+ * Trinken. Der Nutzer will die Seite, um die es geht: Trinken auf Heute beim
+ * Wasser, Eiweiss und Nachlegen auf Heute mit offenem Erfassen, der
+ * Rückblick im Bericht, der Blick auf morgen im Kalender, der Wochenbogen
+ * im Bogen. Fragen, die man mit einer Zahl oder einem Satz beantwortet,
+ * Energie, Stress und die fünf Minuten, bleiben im Chat: dort steht die
+ * Frage, und dort wird geantwortet.
+ */
+export const MITTEILUNG_ZIEL = {
+  protein: { ansicht: "heute", aktion: "erfassen" },
+  shake: { ansicht: "heute", aktion: "erfassen" },
+  trinken: { ansicht: "heute", aktion: "wasser" },
+  rueckblick: { ansicht: "bericht", aktion: "rueckblick" },
+  vorausblick: { ansicht: "kalender", aktion: "morgen" },
+  wochencheck: { ansicht: "wochencheck" },
+  runterfahren: { ansicht: "standards" },
+  energie: { ansicht: "assistant", aktion: "frage" },
+  stress: { ansicht: "assistant", aktion: "frage" },
+  pause: { ansicht: "assistant", aktion: "frage" },
+  training: { ansicht: "assistant" },
+  antwort: { ansicht: "assistant" },
+};
+
 export function mitteilungsPlan({ store, jetzt, luecke = null, vorausblicke = [] }) {
   const profil = store.getProfile();
   const aus = store.getSettings().mitteilungenAus || {};
@@ -122,6 +147,18 @@ export function mitteilungsPlan({ store, jetzt, luecke = null, vorausblicke = []
         text: rueckblick === "woche" ? "Wie lief deine Woche? Zahlen, was gut lief, was besser geht und dein Fokus für nächste Woche."
           : "Montag bis heute: was läuft, was fehlt und worauf du bis Sonntag achtest.",
         art: "rueckblick",
+      });
+    }
+    // Der Wochenbogen, Mittwoch und Sonntag. Vorher kam er nur als Web Push
+    // über den Worker und in der iPhone App gar nicht. Ist er heute schon
+    // abgeschickt, kommt nichts.
+    const bogen = CHECKIN_BOEGEN.find((b) => b.wochentag === new Date(`${tag}T12:00:00`).getDay());
+    const bogenFertig = bogen && (store.getCheckinBoegen?.() || []).some((b) => b.bogen === bogen.id && b.tag === tag);
+    if (!aus.wochencheck && bogen && !bogenFertig) {
+      plan.push({
+        id: `wochencheck-${tag}`, tag, uhrzeit: bogen.uhrzeit, titel: "Check-in",
+        text: bogen.id === "woche" ? "Dein Wochenbogen ist dran: wie war die Woche? Zwei Minuten." : "Zwischencheck zur Wochenmitte: Energie, Laune, Stress. Eine Minute.",
+        art: "wochencheck", bogen: bogen.id,
       });
     }
     if (!aus.runterfahren && profil) {

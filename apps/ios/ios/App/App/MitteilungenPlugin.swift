@@ -172,7 +172,7 @@ public class MitteilungenPlugin: CAPPlugin, CAPBridgedPlugin {
         inhalt.title = "Pause vorbei"
         inhalt.body = uebung.isEmpty ? "Nächster Satz." : "Nächster Satz: \(uebung)."
         inhalt.sound = .default
-        inhalt.userInfo = ["art": "pause"]
+        inhalt.userInfo = ["art": "satzpause"]
         let ausloeser = UNTimeIntervalNotificationTrigger(timeInterval: sekunden, repeats: false)
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: [Self.pauseKennung])

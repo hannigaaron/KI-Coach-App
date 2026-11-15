@@ -80,6 +80,10 @@ struct TrainingVorlage: Codable, Equatable, Identifiable, Hashable {
     var schluessel: String
     var quelle: String
     var titel: String
+    /// Beginn eines Trainings, das am iPhone läuft, als ISO Zeit.
+    var start: String?
+    /// Ende einer Pause, die am iPhone läuft, in Millisekunden.
+    var pauseBis: Double?
     var entwurf: Entwurf
     var id: String { schluessel }
 }

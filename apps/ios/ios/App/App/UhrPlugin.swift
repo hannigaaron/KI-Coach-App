@@ -2,6 +2,7 @@ import Foundation
 import Capacitor
 import WatchConnectivity
 import UIKit
+import HealthKit
 
 /// Die Verbindung zur Apple Watch, auf der Seite des iPhones.
 ///
@@ -150,6 +151,7 @@ public class UhrPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "senden", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "abholen", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "antworten", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "trainingStarten", returnType: CAPPluginReturnPromise),
     ]
 
     override public func load() {
@@ -214,6 +216,24 @@ public class UhrPlugin: CAPPlugin, CAPBridgedPlugin {
             call.resolve(["gesendet": UhrZentrale.shared.bereit])
         } catch {
             call.reject("Senden an die Uhr ging nicht: \(error.localizedDescription)")
+        }
+    }
+
+    /// Startet beim Training am iPhone die daevo App auf der Uhr, mit einer
+    /// Krafttraining Sitzung. Der von Apple vorgesehene Weg dafür ist
+    /// `startWatchApp`: die Uhr bekommt die Einstellung, öffnet daevo und
+    /// zeigt das laufende Training. So zählt es in Apple Fitness mit Puls und
+    /// Kalorien, wie ein Training, das auf der Uhr begonnen wurde.
+    @objc func trainingStarten(_ call: CAPPluginCall) {
+        guard HKHealthStore.isHealthDataAvailable(), UhrZentrale.shared.bereit else {
+            call.resolve(["gestartet": false])
+            return
+        }
+        let einstellung = HKWorkoutConfiguration()
+        einstellung.activityType = .traditionalStrengthTraining
+        einstellung.locationType = .indoor
+        HKHealthStore().startWatchApp(with: einstellung) { ok, _ in
+            call.resolve(["gestartet": ok])
         }
     }
 

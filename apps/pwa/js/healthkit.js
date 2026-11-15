@@ -15,7 +15,7 @@ import { zyklusAusHealth } from "@daevo/core";
 import { healthSchreiben } from "./gesundheit.js";
 
 /** Welche Fassung der Leseberechtigung zuletzt erfragt wurde. 2 brachte die Ernährung, 3 Körperfett, VO2max und Trainingsminuten, 4 die Periode, 5 den Puls im Training. */
-export const HEALTH_FASSUNG = 5;
+export const HEALTH_FASSUNG = 6;
 
 /** Trainings innerhalb dieses Abstands zu einem eigenen Eintrag gleicher Art gelten als derselbe. */
 const GLEICH_MINUTEN = 90;
@@ -69,10 +69,11 @@ export function workoutsSchreiben(workouts, { store, heute, neueListe = [] }) {
       continue;
     }
     store.addTraining(w.tag, {
-      id, type: w.art, minutes: minuten, at: w.uhrzeit || "", note: "aus Apple Health", quelle: "health",
+      id, type: w.art, minutes: minuten, at: w.uhrzeit || "", note: w.name ? `${w.name}, aus Apple Health` : "aus Apple Health", quelle: "health",
+      ...(w.name ? { name: w.name } : {}),
       ...(kcal ? { kcal } : {}), ...(puls ? { puls } : {}), ...(pulsMax ? { pulsMax } : {}),
     });
-    neueListe.push({ id: w.id, tag: w.tag, uhrzeit: w.uhrzeit || "", minuten, art: w.art });
+    neueListe.push({ id: w.id, tag: w.tag, uhrzeit: w.uhrzeit || "", minuten, art: w.art, ...(w.name ? { name: w.name } : {}) });
     neu++;
   }
   return neu;

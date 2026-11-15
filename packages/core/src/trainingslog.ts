@@ -38,6 +38,8 @@ export interface LogEintrag {
   saetze: SatzEintrag[];
   /** Nur wenn nicht Kilo und Wiederholungen, siehe `apps/pwa/js/masse.js`. */
   masse?: { last: string; menge: string };
+  /** Eigene Notiz zur Übung, etwa Sitzhöhe oder Griff. */
+  notiz?: string;
 }
 
 /** Ein Plan bleibt acht Wochen, dann wird er überprüft. */

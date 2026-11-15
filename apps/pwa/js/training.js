@@ -66,6 +66,26 @@ export function letztesMal(log, id, vor) {
   return letzteEinheit(log, id, vor);
 }
 
+/**
+ * Die jüngste Notiz zu einer Übung vor einem Tag. Notizen sind meist
+ * Einstellungen am Gerät, Sitzhöhe oder Griff, und die gelten beim nächsten
+ * Mal wieder. Deshalb wandert die letzte in das neue Training.
+ */
+export function letzteNotiz(log, id, vor) {
+  let treffer = null;
+  for (const e of Array.isArray(log) ? log : []) {
+    if (e?.uebung !== id || !e.notiz || (vor && !(e.datum < vor))) continue;
+    if (!treffer || e.datum >= treffer.datum) treffer = e;
+  }
+  return treffer?.notiz ?? "";
+}
+
+/** Setzt die Notiz einer Übung im Entwurf, höchstens 500 Zeichen. */
+export function notizSetzen(entwurf, ui, text) {
+  const notiz = String(text ?? "").slice(0, 500);
+  return mitUebung(entwurf, ui, (u) => ({ ...u, notiz }));
+}
+
 /** Die Zielwiederholungen als Zahl für die Vorbelegung: das untere Ende des Bereichs. */
 function zielWdh(wdh) {
   const m = /^(\d+)/.exec(String(wdh));
@@ -165,8 +185,9 @@ function uebungImEntwurf(p, log, heute) {
   // Die Masse vom letzten Mal, sonst die, die zur Übung passt.
   const masse = letzt?.masse ? masseVon(letzt) : standardMasse(nachId.get(p.id), p, p.name);
   const mitWdh = masse.menge === "wdh";
+  const notiz = letzteNotiz(log, p.id, heute);
   return {
-    id: p.id, name: p.name, ...(p.superset ? { superset: p.superset } : {}),
+    id: p.id, name: p.name, ...(p.superset ? { superset: p.superset } : {}), ...(notiz ? { notiz } : {}),
     ...(standardIst(masse) ? {} : { masse }),
     ziel: { saetze: p.saetze, wdh: p.wdh, reserve: p.reserve, pauseSek: p.pauseSek },
     saetze: Array.from({ length: p.saetze }, (_, i) => {
@@ -356,7 +377,11 @@ export function entwurfAbschliessen(entwurf, log, jetzt = Date.now()) {
         }),
       };
     })
-    .filter((e) => e.saetze.length);
+    .filter((e) => e.saetze.length)
+    .map((e) => {
+      const notiz = String(entwurf.uebungen.find((u) => u.id === e.uebung)?.notiz ?? "").trim();
+      return notiz ? { ...e, notiz } : e;
+    });
   // Dieselbe Übung am selben Tag in derselben Einheit ersetzt den alten Eintrag.
   // Wer die Einheit zweimal beendet, hat sie nicht zweimal gemacht.
   const schluessel = (e) => `${e.datum}|${e.einheit}|${e.uebung}`;
@@ -365,6 +390,45 @@ export function entwurfAbschliessen(entwurf, log, jetzt = Date.now()) {
   const naechster = [...log.filter((e) => !neu.has(schluessel(e)) && e.datum >= grenze), ...eintraege];
   const minuten = Math.max(1, Math.round((jetzt - Date.parse(entwurf.start)) / 60000));
   return { log: naechster, eintraege, minuten: Math.min(minuten, 240), saetze: eintraege.reduce((s, e) => s + e.saetze.length, 0) };
+}
+
+/**
+ * Ein früheres Training als Entwurf, so wie es im Training aussah: alle
+ * Sätze abgehakt, mit Massen und Notizen. Der Nutzer will ein altes
+ * Training so ansehen, als hätte er es gerade offen, und dort auch einen
+ * vergessenen Satz nachtragen können.
+ */
+export function entwurfAusLog(log, datum, einheit, wunsch = STANDARD_WUNSCH) {
+  const eintraege = (Array.isArray(log) ? log : []).filter((e) => e.datum === datum && (e.einheit ?? "") === (einheit ?? ""));
+  if (!eintraege.length) return null;
+  const uebungen = eintraege.map((e) => {
+    const info = nachId.get(e.uebung);
+    const p = info ? positionFuer(info, wunsch) : { saetze: e.saetze.length, wdh: "8-12", reserve: 2, pauseSek: 90 };
+    const masse = masseVon(e);
+    return {
+      id: e.uebung, name: info?.name ?? e.uebung,
+      ...(standardIst(masse) ? {} : { masse }),
+      ...(e.notiz ? { notiz: e.notiz } : {}),
+      ziel: { saetze: e.saetze.length, wdh: p.wdh, reserve: p.reserve, pauseSek: p.pauseSek },
+      saetze: e.saetze.map((x) => {
+        const satz = { kg: x.kg ?? null, wdh: x.wdh || null, rir: x.rir ?? null, fertig: true };
+        if (x.menge !== undefined) satz.menge = x.menge;
+        if (x.last !== undefined) satz.last = x.last;
+        return satz;
+      }),
+    };
+  });
+  return { ei: -1, frei: true, rueckblick: true, titel: einheit ?? "", datum, start: null, aktiv: 0, uebungen };
+}
+
+/**
+ * Speichert ein korrigiertes früheres Training. Alle Einträge dieses Tages
+ * und dieser Einheit werden ersetzt, damit eine entfernte Übung auch aus dem
+ * Protokoll verschwindet.
+ */
+export function rueckblickSpeichern(entwurf, log) {
+  const rest = (Array.isArray(log) ? log : []).filter((e) => !(e.datum === entwurf.datum && (e.einheit ?? "") === (entwurf.titel ?? "")));
+  return entwurfAbschliessen(entwurf, rest).log;
 }
 
 /** Ob im Entwurf schon etwas passiert ist. Ein leerer Entwurf wird ohne Rückfrage verworfen. */
@@ -447,7 +511,7 @@ export function trainingHtml(entwurf, log, { menue = false, vorschlaege = [], pa
   const vorher = letzt
     ? `${steigernHtml}<div class="tr-vorher"><p>${esc(datumKurz(letzt.datum))}${letzt.einheit ? ` · ${esc(letzt.einheit)}` : ""}</p>
         ${vorherTabelle(letzt)}</div>`
-    : `<p class="tr-erstes">Das erste Mal mit dieser Übung. Ab dem nächsten Mal steht hier, was du gemacht hast.</p>`;
+    : entwurf.rueckblick ? "" : `<p class="tr-erstes">Das erste Mal mit dieser Übung. Ab dem nächsten Mal steht hier, was du gemacht hast.</p>`;
   const menueHtml = menue
     ? `<div class="tr-menue" role="menu">
         <p class="tr-menue-titel">Ersetzen durch</p>
@@ -455,9 +519,10 @@ export function trainingHtml(entwurf, log, { menue = false, vorschlaege = [], pa
           ? vorschlaege.map((v, i) => `<button type="button" role="menuitem" class="tr-ersatz" data-tr-ersatz="${esc(v.id)}"><b>${esc(v.name)}</b><span>${esc(GERAETE[v.equipment] ?? v.equipment)}${i === 0 ? " · Vorschlag von daevo" : ""}</span></button>`).join("")
           : "<p class=\"tr-leer\">Für diese Bewegung gibt es keine andere Übung, die zu Ort, Niveau und Beschwerden passt.</p>"}
         <button type="button" role="menuitem" class="tr-ersatz tr-ersatz-suche" data-tr-ersatzsuche><b>Andere Übung suchen</b><span>Alle Übungen, nach Name, Muskel oder Gerät</span></button>
-        <p class="tr-menue-hinweis">${entwurf.frei ? "Der Tausch gilt für dieses Training." : "Der Tausch gilt ab jetzt auch im Plan."}</p>
+        <p class="tr-menue-hinweis">${entwurf.rueckblick ? "Der Tausch gilt nur für dieses frühere Training." : entwurf.frei ? "Der Tausch gilt für dieses Training." : "Der Tausch gilt ab jetzt auch im Plan."}</p>
         ${entwurf.frei ? `<button type="button" role="menuitem" class="tr-ersatz" data-tr-raus><b>Aus diesem Training entfernen</b></button>` : ""}
         <button type="button" role="menuitem" class="tr-ersatz" data-tr-anleitung="${esc(u.id)}"><b>Anleitung ansehen</b></button>
+        ${entwurf.rueckblick ? '<button type="button" role="menuitem" class="tr-ersatz" data-tr-karte><b>Muskelkarte und Teilen</b></button>' : ""}
       </div>`
     : "";
   if (waehlen) return `<div class="tr-leiste">${leiste}</div>${auswahlHtml(auswahl, suche, ersetzen ? "ersatz" : "dazu", u.name)}`;
@@ -484,6 +549,7 @@ export function trainingHtml(entwurf, log, { menue = false, vorschlaege = [], pa
       ${zeilen}
       <div class="tr-satzknoepfe"><button type="button" class="tr-satz-plus" data-tr-satz="dazu" aria-label="Satz hinzufügen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v12M6 12h12"/></svg></button></div>
     </div>
+    <label class="tr-notiz"><span>Notiz</span><textarea rows="1" maxlength="500" data-tr-notiz placeholder="Etwa Sitz auf 4, Griff eng, Schulter zieht">${esc(u.notiz ?? "")}</textarea></label>
     ${vorher}
     ${letzt ? `<details class="tr-entwicklung" data-tr-entwicklung${entwicklung ? " open" : ""}><summary>Fortschritt ansehen</summary>${entwicklung ? fortschrittHtml(log, u.id, entwurf.datum) : ""}</details>` : ""}
     <p class="tr-rir-hilfe">${mitWdh ? "RIR heißt Wiederholungen in Reserve: wie viele noch gegangen wären, bevor nichts mehr geht. " : ""}Ein Tipp auf ${esc(mitWdh ? "KG oder WDH" : `${L.kopf} oder ${M.kopf}`)} wechselt die Einheit, etwa auf Sekunden, Minuten oder Stufe.</p>
@@ -498,7 +564,9 @@ export function fussHtml(entwurf, pause = null, waehlen = false) {
   const zeit = pause ? `${Math.floor(pause.rest / 60)}:${String(pause.rest % 60).padStart(2, "0")}` : "";
   // Bei offener Auswahl nur die Pause: "Weitere Übung" unter der Auswahl
   // wäre ein Knopf für das, was man gerade schon tut.
-  const weiter = letzteUebung ? (entwurf.frei ? "Weitere Übung" : "Training beenden") : "Nächste Übung";
+  const weiter = letzteUebung ? (entwurf.rueckblick ? "Speichern" : entwurf.frei ? "Weitere Übung" : "Training beenden") : "Nächste Übung";
+  // Im Rückblick gibt es keine Pause, das Training ist vorbei.
+  if (entwurf.rueckblick) return `<button type="button" class="tr-weiter" data-tr-weiter>${weiter}</button>`;
   return `<button type="button" class="tr-pause${pause ? " laeuft" : ""}" data-tr-pause aria-label="${pause ? "Pause beenden" : `Pause starten, ${u.ziel.pauseSek} Sekunden`}">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 13V9M10 3h4"/></svg>${pause ? `<b>${zeit}</b>` : ""}</button>
     ${waehlen ? "" : `<button type="button" class="tr-weiter" data-tr-weiter>${weiter}</button>`}`;
@@ -524,7 +592,7 @@ export function gewichtWeitergeben(entwurf, ui, si, feld = "kg") {
  * `entwurfSpeicher` die laufende Einheit. `fertig` bekommt Titel und Minuten,
  * damit die App das Training in den Tag schreibt.
  */
-export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfSpeicher, heute, oeffne, melde, fertig, geaendert, getauscht, verschoben }) {
+export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfSpeicher, heute, oeffne, melde, fertig, geaendert, getauscht, verschoben, korrigiert, abschluss, pauseGeaendert, begonnen }) {
   const blatt = document.getElementById("trainingBlatt");
   const inhalt = document.getElementById("trainingInhalt");
   const fuss = document.getElementById("trainingFuss");
@@ -544,13 +612,20 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
   let entwicklung = false;
   // Welche Spalte gerade ihre Einheit wählt, "last" oder "menge".
   let einheitWahl = null;
+  // Ein laufendes Training, solange ein früheres zum Ansehen offen ist. Der
+  // Rückblick liegt nur im Speicher der Seite und nie im Entwurf: sonst
+  // stünde nach einem Anruf das Training von Samstag als laufendes da.
+  let laufend = null;
   const wunsch = () => planSpeicher.lesen()?.wunsch ?? STANDARD_WUNSCH;
   const auswahl = () => (entwurf ? auswahlListe(suche, entwurf, logSpeicher.lesen(), wunsch()) : []);
 
-  const merken = () => entwurfSpeicher.schreiben(entwurf);
+  const merken = () => { if (!entwurf?.rueckblick) entwurfSpeicher.schreiben(entwurf); };
   const zeichnen = () => {
     if (!entwurf) return;
-    titel.textContent = entwurf.titel;
+    titel.textContent = entwurf.rueckblick
+      ? `${entwurf.titel || "Training"}, ${new Date(`${entwurf.datum}T12:00:00`).toLocaleDateString("de-DE", { weekday: "short", day: "numeric", month: "short" })}`
+      : entwurf.titel;
+    document.getElementById("trainingEnde").textContent = entwurf.rueckblick ? "Speichern" : "Beenden";
     const plan = planSpeicher.lesen();
     const u = entwurf.uebungen[entwurf.aktiv];
     const offenWahl = waehlen || !u;
@@ -563,7 +638,7 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
     // wie ein Knopf, der nicht geladen hat.
     fuss.hidden = !fuss.innerHTML;
   };
-  const pauseStopp = () => { clearInterval(uhr); if (pause) pauseMitteilungAus(); pause = null; };
+  const pauseStopp = () => { clearInterval(uhr); if (pause) { pauseMitteilungAus(); pauseGeaendert?.(null); } pause = null; };
   const pauseStart = (sek) => {
     clearInterval(uhr);
     // Gerechnet wird gegen das Ende und nicht durch Abzählen. Im Hintergrund
@@ -572,6 +647,7 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
     const ende = Date.now() + sek * 1000;
     pause = { rest: sek };
     pauseMitteilung(sek, entwurf?.uebungen[entwurf.aktiv]?.name ?? "");
+    pauseGeaendert?.(ende);
     uhr = setInterval(() => {
       pause.rest = Math.max(0, Math.round((ende - Date.now()) / 1000));
       if (pause.rest <= 0) {
@@ -584,15 +660,32 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
       else zeichnen();
     }, 1000);
   };
-  const oeffnen = () => { blatt.hidden = false; zeichnen(); };
+  // Ein neues Training meldet sich einmal, für Uhr und Kalender. Fortsetzen
+  // und Ansehen melden nichts.
+  let gemeldet = "";
+  const oeffnen = () => {
+    blatt.hidden = false; zeichnen();
+    if (entwurf && !entwurf.rueckblick && gemeldet !== `${entwurf.datum}|${entwurf.titel}|${entwurf.start}`) {
+      gemeldet = `${entwurf.datum}|${entwurf.titel}|${entwurf.start}`;
+      begonnen?.(entwurf);
+    }
+  };
   const schliessen = () => {
     pauseStopp(); menue = false; blatt.hidden = true;
+    if (entwurf?.rueckblick) { entwurf = laufend; laufend = null; waehlen = false; }
     // Geschlossen ist nicht beendet: der Knopf zum Fortsetzen steht beim Plan.
     const offen = document.getElementById("plOffen");
     if (offen) offen.hidden = !entwurf;
   };
 
   const beenden = () => {
+    if (entwurf?.rueckblick) {
+      logSpeicher.schreiben(rueckblickSpeichern(entwurf, logSpeicher.lesen()));
+      korrigiert?.();
+      melde("Training gespeichert");
+      schliessen();
+      return;
+    }
     if (!entwurfBegonnen(entwurf)) {
       entwurfSpeicher.schreiben(null);
       entwurf = null;
@@ -603,7 +696,7 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
     logSpeicher.schreiben(r.log);
     // Der Abschluss zeigt, was gespeichert ist. Eine Meldung darüber wäre
     // derselbe Satz zweimal.
-    fertig({ titel: entwurf.titel, datum: entwurf.datum, minuten: r.minuten, saetze: r.saetze, eintraege: r.eintraege });
+    fertig({ titel: entwurf.titel, datum: entwurf.datum, start: entwurf.start, minuten: r.minuten, saetze: r.saetze, eintraege: r.eintraege });
     entwurfSpeicher.schreiben(null);
     entwurf = null;
     schliessen();
@@ -617,6 +710,11 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
       suche = event.target.value;
       const liste = inhalt.querySelector(".tr-auswahl-liste");
       if (liste) liste.innerHTML = auswahlListeHtml(auswahl(), ersetzen ? "ersatz" : "dazu");
+      return;
+    }
+    if (event.target.matches("[data-tr-notiz]") && entwurf) {
+      entwurf = notizSetzen(entwurf, entwurf.aktiv, event.target.value);
+      merken();
       return;
     }
     const feld = event.target.closest("[data-tr-feld]");
@@ -700,18 +798,19 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
         const altId = entwurf.uebungen[entwurf.aktiv]?.id;
         const r = entwurfTauschen(entwurf, plan, entwurf.aktiv, k.dataset.trErsatz, logSpeicher.lesen());
         entwurf = r.entwurf;
-        if (entwurf.frei && altId && entwurf.uebungen[entwurf.aktiv]?.id !== altId) getauscht?.(entwurf.titel, altId, entwurf.uebungen[entwurf.aktiv].id);
+        if (entwurf.frei && !entwurf.rueckblick && altId && entwurf.uebungen[entwurf.aktiv]?.id !== altId) getauscht?.(entwurf.titel, altId, entwurf.uebungen[entwurf.aktiv].id);
         if (!entwurf.frei) { planSpeicher.schreiben(r.plan); geaendert?.(); }
         melde(`Ersetzt durch ${entwurf.uebungen[entwurf.aktiv].name}`);
       }
       menue = false; waehlen = false; ersetzen = false; suche = "";
-    } else if ((k = z("[data-tr-anleitung]"))) { merken(); schliessen(); oeffne(k.dataset.trAnleitung); return; }
+    } else if (z("[data-tr-karte]")) { const { datum, titel: t } = entwurf; schliessen(); abschluss?.(datum, t); return; }
+    else if ((k = z("[data-tr-anleitung]"))) { merken(); schliessen(); oeffne(k.dataset.trAnleitung); return; }
     else if (z("[data-tr-pause]")) { if (pause) pauseStopp(); else pauseStart(entwurf.uebungen[entwurf.aktiv].ziel.pauseSek); }
     else if (z("[data-tr-weiter]")) {
       // Im freien Training gibt es kein Ende der Liste: die letzte Übung führt
       // zur Auswahl, beendet wird oben.
       if (entwurf.aktiv >= entwurf.uebungen.length - 1) {
-        if (!entwurf.frei) { beenden(); return; }
+        if (!entwurf.frei || entwurf.rueckblick) { beenden(); return; }
         waehlen = true; suche = ""; menue = false;
         merken(); zeichnen();
         return;
@@ -755,7 +854,7 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
     const r = uebungVerschieben(entwurf, planSpeicher.lesen(), von, nach);
     entwurf = r.entwurf;
     if (!entwurf.frei && r.plan) { planSpeicher.schreiben(r.plan); geaendert?.(); }
-    if (entwurf.frei) verschoben?.(entwurf.titel, entwurf.uebungen.map((u) => u.id));
+    if (entwurf.frei && !entwurf.rueckblick) verschoben?.(entwurf.titel, entwurf.uebungen.map((u) => u.id));
     spueren("leicht");
     merken();
     zeichnen();
@@ -810,6 +909,7 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
   return {
     /** Startet eine Einheit. Ein laufender Entwurf derselben Einheit wird fortgesetzt. */
     starten(ei) {
+      if (entwurf?.rueckblick) { entwurf = laufend; laufend = null; }
       const plan = planSpeicher.lesen();
       if (!plan) return;
       if (!(entwurf && entwurf.ei === ei && entwurf.datum === heute())) {
@@ -822,6 +922,7 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
     },
     /** Ein freies Training ohne Plan. Ein offenes von heute wird fortgesetzt. */
     frei() {
+      if (entwurf?.rueckblick) { entwurf = laufend; laufend = null; }
       if (!(entwurf?.frei && entwurf.datum === heute())) {
         if (entwurfBegonnen(entwurf)) melde(`${entwurf.titel} war noch offen und ist verworfen`);
         entwurf = entwurfFrei(heute());
@@ -836,6 +937,7 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
      * Plan nicht.
      */
     einheit(e) {
+      if (entwurf?.rueckblick) { entwurf = laufend; laufend = null; }
       if (entwurfBegonnen(entwurf) && !(entwurf.frei && entwurf.titel === e.titel && entwurf.datum === heute())) {
         melde(`${entwurf.titel} war noch offen und ist verworfen`);
       }
@@ -845,8 +947,38 @@ export function trainingStarten({ plan: planSpeicher, log: logSpeicher, entwurfS
       merken();
       oeffnen();
     },
+    /** Ein früheres Training zum Ansehen und Korrigieren. Ein laufendes bleibt erhalten. */
+    ansehen(datum, einheit) {
+      const alt = entwurfAusLog(logSpeicher.lesen(), datum, einheit, wunsch());
+      if (!alt) return;
+      if (!entwurf?.rueckblick) laufend = entwurf;
+      entwurf = alt;
+      menue = false; waehlen = false; suche = ""; einheitWahl = null; entwicklung = false;
+      oeffnen();
+    },
+    /**
+     * Ein neuer Stand von aussen, von der Uhr. `fuehren` bekommt den
+     * laufenden Entwurf und gibt den neuen zurück. Ein offenes Blatt zeichnet
+     * neu, ein geschlossenes bleibt zu.
+     */
+    vonAussen(fuehren) {
+      if (entwurf?.rueckblick) laufend = fuehren(laufend);
+      else entwurf = fuehren(entwurf);
+      merken();
+      if (!blatt.hidden && !entwurf?.rueckblick) zeichnen();
+      const offenKnopf = document.getElementById("plOffen");
+      if (offenKnopf && blatt.hidden) offenKnopf.hidden = !entwurf;
+    },
+    /** Auf der Uhr beendet: hier nicht noch einmal speichern, nur schliessen. */
+    vonUhrBeendet(titelUhr, datum) {
+      const e = entwurf?.rueckblick ? laufend : entwurf;
+      if (!e || e.titel !== titelUhr || e.datum !== datum) return;
+      if (entwurf?.rueckblick) laufend = null;
+      else { entwurf = null; if (!blatt.hidden) schliessen(); }
+      entwurfSpeicher.schreiben(null);
+    },
     /** Ein offener Entwurf von heute, etwa nach einem Neustart der App. */
-    offen: () => (entwurf && entwurf.datum === heute() ? entwurf : null),
-    fortsetzen() { if (entwurf) oeffnen(); },
+    offen: () => { const e = entwurf?.rueckblick ? laufend : entwurf; return e && e.datum === heute() ? e : null; },
+    fortsetzen() { if (entwurf?.rueckblick) { entwurf = laufend; laufend = null; } if (entwurf) oeffnen(); },
   };
 }

@@ -39,6 +39,10 @@ final class Verbindung: NSObject, ObservableObject, WCSessionDelegate {
     /// Wann die Uhr Todoist zuletzt selbst gelesen hat.
     @Published private(set) var todoistGelesen: Date?
 
+    /// Das iPhone hat die App über `startWatchApp` geöffnet, weil dort ein
+    /// Training begonnen hat. Die Ansicht öffnet dann dieses Training.
+    @Published var startWunsch = false
+
     private let speicherSchluessel = "daevo.uhr.paket"
     private let wasserSchluessel = "daevo.uhr.wasser"
     private let erledigtSchluessel = "daevo.uhr.erledigt"
@@ -230,7 +234,24 @@ final class Verbindung: NSObject, ObservableObject, WCSessionDelegate {
     }
 
     func trainingFertig(titel: String, start: Date, ende: Date, uebungen: [Uebung]) {
-        let liste: [[String: Any]] = uebungen.map { u in
+        let iso = ISO8601DateFormatter()
+        senden([
+            "art": "training", "titel": titel, "datum": heuteText(start),
+            "start": iso.string(from: start), "ende": iso.string(from: ende), "uebungen": Self.liste(uebungen),
+        ])
+    }
+
+    /// Der Stand nach jedem Satz. Das iPhone führt ihn in sein laufendes
+    /// Training, damit dort dieselben Haken stehen, wenn man zum Handy greift.
+    func trainingStand(titel: String, start: Date, uebungen: [Uebung]) {
+        senden([
+            "art": "trainingStand", "titel": titel, "datum": heuteText(start),
+            "start": ISO8601DateFormatter().string(from: start), "uebungen": Self.liste(uebungen),
+        ])
+    }
+
+    private static func liste(_ uebungen: [Uebung]) -> [[String: Any]] {
+        uebungen.map { u in
             [
                 "id": u.id,
                 "name": u.name,
@@ -243,11 +264,6 @@ final class Verbindung: NSObject, ObservableObject, WCSessionDelegate {
                 },
             ]
         }
-        let iso = ISO8601DateFormatter()
-        senden([
-            "art": "training", "titel": titel, "datum": heuteText(start),
-            "start": iso.string(from: start), "ende": iso.string(from: ende), "uebungen": liste,
-        ])
     }
 
     /// Ein Satz, den die Uhr ohne iPhone nicht eintragen kann. Das iPhone

@@ -10,6 +10,13 @@
  */
 
 const PFADE = {
+  blitz: '<path d="M13.5 2.5L5 13.5h6l-1 8 8.5-11h-6z"/>',
+  herz: '<path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7a4.3 4.3 0 0 1 7.5 2.8C19.5 15.4 12 20 12 20z"/>',
+  bett: '<path d="M3 18V6"/><path d="M3 14h18v4"/><path d="M21 14v-2.5a3 3 0 0 0-3-3h-7v5.5"/><circle cx="7" cy="11" r="1.8"/>',
+  schlaf: '<path d="M4 9h5l-5 6h5"/><path d="M13 5h4l-4 5h4"/><path d="M17 15h3l-3 4h3"/>',
+  schuh: '<path d="M3 17.5V11c0-.6.4-1 1-1h3l2 2.5 3.5-1 1.5 2.5 5 1.5c1.2.4 2 1.4 2 2.7v.3H3z"/><path d="M3 20h18"/><path d="M9.5 12.5l1 2"/><path d="M12.5 11.5l1 2"/>',
+  stoppuhr: '<circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9.5"/><path d="M10 2.5h4"/><path d="M18.5 6.5l1.5-1.5"/>',
+  notiz: '<path d="M5 4.5h14v10l-5 5H5z"/><path d="M14 19.5v-5h5"/><path d="M8.5 9h7"/><path d="M8.5 12.5h4"/>',
   pfeilLinks: '<path d="M19 12H5"/><path d="M11 6l-6 6 6 6"/>',
   haken: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
   schild: '<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/>',

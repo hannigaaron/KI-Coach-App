@@ -395,3 +395,36 @@ test("Kilo und Wiederholungen bleiben im Protokoll wie bisher, ohne Masse", () =
   assert.deepEqual(r.eintraege[0].saetze[0], { kg: 50, wdh: 8, rir: e.uebungen[0].saetze[0].rir });
   assert.equal(satzText({ kg: 50, wdh: 8 }), "50 kg × 8");
 });
+
+import { entwurfAusLog as ausLog, rueckblickSpeichern as rbSpeichern, notizSetzen as notizS, letzteNotiz as lNotiz } from "./training.js";
+
+test("Notiz je Übung geht ins Protokoll und kommt beim nächsten Mal wieder", () => {
+  const plan = planFuer({ ...STANDARD_WUNSCH, tage: 2, minuten: 45 });
+  let e = entwurfNeu(plan, 0, [], "2026-11-10", "2026-11-10T10:00:00Z");
+  e = notizS(e, 0, "Sitz auf 4");
+  e = satzAbhaken(e, 0, 0);
+  const r = entwurfAbschliessen(e, [], Date.parse("2026-11-10T11:00:00Z"));
+  assert.equal(r.eintraege.find((x) => x.uebung === e.uebungen[0].id).notiz, "Sitz auf 4");
+  assert.equal(lNotiz(r.log, e.uebungen[0].id, "2026-11-12"), "Sitz auf 4");
+  const neu = entwurfNeu(plan, 0, r.log, "2026-11-12", "2026-11-12T10:00:00Z");
+  assert.equal(neu.uebungen[0].notiz, "Sitz auf 4");
+});
+
+test("Ein früheres Training lässt sich öffnen und korrigieren", () => {
+  const log = [
+    { datum: "2026-11-14", uebung: "bankdruecken", einheit: "Freies Training", saetze: [{ kg: 80, wdh: 8, rir: 2 }] },
+    { datum: "2026-11-14", uebung: "kniebeuge", einheit: "Freies Training", saetze: [{ kg: 100, wdh: 5, rir: 2 }] },
+    { datum: "2026-11-12", uebung: "bankdruecken", einheit: "Freies Training", saetze: [{ kg: 77.5, wdh: 8, rir: 2 }] },
+  ];
+  const e = ausLog(log, "2026-11-14", "Freies Training");
+  assert.equal(e.rueckblick, true);
+  assert.equal(e.uebungen.length, 2);
+  assert.ok(e.uebungen.every((u) => u.saetze.every((s) => s.fertig)));
+  let k = satzDazu(e, 0);
+  k = satzSetzen(k, 0, 1, "kg", 80); k = satzSetzen(k, 0, 1, "wdh", 7); k = satzAbhaken(k, 0, 1);
+  k = { ...k, uebungen: k.uebungen.filter((u) => u.id !== "kniebeuge") };
+  const neu = rbSpeichern(k, log);
+  assert.equal(neu.filter((x) => x.datum === "2026-11-14").length, 1, "entfernte Übung ist weg");
+  assert.equal(neu.find((x) => x.datum === "2026-11-14").saetze.length, 2);
+  assert.ok(neu.some((x) => x.datum === "2026-11-12"), "andere Tage bleiben");
+});

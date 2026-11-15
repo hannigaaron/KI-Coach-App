@@ -908,6 +908,10 @@ try {
       <div class="field"><label for="berichtZeitraum">Zeitraum</label>
         <select id="berichtZeitraum"></select></div>
       <p class="sub" id="berichtKopf"></p>
+      <!-- Der Wochenrückblick aus der Mitteilung am Mittwoch und Sonntag steht
+           hier und nicht im Chat: ein Tipp auf die Mitteilung soll auf der
+           Seite landen, um die es geht. -->
+      <details id="berichtRueckblick" class="bericht-rueckblick" hidden><summary>Wochenrückblick</summary><div id="berichtRueckblickText" class="msg-text"></div></details>
 
       <!--
         Eine Karte je Wert, seitlich durchgewischt. Sieben Zeilen

@@ -781,6 +781,28 @@ Wahl ist in Satoshi und klein, `.tr-masse`: in der Serife der Knöpfe brach
 "Wiederholungen" mitten im Wort um. Offen: die Uhr zeigt solche Übungen
 weiter mit Kilo und Wiederholungen.
 
+### Notizen je Übung
+
+`notizSetzen` und `letzteNotiz` in `training.js`. Unter den Sätzen steht ein
+Feld Notiz, es landet als `notiz` am Eintrag im Protokoll. Notizen sind
+meist Einstellungen am Gerät, Sitzhöhe oder Griff, und die gelten beim
+nächsten Mal wieder: die letzte Notiz einer Übung steht deshalb im neuen
+Training schon im Feld.
+
+### Frühere Trainings öffnen
+
+`entwurfAusLog` und `rueckblickSpeichern` in `training.js`, `ansehen` an
+`trainingStarten`. Ein Tipp unter "Deine letzten Trainings" öffnet das
+Training im Trainingsmodus, alle Sätze abgehakt, mit Massen und Notizen,
+Titel mit Tag. Vorher klappte nur eine Zeile mit Punkten auf. Ändern geht
+wie im Training, "Speichern" ersetzt alle Einträge dieses Tages und dieser
+Einheit, auch eine entfernte Übung ist dann weg. Ein laufendes Training
+bleibt dabei erhalten, `laufend`, und der Rückblick geht nie in
+`settings.trainingEntwurf`: sonst stünde nach einem Anruf das Training von
+Samstag als laufendes da. Ohne Pause und ohne Uhr, das Training ist vorbei.
+Muskelkarte und Teilen stehen im Menü der drei Punkte und als Link unter
+der Zeile.
+
 ### Was heute dran ist
 
 `steigerung` in `trainingslog.ts`, angezeigt über dem letzten Mal, mit
@@ -936,7 +958,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1438 Tests
+npm test           # 1442 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -4190,7 +4212,12 @@ Die Leseberechtigung hat eine Fassung, `HEALTH_FASSUNG`. iOS fragt nur nach
 neuen Typen, wenn die App erneut fragt, und wer vorher zugestimmt hatte,
 wäre sonst nie nach der Ernährung gefragt worden.
 
-Auf Heute steht "Bewegung und Erholung", `renderBewegung` in `app.js`:
+Auf Heute steht "Bewegung und Erholung", `renderBewegung` in `app.js`, als
+Karten mit Zeichen in der Farbe aus der Familie der Bereiche: Schuh für
+Schritte, Blitz für aktive Kalorien, Zzz für Schlaf, EKG für Ruhepuls, Herz
+für HRV, Stoppuhr für Trainingsminuten. Ein Balken nur, wo es ein Ziel gibt:
+Schritte gegen den Schnitt im Profil, Schlaf gegen acht Stunden, Ringminuten
+gegen 30. Der Nutzer wollte Karten, die man am Zeichen erkennt. Inhalt:
 Schritte, aktive Kalorien, Schlaf, Ruhepuls, HRV und die Trainings mit
 Minuten, Kalorien und Puls. Vorher lag das alles in den Tagen und stand
 nirgends. Nur Gemessenes bekommt eine Kachel, und der Abschnitt nennt den
@@ -4344,6 +4371,50 @@ aus daevo kennt nur das iPhone. Ist das Paket von gestern, sagt Dein Tag
 an Aufgaben eines alten Plans. Ungeprüft: der Swift Teil ist hier nicht
 kompiliert.
 
+## Ein Training zwischen iPhone und Uhr
+
+Im Betrieb zeigte die Uhr "Training für heute, 6 Übungen", während am
+iPhone dasselbe Training mit 9 lief: der Entwurf ging nie an die Uhr,
+wenn sich darin etwas änderte. Jetzt, in beide Richtungen:
+
+- Jede Änderung am Entwurf schickt das Paket, gebündelt über `uhrSpaeter`.
+  Das laufende Training steht dort mit `start` und, solange am iPhone eine
+  Pause läuft, `pauseBis` aus `settings.trainingPause`. Das Training für
+  heute und die Einheit des Plans mit demselben Titel stehen dann nicht
+  noch einmal da.
+- Ein Training, das am iPhone beginnt, öffnet daevo auf der Uhr über
+  `startWatchApp`, `trainingStarten` in `UhrPlugin.swift`. Die Uhr bekommt
+  die Einstellung in `UhrDelegate.handle`, setzt `startWunsch` und öffnet
+  das laufende Training, sobald es im Paket steht. Die Sitzung dort zählt
+  für Apple Fitness mit Puls und Kalorien.
+- `TrainingLauf` führt jedes neue Paket ein, `vomIphone`: dort
+  dazugenommene Übungen kommen hinten dazu, dort abgehakte Sätze werden
+  übernommen, eine dort gestartete Pause läuft hier mit.
+- Nach jedem Satz auf der Uhr geht `trainingStand` ans iPhone, und
+  `entwurfMitUhr` in `uhr.js` führt ihn in das laufende Training: auf der
+  Uhr Abgehaktes kommt, hier Abgehaktes bleibt. Beendet die Uhr, schliesst
+  `vonUhrBeendet` das Training am iPhone ohne zweites Speichern.
+- Oben rechts pausiert die Uhr das ganze Training, `pausieren` in
+  `Sitzung.swift`, Apple Fitness zählt die Zeit dann nicht.
+
+## Trainings in Kalender und Apple Health
+
+Ein beendetes Training aus daevo steht im Tag mit seinem Beginn und nicht
+mit dem Ende, kommt über `trainingInDenKalender` in den Kalender, mit dem
+Namen der Einheit, und über `trainingSpeichern` im `GesundheitPlugin` als
+Krafttraining in Apple Health. Lief dazu eine Sitzung auf der Uhr, hat die
+Uhr es gespeichert, `uhrTrainingLaeuft`. Dafür fragt `HEALTH_FASSUNG` 6
+nach dem Schreiben von Trainings, sonst schreibt daevo nichts in Health.
+Ein Training von der Uhr kommt ebenfalls in den Kalender.
+
+Ein Training aus Apple Fitness trägt den Namen, den man dort gewählt hat,
+`name` im Plugin: "Training: Volleyball" im Kalender, "Volleyball" in der
+Nachricht und auf Heute. Eingetragen wird, sobald daevo Health liest, also
+beim Öffnen oder nach der Mitteilung der `TrainingWache`. Apple legt ein
+Training erst beim Beenden in Health ab, früher geht es nicht.
+
+Ungeprüft: der Swift Teil ist nur auf Syntax geprüft.
+
 ## Die Uhr ohne iPhone
 
 Vier Seiten: das d, Dein Tag, Heute, Training. Dein Tag zeigt Termine und
@@ -4424,6 +4495,25 @@ Das Blatt hat nur "Weiter". Apple lehnt Vorabseiten mit eigenem Nein ab,
 abgelehnt wird in der Frage von iOS. Einführung, Abo Fenster, Health
 Abgleich und Mitteilungen warten, bis alles beantwortet ist. Was fehlt,
 nennt danach eine Meldung mit dem Weg in die Einstellungen.
+
+## Eine Mitteilung öffnet ihre Seite
+
+`MITTEILUNG_ZIEL` in `mitteilungen.js`, angewendet in `impulsOeffnen`. Vorher
+landete fast jede Mitteilung als Nachricht im Chat auf der Startseite, auch
+der Wochenrückblick und das Trinken. Jetzt: Trinken auf Heute beim Wasser,
+Eiweiss und Nachlegen auf Heute mit offenem Erfassen, der Rückblick im
+Bericht, wo er oben als `#berichtRueckblick` steht, der Blick auf morgen im
+Kalender auf dem Reiter Morgen, der Wochenbogen im Bogen, Runterfahren bei
+den Mindeststandards, das Ende einer Satzpause im Training. Fragen, die man
+mit einer Zahl beantwortet, Energie, Stress und die fünf Minuten, bleiben im
+Chat. In der iPhone App wird die Mitteilung vor dem Abgleich mit Health
+gelesen, der dauerte Sekunden, und so lange stand die Startseite da.
+
+Die Pause im Training hiess `pause`, wie die Frage nach den fünf Minuten um
+21 Uhr, und ein Tipp darauf öffnete diese Frage. Sie heisst jetzt
+`satzpause`. Der Wochenbogen kommt jetzt auch in der iPhone App, Mittwoch
+und Sonntag zu seiner Uhrzeit, nicht wenn er schon abgeschickt ist,
+abschaltbar über `mitteilungenAus.wochencheck`.
 
 ## Eigene Erinnerungen
 

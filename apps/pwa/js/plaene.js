@@ -497,7 +497,10 @@ export function verlaufHtml(log, grenze = 10) {
         : e.saetze.map((x) => `${String(x.kg).replace(".", ",")} kg × ${x.wdh}${x.rir !== null && x.rir !== undefined ? `, ${x.rir} RIR` : ""}`).join(" · ");
       return `<li><b>${esc(name)}</b><span>${esc(s2)}</span></li>`;
     }).join("");
-    return `<details class="pl-verlauf-tag"><summary><b>${esc(tag)}</b><span>${esc(einheit || "Training")} · ${liste.length} ${liste.length === 1 ? "Übung" : "Übungen"}, ${saetze} ${saetze === 1 ? "Satz" : "Sätze"}</span></summary><ul>${details}</ul><button type="button" class="ghost pl-abschluss" data-pl-abschluss="${esc(k)}">Muskelkarte und Teilen</button></details>`;
+    // Ein Tipp öffnet das Training so, wie es im Training aussah, mit allen
+    // Sätzen. Vorher klappte nur eine Liste auf, und wer sehen wollte, was er
+    // am Samstag am Kabel gemacht hat, las eine Zeile mit Punkten.
+    return `<div class="pl-verlauf-tag"><button type="button" class="pl-verlauf-knopf" data-pl-ansehen="${esc(k)}" aria-label="${esc(`${tag}, ${einheit || "Training"} öffnen`)}"><b>${esc(tag)}</b><span>${esc(einheit || "Training")} · ${liste.length} ${liste.length === 1 ? "Übung" : "Übungen"}, ${saetze} ${saetze === 1 ? "Satz" : "Sätze"}</span><i aria-hidden="true">›</i></button><ul hidden>${details}</ul><button type="button" class="link-knopf pl-abschluss" data-pl-abschluss="${esc(k)}">Muskelkarte und Teilen</button></div>`;
   });
   if (!zeilen.length) return "";
   return `<h3 class="ue-abschnitt">Deine letzten Trainings</h3>${zeilen.join("")}`;
@@ -602,7 +605,7 @@ export function zeilenZiehen(behaelter, anwenden, spuer = () => {}) {
 export function plaeneStarten({
   speicher, kurz: kurzSpeicher = { lesen: () => null, schreiben: () => {} }, woche: wocheSpeicher = { lesen: () => null, schreiben: () => {} },
   oeffne, melde, starte = () => {}, frei = () => {}, starteEinheit = () => {}, log = () => [], heute = () => new Date().toISOString().slice(0, 10),
-  heuteBestellt = () => null, abschluss = () => {}, mitwachsen = () => true, proOeffnen = () => {}, zuModus = () => {},
+  heuteBestellt = () => null, abschluss = () => {}, ansehen = () => {}, mitwachsen = () => true, proOeffnen = () => {}, zuModus = () => {},
 }) {
   // Acht Wochen um: Fortschritt prüfen, bevor irgendetwas gezeigt wird. Den
   // Plan, der mitwächst, gibt es mit Pro. Ohne Pro bleibt der Plan, wie er
@@ -818,6 +821,8 @@ export function plaeneStarten({
 
   $("plFrei").addEventListener("click", () => frei());
   $("plVerlauf").addEventListener("click", (event) => {
+    const offen = event.target.closest("[data-pl-ansehen]");
+    if (offen) { const [d, e] = offen.dataset.plAnsehen.split("|"); ansehen?.(d, e); return; }
     const knopf = event.target.closest("[data-pl-abschluss]");
     if (!knopf) return;
     const [datum, einheit] = knopf.dataset.plAbschluss.split("|");

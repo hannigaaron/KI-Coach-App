@@ -314,15 +314,15 @@ export async function kalenderTermin(auftrag = {}, { jetzt = Date.now() } = {}) 
  * hatte: wer seinen Tag im Kalender liest, soll sehen, dass trainiert wurde.
  * Liegt schon ein Training im Zeitraum, bleibt der Kalender, wie er ist.
  */
-export async function trainingNachtragen({ tag, uhrzeit, minuten, art }) {
+export async function trainingNachtragen({ tag, uhrzeit, minuten, art, name = "", notiz = "Von der Apple Watch, eingetragen von daevo." }) {
   if (!kannSchreiben() || !tag || !uhrzeit || !minuten) return null;
   const von = tagBeginn(tag) + (Number(uhrzeit.slice(0, 2)) * 60 + Number(uhrzeit.slice(3, 5))) * 60000;
   const bis = von + Math.round(minuten) * 60000;
   const termine = store.getKalender().termine || [];
   const schonDa = termine.some((t) => t.von < bis && t.bis > von && (t.daevo || /training|gym|studio|volleyball|laufen|workout/i.test(foldUmlauts(String(t.titel || "").toLowerCase()))));
   if (schonDa) return null;
-  const titel = `Training: ${ART_TITEL[art] || "Training"}`;
-  const r = await nativAufruf("Kalender", "anlegen", { titel, von, bis, notiz: "Von der Apple Watch, eingetragen von daevo.", kalender: zielKalenderId() });
+  const titel = `Training: ${name || ART_TITEL[art] || "Training"}`;
+  const r = await nativAufruf("Kalender", "anlegen", { titel, von, bis, notiz, kalender: zielKalenderId() });
   merken({ art: "angelegt", eid: r?.eid || "", titel, nachher: { von, bis }, gruppe: gruppeNeu() });
   await neuLesen();
   return r?.eid || "";

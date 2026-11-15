@@ -16,7 +16,6 @@ import {
   MAX_EIGENE,
   erinnerungZeile,
   istEinmalig,
-  vorausblickText,
   bilanzSatz, tageListe, tagStand, zeitraumText,
 } from "@daevo/core";
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, PREISE_STAND, aktuellesModell, produktPerBarcode, produkteSuchen } from "@daevo/coach";
@@ -47,12 +46,11 @@ import {
   aufgabeErledigen, aufgabeWiederOeffnen, todoistAktualisieren, todoistVerbunden,
   erinnerungenAufgeraeumt, heuteGetauscht, heuteVerschoben,
   vorausblickePlan,
-  vorausblickFuer,
   offOptionen, uhrKiZugang, tagesplan,
   verlaufTag, wochenschnittFuer, gemessenerVerbrauch,
 } from "./assistant.js";
 import { zyklusAnsicht, zyklusSichtbar } from "./zyklus-ui.js";
-import { uhrAufgaben, uhrEreignisseAnwenden, uhrMeldung, uhrPaket, uhrTermine } from "./uhr.js";
+import { entwurfMitUhr, uhrAufgaben, uhrEreignisseAnwenden, uhrMeldung, uhrPaket, uhrTermine } from "./uhr.js";
 import { brain } from "./brain.js";
 import { Orb } from "./orb.js";
 import { anhangAusDatei, grossInKb } from "./media.js";
@@ -75,7 +73,7 @@ import { antwortAufFrage, trainingErkannt } from "./training-erkannt.js";
 import { abosAbgleichen, kaufenNativ, startAnlass } from "./kauf.js";
 import { anmeldeWege, anmeldenApple, anmeldenGoogleNativ, anmeldungSenden, anmeldungText } from "./anmeldung.js";
 import { aboEntfernen, aboHinzufuegen, APPLE_QUELLE, appleKalenderTrennen, appleKalenderVerbinden, kalenderAbgleichen, kalenderAbos } from "./kalender-sync.js";
-import { mitteilungenPlanen } from "./mitteilungen.js";
+import { MITTEILUNG_ZIEL, mitteilungenPlanen } from "./mitteilungen.js";
 import { berechtigungenFragen, berechtigungenOffen, berechtigungenText, kontenText } from "./berechtigungen.js";
 import { nativAufruf } from "./nativ.js";
 import { spueren } from "./haptik.js";
@@ -1300,6 +1298,13 @@ function berichtZeitraumFuellen() {
 }
 
 function renderBericht() {
+  // Der Rückblick der laufenden Woche. Rechnet er nicht, etwa ohne Profil,
+  // fehlt nur der Abschnitt.
+  try {
+    const text = wochenrueckblickFuer().text;
+    $("berichtRueckblickText").innerHTML = chatHtml(text);
+    $("berichtRueckblick").hidden = !text;
+  } catch { $("berichtRueckblick").hidden = true; }
   const b = berichtFuer($("berichtZeitraum").value || "7");
   $("berichtKopf").textContent =
     `${spanneKurz(b.von, b.bis)}, ${b.tageMitDaten} von ${b.tageGesamt} Tagen mit Eintrag.`;
@@ -1603,22 +1608,34 @@ function renderBewegung(n, istHeute) {
   const zahlText = (x) => Math.round(x).toLocaleString("de-DE");
   if (Number.isFinite(d.steps)) {
     const ziel = Number(n.profile.dailySteps) || 0;
-    kacheln.push(["Schritte", zahlText(d.steps), ziel ? `Schnitt im Profil ${zahlText(ziel)}` : ""]);
+    kacheln.push(["schuh", "fitness", "Schritte", zahlText(d.steps), "", ziel ? `Schnitt ${zahlText(ziel)}` : "", ziel ? d.steps / ziel : null]);
   }
-  if (Number.isFinite(g.aktivKcal)) kacheln.push(["Aktive Kalorien", `${zahlText(g.aktivKcal)} kcal`, "laut Apple Watch"]);
-  if (Number.isFinite(g.schlafMinuten)) kacheln.push(["Schlaf", `${Math.floor(g.schlafMinuten / 60)} h ${String(Math.round(g.schlafMinuten % 60)).padStart(2, "0")}`, "Nacht davor"]);
-  if (Number.isFinite(g.ruhepuls)) kacheln.push(["Ruhepuls", `${Math.round(g.ruhepuls)}`, "Schläge je Minute"]);
-  if (Number.isFinite(g.hrv)) kacheln.push(["HRV", `${Math.round(g.hrv)} ms`, "Schnitt des Tages"]);
-  if (Number.isFinite(g.trainingsMinuten)) kacheln.push(["Trainingsminuten", `${Math.round(g.trainingsMinuten)}`, "Apple Ring"]);
-  $("bwRaster").innerHTML = kacheln.map(([name, wert, zusatz]) =>
-    `<div class="bw-kachel"><span>${escapeHtml(name)}</span><b>${escapeHtml(wert)}</b>${zusatz ? `<small>${escapeHtml(zusatz)}</small>` : ""}</div>`).join("");
+  if (Number.isFinite(g.aktivKcal)) kacheln.push(["blitz", "fett", "Aktive Kalorien", zahlText(g.aktivKcal), "kcal", "laut Apple Watch", null]);
+  if (Number.isFinite(g.schlafMinuten)) kacheln.push(["schlaf", "wellbeing", "Schlaf", `${Math.floor(g.schlafMinuten / 60)}:${String(Math.round(g.schlafMinuten % 60)).padStart(2, "0")}`, "h", "Nacht davor", g.schlafMinuten / 480]);
+  if (Number.isFinite(g.ruhepuls)) kacheln.push(["puls", "beziehung", "Ruhepuls", `${Math.round(g.ruhepuls)}`, "bpm", "Schläge je Minute", null]);
+  if (Number.isFinite(g.hrv)) kacheln.push(["herz", "me_time", "HRV", `${Math.round(g.hrv)}`, "ms", "Schnitt des Tages", null]);
+  if (Number.isFinite(g.trainingsMinuten)) kacheln.push(["stoppuhr", "karriere", "Training", `${Math.round(g.trainingsMinuten)}`, "min", "Apple Ring", g.trainingsMinuten / 30]);
+  // Je Wert ein Zeichen in einer Farbe aus der Familie der Bereiche und
+  // Makros: der Nutzer wollte Karten, die man am Zeichen erkennt, ohne das
+  // Wort zu lesen. Der Balken unten nur, wo es ein Ziel gibt, sonst wäre er
+  // eine Zahl ohne Bezug. Schlaf misst gegen acht Stunden, die Ringminuten
+  // gegen die 30 von Apple.
+  const farbe = (t) => ["fett", "protein", "kohlenhydrate", "wasser"].includes(t) ? `var(--makro-${t})` : `var(--bereich-${t})`;
+  $("bwRaster").innerHTML = kacheln.map(([sym, ton, name, wert, einheit, zusatz, anteil]) =>
+    `<div class="bw-karte" style="--ton:${farbe(ton)}">`
+    + `<div class="bw-kopf"><span class="bw-sym">${symbol(sym, { groesse: 18 })}</span><span class="bw-name">${escapeHtml(name)}</span></div>`
+    + `<p class="bw-wert"><b>${escapeHtml(wert)}</b>${einheit ? `<i>${escapeHtml(einheit)}</i>` : ""}</p>`
+    + (anteil !== null ? `<span class="bw-spur"><span style="width:${Math.round(Math.min(1, Math.max(0, anteil)) * 100)}%"></span></span>` : "")
+    + (zusatz ? `<small>${escapeHtml(zusatz)}</small>` : "")
+    + `</div>`).join("");
 
   const trainings = (d.trainings || []).filter((t) => t.minutes > 0);
   const ART = { strength: "Krafttraining", cardio: "Ausdauer", team_sport: "Mannschaftssport", mobility: "Mobilität" };
   $("bwTrainings").innerHTML = trainings.length
     ? `<ul class="bw-trainings">${trainings.map((t) => {
         const teile = [`${t.minutes} min`, t.kcal ? `${zahlText(t.kcal)} kcal` : "", t.puls ? `Puls ${t.puls}${t.pulsMax ? `, max ${t.pulsMax}` : ""}` : ""].filter(Boolean);
-        return `<li><span><b>${escapeHtml(ART[t.type] ?? "Training")}</b>${t.at ? ` <small>${escapeHtml(t.at)}</small>` : ""}</span><span>${escapeHtml(teile.join(" · "))}</span></li>`;
+        const sym = t.type === "strength" ? "hantel" : t.type === "cardio" ? "laufen" : t.type === "mobility" ? "welle" : "puls";
+        return `<li><span class="bw-sym">${symbol(sym, { groesse: 18 })}</span><span class="bw-tr-name"><b>${escapeHtml(t.name || ART[t.type] || "Training")}${t.at ? ` <small>${escapeHtml(t.at)}</small>` : ""}</b><small>${escapeHtml(teile.join(" · "))}</small></span></li>`;
       }).join("")}</ul>`
     : "";
 
@@ -3258,20 +3275,66 @@ const planSpeicher = {
   schreiben: (plan) => store.setSettings({ ...store.getSettings(), plan }),
 };
 const trainingslog = () => (Array.isArray(store.getSettings().trainingslog) ? store.getSettings().trainingslog : []);
+/** Ob zum laufenden Training eine Sitzung auf der Uhr gestartet wurde. Dann speichert die Uhr es in Health. */
+// eslint-disable-next-line no-var
+var uhrTrainingLaeuft = false;
+
+/**
+ * Ein beendetes Training in den Kalender, wenn dort zu der Zeit noch keins
+ * steht. Für Trainings aus daevo und von der Uhr, mit dem Namen der Einheit.
+ */
+async function trainingInDenKalender({ titel, datum, start, minuten }) {
+  try {
+    const { kannSchreiben, trainingNachtragen } = await import("./kalender-schreiben.js");
+    if (!kannSchreiben() || !Date.parse(start)) return;
+    const b = new Date(start);
+    const uhrzeit = `${String(b.getHours()).padStart(2, "0")}:${String(b.getMinutes()).padStart(2, "0")}`;
+    const name = !titel || titel === "Freies Training" || titel === "Training für heute" ? "Krafttraining" : titel;
+    await trainingNachtragen({ tag: datum, uhrzeit, minuten, art: "strength", name, notiz: "Training in daevo, eingetragen von daevo." });
+  } catch { /* ohne Kalender bleibt es beim Eintrag im Tag */ }
+}
+
+function plaeneAbschluss(datum, einheit) {
+  const eintraege = trainingslog().filter((e) => e.datum === datum && (e.einheit ?? "") === einheit);
+  if (!eintraege.length) return;
+  const minuten = store.getSettings().trainingDauer?.[`${datum}|${einheit}`] ?? null;
+  abschlussOeffnen(abschlussDaten(eintraege, { titel: einheit || "Training", datum, minuten }));
+}
 const training = trainingStarten({
   plan: planSpeicher,
   log: { lesen: trainingslog, schreiben: (trainingslog) => store.setSettings({ ...store.getSettings(), trainingslog }) },
   entwurfSpeicher: {
     lesen: () => store.getSettings().trainingEntwurf ?? null,
-    schreiben: (trainingEntwurf) => store.setSettings({ ...store.getSettings(), trainingEntwurf }),
+    // Jede Änderung geht auch an die Uhr. Vorher kam ein am iPhone
+    // dazugenommene Übung dort nie an.
+    schreiben: (trainingEntwurf) => { store.setSettings({ ...store.getSettings(), trainingEntwurf }); uhrSpaeter(); },
   },
+  // Ein Training am iPhone öffnet daevo auf der Uhr mit einer Sitzung für
+  // Apple Fitness, und die Uhr bekommt sofort das Paket mit den Übungen.
+  begonnen: () => {
+    if (!istNativ()) return;
+    uhrSenden().catch(() => {});
+    nativAufruf("Uhr", "trainingStarten", {}).then((r) => { uhrTrainingLaeuft = Boolean(r?.gestartet); }).catch(() => {});
+  },
+  pauseGeaendert: (bis) => { store.setSettings({ ...store.getSettings(), trainingPause: bis ? { bis } : null }); uhrSpaeter(); },
   heute: todayIso,
   oeffne: (id, ansicht) => uebungen.oeffne(id, ansicht),
   melde: (text) => toast(text),
   // Eine beendete Einheit steht danach auch im Tag. Sonst fragt die
   // Trainingslücke nach vier Tagen, obwohl jeder Satz eingetragen ist.
-  fertig: ({ titel, datum, minuten, eintraege }) => {
-    store.addTraining(todayIso(), { id: newId(), type: "strength", minutes: minuten, at: nowTime(), note: titel });
+  fertig: ({ titel, datum, start, minuten, eintraege }) => {
+    // Die Uhrzeit ist der Beginn, nicht das Ende. Sonst lag das Training aus
+    // Apple Health eine Stunde daneben und zählte doppelt.
+    const beginn = Date.parse(start) ? new Date(start) : new Date(Date.now() - minuten * 60000);
+    const at = `${String(beginn.getHours()).padStart(2, "0")}:${String(beginn.getMinutes()).padStart(2, "0")}`;
+    store.addTraining(todayIso(), { id: newId(), type: "strength", minutes: minuten, at, note: titel });
+    trainingInDenKalender({ titel, datum, start: beginn.toISOString(), minuten });
+    // In Apple Health, damit es in Apple Fitness und den Ringen zählt. Lief
+    // es auf der Uhr mit, hat die Uhr es schon gespeichert.
+    if (istNativ() && !uhrTrainingLaeuft) {
+      nativAufruf("Gesundheit", "trainingSpeichern", { start: beginn.getTime(), ende: beginn.getTime() + minuten * 60000, titel }).catch(() => {});
+    }
+    uhrTrainingLaeuft = false;
     // Die Dauer steht im Protokoll nicht. Gemerkt je Tag und Einheit, damit
     // der Abschluss im Verlauf sie auch später noch nennt.
     const dauer = { ...(store.getSettings().trainingDauer ?? {}), [`${datum}|${titel}`]: minuten };
@@ -3286,6 +3349,8 @@ const training = trainingStarten({
   // Getauscht im Training für heute gilt auch beim nächsten Mal mit denselben Partien.
   getauscht: (titel, altId, neueId) => { if (titel === "Training für heute") heuteGetauscht(altId, neueId); },
   verschoben: (titel, ids) => { if (titel === "Training für heute") heuteVerschoben(ids); },
+  korrigiert: () => { plaene.verlaufNeu(); refreshAll(); },
+  abschluss: (datum, einheit) => plaeneAbschluss(datum, einheit),
 });
 const plaene = plaeneStarten({
   speicher: planSpeicher,
@@ -3325,12 +3390,8 @@ const plaene = plaeneStarten({
   log: trainingslog,
   heute: todayIso,
   heuteBestellt: () => bestellteEinheit(store.getSettings(), todayIso()),
-  abschluss: (datum, einheit) => {
-    const eintraege = trainingslog().filter((e) => e.datum === datum && (e.einheit ?? "") === einheit);
-    if (!eintraege.length) return;
-    const minuten = store.getSettings().trainingDauer?.[`${datum}|${einheit}`] ?? null;
-    abschlussOeffnen(abschlussDaten(eintraege, { titel: einheit || "Training", datum, minuten }));
-  },
+  abschluss: (datum, einheit) => plaeneAbschluss(datum, einheit),
+  ansehen: (datum, einheit) => training.ansehen(datum, einheit),
 });
 
 /* Der Abschluss eines Trainings, nach Beenden und aus dem Verlauf. */
@@ -6304,7 +6365,8 @@ async function mitteilungenNativ() {
     if (geoeffnet?.art === "training") { showView("assistant"); healthNativ(); }
     else if (geoeffnet?.art === "antwort") showView("assistant");
     else if (geoeffnet?.art === "luecke") lueckeFrageOeffnen();
-    else if (geoeffnet?.art && geoeffnet.art !== "runterfahren") impulsOeffnen({ art: geoeffnet.art });
+    else if (geoeffnet?.art === "satzpause") training.fortsetzen();
+    else if (geoeffnet?.art) impulsOeffnen({ art: geoeffnet.art });
 
     await mitteilungenNeuPlanen();
   } catch {
@@ -6375,7 +6437,9 @@ function planSpaeter() {
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") {
     kalenderStill();
-    healthNativ().then(() => mitteilungenNativ()).then(morgenVielleicht);
+    // Erst die Mitteilung, dann Health: der Abgleich dauert Sekunden, und
+    // so lange stand nach einem Tipp die Startseite da.
+    mitteilungenNativ().then(() => healthNativ()).then(morgenVielleicht);
   }
 });
 
@@ -6728,17 +6792,22 @@ function impulsOeffnen(daten, { still = false } = {}) {
   if (!art) return;
   if (art === "morgen") { morgen.oeffnen(); return; }
   if (art === "nachfrage") { morgen.nachfrage(); return; }
+  if (art === "luecke") { lueckeFrageOeffnen(); return; }
+  if (art === "satzpause") { training.fortsetzen(); return; }
+  // Seiten statt Chat, wo es eine Seite gibt, siehe MITTEILUNG_ZIEL.
+  const ziel = MITTEILUNG_ZIEL[art];
+  if (ziel && ziel.ansicht !== "assistant") {
+    if (ziel.ansicht === "heute") heuteTag = todayIso();
+    showView(ziel.ansicht);
+    if (ziel.aktion === "erfassen") erfassenOeffnen({ currentTarget: $("btnErfassenHeute") });
+    else if (ziel.aktion === "wasser") setTimeout(() => $("wBar")?.closest(".balken-zeile")?.scrollIntoView({ block: "center", behavior: "smooth" }), 250);
+    else if (ziel.aktion === "rueckblick") { renderBericht(); $("berichtRueckblick").open = true; }
+    else if (ziel.aktion === "morgen") document.querySelector('#kalBriefingWahl [data-briefing="abend"]')?.click();
+    return;
+  }
+  if (!ziel && !impulseFuerTag(todayIso()).some((i) => i.art === art)) return;
   showView("assistant");
-  // Der Blick auf morgen: im Chat steht alles, nicht nur der eine Satz aus
-  // der Mitteilung, und eine Antwort wie "ja, trag es um 19:15 ein" geht
-  // direkt an den Coach.
-  // Das ganze Briefing für morgen, nicht nur der eine Satz aus der Mitteilung.
-  let voraus = "";
-  if (art === "vorausblick") { try { voraus = tagesbriefingFuer("abend").text; } catch { voraus = vorausblickText(vorausblickFuer(tagNach(todayIso()))); } }
-  // Gerechnet beim Antippen, nicht beim Planen: so stehen die Einträge bis
-  // eben drin.
-  if (art === "rueckblick") { try { voraus = wochenrueckblickFuer().text; } catch { return; } }
-  const impuls = voraus ? { text: voraus } : impulseFuerTag(todayIso()).find((i) => i.art === art);
+  const impuls = impulseFuerTag(todayIso()).find((i) => i.art === art);
   if (!impuls) return;
 
   const chat = store.getChat();
@@ -7317,6 +7386,13 @@ async function uhrAbgleichen() {
     const { ereignisse = [] } = await nativAufruf("Uhr", "abholen", {});
     if (ereignisse.length) {
       const ergebnis = uhrEreignisseAnwenden(ereignisse, { store, heute: todayIso(), neueId: newId });
+      // Ein Training, das auf der Uhr läuft, läuft am iPhone mit. Eines, das
+      // dort beendet wurde, ist hier gespeichert und nicht mehr offen.
+      if (ergebnis.stand) training.vonAussen((e) => entwurfMitUhr(e, ergebnis.stand));
+      for (const t of ergebnis.trainings) {
+        training.vonUhrBeendet(t.titel, t.datum);
+        trainingInDenKalender(t);
+      }
       const satz = uhrMeldung(ergebnis);
       if (satz) { toast(satz, 4500); plaene.verlaufNeu?.(); }
       // Auf der Uhr abgehakt: hier wirklich abhaken, bei Todoist auch dort.

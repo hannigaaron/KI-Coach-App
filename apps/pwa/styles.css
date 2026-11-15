@@ -3703,10 +3703,15 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 .tr-wahl span { display: flex; flex-direction: column; min-width: 0; }
 .tr-wahl small { color: var(--muted); font-size: var(--t-xs); }
 .pl-verlauf { margin-top: var(--s-4); }
-.pl-verlauf-tag { border-bottom: 1px solid var(--linie); padding: var(--s-3) 0; }
-.pl-verlauf-tag summary { display: flex; justify-content: space-between; gap: var(--s-3); cursor: pointer; list-style: none; }
-.pl-verlauf-tag summary::-webkit-details-marker { display: none; }
-.pl-verlauf-tag summary span { color: var(--muted); font-size: var(--t-sm); text-align: right; }
+.pl-verlauf-tag { border-bottom: 1px solid var(--linie); padding: var(--s-2) 0 var(--s-3); }
+.pl-verlauf-knopf {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: var(--s-3); width: 100%;
+  padding: var(--s-2) 0; border: 0; background: none; color: var(--text); text-align: left; cursor: pointer;
+  font: inherit; font-family: inherit; font-size: var(--t-md);
+}
+.pl-verlauf-knopf span { color: var(--muted); font-size: var(--t-sm); text-align: right; }
+.pl-verlauf-knopf i { font-style: normal; color: var(--muted); font-size: var(--t-lg); line-height: 1; }
+.pl-verlauf-tag .pl-abschluss { font-size: var(--t-xs); padding: 0; }
 .pl-verlauf-tag ul { list-style: none; margin: var(--s-2) 0 0; padding: 0; }
 .pl-verlauf-tag li { display: flex; flex-direction: column; padding: var(--s-1) 0; font-size: var(--t-sm); }
 .pl-verlauf-tag li span { color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -3978,9 +3983,9 @@ button, .chip, .pill {
   font-family: var(--schrift-akzent); font-weight: 400; letter-spacing: 0.005em;
   font-synthesis: none;
 }
-button:not(.seg-btn):not([role="tab"]):not(.bib-knopf):not(.balken-zeile):not(.icon-btn):not(.tr-masse) { font-size: 1.15em; }
+button:not(.seg-btn):not([role="tab"]):not(.bib-knopf):not(.balken-zeile):not(.icon-btn):not(.tr-masse):not(.pl-verlauf-knopf) { font-size: 1.15em; }
 .menu-zeile b, .menu-kachel b, .erfassen-titel, .weg-titel { font-family: var(--schrift-akzent); font-weight: 400; font-size: 1.1em; }
-.seg-btn, [role="tab"], .bib-knopf, .bib-knopf *, .pl-tausch .ue-tab, .tr-ersatz b, .balken-zeile, .balken-zeile *, .tr-masse,
+.seg-btn, [role="tab"], .bib-knopf, .bib-knopf *, .pl-verlauf-knopf, .pl-verlauf-knopf *, .pl-tausch .ue-tab, .tr-ersatz b, .balken-zeile, .balken-zeile *, .tr-masse,
 button small, button .erfassen-sub, button .me-werte, button .me-werte *,
 .menu-zeile small, .menu-kachel small, .held, .held * {
   font-family: var(--schrift-text); letter-spacing: normal;
@@ -4417,20 +4422,55 @@ button { overflow-wrap: anywhere; text-wrap: balance; }
 .tr-entwicklung summary::-webkit-details-marker { display: none; }
 .tr-entwicklung[open] summary { margin-bottom: var(--s-2); }
 
-/* Bewegung und Erholung auf Heute. Kacheln ohne Rahmen auf einer Tonfläche,
-   die Zahl trägt, Name und Quelle klein darüber und darunter. */
-.bw-raster { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: var(--s-2); margin: var(--s-3) 0; }
-.bw-kachel {
-  display: flex; flex-direction: column; gap: 2px; padding: var(--s-3); border-radius: var(--r-md);
-  background: var(--flaeche); box-shadow: var(--haarlinie); min-width: 0;
+/* Bewegung und Erholung auf Heute. Je Wert eine Karte mit Zeichen in einem
+   getönten Kreis, die Zahl gross, Name und Quelle klein. Die Farbe kommt je
+   Karte über --ton aus der Familie der Bereiche und Makros, die Karte selbst
+   bleibt eine Tonfläche ohne Rahmen. */
+.bw-raster { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-3); margin: var(--s-3) 0 var(--s-4); }
+@media (min-width: 520px) { .bw-raster { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.bw-karte {
+  position: relative; display: flex; flex-direction: column; gap: var(--s-2); padding: var(--s-4) var(--s-4) var(--s-3);
+  border-radius: 22px; min-width: 0; overflow: hidden;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--ton) 14%, var(--flaeche)) 0%, var(--flaeche) 62%);
+  box-shadow: var(--haarlinie), var(--glanz, 0 0 0 transparent);
 }
-.bw-kachel span { font-size: var(--t-xs); color: var(--muted); }
-.bw-kachel b { font-size: var(--t-lg); font-weight: 650; font-variant-numeric: tabular-nums; }
-.bw-kachel small { font-size: var(--t-2xs, 11px); color: var(--muted); }
-.bw-trainings { list-style: none; margin: 0 0 var(--s-2); padding: 0; }
+.bw-kopf { display: flex; align-items: center; gap: var(--s-2); min-width: 0; }
+.bw-sym {
+  flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%;
+  color: var(--ton, var(--brand-text)); background: color-mix(in srgb, var(--ton, var(--brand-text)) 18%, transparent);
+}
+.bw-name { font-size: var(--t-xs); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bw-wert { margin: var(--s-1) 0 0; display: flex; align-items: baseline; gap: 4px; line-height: 1; }
+.bw-wert b { font-size: var(--t-2xl); font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.bw-wert i { font-style: normal; font-size: var(--t-sm); color: var(--muted); font-weight: 500; }
+.bw-spur { display: block; height: 5px; border-radius: 99px; background: color-mix(in srgb, var(--ton) 16%, transparent); overflow: hidden; }
+.bw-spur > span { display: block; height: 100%; border-radius: inherit; background: var(--ton); }
+.bw-karte small { font-size: var(--t-2xs, 11px); color: var(--muted); }
+.bw-trainings { list-style: none; margin: 0 0 var(--s-2); padding: 0; display: grid; gap: var(--s-2); }
 .bw-trainings li {
-  display: flex; justify-content: space-between; gap: var(--s-3); padding: var(--s-2) 0;
-  border-bottom: 1px solid var(--line, rgba(127, 127, 127, 0.18)); font-size: var(--t-sm);
+  display: flex; align-items: center; gap: var(--s-3); padding: var(--s-3); border-radius: 18px;
+  background: var(--flaeche); box-shadow: var(--haarlinie); font-size: var(--t-sm); --ton: var(--bereich-fitness);
 }
-.bw-trainings li > span:last-child { color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.bw-tr-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.bw-tr-name small { font-variant-numeric: tabular-nums; }
+.bw-tr-name b small { font-weight: 400; }
 .bw-trainings small { color: var(--muted); }
+
+/* Notiz je Übung im Training: eine Zeile auf einer Tonfläche, wächst mit
+   dem Text. Sitzhöhe und Griff sind die häufigsten Notizen, und die gehören
+   neben die Sätze und nicht in ein eigenes Blatt. */
+.tr-notiz { display: flex; flex-direction: column; gap: var(--s-1); margin: var(--s-4) 0 var(--s-3); }
+.tr-notiz > span { font-size: var(--t-2xs, 11px); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.tr-notiz textarea {
+  width: 100%; min-height: 44px; resize: none; field-sizing: content; padding: var(--s-3) var(--s-4);
+  border: 0; border-radius: var(--r-md); background: var(--flaeche); box-shadow: var(--haarlinie);
+  font: inherit; font-size: var(--t-sm); color: var(--text); line-height: 1.4;
+}
+.tr-notiz textarea:focus { outline: none; box-shadow: var(--haarlinie), 0 0 0 2px color-mix(in srgb, var(--brand-text) 45%, transparent); }
+
+/* Wochenrückblick oben im Bericht, aufklappbar. Offen, wenn er aus der
+   Mitteilung kommt. */
+.bericht-rueckblick { margin: var(--s-3) 0 var(--s-4); padding: var(--s-4); border-radius: 22px; background: var(--flaeche); box-shadow: var(--haarlinie); }
+.bericht-rueckblick summary { cursor: pointer; font-weight: 650; list-style: none; }
+.bericht-rueckblick summary::-webkit-details-marker { display: none; }
+.bericht-rueckblick[open] summary { margin-bottom: var(--s-3); }

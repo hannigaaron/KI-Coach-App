@@ -20,6 +20,7 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "verfuegbar", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "berechtigen", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "lesen", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "trainingSpeichern", returnType: CAPPluginReturnPromise),
     ]
 
     private let store = HKHealthStore()
@@ -64,7 +65,9 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
         // Apple verrät aus Datenschutzgründen nicht, ob Lesen erlaubt wurde.
         // Ein Erfolg hier heisst nur, dass die Frage gestellt wurde. Ob Daten
         // kommen, zeigt erst das Lesen.
-        store.requestAuthorization(toShare: nil, read: leseTypen) { ok, fehler in
+        // Schreiben nur Trainings: ein Training aus daevo soll in Apple
+        // Fitness stehen wie eines von der Uhr. Sonst nichts.
+        store.requestAuthorization(toShare: [HKObjectType.workoutType()], read: leseTypen) { ok, fehler in
             if let fehler = fehler {
                 call.reject("Health hat die Anfrage abgelehnt: \(fehler.localizedDescription)")
             } else {
@@ -210,6 +213,9 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
                     "uhrzeit": GesundheitPlugin.uhrzeitText(w.startDate),
                     "minuten": (w.duration / 60).rounded(),
                     "art": GesundheitPlugin.art(w.workoutActivityType),
+                    // Was in Apple Fitness gewählt wurde, etwa Volleyball oder
+                    // Laufen. Mit diesem Namen steht es danach im Kalender.
+                    "name": GesundheitPlugin.name(w.workoutActivityType),
                 ]
                 // Aktive Kalorien und Puls des Trainings. Ohne sie stand eine
                 // Stunde Pull im Tag, aber nicht, was sie verbraucht hat.
@@ -374,6 +380,75 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     /// Dieselben vier Arten wie in der App, `TrainingType` in packages/core.
+    /// Ein Training aus daevo als Krafttraining in Apple Health, mit Beginn
+    /// und Ende. Ohne Erlaubnis zum Schreiben bleibt es still beim Eintrag in
+    /// daevo. Der Abgleich legt es nicht doppelt an, siehe `healthkit.js`,
+    /// und die `TrainingWache` meldet Trainings der eigenen App nicht.
+    @objc func trainingSpeichern(_ call: CAPPluginCall) {
+        guard HKHealthStore.isHealthDataAvailable(),
+              let startMs = call.getDouble("start"), let endeMs = call.getDouble("ende"), endeMs > startMs else {
+            call.resolve(["gespeichert": false])
+            return
+        }
+        guard store.authorizationStatus(for: HKObjectType.workoutType()) == .sharingAuthorized else {
+            call.resolve(["gespeichert": false, "grund": "keine Erlaubnis"])
+            return
+        }
+        let start = Date(timeIntervalSince1970: startMs / 1000)
+        let ende = Date(timeIntervalSince1970: endeMs / 1000)
+        let titel = call.getString("titel") ?? "Training"
+        let einstellung = HKWorkoutConfiguration()
+        einstellung.activityType = .traditionalStrengthTraining
+        einstellung.locationType = .indoor
+        let bauer = HKWorkoutBuilder(healthStore: store, configuration: einstellung, device: .local())
+        bauer.beginCollection(withStart: start) { ok, _ in
+            guard ok else { call.resolve(["gespeichert": false]); return }
+            bauer.addMetadata([HKMetadataKeyWorkoutBrandName: "daevo", "daevoTitel": titel]) { _, _ in
+                bauer.endCollection(withEnd: ende) { _, _ in
+                    bauer.finishWorkout { training, _ in
+                        call.resolve(["gespeichert": training != nil, "id": training?.uuid.uuidString ?? ""])
+                    }
+                }
+            }
+        }
+    }
+
+    /// Der Name der Trainingsart, wie Apple Fitness sie zeigt, auf Deutsch.
+    static func name(_ typ: HKWorkoutActivityType) -> String {
+        switch typ {
+        case .traditionalStrengthTraining: return "Krafttraining"
+        case .functionalStrengthTraining: return "Funktionelles Krafttraining"
+        case .coreTraining: return "Core Training"
+        case .crossTraining: return "Cross Training"
+        case .highIntensityIntervalTraining: return "HIIT"
+        case .volleyball: return "Volleyball"
+        case .soccer: return "Fussball"
+        case .basketball: return "Basketball"
+        case .handball: return "Handball"
+        case .tennis: return "Tennis"
+        case .badminton: return "Badminton"
+        case .tableTennis: return "Tischtennis"
+        case .squash: return "Squash"
+        case .running: return "Laufen"
+        case .walking: return "Gehen"
+        case .hiking: return "Wandern"
+        case .cycling: return "Radfahren"
+        case .swimming: return "Schwimmen"
+        case .rowing: return "Rudern"
+        case .elliptical: return "Crosstrainer"
+        case .stairClimbing, .stairs: return "Treppensteigen"
+        case .yoga: return "Yoga"
+        case .pilates: return "Pilates"
+        case .flexibility: return "Beweglichkeit"
+        case .cooldown: return "Cool-down"
+        case .mixedCardio: return "Cardio"
+        case .boxing: return "Boxen"
+        case .martialArts: return "Kampfsport"
+        case .dance, .cardioDance, .socialDance: return "Tanzen"
+        default: return ""
+        }
+    }
+
     static func art(_ typ: HKWorkoutActivityType) -> String {
         switch typ {
         case .traditionalStrengthTraining, .functionalStrengthTraining, .coreTraining, .crossTraining:
