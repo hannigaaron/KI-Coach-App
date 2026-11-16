@@ -750,10 +750,6 @@ html:not(.bewegt) .saeule { min-height: 0; }
 .preis-liste svg { width: 22px; height: 22px; color: var(--blau); margin-top: 1px; }
 .bald { font-family: var(--etikett); font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--blau); padding: 3px 8px; border-radius: var(--r-pille); box-shadow: inset 0 0 0 1px var(--blau); white-space: nowrap; margin-top: 2px; }
 .preis-karte .knopf { margin-top: 32px; align-self: stretch; padding-block: 15px; font-size: 17px; }
-.ohne-abo { margin-top: 20px; display: grid; gap: 8px 40px; border-radius: 30px; padding: 26px clamp(24px, 4vw, 40px); background: var(--glas); box-shadow: inset 0 0 0 1px var(--haar); }
-@media (min-width: 900px) { .ohne-abo { grid-template-columns: auto 1fr; align-items: center; } }
-.ohne-abo b { font-family: var(--etikett); font-weight: 600; font-size: 16px; }
-.ohne-abo p { margin: 0; color: var(--nebel); font-weight: 400; }
 .preis-fuss { margin: 18px 0 0; color: var(--nebel); font-size: 14px; font-weight: 400; max-width: 70ch; }
 .haltung { padding-block: clamp(80px, 10vw, 140px); }
 .haltung-kopf { display: grid; gap: 20px; margin-bottom: clamp(40px, 6vw, 72px); }
@@ -839,7 +835,7 @@ footer { border-top: 1px dashed var(--linie); padding-block: 36px 48px; color: v
         <div class="glas-ort nur-breit" data-tel="-.1 .24" data-tel-schmal="0 0"><div class="glas-karte" style="animation-delay: 1.6s"><small>Fokus für heute</small><b>120 g <span>Protein, mindestens</span></b></div></div>
         <div class="glas-ort" data-tel=".03 .43" data-tel-schmal=".06 .38"><div class="glas-karte" style="animation-delay: 2.2s"><small>Erster Schritt</small><b>9:00 <span>Fokus auf das Angebot</span></b></div></div>
         <div class="glas-ort" data-tel="-.08 .62" data-tel-schmal=".06 .72"><div class="glas-karte" style="animation-delay: 2.8s"><small>Heute</small><b>17:30 <span>Ganzkörper A</span></b></div></div>
-        <div class="glas-ort nur-breit" data-tel=".03 .81" data-tel-schmal="0 0"><div class="glas-karte" style="animation-delay: 3.4s"><small>Heute Abend</small><b>22:15 <span>Bildschirm aus</span></b></div></div>
+        <div class="glas-ort nur-breit" data-tel=".03 .81" data-tel-schmal="0 0"><div class="glas-karte" style="animation-delay: 3.4s"><small>Heute Abend</small><b>21:45 <span>Handy weg</span></b></div></div>
       </div>
       <div class="start-tel" id="startTel" aria-hidden="true">
         <div class="st-innen">
@@ -970,16 +966,19 @@ footer { border-top: 1px dashed var(--linie); padding-block: 36px 48px; color: v
                 <div class="tag-zeile d"><time>15:10</time><span>15 min raus<small>Puffer vor dem Call</small></span></div>
                 <div class="tag-zeile"><time>15:30</time><span>Team Call</span></div>
                 <div class="tag-zeile d"><time>17:30</time><span>Krafttraining<small>60 min, freie Lücke</small></span></div>
-                <div class="tag-zeile d"><time>22:15</time><span>Runterfahren<small>Bildschirm aus</small></span></div>
+                <div class="tag-zeile d"><time>21:15</time><span>Dein Abend<small>Handy weg um 21:45</small></span></div>
               </div>
             </div>
             <div class="screen">
-              <div class="sc-kopf"><b>Heute Abend</b><span>21:00</span></div>
+              <div class="sc-kopf"><b>Heute Abend</b><span>21:15</span></div>
               <div class="mond" aria-hidden="true"></div>
               <div class="schlaf-zahl">7 h 45<small>bis zu deinem Wecker um 6:30</small></div>
               <div class="routine">
-                <div><span>Bildschirm aus</span><span>22:15</span></div>
-                <div><span>Licht runter, lesen</span><span>22:30</span></div>
+                <div><span>Handy weg</span><span>21:45</span></div>
+                <div><span>Supplements nehmen</span><span>21:50</span></div>
+                <div><span>Zimmer lüften</span><span>21:55</span></div>
+                <div><span>Licht dimmen</span><span>22:00</span></div>
+                <div><span>Lesen, Journal, Meditation</span><span>22:05</span></div>
                 <div><span>Schlafen</span><span>22:45</span></div>
               </div>
             </div>
@@ -988,7 +987,7 @@ footer { border-top: 1px dashed var(--linie); padding-block: 36px 48px; color: v
         <div class="tel-texte">
           <div class="tel-text"><b>Wenn du nicht weiter weißt</b><p>Frag einfach. daevo sortiert und gibt dir eine Reihenfolge, die zu deinem Tag passt.</p></div>
           <div class="tel-text"><b>Dein Tag mit Uhrzeiten</b><p>Jede Aufgabe bekommt ihren Platz. In den Lücken zwischen deinen Terminen, nicht oben drauf.</p></div>
-          <div class="tel-text"><b>Dein Abend gehört dir</b><p>daevo erinnert dich ans Runterfahren, damit du rechtzeitig schläfst. Schlecht geschlafen? Dann wird das Training leichter.</p></div>
+          <div class="tel-text"><b>Dein Abend gehört dir</b><p>90 Minuten vor deiner Schlafenszeit plant daevo deinen Abend bis zum Wecker. Morgens siehst du, wie viel du wirklich geschlafen hast.</p></div>
         </div>
       </div>
     </div>
@@ -1077,8 +1076,8 @@ footer { border-top: 1px dashed var(--linie); padding-block: 36px 48px; color: v
       <div class="balance-raster">
         <div class="balance-text auf">
           <span class="augenbraue">Live Balance Board</span>
-          <h2 class="display">Wofür lebst<br>du <span class="blau strich">eigentlich?</span></h2>
-          <p>Das Balance Board zeigt dir live, wofür du deine <b>meiste Zeit und Energie</b> aufwendest. Fünf Bereiche: Karriere, Fitness, Wellbeing, Me Time, Familie und Beziehung.</p>
+          <h2 class="display">Was kommt<br>bei dir <span class="blau strich">zu kurz?</span></h2>
+          <p>Das Balance Board zeigt dir live, wie du deine <b>Zeit und Energie</b> aufteilst: welche Lebensbereiche du gerade priorisierst und welche darunter leiden. Fünf Bereiche: Karriere, Fitness, Wellbeing, Me Time, Familie und Beziehung.</p>
           <ul class="balance-punkte">
             <li><b>Soll gegen Ist</b>Die gestrichelte Form ist dein Ziel, die gefüllte deine Woche. Die Schieflage siehst du in einer Sekunde.</li>
             <li><b>Stunden statt Bauchgefühl</b>Gemessen wird aus Kalender, Training und dem, was du daevo erzählst. Nichts wird geschätzt.</li>
@@ -1130,13 +1129,13 @@ footer { border-top: 1px dashed var(--linie); padding-block: 36px 48px; color: v
           <span class="zeichen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 15.5A7 7 0 0 1 9.5 4.5a7 7 0 1 0 7.5 11Z"/></svg></span>
           <span class="art">Schlaf</span>
           <h3>Bringt dich ins Bett</h3>
-          <p>Erinnert ans Runterfahren, fragt morgens nach deiner Nacht und passt den Tag daran an.</p>
+          <p>Plant deinen Abend bis zum Wecker, zeigt morgens deinen Schlaf der Woche und passt den Tag daran an.</p>
         </article>
         <article class="karte k-blau" aria-roledescription="Karte">
           <span class="zeichen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h3M17 12h3M7 8.5v7M17 8.5v7M9.5 10v4M14.5 10v4M9.5 12h5"/></svg></span>
           <span class="art">Training</span>
-          <h3>Trainiert mit deinem Tag</h3>
-          <p>Trainingsmodus mit Pause, Reserve und dem letzten Mal. Danach die Muskelkarte als Bild zum Teilen.</p>
+          <h3>Baut deinen Plan, passt ihn an</h3>
+          <p>Dein individueller Trainingsplan. Nach kurzer Nacht oder vollem Tag passt daevo ihn automatisch an deine Tagesform an.</p>
         </article>
         <article class="karte k-dunkel" aria-roledescription="Karte">
           <span class="zeichen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="7"/><path d="M12 6c0-2 1-3.5 3-4M9 13a3 3 0 0 0 3 3"/></svg></span>
@@ -1159,8 +1158,8 @@ footer { border-top: 1px dashed var(--linie); padding-block: 36px 48px; color: v
         <article class="karte k-dunkel" aria-roledescription="Karte">
           <span class="zeichen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8.5 6.2-3.3 10H6.8l-3.3-10Z"/><path d="M12 8l4 3-1.6 4.8H9.6L8 11Z"/></svg></span>
           <span class="art">Balance</span>
-          <h3>Zeigt, wofür du lebst</h3>
-          <p>Arbeit, Training, Erholung, Familie und du selbst, gemessen gegen das, was du dir vorgenommen hast.</p>
+          <h3>Zeigt, was du vernachlässigst</h3>
+          <p>Wie du Zeit und Energie aufteilst: welche Lebensbereiche du gerade priorisierst und welche darunter leiden.</p>
         </article>
         <article class="karte k-hell" aria-roledescription="Karte">
           <span class="zeichen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="3" width="10" height="18" rx="3"/><path d="M10 7h4"/><circle cx="12" cy="13" r="2.5"/></svg></span>
@@ -1193,7 +1192,7 @@ footer { border-top: 1px dashed var(--linie); padding-block: 36px 48px; color: v
         </div>
         <dl class="zahlen-raster">
           <div><dd data-zahl="56">56</dd><dt>Werkzeuge, mit denen der Coach deine App verändert</dt></div>
-          <div><dd data-zahl="52">52</dd><dt>davon laufen auch ohne KI</dt></div>
+          <div><dd data-zahl="30">30</dd><dt>Fragen, aus denen dein persönlicher Plan entsteht</dt></div>
           <div><dd data-zahl="136">136</dd><dt>Übungen mit Foto und Anleitung</dt></div>
           <div><dd data-zahl="55">55</dd><dt>Rezepte, die sich deinem Tag anpassen</dt></div>
         </dl>
@@ -1277,10 +1276,6 @@ footer { border-top: 1px dashed var(--linie); padding-block: 36px 48px; color: v
           <a class="knopf knopf-blau" href="https://daevo.pages.dev" target="_blank" rel="noopener">7 Tage kostenlos testen <svg class="pfeil" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 11 11 3M5 3h6v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
         </article>
       </div>
-      <div class="ohne-abo auf">
-        <b>Ohne Abo</b>
-        <p>Alles ohne KI läuft weiter: Essen eintragen per Suche und Barcode, Trainingsmodus, Pläne, Kalender und Check-ins.</p>
-      </div>
       <p class="preis-fuss">Preise inklusive Mehrwertsteuer. „Bis zu“ heisst: lange Gespräche und viele Fotos verbrauchen mehr als kurze Nachrichten. In der iPhone App laufen Käufe über den App Store.</p>
     </div>
   </section>
@@ -1351,7 +1346,7 @@ const breit = () => innerWidth >= 900;
     [12.5, 13.25, "daevo", "Mittag", "40 g Protein offen", 1],
     [17.5, 18.5, "daevo", "Krafttraining", "Die freie Lücke vor dem Abend", 2],
     [14.75, 15.3, "daevo", "Kurz raus", "Puffer vor dem Call", 3],
-    [22.2, 23.0, "daevo schlaf", "Runterfahren, dann schlafen", "7 h 45 bis zum Wecker", 4],
+    [22.2, 23.0, "daevo schlaf", "Dein Abend, dann schlafen", "7 h 45 bis zum Wecker", 4],
   ];
   bloecke.forEach(([a, b, art, titel, sub, punkt]) => {
     const el = document.createElement("div");
