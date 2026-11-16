@@ -1,0 +1,754 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>daevo. Dein Coach, der handelt.</title>
+<meta name="description" content="daevo ist dein digitaler Life Coach für Körper, Kopf und Kalender. Er trägt ein, plant und erinnert. 7 Tage kostenlos testen.">
+<meta name="theme-color" content="#0b0d10">
+<meta property="og:title" content="daevo. Dein Coach, der handelt.">
+<meta property="og:description" content="Er trägt ein, plant und erinnert. Für Körper, Kopf und Kalender. 7 Tage kostenlos testen.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Poppins:wght@300;500;600&display=swap">
+<style>
+:root{
+  --void:#0b0d10;--nacht:#0e1116;--tiefe:#151c26;--linie:#273240;--nebel:#8494a6;
+  --eis:#e8f3f8;--blau:#96d8f0;--tiefblau:#1e7fa8;--text2:#c9d3dc;
+  --p:#8fe0c4;--f:#e9a8c8;--k:#a9b4f5;
+  --glas:rgba(21,28,38,.62);--haar:rgba(150,216,240,.16);
+  --display:"Anton","Oswald",Impact,"Arial Narrow",sans-serif;
+  --etikett:"Poppins","Avenir Next","Segoe UI",system-ui,sans-serif;
+  --text:"DM Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --kurve:cubic-bezier(.2,.7,.1,1);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--void);color:var(--eis);font-family:var(--text);font-size:17px;line-height:1.55;
+  padding-bottom:calc(92px + env(safe-area-inset-bottom));overflow-x:hidden}
+[hidden]{display:none!important}
+a{color:inherit}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;-webkit-tap-highlight-color:transparent}
+.breite{width:min(1180px,100% - 40px);margin-inline:auto}
+.etikett{font-family:var(--etikett);font-weight:500;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--blau)}
+h1,h2{font-family:var(--display);font-weight:400;letter-spacing:.01em;line-height:1.02;margin:0;text-wrap:balance}
+h1{font-size:clamp(44px,7.4vw,88px)}
+h2{font-size:clamp(34px,5.2vw,64px)}
+h3{font-family:var(--etikett);font-weight:600;font-size:19px;line-height:1.3;margin:0}
+p{margin:0}
+.leise{color:var(--nebel)}
+.blau{color:var(--blau)}
+
+/* Kopfzeile */
+.kopf{position:sticky;top:0;z-index:30;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  background:rgba(11,13,16,.72);border-bottom:1px solid rgba(255,255,255,.05)}
+.kopf .breite{display:flex;align-items:center;justify-content:space-between;height:62px}
+.kopf svg{height:26px;width:auto;display:block}
+.kopf nav{display:flex;gap:26px;font-size:15px;color:var(--text2)}
+.kopf nav a{text-decoration:none}
+.kopf nav a:hover{color:var(--blau)}
+@media(max-width:720px){.kopf nav{display:none}}
+.knopf{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:52px;padding:12px 26px;border-radius:800px;
+  background:var(--blau);color:#0b0d10;font-family:var(--etikett);font-weight:600;font-size:16px;text-decoration:none;text-align:center;
+  box-shadow:0 10px 34px -10px rgba(150,216,240,.6);transition:transform .2s var(--kurve),box-shadow .2s var(--kurve)}
+.knopf:hover{transform:translateY(-1px);box-shadow:0 14px 40px -10px rgba(150,216,240,.75)}
+.knopf:active{transform:scale(.98)}
+.knopf.klein{min-height:40px;padding:8px 18px;font-size:14px;box-shadow:none}
+.knopf.gross{min-height:64px;padding:16px 40px;font-size:19px}
+.knopf svg{width:18px;height:18px;flex:none}
+
+/* Bühne */
+.held{position:relative;padding:40px 0 0;text-align:center}
+.held:before{content:"";position:absolute;inset:-62px 0 auto;height:900px;pointer-events:none;
+  background:radial-gradient(60% 50% at 50% 30%,rgba(30,127,168,.28),transparent 70%)}
+.held > *{position:relative}
+.held p.sub{max-width:640px;margin:22px auto 0;font-size:19px;color:var(--text2)}
+.konfig{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:28px;align-items:start;margin-top:34px;text-align:left}
+.buehne{position:sticky;top:78px;height:min(72vh,680px);min-height:440px;border-radius:40px;overflow:hidden;
+  background:radial-gradient(55% 45% at 50% 46%,rgba(150,216,240,.13),transparent 70%),linear-gradient(180deg,#0e1116,#0b0d10);
+  box-shadow:inset 0 0 0 1px var(--haar)}
+.buehne canvas{width:100%;height:100%;display:block;touch-action:pan-y;cursor:grab}
+.buehne canvas.zieht{cursor:grabbing}
+.buehne .hinweis{position:absolute;left:0;right:0;bottom:16px;text-align:center;font-size:13px;color:var(--nebel);pointer-events:none}
+.buehne .marken{position:absolute;left:16px;top:16px;display:flex;flex-wrap:wrap;gap:8px;pointer-events:none;max-width:calc(100% - 32px)}
+.marke{font-family:var(--etikett);font-size:12px;font-weight:500;padding:6px 12px;border-radius:800px;background:var(--glas);
+  box-shadow:inset 0 0 0 1px var(--haar);color:var(--text2);animation:rein .4s var(--kurve)}
+.marke b{color:var(--blau);font-weight:600}
+@keyframes rein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.wahl{display:grid;gap:14px}
+.karte{background:var(--tiefe);border-radius:28px;padding:22px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.05),inset 0 1px 0 rgba(255,255,255,.06)}
+.karte > .etikett{display:block;margin-bottom:14px}
+.opt{display:grid;gap:10px}
+.opt.zwei{grid-template-columns:1fr 1fr}
+.o{position:relative;display:block;width:100%;text-align:left;padding:16px 16px 16px 50px;border-radius:20px;background:#10161e;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.07);transition:box-shadow .2s,background .2s}
+.o:before{content:"";position:absolute;left:16px;top:18px;width:22px;height:22px;border-radius:50%;box-shadow:inset 0 0 0 2px #3a4757;transition:.2s}
+.o[aria-checked="true"]{background:#122230;box-shadow:inset 0 0 0 2px var(--blau)}
+.o[aria-checked="true"]:before{box-shadow:inset 0 0 0 7px var(--blau)}
+.o[role="switch"]:before{border-radius:7px}
+.o[role="switch"][aria-checked="true"]:before{box-shadow:inset 0 0 0 11px var(--blau)}
+.o[role="switch"][aria-checked="true"]:after{content:"";position:absolute;left:23px;top:22px;width:8px;height:12px;border:solid #0b0d10;border-width:0 2.5px 2.5px 0;transform:rotate(45deg)}
+.o .n{display:flex;justify-content:space-between;gap:10px;font-family:var(--etikett);font-weight:600;font-size:16px}
+.o .n span:last-child{color:var(--blau);white-space:nowrap;font-weight:500;font-size:14px;padding-top:2px}
+.o small{display:block;margin-top:4px;font-size:14px;line-height:1.4;color:var(--nebel)}
+.o .band{display:inline-block;margin-left:8px;padding:2px 8px;border-radius:800px;background:rgba(150,216,240,.14);color:var(--blau);font-size:11px;font-weight:500;letter-spacing:.04em;vertical-align:2px}
+.rechnung{display:grid;gap:8px;font-size:15px}
+.rechnung div{display:flex;justify-content:space-between;gap:12px;color:var(--text2)}
+.rechnung div span:last-child{font-variant-numeric:tabular-nums;white-space:nowrap}
+.rechnung .weg{color:var(--p)}
+.summe{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-top:14px;padding-top:14px;border-top:1px solid var(--linie)}
+.summe .zahl{font-family:var(--display);font-size:54px;line-height:1;font-variant-numeric:tabular-nums}
+.summe .zahl small{font-family:var(--text);font-size:15px;color:var(--nebel);margin-left:6px}
+.summe-zeile{margin-top:8px;font-size:14px;color:var(--nebel)}
+.karte .knopf{width:100%;margin-top:18px}
+.frei{margin-top:10px;text-align:center;font-size:13px;color:var(--nebel)}
+@media(max-width:900px){
+  .konfig{grid-template-columns:1fr}
+  .buehne{position:relative;top:0;height:58vh;min-height:380px;border-radius:32px}
+  .opt.zwei{grid-template-columns:1fr}
+}
+
+/* Vorteile */
+section{padding:110px 0 0}
+.kopfzeile{max-width:760px}
+.kopfzeile p{margin-top:18px;color:var(--text2);font-size:18px}
+.drei{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:44px}
+.vorteil{background:linear-gradient(180deg,#151c26,#10161e);border-radius:32px;padding:30px 26px 28px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.05)}
+.vorteil .nr{font-family:var(--display);font-size:54px;line-height:1;color:var(--blau);opacity:.9}
+.vorteil h3{margin-top:18px;font-size:21px}
+.vorteil p{margin-top:10px;color:var(--text2);font-size:16px}
+.vorteil .gegen{margin-top:18px;padding-top:14px;border-top:1px solid var(--linie);font-size:14px;color:var(--nebel)}
+@media(max-width:900px){.drei{grid-template-columns:1fr}}
+
+/* Die App zum Anfassen */
+.probe{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:56px;align-items:center;margin-top:44px}
+.reiter{display:flex;flex-wrap:wrap;gap:8px;margin-top:28px}
+.reiter button{min-height:44px;padding:8px 18px;border-radius:800px;background:var(--tiefe);font-family:var(--etikett);font-weight:500;font-size:15px;color:var(--text2);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);transition:.2s}
+.reiter button[aria-selected="true"]{background:var(--eis);color:#0b0d10}
+.erkl{margin-top:26px;min-height:150px}
+.erkl h3{font-size:24px}
+.erkl p{margin-top:10px;color:var(--text2)}
+.erkl .tu{margin-top:14px;font-size:15px;color:var(--blau)}
+.telefon{position:relative;width:100%;max-width:390px;margin-inline:auto;aspect-ratio:390/800;border-radius:54px;padding:11px;
+  background:linear-gradient(145deg,#2a3441,#11161d 40%,#1c2430);box-shadow:0 40px 90px -30px rgba(0,0,0,.9),0 0 0 1px rgba(255,255,255,.08),0 0 90px -30px rgba(150,216,240,.35)}
+.schirm{position:relative;height:100%;border-radius:44px;overflow:hidden;background:linear-gradient(180deg,#0e1116 0%,#0e1116 55%,#10283a 100%);display:flex;flex-direction:column;font-size:15px}
+.insel{position:absolute;top:10px;left:50%;width:96px;height:27px;margin-left:-48px;border-radius:20px;background:#000;z-index:5}
+.status{display:flex;justify-content:space-between;padding:14px 26px 0;font-family:var(--etikett);font-weight:600;font-size:14px;flex:none}
+.sicht{flex:1;min-height:0;display:flex;flex-direction:column;padding:14px 18px 16px;overflow:auto;scrollbar-width:none;animation:sicht .3s var(--kurve)}
+.sicht::-webkit-scrollbar{display:none}
+@keyframes sicht{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+.s-titel{font-family:var(--etikett);font-weight:600;font-size:22px;margin:6px 0 2px}
+.s-unter{font-size:13px;color:var(--nebel)}
+/* Assistent */
+.a-orb{flex:none;height:150px;display:grid;place-items:center;transition:height .3s var(--kurve)}
+.a-orb canvas{width:150px;height:150px;transition:.3s var(--kurve)}
+.hat-chat .a-orb{height:64px}.hat-chat .a-orb canvas{width:64px;height:64px}
+.a-gruss{text-align:center}
+.a-gruss b{display:block;font-family:var(--etikett);font-weight:600;font-size:21px}
+.hat-chat .a-gruss{display:none}
+.chat{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:10px;padding:6px 0;scrollbar-width:none}
+.chat::-webkit-scrollbar{display:none}
+.b{max-width:88%;animation:rein .3s var(--kurve);line-height:1.45}
+.b.ich{align-self:flex-end;background:#1c2733;padding:9px 14px;border-radius:18px 18px 4px 18px}
+.b.er{align-self:flex-start;color:var(--eis)}
+.b.er .tun{display:inline-block;margin-top:8px;padding:8px 14px;border-radius:800px;background:var(--blau);color:#0b0d10;font-family:var(--etikett);font-weight:600;font-size:13px}
+.b.er .verm{display:block;margin-top:6px;font-size:12px;color:var(--p)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;flex:none;padding:8px 0}
+.chips button{padding:9px 14px;border-radius:800px;background:rgba(255,255,255,.06);font-size:14px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.07)}
+.pille{flex:none;display:flex;align-items:center;gap:8px;padding:6px 6px 6px 16px;border-radius:800px;background:#151c26;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.pille input{flex:1;min-width:0;background:none;border:0;outline:0;color:var(--eis);font:inherit;font-size:16px}
+.pille input::placeholder{color:var(--nebel)}
+.pille button{width:38px;height:38px;border-radius:50%;background:var(--blau);display:grid;place-items:center;flex:none}
+.pille svg{width:18px;height:18px}
+/* Heute */
+.ring{position:relative;width:176px;height:176px;margin:10px auto 4px;flex:none}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:9;stroke-linecap:round}
+.ring .spur{stroke:#1c2430}
+.ring .wert{stroke:var(--blau);transition:stroke-dashoffset .8s var(--kurve)}
+.ring div{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+.ring b{font-family:var(--display);font-weight:400;font-size:46px;line-height:1}
+.ring span{font-size:12px;color:var(--nebel)}
+.mk{display:grid;gap:9px;margin-top:10px;flex:none}
+.mk .z{display:flex;justify-content:space-between;font-size:13px}
+.mk .z span:last-child{color:var(--nebel);font-variant-numeric:tabular-nums}
+.bal{height:7px;border-radius:7px;background:#1c2430;overflow:hidden;margin-top:4px}
+.bal i{display:block;height:100%;border-radius:7px;transition:width .8s var(--kurve)}
+.wasser{display:flex;align-items:center;gap:8px;margin-top:14px;flex:none}
+.wasser span{flex:1;font-size:13px}
+.wasser button,.erf{padding:8px 13px;border-radius:800px;background:rgba(255,255,255,.07);font-size:13px}
+.erf{display:block;width:100%;margin-top:14px;padding:13px;background:var(--blau);color:#0b0d10;font-family:var(--etikett);font-weight:600;font-size:15px;flex:none}
+.liste{margin-top:10px;display:grid;gap:0;flex:none}
+.liste .m{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid rgba(255,255,255,.06);font-size:14px;animation:rein .3s var(--kurve)}
+.liste .m span:last-child{color:var(--nebel);white-space:nowrap}
+.blatt{position:absolute;left:0;right:0;bottom:0;z-index:6;padding:18px 18px 22px;border-radius:28px 28px 44px 44px;background:#151c26;
+  box-shadow:0 -20px 50px rgba(0,0,0,.6);animation:hoch .3s var(--kurve)}
+@keyframes hoch{from{transform:translateY(100%)}to{transform:none}}
+.blatt h4{margin:0 0 10px;font-family:var(--etikett);font-weight:600;font-size:16px}
+.blatt button{display:flex;justify-content:space-between;width:100%;padding:13px 0;border-top:1px solid rgba(255,255,255,.07);text-align:left;font-size:15px}
+.blatt button span:last-child{color:var(--nebel)}
+/* Training */
+.form{display:flex;align-items:center;gap:10px;margin-top:10px;padding:11px 12px;border-radius:16px;background:rgba(255,255,255,.05);font-size:13px;text-align:left;width:100%;flex:none}
+.form i{flex:none;width:38px;height:22px;border-radius:22px;background:#2a3441;position:relative;transition:.2s}
+.form i:after{content:"";position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.2s var(--kurve)}
+.form[aria-checked="true"] i{background:var(--blau)}
+.form[aria-checked="true"] i:after{left:19px;background:#0b0d10}
+.fort{height:4px;border-radius:4px;background:#1c2430;margin-top:12px;overflow:hidden;flex:none}
+.fort i{display:block;height:100%;background:var(--blau);transition:width .5s var(--kurve)}
+.ueb{margin-top:10px;flex:none}
+.ueb .kopfz{display:flex;justify-content:space-between;padding:10px 0;font-family:var(--etikett);font-weight:600;font-size:15px}
+.ueb .kopfz span:last-child{font-family:var(--text);font-weight:400;font-size:13px;color:var(--nebel)}
+.ueb.fertig .kopfz{color:var(--nebel);text-decoration:line-through}
+.satz{display:grid;grid-template-columns:22px 1fr 1fr 1fr 36px;align-items:center;gap:6px;padding:7px 0;border-top:1px solid rgba(255,255,255,.06);font-size:14px;font-variant-numeric:tabular-nums}
+.satz span:first-child{color:var(--nebel)}
+.satz em{font-style:normal;color:var(--nebel);font-size:11px;margin-left:3px}
+.satz button{width:32px;height:32px;border-radius:50%;box-shadow:inset 0 0 0 2px #3a4757;display:grid;place-items:center;transition:.2s}
+.satz button svg{width:14px;height:14px;opacity:0}
+.satz.ok button{background:var(--blau);box-shadow:none;animation:sprung .35s var(--kurve)}
+.satz.ok button svg{opacity:1}
+.satz.ok{color:var(--nebel)}
+@keyframes sprung{50%{transform:scale(1.25)}}
+.pause{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-radius:18px;background:#122230;box-shadow:inset 0 0 0 1px var(--haar);flex:none;position:sticky;bottom:0}
+.pause b{font-family:var(--display);font-weight:400;font-size:26px;font-variant-numeric:tabular-nums}
+.pause button{font-size:13px;color:var(--blau)}
+/* Balance */
+.netz{width:100%;height:auto;margin-top:4px;flex:none}
+.netz text{font-family:var(--etikett);font-size:11px;fill:var(--text2)}
+.netz .ist{transition:all .5s var(--kurve)}
+.bz{display:grid;grid-template-columns:1fr auto auto auto;align-items:center;gap:8px;padding:7px 0;border-top:1px solid rgba(255,255,255,.06);font-size:14px}
+.bz span.h{color:var(--nebel);font-size:12px;font-variant-numeric:tabular-nums}
+.bz button{width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.07);font-size:17px;line-height:1}
+.meld{margin-top:10px;padding:11px 13px;border-radius:16px;background:rgba(150,216,240,.09);font-size:13px;line-height:1.45;flex:none}
+@media(max-width:900px){.probe{grid-template-columns:1fr;gap:30px}.erkl{min-height:0}.telefon{order:2}}
+
+/* Abschluss */
+.schluss{text-align:center;padding:120px 0 40px}
+.schluss p{max-width:560px;margin:20px auto 34px;color:var(--text2);font-size:18px}
+footer{padding:40px 0 30px;font-size:13px;color:var(--nebel);text-align:center}
+footer a{margin:0 8px}
+footer p{max-width:720px;margin:10px auto 0}
+
+/* Leiste unten */
+.leiste{position:fixed;left:0;right:0;bottom:0;z-index:40;padding:10px 0 calc(10px + env(safe-area-inset-bottom));
+  background:rgba(11,13,16,.86);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-top:1px solid rgba(255,255,255,.07)}
+.leiste .breite{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.leiste .was{min-width:0}
+.leiste .was b{display:block;font-family:var(--etikett);font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.leiste .was span{font-size:13px;color:var(--nebel)}
+.leiste .preis{font-family:var(--display);font-size:30px;line-height:1;font-variant-numeric:tabular-nums;white-space:nowrap}
+.leiste .preis small{font-family:var(--text);font-size:12px;color:var(--nebel);margin-left:4px}
+.leiste .rechts{display:flex;align-items:center;gap:16px;flex:none}
+@media(max-width:560px){.leiste .preis small{display:none}.leiste .knopf{padding:10px 18px;font-size:15px}.leiste .rechts{gap:10px}.leiste .preis{font-size:24px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+<header class="kopf"><div class="breite">
+  <a href="#oben" aria-label="daevo"><svg xmlns="http://www.w3.org/2000/svg" viewBox="-6.0 -86.0 317.5 92.9" role="img" aria-label="daevo">
+  <g><path d="M 32.50 -49.20 A 21.50 21.50 0 1 1 11.33 -31.43" fill="none" stroke="#96D8F0" stroke-width="14.00" stroke-linecap="round"/>
+    <path d="M 54.00 -73.00 L 54.00 -27.70" fill="none" stroke="#96D8F0" stroke-width="14.00" stroke-linecap="round"/></g>
+  <g transform="translate(66.20 0)"><path fill="#FFFFFF" d="M28.6 -56.300000000000004Q34.800000000000004 -56.300000000000004 39.45 -53.800000000000004Q44.1 -51.300000000000004 46.900000000000006 -47.5V-55.400000000000006H61.0V0.0H46.900000000000006V-8.1Q44.2 -4.2 39.45 -1.6500000000000001Q34.7 0.9 28.5 0.9Q21.5 0.9 15.75 -2.7Q10.0 -6.300000000000001 6.65 -12.850000000000001Q3.3000000000000003 -19.400000000000002 3.3000000000000003 -27.900000000000002Q3.3000000000000003 -36.300000000000004 6.65 -42.800000000000004Q10.0 -49.300000000000004 15.75 -52.800000000000004Q21.5 -56.300000000000004 28.6 -56.300000000000004ZM32.2 -44.0Q28.3 -44.0 25.0 -42.1Q21.700000000000003 -40.2 19.650000000000002 -36.55Q17.6 -32.9 17.6 -27.900000000000002Q17.6 -22.900000000000002 19.650000000000002 -19.150000000000002Q21.700000000000003 -15.4 25.050000000000004 -13.4Q28.400000000000002 -11.4 32.2 -11.4Q36.1 -11.4 39.5 -13.350000000000001Q42.900000000000006 -15.3 44.900000000000006 -18.950000000000003Q46.900000000000006 -22.6 46.900000000000006 -27.700000000000003Q46.900000000000006 -32.800000000000004 44.900000000000006 -36.45Q42.900000000000006 -40.1 39.5 -42.05Q36.1 -44.0 32.2 -44.0Z M124.2 -23.5H83.7Q84.2 -17.5 87.9 -14.100000000000001Q91.60000000000001 -10.700000000000001 97.0 -10.700000000000001Q104.80000000000001 -10.700000000000001 108.10000000000001 -17.400000000000002H123.2Q120.80000000000001 -9.4 114.0 -4.25Q107.2 0.9 97.30000000000001 0.9Q89.30000000000001 0.9 82.95000000000002 -2.65Q76.60000000000001 -6.2 73.05000000000001 -12.700000000000001Q69.5 -19.200000000000003 69.5 -27.700000000000003Q69.5 -36.300000000000004 73.0 -42.800000000000004Q76.5 -49.300000000000004 82.80000000000001 -52.800000000000004Q89.10000000000001 -56.300000000000004 97.30000000000001 -56.300000000000004Q105.2 -56.300000000000004 111.45 -52.900000000000006Q117.7 -49.5 121.15 -43.25Q124.60000000000001 -37.0 124.60000000000001 -28.900000000000002Q124.60000000000001 -25.900000000000002 124.2 -23.5ZM110.10000000000001 -32.9Q110.0 -38.300000000000004 106.2 -41.550000000000004Q102.4 -44.800000000000004 96.9 -44.800000000000004Q91.7 -44.800000000000004 88.15 -41.650000000000006Q84.60000000000001 -38.5 83.80000000000001 -32.9Z M154.20000000000002 -6.800000000000001 172.60000000000002 -54.6H180.0L158.10000000000002 0.0H150.20000000000002L128.3 -54.6H135.8Z M184.70000000000002 -27.3Q184.70000000000002 -35.800000000000004 188.3 -42.150000000000006Q191.9 -48.5 198.10000000000002 -51.95Q204.3 -55.400000000000006 212.0 -55.400000000000006Q219.70000000000002 -55.400000000000006 225.95000000000002 -51.95Q232.20000000000002 -48.5 235.75 -42.150000000000006Q239.3 -35.800000000000004 239.3 -27.3Q239.3 -18.900000000000002 235.70000000000002 -12.500000000000002Q232.10000000000002 -6.1000000000000005 225.8 -2.6500000000000004Q219.5 0.8 211.8 0.8Q204.10000000000002 0.8 197.95000000000002 -2.6500000000000004Q191.8 -6.1000000000000005 188.25 -12.450000000000001Q184.70000000000002 -18.8 184.70000000000002 -27.3ZM232.10000000000002 -27.3Q232.10000000000002 -34.5 229.3 -39.45Q226.5 -44.400000000000006 221.9 -46.85000000000001Q217.3 -49.300000000000004 211.9 -49.300000000000004Q206.5 -49.300000000000004 201.9 -46.85000000000001Q197.3 -44.400000000000006 194.55 -39.45Q191.8 -34.5 191.8 -27.3Q191.8 -20.1 194.55 -15.150000000000002Q197.3 -10.200000000000001 201.85000000000002 -7.750000000000001Q206.4 -5.300000000000001 211.8 -5.300000000000001Q217.20000000000002 -5.300000000000001 221.8 -7.750000000000001Q226.4 -10.200000000000001 229.25 -15.150000000000002Q232.10000000000002 -20.1 232.10000000000002 -27.3Z"/></g>
+</svg></a>
+  <nav><a href="#konfig">Zusammenstellen</a><a href="#vorteile">Warum daevo</a><a href="#probe">Ausprobieren</a></nav>
+  <a class="knopf klein" data-store href="#">Kostenlos testen</a>
+</div></header>
+
+<main id="oben">
+<div class="held"><div class="breite">
+  <span class="etikett">Evolve your daily life</span>
+  <h1 style="margin-top:16px">Dein Coach,<br>der <span class="blau">handelt.</span></h1>
+  <p class="sub">daevo trägt ein, plant und erinnert. Für Körper, Kopf und Kalender. Stell dir deinen Coach zusammen und teste ihn 7 Tage kostenlos.</p>
+
+  <div class="konfig" id="konfig">
+    <div class="buehne">
+      <canvas id="modell" aria-label="3D Modell von daevo. Ziehen dreht das Modell."></canvas>
+      <div class="marken" id="marken"></div>
+      <div class="hinweis" id="dreh">Ziehen zum Drehen</div>
+    </div>
+
+    <div class="wahl">
+      <div class="karte">
+        <span class="etikett">1 · Dein Coach</span>
+        <div class="opt" role="radiogroup" aria-label="Stufe">
+          <button class="o" role="radio" data-stufe="plus"><span class="n"><span>Plus</span><span data-preis="plus"></span></span>
+            <small>Dein Coach im Chat, der einträgt und plant. Essen per Sprache, Text, Foto und Barcode. Bis zu 250 KI Nachrichten im Monat.</small></button>
+          <button class="o" role="radio" data-stufe="pro"><span class="n"><span>Pro<span class="band">Für echte Ergebnisse</span></span><span data-preis="pro"></span></span>
+            <small>Alles aus Plus. Dazu 7 Tage Essensplan mit Einkaufsliste, ein Trainingsplan, der nach acht Wochen mitwächst, und bis zu 700 KI Nachrichten.</small></button>
+        </div>
+      </div>
+      <div class="karte">
+        <span class="etikett">2 · Zahlweise</span>
+        <div class="opt zwei" role="radiogroup" aria-label="Zahlweise">
+          <button class="o" role="radio" data-takt="jahr"><span class="n"><span>Jährlich</span><span data-spar></span></span><small>Einmal im Jahr zahlen.</small></button>
+          <button class="o" role="radio" data-takt="monat"><span class="n"><span>Monatlich</span><span></span></span><small>Jeden Monat kündbar.</small></button>
+        </div>
+      </div>
+      <div class="karte">
+        <span class="etikett">3 · Schon dabei, ohne Aufpreis</span>
+        <div class="opt">
+          <button class="o" role="switch" data-extra="uhr"><span class="n"><span>Apple Watch</span><span>+ 0,00 €</span></span><small>Offene Kalorien am Handgelenk, Training mit Krone und Pause, die vibriert.</small></button>
+          <button class="o" role="switch" data-extra="kalender"><span class="n"><span>Kalender und Aufgaben</span><span>+ 0,00 €</span></span><small>daevo legt Training und Aufgaben in deine freien Lücken.</small></button>
+        </div>
+      </div>
+      <div class="karte">
+        <span class="etikett">Dein Preis</span>
+        <div class="rechnung" id="rechnung"></div>
+        <div class="summe"><span class="leise">nach den 7 Tagen</span><span class="zahl"><span id="summe">0,00</span> €<small>pro Monat</small></span></div>
+        <p class="summe-zeile" id="summeZeile"></p>
+        <a class="knopf gross" data-store href="#">7 Tage kostenlos testen</a>
+        <p class="frei">Jederzeit kündbar. Preise inklusive Mehrwertsteuer.</p>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+<section id="vorteile"><div class="breite">
+  <div class="kopfzeile"><span class="etikett">Warum daevo</span>
+    <h2 style="margin-top:14px">Drei Dinge, die andere Fitness Apps nicht tun.</h2></div>
+  <div class="drei">
+    <div class="vorteil"><div class="nr">01</div><h3>Er handelt, statt nur zu antworten.</h3>
+      <p>Sag, was du gegessen hast oder was morgen ansteht. daevo trägt es ein, legt dein Training in freie Zeit und erinnert dich, wenn es zählt.</p>
+      <p class="gegen">Andere Apps: Du tippst, suchst und planst selbst.</p></div>
+    <div class="vorteil"><div class="nr">02</div><h3>Echte Zahlen statt KI Schätzung.</h3>
+      <p>Kalorien, Zeiten und Pläne rechnet daevo selbst aus deinen Daten. Die KI formuliert, sie erfindet keine Zahlen. Was daevo nicht weiß, fragt es.</p>
+      <p class="gegen">Andere Apps: Ein Chatbot rät deine Werte.</p></div>
+    <div class="vorteil"><div class="nr">03</div><h3>Dein ganzer Tag, nicht nur dein Training.</h3>
+      <p>Kurze Nacht oder voller Kalender? daevo passt Training und Essen an. Das Balance Board zeigt dir, wofür deine Zeit wirklich draufgeht.</p>
+      <p class="gegen">Andere Apps: Ein Plan, der deinen Alltag nicht kennt.</p></div>
+  </div>
+</div></section>
+
+<section id="probe"><div class="breite">
+  <div class="kopfzeile"><span class="etikett">Ausprobieren</span>
+    <h2 style="margin-top:14px">Fass die App an, bevor du sie lädst.</h2>
+    <p>Vier Seiten aus daevo, hier zum Tippen. Alles hängt zusammen: Was du im Chat einträgst, steht danach auf Heute.</p></div>
+  <div class="probe">
+    <div>
+      <div class="reiter" role="tablist" id="reiter">
+        <button role="tab" data-sicht="assistent">Assistent</button>
+        <button role="tab" data-sicht="heute">Heute</button>
+        <button role="tab" data-sicht="training">Training</button>
+        <button role="tab" data-sicht="balance">Balance</button>
+      </div>
+      <div class="erkl" id="erkl"></div>
+    </div>
+    <div class="telefon"><div class="schirm">
+      <div class="insel"></div>
+      <div class="status"><span>8:12</span><span>daevo</span></div>
+      <div class="sicht" id="sicht"></div>
+      <div class="blatt" id="blatt" hidden></div>
+    </div></div>
+  </div>
+</div></section>
+
+<div class="schluss"><div class="breite">
+  <span class="etikett">Dein nächstes Level</span>
+  <h2 style="margin-top:14px">Heute anfangen.<br><span class="blau">7 Tage kostenlos.</span></h2>
+  <p>Lad daevo, beantworte eine Frage pro Seite und hab deinen Coach ab heute dabei.</p>
+  <a class="knopf gross" data-store href="#">7 Tage kostenlos testen</a>
+</div></div>
+</main>
+
+<footer><div class="breite">
+  <a href="https://daevo.pages.dev/rechtliches/impressum.html">Impressum</a>
+  <a href="https://daevo.pages.dev/rechtliches/datenschutz.html">Datenschutz</a>
+  <a href="https://www.daevo.de">daevo.de</a>
+  <p>Beispielseite. Tage, Termine und Gespräche sind Beispiele. Kein Ersatz für ärztlichen oder therapeutischen Rat. „Bis zu“ heißt: lange Gespräche und viele Fotos verbrauchen mehr als kurze Nachrichten. In der iPhone App laufen Käufe über den App Store.</p>
+</div></footer>
+
+<div class="leiste"><div class="breite">
+  <div class="was"><b id="lName">daevo Pro</b><span id="lTakt">jährlich</span></div>
+  <div class="rechts"><span class="preis"><span id="lPreis">0,00</span> €<small>pro Monat</small></span>
+    <a class="knopf" data-store href="#">Testen</a></div>
+</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+"use strict";
+/* ------------------------------------------------------------------
+   Hier den Link aus App Store Connect eintragen, sobald die App live ist.
+   Solange das Feld leer ist, führen alle Knöpfe zur Web Demo.
+   ------------------------------------------------------------------ */
+const APP_STORE_URL = "";
+const DEMO_URL = "https://daevo.pages.dev";
+
+const PREISE = { plus: { monat: 1199, jahr: 9999 }, pro: { monat: 1999, jahr: 15999 } };
+const wahl = { stufe: "pro", takt: "jahr", uhr: true, kalender: true };
+const $ = (id) => document.getElementById(id);
+const euro = (cent) => (cent / 100).toFixed(2).replace(".", ",");
+const reduziert = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+document.querySelectorAll("[data-store]").forEach((a) => {
+  a.href = APP_STORE_URL || DEMO_URL; a.target = "_blank"; a.rel = "noopener";
+});
+
+/* ---------- Preis ---------- */
+const lauf = new Map();
+function zaehle(el, ziel) {
+  const von = lauf.get(el) ?? ziel; lauf.set(el, ziel);
+  if (reduziert || von === ziel) { el.textContent = euro(ziel); return; }
+  const t0 = performance.now();
+  (function schritt(t) {
+    if (lauf.get(el) !== ziel) return;
+    const k = Math.min(1, (t - t0) / 450), e = 1 - Math.pow(1 - k, 3);
+    el.textContent = euro(Math.round(von + (ziel - von) * e));
+    if (k < 1) requestAnimationFrame(schritt);
+  })(t0);
+}
+function monatlich(stufe, takt) { return takt === "jahr" ? Math.round(PREISE[stufe].jahr / 12) : PREISE[stufe].monat; }
+function preisZeigen() {
+  const { stufe, takt } = wahl, p = PREISE[stufe];
+  const proMonat = monatlich(stufe, takt);
+  const zeilen = [["daevo Plus", euro(PREISE.plus.monat) + " €"]];
+  if (stufe === "pro") zeilen.push(["Upgrade auf Pro", "+ " + euro(PREISE.pro.monat - PREISE.plus.monat) + " €"]);
+  if (takt === "jahr") zeilen.push(["Jährlich zahlen", "− " + euro(p.monat - proMonat) + " €", "weg"]);
+  if (wahl.uhr) zeilen.push(["Apple Watch", "+ 0,00 €"]);
+  if (wahl.kalender) zeilen.push(["Kalender und Aufgaben", "+ 0,00 €"]);
+  $("rechnung").innerHTML = zeilen.map((z) => `<div class="${z[2] || ""}"><span>${z[0]}</span><span>${z[1]}</span></div>`).join("");
+  zaehle($("summe"), proMonat); zaehle($("lPreis"), proMonat);
+  $("summeZeile").textContent = takt === "jahr"
+    ? `${euro(p.jahr)} € im Jahr, statt ${euro(p.monat * 12)} €. Die ersten 7 Tage kosten nichts.`
+    : `${euro(p.monat)} € im Monat. Die ersten 7 Tage kosten nichts.`;
+  $("lName").textContent = "daevo " + (stufe === "pro" ? "Pro" : "Plus");
+  $("lTakt").textContent = (takt === "jahr" ? "jährlich" : "monatlich") + ", 7 Tage kostenlos";
+  document.querySelectorAll("[data-preis]").forEach((el) => { el.textContent = euro(monatlich(el.dataset.preis, takt)) + " €"; });
+  const spar = Math.floor((1 - p.jahr / (p.monat * 12)) * 100);
+  document.querySelector("[data-spar]").textContent = spar + " % sparen";
+  document.querySelectorAll("[data-stufe]").forEach((b) => b.setAttribute("aria-checked", b.dataset.stufe === stufe));
+  document.querySelectorAll("[data-takt]").forEach((b) => b.setAttribute("aria-checked", b.dataset.takt === takt));
+  document.querySelectorAll("[data-extra]").forEach((b) => b.setAttribute("aria-checked", !!wahl[b.dataset.extra]));
+  const m = [stufe === "pro" ? "<b>Pro</b> · Ring mit Essensplan, Planwachstum, Rückblick" : "<b>Plus</b>",
+    takt === "jahr" ? "<b>12</b> Monate" : "<b>1</b> Monat"];
+  if (wahl.uhr) m.push("Apple Watch"); if (wahl.kalender) m.push("Kalender");
+  $("marken").innerHTML = m.map((t) => `<span class="marke">${t}</span>`).join("");
+  if (window.modellNeu) window.modellNeu();
+}
+document.querySelector(".wahl").addEventListener("click", (e) => {
+  const b = e.target.closest(".o"); if (!b) return;
+  if (b.dataset.stufe) wahl.stufe = b.dataset.stufe;
+  if (b.dataset.takt) wahl.takt = b.dataset.takt;
+  if (b.dataset.extra) wahl[b.dataset.extra] = !wahl[b.dataset.extra];
+  preisZeigen();
+});
+
+/* ---------- 3D Modell ---------- */
+(function modell() {
+  const canvas = $("modell");
+  if (!window.THREE) { canvas.parentNode.querySelector(".hinweis").textContent = "3D Modell braucht eine Internetverbindung."; return; }
+  let renderer;
+  try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true }); }
+  catch (e) { $("dreh").textContent = "Dein Browser zeigt kein 3D."; return; }
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+  const szene = new THREE.Scene();
+  const kamera = new THREE.PerspectiveCamera(32, 1, 0.1, 50);
+  kamera.position.set(0, 0.15, 10.4);
+  szene.add(new THREE.AmbientLight(0xbfd8ea, 0.5));
+  const l1 = new THREE.DirectionalLight(0xffffff, 0.75); l1.position.set(3, 5, 6); szene.add(l1);
+  const l2 = new THREE.PointLight(0x96d8f0, 0.7, 14); l2.position.set(-3.5, 1, 3); szene.add(l2);
+  const l3 = new THREE.PointLight(0x4fb4dc, 0.9, 12); l3.position.set(3, -2, -3); szene.add(l3);
+
+  const alles = new THREE.Group(); szene.add(alles);
+  const BLAU = 0x96d8f0;
+  const metall = new THREE.MeshStandardMaterial({ color: 0x1a222d, metalness: 0.75, roughness: 0.32 });
+  const dunkel = new THREE.MeshStandardMaterial({ color: 0x0e1116, metalness: 0.3, roughness: 0.6 });
+
+  function rund(w, h, r, tiefe, fase) {
+    const s = new THREE.Shape(), x = -w / 2, y = -h / 2;
+    s.moveTo(x + r, y); s.lineTo(x + w - r, y); s.quadraticCurveTo(x + w, y, x + w, y + r);
+    s.lineTo(x + w, y + h - r); s.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    s.lineTo(x + r, y + h); s.quadraticCurveTo(x, y + h, x, y + h - r);
+    s.lineTo(x, y + r); s.quadraticCurveTo(x, y, x + r, y);
+    const g = new THREE.ExtrudeGeometry(s, { depth: tiefe, bevelEnabled: true, bevelThickness: fase, bevelSize: fase, bevelSegments: 4, curveSegments: 18 });
+    g.translate(0, 0, -tiefe / 2); return g;
+  }
+  function leinwand(w, h) { const c = document.createElement("canvas"); c.width = w; c.height = h; return c; }
+  function rr(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+
+  /* Telefon */
+  const telefon = new THREE.Group(); alles.add(telefon);
+  telefon.add(new THREE.Mesh(rund(1.72, 3.5, 0.3, 0.16, 0.035), metall));
+  const sc = leinwand(512, 1060), sg = sc.getContext("2d");
+  const sTex = new THREE.CanvasTexture(sc); sTex.anisotropy = 4;
+  const schirm = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 3.38), new THREE.MeshBasicMaterial({ map: sTex, transparent: true }));
+  schirm.position.z = 0.118; telefon.add(schirm);
+  const knopf = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.42, 0.07), metall); knopf.position.set(0.885, 0.6, 0); telefon.add(knopf);
+  const linse = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.05, 32), dunkel); linse.rotation.x = Math.PI / 2; linse.position.set(-0.45, 1.25, -0.125); telefon.add(linse);
+
+  function schirmMalen() {
+    const g = sg, W = 512, H = 1060; g.clearRect(0, 0, W, H);
+    rr(g, 0, 0, W, H, 78); g.save(); g.clip();
+    const v = g.createLinearGradient(0, 0, 0, H); v.addColorStop(0, "#0e1116"); v.addColorStop(0.55, "#0e1116"); v.addColorStop(1, "#12364a");
+    g.fillStyle = v; g.fillRect(0, 0, W, H);
+    g.fillStyle = "#000"; rr(g, W / 2 - 62, 22, 124, 36, 18); g.fill();
+    g.fillStyle = "#e8f3f8"; g.font = "600 24px Poppins, sans-serif"; g.textAlign = "left"; g.fillText("8:12", 40, 50);
+    g.textAlign = "right"; g.fillStyle = "#96d8f0"; g.font = "600 20px Poppins, sans-serif"; g.fillText(wahl.stufe === "pro" ? "PRO" : "PLUS", W - 40, 50);
+    g.textAlign = "center"; g.fillStyle = "#e8f3f8"; g.font = "600 40px Poppins, sans-serif"; g.fillText("Guten Morgen.", W / 2, 560);
+    g.fillStyle = "#8494a6"; g.font = "24px 'DM Sans', sans-serif"; g.fillText("Wie kann ich dir weiterhelfen?", W / 2, 604);
+    let y = 660;
+    const karte = (a, b) => { g.fillStyle = "rgba(255,255,255,.06)"; rr(g, 40, y, W - 80, 74, 22); g.fill();
+      g.textAlign = "left"; g.fillStyle = "#96d8f0"; g.font = "600 22px Poppins, sans-serif"; g.fillText(a, 62, y + 46);
+      g.fillStyle = "#dfe5ea"; g.font = "22px 'DM Sans', sans-serif"; g.fillText(b, 150, y + 46); y += 86; };
+    if (wahl.kalender) { karte("9:00", "Fokus: Angebot"); karte("17:30", "Krafttraining"); }
+    if (wahl.stufe === "pro") karte("Plan", "Essensplan für 7 Tage");
+    g.fillStyle = "#151c26"; rr(g, 40, H - 120, W - 80, 72, 36); g.fill();
+    g.textAlign = "left"; g.fillStyle = "#8494a6"; g.font = "24px 'DM Sans', sans-serif"; g.fillText("Schreib oder sprich", 72, H - 75);
+    g.fillStyle = "#96d8f0"; g.beginPath(); g.arc(W - 78, H - 84, 26, 0, 7); g.fill();
+    g.restore(); sTex.needsUpdate = true;
+  }
+
+  /* Das d aus dem Logo, als Körper: Ring über 280 Grad, Stamm trifft ihn auf drei Uhr */
+  const dMat = new THREE.MeshLambertMaterial({ color: 0x6fc6ea, emissive: 0x1e7fa8, emissiveIntensity: 0.2 });
+  const d = new THREE.Group(); const R = 0.36, T = R * 0.326;
+  const bogen = new THREE.Mesh(new THREE.TorusGeometry(R, T, 24, 120, 280 * Math.PI / 180), dMat); bogen.rotation.z = -190 * Math.PI / 180; d.add(bogen);
+  [90, 170].forEach((w) => { const k = new THREE.Mesh(new THREE.SphereGeometry(T, 24, 16), dMat); const a = w * Math.PI / 180; k.position.set(Math.cos(a) * R, Math.sin(a) * R, 0); d.add(k); });
+  const hoch = R * 2.107;
+  const stamm = new THREE.Mesh(new THREE.CylinderGeometry(T, T, hoch, 24), dMat); stamm.position.set(R, hoch / 2, 0); d.add(stamm);
+  const kappe = new THREE.Mesh(new THREE.SphereGeometry(T, 24, 16), dMat); kappe.position.set(R, hoch, 0); d.add(kappe);
+  d.position.set(-0.17, 0.62, 0.5); telefon.add(d);
+  const schein = new THREE.PointLight(BLAU, 0.5, 3.2); schein.position.set(0, 0.2, 1.4); telefon.add(schein);
+
+  /* Pro: Umlaufbahn mit drei Begleitern */
+  const pro = new THREE.Group(); alles.add(pro); pro.rotation.set(1.18, 0, 0.32);
+  pro.add(new THREE.Mesh(new THREE.TorusGeometry(2.55, 0.012, 8, 160), new THREE.MeshBasicMaterial({ color: BLAU, transparent: true, opacity: 0.55 })));
+  const begleiter = [0, 1, 2].map((i) => { const m = new THREE.Mesh(new THREE.SphereGeometry(0.075, 24, 16), new THREE.MeshBasicMaterial({ color: [0x8fe0c4, 0xa9b4f5, 0xe9a8c8][i] })); pro.add(m); return m; });
+  const staubN = 260, staubP = new Float32Array(staubN * 3);
+  for (let i = 0; i < staubN; i++) { const a = Math.random() * Math.PI * 2, r = 2.55 + (Math.random() - 0.5) * 0.34; staubP[i * 3] = Math.cos(a) * r; staubP[i * 3 + 1] = Math.sin(a) * r; staubP[i * 3 + 2] = (Math.random() - 0.5) * 0.2; }
+  const staubG = new THREE.BufferGeometry(); staubG.setAttribute("position", new THREE.BufferAttribute(staubP, 3));
+  const staub = new THREE.Points(staubG, new THREE.PointsMaterial({ color: BLAU, size: 0.035, transparent: true, opacity: 0.7 })); pro.add(staub);
+
+  /* Zahlweise: zwölf Monate als Perlen am Boden */
+  const monate = new THREE.Group(); alles.add(monate); monate.position.y = -2.2;
+  const perlen = []; for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2 - Math.PI / 2;
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.075, 20, 14), new THREE.MeshStandardMaterial({ color: 0x273240, emissive: BLAU, emissiveIntensity: 0, roughness: 0.4 }));
+    m.position.set(Math.cos(a) * 1.75, 0, -Math.sin(a) * 1.75); monate.add(m); perlen.push(m); }
+  const teller = new THREE.Mesh(new THREE.TorusGeometry(1.75, 0.008, 6, 120), new THREE.MeshBasicMaterial({ color: 0x273240 })); teller.rotation.x = Math.PI / 2; monate.add(teller);
+
+  /* Apple Watch */
+  const uhr = new THREE.Group(); alles.add(uhr); uhr.position.set(1.95, -0.75, 0.35); uhr.rotation.y = -0.35;
+  uhr.add(new THREE.Mesh(rund(0.74, 0.88, 0.2, 0.2, 0.03), metall));
+  const band = new THREE.MeshStandardMaterial({ color: 0x232c38, roughness: 0.85 });
+  [1, -1].forEach((s) => { const b = new THREE.Mesh(rund(0.56, 0.7, 0.1, 0.07, 0.01), band); b.position.set(0, s * 0.78, -0.03); b.rotation.x = s * -0.22; uhr.add(b); });
+  const krone = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.07, 20), metall); krone.rotation.z = Math.PI / 2; krone.position.set(0.43, 0.16, 0); uhr.add(krone);
+  const uc = leinwand(256, 304), ug = uc.getContext("2d"), uTex = new THREE.CanvasTexture(uc);
+  const uSchirm = new THREE.Mesh(new THREE.PlaneGeometry(0.66, 0.8), new THREE.MeshBasicMaterial({ map: uTex, transparent: true })); uSchirm.position.z = 0.135; uhr.add(uSchirm);
+  function uhrMalen() { const g = ug; g.clearRect(0, 0, 256, 304); rr(g, 0, 0, 256, 304, 62); g.fillStyle = "#000"; g.fill();
+    g.lineWidth = 16; g.lineCap = "round"; g.strokeStyle = "#1c2430"; g.beginPath(); g.arc(128, 142, 78, 0, 7); g.stroke();
+    g.strokeStyle = "#96d8f0"; g.beginPath(); g.arc(128, 142, 78, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * 0.71); g.stroke();
+    g.fillStyle = "#e8f3f8"; g.textAlign = "center"; g.font = "600 52px Poppins, sans-serif"; g.fillText("730", 128, 156);
+    g.fillStyle = "#8494a6"; g.font = "20px 'DM Sans', sans-serif"; g.fillText("kcal offen", 128, 186); g.fillStyle = "#96d8f0"; g.fillText("56 g Eiweiß", 128, 270); uTex.needsUpdate = true; }
+
+  /* Kalender: schwebende Terminkarten */
+  const kal = new THREE.Group(); alles.add(kal); kal.position.set(-2.0, 0.25, 0.25); kal.rotation.y = 0.4;
+  const glas = new THREE.MeshStandardMaterial({ color: 0x1c2733, transparent: true, opacity: 0.82, roughness: 0.35, metalness: 0.2 });
+  const karten = [[0.95, 0.9, BLAU], [0.2, 0.55, 0xa9b4f5], [-0.5, 0.75, 0x8fe0c4]].map(([y, w, f], i) => { const k = new THREE.Group();
+    k.add(new THREE.Mesh(rund(1.15, 0.52, 0.11, 0.04, 0.008), glas));
+    const s = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.34, 0.06), new THREE.MeshBasicMaterial({ color: f })); s.position.x = -0.45; k.add(s);
+    const z1 = new THREE.Mesh(new THREE.BoxGeometry(w, 0.07, 0.055), new THREE.MeshBasicMaterial({ color: 0xdfe5ea })); z1.position.set(-0.33 + w / 2, 0.08, 0); k.add(z1);
+    const z2 = new THREE.Mesh(new THREE.BoxGeometry(w * 0.6, 0.05, 0.055), new THREE.MeshBasicMaterial({ color: 0x5b6a7a })); z2.position.set(-0.33 + w * 0.3, -0.09, 0); k.add(z2);
+    k.position.set(i * 0.12, y, i * -0.18); k.userData.y = y; kal.add(k); return k; });
+
+  const ziel = new Map([[pro, 1], [uhr, 1], [kal, 1]]);
+  [pro, uhr, kal].forEach((g) => g.scale.setScalar(0.001));
+  window.modellNeu = function () {
+    ziel.set(pro, wahl.stufe === "pro" ? 1 : 0); ziel.set(uhr, wahl.uhr ? 1 : 0); ziel.set(kal, wahl.kalender ? 1 : 0);
+    schirmMalen(); uhrMalen();
+  };
+  window.modellNeu();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { schirmMalen(); uhrMalen(); });
+
+  /* Drehen mit Maus oder Finger */
+  let rotY = -0.3, rotX = 0.08, vY = 0, zieht = false, lx = 0, ly = 0, letzte = 0, quer = false;
+  canvas.addEventListener("pointerdown", (e) => { zieht = true; quer = false; lx = e.clientX; ly = e.clientY; canvas.classList.add("zieht"); try { canvas.setPointerCapture(e.pointerId); } catch (_) {} $("dreh").style.opacity = 0; });
+  canvas.addEventListener("pointermove", (e) => { if (!zieht) return; const dx = e.clientX - lx, dy = e.clientY - ly; lx = e.clientX; ly = e.clientY;
+    rotY += dx * 0.009; vY = dx * 0.009; if (e.pointerType === "mouse") rotX = Math.max(-0.5, Math.min(0.5, rotX + dy * 0.005)); letzte = performance.now(); });
+  const los = () => { zieht = false; canvas.classList.remove("zieht"); letzte = performance.now(); };
+  canvas.addEventListener("pointerup", los); canvas.addEventListener("pointercancel", los);
+
+  function groesse() { const w = canvas.clientWidth, h = canvas.clientHeight; if (!w || !h) return;
+    renderer.setSize(w, h, false); kamera.aspect = w / h;
+    kamera.position.z = w / h < 0.95 ? 10.4 / Math.max(0.55, w / h) * 0.86 : 10.4; kamera.updateProjectionMatrix(); }
+  new ResizeObserver(groesse).observe(canvas); groesse();
+  let sichtbar = true; new IntersectionObserver((e) => { sichtbar = e[0].isIntersecting; }).observe(canvas);
+
+  let vor = performance.now(), hell = 0;
+  function bild(t) {
+    requestAnimationFrame(bild); if (!sichtbar) { vor = t; return; }
+    const dt = Math.min(0.05, (t - vor) / 1000); vor = t; const s = t / 1000;
+    if (!zieht) { if (Math.abs(vY) > 0.0005) { rotY += vY; vY *= 0.93; } else if (!reduziert && t - letzte > 900) rotY += dt * 0.28; }
+    alles.rotation.y = rotY; alles.rotation.x = rotX;
+    alles.position.y = reduziert ? 0.1 : 0.1 + Math.sin(s * 0.9) * 0.05;
+    d.position.y = 0.62 + (reduziert ? 0 : Math.sin(s * 1.4) * 0.05); d.rotation.y = reduziert ? 0 : Math.sin(s * 0.7) * 0.25;
+    const proAn = wahl.stufe === "pro";
+    dMat.emissiveIntensity += ((proAn ? 0.45 : 0.2) - dMat.emissiveIntensity) * 0.08; schein.intensity = proAn ? 0.25 : 0.08;
+    ziel.forEach((z, g) => { const a = g.scale.x + (Math.max(z, 0.001) - g.scale.x) * 0.12; g.scale.setScalar(a); g.visible = a > 0.01; });
+    begleiter.forEach((m, i) => { const a = s * 0.5 + i * Math.PI * 2 / 3; m.position.set(Math.cos(a) * 2.55, Math.sin(a) * 2.55, 0); });
+    staub.rotation.z = -s * 0.06;
+    const an = wahl.takt === "jahr" ? 12 : 1; hell += ((an) - hell) * 0.08;
+    perlen.forEach((p, i) => { const k = Math.max(0, Math.min(1, hell - i)); p.material.emissiveIntensity = k * (0.5 + (reduziert ? 0 : Math.sin(s * 2 - i * 0.5) * 0.2)); p.material.color.setHex(k > 0.5 ? 0x4fa9cf : 0x273240); p.scale.setScalar(1 + k * 0.25); });
+    karten.forEach((k, i) => { k.position.y = k.userData.y + (reduziert ? 0 : Math.sin(s * 1.1 + i * 1.7) * 0.05); });
+    uhr.position.y = -0.75 + (reduziert ? 0 : Math.sin(s * 1.2 + 1) * 0.05);
+    renderer.render(szene, kamera);
+  }
+  requestAnimationFrame(bild);
+})();
+
+/* ---------- Die App zum Anfassen ---------- */
+const Z = { kcal: 2520, p: 160, f: 80, k: 290, wasser: 3200 };
+const tag = { wasser: 1000, essen: [
+  { n: "Skyr mit Beeren und Haferflocken", zeit: "7:40", p: 38, f: 9, k: 62 },
+  { n: "Hähnchen, Reis, Brokkoli", zeit: "12:30", p: 52, f: 21, k: 98 },
+  { n: "Banane und Erdnussbutter", zeit: "15:10", p: 14, f: 32, k: 44 },
+] };
+const VORSCHLAG = [
+  { n: "Lachs Bowl mit Reis und Avocado", p: 34, f: 26, k: 54 },
+  { n: "Skyr mit Beeren", p: 25, f: 1, k: 20 },
+  { n: "Proteinshake", p: 24, f: 2, k: 4 },
+];
+const kcalVon = (e) => e.p * 4 + e.f * 9 + e.k * 4;
+function stand() { const s = { kcal: 0, p: 0, f: 0, k: 0 }; tag.essen.forEach((e) => { s.kcal += kcalVon(e); s.p += e.p; s.f += e.f; s.k += e.k; }); return s; }
+const liter = (ml) => (ml / 1000).toFixed(1).replace(".", ",");
+const jetzt = () => "jetzt";
+const HAKEN = '<svg viewBox="0 0 24 24" fill="none" stroke="#0b0d10" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+const sicht = $("sicht"), blatt = $("blatt");
+let aktiv = "assistent", orbLauf = 0, pauseT = 0;
+const chat = [];
+const train = { kurz: false, ueb: [
+  { n: "Kniebeuge", s: 3, w: 8, kg: 80 }, { n: "Hip Thrust", s: 2, w: 10, kg: 90 },
+  { n: "Bankdrücken", s: 3, w: 8, kg: 70 }, { n: "Rudern am Kabel", s: 3, w: 10, kg: 55 } ], ok: {}, pauseBis: 0 };
+const bal = [ { n: "Karriere", soll: 40, ist: 46, f: "#96d8f0" }, { n: "Fitness", soll: 6, ist: 5, f: "#8fe0c4" },
+  { n: "Wellbeing", soll: 5, ist: 3, f: "#a9b4f5" }, { n: "Me Time", soll: 7, ist: 2, f: "#e9a8c8" }, { n: "Familie", soll: 10, ist: 6, f: "#c7a9f5" } ];
+const ERKL = {
+  assistent: ["Die App öffnet mit deinem Coach.", "Kein Dashboard, keine Menüs. Du sagst, was los ist, und daevo erledigt es. In der App sprichst du einfach.", "Tipp auf einen Vorschlag oder schreib „500 ml Wasser“."],
+  heute: ["Dein Tag in einem Blick.", "Offene Kalorien, Makros und Wasser. Jede Zahl ist gerechnet: Kalorien = Protein × 4 + Fett × 9 + Kohlenhydrate × 4.", "Trag Wasser oder eine Mahlzeit ein und sieh den Ring laufen."],
+  training: ["Training nach Tagesform.", "Sätze abhaken, Pause läuft von selbst. Nach einer kurzen Nacht kürzt daevo die Sätze und lässt mehr Reserve.", "Hak einen Satz ab. Dann schalte „Kurze Nacht“ ein."],
+  balance: ["Wofür lebst du eigentlich?", "Fünf Lebensbereiche, Ziel gegen echte Woche. Die gestrichelte Form ist dein Ziel, die gefüllte dein Stand.", "Gib einem Bereich mehr Stunden und sieh die Form wachsen."],
+};
+
+function zeige(name) {
+  aktiv = name; cancelAnimationFrame(orbLauf); blatt.hidden = true;
+  document.querySelectorAll("#reiter button").forEach((b) => b.setAttribute("aria-selected", b.dataset.sicht === name));
+  const e = ERKL[name]; $("erkl").innerHTML = `<h3>${e[0]}</h3><p>${e[1]}</p><p class="tu">${e[2]}</p>`;
+  sicht.style.animation = "none"; void sicht.offsetWidth; sicht.style.animation = "";
+  ({ assistent: sAssistent, heute: sHeute, training: sTraining, balance: sBalance })[name]();
+}
+$("reiter").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) zeige(b.dataset.sicht); });
+
+/* Assistent */
+function sAssistent() {
+  sicht.innerHTML = `<div class="a-orb"><canvas id="orb" width="300" height="300"></canvas></div>
+    <div class="a-gruss"><b>Guten Morgen.</b><span class="s-unter">Wie kann ich dir weiterhelfen?</span></div>
+    <div class="chat" id="chat"></div>
+    <div class="chips"><button data-frage="Wie stehe ich?">Wie stehe ich?</button><button data-frage="Was essen?">Was essen?</button><button data-frage="500 ml Wasser">500 ml Wasser</button></div>
+    <form class="pille" id="eing"><input id="feld" placeholder="Schreib oder sprich" autocomplete="off" enterkeyhint="send"><button aria-label="Senden"><svg viewBox="0 0 24 24" fill="none" stroke="#0b0d10" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5.5 11.5L12 5l6.5 6.5"/></svg></button></form>`;
+  chatMalen(); orb();
+  sicht.querySelector(".chips").onclick = (e) => { const b = e.target.closest("button"); if (b) frage(b.dataset.frage); };
+  $("eing").onsubmit = (e) => { e.preventDefault(); const t = $("feld").value.trim(); if (t) { $("feld").value = ""; frage(t); } };
+  $("chat").onclick = (e) => { const b = e.target.closest("[data-essen]"); if (!b) return;
+    tag.essen.push({ ...VORSCHLAG[+b.dataset.essen], zeit: jetzt() }); const s = stand();
+    chat.push({ er: `Eingetragen. Offen sind noch ${Math.max(0, Z.kcal - s.kcal)} kcal und ${Math.max(0, Z.p - s.p)} g Protein.`, verm: "Steht jetzt auf Heute" }); chatMalen(); };
+}
+function chatMalen() {
+  const c = $("chat"); if (!c) return; sicht.classList.toggle("hat-chat", chat.length > 0);
+  c.innerHTML = chat.map((m) => m.ich ? `<div class="b ich">${m.ich}</div>`
+    : `<div class="b er">${m.er}${m.essen != null ? `<br><button class="tun" data-essen="${m.essen}">Eintragen</button>` : ""}${m.verm ? `<span class="verm">✓ ${m.verm}</span>` : ""}</div>`).join("");
+  c.scrollTop = c.scrollHeight;
+}
+function frage(t) {
+  const sauber = t.replace(/[<>&]/g, ""); chat.push({ ich: sauber }); const s = stand(), kl = sauber.toLowerCase();
+  const ml = kl.match(/(\d+(?:[.,]\d+)?)\s*(ml|l\b|liter)/);
+  let a;
+  if (ml && /wasser|trink|getrunken|ml|liter/.test(kl)) { const menge = Math.round(parseFloat(ml[1].replace(",", ".")) * (ml[2] === "ml" ? 1 : 1000));
+    if (menge > 0 && menge <= 3000) { tag.wasser += menge; a = { er: `${menge} ml Wasser eingetragen. Du bist bei ${liter(tag.wasser)} von ${liter(Z.wasser)} Litern.`, verm: "Steht jetzt auf Heute" }; }
+    else a = { er: "Die Menge kommt mir nicht richtig vor. Wie viel war es?" }; }
+  else if (/steh|stand|offen|bilanz/.test(kl)) a = { er: `Du hast ${s.kcal} von ${Z.kcal} kcal und ${s.p} von ${Z.p} g Protein. Offen sind ${Math.max(0, Z.kcal - s.kcal)} kcal. Wasser: ${liter(tag.wasser)} von ${liter(Z.wasser)} Litern. Training steht um 17:30.` };
+  else if (/essen|hunger|rezept|koch/.test(kl)) { const offen = Z.kcal - s.kcal; const i = offen >= 500 ? 0 : offen >= 180 ? 1 : 2; const v = VORSCHLAG[i];
+    a = offen <= 100 ? { er: "Dein Tagesziel ist erreicht. Wenn du noch Hunger hast: etwas Leichtes mit Protein." }
+      : { er: `Offen sind ${offen} kcal und ${Math.max(0, Z.p - s.p)} g Protein. Mein Vorschlag: ${v.n}, ${kcalVon(v)} kcal, ${v.p} g Protein.`, essen: i }; }
+  else a = { er: "Das hier ist eine Vorschau mit drei Beispielen. In der App antwortet dein Coach auf alles: Essen, Training, Kalender und was dir im Kopf herumgeht." };
+  chatMalen(); setTimeout(() => { chat.push(a); if (aktiv === "assistent") chatMalen(); }, 450);
+}
+function orb() {
+  const c = $("orb"); if (!c) return; const g = c.getContext("2d"), P = [];
+  const R = 62, T = 20, cx = 132, cy = 178;
+  for (let i = 0; i < 1500; i++) { const stammTeil = i % 4 === 0, q = (Math.random() + Math.random() - 1) * T, ph = Math.random() * 6.28;
+    if (stammTeil) P.push({ s: 1, x: cx + R + q, y: cy - Math.random() * R * 2.1, ph });
+    else { const a = (90 - Math.random() * 280) * Math.PI / 180; P.push({ s: 0, a, r: R + q, ph }); } }
+  (function mal(t) { if (!c.isConnected) return; orbLauf = requestAnimationFrame(mal); const s = reduziert ? 0 : t / 1000;
+    g.clearRect(0, 0, 300, 300); g.fillStyle = "#96d8f0";
+    for (const p of P) { const w = Math.sin(s * 1.6 + p.ph) * 2.2; let x, y;
+      if (p.s) { x = p.x + w; y = p.y; } else { x = cx + Math.cos(p.a) * (p.r + w); y = cy - Math.sin(p.a) * (p.r + w); }
+      g.globalAlpha = 0.35 + 0.45 * (0.5 + 0.5 * Math.sin(s * 2 + p.ph * 3)); g.fillRect(x, y, 1.6, 1.6); }
+    g.globalAlpha = 1; })(0);
+}
+
+/* Heute */
+function sHeute() {
+  const s = stand(), U = 2 * Math.PI * 70, offen = Z.kcal - s.kcal, teil = Math.min(1, s.kcal / Z.kcal);
+  const balken = (n, w, z, f) => `<div><div class="z"><span>${n}</span><span>${w} / ${z} g</span></div><div class="bal"><i style="width:${Math.min(100, w / z * 100)}%;background:${f}"></i></div></div>`;
+  sicht.innerHTML = `<div class="s-titel">Heute</div><div class="s-unter">Beispieltag</div>
+    <div class="ring"><svg viewBox="0 0 160 160"><circle class="spur" cx="80" cy="80" r="70"/><circle class="wert" cx="80" cy="80" r="70" stroke-dasharray="${U}" stroke-dashoffset="${U * (1 - teil)}" ${offen < 0 ? 'style="stroke:#e9a8c8"' : ""}/></svg>
+      <div><b>${Math.abs(offen)}</b><span>${offen >= 0 ? "kcal offen" : "kcal über dem Ziel"}</span></div></div>
+    <div class="mk">${balken("Protein", s.p, Z.p, "var(--p)")}${balken("Fett", s.f, Z.f, "var(--f)")}${balken("Kohlenhydrate", s.k, Z.k, "var(--k)")}</div>
+    <div class="wasser"><span>Wasser · ${liter(tag.wasser)} / ${liter(Z.wasser)} l</span><button data-w="250">+ 250 ml</button><button data-w="500">+ 500 ml</button></div>
+    <button class="erf" id="erf">+ Essen erfassen</button>
+    <div class="liste">${tag.essen.map((e) => `<div class="m"><span>${e.n}</span><span>${kcalVon(e)} kcal</span></div>`).reverse().join("")}</div>`;
+  sicht.querySelectorAll("[data-w]").forEach((b) => b.onclick = () => { tag.wasser = Math.min(6000, tag.wasser + +b.dataset.w); const y = sicht.scrollTop; sHeute(); sicht.scrollTop = y; });
+  $("erf").onclick = () => { blatt.innerHTML = `<h4>Was hast du gegessen?</h4>` + VORSCHLAG.map((v, i) => `<button data-i="${i}"><span>${v.n}</span><span>${kcalVon(v)} kcal · ${v.p} g P</span></button>`).join("") + `<button data-i="-1"><span class="leise">Abbrechen</span><span></span></button>`;
+    blatt.hidden = false; blatt.onclick = (e) => { const b = e.target.closest("button"); if (!b) return; blatt.hidden = true; if (+b.dataset.i >= 0) { const vorher = stand().kcal; tag.essen.push({ ...VORSCHLAG[+b.dataset.i], zeit: jetzt() }); ringLauf(vorher); } }; };
+}
+function ringLauf(vorher) { sHeute(); const w = sicht.querySelector(".wert"), U = 2 * Math.PI * 70; if (!w || reduziert) return;
+  const zielOff = w.getAttribute("stroke-dashoffset"); w.style.transition = "none"; w.setAttribute("stroke-dashoffset", U * (1 - Math.min(1, vorher / Z.kcal)));
+  void w.getBoundingClientRect(); w.style.transition = ""; w.setAttribute("stroke-dashoffset", zielOff); }
+
+/* Training */
+function saetze(u) { return train.kurz ? Math.max(2, Math.round(u.s * 0.75)) : u.s; }
+function sTraining() {
+  clearInterval(pauseT);
+  const alle = train.ueb.reduce((a, u) => a + saetze(u), 0);
+  let fertig = 0; train.ueb.forEach((u, i) => { for (let j = 0; j < saetze(u); j++) if (train.ok[i + "." + j]) fertig++; });
+  const rir = train.kurz ? 3 : 2;
+  sicht.innerHTML = `<div class="s-titel">Ganzkörper A</div><div class="s-unter">Heute 17:30 · ${fertig} von ${alle} Sätzen</div>
+    <button class="form" role="switch" aria-checked="${train.kurz}" id="kurz"><i></i><span>${train.kurz ? "<b>Kurze Nacht erkannt.</b> 5 h 40 geschlafen. Rund ein Viertel weniger Sätze, eine Wiederholung mehr in Reserve." : "Kurze Nacht simulieren (5 h 40 Schlaf)"}</span></button>
+    <div class="fort"><i style="width:${alle ? fertig / alle * 100 : 0}%"></i></div>
+    ${train.ueb.map((u, i) => { const n = saetze(u); let ok = 0; for (let j = 0; j < n; j++) if (train.ok[i + "." + j]) ok++;
+      return `<div class="ueb ${ok === n ? "fertig" : ""}"><div class="kopfz"><span>${u.n}</span><span>${n} × ${u.w} · ${rir} RIR</span></div>` +
+        (ok === n ? "" : Array.from({ length: n }, (_, j) => `<div class="satz ${train.ok[i + "." + j] ? "ok" : ""}"><span>${j + 1}</span><span>${u.kg}<em>kg</em></span><span>${u.w}<em>Wdh</em></span><span>${rir}<em>RIR</em></span><button data-satz="${i}.${j}" aria-label="Satz abhaken">${HAKEN}</button></div>`).join("")) + `</div>`; }).join("")}
+    ${fertig === alle ? `<div class="meld">Stark. Alle ${alle} Sätze gemacht. In der App siehst du jetzt deine Muskelkarte und was beim nächsten Mal dran ist.</div>` : ""}
+    <div class="pause" id="pause" hidden><span>Pause</span><b id="pz">1:30</b><button id="pw">Überspringen</button></div>`;
+  $("kurz").onclick = () => { train.kurz = !train.kurz; train.pauseBis = 0; sTraining(); };
+  sicht.querySelectorAll("[data-satz]").forEach((b) => b.onclick = () => { const k = b.dataset.satz; train.ok[k] = !train.ok[k]; train.pauseBis = train.ok[k] ? Date.now() + 90000 : 0; const y = sicht.scrollTop; sTraining(); sicht.scrollTop = y; });
+  if (train.pauseBis > Date.now() && fertig < alle) { const p = $("pause"); p.hidden = false; const tick = () => { const r = Math.max(0, Math.ceil((train.pauseBis - Date.now()) / 1000)); if (!$("pz")) return clearInterval(pauseT); $("pz").textContent = Math.floor(r / 60) + ":" + String(r % 60).padStart(2, "0"); if (!r) { clearInterval(pauseT); p.hidden = true; } };
+    tick(); pauseT = setInterval(tick, 250); $("pw").onclick = () => { train.pauseBis = 0; clearInterval(pauseT); p.hidden = true; }; }
+}
+
+/* Balance */
+function sBalance() {
+  const cx = 150, cy = 118, r = 70, n = bal.length;
+  const pkt = (i, k) => { const a = -Math.PI / 2 + i / n * Math.PI * 2; return [cx + Math.cos(a) * r * k, cy + Math.sin(a) * r * k]; };
+  const form = (f) => bal.map((b, i) => pkt(i, f(b)).map((v) => v.toFixed(1)).join(",")).join(" ");
+  const anteil = (b) => Math.min(1.5, b.ist / b.soll) / 1.5;
+  const schwach = bal.filter((b) => b.n !== "Karriere" && b.ist / b.soll < 0.4).sort((a, b) => a.ist / a.soll - b.ist / b.soll)[0];
+  const ueber = bal.filter((b) => b.ist > b.soll).sort((a, b) => b.ist / b.soll - a.ist / a.soll)[0];
+  sicht.innerHTML = `<div class="s-titel">Balance</div><div class="s-unter">Diese Woche, Ziel gegen Stand</div>
+    <svg class="netz" viewBox="0 0 300 232">
+      ${[0.5, 1].map((k) => `<polygon points="${form(() => k)}" fill="none" stroke="#273240" stroke-width="1"/>`).join("")}
+      ${bal.map((b, i) => { const [x, y] = pkt(i, 1); return `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#273240"/>`; }).join("")}
+      <polygon points="${form(() => 1 / 1.5)}" fill="none" stroke="#96d8f0" stroke-width="1.5" stroke-dasharray="4 4"/>
+      <polygon class="ist" points="${form(anteil)}" fill="rgba(150,216,240,.22)" stroke="#96d8f0" stroke-width="2" stroke-linejoin="round"/>
+      ${bal.map((b, i) => { const [x, y] = pkt(i, anteil(b)); return `<circle cx="${x}" cy="${y}" r="3.5" fill="${b.f}"/>`; }).join("")}
+      ${bal.map((b, i) => { const a = -Math.PI / 2 + i / n * Math.PI * 2, x = cx + Math.cos(a) * (r + 16), y = cy + Math.sin(a) * (r + 14) + 4; return `<text x="${x}" y="${y}" text-anchor="${Math.abs(Math.cos(a)) < 0.2 ? "middle" : Math.cos(a) > 0 ? "start" : "end"}">${b.n}</text>`; }).join("")}
+    </svg>
+    <div>${bal.map((b, i) => `<div class="bz"><span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${b.f};margin-right:8px"></i>${b.n}</span><span class="h">${b.ist} / ${b.soll} h</span><button data-b="${i}" data-d="-1" aria-label="${b.n} eine Stunde weniger">−</button><button data-b="${i}" data-d="1" aria-label="${b.n} eine Stunde mehr">+</button></div>`).join("")}</div>
+    <div class="meld">${schwach ? `<b>${schwach.n}</b> liegt bei ${Math.round(schwach.ist / schwach.soll * 100)} % deines Ziels. Vorgenommen hattest du ${schwach.soll} Stunden.${ueber ? ` ${ueber.n} liegt ${ueber.ist - ueber.soll} Stunden darüber.` : ""} Wann passt diese Woche eine Stunde dafür?`
+      : "Kein Bereich liegt unter 40 % seines Ziels. Deine Woche passt zu dem, was du dir vorgenommen hast."}</div>`;
+  sicht.querySelectorAll("[data-b]").forEach((b) => b.onclick = () => { const x = bal[+b.dataset.b]; x.ist = Math.max(0, Math.min(80, x.ist + +b.dataset.d)); const y = sicht.scrollTop; sBalance(); sicht.scrollTop = y; });
+}
+
+preisZeigen();
+zeige("assistent");
+</script>
+</body>
+</html>
