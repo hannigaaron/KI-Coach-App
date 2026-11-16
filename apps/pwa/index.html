@@ -573,6 +573,19 @@ try {
     </div>
   </div>
 
+  <!-- Die Abendroutine. Kommt 90 Minuten vor der Schlafenszeit als
+       Mitteilung, ein Tipp öffnet dieses Blatt, siehe abend.js. -->
+  <div id="abendBlatt" class="blatt mg-blatt ab-blatt" hidden>
+    <div class="blatt-innen" role="dialog" aria-modal="true" aria-labelledby="abendTitel">
+      <header class="blatt-kopf">
+        <h2 id="abendTitel">Heute Abend <small id="abendZeit" class="ab-start"></small></h2>
+        <button id="abendZu" class="icon-btn" aria-label="Schließen"><span class="kreuz"></span></button>
+      </header>
+      <div class="blatt-scroll" id="abendInhalt"></div>
+      <div class="mg-fuss"><button type="button" id="abendSchlafen" class="tr-weiter">Ich geh jetzt schlafen</button></div>
+    </div>
+  </div>
+
   <!-- Die Einwilligung vor der ersten Antwort mit KI, Art. 9 DSGVO. Kommt
        einmal je Fassung, nach Ja oder Nein nicht wieder. Widerruf im Profil. -->
 
@@ -830,6 +843,7 @@ try {
       </div>
       <p class="sub">Kurz festhalten, wie es dir geht. Daraus erkennt der Coach Muster, die dir selbst entgehen.</p>
       <button type="button" id="btnMorgenCheckin" class="pl-knopf haupt mg-start">Guten Morgen Check-in</button>
+      <button type="button" id="btnAbendroutine" class="pl-knopf mg-start ab-start-knopf">Abendroutine</button>
       <fieldset class="mg-frage ci-stufen"><legend>Energie</legend><input id="energy" type="hidden" value="7"><div class="ci-skala" data-stufen="energy"></div>
         <div class="mg-enden"><span>leer</span><span>voll da</span></div></fieldset>
       <fieldset class="mg-frage ci-stufen"><legend>Schlaf</legend><input id="sleepQ" type="hidden" value="7"><div class="ci-skala" data-stufen="sleepQ"></div>
@@ -1501,8 +1515,8 @@ try {
       <p class="sub">Sechs Impulse am Tag, auch wenn die App zu ist. Eiweiß, Trinken, Energie, Shake, Stress, Pause.</p>
       <!-- In der iPhone App plant daevo die Mitteilungen selbst bei iOS ein.
            Web Push, Worker und Probe gibt es dort nicht. -->
-      <p class="sub" data-nur-nativ hidden>daevo plant sie selbst auf deinem iPhone ein, dazu die Erinnerung
-        ans Runterfahren vor deiner Schlafenszeit. Ausschalten kannst du sie in den Einstellungen des iPhones
+      <p class="sub" data-nur-nativ hidden>daevo plant sie selbst auf deinem iPhone ein, dazu die Abendroutine
+        90 Minuten vor deiner Schlafenszeit. Ausschalten kannst du sie in den Einstellungen des iPhones
         unter Mitteilungen, daevo.</p>
       <!-- Eigene Erinnerungen gibt es nur in der iPhone App. Im Browser
            plant niemand die Mitteilung ein, und eine Erinnerung an ein

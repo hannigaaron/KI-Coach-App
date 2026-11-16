@@ -3667,6 +3667,47 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 .mg-titel { margin: var(--s-5) 0 var(--s-2); font-size: var(--t-sm); font-weight: 600; }
 .mg-liste { margin: 0; padding-left: 1.1em; }
 .mg-liste li { margin-bottom: var(--s-2); line-height: 1.45; }
+/* Die Abendroutine, abend.js. Aufbau wie auf der Website: Mond, die Stunden
+   bis zum Wecker, darunter der Ablauf als Zeilen mit Uhrzeit. */
+#abendInhalt { padding: 0 var(--s-4) var(--s-4); }
+.ab-start { font-size: var(--t-sm); font-weight: 400; color: var(--muted); margin-left: var(--s-2); }
+.ab-kopf { display: grid; justify-items: center; text-align: center; padding: var(--s-4) 0 var(--s-5); }
+.ab-mond { width: 104px; height: 104px; fill: var(--accent); filter: drop-shadow(0 0 22px color-mix(in srgb, var(--accent) 55%, transparent)); animation: abMond 6s ease-in-out infinite alternate; }
+@keyframes abMond { from { transform: rotate(-6deg); } to { transform: rotate(4deg) translateY(-3px); } }
+.ab-stunden { margin-top: var(--s-3); font-size: 40px; line-height: 1; font-weight: 600; letter-spacing: -0.02em; }
+.ab-unter { margin-top: var(--s-2); color: var(--muted); font-size: var(--t-sm); }
+.ab-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-2); }
+.ab-schritt { width: 100%; display: grid; grid-template-columns: 1fr auto 32px; align-items: center; gap: var(--s-3); padding: var(--s-3) var(--s-3) var(--s-3) var(--s-4); min-height: 56px; border: 0; border-radius: var(--r-md); background: var(--flaeche); box-shadow: var(--haarlinie); color: var(--text); text-align: left; font: inherit; cursor: pointer; transition: opacity .3s var(--kurve); }
+.ab-text b { display: block; font-weight: 600; font-size: var(--t-md); }
+.ab-text small { display: block; margin-top: 2px; color: var(--muted); font-size: var(--t-xs); line-height: 1.35; }
+.ab-zeit { color: var(--accent-text); font-size: var(--t-sm); font-variant-numeric: tabular-nums; }
+.ab-haken { width: 30px; height: 30px; border-radius: 50%; box-shadow: inset 0 0 0 2px var(--border, rgba(255,255,255,.2)); display: grid; place-items: center; color: transparent; transition: background .25s var(--kurve), color .25s var(--kurve); }
+.ab-haken svg { width: 16px; height: 16px; }
+.ab-schritt.an { opacity: .62; }
+.ab-schritt.an .ab-text b { text-decoration: line-through; }
+.ab-schritt.an .ab-haken { background: var(--accent); color: var(--on-accent); box-shadow: none; }
+.ab-bett, .ab-leer { margin: var(--s-4) 0 0; color: var(--muted); font-size: var(--t-sm); text-align: center; }
+.ab-start-knopf { margin-top: 0; }
+@media (prefers-reduced-motion: reduce) { .ab-mond { animation: none; } }
+/* Der Schlaf der letzten sieben Nächte unter dem Morgen Check-in. */
+.sw { margin-top: var(--s-5); padding: var(--s-4); border-radius: var(--r-md); background: var(--flaeche); box-shadow: var(--haarlinie); }
+.sw .mg-titel { margin-top: 0; }
+.sw-zahlen { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); }
+.sw-zahlen b { display: block; font-size: var(--t-xl); font-weight: 600; letter-spacing: -0.01em; }
+.sw-zahlen span { display: block; color: var(--muted); font-size: var(--t-xs); line-height: 1.35; }
+.sw-diff { margin: var(--s-3) 0 0; font-size: var(--t-sm); color: var(--good); }
+.sw-diff.minus { color: var(--warn); }
+.sw-balken { display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--s-2); height: 96px; margin-top: var(--s-4); }
+.sw-nacht { display: grid; grid-template-rows: 1fr auto; gap: 4px; text-align: center; }
+.sw-nacht small { font-size: var(--t-2xs); color: var(--muted); }
+.sw-saeule { position: relative; display: flex; justify-content: center; align-items: flex-end; gap: 3px; }
+.sw-saeule i { width: 9px; border-radius: 5px; }
+i.sw-plan { background: color-mix(in srgb, var(--accent) 28%, transparent); }
+i.sw-ist { background: var(--accent); }
+.sw-legende { display: flex; align-items: center; gap: var(--s-2); margin: var(--s-2) 0 0; font-size: var(--t-2xs); color: var(--muted); }
+.sw-legende i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-left: var(--s-2); }
+.sw-legende i:first-child { margin-left: 0; }
+.sw-tipp { margin: var(--s-3) 0 0; font-size: var(--t-sm); line-height: 1.45; }
 /* Das Briefing: Fokus als Fläche, der Tag als Zeitleiste. */
 .mg-fokus { margin: var(--s-5) 0 var(--s-2); padding: var(--s-4); border-radius: var(--r-md); background: var(--flaeche); box-shadow: var(--haarlinie); }
 .mg-fokus span { display: block; font-size: var(--t-2xs); letter-spacing: .06em; text-transform: uppercase; color: var(--brand-text); font-weight: 600; margin-bottom: var(--s-1); }

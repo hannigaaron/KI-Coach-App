@@ -13,7 +13,7 @@
  *
  * Kein `document`, kein `window`: das Modul läuft auch in den Tests.
  */
-import { CHECKIN_BOEGEN, LUECKE_UHRZEIT, NACHFRAGE_UHRZEIT, erinnerungAmTag, erinnerungUhrzeit, impulseFuerTag, impulsNoetig, morgenUhrzeit, rueckblickArt, nachfrageNoetig, schlafenszeitAusKalender, tagesrandFuer, wochentagVon } from "@daevo/core";
+import { ABEND_VORLAUF_MIN, CHECKIN_BOEGEN, abendplan, stundenText, LUECKE_UHRZEIT, NACHFRAGE_UHRZEIT, erinnerungAmTag, erinnerungUhrzeit, impulseFuerTag, impulsNoetig, morgenUhrzeit, rueckblickArt, nachfrageNoetig, schlafenszeitAusKalender, tagesrandFuer, wochentagVon } from "@daevo/core";
 
 /**
  * Aufsteh und Schlafenszeit eines Tages für die Mitteilungen. Was der Nutzer
@@ -80,7 +80,7 @@ export const MITTEILUNG_ZIEL = {
   rueckblick: { ansicht: "bericht", aktion: "rueckblick" },
   vorausblick: { ansicht: "kalender", aktion: "morgen" },
   wochencheck: { ansicht: "wochencheck" },
-  runterfahren: { ansicht: "standards" },
+  runterfahren: { ansicht: "abend" },
   energie: { ansicht: "assistant", aktion: "frage" },
   stress: { ansicht: "assistant", aktion: "frage" },
   pause: { ansicht: "assistant", aktion: "frage" },
@@ -162,15 +162,18 @@ export function mitteilungsPlan({ store, jetzt, luecke = null, vorausblicke = []
       });
     }
     if (!aus.runterfahren && profil) {
-      // Dieselbe Zeit wie im Erinnerungsplan, siehe reminders.ts: 45 Minuten
-      // vor der Schlafenszeit dieses Tages, mit Wochentag und Ausnahmen.
+      // Die Abendroutine, 90 Minuten vor der Schlafenszeit dieses Tages, mit
+      // Wochentag, Ausnahmen und SLEEP im Kalender. Ein Tipp öffnet das
+      // Blatt mit dem Ablauf, siehe abend.js. Vorher kamen 45 Minuten vorher
+      // nur zwei Sätze, und für Lüften, Supplements und Lesen war es da zu spät.
       const { sleepTime } = randMitKalender(profil, tag, termine);
+      const p = abendplan(sleepTime, randMitKalender(profil, tagPlus(tag, 1), termine).wakeTime);
       plan.push({
         id: `runterfahren-${tag}`,
         tag,
-        uhrzeit: uhrzeitAus(minuten(sleepTime) - 45),
-        titel: "Runterfahren",
-        text: "Handy weg. Dein Schlaf entscheidet über die Energie von morgen.",
+        uhrzeit: uhrzeitAus(minuten(sleepTime) - ABEND_VORLAUF_MIN),
+        titel: "Dein Abend",
+        text: `Um ${p.schritte[0].uhrzeit} Handy weg, um ${sleepTime} schlafen. Das sind ${stundenText(p.schlafMinuten)} bis zu deinem Wecker.`,
         art: "runterfahren",
       });
     }

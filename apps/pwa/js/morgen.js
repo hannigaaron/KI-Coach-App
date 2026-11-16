@@ -268,7 +268,7 @@ export function briefingHtml(b) {
 
 /* ---------- Oberfläche ---------- */
 
-export function morgenStarten({ store, heute, melde, gespeichert, tagesbriefing, kalenderFrisch }) {
+export function morgenStarten({ store, heute, melde, gespeichert, tagesbriefing, kalenderFrisch, schlafWoche }) {
   const blatt = document.getElementById("morgenBlatt");
   const inhalt = document.getElementById("morgenInhalt");
   const knopf = document.getElementById("morgenAuswerten");
@@ -329,7 +329,9 @@ export function morgenStarten({ store, heute, melde, gespeichert, tagesbriefing,
       knopf.textContent = "Kalender wird gelesen";
       await Promise.race([kalenderFrisch().catch(() => {}), new Promise((ok) => setTimeout(ok, 4000))]);
     }
-    inhalt.innerHTML = ergebnisHtml(r) + zyklusZeileHtml(store.getSettings?.().zyklus, heute()) + briefingHtml(modus === "morgen" ? tagesbriefing?.() : null);
+    // Der Schlaf der letzten Nächte steht morgens direkt unter dem Ergebnis:
+    // wer gerade sagt, wie er geschlafen hat, sieht daneben, wie es die Woche war.
+    inhalt.innerHTML = ergebnisHtml(r) + (modus === "morgen" ? (schlafWoche?.() || "") : "") + zyklusZeileHtml(store.getSettings?.().zyklus, heute()) + briefingHtml(modus === "morgen" ? tagesbriefing?.() : null);
     inhalt.scrollTop = 0;
     knopf.textContent = "Fertig";
     knopf.disabled = false;

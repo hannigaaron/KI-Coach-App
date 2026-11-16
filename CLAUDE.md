@@ -981,7 +981,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1442 Tests
+npm test           # 1452 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1487,6 +1487,37 @@ dort mit. Ungeprüft: der Swift Teil ist hier nicht kompiliert.
 Offen: die HRV in der Bereitschaft wird noch nicht gegen dieselbe Phase der
 letzten Zyklen verglichen, wie im Entwurf beschrieben. Die Bereitschaft
 liest die HRV bisher gar nicht.
+
+## Die Abendroutine und der Schlaf der Woche
+
+`packages/core/src/schlafplan.ts` rechnet, `apps/pwa/js/abend.js` zeigt,
+das Blatt `#abendBlatt`. 90 Minuten vor der Schlafenszeit des Tages kommt
+die Mitteilung "Dein Abend", `ABEND_VORLAUF_MIN`, mit Wochentag, Ausnahmen
+und SLEEP im Kalender über `randMitKalender`. Vorher kam 45 Minuten vorher
+"Runterfahren" mit zwei Sätzen und führte zu den Mindeststandards, und für
+Lüften und Lesen war es da zu spät. Die Art heisst weiter `runterfahren`,
+damit ein ausgeschalteter Schalter ausgeschaltet bleibt.
+
+Ein Tipp öffnet den Ablauf, so wie ihn die Website zeigt: Mond, die Stunden
+von der Schlafenszeit bis zur Aufstehzeit des nächsten Tages, darunter
+zum Abhaken Handy weg 60 Minuten vorher, Supplements, Zimmer lüften, Licht
+dimmen, Lesen, Journal oder Meditation, Schlafen. Die Abstände sind eine
+Regel von Coach Aaron. "Ich geh jetzt schlafen" merkt die Uhrzeit, je Abend
+in `settings.abend`, die letzten 21. Vor fünf Uhr früh gehört das Blatt
+zum Abend davor. Unter Check-ins steht es als Knopf "Abendroutine".
+
+Unter dem Ergebnis des Morgen Check-ins stehen die letzten sieben Nächte,
+`schlafWocheFuer`: vorgenommen aus Schlafens und Aufstehzeit, tatsächlich
+aus Apple Health am Aufwachtag, sonst vom Zubettgehen bis zum Morgen
+Check-in. Das zweite ist Zeit im Bett und kein gemessener Schlaf, die
+Anzeige sagt "im Bett". Dazu ein Tipp für heute Abend in dieser
+Reihenfolge: ein Plan unter sieben Stunden (Watson und andere, Konsens von
+AASM und SRS, Sleep 2015), im Schnitt 20 Minuten später ins Bett als
+geplant, mehr als 45 Minuten zu wenig Schlaf. Ohne gemessene Nacht gibt es
+keinen Vergleich, nur den Plan.
+
+Ungeprüft: der Tipp auf die Mitteilung am Gerät. Im Browser geprüft sind
+Blatt und Woche in beiden Modi.
 
 ## Der Guten Morgen Check-in
 

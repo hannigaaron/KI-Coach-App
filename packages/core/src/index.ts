@@ -41,6 +41,7 @@ export * from "./trainingsanpassung.js";
 export * from "./trainingsplan.js";
 export * from "./trainingslog.js";
 export * from "./morgencheck.js";
+export * from "./schlafplan.js";
 export * from "./rezepte.js";
 export * from "./rezepte-daten.js";
 export * from "./essensplan.js";

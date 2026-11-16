@@ -25,6 +25,7 @@ import { uebungenStarten } from "./uebungen.js";
 import { planFuer as uebungsplanFuer, plaeneStarten } from "./plaene.js";
 import { trainingStarten } from "./training.js";
 import { morgenStarten, morgenVonHeute, trainingGestrichen } from "./morgen.js";
+import { abendStarten, schlafWocheFuer, schlafWocheHtml } from "./abend.js";
 import {
   antwortVerarbeiten, antwortenAbholen, lueckeAusSpeicher, lueckeMelden,
   schieflageAusSpeicher, schieflageMelden,
@@ -6506,6 +6507,14 @@ document.addEventListener("visibilitychange", () => {
   }
 });
 
+/* ---------- Abendroutine ---------- */
+
+const abend = abendStarten({
+  store, heute: todayIso,
+  jetztUhrzeit: () => { const d = new Date(); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; },
+});
+$("btnAbendroutine").addEventListener("click", () => abend.oeffnen());
+
 /* ---------- Guten Morgen Check-in ---------- */
 
 const morgen = morgenStarten({
@@ -6514,6 +6523,7 @@ const morgen = morgenStarten({
   // nach der Nachfrage fällt sie wieder weg.
   gespeichert: () => { refreshAll(); mitteilungenNativ(); },
   tagesbriefing: () => { try { return tagesbriefingFuer("morgen"); } catch { return null; } },
+  schlafWoche: () => { try { return schlafWocheHtml(schlafWocheFuer(store, todayIso())); } catch { return ""; } },
   kalenderFrisch: async () => {
     const s = store.getSettings();
     if (!s.appleKalender && !kalenderAbos(s).length) return;
@@ -6854,6 +6864,7 @@ function impulsOeffnen(daten, { still = false } = {}) {
   const art = daten?.art;
   if (!art) return;
   if (art === "morgen") { morgen.oeffnen(); return; }
+  if (art === "runterfahren") { abend.oeffnen(); return; }
   if (art === "nachfrage") { morgen.nachfrage(); return; }
   if (art === "luecke") { lueckeFrageOeffnen(); return; }
   if (art === "satzpause") { training.fortsetzen(); return; }

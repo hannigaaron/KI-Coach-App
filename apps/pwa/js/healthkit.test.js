@@ -92,7 +92,8 @@ test("der Plan der Mitteilungen: Impulse, Runterfahren zur eigenen Schlafenszeit
   const heute = plan.filter((m) => m.tag === HEUTE);
   assert.ok(heute.every((m) => m.uhrzeit > "12:00"), "nichts vor jetzt");
   const runter = plan.find((m) => m.art === "runterfahren" && m.tag === HEUTE);
-  assert.equal(runter.uhrzeit, "22:15", "45 Minuten vor 23:00");
+  assert.equal(runter.uhrzeit, "21:30", "90 Minuten vor 23:00");
+  assert.match(runter.text, /Handy weg/);
   assert.ok(plan.some((m) => m.tag > HEUTE && m.art === "protein"));
 });
 
@@ -154,7 +155,7 @@ test("vor dem Schlafen folgt der Schlafenszeit des Tages, auch aus einem SLEEP E
   assert.equal(zeit("2026-10-20"), "23:30", "SLEEP um 00:30 in der Nacht danach");
   assert.equal(zeit("2026-10-21"), "22:00", "ohne Eintrag die Schlafenszeit aus dem Profil");
   assert.equal(zeit("2026-10-22"), "20:30", "die Ausnahme des Tages");
-  assert.equal(plan.find((m) => m.id === `runterfahren-${HEUTE}`).uhrzeit, "23:00", "Runterfahren 45 Minuten vor 23:45");
+  assert.equal(plan.find((m) => m.id === `runterfahren-${HEUTE}`).uhrzeit, "22:15", "Abendroutine 90 Minuten vor 23:45");
 });
 
 test("die Schlafenszeit je Wochentag aus daevo geht dem Kalender vor", async () => {
