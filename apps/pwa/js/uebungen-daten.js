@@ -4360,5 +4360,38 @@ export const UEBUNGEN = [
    "Single Arm Lat Pulldown",
    "Latziehen einarmig"
   ]
+ },
+ {
+  "id": "trizeps-kabel-ueberkreuz",
+  "name": "Trizepsstrecken am Kabel über Kreuz",
+  "nameEn": "Cross Body Dual Cable Triceps Extension",
+  "pattern": "elbow_extension",
+  "primaryMuscles": [
+   "Trizeps"
+  ],
+  "secondaryMuscles": [],
+  "equipment": "cable",
+  "level": "intermediate",
+  "mechanics": "isolation",
+  "repRange": "10-15",
+  "steps": [
+   "Beide oberen Rollen einhängen, zur Station drehen und nah davor stehen",
+   "Über Kreuz greifen: rechte Hand zur linken Rolle, linke Hand zur rechten",
+   "Ellbogen auf Kopfhöhe, Arme schräg nach unten außen strecken",
+   "Kontrolliert zurück, bis die Hände wieder vor dem Gesicht sind"
+  ],
+  "gruppe": "arme",
+  "video": {
+   "id": "TctfJadtxq0",
+   "titel": "Exercise Tutorial - Cross Body Dual Cable Triceps Extension",
+   "kanal": "The Muscle Mentors",
+   "dauer": "1:32"
+  },
+  "alias": [
+   "Cross Body Triceps",
+   "Trizeps über Kreuz",
+   "Überkreuztes Trizepsstrecken",
+   "Trizeps Extension Kabel"
+  ]
  }
 ];

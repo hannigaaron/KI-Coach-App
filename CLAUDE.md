@@ -389,13 +389,15 @@ Strichfiguren, keine Clip Art, keine Karten mit Rahmen um Text.
   Arm zieht bei stehendem rechten Bein, Ellbogen Richtung Becken. Das Foto
   zeigt Arm und stehendes Bein auf derselben Seite, die Schritte sagen es
   richtig.
-- Offen: überkreuztes Trizepsstrecken an einer engen Doppelrolle wie der
-  Life Fitness Dual Adjustable Pulley, beide Griffe über Kreuz von oben
-  schräg nach unten außen, die Person mittig und nah davor. Drei Fassungen
-  ohne Treffer: die Person stand neben der Station, und mit der Kamera
-  direkt hinter ihr zeichnete das Modell die Kabel über den Rücken statt
-  verdeckt vor die Brust. Die Kamera gehört schräg vor die Person, neben
-  die Station, damit das Kreuz vor der Brust zu sehen ist.
+- Trizepsstrecken am Kabel über Kreuz, `trizeps-kabel-ueberkreuz`, an
+  einer engen Doppelrolle wie der Life Fitness Dual Adjustable Pulley:
+  rechte Hand zur linken Rolle und umgekehrt, beide Arme schräg nach unten
+  außen strecken. Vier Fassungen davor ohne Treffer: die Person stand
+  neben der Station, und mit der Kamera direkt hinter ihr zeichnete das
+  Modell die Kabel über den Rücken. Gelungen ist es mit der Person zur
+  Station gedreht und nah davor, der Endposition mit gestreckten Armen und
+  der Kamera schräg hinten rechts, sodass die Kabel vor dem Körper
+  herunterlaufen.
 - `uebungZuName`: Eigennamen wie Bayesian, Seagull, Pallof oder Landmine
   kosten 8, wenn sie niemand gesagt hat. Sonst wurde "Curls am Kabel" zum
   Bayesian Curl.
