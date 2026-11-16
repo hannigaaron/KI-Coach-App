@@ -4324,5 +4324,41 @@ export const UEBUNGEN = [
    "Chest Supported Barbell Row",
    "Seal Row"
   ]
+ },
+ {
+  "id": "latziehen-einarmig-kniend",
+  "name": "Einarmiges Latziehen im Halbkniestand",
+  "nameEn": "Half Kneeling Single Arm Cable Pulldown",
+  "pattern": "vertical_pull",
+  "primaryMuscles": [
+   "Latissimus"
+  ],
+  "secondaryMuscles": [
+   "Bizeps",
+   "mittlerer Rücken"
+  ],
+  "equipment": "cable",
+  "level": "intermediate",
+  "mechanics": "compound",
+  "repRange": "10-12 je Arm",
+  "steps": [
+   "Rolle oben, im Halbkniestand etwa einen Meter vor dem Turm",
+   "Das Knie der Zugseite liegt am Boden, das andere Bein steht",
+   "Griff mit der Hand der Kniebeinseite, Ellbogen Richtung Becken ziehen",
+   "Langsam lang werden lassen, bis der Arm gestreckt ist"
+  ],
+  "gruppe": "ruecken",
+  "video": {
+   "id": "XbZgoSNJXm4",
+   "titel": "Einarmiges Latzug-Ziehen im halben Kniestand",
+   "kanal": "The Fitness Life - Strength & Lifestyle Coaching",
+   "dauer": "0:31"
+  },
+  "alias": [
+   "Einarmiger Latzug kniend",
+   "Einarmiges Latrudern Kabel",
+   "Single Arm Lat Pulldown",
+   "Latziehen einarmig"
+  ]
  }
 ];

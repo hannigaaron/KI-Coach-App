@@ -384,13 +384,18 @@ Strichfiguren, keine Clip Art, keine Karten mit Rahmen um Text.
   Langhantel, Schrägbank Brustpresse, Pendulum Squat, Box Squat, Toes to
   Bar, Slam Ball. Das Video zum Seagull Row "Seagull Rows" zeigte eine
   andere Übung und ist ersetzt.
+- Einarmiges Latziehen im Halbkniestand, `latziehen-einarmig-kniend`, vom
+  Nutzer freigegeben. Richtig ist: das Bein der Gegenseite steht, linker
+  Arm zieht bei stehendem rechten Bein, Ellbogen Richtung Becken. Das Foto
+  zeigt Arm und stehendes Bein auf derselben Seite, die Schritte sagen es
+  richtig.
 - Offen: überkreuztes Trizepsstrecken an einer engen Doppelrolle wie der
   Life Fitness Dual Adjustable Pulley, beide Griffe über Kreuz von oben
-  schräg nach unten außen, die Person mittig davor. Und einarmiges Rudern
-  im Halbkniestand: das Bein der Gegenseite steht, also linker Arm zieht
-  bei stehendem rechten Bein, Ellbogen Richtung Becken. Beide erste
-  Fassungen trafen das nicht: die Person stand neben der Station, und Arm
-  und stehendes Bein lagen auf derselben Seite.
+  schräg nach unten außen, die Person mittig und nah davor. Drei Fassungen
+  ohne Treffer: die Person stand neben der Station, und mit der Kamera
+  direkt hinter ihr zeichnete das Modell die Kabel über den Rücken statt
+  verdeckt vor die Brust. Die Kamera gehört schräg vor die Person, neben
+  die Station, damit das Kreuz vor der Brust zu sehen ist.
 - `uebungZuName`: Eigennamen wie Bayesian, Seagull, Pallof oder Landmine
   kosten 8, wenn sie niemand gesagt hat. Sonst wurde "Curls am Kabel" zum
   Bayesian Curl.
