@@ -375,9 +375,25 @@ Strichfiguren, keine Clip Art, keine Karten mit Rahmen um Text.
 - Bauch am Boden: Crunch, Sit-up, Russian Twist, Bicycle Crunch und
   Hüftheben am Boden (Reverse Crunch, langsam abrollen). Russian Twist und
   Bicycle tragen `core_rotation`. Ihre Videos sind über die Vorschaubilder
-  geprüft. Die Fotos fehlen noch, `fotoFolgt: true`: bis Credits da sind,
-  stehen dort weichgezeichnete Studiohintergründe aus einem vorhandenen
-  Foto. Sie werden nach dem Ablauf je Bild ersetzt.
+  geprüft. Die Fotos sind seit November 2026 da, Studio wie beim Plank.
+- Dazu aus der Liste des Nutzers: Bayesian Curl (direkt vor der unteren
+  Rolle, Arm hinter dem Körper), Preacher Curl einarmig, Superman, Shoulder
+  Taps, Trizepsdrücken kniend, einbeiniges Kreuzheben mit einer Kurzhantel,
+  Pallof Rotation, Landmine Rudern eng und breit, Russian Twist an der
+  Landmine, Negativ Sit-up, Power Clean, Seagull Row mit Kurz und
+  Langhantel, Schrägbank Brustpresse, Pendulum Squat, Box Squat, Toes to
+  Bar, Slam Ball. Das Video zum Seagull Row "Seagull Rows" zeigte eine
+  andere Übung und ist ersetzt.
+- Offen: überkreuztes Trizepsstrecken an einer engen Doppelrolle wie der
+  Life Fitness Dual Adjustable Pulley, beide Griffe über Kreuz von oben
+  schräg nach unten außen, die Person mittig davor. Und einarmiges Rudern
+  im Halbkniestand: das Bein der Gegenseite steht, also linker Arm zieht
+  bei stehendem rechten Bein, Ellbogen Richtung Becken. Beide erste
+  Fassungen trafen das nicht: die Person stand neben der Station, und Arm
+  und stehendes Bein lagen auf derselben Seite.
+- `uebungZuName`: Eigennamen wie Bayesian, Seagull, Pallof oder Landmine
+  kosten 8, wenn sie niemand gesagt hat. Sonst wurde "Curls am Kabel" zum
+  Bayesian Curl.
 - Die Suche: trifft kein Eintrag jedes Wort, kommen die mit den meisten
   Treffern, solange ein Wort ab vier Zeichen im Namen trifft. "Isolation
   Curl" fand im Studio nichts, obwohl zehn Curls dastehen. Aliase wie

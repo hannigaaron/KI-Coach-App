@@ -4485,7 +4485,10 @@ export function uebungZuName(name, wunsch = {}) {
   const GERAET_WORT = { kabel: "cable", kabelzug: "cable", seilzug: "cable", cable: "cable", kurzhantel: "dumbbell", kurzhanteln: "dumbbell", kh: "dumbbell",
     dumbbell: "dumbbell", langhantel: "barbell", lh: "barbell", barbell: "barbell", maschine: "machine", gerat: "machine", machine: "machine",
     multipresse: "smith_machine", smith: "smith_machine", korpergewicht: "bodyweight" };
-  const ABART = new Set(["hammer", "einarmig", "einarmiges", "einarmiger", "einbeinig", "liegend", "sitzend", "stehend", "reverse", "eng", "enger", "breit", "breiter", "schragbank", "negativ", "front", "sumo"]);
+  const ABART = new Set(["hammer", "einarmig", "einarmiges", "einarmiger", "einbeinig", "liegend", "sitzend", "stehend", "reverse", "eng", "enger", "breit", "breiter", "schragbank", "negativ", "front", "sumo", "kniend"]);
+  // Eigennamen einer Übung: wer sie nicht sagt, meint sie nicht. "Curls am
+  // Kabel" ist nicht der Bayesian Curl, auch wenn Curl und Kabel passen.
+  const EIGENNAME = new Set(["bayesian", "seagull", "pallof", "pendulum", "landmine", "preacher", "scott"]);
   const FUELL = new Set(["am", "an", "der", "die", "das", "mit", "im", "auf", "dem", "den", "und", "fuer", "von", "zum", "zur", "ein", "eine", "the", "fur"]);
   // Was im Studio anders heisst als in der Datenbank.
   const GLEICH = { latziehen: "latzug", latzugmaschine: "latzug", pecdeck: "butterfly", flys: "fly", flyes: "fly" };
@@ -4522,7 +4525,7 @@ export function uebungZuName(name, wunsch = {}) {
     // liegenden. "beidarmig" ist die Grundform und kostet nichts.
     for (const n of nameW) {
       if (kern.some((w) => passt(w, n)) || GERAET_WORT[n] || n === "beidarmig") continue;
-      wert -= ABART.has(n) ? 5 : 3;
+      wert -= EIGENNAME.has(n) ? 8 : ABART.has(n) ? 5 : 3;
     }
     if (erlaubt(u)) wert += 3;
     if (wert > besterWert || (wert === besterWert && beste && u.name.length < beste.name.length)) { beste = u; besterWert = wert; }
