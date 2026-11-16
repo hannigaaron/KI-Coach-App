@@ -269,12 +269,12 @@ html:not(.bewegt) .portal-rand { display: none; }
 .portal-label { margin-bottom: 0; }
 /* Hinter dem Wort dreht sich das passende Zeichen: Hantel zu Fitness, Mond zu Schlaf */
 .portal-innen { position: relative; z-index: 1; }
-.portal-symbol { --gr: min(64vw, 300px); position: absolute; z-index: 0; left: 50%; top: 13%; width: var(--gr); height: var(--gr); margin-left: calc(var(--gr) / -2); perspective: 900px; pointer-events: none; opacity: 0; }
-@media (min-width: 900px) { .portal-symbol { --gr: min(26vw, 380px); left: auto; right: 5%; top: 39%; margin: calc(var(--gr) / -2) 0 0; } }
-.portal-symbol .dreh { position: absolute; inset: 0; animation: symbolDreh 9s ease-in-out infinite alternate; }
-.portal-symbol svg { position: absolute; inset: 0; width: 100%; height: 100%; fill: none; stroke: var(--blau); stroke-width: .9; stroke-linecap: round; stroke-linejoin: round; opacity: 0; transform: scale(.72); transition: opacity .7s var(--kurve), transform .9s var(--kurve); filter: drop-shadow(0 0 14px color-mix(in srgb, var(--blau) 60%, transparent)); }
+.portal-symbol { --gr: min(46vw, 210px); position: absolute; z-index: -1; right: 4px; bottom: calc(100% + 18px); width: var(--gr); height: var(--gr); perspective: 900px; pointer-events: none; opacity: 0; }
+@media (min-width: 900px) { .portal-symbol { --gr: min(20vw, 300px); right: 3%; bottom: auto; top: 50%; margin-top: calc(var(--gr) / -2 - 4vh); } }
+.portal-symbol .dreh { position: absolute; inset: 0; animation: symbolDreh 14s ease-in-out infinite alternate; }
+.portal-symbol svg { position: absolute; inset: 0; width: 100%; height: 100%; fill: none; stroke: var(--blau); stroke-width: .9; stroke-linecap: round; stroke-linejoin: round; opacity: 0; transform: scale(.94); transition: opacity 1.3s ease-in-out, transform 1.6s var(--kurve); filter: drop-shadow(0 0 14px color-mix(in srgb, var(--blau) 60%, transparent)); }
 .portal-symbol svg.an { opacity: .22; transform: none; }
-@keyframes symbolDreh { from { transform: rotateY(-55deg) rotateZ(-5deg); } to { transform: rotateY(55deg) rotateZ(5deg); } }
+@keyframes symbolDreh { from { transform: rotateY(-42deg) rotateZ(-4deg); } to { transform: rotateY(42deg) rotateZ(4deg); } }
 html:not(.bewegt) .portal-symbol { display: none; }
 @media (prefers-reduced-motion: reduce) { .portal-symbol .dreh { animation: none; } }
 /* Ein Quader, der nach vorn kippt. Vorn steht ein Thema, unten wartet das
@@ -853,8 +853,8 @@ footer { border-top: 1px dashed var(--linie); padding-block: 36px 48px; color: v
       </div>
       <div class="orb-halter" id="orbHalter"><div class="orb" id="orb" aria-hidden="true"></div></div>
       <div class="portal" id="portal">
-        <div class="portal-symbol" id="portalSymbol" aria-hidden="true"><div class="dreh"><svg viewBox="0 0 24 24"><path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/></svg><svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1.1 2.2h5c.1-1 .5-1.7 1.1-2.2A6 6 0 0 0 12 3z"/></svg><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10zM8 11.5h2l1-2 2 4 1-2h2"/></svg><svg viewBox="0 0 24 24"><path d="M4 6.5h16v13H4zM4 10.5h16M8 4v4M16 4v4M8 14h3M8 17h6"/></svg><svg viewBox="0 0 24 24"><path d="M13 3 5 13.5h6L10.5 21 19 10h-6z"/></svg><svg viewBox="0 0 24 24"><path d="M19.5 14.5A8 8 0 1 1 9.5 4.5a6.5 6.5 0 0 0 10 10z"/></svg></div></div>
         <div class="portal-innen">
+          <div class="portal-symbol" id="portalSymbol" aria-hidden="true"><div class="dreh"><svg viewBox="0 0 24 24"><path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/></svg><svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1.1 2.2h5c.1-1 .5-1.7 1.1-2.2A6 6 0 0 0 12 3z"/></svg><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10zM8 11.5h2l1-2 2 4 1-2h2"/></svg><svg viewBox="0 0 24 24"><path d="M4 6.5h16v13H4zM4 10.5h16M8 4v4M16 4v4M8 14h3M8 17h6"/></svg><svg viewBox="0 0 24 24"><path d="M13 3 5 13.5h6L10.5 21 19 10h-6z"/></svg><svg viewBox="0 0 24 24"><path d="M19.5 14.5A8 8 0 1 1 9.5 4.5a6.5 6.5 0 0 0 10 10z"/></svg></div></div>
           <span class="portal-label augenbraue">Dein Coach für</span>
           <div class="wuerfel" id="wuerfel" aria-hidden="true">
             <div class="wuerfel-koerper" id="wuerfelKoerper">
@@ -2228,7 +2228,7 @@ class Orb {
     wKippt = true;
     const n = (wIndex + 1) % ANSPRUECHE.length;
     setzen(unten, n); symbolZeigen(n);
-    wKoerper.style.transition = "transform .65s cubic-bezier(.65, 0, .35, 1)";
+    wKoerper.style.transition = "transform 1.1s cubic-bezier(.6, 0, .2, 1)";
     wKoerper.style.transform = "translateZ(calc(var(--tiefe-halb) * -1)) rotateX(90deg)";
     setTimeout(() => {
       wKoerper.style.transition = "none";
@@ -2236,12 +2236,12 @@ class Orb {
       wKoerper.style.transform = "translateZ(calc(var(--tiefe-halb) * -1)) rotateX(0deg)";
       standZeigen();
       wKippt = false;
-    }, 670);
+    }, 1130);
   }
-  // Der erste Wechsel kommt nach 1,2 Sekunden, danach alle 2. Vorher stand das
-  // erste Wort 2,6 Sekunden, und wer weiterwischte, sah nur dieses eine.
+  // Der erste Wechsel kommt nach 2,2 Sekunden, danach alle 3,4. Alle 2 Sekunden
+  // mit schnellem Kippen wirkte hektisch und abgehackt.
   let wErst = null;
-  function wuerfelStarten() { if (wTakt || wErst) return; wErst = setTimeout(() => { wErst = null; kippen(); wTakt = setInterval(kippen, 2000); }, 1200); }
+  function wuerfelStarten() { if (wTakt || wErst) return; wErst = setTimeout(() => { wErst = null; kippen(); wTakt = setInterval(kippen, 3400); }, 2200); }
   function wuerfelStoppen() { clearTimeout(wErst); wErst = null; clearInterval(wTakt); wTakt = null; wIndex = 0; setzen(vorn, 0); standZeigen(); symbolZeigen(0); }
   setzen(vorn, 0); standZeigen(); symbolZeigen(0);
   if (intro.zustand === "offen") wuerfelStarten();
