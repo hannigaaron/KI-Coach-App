@@ -4478,7 +4478,7 @@ button { overflow-wrap: anywhere; text-wrap: balance; }
 /* Die bisherigen Wochenbögen als Tagebuch. Zu sind sie eine Zeile mit Tag
    und Bogen, offen jede Frage mit Antwort und darunter daevo. Ohne Rahmen um
    jede Antwort: es ist Text zum Lesen, keine Liste von Feldern. */
-#wcVerlauf { list-style: none; padding: 0; }
+#wcVerlauf, #checkinList { list-style: none; padding: 0; margin: 0; }
 .wc-tb { padding: 0; margin: 0 0 var(--s-3); border-radius: 22px; background: var(--flaeche); box-shadow: var(--haarlinie); }
 .wc-tb details { padding: var(--s-4); }
 .wc-tb summary { display: flex; justify-content: space-between; align-items: center; gap: var(--s-3); cursor: pointer; list-style: none; }

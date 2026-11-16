@@ -1587,6 +1587,15 @@ Antwort von daevo. Die steht seit diesem Stand am Bogen,
 beantwortet", und die Auswertung war nach dem Verlassen der Seite weg.
 Ältere Bögen haben keine gespeicherte Antwort.
 
+Dasselbe für den täglichen Check-in: nach dem Speichern antwortet daevo
+kurz, `tagesCheckinAuswerten` in `assistant.js`, die Antwort hängt über
+Tag und Uhrzeit am Check-in, `checkinTagAntwortSetzen`. Darunter steht
+"Dein Tagebuch" mit allen Check-ins der letzten 30 Tage, auch Morgen und
+Mittag, `renderCheckins` in `app.js`, aufklappbar mit Werten, Notiz und
+Antwort. Ohne KI gibt es keine Antwort und keinen Regelweg: der würde aus
+einer Notiz wie "Pizza mit Freunden" eine Mahlzeit machen. Der Prompt sagt
+dem Coach, dass der Check-in schon gespeichert ist, sonst stünde er doppelt.
+
 ## Sprachausgabe
 
 `apps/pwa/js/voice.js` nahm bisher die erste deutsche Stimme aus der Liste des

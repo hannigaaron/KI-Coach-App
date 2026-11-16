@@ -2789,6 +2789,24 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
      * Der Vergleich mit der Vorwoche geht mit, weil ein einzelner Bogen eine
      * Momentaufnahme ist. Erst "Stress von 40 auf 75" ist eine Aussage.
      */
+    /**
+     * Eine kurze Antwort auf den täglichen Check-in, für das Tagebuch. Ohne
+     * KI gibt es keine Antwort: der Regelweg würde aus der Notiz sonst einen
+     * Eintrag machen, etwa eine Mahlzeit aus "Pizza mit Freunden".
+     */
+    async tagesCheckinAuswerten({ tag = todayIso(), at } = {}) {
+      if (!provider().available) return "";
+      const c = (store.getDay(tag).checkins || []).find((x) => x.at === at && x.kind !== "herausforderung");
+      if (!c) return "";
+      const werte = [["Energie", c.energy], ["Schlaf", c.sleepQuality], ["Stimmung", c.mood], ["Konzentration", c.concentration], ["Sättigung", c.satiety]]
+        .filter(([, w]) => w !== null && w !== undefined).map(([n, w]) => `${n} ${w} von 10`);
+      const notiz = c.note && c.note !== "Check-in ohne Notiz" ? `Notiz: "${c.note}"` : "Ohne Notiz.";
+      const antwort = await ask(`Das ist mein Check-in von heute, ${c.at} Uhr. ${werte.join(", ")}. ${notiz}\n\n`
+        + "Er ist schon gespeichert, speichere und trage nichts ein. Antworte kurz, wie ein Coach in einem Tagebuch: "
+        + "was du darin siehst, ehrlich und ohne es schönzureden, und genau eine Sache für den Rest des Tages.");
+      return antwort.text;
+    },
+
     async checkinAuswerten({ bogen } = {}) {
       const alle = store.getCheckinBoegen().filter((b) => b.bogen === bogen);
       const jetzt = alle[alle.length - 1];

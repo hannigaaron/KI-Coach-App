@@ -2013,22 +2013,38 @@ function verlaufZeigen(tag) {
   renderVerlauf();
 }
 
+/**
+ * Die täglichen Check-ins der letzten 30 Tage als Tagebuch, wie bei den
+ * Wochenbögen: zu eine Zeile mit Tag, Uhrzeit und Energie, offen die Werte,
+ * die eigene Notiz und die Antwort von daevo.
+ */
 function renderCheckins() {
-  const checkins = store.getDay(day).checkins;
-  $("checkinList").innerHTML = checkins.length
-    ? checkins.slice().reverse().map((c) => {
-        // Der Mittags Check-in fragt andere Zahlen ab als der Morgen. Mit
-        // demselben Text stand dort "Schlaf -, Stimmung -".
-        const teile = c.kind === "midday"
-          ? [["Konzentration", c.concentration], ["Sättigung", c.satiety]]
-          : [["Schlaf", c.sleepQuality], ["Stimmung", c.mood]];
-        const titel = c.note || (c.kind === "midday" ? "Mittags Check-in" : c.kind === "morning" ? "Morgen Check-in" : "Check-in");
-        const zahlen = teile.filter(([, w]) => w != null).map(([n, w]) => `${n} ${w}`).join(", ");
-        return `<li><div class="li-main"><div class="li-title">${escapeHtml(titel)}</div>` +
-          `<div class="li-sub">${c.at} Uhr${zahlen ? `, ${zahlen}` : ""}</div></div>` +
-          (c.energy != null ? `<div class="li-side"><b>${c.energy}</b>Energie</div>` : "") + "</li>";
+  const eintraege = [];
+  for (let i = 0; i < 30; i++) {
+    const d = new Date(`${todayIso()}T12:00:00`);
+    d.setDate(d.getDate() - i);
+    const tag = todayIso(d);
+    for (const c of (store.getDay(tag).checkins || []).slice().reverse()) {
+      if (c.kind === "herausforderung") continue;
+      eintraege.push({ tag, c });
+    }
+  }
+  const art = (c) => (c.kind === "midday" ? "Mittags Check-in" : c.morgen ? "Guten Morgen Check-in" : c.kind === "evening" ? "Abend Check-in" : "Check-in");
+  $("checkinList").innerHTML = eintraege.length
+    ? eintraege.map(({ tag, c }) => {
+        const wann = new Date(`${tag}T12:00:00`).toLocaleDateString("de-DE", { weekday: "short", day: "numeric", month: "long" });
+        const werte = [["Energie", c.energy], ["Schlaf", c.sleepQuality], ["Stimmung", c.mood], ["Konzentration", c.concentration], ["Sättigung", c.satiety], ["Morgenwert", c.morgenWert]]
+          .filter(([, w]) => w !== null && w !== undefined);
+        const notiz = c.note && c.note !== "Check-in ohne Notiz" ? c.note : "";
+        const paare = [
+          ...werte.map(([n, w]) => `<div class="wc-tb-paar"><dt>${escapeHtml(n)}</dt><dd>${escapeHtml(String(w))}${n === "Morgenwert" ? " von 100" : " von 10"}</dd></div>`),
+          ...(notiz ? [`<div class="wc-tb-paar"><dt>Notiz</dt><dd>${escapeHtml(notiz)}</dd></div>`] : []),
+        ].join("");
+        const daevo = c.antwort ? `<div class="wc-tb-daevo"><p class="wc-tb-von">daevo</p><div class="msg-text">${chatHtml(c.antwort)}</div></div>` : "";
+        const seite = c.energy !== null && c.energy !== undefined ? `Energie ${c.energy}` : "";
+        return `<li class="wc-tb"><details><summary><span><b>${escapeHtml(wann)}, ${escapeHtml(c.at || "")}</b><small>${escapeHtml(art(c))}${notiz ? `, ${escapeHtml(notiz.slice(0, 40))}${notiz.length > 40 ? "…" : ""}` : ""}</small></span><span class="meta">${escapeHtml([seite, c.antwort ? "mit Antwort" : ""].filter(Boolean).join(", "))}</span></summary><dl>${paare}</dl>${daevo}</details></li>`;
       }).join("")
-    : `<li><div class="li-main"><div class="li-sub">Heute noch kein Check-in.</div></div></li>`;
+    : `<li class="wc-tb"><p class="sub" style="margin:0;padding:var(--s-4)">Noch kein Check-in. Dein erster steht danach hier, mit der Antwort von daevo.</p></li>`;
 }
 
 function renderMemories() {
@@ -4052,7 +4068,8 @@ document.addEventListener("click", (event) => {
 stufenZeichnen();
 
 $("btnCheckin").addEventListener("click", async () => {
-  await buildActions({ onChange: refreshAll }).checkinSpeichern({
+  const aktionen = buildActions({ onChange: refreshAll });
+  await aktionen.checkinSpeichern({
     energie: Number($("energy").value) || undefined,
     schlaf: Number($("sleepQ").value) || undefined,
     stimmung: Number($("mood").value) || undefined,
@@ -4060,7 +4077,31 @@ $("btnCheckin").addEventListener("click", async () => {
   });
   $("checkNote").value = "";
   renderCheckins();
-  toast("Check-in gespeichert");
+  // Der eben gespeicherte ist der letzte des Tages. Seine Uhrzeit ist der
+  // Schlüssel, unter dem die Antwort von daevo danach im Tagebuch steht.
+  const tag = todayIso();
+  const at = (store.getDay(tag).checkins || []).filter((c) => c.kind !== "herausforderung").pop()?.at;
+  const knopf = $("btnCheckin");
+  const feld = $("ciAuswertung");
+  knopf.disabled = true;
+  knopf.textContent = "daevo liest";
+  feld.hidden = false;
+  feld.textContent = "Gespeichert. Ich schaue mir das an.";
+  try {
+    const text = await aktionen.tagesCheckinAuswerten({ tag, at });
+    if (text) {
+      feld.textContent = text;
+      store.checkinTagAntwortSetzen(tag, at, text);
+    } else {
+      feld.textContent = "Gespeichert. Eine Antwort von daevo gibt es mit KI, dein Eintrag steht im Tagebuch.";
+    }
+  } catch (error) {
+    feld.textContent = `Gespeichert. Die Antwort hat nicht geklappt: ${error.message}`;
+  } finally {
+    knopf.disabled = false;
+    knopf.textContent = "Check-in speichern";
+    renderCheckins();
+  }
 });
 
 $("gewichtZeitraum").addEventListener("click", (event) => {

@@ -466,6 +466,13 @@ export const store = {
     this.setDay(day, data);
   },
 
+  /** Die Antwort von daevo an einen täglichen Check-in hängen, über Tag und Uhrzeit. */
+  checkinTagAntwortSetzen(day, at, antwort) {
+    const data = this.getDay(day);
+    data.checkins = data.checkins.map((c) => (c.at === at && c.kind !== "herausforderung" ? { ...c, antwort: String(antwort || "").slice(0, 8000) } : c));
+    this.setDay(day, data);
+  },
+
   addCheckin(day, checkin) {
     const data = this.getDay(day);
     data.checkins.push(checkin);
