@@ -1,0 +1,2493 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>daevo. Dein digitaler Life Coach für Körper, Kopf und Kalender</title>
+<meta name="theme-color" content="#0b0d10">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://daevo.de/">
+<meta property="og:title" content="daevo. Dein digitaler Life Coach">
+<meta property="og:description" content="Das ist nicht die nächste Fitness App. daevo trägt ein, plant und erinnert. Für Körper, Kopf und Kalender. 7 Tage kostenlos testen.">
+<meta name="description" content="daevo ist dein digitaler Life Coach für Körper, Kopf und Kalender. Er trägt ein, plant und erinnert. 7 Tage kostenlos testen.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=DM+Sans:opsz,wght@9..40,400;9..40,500&family=Poppins:wght@300;500;600&display=swap">
+<style>
+/*
+  Layout: Eine Reise in festgehaltenen Bühnen. Jede Bühne bleibt stehen,
+  während der Finger weiterscrollt, und der Fortschritt bewegt die Dinge
+  darin: das d schrumpft zur Seite, Gedanken sortieren sich, das Telefon
+  dreht sich zu dir, der Kalender füllt seine Lücken.
+*/
+:root {
+  --void: #0b0d10;
+  --nacht: #0e1116;
+  --tiefe: #151c26;
+  --linie: #273240;
+  --nebel: #8494a6;
+  --eis: #e8f3f8;
+  --blau: #96d8f0;
+  --tiefblau: #1e7fa8;
+  --text-2: #dfe5ea;
+  --hell-grund: #dfe5ea;
+  --karte: #f3f6f8;
+  --tinte: #0b0d10;
+  --tinte-2: #4a5866;
+  --auf-blau: #0b0d10;
+  --spur: #1c2430;
+  --block-fest: #1c2430;
+  --violett: #a9b4f5;
+  --ton-fett: #e9a8c8;
+  --ton-kh: #a9b4f5;
+  --portal-kern: #12364a;
+  --punkte-start: #0d2a3a;
+  --punktfarbe: #96d8f0;
+  --orb-farbe: #96d8f0;
+  --schatten: #000;
+  --glas: color-mix(in srgb, #151c26 58%, transparent);
+  --haar: color-mix(in srgb, #96d8f0 18%, transparent);
+
+  --display: "Anton", "Bebas Neue", "Oswald", Impact, "Arial Narrow", sans-serif;
+  --etikett: "Poppins", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --text: "DM Sans", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --r-pille: 800px;
+  --r-karte: 40px;
+  --breite: 1280px;
+  --kurve: cubic-bezier(.2, .7, .1, 1);
+  /* Glas: halb durchsichtige Fläche mit Haarlinie, schwebt über dem Grund */
+  --verlauf: linear-gradient(100deg, #4fb4dc 0%, #96d8f0 55%, #d4f1fb 100%);
+  color-scheme: dark;
+}
+
+/* Telefon und dunkle Karten bleiben in beiden Modi dunkel, wie ein Gerät */
+.immer-dunkel {
+  --void: #0b0d10;
+  --nacht: #0e1116;
+  --tiefe: #151c26;
+  --linie: #273240;
+  --nebel: #8494a6;
+  --eis: #e8f3f8;
+  --blau: #96d8f0;
+  --tiefblau: #1e7fa8;
+  --text-2: #dfe5ea;
+  --hell-grund: #dfe5ea;
+  --karte: #f3f6f8;
+  --tinte: #0b0d10;
+  --tinte-2: #4a5866;
+  --auf-blau: #0b0d10;
+  --spur: #1c2430;
+  --block-fest: #1c2430;
+  --violett: #a9b4f5;
+  --ton-fett: #e9a8c8;
+  --ton-kh: #a9b4f5;
+  --portal-kern: #12364a;
+  --punkte-start: #0d2a3a;
+  --punktfarbe: #96d8f0;
+  --orb-farbe: #96d8f0;
+  --schatten: #000;
+  --glas: color-mix(in srgb, #151c26 58%, transparent);
+  --haar: color-mix(in srgb, #96d8f0 18%, transparent);
+  color: var(--eis);
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  background: var(--void); color: var(--eis);
+  font-family: var(--text); font-weight: 500; font-size: 16px; line-height: 1.55;
+  -webkit-font-smoothing: antialiased; overflow-x: clip;
+}
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--blau); outline-offset: 3px; border-radius: 6px; }
+
+.innen {
+  max-width: var(--breite); margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+@media (min-width: 720px) {
+  .innen { padding-left: max(40px, env(safe-area-inset-left, 0px)); padding-right: max(40px, env(safe-area-inset-right, 0px)); }
+}
+.etikett { font-family: var(--etikett); font-weight: 500; text-transform: uppercase; font-size: 12px; letter-spacing: .08em; line-height: 1.2; }
+.display { font-family: var(--display); font-weight: 400; text-transform: uppercase; letter-spacing: .02em; line-height: 1.1; text-wrap: balance; margin: 0; }
+/* 1.1 statt enger: bei Anton stehen die Punkte von Ä, Ö und Ü sonst in der Zeile darüber */
+.blau { color: var(--blau); }
+/* Abschnittsmarke: Punkt mit Schein, weite Laufweite */
+.augenbraue { display: inline-flex; align-items: center; gap: 10px; font-family: var(--etikett); font-weight: 500; text-transform: uppercase; font-size: 12px; letter-spacing: .3em; line-height: 1.2; color: var(--blau); margin-bottom: 16px; }
+.augenbraue::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--blau); box-shadow: 0 0 10px var(--blau); flex: none; }
+.hell .augenbraue { color: var(--tiefblau); }
+.hell .augenbraue::before { background: var(--tiefblau); box-shadow: none; }
+/* Ein Wort trägt den Strich. Als Hintergrund und nicht als Pseudoelement,
+   damit er auch über einen Zeilenumbruch hinweg unter jedem Stück liegt. */
+.strich { background: var(--verlauf) no-repeat 0 100% / 0% .07em; padding-bottom: .04em; -webkit-box-decoration-break: clone; box-decoration-break: clone; transition: background-size 1.2s var(--kurve) .25s; }
+.strich.da { background-size: 100% .07em; }
+.hell .strich { background-image: linear-gradient(90deg, var(--tiefblau), #4fb4dc); }
+/* Leichte Überschrift: Poppins 300 mit einem fetten Wort, derselbe Gewichtssprung wie in der Wortmarke */
+.leicht { font-family: var(--etikett); font-weight: 300; text-transform: uppercase; letter-spacing: -.035em; line-height: 1.08; }
+.leicht b, .leicht em { font-weight: 600; font-style: normal; }
+/* Überschriften stehen in Grossbuchstaben, der Markenname bleibt immer klein */
+.klein { text-transform: none; }
+
+/* ---------- Hell im Einzelnen ---------- */
+.ring-spur { stroke: var(--spur); }
+#kRing { stroke: var(--blau); }
+.textlink { color: var(--blau); text-decoration: none; font-size: 17px; padding-block: 12px; }
+.textlink:hover { text-decoration: underline; text-underline-offset: 4px; }
+
+/* ---------- Kopf ---------- */
+.kopf {
+  position: fixed; inset: 0 0 auto; z-index: 50;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding-top: calc(18px + env(safe-area-inset-top, 0px)); padding-bottom: 18px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  transition: background .4s var(--kurve), padding .4s var(--kurve);
+}
+@media (min-width: 720px) { .kopf { padding-left: max(32px, env(safe-area-inset-left, 0px)); padding-right: max(32px, env(safe-area-inset-right, 0px)); } }
+.kopf.unten {
+  background: color-mix(in srgb, var(--void) 82%, transparent);
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+  padding-top: calc(12px + env(safe-area-inset-top, 0px)); padding-bottom: 12px;
+}
+.kopf .marke { display: flex; align-items: center; }
+.kopf .marke svg { height: 18px; width: auto; display: block; }
+.kopf-links { display: flex; align-items: center; gap: clamp(14px, 3vw, 32px); }
+.thema { width: 36px; height: 36px; border-radius: 50%; border: 0; padding: 0; display: grid; place-items: center; cursor: pointer; background: transparent; color: var(--eis); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--eis) 25%, transparent); transition: background .25s var(--kurve); }
+.thema:hover { background: color-mix(in srgb, var(--eis) 10%, transparent); }
+.thema svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+/* Im Dunkeln zeigt der Knopf die Sonne, also das Ziel des Tipps, im Hellen den Mond */
+.thema .mond-form { display: none; }
+.kopf-links a { text-decoration: none; color: var(--eis); padding-block: 6px; border-bottom: 1px dashed transparent; transition: border-color .25s var(--kurve); }
+.kopf-links a:hover { border-bottom-color: var(--nebel); }
+.kopf-links .kopf-demo { color: var(--eis); border: 0; border-radius: var(--r-pille); padding: 8px 18px; margin-block: -2px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--eis) 70%, transparent); transition: background .25s var(--kurve); }
+.kopf-links .kopf-demo:hover { background: color-mix(in srgb, var(--eis) 10%, transparent); }
+@media (max-width: 600px) { .kopf-links a:not(.kopf-demo) { display: none; } .kopf-links { gap: 10px; } }
+
+.knopf {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  font-family: var(--text); font-weight: 500; font-size: 16px; text-decoration: none;
+  border-radius: var(--r-pille); padding: 12px 24px; border: 0; cursor: pointer;
+  transition: transform .25s var(--kurve), background .25s var(--kurve);
+}
+.knopf:active { transform: scale(.97); }
+.knopf-gross { font-size: 18px; padding: 16px 32px; }
+.knopf-blau { transition: transform .25s var(--kurve), filter .25s var(--kurve), box-shadow .25s var(--kurve); }
+.knopf-blau:hover { transform: translateY(-2px); box-shadow: 0 16px 44px -12px color-mix(in srgb, var(--blau) 85%, transparent); }
+.start-aktionen { margin-top: 30px; }
+.bewegt .start-aktionen { animation: einblenden 1.1s var(--kurve) 1.8s both; }
+@media (max-width: 719px) { .start-aktionen { margin-top: 18px; } .start-aktionen .textlink { display: none; } .start-aktionen .knopf-gross { font-size: 16px; padding: 13px 24px; } }
+/* Kleine, niedrige Telefone: der dritte Absatz und die schwebenden Karten lagen über Text und Knopf */
+@media (max-width: 719px) and (max-height: 760px) { .start-lead p:nth-child(3) { display: none; } .start-text h1 { font-size: 76px; } .schweber { display: none; } }
+.fuss-links { display: flex; flex-wrap: wrap; gap: 8px 24px; font-size: 13px; }
+.fuss-links a { color: var(--nebel); text-decoration: none; padding-block: 6px; }
+.fuss-links a:hover { color: var(--blau); }
+@media (min-width: 820px) { .fuss-links { grid-column: 1 / -1; } }
+.knopf-blau { background: var(--verlauf); color: var(--tinte); box-shadow: 0 10px 34px -12px color-mix(in srgb, var(--blau) 70%, transparent); }
+.knopf-blau:hover { filter: brightness(1.06); }
+.knopf-rahmen { background: transparent; color: var(--eis); box-shadow: inset 0 0 0 1.5px var(--eis); }
+.knopf-rahmen:hover { background: color-mix(in srgb, var(--eis) 10%, transparent); }
+.pfeil { width: 14px; height: 14px; flex: none; }
+
+/* ---------- Bühnen ----------
+   Ohne Skript stehen alle Bühnen in ihrem Endzustand untereinander. Erst
+   wenn das Skript läuft, werden sie hoch und halten fest. So ist die Seite
+   auch dann vollständig, wenn keine Bewegung ankommt. */
+.szene { position: relative; }
+.buehne { position: relative; overflow: hidden; padding-block: 96px 64px; }
+.bewegt .szene { height: var(--laenge, 300vh); }
+.bewegt .buehne { position: sticky; top: 0; height: 100vh; height: 100svh; padding-block: 0; will-change: transform, opacity; transform-origin: 50% 40%; }
+
+
+
+/* ---------- 1 Eröffnung ----------
+   Erst der Satz oben links, das d leuchtet unten rechts. Beim Scrollen
+   wandert das d in die Mitte, wächst, und in seinem Ring öffnet sich die
+   nächste Seite. */
+.eroeffnung .buehne { isolation: isolate; display: grid; gap: 48px; }
+.eroeffnung .buehne::before {
+  content: ""; position: absolute; inset: 0; z-index: -1;
+  background: radial-gradient(46% 46% at 74% 70%, color-mix(in srgb, var(--tiefblau) 24%, transparent), transparent 72%);
+}
+.start-text { position: relative; z-index: 2; width: 100%; max-width: var(--breite); padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px)); will-change: transform, opacity; }
+@media (min-width: 720px) { .start-text { padding-inline: max(40px, env(safe-area-inset-left, 0px)) max(40px, env(safe-area-inset-right, 0px)); } }
+.bewegt .start-text { position: absolute; left: 0; top: calc(96px + env(safe-area-inset-top, 0px)); }
+.start-text h1 { font-size: clamp(88px, 14vw, 230px); line-height: .9; }
+/* Der Name ist das Wichtigste auf der Seite, der Satz davor nur die Einleitung */
+.start-text .zeile-vor { font-size: .42em; line-height: 1; margin-bottom: .04em; }
+/* Oben Raum für die Punkte auf Ä, Ö und Ü, sonst schneidet die Maske sie ab */
+.zeile { display: block; overflow: hidden; padding: .16em 0 .02em; margin-top: -.16em; }
+.zeile > span { display: inline-block; will-change: transform; }
+.start-lead { font-weight: 400; font-size: clamp(17px, 1.6vw, 22px); line-height: 1.4; margin: 24px 0 0; max-width: 34ch; color: var(--text-2); }
+.start-lead b { font-weight: 500; color: var(--eis); }
+.start-lead p { margin: 0; }
+.start-lead p + p { margin-top: .85em; }
+.start-lead p:nth-child(2) { font-size: 1.12em; line-height: 1.3; }
+/* Die Wortmarke statt gesetzter Schrift, dieselbe Datei wie oben links */
+.h-marke { display: inline-block; line-height: 0; padding-top: .06em; }
+/* Die viewBox beginnt rund 12 Einheiten vor dem Bogen des d. Ohne den Ausgleich
+   steht die Marke eingerückt neben dem Text darunter. */
+.h-marke svg { height: .74em; width: auto; display: block; margin-left: calc(-.74em * 12 / 92.9); }
+@media (max-width: 719px) { .start-lead { font-size: 16px; } .start-lead p + p { margin-top: .7em; } .start-lead p:nth-child(2) { font-size: 1.08em; } }
+.start-warum { display: flex; gap: 12px; align-items: center; margin: 18px 0 0; color: var(--blau); }
+.start-warum::before { content: ""; width: 34px; border-top: 1px dashed var(--blau); }
+.orb-halter { display: grid; place-items: center; justify-self: center; will-change: transform, opacity; }
+.bewegt .orb-halter { position: absolute; left: 50%; top: 50%; translate: -50% -50%; z-index: 2; }
+.orb {
+  --accent: var(--orb-farbe); --glow: .25; --level: 0; --orb-scale: 1;
+  position: relative; width: min(84vw, 70svh, 660px); aspect-ratio: 1;
+}
+.orb::after {
+  content: ""; position: absolute; inset: -22%; border-radius: 50%; pointer-events: none;
+  transform: scale(var(--orb-scale));
+  background: radial-gradient(circle, color-mix(in srgb, var(--blau) 45%, transparent) 0%, transparent 66%);
+  opacity: calc(var(--glow) * .5); filter: blur(26px); transition: opacity .12s linear;
+}
+.orb-canvas {
+  position: relative; display: block; width: 100%; height: 100%;
+  transform: scale(var(--orb-scale)); transform-origin: center;
+  filter:
+    drop-shadow(0 0 calc(3px + var(--glow) * 7px) color-mix(in srgb, var(--blau) 85%, transparent))
+    drop-shadow(0 0 calc(10px + var(--glow) * 22px) color-mix(in srgb, var(--blau) 45%, transparent));
+}
+/* Die Seite im Ring */
+.portal {
+  position: relative; z-index: 3; width: 100%; display: grid; align-content: center;
+  background: radial-gradient(70% 60% at 50% 46%, var(--portal-kern), var(--nacht) 62%, var(--void));
+  padding-block: 72px;
+}
+.bewegt .portal { position: absolute; inset: 0; padding-block: 76px 24px; clip-path: circle(0px at 50% 50%); }
+.portal-rand {
+  position: absolute; left: 0; top: 0; width: 0; height: 0; border-radius: 50%; z-index: 4; pointer-events: none; opacity: 0;
+  box-shadow: 0 0 0 1.5px var(--blau), 0 0 50px 8px color-mix(in srgb, var(--blau) 45%, transparent), inset 0 0 70px color-mix(in srgb, var(--blau) 30%, transparent);
+}
+html:not(.bewegt) .portal-rand { display: none; }
+.portal-innen { width: 100%; max-width: var(--breite); margin: 0 auto; padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px)); }
+@media (min-width: 720px) { .portal-innen { padding-inline: max(40px, env(safe-area-inset-left, 0px)) max(40px, env(safe-area-inset-right, 0px)); } }
+.portal-label { margin-bottom: 0; }
+/* Ein Quader, der nach vorn kippt. Vorn steht ein Thema, unten wartet das
+   nächste. Nach dem Kippen wird ohne Übergang zurückgedreht und der Text
+   getauscht, so reicht ein Körper mit zwei Seiten für beliebig viele Themen. */
+.wuerfel { --tiefe-halb: .64em; margin-top: 8px; height: 1.28em; perspective: 1400px; perspective-origin: 30% 50%; font-family: var(--display); font-size: clamp(26px, 8.4vw, 136px); line-height: 1.28; text-transform: uppercase; }
+.wuerfel-koerper { position: relative; height: 100%; transform-style: preserve-3d; transform: translateZ(calc(var(--tiefe-halb) * -1)) rotateX(0deg); }
+.wuerfel .seite { position: absolute; inset: 0; white-space: nowrap; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.wuerfel .vorn { transform: translateZ(var(--tiefe-halb)); }
+.wuerfel .unten { transform: rotateX(-90deg) translateZ(var(--tiefe-halb)); }
+.ansprueche { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); margin: 0; padding: 0; list-style: none; }
+html:not(.bewegt) .wuerfel { display: none; }
+html:not(.bewegt) .ansprueche { position: static; width: auto; height: auto; clip-path: none; font-family: var(--display); font-size: clamp(32px, 6vw, 80px); line-height: 1.25; text-transform: uppercase; }
+.walze-stand { display: flex; gap: 8px; margin-top: 14px; }
+.walze-stand i { width: 22px; height: 3px; border-radius: 3px; background: var(--linie); transition: width .45s var(--kurve), background .45s var(--kurve); }
+.walze-stand i.an { width: 44px; background: var(--blau); }
+html:not(.bewegt) .walze-stand { display: none; }
+/* ---------- Das Telefon im Einstieg ----------
+   Die App, wie man sie öffnet: oben das d, darunter Gruss und Lage, unten die
+   Eingabe. Das d selbst liegt als Kreis darüber und wächst später heraus. */
+.start-tel {
+  position: absolute; z-index: 1; right: max(9vw, 24px); top: 50%; translate: 0 -50%;
+  width: min(300px, calc(66svh * 9 / 19.5)); aspect-ratio: 9 / 19.5; container-type: inline-size; will-change: transform, opacity;
+}
+@media (max-width: 899px) { .start-tel { right: 7vw; top: auto; bottom: 9svh; translate: none; width: calc(34svh * 9 / 19.5); } }
+html:not(.bewegt) .start-tel { display: none; }
+.st-innen {
+  height: 100%; border-radius: 15cqw; padding: 3.2cqw; background: linear-gradient(160deg, #2c3746, #0d1117 60%);
+  box-shadow: 0 60px 120px -40px color-mix(in srgb, #1e7fa8 55%, transparent), inset 0 1px 0 rgba(255, 255, 255, .12);
+}
+.bewegt .st-innen { animation: einblenden 1.4s var(--kurve) .2s both; }
+/* Der Bildschirm folgt hell und dunkel wie die App selbst, nur der Rahmen bleibt dunkel */
+.st-schirm { position: relative; height: 100%; border-radius: 12cqw; overflow: hidden; background: linear-gradient(180deg, var(--void) 40%, color-mix(in srgb, var(--tiefblau) 16%, var(--void))); }
+.st-status { position: absolute; left: 8cqw; right: 6cqw; top: 4.6cqw; display: flex; justify-content: space-between; align-items: center; font-family: var(--etikett); font-weight: 600; font-size: 4.2cqw; color: var(--eis); }
+.st-insel { width: 26cqw; height: 7.6cqw; border-radius: 6cqw; background: #000; }
+.st-rechts { display: flex; align-items: center; gap: 1.6cqw; }
+.st-netz { display: flex; align-items: flex-end; gap: .6cqw; height: 3.4cqw; }
+.st-netz i { width: .9cqw; background: var(--eis); border-radius: .3cqw; }
+.st-netz i:nth-child(1) { height: 35%; } .st-netz i:nth-child(2) { height: 55%; } .st-netz i:nth-child(3) { height: 78%; } .st-netz i:nth-child(4) { height: 100%; opacity: .35; }
+/* Akku halb voll: 8:12 Uhr, nach einer Nacht am Ladekabel wäre er voll, aber ein voller Akku sieht nach Werbefoto aus */
+.st-akku { position: relative; width: 7.4cqw; height: 3.6cqw; border-radius: 1.1cqw; padding: .6cqw; box-shadow: inset 0 0 0 .5cqw color-mix(in srgb, var(--eis) 55%, transparent); }
+.st-akku::after { content: ""; position: absolute; right: -1.1cqw; top: 1.1cqw; width: .6cqw; height: 1.4cqw; border-radius: 0 .4cqw .4cqw 0; background: color-mix(in srgb, var(--eis) 55%, transparent); }
+.st-akku i { display: block; width: 50%; height: 100%; border-radius: .5cqw; background: var(--eis); }
+.st-leiste { position: absolute; left: 6cqw; right: 5cqw; top: 15.5cqw; display: flex; justify-content: space-between; align-items: center; color: var(--eis); }
+.st-leiste svg { width: 6.4cqw; height: 6.4cqw; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.st-leiste > span:not(.st-knoepfe) { font-size: 3.4cqw; color: var(--nebel); }
+.st-knoepfe { display: flex; gap: 3.6cqw; }
+/* Das d sitzt optisch mittig: der Stamm trägt rechts mehr Masse, deshalb rückt die Fläche ein wenig nach links */
+.orb-platz { position: absolute; left: 7cqw; width: 82cqw; top: 29cqw; aspect-ratio: 1; }
+.st-gruss { position: absolute; left: 7cqw; right: 7cqw; top: 115cqw; margin: 0; text-align: center; font-family: var(--etikett); font-weight: 600; font-size: 6.6cqw; letter-spacing: -.02em; line-height: 1.2; color: var(--eis); }
+.st-gruss small { display: block; margin-top: 2cqw; font-family: var(--text); font-weight: 400; font-size: 4.1cqw; letter-spacing: 0; color: var(--nebel); }
+.st-gruss em { display: block; margin-top: 6cqw; font-family: var(--text); font-style: normal; font-weight: 400; font-size: 3.4cqw; letter-spacing: 0; color: color-mix(in srgb, var(--nebel) 70%, transparent); }
+.st-chips { position: absolute; left: 5cqw; right: 0; bottom: 25cqw; display: flex; gap: 2cqw; overflow: hidden; white-space: nowrap; }
+.st-chips span { flex: none; padding: 2cqw 3.6cqw; border-radius: 6cqw; font-size: 3.4cqw; color: var(--text-2); background: var(--tiefe); box-shadow: inset 0 0 0 1px var(--linie); }
+.st-eingabe { position: absolute; left: 5cqw; right: 5cqw; bottom: 6cqw; height: 14cqw; border-radius: 7cqw; display: flex; align-items: center; gap: 3cqw; padding-inline: 3.6cqw; background: var(--tiefe); font-size: 4.2cqw; color: var(--nebel); box-shadow: inset 0 0 0 1px var(--linie); }
+.st-eingabe svg { width: 6.6cqw; height: 6.6cqw; flex: none; fill: none; stroke: var(--eis); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.st-eingabe span { flex: 1; }
+.orb-halter, .schweber { z-index: 2; }
+.schweber { z-index: 3; }
+.portal-fuss { display: grid; gap: 18px 48px; margin-top: clamp(20px, 4vh, 40px); }
+@media (min-width: 900px) { .portal-fuss { grid-template-columns: 1fr auto; align-items: end; } }
+.portal-fuss p { margin: 0; font-weight: 400; font-size: clamp(17px, 1.6vw, 21px); line-height: 1.4; max-width: 44ch; color: var(--text-2); }
+.takt { display: block; margin-top: 10px; color: var(--blau); font-family: var(--etikett); font-size: 13px; letter-spacing: .1em; text-transform: uppercase; }
+.aktionen { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; }
+.seitenleiste {
+  position: absolute; top: 50%; right: max(14px, env(safe-area-inset-right, 0px)); z-index: 2;
+  writing-mode: vertical-rl; transform: translateY(-50%); color: var(--nebel); white-space: nowrap;
+}
+@media (max-width: 600px) { .seitenleiste { display: none; } }
+.weiter {
+  position: absolute; z-index: 2; left: max(16px, env(safe-area-inset-left, 0px)); bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  display: flex; align-items: center; gap: 12px; color: var(--nebel); text-decoration: none;
+}
+@media (min-width: 720px) { .weiter { left: max(40px, env(safe-area-inset-left, 0px)); } }
+.weiter i { width: 0; height: 34px; border-left: 1px dashed var(--nebel); animation: sinken 2.4s var(--kurve) infinite; transform-origin: top; }
+@keyframes sinken { 0% { transform: scaleY(0); opacity: 0; } 30% { opacity: 1; } 100% { transform: scaleY(1); opacity: 0; } }
+html:not(.bewegt) .weiter { display: none; }
+@keyframes aufsteigen { from { transform: translate3d(0, 130%, 0); } to { transform: none; } }
+@keyframes einblenden { from { opacity: 0; transform: translate3d(0, 18px, 0); } to { opacity: 1; transform: none; } }
+@keyframes aufleuchten { from { opacity: 0; } to { opacity: 1; } }
+.bewegt .start-text .zeile > span { animation: aufsteigen 1.3s var(--kurve) .15s both; }
+.bewegt .start-text .zeile:nth-child(2) > span { animation-delay: .3s; }
+/* Ohne Zeile davor trägt die Marke allein die Seite und darf grösser stehen */
+.start-text h1 .h-marke svg { height: .9em; }
+.bewegt .start-text .augenbraue { animation: einblenden 1s var(--kurve) .05s both; }
+.bewegt .start-lead p { animation: einblenden 1.1s var(--kurve) .6s both; }
+.bewegt .start-lead p:nth-child(2) { animation-delay: 1s; }
+.bewegt .start-lead p:nth-child(3) { animation-delay: 1.4s; }
+.bewegt .start-warum { animation: einblenden 1.1s var(--kurve) .85s both; }
+.bewegt .orb { animation: aufleuchten 2s var(--kurve) .3s both; }
+/* Startzustand, bevor das erste Bild gerechnet ist, damit nichts aufblitzt */
+.bewegt .wuerfel { opacity: 0; }
+.bewegt .portal-label, .bewegt .portal-fuss { opacity: 0; }
+.bewegt .block.daevo { opacity: 0; }
+.bewegt .tel-text:not(:first-child) { opacity: 0; }
+.bewegt .k-panel.b, .bewegt .k-titel .b, .bewegt .k-text.b { opacity: 0; }
+
+/* ---------- Raster ----------
+   Feine Linien wie auf einem Messgerät. Die Maske lässt sie zur Mitte hin
+   stehen und zum Rand hin verschwinden, sonst wirkt die Fläche wie Papier. */
+.mit-netz .buehne { isolation: isolate; }
+.mit-netz .buehne::after {
+  content: ""; position: absolute; inset: -60px 0; z-index: -1; pointer-events: none;
+  background-image: linear-gradient(color-mix(in srgb, var(--blau) 7%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--blau) 7%, transparent) 1px, transparent 1px);
+  background-size: 64px 64px; background-position: 50% calc(var(--py, 0) * 1px);
+  -webkit-mask-image: radial-gradient(ellipse 72% 62% at 50% 50%, #000 20%, transparent 78%); mask-image: radial-gradient(ellipse 72% 62% at 50% 50%, #000 20%, transparent 78%);
+}
+
+/* ---------- Schwebende Karten um das d ---------- */
+.schweber { position: absolute; inset: 0; pointer-events: none; }
+html:not(.bewegt) .schweber { display: none; }
+/* Der Ort bewegt sich mit Scroll und Zeiger, die Karte darin blendet nur ein.
+   Eine Animation mit Endzustand überschreibt sonst jede Bewegung von aussen. */
+.glas-ort { position: absolute; left: 0; top: 0; will-change: transform, opacity; }
+.glas-karte {
+  display: grid; gap: 2px; padding: 10px 14px 11px; border-radius: 18px; min-width: 132px;
+  background: var(--glas); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  box-shadow: inset 0 0 0 1px var(--haar), 0 24px 60px -28px var(--schatten); font-size: 13px; line-height: 1.25; color: var(--text-2); white-space: nowrap;
+}
+.glas-karte small { font-family: var(--etikett); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--nebel); }
+.glas-karte b { font-family: var(--etikett); font-weight: 600; color: var(--blau); font-size: 18px; letter-spacing: -.02em; }
+.glas-karte b span { font-weight: 300; color: var(--text-2); font-size: 13px; letter-spacing: 0; }
+@media (max-width: 899px) { .glas-ort.nur-breit { display: none; } }
+@media (max-width: 899px) { .glas-karte { min-width: 0; padding: 8px 11px 9px; font-size: 12px; } .glas-karte b { font-size: 16px; } .glas-karte b span { font-size: 12px; } }
+/* Wie eine Mitteilung: kurz kleiner, dann mit einem Hauch Federung an ihren Platz */
+@keyframes aufploppen { 0% { opacity: 0; transform: translate3d(-14px, 10px, 0) scale(.86); } 60% { opacity: 1; transform: translate3d(2px, -1px, 0) scale(1.03); } 100% { opacity: 1; transform: none; } }
+.bewegt .glas-karte { animation: aufploppen .7s cubic-bezier(.2, .8, .2, 1) both; }
+
+/* ---------- Zahlen ---------- */
+/* ---------- Balance Board ----------
+   Zwei echte Bildschirme aus der Demo, versetzt nebeneinander. Gerahmt wie ein
+   Gerät, damit niemand sie für eine Grafik der Website hält. */
+.balance-sektion { padding-block: clamp(72px, 10vw, 140px) clamp(40px, 6vw, 80px); }
+.balance-raster { display: grid; gap: 48px; align-items: center; }
+@media (min-width: 980px) { .balance-raster { grid-template-columns: .9fr 1.1fr; gap: 64px; } }
+.balance-text h2 { font-size: clamp(44px, 5.4vw, 88px); margin-bottom: 22px; }
+.balance-text > p { margin: 0 0 26px; font-weight: 400; font-size: clamp(17px, 1.6vw, 21px); line-height: 1.45; color: var(--text-2); max-width: 40ch; }
+.balance-text > p b { color: var(--eis); font-weight: 500; }
+.balance-punkte { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-width: 46ch; }
+.balance-punkte li { padding: 14px 0; border-top: 1px dashed var(--linie); color: var(--nebel); font-weight: 400; line-height: 1.45; }
+.balance-punkte b { display: block; color: var(--eis); font-family: var(--etikett); font-weight: 600; font-size: 15px; margin-bottom: 4px; }
+.balance-bilder { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: clamp(12px, 2.4vw, 28px); align-items: start; max-width: 680px; justify-self: center; width: 100%; }
+.shot-tel { border-radius: 13% / 6%; padding: 3.2%; background: linear-gradient(160deg, #2c3746, #0d1117 60%); box-shadow: 0 50px 100px -40px color-mix(in srgb, var(--tiefblau) 60%, transparent), inset 0 1px 0 rgba(255, 255, 255, .12); }
+.shot-tel img { display: block; width: 100%; height: auto; border-radius: 10% / 4.6%; }
+.balance-bilder .shot-tel:last-child { margin-top: 18%; }
+.health-band { margin-top: clamp(48px, 7vw, 96px); display: grid; gap: 22px 48px; border-radius: 40px; padding: clamp(26px, 4.6vw, 56px); background: radial-gradient(80% 140% at 100% 0%, color-mix(in srgb, var(--tiefblau) 20%, transparent), transparent 60%), var(--nacht); box-shadow: inset 0 0 0 1px var(--haar); }
+@media (min-width: 980px) { .health-band { grid-template-columns: 1fr 1.1fr; align-items: center; } }
+.health-band h3 { margin: 0; font-family: var(--display); font-weight: 400; text-transform: uppercase; font-size: clamp(32px, 4vw, 58px); line-height: 1.1; letter-spacing: .02em; }
+.health-band p { margin: 14px 0 0; color: var(--text-2); font-weight: 400; line-height: 1.5; max-width: 46ch; }
+.werte { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (min-width: 600px) { .werte { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.werte div { border-radius: 18px; padding: 14px 16px; background: var(--tiefe); box-shadow: inset 0 0 0 1px var(--haar); min-width: 0; }
+.werte small { display: block; font-family: var(--etikett); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--nebel); }
+.werte b { display: block; margin-top: 4px; font-family: var(--etikett); font-weight: 600; font-size: 20px; color: var(--blau); letter-spacing: -.02em; white-space: nowrap; }
+.werte b span { font-weight: 300; font-size: 13px; color: var(--text-2); letter-spacing: 0; }
+.zahlen-sektion { padding-block: clamp(64px, 9vw, 120px) 0; }
+.zahlen {
+  position: relative; display: grid; gap: 36px 56px; border-radius: 40px; padding: clamp(28px, 5vw, 60px); overflow: hidden;
+  background: radial-gradient(80% 120% at 0% 0%, color-mix(in srgb, var(--tiefblau) 22%, transparent), transparent 60%), var(--nacht);
+  box-shadow: inset 0 0 0 1px var(--haar);
+}
+@media (min-width: 900px) { .zahlen { grid-template-columns: 1.05fr 1fr; align-items: center; } }
+.zahlen-text p { margin: 0; font-size: clamp(28px, 3.4vw, 46px); }
+.zahlen-text p small { display: block; text-transform: none; margin-top: 18px; font-family: var(--text); font-weight: 400; letter-spacing: 0; font-size: 16px; line-height: 1.5; color: var(--nebel); max-width: 44ch; }
+.zahlen-raster { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 24px; margin: 0; }
+.zahlen-raster div { border-top: 1px dashed var(--linie); padding-top: 16px; min-width: 0; }
+.zahlen-raster dd { margin: 0; font-family: var(--etikett); font-weight: 300; font-size: clamp(52px, 6.4vw, 92px); letter-spacing: -.05em; line-height: 1; font-variant-numeric: tabular-nums; }
+.zahlen-raster dt { color: var(--nebel); font-size: 14px; line-height: 1.35; margin-top: 8px; }
+.zahlen-linie { position: absolute; left: clamp(28px, 5vw, 60px); right: clamp(28px, 5vw, 60px); bottom: 0; height: 2px; background: var(--verlauf); transform-origin: left; transform: scaleX(0); transition: transform 1.6s var(--kurve) .2s; }
+.zahlen.da .zahlen-linie { transform: none; }
+
+/* ---------- 2 Kopf sortieren ---------- */
+.kopf-szene .buehne { display: flex; flex-direction: column; justify-content: center; border-top: 1px dashed var(--linie); }
+.bewegt .kopf-szene .buehne { border-top: 0; padding-top: 84px; padding-bottom: 28px; }
+.kopf-titel { display: grid; gap: 12px 40px; margin-bottom: clamp(16px, 3vh, 36px); align-items: end; }
+.kopf-titel h2 { font-size: clamp(46px, 8vw, 128px); grid-area: 1 / 1; }
+.kopf-titel p { margin: 0; max-width: 32ch; color: var(--nebel); font-weight: 400; display: none; }
+@media (min-width: 1000px) { .kopf-titel { grid-template-columns: 1fr auto; } .kopf-titel p { display: block; grid-area: 1 / 2; } }
+html:not(.bewegt) .kopf-titel .eins { display: none; }
+.schubladen { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 12px; }
+@media (min-width: 900px) { .schubladen { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; } }
+.schublade { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.schublade h3 { margin: 0 0 4px; color: var(--nebel); padding-bottom: 8px; border-bottom: 1px dashed var(--linie); }
+.gedanke {
+  display: block; background: var(--tiefe); color: var(--eis); border-radius: 14px;
+  padding: 10px 12px; font-size: clamp(12.5px, 1.2vw, 15px); line-height: 1.3; will-change: transform, opacity;
+  transition: background .4s var(--kurve), color .4s var(--kurve), box-shadow .4s var(--kurve);
+}
+.gedanke.naechster { background: var(--blau); color: var(--auf-blau); box-shadow: 0 18px 50px -18px color-mix(in srgb, var(--blau) 70%, transparent); }
+.gedanke small { display: block; font-family: var(--etikett); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; margin-top: 4px; opacity: .78; }
+.schritt-marke { display: inline-flex; gap: 8px; align-items: center; margin-top: clamp(14px, 3vh, 28px); color: var(--blau); }
+.schritt-marke::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--blau); box-shadow: 0 0 12px var(--blau); }
+
+/* ---------- 3 Telefon ---------- */
+.tel-szene .buehne { display: grid; place-items: center; }
+.tel-raster { display: grid; width: 100%; max-width: var(--breite); gap: 28px; align-items: center; justify-items: center; padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px)); }
+@media (min-width: 980px) { .tel-raster { grid-template-columns: 1fr auto 1fr; gap: 56px; } .tel-raster .telefon { width: min(340px, calc(74svh * 9 / 18.5)); } }
+.tel-links h2 { font-size: clamp(36px, 4.6vw, 68px); margin: 0; }
+.tel-links h2 em { color: var(--blau); }
+.tel-links { justify-self: start; }
+.tel-texte { position: relative; justify-self: start; min-height: 9em; width: min(100%, 34ch); }
+.tel-text { position: absolute; inset: 0 0 auto; }
+.tel-text b { display: block; font-family: var(--etikett); font-weight: 500; text-transform: uppercase; color: var(--blau); font-size: 12px; letter-spacing: .08em; margin-bottom: 10px; }
+.tel-text p { margin: 0; font-weight: 400; font-size: clamp(18px, 1.8vw, 24px); line-height: 1.32; }
+@media (max-width: 979px) {
+  .tel-links { justify-self: center; text-align: center; }
+  .tel-texte { justify-self: center; text-align: center; min-height: 6.5em; }
+  .bewegt .tel-szene .tel-raster { grid-template-rows: auto 1fr auto; height: 100svh; padding-top: 80px; padding-bottom: 20px; gap: 14px; }
+}
+.telefon {
+  width: min(78vw, 320px, calc(50svh * 9 / 18.5)); aspect-ratio: 9 / 18.5; container-type: inline-size;
+  border-radius: 46px; padding: 9px; background: linear-gradient(160deg, #2c3746, #0d1117 60%);
+  box-shadow: 0 60px 120px -40px color-mix(in srgb, var(--tiefblau) 60%, transparent), inset 0 1px 0 rgba(255, 255, 255, .12);
+  will-change: transform; transform-style: preserve-3d;
+}
+.bildschirm { position: relative; height: 100%; border-radius: 38px; overflow: hidden; background: linear-gradient(180deg, var(--nacht), #10202b 130%); }
+.screen { position: absolute; inset: 0; background: linear-gradient(180deg, var(--nacht), #10202b 130%); padding: 7cqw 5.4cqw 6cqw; display: flex; flex-direction: column; gap: 3.2cqw; will-change: opacity, transform; }
+.bewegt .screen:not(:first-child) { opacity: 0; clip-path: inset(100% 0 0 0); }
+.sc-kopf { display: flex; justify-content: space-between; align-items: center; color: var(--nebel); font-size: 3.6cqw; }
+.sc-kopf b { color: var(--eis); font-family: var(--etikett); font-weight: 600; font-size: 4.6cqw; }
+/* Chat */
+.blase { border-radius: 5cqw; padding: 3cqw 3.6cqw; font-size: 3.9cqw; line-height: 1.35; max-width: 90%; }
+.blase.ich { align-self: flex-end; background: var(--tiefblau); color: var(--eis); border-bottom-right-radius: 5px; }
+.blase.coach { background: var(--tiefe); color: var(--eis); border-bottom-left-radius: 5px; }
+.blase.coach ol { margin: 6px 0 0; padding-left: 16px; }
+.blase.coach li { margin: 2px 0; }
+.blase.coach b { color: var(--blau); font-weight: 600; }
+.sc-eingabe { margin-top: auto; border-radius: 7cqw; background: var(--tiefe); padding: 3.2cqw 4.4cqw; color: var(--nebel); font-size: 3.6cqw; display: flex; justify-content: space-between; align-items: center; }
+.sc-eingabe i { width: 7cqw; height: 7cqw; border-radius: 50%; background: var(--blau); }
+/* Tag */
+.tag-liste { display: grid; gap: 2cqw; }
+.tag-zeile { display: grid; grid-template-columns: 12cqw 1fr; gap: 2.4cqw; align-items: stretch; font-size: 3.6cqw; }
+.tag-zeile time { color: var(--nebel); font-variant-numeric: tabular-nums; padding-top: 2cqw; }
+.tag-zeile span { border-radius: 3cqw; padding: 2cqw 3cqw; background: #1a222d; color: var(--nebel); }
+.tag-zeile.d span { background: color-mix(in srgb, var(--blau) 18%, transparent); color: var(--eis); box-shadow: inset 2px 0 0 var(--blau); }
+.tag-zeile span small { display: block; color: var(--nebel); font-size: 3.1cqw; }
+/* Schlaf */
+.mond { width: 46%; aspect-ratio: 1; margin: 10px auto 4px; border-radius: 50%; box-shadow: inset -18px -10px 0 0 var(--blau); transform: rotate(-20deg); filter: drop-shadow(0 0 18px color-mix(in srgb, var(--blau) 40%, transparent)); }
+.schlaf-zahl { text-align: center; font-family: var(--etikett); font-weight: 600; font-size: 10cqw; line-height: 1; }
+.schlaf-zahl small { display: block; color: var(--nebel); font-size: 3.6cqw; font-weight: 500; margin-top: 2cqw; }
+.routine { display: grid; gap: 2.2cqw; margin-top: 2.6cqw; }
+.routine div { display: flex; justify-content: space-between; gap: 2cqw; font-size: 3.6cqw; background: var(--tiefe); border-radius: 4cqw; padding: 2.6cqw 3.2cqw; }
+.routine div span:last-child { color: var(--blau); font-variant-numeric: tabular-nums; }
+
+/* ---------- 3b Körper: Essen und Training ----------
+   Alle Grössen in cqw, damit die Fläche auf jedem Bildschirm gleich aufgeteilt ist. */
+.koerper-szene .buehne { display: flex; flex-direction: column; justify-content: center; }
+.bewegt .koerper-szene .buehne { padding-top: 76px; padding-bottom: 16px; }
+.k-raster { display: grid; gap: 16px; align-items: center; }
+@media (min-width: 980px) { .k-raster { grid-template-columns: 1fr auto; gap: 72px; } }
+.k-titel { display: grid; }
+.k-titel h2 { grid-area: 1 / 1; font-size: clamp(40px, 6.4vw, 100px); }
+.k-texte { display: grid; margin-top: 18px; }
+.k-text { grid-area: 1 / 1; }
+/* Ohne Bewegung stehen beide Titel und Texte untereinander statt übereinander */
+html:not(.bewegt) .k-titel, html:not(.bewegt) .k-texte { gap: 14px; }
+html:not(.bewegt) .k-titel h2, html:not(.bewegt) .k-text { grid-area: auto; }
+.k-text b { display: block; font-family: var(--etikett); font-weight: 500; text-transform: uppercase; color: var(--blau); font-size: 12px; letter-spacing: .08em; margin-bottom: 8px; }
+.k-text p { margin: 0; font-weight: 400; font-size: clamp(16px, 1.7vw, 22px); line-height: 1.35; max-width: 34ch; }
+@media (max-width: 979px) { .k-texte { margin-top: 10px; } .k-text b { display: none; } }
+.k-buehne { position: relative; width: min(100%, 500px, calc(56svh * .8)); aspect-ratio: 4 / 5; container-type: inline-size; justify-self: center; }
+@media (min-width: 980px) { .k-buehne { width: min(500px, calc(76svh * .8)); } }
+html:not(.bewegt) .k-buehne { aspect-ratio: auto; height: auto; display: grid; gap: 24px; }
+.k-panel { position: absolute; inset: 0; will-change: opacity, transform; }
+html:not(.bewegt) .k-panel { position: relative; height: calc(125cqw); }
+.foto { position: absolute; left: 0; top: 0; width: 62cqw; height: 46.5cqw; border-radius: 5cqw; overflow: hidden; box-shadow: 0 30px 60px -30px var(--schatten); }
+.foto img, .t-kopf img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.scan { position: absolute; left: 0; right: 0; top: 0; height: 2px; background: var(--blau); box-shadow: 0 0 16px 4px color-mix(in srgb, var(--blau) 70%, transparent); opacity: 0; }
+.posten {
+  position: absolute; left: 50cqw; right: 0; display: flex; justify-content: space-between; gap: 2cqw;
+  background: color-mix(in srgb, var(--tiefe) 92%, transparent); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  border-radius: 3.2cqw; padding: 1.8cqw 3cqw; font-size: 3.3cqw; line-height: 1.25; align-items: baseline; box-shadow: inset 0 0 0 1px var(--linie);
+}
+.posten span { color: var(--blau); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.posten small { color: var(--nebel); font-size: 2.9cqw; margin-left: 1cqw; }
+.posten div { white-space: nowrap; }
+.k-ring { position: absolute; left: 0; top: 55cqw; width: 42cqw; aspect-ratio: 1; }
+.k-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); display: block; }
+.k-ring .zahl { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; font-family: var(--etikett); font-weight: 600; font-size: 8.6cqw; line-height: 1; font-variant-numeric: tabular-nums; }
+.k-ring .zahl small { display: block; font-family: var(--text); font-weight: 400; color: var(--nebel); font-size: 3.1cqw; margin-top: 1.6cqw; }
+.k-makros { position: absolute; left: 50cqw; right: 0; top: 59cqw; display: grid; gap: 4.2cqw; }
+.makro { font-size: 3.4cqw; }
+.makro div { display: flex; justify-content: space-between; gap: 2cqw; }
+.makro div span:last-child { color: var(--nebel); font-variant-numeric: tabular-nums; }
+.makro-spur { height: 2cqw; border-radius: 2cqw; background: var(--spur); margin-top: 1.4cqw; overflow: hidden; }
+.makro-spur i { display: block; height: 100%; border-radius: inherit; background: var(--ton); }
+.k-rest { position: absolute; left: 0; right: 0; top: 104cqw; font-size: 3.6cqw; line-height: 1.42; color: var(--nebel); border-top: 1px dashed var(--linie); padding-top: 3cqw; }
+.k-rest b { color: var(--eis); font-weight: 500; }
+.t-kopf { position: absolute; left: 0; right: 0; top: 0; height: 41cqw; border-radius: 5cqw; overflow: hidden; }
+.t-kopf img { object-position: center 30%; }
+.t-kopf::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 30%, rgba(11, 13, 16, .88)); }
+.t-kopf div { position: absolute; left: 4.4cqw; right: 4.4cqw; bottom: 3.6cqw; z-index: 1; }
+.t-kopf b { display: block; font-family: var(--etikett); font-weight: 500; text-transform: uppercase; letter-spacing: .08em; color: var(--blau); font-size: 3cqw; }
+.t-kopf strong { display: block; font-family: var(--display); font-weight: 400; text-transform: uppercase; font-size: 8cqw; line-height: 1; margin-top: 1cqw; }
+.uebungen { position: absolute; left: 0; right: 0; top: 45cqw; list-style: none; margin: 0; padding: 0; display: grid; gap: 1.4cqw; }
+.uebungen li { display: flex; justify-content: space-between; gap: 2cqw; font-size: 3.7cqw; padding: 2cqw 3.2cqw; background: var(--tiefe); border-radius: 3.2cqw; will-change: transform, opacity; }
+.uebungen li span:last-child { color: var(--blau); font-variant-numeric: tabular-nums; transition: color .4s var(--kurve); }
+.uebungen li span.weniger { color: var(--violett); }
+.anpassung { position: absolute; left: 0; right: 0; top: 99cqw; border-radius: 4cqw; padding: 3cqw 3.6cqw; font-size: 3.5cqw; line-height: 1.38; background: color-mix(in srgb, #6f7fe0 18%, var(--nacht)); box-shadow: inset 3px 0 0 var(--violett); will-change: transform, opacity; }
+.anpassung b { display: block; font-family: var(--etikett); font-weight: 500; text-transform: uppercase; letter-spacing: .08em; font-size: 3cqw; color: var(--violett); margin-bottom: 1cqw; }
+
+/* ---------- 4 Kalender ---------- */
+.tag-szene .buehne { display: flex; flex-direction: column; justify-content: center; }
+.bewegt .tag-szene .buehne { padding-top: 76px; padding-bottom: 20px; }
+.tag-raster { display: grid; gap: 22px; align-items: stretch; }
+@media (min-width: 980px) { .tag-raster { grid-template-columns: 1.15fr .85fr; gap: 56px; } }
+.tag-kopf h2 { font-size: clamp(44px, 6.6vw, 104px); margin-bottom: 18px; }
+.tag-punkte { list-style: none; margin: 0; padding: 0; display: none; gap: 2px; }
+@media (min-width: 980px) { .tag-punkte { display: grid; } }
+.tag-punkte li { display: grid; grid-template-columns: 16px 1fr; gap: 12px; padding: 12px 0; border-top: 1px dashed var(--linie); color: var(--nebel); font-weight: 400; transition: color .4s var(--kurve); }
+.tag-punkte li::before { content: ""; width: 10px; height: 10px; border-radius: 50%; margin-top: 7px; background: var(--linie); transition: background .4s var(--kurve), box-shadow .4s var(--kurve); }
+.tag-punkte li.an { color: var(--eis); }
+.tag-punkte li.an::before { background: var(--blau); box-shadow: 0 0 12px var(--blau); }
+.kalender {
+  position: relative; border-radius: 30px; background: var(--glas); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  box-shadow: inset 0 0 0 1px var(--haar), inset 0 0 80px color-mix(in srgb, var(--tiefblau) 10%, transparent), 0 40px 90px -50px var(--schatten);
+  height: min(56svh, 640px); min-height: 360px; padding: 14px 14px 14px 58px; overflow: hidden; order: -1;
+}
+@media (min-width: 980px) { .kalender { order: 0; height: min(74svh, 680px); } }
+.stunde { position: absolute; left: 0; right: 0; height: 0; border-top: 1px dashed color-mix(in srgb, var(--linie) 70%, transparent); }
+.stunde time { position: absolute; left: 14px; top: -8px; font-size: 10.5px; color: var(--nebel); font-variant-numeric: tabular-nums; }
+.block {
+  position: absolute; left: 58px; right: 14px; border-radius: 12px; padding: 6px 10px; overflow: hidden;
+  font-size: clamp(11px, 1.05vw, 13px); line-height: 1.2; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; text-align: left;
+}
+.block small { font-size: .82em; opacity: .75; }
+.block.kurz { flex-direction: row; align-items: center; justify-content: flex-start; gap: 8px; padding-block: 0; white-space: nowrap; font-size: 11px; }
+.block.fest { background: var(--block-fest); color: var(--nebel); }
+.block.daevo { background: color-mix(in srgb, var(--blau) 20%, var(--nacht)); color: var(--eis); box-shadow: inset 3px 0 0 var(--blau); will-change: transform, opacity; }
+.block.daevo.schlaf { background: color-mix(in srgb, #6f7fe0 22%, var(--nacht)); box-shadow: inset 3px 0 0 var(--violett); }
+.tag-fuss { margin: 14px 0 0; color: var(--nebel); font-size: 14px; font-weight: 400; }
+
+/* ---------- Die Walze ----------
+   Neun Karten sitzen auf dem Mantel eines Zylinders. Vorn steht eine, links
+   und rechts sieht man die nächsten wegdrehen. Wischen dreht die Walze und
+   rastet auf der nächsten Karte ein. */
+
+.walze-buehne {
+  --karte-b: min(340px, 74vw);
+  position: relative; height: calc(var(--karte-b) * 1.32 + 40px); margin-top: clamp(40px, 6vw, 64px);
+  perspective: 1500px; perspective-origin: 50% 46%; touch-action: pan-y; cursor: grab; user-select: none; -webkit-user-select: none;
+}
+.walze-buehne.zieht { cursor: grabbing; }
+.walze { position: absolute; left: 50%; top: 20px; width: var(--karte-b); height: calc(var(--karte-b) * 1.32); margin-left: calc(var(--karte-b) / -2); transform-style: preserve-3d; }
+.karte {
+  position: absolute; inset: 0; border-radius: 30px; padding: 30px 28px; display: flex; flex-direction: column; gap: 12px;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden; overflow: hidden;
+  box-shadow: 0 30px 60px -36px rgba(0, 0, 0, .55);
+}
+/* Feste Paare aus Grund und Schrift, damit jede Karte in beiden Modi gleich aussieht */
+.karte.k-dunkel { background: #0e1116; color: #f5f7fa; box-shadow: 0 30px 60px -36px rgba(0, 0, 0, .55), inset 0 0 0 1px rgba(255, 255, 255, .08); }
+.karte.k-hell { background: #f4f7fa; color: #0b0d10; box-shadow: 0 30px 60px -36px rgba(0, 0, 0, .35), inset 0 0 0 1px rgba(11, 13, 16, .06); }
+.karte.k-blau { background: #96d8f0; color: #0b0d10; }
+.karte .zeichen { width: 56px; height: 56px; border-radius: 16px; display: grid; place-items: center; }
+.karte .zeichen svg { width: 30px; height: 30px; }
+.k-dunkel .zeichen { background: rgba(150, 216, 240, .12); color: #96d8f0; }
+.k-hell .zeichen { background: rgba(30, 127, 168, .1); color: #1e7fa8; }
+.k-blau .zeichen { background: rgba(11, 13, 16, .08); color: #0b0d10; }
+.karte .art { font-size: 13px; font-weight: 600; letter-spacing: .02em; opacity: .7; margin-top: 4px; }
+.karte h3 { font-size: clamp(26px, 2.6vw, 32px); line-height: 1.08; font-weight: 700; letter-spacing: -.03em; margin-top: auto; }
+.karte p { margin: 0; font-size: 16px; line-height: 1.45; }
+.k-dunkel p { color: #a8b2bf; }
+.k-hell p { color: #4a5563; }
+.k-blau p { color: rgba(11, 13, 16, .78); }
+.walze-steuer { display: flex; align-items: center; justify-content: center; gap: 18px; margin-top: 18px; }
+.rund { width: 44px; height: 44px; border-radius: 50%; border: 0; display: grid; place-items: center; cursor: pointer; background: color-mix(in srgb, var(--tinte) 8%, transparent); color: var(--tinte); transition: transform .3s var(--kurve), background .3s var(--kurve); }
+.rund:hover { background: color-mix(in srgb, var(--tinte) 14%, transparent); }
+.rund:active { transform: scale(.92); }
+.rund svg { width: 18px; height: 18px; }
+.walze-punkte { display: flex; gap: 8px; }
+.walze-punkte button { width: 8px; height: 8px; padding: 0; border: 0; border-radius: 999px; background: var(--tinte-2); opacity: .45; cursor: pointer; transition: width .45s var(--kurve), opacity .45s var(--kurve), background .45s var(--kurve); }
+.walze-punkte button.an { width: 26px; opacity: 1; background: var(--tiefblau); }
+.karte-stand { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+/* Ohne Bewegung liegen die Karten nebeneinander zum Wischen */
+.flach .walze-buehne { height: auto; perspective: none; cursor: auto; touch-action: auto; }
+.flach .walze { position: static; width: auto; height: auto; margin: 0; display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 4px max(20px, env(safe-area-inset-left, 0px)) 24px; transform: none !important; }
+.flach .karte { position: relative; inset: auto; flex: none; width: var(--karte-b); height: calc(var(--karte-b) * 1.32); scroll-snap-align: center; transform: none !important; opacity: 1 !important; filter: none !important; }
+.flach .walze-steuer { display: none; }
+
+.karten-sektion { overflow: clip; background: var(--hell-grund); color: var(--tinte); padding-block: clamp(72px, 9vw, 120px); }
+.karten-sektion .quer-kopf h2 { font-size: clamp(48px, 7.6vw, 118px); line-height: 1.16; }
+.karten-sektion .quer-kopf p { margin: 0; color: var(--tinte-2); max-width: 36ch; font-size: 17px; }
+.karte { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", var(--text); letter-spacing: -.011em; transition: box-shadow .4s var(--kurve); }
+.rund { background: color-mix(in srgb, var(--tinte) 8%, transparent); color: var(--tinte); }
+.rund:hover { background: color-mix(in srgb, var(--tinte) 14%, transparent); }
+.walze-punkte button { background: var(--tinte-2); }
+.walze-punkte button.an { background: var(--tiefblau); }
+
+/* ---------- 5 Säulen, quer ---------- */
+.quer-szene .buehne { display: flex; flex-direction: column; justify-content: center; background: var(--hell-grund); color: var(--tinte); }
+.bewegt .quer-szene .buehne { padding-top: 70px; }
+.quer-kopf { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 16px; margin-bottom: clamp(18px, 4vh, 40px); }
+.quer-kopf h2 { font-size: clamp(48px, 7.6vw, 118px); line-height: 1.16; }
+.quer-kopf p { margin: 0; color: var(--tinte-2); max-width: 36ch; font-size: 17px; }
+.spur { display: flex; gap: 16px; padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px)); will-change: transform; }
+@media (min-width: 720px) { .spur { padding-inline: max(40px, env(safe-area-inset-left, 0px)); } }
+html:not(.bewegt) .spur { flex-wrap: wrap; }
+.saeule {
+  flex: none; width: min(78vw, 400px); background: var(--karte); border-radius: var(--r-karte);
+  padding: 30px 30px 34px; display: flex; flex-direction: column; gap: 14px; min-height: min(52svh, 430px);
+}
+html:not(.bewegt) .saeule { min-height: 0; }
+.saeule.dunkel { background: var(--tinte); color: var(--eis); }
+.saeule.blau { background: #96d8f0; color: #0b0d10; }
+/* Zeichen in einer Kachel, wie ein App Symbol */
+.saeule svg { width: 58px; height: 58px; padding: 12px; border-radius: 18px; background: color-mix(in srgb, var(--tiefblau) 10%, transparent); }
+.saeule.dunkel svg { background: color-mix(in srgb, var(--blau) 12%, transparent); box-shadow: inset 0 0 0 1px var(--haar); }
+.saeule.blau svg { background: color-mix(in srgb, var(--tinte) 8%, transparent); }
+.saeule h3 { font-family: var(--display); font-weight: 400; text-transform: uppercase; letter-spacing: .02em; font-size: clamp(30px, 3vw, 40px); line-height: 1.1; margin: auto 0 0; }
+.saeule p { margin: 0; color: var(--tinte-2); font-size: 16px; }
+.saeule.dunkel p { color: var(--nebel); }
+.saeule.blau p { color: color-mix(in srgb, #0b0d10 78%, transparent); }
+.saeule .etikett { opacity: .7; }
+
+/* ---------- Rasterpunkte ---------- */
+.punkte-sektion { padding-block: clamp(64px, 9vw, 120px); }
+.punkte {
+  position: relative; border-radius: var(--r-karte); overflow: hidden; isolation: isolate;
+  min-height: clamp(640px, 56vw, 660px); background: linear-gradient(135deg, var(--punkte-start), var(--void) 70%);
+  display: grid; align-items: end;
+}
+.punkte canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; display: block; }
+.punkte-text { padding: clamp(28px, 5vw, 64px); max-width: 980px; text-shadow: 0 2px 24px var(--void); }
+.punkte h2 { font-size: clamp(56px, 9.4vw, 140px); line-height: 1.12; }
+.punkte p { font-weight: 400; font-size: clamp(18px, 1.8vw, 23px); line-height: 1.4; max-width: 40ch; margin: 40px 0 0; }
+
+/* ---------- Haltung ---------- */
+
+/* ---------- Preise ----------
+   Zwei Karten wie zwei Geräte nebeneinander. Pro trägt den blauen Rand,
+   weil es die Empfehlung ist, nicht weil es teurer ist. */
+.preise-sektion { padding-block: clamp(80px, 10vw, 140px) 0; }
+.preise-kopf { display: grid; gap: 20px 48px; align-items: end; margin-bottom: clamp(32px, 5vw, 56px); }
+@media (min-width: 900px) { .preise-kopf { grid-template-columns: 1fr auto; } }
+.preise-kopf h2 { font-size: clamp(52px, 7.6vw, 112px); }
+.preise-kopf p { margin: 30px 0 0; color: var(--nebel); font-weight: 400; font-size: 18px; max-width: 40ch; }
+.takt { position: relative; display: inline-flex; padding: 4px; border-radius: var(--r-pille); background: var(--tiefe); box-shadow: inset 0 0 0 1px var(--haar); justify-self: start; }
+.takt button { position: relative; z-index: 1; border: 0; background: none; color: var(--nebel); font-family: var(--etikett); font-weight: 500; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; padding: 12px 18px; min-height: 44px; border-radius: var(--r-pille); cursor: pointer; transition: color .35s var(--kurve); }
+.takt button[aria-checked="true"] { color: var(--auf-blau); }
+.takt small { font-size: 11px; margin-left: 6px; opacity: .8; white-space: nowrap; }
+@media (max-width: 520px) { .takt { width: 100%; } .takt button { flex: 1; line-height: 1.3; } .takt small { display: block; margin: 3px 0 0; } }
+.takt-schieber { position: absolute; top: 4px; bottom: 4px; left: 0; border-radius: var(--r-pille); background: var(--blau); transition: transform .5s var(--kurve), width .5s var(--kurve); }
+.preis-raster { display: grid; gap: 20px; }
+@media (min-width: 900px) { .preis-raster { grid-template-columns: 1fr 1fr; } }
+.preis-karte { position: relative; display: flex; flex-direction: column; border-radius: var(--r-karte); padding: clamp(28px, 4vw, 48px); background: var(--nacht); box-shadow: inset 0 0 0 1px var(--haar); min-width: 0; overflow: hidden; }
+.preis-karte.pro { background: radial-gradient(90% 70% at 100% 0%, color-mix(in srgb, var(--tiefblau) 24%, transparent), transparent 62%), var(--nacht); box-shadow: inset 0 0 0 2px var(--blau), 0 40px 90px -50px color-mix(in srgb, var(--blau) 60%, transparent); }
+.preis-name { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.preis-name h3 { margin: 0; font-family: var(--display); font-weight: 400; text-transform: uppercase; letter-spacing: .02em; font-size: clamp(40px, 4.4vw, 60px); line-height: 1.1; }
+.pro .preis-name h3 { color: var(--blau); }
+.preis-schild { font-family: var(--etikett); font-weight: 600; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--auf-blau); background: var(--blau); padding: 7px 12px; border-radius: var(--r-pille); white-space: nowrap; }
+.preis-betrag { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; margin-top: 18px; }
+.preis-betrag b { font-family: var(--etikett); font-weight: 300; font-size: clamp(56px, 6.4vw, 88px); letter-spacing: -.05em; line-height: 1; font-variant-numeric: tabular-nums; }
+.preis-betrag span { color: var(--nebel); }
+.preis-neben { margin: 10px 0 0; color: var(--text-2); font-weight: 400; min-height: 1.55em; }
+.preis-kontingent { margin: 4px 0 0; color: var(--blau); font-family: var(--etikett); font-size: 13px; letter-spacing: .06em; text-transform: uppercase; }
+.preis-liste { list-style: none; margin: 26px 0 0; padding: 22px 0 0; border-top: 1px dashed var(--linie); display: grid; gap: 12px; }
+.preis-liste li { display: grid; grid-template-columns: 22px 1fr auto; gap: 12px; align-items: start; color: var(--text-2); font-weight: 400; line-height: 1.4; }
+.preis-liste li.zwischen { display: block; color: var(--eis); font-weight: 500; }
+.preis-liste svg { width: 22px; height: 22px; color: var(--blau); margin-top: 1px; }
+.bald { font-family: var(--etikett); font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--blau); padding: 3px 8px; border-radius: var(--r-pille); box-shadow: inset 0 0 0 1px var(--blau); white-space: nowrap; margin-top: 2px; }
+.preis-karte .knopf { margin-top: 32px; align-self: stretch; padding-block: 15px; font-size: 17px; }
+.ohne-abo { margin-top: 20px; display: grid; gap: 8px 40px; border-radius: 30px; padding: 26px clamp(24px, 4vw, 40px); background: var(--glas); box-shadow: inset 0 0 0 1px var(--haar); }
+@media (min-width: 900px) { .ohne-abo { grid-template-columns: auto 1fr; align-items: center; } }
+.ohne-abo b { font-family: var(--etikett); font-weight: 600; font-size: 16px; }
+.ohne-abo p { margin: 0; color: var(--nebel); font-weight: 400; }
+.preis-fuss { margin: 18px 0 0; color: var(--nebel); font-size: 14px; font-weight: 400; max-width: 70ch; }
+.haltung { padding-block: clamp(80px, 10vw, 140px); }
+.haltung-kopf { display: grid; gap: 20px; margin-bottom: clamp(40px, 6vw, 72px); }
+@media (min-width: 900px) { .haltung-kopf { grid-template-columns: 1fr 1fr; align-items: end; } }
+.haltung h2 { font-size: clamp(52px, 7.6vw, 112px); }
+.haltung-kopf p { margin: 0; color: var(--nebel); font-size: 18px; max-width: 42ch; font-weight: 400; }
+.saetze { list-style: none; margin: 0; padding: 0; }
+.saetze li { display: grid; gap: 12px 48px; padding: clamp(28px, 3.4vw, 44px) 0; border-top: 1px dashed var(--linie); }
+.saetze li:last-child { border-bottom: 1px dashed var(--linie); }
+@media (min-width: 900px) { .saetze li { grid-template-columns: 1fr 1fr; align-items: baseline; } }
+.saetze h3 { font-family: var(--etikett); font-weight: 300; text-transform: uppercase; letter-spacing: -.03em; font-size: clamp(24px, 2.8vw, 38px); line-height: 1.1; margin: 0; }
+.saetze h3 b { font-weight: 600; color: var(--blau); }
+.saetze p { margin: 0; color: var(--nebel); font-weight: 400; font-size: 17px; max-width: 52ch; }
+
+/* ---------- Ablauf und Schluss ---------- */
+.ablauf { padding-block: 0 clamp(80px, 10vw, 140px); }
+.schritte { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); }
+.schritt { background: var(--glas); box-shadow: inset 0 0 0 1px var(--haar); border-radius: 30px; padding: 36px; display: grid; gap: 14px; align-content: start; min-width: 0; }
+.schritt .nr { font-family: var(--display); font-size: 64px; line-height: .9; color: var(--blau); }
+.schritt h3 { font-family: var(--etikett); font-weight: 600; letter-spacing: -.02em; font-size: 24px; margin: 0; line-height: 1.1; }
+.schritt p { margin: 0; color: var(--nebel); font-weight: 400; }
+.abschluss { padding-block: clamp(90px, 12vw, 170px); border-top: 1px dashed var(--linie); }
+.abschluss h2 { font-size: clamp(56px, 10.5vw, 160px); }
+.abschluss h2 .zeile > span { display: inline-block; transition: transform 1.1s var(--kurve); }
+.abschluss h2 .zeile:nth-child(2) > span { transition-delay: .1s; }
+.js .abschluss h2:not(.da) .zeile > span { transform: translateY(130%); }
+.abschluss-zeile { display: flex; flex-wrap: wrap; gap: 16px 24px; align-items: center; margin-top: 36px; }
+.abschluss-zeile p { margin: 0; color: var(--nebel); font-weight: 400; max-width: 40ch; }
+footer { border-top: 1px dashed var(--linie); padding-block: 36px 48px; color: var(--nebel); }
+.fuss { display: grid; gap: 24px; }
+@media (min-width: 820px) { .fuss { grid-template-columns: auto 1fr auto; align-items: center; } }
+.fuss svg { height: 26px; width: auto; display: block; }
+.fuss .claim { color: var(--eis); }
+.kleingedruckt { font-family: Arial, system-ui, sans-serif; font-size: 11px; text-transform: none; letter-spacing: .02em; line-height: 1.6; max-width: 60ch; }
+
+/* Einblenden */
+.auf { transition: opacity .9s var(--kurve), transform .9s var(--kurve); }
+.js .auf:not(.da) { opacity: .001; transform: translateY(36px); }
+.auf.spaeter { transition-delay: .12s; }
+@media (prefers-reduced-motion: reduce) {
+  .auf, .js .auf:not(.da) { opacity: 1; transform: none; transition: none; }
+  .js .abschluss h2:not(.da) .zeile > span { transform: none; }
+  .weiter i { animation: none; }
+}
+</style>
+
+<header class="kopf" id="kopf">
+  <a class="marke" href="#start" aria-label="daevo, zum Anfang"><svg xmlns="http://www.w3.org/2000/svg" viewBox="-6.0 -86.0 317.5 92.9" aria-hidden="true" focusable="false">
+  
+  <g><path d="M 32.50 -49.20 A 21.50 21.50 0 1 1 11.33 -31.43" fill="none" stroke="#96D8F0" stroke-width="14.00" stroke-linecap="round"/>
+    <path d="M 54.00 -73.00 L 54.00 -27.70" fill="none" stroke="#96D8F0" stroke-width="14.00" stroke-linecap="round"/></g>
+  <g transform="translate(66.20 0)"><path fill="#96D8F0" d="M28.6 -56.300000000000004Q34.800000000000004 -56.300000000000004 39.45 -53.800000000000004Q44.1 -51.300000000000004 46.900000000000006 -47.5V-55.400000000000006H61.0V0.0H46.900000000000006V-8.1Q44.2 -4.2 39.45 -1.6500000000000001Q34.7 0.9 28.5 0.9Q21.5 0.9 15.75 -2.7Q10.0 -6.300000000000001 6.65 -12.850000000000001Q3.3000000000000003 -19.400000000000002 3.3000000000000003 -27.900000000000002Q3.3000000000000003 -36.300000000000004 6.65 -42.800000000000004Q10.0 -49.300000000000004 15.75 -52.800000000000004Q21.5 -56.300000000000004 28.6 -56.300000000000004ZM32.2 -44.0Q28.3 -44.0 25.0 -42.1Q21.700000000000003 -40.2 19.650000000000002 -36.55Q17.6 -32.9 17.6 -27.900000000000002Q17.6 -22.900000000000002 19.650000000000002 -19.150000000000002Q21.700000000000003 -15.4 25.050000000000004 -13.4Q28.400000000000002 -11.4 32.2 -11.4Q36.1 -11.4 39.5 -13.350000000000001Q42.900000000000006 -15.3 44.900000000000006 -18.950000000000003Q46.900000000000006 -22.6 46.900000000000006 -27.700000000000003Q46.900000000000006 -32.800000000000004 44.900000000000006 -36.45Q42.900000000000006 -40.1 39.5 -42.05Q36.1 -44.0 32.2 -44.0Z M124.2 -23.5H83.7Q84.2 -17.5 87.9 -14.100000000000001Q91.60000000000001 -10.700000000000001 97.0 -10.700000000000001Q104.80000000000001 -10.700000000000001 108.10000000000001 -17.400000000000002H123.2Q120.80000000000001 -9.4 114.0 -4.25Q107.2 0.9 97.30000000000001 0.9Q89.30000000000001 0.9 82.95000000000002 -2.65Q76.60000000000001 -6.2 73.05000000000001 -12.700000000000001Q69.5 -19.200000000000003 69.5 -27.700000000000003Q69.5 -36.300000000000004 73.0 -42.800000000000004Q76.5 -49.300000000000004 82.80000000000001 -52.800000000000004Q89.10000000000001 -56.300000000000004 97.30000000000001 -56.300000000000004Q105.2 -56.300000000000004 111.45 -52.900000000000006Q117.7 -49.5 121.15 -43.25Q124.60000000000001 -37.0 124.60000000000001 -28.900000000000002Q124.60000000000001 -25.900000000000002 124.2 -23.5ZM110.10000000000001 -32.9Q110.0 -38.300000000000004 106.2 -41.550000000000004Q102.4 -44.800000000000004 96.9 -44.800000000000004Q91.7 -44.800000000000004 88.15 -41.650000000000006Q84.60000000000001 -38.5 83.80000000000001 -32.9Z M154.20000000000002 -6.800000000000001 172.60000000000002 -54.6H180.0L158.10000000000002 0.0H150.20000000000002L128.3 -54.6H135.8Z M184.70000000000002 -27.3Q184.70000000000002 -35.800000000000004 188.3 -42.150000000000006Q191.9 -48.5 198.10000000000002 -51.95Q204.3 -55.400000000000006 212.0 -55.400000000000006Q219.70000000000002 -55.400000000000006 225.95000000000002 -51.95Q232.20000000000002 -48.5 235.75 -42.150000000000006Q239.3 -35.800000000000004 239.3 -27.3Q239.3 -18.900000000000002 235.70000000000002 -12.500000000000002Q232.10000000000002 -6.1000000000000005 225.8 -2.6500000000000004Q219.5 0.8 211.8 0.8Q204.10000000000002 0.8 197.95000000000002 -2.6500000000000004Q191.8 -6.1000000000000005 188.25 -12.450000000000001Q184.70000000000002 -18.8 184.70000000000002 -27.3ZM232.10000000000002 -27.3Q232.10000000000002 -34.5 229.3 -39.45Q226.5 -44.400000000000006 221.9 -46.85000000000001Q217.3 -49.300000000000004 211.9 -49.300000000000004Q206.5 -49.300000000000004 201.9 -46.85000000000001Q197.3 -44.400000000000006 194.55 -39.45Q191.8 -34.5 191.8 -27.3Q191.8 -20.1 194.55 -15.150000000000002Q197.3 -10.200000000000001 201.85000000000002 -7.750000000000001Q206.4 -5.300000000000001 211.8 -5.300000000000001Q217.20000000000002 -5.300000000000001 221.8 -7.750000000000001Q226.4 -10.200000000000001 229.25 -15.150000000000002Q232.10000000000002 -20.1 232.10000000000002 -27.3Z"/></g>
+</svg></a>
+  <nav class="kopf-links etikett" aria-label="Hauptnavigation">
+    <a href="#kopf-sortieren">Kopf</a>
+    <a href="#koerper">Körper</a>
+    <a href="#kalender">Kalender</a>
+    <a href="#balance">Balance</a>
+    <a href="#alles">Alles</a>
+    <a href="#preise">Preise</a>
+    <a class="kopf-demo" href="https://daevo.pages.dev" target="_blank" rel="noopener">Demo</a>
+  </nav>
+</header>
+
+<main id="start">
+
+  <!-- 1 Ein Satz, ein leuchtendes d, und im Ring beginnt die nächste Seite -->
+  <section class="szene eroeffnung mit-netz" data-szene="eroeffnung" style="--laenge: 100vh" aria-label="daevo">
+    <div class="buehne">
+      <div class="start-text" id="startText">
+        <span class="augenbraue">Evolve your daily life</span>
+        <h1 class="display"><span class="zeile"><span class="h-marke" role="img" aria-label="daevo"><svg xmlns="http://www.w3.org/2000/svg" viewBox="-6.0 -86.0 317.5 92.9" aria-hidden="true" focusable="false">
+  
+  <g><path d="M 32.50 -49.20 A 21.50 21.50 0 1 1 11.33 -31.43" fill="none" stroke="#96D8F0" stroke-width="14.00" stroke-linecap="round"/>
+    <path d="M 54.00 -73.00 L 54.00 -27.70" fill="none" stroke="#96D8F0" stroke-width="14.00" stroke-linecap="round"/></g>
+  <g transform="translate(66.20 0)"><path fill="#96D8F0" d="M28.6 -56.300000000000004Q34.800000000000004 -56.300000000000004 39.45 -53.800000000000004Q44.1 -51.300000000000004 46.900000000000006 -47.5V-55.400000000000006H61.0V0.0H46.900000000000006V-8.1Q44.2 -4.2 39.45 -1.6500000000000001Q34.7 0.9 28.5 0.9Q21.5 0.9 15.75 -2.7Q10.0 -6.300000000000001 6.65 -12.850000000000001Q3.3000000000000003 -19.400000000000002 3.3000000000000003 -27.900000000000002Q3.3000000000000003 -36.300000000000004 6.65 -42.800000000000004Q10.0 -49.300000000000004 15.75 -52.800000000000004Q21.5 -56.300000000000004 28.6 -56.300000000000004ZM32.2 -44.0Q28.3 -44.0 25.0 -42.1Q21.700000000000003 -40.2 19.650000000000002 -36.55Q17.6 -32.9 17.6 -27.900000000000002Q17.6 -22.900000000000002 19.650000000000002 -19.150000000000002Q21.700000000000003 -15.4 25.050000000000004 -13.4Q28.400000000000002 -11.4 32.2 -11.4Q36.1 -11.4 39.5 -13.350000000000001Q42.900000000000006 -15.3 44.900000000000006 -18.950000000000003Q46.900000000000006 -22.6 46.900000000000006 -27.700000000000003Q46.900000000000006 -32.800000000000004 44.900000000000006 -36.45Q42.900000000000006 -40.1 39.5 -42.05Q36.1 -44.0 32.2 -44.0Z M124.2 -23.5H83.7Q84.2 -17.5 87.9 -14.100000000000001Q91.60000000000001 -10.700000000000001 97.0 -10.700000000000001Q104.80000000000001 -10.700000000000001 108.10000000000001 -17.400000000000002H123.2Q120.80000000000001 -9.4 114.0 -4.25Q107.2 0.9 97.30000000000001 0.9Q89.30000000000001 0.9 82.95000000000002 -2.65Q76.60000000000001 -6.2 73.05000000000001 -12.700000000000001Q69.5 -19.200000000000003 69.5 -27.700000000000003Q69.5 -36.300000000000004 73.0 -42.800000000000004Q76.5 -49.300000000000004 82.80000000000001 -52.800000000000004Q89.10000000000001 -56.300000000000004 97.30000000000001 -56.300000000000004Q105.2 -56.300000000000004 111.45 -52.900000000000006Q117.7 -49.5 121.15 -43.25Q124.60000000000001 -37.0 124.60000000000001 -28.900000000000002Q124.60000000000001 -25.900000000000002 124.2 -23.5ZM110.10000000000001 -32.9Q110.0 -38.300000000000004 106.2 -41.550000000000004Q102.4 -44.800000000000004 96.9 -44.800000000000004Q91.7 -44.800000000000004 88.15 -41.650000000000006Q84.60000000000001 -38.5 83.80000000000001 -32.9Z M154.20000000000002 -6.800000000000001 172.60000000000002 -54.6H180.0L158.10000000000002 0.0H150.20000000000002L128.3 -54.6H135.8Z M184.70000000000002 -27.3Q184.70000000000002 -35.800000000000004 188.3 -42.150000000000006Q191.9 -48.5 198.10000000000002 -51.95Q204.3 -55.400000000000006 212.0 -55.400000000000006Q219.70000000000002 -55.400000000000006 225.95000000000002 -51.95Q232.20000000000002 -48.5 235.75 -42.150000000000006Q239.3 -35.800000000000004 239.3 -27.3Q239.3 -18.900000000000002 235.70000000000002 -12.500000000000002Q232.10000000000002 -6.1000000000000005 225.8 -2.6500000000000004Q219.5 0.8 211.8 0.8Q204.10000000000002 0.8 197.95000000000002 -2.6500000000000004Q191.8 -6.1000000000000005 188.25 -12.450000000000001Q184.70000000000002 -18.8 184.70000000000002 -27.3ZM232.10000000000002 -27.3Q232.10000000000002 -34.5 229.3 -39.45Q226.5 -44.400000000000006 221.9 -46.85000000000001Q217.3 -49.300000000000004 211.9 -49.300000000000004Q206.5 -49.300000000000004 201.9 -46.85000000000001Q197.3 -44.400000000000006 194.55 -39.45Q191.8 -34.5 191.8 -27.3Q191.8 -20.1 194.55 -15.150000000000002Q197.3 -10.200000000000001 201.85000000000002 -7.750000000000001Q206.4 -5.300000000000001 211.8 -5.300000000000001Q217.20000000000002 -5.300000000000001 221.8 -7.750000000000001Q226.4 -10.200000000000001 229.25 -15.150000000000002Q232.10000000000002 -20.1 232.10000000000002 -27.3Z"/></g>
+</svg></span></span></h1>
+        <div class="start-lead"><p>Das ist nicht die nächste Fitness App.</p><p><b>Das ist dein digitaler Life Coach, immer dabei und immer aktuell.</b></p><p>Für mehr Energie, Klarheit und Struktur im Alltag, um mehr von dem Leben zu haben, das du eigentlich führen willst.</p></div>
+        <div class="aktionen start-aktionen"><a class="knopf knopf-blau knopf-gross" href="https://daevo.pages.dev" target="_blank" rel="noopener">7 Tage kostenlos testen <svg class="pfeil" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 11 11 3M5 3h6v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="textlink" href="#kopf-sortieren">Was daevo kann ›</a></div>
+      </div>
+      <div class="schweber" id="schweber" aria-hidden="true">
+        <div class="glas-ort" data-tel=".03 .05" data-tel-schmal=".06 .04"><div class="glas-karte" style="animation-delay: 1s"><small>Letzte Nacht</small><b>7 h 45 <span>geschlafen</span></b></div></div>
+        <div class="glas-ort nur-breit" data-tel="-.1 .24" data-tel-schmal="0 0"><div class="glas-karte" style="animation-delay: 1.6s"><small>Fokus für heute</small><b>120 g <span>Protein, mindestens</span></b></div></div>
+        <div class="glas-ort" data-tel=".03 .43" data-tel-schmal=".06 .38"><div class="glas-karte" style="animation-delay: 2.2s"><small>Erster Schritt</small><b>9:00 <span>Fokus auf das Angebot</span></b></div></div>
+        <div class="glas-ort" data-tel="-.08 .62" data-tel-schmal=".06 .72"><div class="glas-karte" style="animation-delay: 2.8s"><small>Heute</small><b>17:30 <span>Ganzkörper A</span></b></div></div>
+        <div class="glas-ort nur-breit" data-tel=".03 .81" data-tel-schmal="0 0"><div class="glas-karte" style="animation-delay: 3.4s"><small>Heute Abend</small><b>22:15 <span>Bildschirm aus</span></b></div></div>
+      </div>
+      <div class="start-tel" id="startTel" aria-hidden="true">
+        <div class="st-innen">
+          <div class="st-schirm">
+            <div class="st-status"><span>8:12</span><i class="st-insel"></i><span class="st-rechts"><i class="st-netz"><i></i><i></i><i></i><i></i></i><i class="st-akku"><i></i></i></span></div>
+            <div class="st-leiste">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+              <span>bereit</span>
+              <span class="st-knoepfe">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7h11M9 12h11M9 17h11"/><circle cx="4.5" cy="7" r=".6"/><circle cx="4.5" cy="12" r=".6"/><circle cx="4.5" cy="17" r=".6"/></svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.3h3.3L12 5.2v13.6L7.3 14.7H4z"/><path d="M15.4 9.1a4.2 4.2 0 0 1 0 5.8"/></svg>
+              </span>
+            </div>
+            <div class="orb-platz" id="orbPlatz"></div>
+            <p class="st-gruss">Guten Morgen.<small>3 Termine heute. Training um 17:30.</small><em>Tipp auf den Kreis und sprich</em></p>
+            <div class="st-chips"><span>Wie stehe ich?</span><span>Was essen?</span><span>500 ml Wasser</span></div>
+            <div class="st-eingabe">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              <span>Schreib oder sprich</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11.2a6.5 6.5 0 0 0 13 0M12 17.7V21"/></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="orb-halter" id="orbHalter"><div class="orb" id="orb" aria-hidden="true"></div></div>
+      <div class="portal" id="portal">
+        <div class="portal-innen">
+          <span class="portal-label augenbraue">Dein Coach für</span>
+          <div class="wuerfel" id="wuerfel" aria-hidden="true">
+            <div class="wuerfel-koerper" id="wuerfelKoerper">
+              <span class="seite vorn" id="wuerfelVorn">mehr Fitness.</span>
+              <span class="seite unten" id="wuerfelUnten">mehr Klarheit.</span>
+            </div>
+          </div>
+          <ul class="ansprueche" id="ansprueche">
+            <li>mehr Fitness.</li>
+            <li>mehr Klarheit.</li>
+            <li>mehr Gesundheit.</li>
+            <li>mehr Struktur.</li>
+            <li>mehr Energie.</li>
+            <li class="blau">besseren Schlaf.</li>
+          </ul>
+          <div class="walze-stand" id="walzeStand" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="portal-fuss" id="portalFuss">
+            <p>Heb deinen Alltag auf ein neues Level.<span class="takt">Immer dabei. Immer aktuell.</span></p>
+            <div class="aktionen">
+              <a class="knopf knopf-blau" href="https://daevo.pages.dev" target="_blank" rel="noopener">Demo öffnen <svg class="pfeil" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 11 11 3M5 3h6v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+              <a class="textlink" href="#kopf-sortieren">Was daevo kann ›</a>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="portal-rand" id="portalRand" aria-hidden="true"></div>
+      <span class="seitenleiste etikett"><span class="klein">daevo</span> · Körper, Kopf und Kalender · Evolve your daily life</span>
+      <a class="weiter etikett" href="#kopf-sortieren" id="weiter"><i aria-hidden="true"></i><span>Scroll</span></a>
+    </div>
+  </section>
+
+  <!-- 2 Gedanken fliegen durcheinander und sortieren sich -->
+  <section class="szene kopf-szene mit-netz" id="kopf-sortieren" data-szene="kopf" data-auto="2200" style="--laenge: 130vh">
+    <div class="buehne">
+      <div class="innen" style="width: 100%">
+        <span class="augenbraue">Kopf sortieren</span>
+        <div class="kopf-titel">
+          <h2 class="display eins">Zu viel <span class="blau">im Kopf?</span></h2>
+          <h2 class="display zwei"><span class="klein">daevo</span> <span class="blau">sortiert.</span></h2>
+          <p>Sprich einfach los. Aufgaben, Entscheidungen, Sorgen. daevo legt alles in die richtige Schublade und sagt dir, womit du anfängst.</p>
+        </div>
+        <div class="schubladen">
+          <div class="schublade">
+            <h3 class="etikett">Aufgaben</h3>
+            <span class="gedanke naechster" data-naechster>Angebot fertig schreiben<small>Nächster Schritt · heute 9:00</small></span>
+            <span class="gedanke">Steuer bis Freitag</span>
+            <span class="gedanke">Mama zurückrufen</span>
+          </div>
+          <div class="schublade">
+            <h3 class="etikett">Entscheidungen</h3>
+            <span class="gedanke">Heute trainieren oder Pause?</span>
+            <span class="gedanke">Neuen Job annehmen?</span>
+          </div>
+          <div class="schublade">
+            <h3 class="etikett">Sorgen</h3>
+            <span class="gedanke">Schaffe ich das alles?</span>
+            <span class="gedanke">Ich schlafe zu wenig</span>
+          </div>
+          <div class="schublade">
+            <h3 class="etikett">Nicht in deiner Hand</h3>
+            <span class="gedanke">Das Wetter am Samstag</span>
+            <span class="gedanke">Was andere denken</span>
+          </div>
+        </div>
+        <div class="schritt-marke etikett" id="schrittMarke">Ein nächster Schritt. Der Rest hat seinen Platz.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 Das Telefon dreht sich zu dir -->
+  <section class="szene tel-szene mit-netz" data-szene="telefon" data-auto="8400" style="--laenge: 130vh">
+    <div class="buehne">
+      <div class="tel-raster">
+        <div class="tel-links">
+          <span class="augenbraue">Dein Coach im Alltag</span>
+          <h2 class="leicht">Ein Coach,<br>der <em class="strich">mitdenkt.</em></h2>
+        </div>
+        <div class="telefon immer-dunkel" id="telefon" role="img" aria-label="daevo auf dem Telefon: Gespräch, Tagesplan und Abendroutine">
+          <div class="bildschirm">
+            <div class="screen">
+              <div class="sc-kopf"><b>daevo</b><span>8:12</span></div>
+              <div class="blase ich">Ich hab heute so viel, ich weiß nicht, wo ich anfangen soll.</div>
+              <div class="blase coach">Okay. So gehen wir es an:
+                <ol>
+                  <li><b>9:00</b> Angebot, 90 min Fokus</li>
+                  <li><b>12:30</b> Mittag, kurz raus</li>
+                  <li><b>17:30</b> Training</li>
+                </ol>
+                Die Steuer kommt auf Mittwoch. Da hast du Luft.
+              </div>
+              <div class="sc-eingabe"><span>Schreib oder sprich</span><i></i></div>
+            </div>
+            <div class="screen">
+              <div class="sc-kopf"><b>Dein Tag</b><span>Mo, 20. Okt</span></div>
+              <div class="tag-liste">
+                <div class="tag-zeile d"><time>9:00</time><span>Fokus: Angebot<small>90 min, das Wichtigste zuerst</small></span></div>
+                <div class="tag-zeile"><time>11:00</time><span>Kundentermin</span></div>
+                <div class="tag-zeile d"><time>12:30</time><span>Mittag<small>40 g Protein offen</small></span></div>
+                <div class="tag-zeile d"><time>15:10</time><span>15 min raus<small>Puffer vor dem Call</small></span></div>
+                <div class="tag-zeile"><time>15:30</time><span>Team Call</span></div>
+                <div class="tag-zeile d"><time>17:30</time><span>Krafttraining<small>60 min, freie Lücke</small></span></div>
+                <div class="tag-zeile d"><time>22:15</time><span>Runterfahren<small>Bildschirm aus</small></span></div>
+              </div>
+            </div>
+            <div class="screen">
+              <div class="sc-kopf"><b>Heute Abend</b><span>21:00</span></div>
+              <div class="mond" aria-hidden="true"></div>
+              <div class="schlaf-zahl">7 h 45<small>bis zu deinem Wecker um 6:30</small></div>
+              <div class="routine">
+                <div><span>Bildschirm aus</span><span>22:15</span></div>
+                <div><span>Licht runter, lesen</span><span>22:30</span></div>
+                <div><span>Schlafen</span><span>22:45</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="tel-texte">
+          <div class="tel-text"><b>Wenn du nicht weiter weißt</b><p>Frag einfach. daevo sortiert und gibt dir eine Reihenfolge, die zu deinem Tag passt.</p></div>
+          <div class="tel-text"><b>Dein Tag mit Uhrzeiten</b><p>Jede Aufgabe bekommt ihren Platz. In den Lücken zwischen deinen Terminen, nicht oben drauf.</p></div>
+          <div class="tel-text"><b>Dein Abend gehört dir</b><p>daevo erinnert dich ans Runterfahren, damit du rechtzeitig schläfst. Schlecht geschlafen? Dann wird das Training leichter.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3b Essen und Training, mitten im Alltag -->
+  <section class="szene koerper-szene mit-netz" id="koerper" data-szene="koerper" style="--laenge: 250vh">
+    <div class="buehne">
+      <div class="innen" style="width: 100%">
+        <div class="k-raster">
+          <div>
+            <span class="augenbraue">Essen und Training</span>
+            <div class="k-titel">
+              <h2 class="display a">Gesund essen.<br><span class="blau">Ohne Aufwand.</span></h2>
+              <h2 class="display b">Training.<br><span class="blau">Nach Tagesform.</span></h2>
+            </div>
+            <div class="k-texte">
+              <div class="k-text a"><b>Foto, Satz oder Barcode</b><p>daevo erkennt Mengen und Zutaten und rechnet alles für dich aus, damit du dein Tagesziel erreichst. Sag, was im Kühlschrank ist, oder schick ein Foto davon. Du bekommst Rezepte mit allen Makros.</p></div>
+              <div class="k-text b"><b>Ein Plan, der mitgeht</b><p>Kurze Nacht oder voller Tag? daevo passt dein Training an. Weniger Sätze, mehr Reserve, und manchmal ist eine Pause die bessere Wahl.</p></div>
+            </div>
+          </div>
+          <div class="k-buehne" role="img" aria-label="Beispiel: ein Foto vom Mittagessen wird erfasst, danach ein Training, das nach einer kurzen Nacht angepasst wird">
+            <div class="k-panel a" id="kEssen">
+              <div class="foto"><img src="img/lachs-reis-bowl.jpg" alt="" width="800" height="600"><span class="scan" id="kScan"></span></div>
+              <div class="posten" style="top: 1cqw"><div>Lachs <small>120 g</small></div><span>240 kcal</span></div>
+              <div class="posten" style="top: 10.2cqw"><div>Reis <small>180 g gekocht</small></div><span>233 kcal</span></div>
+              <div class="posten" style="top: 19.4cqw"><div>Avocado <small>60 g</small></div><span>89 kcal</span></div>
+              <div class="posten" style="top: 28.6cqw"><div>Gurke <small>60 g</small></div><span>8 kcal</span></div>
+              <div class="posten" style="top: 37.8cqw"><div>Wakame Algen <small>30 g</small></div><span>16 kcal</span></div>
+              <div class="k-ring">
+                <svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="42" fill="none" stroke="#1c2430" stroke-width="7" class="ring-spur"/><circle id="kRing" cx="50" cy="50" r="42" fill="none" stroke="#96d8f0" stroke-width="7" stroke-linecap="round" stroke-dasharray="263.89" stroke-dashoffset="76.44"/></svg>
+                <div class="zahl"><span id="kKcal">1790</span><small>von 2520 kcal</small></div>
+              </div>
+              <div class="k-makros">
+                <div class="makro" style="--ton: var(--blau)"><div><span>Protein</span><span id="kP">104 / 160 g</span></div><div class="makro-spur"><i style="width: 65%"></i></div></div>
+                <div class="makro" style="--ton: var(--ton-fett)"><div><span>Fett</span><span id="kF">62 / 80 g</span></div><div class="makro-spur"><i style="width: 77.5%"></i></div></div>
+                <div class="makro" style="--ton: var(--ton-kh)"><div><span>Kohlenhydrate</span><span id="kC">204 / 290 g</span></div><div class="makro-spur"><i style="width: 70.3%"></i></div></div>
+              </div>
+              <p class="k-rest" id="kRest">Noch offen: <b>730 kcal, davon 56 g Protein.</b> Dein Abendessen kommt als Rezept aus dem, was in deinem Kühlschrank liegt.</p>
+            </div>
+            <div class="k-panel b" id="kTraining">
+              <div class="t-kopf immer-dunkel"><img src="img/kniebeuge-langhantel.jpg" alt="" width="960" height="720"><div><b>Heute 17:30 · 45 min</b><strong>Ganzkörper A</strong></div></div>
+              <ul class="uebungen" id="kUebungen">
+                <li><span>Kniebeuge</span><span data-vorher="4 × 8">3 × 8</span></li>
+                <li><span>Hip Thrust</span><span data-vorher="3 × 10">2 × 10</span></li>
+                <li><span>Bankdrücken</span><span data-vorher="4 × 8">3 × 8</span></li>
+                <li><span>Rudern am Kabel</span><span data-vorher="4 × 10">3 × 10</span></li>
+                <li><span>Leg Raises</span><span data-vorher="5 × 8">4 × 8</span></li>
+              </ul>
+              <div class="anpassung" id="kAnpassung"><b>Kurze Nacht erkannt</b>5 h 40 geschlafen. Heute rund ein Viertel weniger Sätze und eine Wiederholung mehr in Reserve.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 Der Kalender füllt seine Lücken -->
+  <section class="szene tag-szene mit-netz" id="kalender" data-szene="tag" data-auto="2600" style="--laenge: 130vh">
+    <div class="buehne">
+      <div class="innen" style="width: 100%">
+        <div class="tag-raster">
+          <div class="tag-kopf">
+            <span class="augenbraue">Planung</span>
+            <h2 class="display">Dein Kalender.<br><span class="blau">Endlich mit <span class="strich">Plan.</span></span></h2>
+            <ul class="tag-punkte" id="tagPunkte">
+              <li>Findet die Lücken zwischen deinen Terminen.</li>
+              <li>Legt das Wichtigste in deinen ersten freien Block.</li>
+              <li>Hält deine Trainingszeit frei, statt sie zu verplanen.</li>
+              <li>Plant Luft zwischen Aufgaben ein und warnt, wenn vor einem Termin keine bleibt.</li>
+              <li>Schützt deine Schlafenszeit.</li>
+            </ul>
+          </div>
+          <div class="kalender" id="kalenderFlaeche" aria-label="Beispieltag von 7 bis 23 Uhr mit festen Terminen und von daevo eingeplanten Blöcken">
+            <!-- Stundenlinien und Blöcke setzt das Skript nach Uhrzeit, siehe tagAufbauen -->
+          </div>
+        </div>
+        <p class="tag-fuss">Nie mehr als zwei Drittel deiner freien Zeit verplant. Der Rest bleibt Luft.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4b Das Live Balance Board -->
+  <section class="balance-sektion" id="balance">
+    <div class="innen">
+      <div class="balance-raster">
+        <div class="balance-text auf">
+          <span class="augenbraue">Live Balance Board</span>
+          <h2 class="display">Wofür lebst<br>du <span class="blau strich">eigentlich?</span></h2>
+          <p>Das Balance Board zeigt dir live, wofür du deine <b>meiste Zeit und Energie</b> aufwendest. Fünf Bereiche: Karriere, Fitness, Wellbeing, Me Time, Familie und Beziehung.</p>
+          <ul class="balance-punkte">
+            <li><b>Soll gegen Ist</b>Die gestrichelte Form ist dein Ziel, die gefüllte deine Woche. Die Schieflage siehst du in einer Sekunde.</li>
+            <li><b>Stunden statt Bauchgefühl</b>Gemessen wird aus Kalender, Training und dem, was du daevo erzählst. Nichts wird geschätzt.</li>
+            <li><b>daevo meldet sich</b>Bleibt ein Bereich über Wochen leer, sagt daevo es dir. Mit deinen eigenen Zahlen und ohne Vorwurf.</li>
+          </ul>
+        </div>
+        <div class="balance-bilder auf spaeter" role="img" aria-label="daevo Balance Board mit Beispieldaten: Netz aus Ziel und Woche, darunter Stunden je Bereich gegen das Ziel">
+          <div class="shot-tel"><img src="img/balance-netz.jpg" alt="" width="780" height="1688" loading="lazy"></div>
+          <div class="shot-tel"><img src="img/balance-stunden.jpg" alt="" width="780" height="1688" loading="lazy"></div>
+        </div>
+      </div>
+
+      <div class="health-band auf">
+        <div>
+          <span class="augenbraue">Apple Health und Apple Watch</span>
+          <h3>Deine Uhr<br><span class="blau">coacht mit.</span></h3>
+          <p>Verknüpf daevo mit Apple Health. Was deine Apple Watch misst, fließt mit ein, auch die aktiven Kalorien aus deinem Bewegungsring. Schläfst du kurz, passt daevo dein Training an. Im Bericht siehst du deine Werte über Wochen.</p>
+        </div>
+        <div class="werte">
+          <div><small>Schlaf</small><b>7 h 45</b></div>
+          <div><small>Schritte</small><b>11.840</b></div>
+          <div><small>Ruhepuls</small><b>54 <span>bpm</span></b></div>
+          <div><small>HRV</small><b>62 <span>ms</span></b></div>
+          <div><small>Aktiv</small><b>640 <span>kcal</span></b></div>
+          <div><small>Gewicht</small><b>86,8 <span>kg</span></b></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 Alles, was daevo für dich übernimmt, als Walze -->
+  <section class="karten-sektion hell" id="alles" aria-roledescription="Karussell" aria-label="Was daevo kann">
+    <div class="innen">
+      <span class="augenbraue">Alles an einem Ort</span>
+      <div class="quer-kopf">
+        <h2 class="display">Ein Coach.<br>Für dein ganzes <span class="strich">Leben.</span></h2>
+        <p>Nicht nur Kalorien und Sätze. daevo hat deinen ganzen Tag im Blick.</p>
+      </div>
+    </div>
+    <div class="walze-buehne" id="walzeBuehne">
+      <div class="walze" id="walze">
+        <article class="karte k-dunkel" aria-roledescription="Karte">
+          <span class="zeichen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4M7.5 13.5h3M7.5 16.5h6"/></svg></span>
+          <span class="art">Kalender</span>
+          <h3>Plant deine Woche</h3>
+          <p>Liest deinen Kalender, legt dein Training in freie Zeit und verschiebt es, wenn ein Termin dazwischenkommt.</p>
+        </article>
+        <article class="karte k-hell" aria-roledescription="Karte">
+          <span class="zeichen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 15.5A7 7 0 0 1 9.5 4.5a7 7 0 1 0 7.5 11Z"/></svg></span>
+          <span class="art">Schlaf</span>
+          <h3>Bringt dich ins Bett</h3>
+          <p>Erinnert ans Runterfahren, fragt morgens nach deiner Nacht und passt den Tag daran an.</p>
+        </article>
+        <article class="karte k-blau" aria-roledescription="Karte">
+          <span class="zeichen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h3M17 12h3M7 8.5v7M17 8.5v7M9.5 10v4M14.5 10v4M9.5 12h5"/></svg></span>
+          <span class="art">Training</span>
+          <h3>Trainiert mit deinem Tag</h3>
+          <p>Trainingsmodus mit Pause, Reserve und dem letzten Mal. Danach die Muskelkarte als Bild zum Teilen.</p>
+        </article>
+        <article class="karte k-dunkel" aria-roledescription="Karte">
+          <span class="zeichen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="7"/><path d="M12 6c0-2 1-3.5 3-4M9 13a3 3 0 0 0 3 3"/></svg></span>
+          <span class="art">Ernährung</span>
+          <h3>Isst mit, ohne zu nerven</h3>
+          <p>Foto, Satz oder Barcode. Die Suche schlägt ab dem ersten Buchstaben vor, was du schon kennst.</p>
+        </article>
+        <article class="karte k-hell" aria-roledescription="Karte">
+          <span class="zeichen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7.5l2 2 4-4M5 15.5l2 2 4-4M14 7.5h5M14 15.5h5"/></svg></span>
+          <span class="art">Aufgaben</span>
+          <h3>Erinnert dich, wenn es zählt</h3>
+          <p>Ordnet deine Aufgaben in freie Zeit, Fristen zuerst. Mit Todoist verbunden, wenn du es schon nutzt.</p>
+        </article>
+        <article class="karte k-blau" aria-roledescription="Karte">
+          <span class="zeichen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5h16M4 12h10M4 17.5h6"/><circle cx="18" cy="16" r="2.5"/></svg></span>
+          <span class="art">Kopf</span>
+          <h3>Sortiert deine Gedanken</h3>
+          <p>Alles rauslassen. daevo trennt Aufgaben von Sorgen und gibt dir genau einen ersten Schritt.</p>
+        </article>
+        <article class="karte k-dunkel" aria-roledescription="Karte">
+          <span class="zeichen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8.5 6.2-3.3 10H6.8l-3.3-10Z"/><path d="M12 8l4 3-1.6 4.8H9.6L8 11Z"/></svg></span>
+          <span class="art">Balance</span>
+          <h3>Zeigt, wofür du lebst</h3>
+          <p>Arbeit, Training, Erholung, Familie und du selbst, gemessen gegen das, was du dir vorgenommen hast.</p>
+        </article>
+        <article class="karte k-hell" aria-roledescription="Karte">
+          <span class="zeichen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="3" width="10" height="18" rx="3"/><path d="M10 7h4"/><circle cx="12" cy="13" r="2.5"/></svg></span>
+          <span class="art">Apple Watch</span>
+          <h3>Am Handgelenk dabei</h3>
+          <p>Offene Kalorien als Komplikation, Wasser mit einem Tipp, Training mit Krone und Pause, die vibriert.</p>
+        </article>
+        <article class="karte k-blau" aria-roledescription="Karte">
+          <span class="zeichen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></span>
+          <span class="art">Briefing</span>
+          <h3>Sagt dir, was heute zählt</h3>
+          <p>Morgens dein Tag in einem Blick, abends was morgen vorzubereiten ist. Aus Kalender, Aufgaben und Plan.</p>
+        </article>
+      </div>
+    </div>
+    <div class="walze-steuer">
+      <button class="rund" id="walzeZurueck" type="button" aria-label="Vorherige Karte"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <div class="walze-punkte" id="walzePunkte"></div>
+      <button class="rund" id="walzeVor" type="button" aria-label="Nächste Karte"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+    </div>
+    <p class="karte-stand" id="karteStand" aria-live="polite"></p>
+  </section>
+
+  <section class="zahlen-sektion">
+    <div class="innen">
+      <div class="zahlen auf" id="zahlen">
+        <div class="zahlen-text">
+          <span class="augenbraue">Was drinsteckt</span>
+          <p class="leicht">Ein Coach, der <b>handelt</b>. Er trägt ein, plant und erinnert, statt nur zu <span class="strich">antworten.</span><small>Kalorien, Zeiten und Pläne rechnet daevo selbst aus deinen Daten. Die KI formuliert, sie erfindet keine Zahlen.</small></p>
+        </div>
+        <dl class="zahlen-raster">
+          <div><dd data-zahl="56">56</dd><dt>Werkzeuge, mit denen der Coach deine App verändert</dt></div>
+          <div><dd data-zahl="52">52</dd><dt>davon laufen auch ohne KI</dt></div>
+          <div><dd data-zahl="136">136</dd><dt>Übungen mit Foto und Anleitung</dt></div>
+          <div><dd data-zahl="55">55</dd><dt>Rezepte, die sich deinem Tag anpassen</dt></div>
+        </dl>
+        <i class="zahlen-linie" aria-hidden="true"></i>
+      </div>
+    </div>
+  </section>
+
+  <section class="punkte-sektion">
+    <div class="innen">
+      <div class="punkte auf">
+        <canvas id="punktKanvas" aria-hidden="true"></canvas>
+        <div class="punkte-text">
+          <h2 class="display">Jeder Tag<br>ein Stück <span class="blau strich">weiter.</span></h2>
+          <p>Kleine Schritte, jeden Tag. daevo zeigt dir, was sie bewirken. Woche für Woche wird dein Alltag ruhiger, klarer und ein Stück mehr deiner.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="haltung">
+    <div class="innen">
+      <span class="augenbraue auf">Haltung</span>
+      <div class="haltung-kopf">
+        <h2 class="display auf">Klartext.<br><span class="blau">Kein Druck.</span></h2>
+      </div>
+      <ul class="saetze">
+        <li class="auf"><h3>Echte Zahlen. <b>Kein Bauchgefühl.</b></h3><p>Kalorien, Zeiten und Pläne kommen aus deinen Daten, nicht aus einer Schätzung der KI. Was daevo nicht weiß, fragt es.</p></li>
+        <li class="auf"><h3>Kein Vorwurf. <b>Echtes Interesse.</b></h3><p>Vier Tage kein Training? daevo fragt, was dazwischen kam. Dann plant ihr gemeinsam den nächsten Schritt.</p></li>
+        <li class="auf"><h3>Deine Daten <b>gehören dir.</b></h3><p>Gespräche, Notizen und dein Kalender liegen auf deinem Gerät, nicht in einer Datenbank von daevo. Keine E-Mail, kein Passwort.</p></li>
+        <li class="auf"><h3>Fehler werden <b>behoben.</b></h3><p>Falsch eingetragen? Sag es, und daevo korrigiert es. Kein Suchen, kein Löschen, kein Neuanfang.</p></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="preise-sektion" id="preise">
+    <div class="innen">
+      <span class="augenbraue auf">Preise</span>
+      <div class="preise-kopf">
+        <div class="auf">
+          <h2 class="display">Wähl deinen <span class="blau strich">Coach.</span></h2>
+          <p>7 Tage alles kostenlos. Danach Plus oder Pro, jederzeit kündbar.</p>
+        </div>
+        <div class="takt auf" role="radiogroup" aria-label="Zahlweise" id="takt">
+          <span class="takt-schieber" id="taktSchieber"></span>
+          <button type="button" role="radio" aria-checked="true" data-takt="jahr" id="taktJahr">Jährlich<small>bis zu 33 % sparen</small></button>
+          <button type="button" role="radio" aria-checked="false" data-takt="monat" id="taktMonat">Monatlich</button>
+        </div>
+      </div>
+      <div class="preis-raster">
+        <article class="preis-karte auf">
+          <div class="preis-name"><h3>Plus</h3></div>
+          <div class="preis-betrag"><b data-jahr="8,33 €" data-monat="11,99 €">8,33 €</b><span>pro Monat</span></div>
+          <p class="preis-neben" data-jahr="99,99 € im Jahr, statt 143,88 €" data-monat="oder 99,99 € im Jahr">99,99 € im Jahr, statt 143,88 €</p>
+          <p class="preis-kontingent">Bis zu 250 Nachrichten an die KI im Monat</p>
+          <ul class="preis-liste">
+            <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Essen erfassen per Sprache, Text, Foto und Barcode</span></li>
+            <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Dein Coach im Chat, der einträgt und plant</span></li>
+            <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Trainingsplan aus deinem Fragebogen</span></li>
+            <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Rezepte passend zu deinen Zielen, 5 eigene Rezepte</span></li>
+            <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Erinnerungen zur richtigen Zeit</span></li>
+            <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Kalender und Apple Health</span></li>
+            <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Check-ins und Wochenbericht</span></li>
+            <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Essen per Text und Sprache zählt nicht als Nachricht</span></li>
+          </ul>
+          <a class="knopf knopf-rahmen" href="https://daevo.pages.dev" target="_blank" rel="noopener">7 Tage kostenlos testen</a>
+        </article>
+        <article class="preis-karte pro auf spaeter">
+          <div class="preis-name"><h3>Pro</h3><span class="preis-schild">Für echte Ergebnisse</span></div>
+          <div class="preis-betrag"><b data-jahr="13,33 €" data-monat="19,99 €">13,33 €</b><span>pro Monat</span></div>
+          <p class="preis-neben" data-jahr="159,99 € im Jahr, statt 239,88 €" data-monat="oder 159,99 € im Jahr">159,99 € im Jahr, statt 239,88 €</p>
+          <p class="preis-kontingent">Bis zu 700 Nachrichten an die KI im Monat</p>
+          <ul class="preis-liste">
+            <li class="zwischen">Alles aus Plus, dazu:</li>
+            <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>7 Tage Essensplan mit Einkaufsliste</span></li>
+            <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Trainingsplan, der nach acht Wochen mitwächst</span></li>
+            <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Wochenrückblick mit konkreten Tipps</span></li>
+            <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Eigene Rezepte ohne Grenze</span></li>
+            <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Für viele Fotos, viel Diktat und lange Gespräche</span></li>
+          </ul>
+          <a class="knopf knopf-blau" href="https://daevo.pages.dev" target="_blank" rel="noopener">7 Tage kostenlos testen <svg class="pfeil" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 11 11 3M5 3h6v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+        </article>
+      </div>
+      <div class="ohne-abo auf">
+        <b>Ohne Abo</b>
+        <p>Alles ohne KI läuft weiter: Essen eintragen per Suche und Barcode, Trainingsmodus, Pläne, Kalender und Check-ins.</p>
+      </div>
+      <p class="preis-fuss">Preise inklusive Mehrwertsteuer. „Bis zu“ heisst: lange Gespräche und viele Fotos verbrauchen mehr als kurze Nachrichten. In der iPhone App laufen Käufe über den App Store.</p>
+    </div>
+  </section>
+
+  <section class="ablauf">
+    <div class="innen">
+      <div class="schritte">
+        <div class="schritt auf"><span class="nr">01</span><h3>Erzähl von dir</h3><p>Eine Frage pro Seite. Was du willst, wie dein Alltag aussieht, was dich bisher gestoppt hat.</p></div>
+        <div class="schritt auf spaeter"><span class="nr">02</span><h3>Verbinde deinen Tag</h3><p>Kalender rein, To-dos rein. daevo sieht, wo Zeit ist und wo nicht.</p></div>
+        <div class="schritt auf spaeter"><span class="nr">03</span><h3>Leg los</h3><p>Sprich oder tipp, was ansteht. Ab jetzt hast du deinen Coach immer dabei.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="abschluss">
+    <div class="innen">
+      <h2 class="display" id="schlussTitel"><span class="zeile"><span>Dein nächstes Level.</span></span><span class="zeile"><span class="blau">Heute.</span></span></h2>
+      <div class="abschluss-zeile auf">
+        <a class="knopf knopf-blau knopf-gross" href="https://daevo.pages.dev" target="_blank" rel="noopener">Demo öffnen <svg class="pfeil" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 11 11 3M5 3h6v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+        <p>Öffne die Demo und sieh dir einen echten Tag mit daevo an. Sieben Tage alles testen, ohne Anmeldung.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="innen fuss">
+    <a href="#start" aria-label="daevo, zum Anfang"><svg xmlns="http://www.w3.org/2000/svg" viewBox="-6.0 -86.0 317.5 92.9" aria-hidden="true" focusable="false">
+  
+  <g><path d="M 32.50 -49.20 A 21.50 21.50 0 1 1 11.33 -31.43" fill="none" stroke="#96D8F0" stroke-width="14.00" stroke-linecap="round"/>
+    <path d="M 54.00 -73.00 L 54.00 -27.70" fill="none" stroke="#96D8F0" stroke-width="14.00" stroke-linecap="round"/></g>
+  <g transform="translate(66.20 0)"><path fill="#96D8F0" d="M28.6 -56.300000000000004Q34.800000000000004 -56.300000000000004 39.45 -53.800000000000004Q44.1 -51.300000000000004 46.900000000000006 -47.5V-55.400000000000006H61.0V0.0H46.900000000000006V-8.1Q44.2 -4.2 39.45 -1.6500000000000001Q34.7 0.9 28.5 0.9Q21.5 0.9 15.75 -2.7Q10.0 -6.300000000000001 6.65 -12.850000000000001Q3.3000000000000003 -19.400000000000002 3.3000000000000003 -27.900000000000002Q3.3000000000000003 -36.300000000000004 6.65 -42.800000000000004Q10.0 -49.300000000000004 15.75 -52.800000000000004Q21.5 -56.300000000000004 28.6 -56.300000000000004ZM32.2 -44.0Q28.3 -44.0 25.0 -42.1Q21.700000000000003 -40.2 19.650000000000002 -36.55Q17.6 -32.9 17.6 -27.900000000000002Q17.6 -22.900000000000002 19.650000000000002 -19.150000000000002Q21.700000000000003 -15.4 25.050000000000004 -13.4Q28.400000000000002 -11.4 32.2 -11.4Q36.1 -11.4 39.5 -13.350000000000001Q42.900000000000006 -15.3 44.900000000000006 -18.950000000000003Q46.900000000000006 -22.6 46.900000000000006 -27.700000000000003Q46.900000000000006 -32.800000000000004 44.900000000000006 -36.45Q42.900000000000006 -40.1 39.5 -42.05Q36.1 -44.0 32.2 -44.0Z M124.2 -23.5H83.7Q84.2 -17.5 87.9 -14.100000000000001Q91.60000000000001 -10.700000000000001 97.0 -10.700000000000001Q104.80000000000001 -10.700000000000001 108.10000000000001 -17.400000000000002H123.2Q120.80000000000001 -9.4 114.0 -4.25Q107.2 0.9 97.30000000000001 0.9Q89.30000000000001 0.9 82.95000000000002 -2.65Q76.60000000000001 -6.2 73.05000000000001 -12.700000000000001Q69.5 -19.200000000000003 69.5 -27.700000000000003Q69.5 -36.300000000000004 73.0 -42.800000000000004Q76.5 -49.300000000000004 82.80000000000001 -52.800000000000004Q89.10000000000001 -56.300000000000004 97.30000000000001 -56.300000000000004Q105.2 -56.300000000000004 111.45 -52.900000000000006Q117.7 -49.5 121.15 -43.25Q124.60000000000001 -37.0 124.60000000000001 -28.900000000000002Q124.60000000000001 -25.900000000000002 124.2 -23.5ZM110.10000000000001 -32.9Q110.0 -38.300000000000004 106.2 -41.550000000000004Q102.4 -44.800000000000004 96.9 -44.800000000000004Q91.7 -44.800000000000004 88.15 -41.650000000000006Q84.60000000000001 -38.5 83.80000000000001 -32.9Z M154.20000000000002 -6.800000000000001 172.60000000000002 -54.6H180.0L158.10000000000002 0.0H150.20000000000002L128.3 -54.6H135.8Z M184.70000000000002 -27.3Q184.70000000000002 -35.800000000000004 188.3 -42.150000000000006Q191.9 -48.5 198.10000000000002 -51.95Q204.3 -55.400000000000006 212.0 -55.400000000000006Q219.70000000000002 -55.400000000000006 225.95000000000002 -51.95Q232.20000000000002 -48.5 235.75 -42.150000000000006Q239.3 -35.800000000000004 239.3 -27.3Q239.3 -18.900000000000002 235.70000000000002 -12.500000000000002Q232.10000000000002 -6.1000000000000005 225.8 -2.6500000000000004Q219.5 0.8 211.8 0.8Q204.10000000000002 0.8 197.95000000000002 -2.6500000000000004Q191.8 -6.1000000000000005 188.25 -12.450000000000001Q184.70000000000002 -18.8 184.70000000000002 -27.3ZM232.10000000000002 -27.3Q232.10000000000002 -34.5 229.3 -39.45Q226.5 -44.400000000000006 221.9 -46.85000000000001Q217.3 -49.300000000000004 211.9 -49.300000000000004Q206.5 -49.300000000000004 201.9 -46.85000000000001Q197.3 -44.400000000000006 194.55 -39.45Q191.8 -34.5 191.8 -27.3Q191.8 -20.1 194.55 -15.150000000000002Q197.3 -10.200000000000001 201.85000000000002 -7.750000000000001Q206.4 -5.300000000000001 211.8 -5.300000000000001Q217.20000000000002 -5.300000000000001 221.8 -7.750000000000001Q226.4 -10.200000000000001 229.25 -15.150000000000002Q232.10000000000002 -20.1 232.10000000000002 -27.3Z"/></g>
+</svg></a>
+    <span class="claim etikett">Evolve your daily life</span>
+    <p class="kleingedruckt">* Beispielseite. Tage, Termine und Gespräche sind Beispiele. Kein Ersatz für ärztlichen oder therapeutischen Rat.</p>
+    <nav class="fuss-links" aria-label="Rechtliches"><a href="https://daevo.pages.dev/rechtliches/impressum">Impressum</a><a href="https://daevo.pages.dev/rechtliches/datenschutz">Datenschutz</a><a href="https://daevo.pages.dev/rechtliches/nutzungsbedingungen">Nutzungsbedingungen</a></nav>
+  </div>
+</footer>
+
+<script>
+const wurzel = document.documentElement;
+wurzel.classList.add("js");
+const ruhig = matchMedia("(prefers-reduced-motion: reduce)").matches;
+if (ruhig) wurzel.classList.add("ohne-bewegung"); else wurzel.classList.add("bewegt");
+
+const klemme = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const teil = (p, a, b) => klemme((p - a) / (b - a));
+const sanft = (t) => (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const breit = () => innerWidth >= 900;
+
+/* ---------- Kalender nach Uhrzeit aufbauen ---------- */
+(() => {
+  const f = document.getElementById("kalenderFlaeche");
+  const START = 7, ENDE = 23;
+  const y = (h) => ((h - START) / (ENDE - START)) * 100;
+  for (let h = START; h <= ENDE; h += 2) {
+    const l = document.createElement("div");
+    l.className = "stunde"; l.style.top = `calc(14px + (100% - 28px) * ${y(h) / 100})`;
+    l.innerHTML = `<time>${String(h).padStart(2, "0")}:00</time>`;
+    f.appendChild(l);
+  }
+  const bloecke = [
+    [8.0, 8.75, "fest", "Weg ins Büro"],
+    [11.0, 12.25, "fest", "Kundentermin"],
+    [15.5, 16.5, "fest", "Team Call"],
+    [19.0, 20.5, "fest", "Abendessen mit Freunden"],
+    [9.0, 10.5, "daevo", "Fokus: Angebot fertig", "Das Wichtigste in deinem frischesten Block", 1],
+    [12.5, 13.25, "daevo", "Mittag", "40 g Protein offen", 1],
+    [17.5, 18.5, "daevo", "Krafttraining", "Die freie Lücke vor dem Abend", 2],
+    [14.75, 15.3, "daevo", "Kurz raus", "Puffer vor dem Call", 3],
+    [22.2, 23.0, "daevo schlaf", "Runterfahren, dann schlafen", "7 h 45 bis zum Wecker", 4],
+  ];
+  bloecke.forEach(([a, b, art, titel, sub, punkt]) => {
+    const el = document.createElement("div");
+    el.className = `block ${art}${b - a < .8 ? " kurz" : ""}`;
+    el.style.top = `calc(14px + (100% - 28px) * ${y(a) / 100})`;
+    el.style.height = `calc((100% - 28px) * ${(y(b) - y(a)) / 100} - 3px)`;
+    el.innerHTML = `<span>${titel}</span>${sub ? `<small>${sub}</small>` : ""}`;
+    if (art.startsWith("daevo")) el.dataset.punkt = punkt;
+    f.appendChild(el);
+  });
+})();
+
+/* Die Website zeigt nur den dunklen Modus, eine Entscheidung des Betreibers. */
+
+/* ---------- Einblenden ---------- */
+(() => {
+  const els = document.querySelectorAll(".auf, #schlussTitel, .strich");
+  if (!("IntersectionObserver" in window) || ruhig) { els.forEach((e) => e.classList.add("da")); return; }
+  // Zählt von null auf den echten Wert. Der Wert steht im HTML, ohne Skript bleibt er stehen.
+  const zaehlen = (dd) => {
+    const ziel = Number(dd.dataset.zahl), start = performance.now();
+    (function schritt(t) {
+      const k = Math.min(1, (t - start) / 1400);
+      dd.textContent = Math.round(ziel * (1 - Math.pow(1 - k, 3)));
+      if (k < 1) requestAnimationFrame(schritt);
+    })(start);
+  };
+  const io = new IntersectionObserver((eintraege) => {
+    for (const e of eintraege) if (e.isIntersecting) {
+      e.target.classList.add("da"); io.unobserve(e.target);
+      e.target.querySelectorAll("[data-zahl]").forEach(zaehlen);
+    }
+  }, { rootMargin: "0px 0px -10% 0px", threshold: 0.1 });
+  els.forEach((e) => io.observe(e));
+})();
+
+/* Der Kreis aus der App, apps/pwa/js/orb.js. Eine Abweichung, siehe resize(). */
+/**
+ * Der Kreis.
+ *
+ * Das d aus dem Logo, aufgelöst in Partikel. Der Ring ist als Torus gedacht:
+ * jeder Punkt sitzt auf einem Winkel entlang des Bogens und auf einem Winkel
+ * um den Schlauchqürschnitt. Daraus ergeben sich Tiefe und Helligkeit. Ueber
+ * den Radius laufen mehrere Sinuswellen, das erzeugt das Wogen.
+ *
+ * Canvas statt SVG, weil ein paar tausend Punkte pro Bild in SVG nicht
+ * flüssig laufen.
+ *
+ * Die Geometrie ist dieselbe wie im Logo, gemessen aus Poppins SemiBold bei
+ * 1000 Einheiten je Geviert und in einen Entwurfsraum von 800 gelegt:
+ *   Grundlinie 760, Ringmitte 325 / 483, Radius 215, Strichstärke 140
+ *   Ring 280 Grad ab oben im Uhrzeigersinn, 80 Grad bleiben offen
+ *   Stamm x 470 bis 610, von y 20 bis auf Höhe der Ringmitte
+ *
+ * Der Stamm endet nicht an der Grundlinie, sondern läuft in den Ring hinein.
+ * Seine Mittellinie liegt bei x 540, genau auf der Mittellinie des Rings an
+ * dessen rechter Seite. Dort gehen beide Schläuche ineinander über, und das d
+ * ist ein Zug statt zwei Teilen nebeneinander.
+ *
+ * Zustände:
+ *   idle       ruhiges Wogen, ein dünner Innenring zeigt den Tagesfortschritt
+ *   listening  Wellen und Helligkeit folgen dem Mikrofonpegel
+ *   thinking   die Wellen wandern schnell um den Ring
+ *   speaking   der ganze Ring pulsiert
+ */
+
+const BASE = 760;
+const CX = 325;            // CX + R = 540, die Mittellinie des Stamms
+const CY = BASE - 277;
+const R = 215;
+const TUBE = 70;              // halbe Strichstärke
+const SWEEP = 280;            // offener Ring wie im Logo
+const STEM_X = 470;
+const STEM_W = 140;
+const STEM_TOP = BASE - 800;   // wie ASC im Bauplan, 60 über dem Aufstrich der Schrift
+const DESIGN = 860;           // Kantenlänge des Entwurfsraums, trägt den höheren Stamm mit Rand
+const ORIGIN_X = -105;        // Verschiebung, damit das d mittig sitzt
+const ORIGIN_Y = -66;
+
+/**
+ * Die Punkte liegen auf Fäden. Ein Faden ist ein Ring bei festem Winkel um
+ * den Schlauchqürschnitt. Jeder Faden wogt mit eigener Phase, dadurch
+ * entstehen die sichtbaren Stränge statt eines gleichmäßigen Rauschens.
+ */
+const STRANDS = 30;
+const PER_STRAND = 101;       // 108 bei 300 Grad, auf 280 umgerechnet
+/*
+ * Runde Enden am Ring. Im Logo endet der Bogen mit einem Halbkreis, im Kreis
+ * war er gerade abgeschnitten, und die Schnittkante las sich als Kante. Der
+ * Bogen läuft dafür an beiden Enden um den Winkel weiter, der einem halben
+ * Strich entspricht, und wird dort zum Halbkreis verjüngt.
+ */
+const KAPPE = TUBE / R;
+// Ohne Kappen. Mit Kappen werden es mehr, siehe buildParticles.
+const RING_PARTICLES = STRANDS * PER_STRAND;
+/*
+ * Die Punktzahl des Stamms folgt seiner Fläche, nicht dem Gefühl.
+ *
+ * Der Ring trägt rund 0,0206 Punkte je Quadrateinheit. Der Stamm misst 140
+ * mal 523 (von y -40 bis zur Ringmitte), also 73220 Einheiten, und braucht bei
+ * gleicher Dichte rund 1508. Mit zu wenig Punkten wirkte der Ring dicht, der
+ * Stamm ausgefranst, und das d las sich als zerrissener Buchstabe.
+ */
+const STEM_PARTICLES = 1508;
+const ALPHA_STEPS = 12;
+
+/**
+ * Die Punktfarbe kommt aus --accent. Im dunklen Modus ist das das Logoblau,
+ * im hellen der abgedunkelte Ton. Das Logoblau auf Weiss hat nur 1.57 zu 1
+ * und waere als Kreis kaum zu sehen.
+ */
+function brandColor(el) {
+  // --accent enthaelt "var(--brand-deep)", nicht die Farbe selbst. Ein Probe
+  // Element loest die Kette auf, der Browser liefert dann rgb().
+  const probe = document.createElement("span");
+  probe.style.cssText = "position:absolute;visibility:hidden;color:var(--accent)";
+  el.appendChild(probe);
+  const farbe = getComputedStyle(probe).color;
+  probe.remove();
+  const teile = farbe.match(/\d+/g);
+  return teile ? teile.slice(0, 3).map(Number) : [150, 216, 240];
+}
+
+/**
+ * Auf dunklem Grund werden die Punkte addiert, dann leuchtet der Kreis.
+ * Auf hellem Grund wuerde Addieren ihn ausbleichen, dort wird normal gemalt.
+ * Entschieden wird an der Helligkeit des Hintergrunds, nicht am Attribut,
+ * damit auch die Einstellung "wie das Geraet" richtig liegt.
+ */
+function grundIstHell() {
+  const bg = getComputedStyle(document.body).backgroundColor;
+  const teile = bg.match(/\d+/g);
+  if (!teile) return false;
+  const [r, g, b] = teile.map(Number);
+  return (r * 299 + g * 587 + b * 114) / 1000 > 128;
+}
+
+class Orb {
+  constructor(element) {
+    this.el = element;
+    this.el.innerHTML = '<canvas class="orb-canvas"></canvas>';
+    this.canvas = this.el.querySelector("canvas");
+    this.ctx = this.canvas.getContext("2d");
+    this.progress = 0;
+    this.level = 0;
+    this.phase = 0;
+    this.rafId = 0;
+    this.state = "idle";
+    this.reduced = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    this.rgb = brandColor(this.el);
+    this.hell = grundIstHell();
+    this.buildParticles();
+    this.resize();
+    this.observer = new ResizeObserver(() => this.resize());
+    this.observer.observe(this.el);
+    this.setState("idle");
+    this.loop();
+  }
+
+  /**
+   * Die Punkte werden einmal erzeugt und danach nur noch bewegt. Jeder Punkt
+   * behält seinen Platz auf dem Ring, sonst flimmert das Bild.
+   */
+  buildParticles() {
+    const sweepRad = (SWEEP * Math.PI) / 180;
+    // Jeder Faden trägt Radius und Phase für Ring und Stamm gemeinsam. An der
+    // Naht läuft so derselbe Faden weiter, statt dass zwei fremde Fäden
+    // aneinanderstossen.
+    this.fadenR = new Float32Array(STRANDS);
+    this.fadenSeed = new Float32Array(STRANDS);
+    for (let strand = 0; strand < STRANDS; strand++) {
+      this.fadenR[strand] = 0.55 + Math.random() * 0.45;
+      this.fadenSeed[strand] = Math.random() * Math.PI * 2;
+    }
+
+    // Die Kappen verlängern jeden Faden. Damit die Dichte je Fläche gleich
+    // bleibt, wächst die Zahl der Punkte im selben Verhältnis wie die Länge.
+    const proFaden = Math.round(PER_STRAND * (sweepRad + 2 * KAPPE) / sweepRad);
+    const ring = [];
+    for (let strand = 0; strand < STRANDS; strand++) {
+      const b0 = (strand / STRANDS) * Math.PI * 2;
+      const rScale = this.fadenR[strand];
+      const seed = this.fadenSeed[strand];
+      for (let j = 0; j < proFaden; j++) {
+        const t = (j + Math.random() * 0.6) / proFaden;
+        const a = -KAPPE + t * (sweepRad + 2 * KAPPE);
+        // In der Kappe wird der Schlauch zum Halbkreis. Ein Punkt bleibt dort
+        // nur mit der Wahrscheinlichkeit der verbleibenden Breite, sonst
+        // drängen sich alle Punkte eines Fadens in der Spitze, und die Enden
+        // leuchten heller als der Bogen.
+        const ueber = a < 0 ? -a : a > sweepRad ? a - sweepRad : 0;
+        const kappe = ueber > 0 ? Math.sqrt(Math.max(0, 1 - (ueber / KAPPE) ** 2)) : 1;
+        if (kappe < 1 && Math.random() > kappe) continue;
+        ring.push(
+          a,
+          b0 + (Math.random() - 0.5) * 0.18,
+          rScale * kappe * (0.9 + Math.random() * 0.2),
+          seed,
+          2.1 + Math.random() * 1.8,
+        );
+      }
+    }
+    this.ring = Float32Array.from(ring); // a, b, r, seed, size
+    this.ringCount = ring.length / 5;
+    // Eine feste Zufallszahl je Punkt für den weichen Übergang am Stamm.
+    this.ringLos = new Float32Array(this.ringCount).map(() => Math.random());
+    let k = 0;
+    // Der Stamm ist dieselbe Form wie der Ring, nur gerade: ein Schlauch mit
+    // runden Enden. Also bekommt er auch dieselbe Struktur, 30 Faeden um den
+    // Schlauch herum.
+    //
+    // Vorher wurden die Punkte im umschliessenden Rechteck gewuerfelt und
+    // ausserhalb der Kapsel verworfen. Das ergab eine gleichmaessig gefuellte
+    // Flaeche, waehrend der Ring als Buendel aus Faeden lief. Zwei Texturen in
+    // einem Buchstaben, und der Stamm wirkte wie ein aufgeklebter Balken.
+    //
+    // Statt zu verwerfen wird jetzt gerechnet. Zu jeder Hoehe steht fest, wie
+    // weit der Schlauch dort reicht: in der Mitte der volle Radius, am oberen
+    // Ende der halbe Kreis. Der Punkt sitzt auf seinem Faden bei cos(b) mal
+    // dieser Weite und liegt damit immer drin. Die runden Enden entstehen
+    // dabei von selbst, weil die Faeden dort zusammenlaufen.
+    const stemCx = STEM_X + STEM_W / 2;
+    const capR = STEM_W / 2;
+    const yTopCap = STEM_TOP + capR;
+    // Unten kein rundes Ende: der Stamm endet auf Höhe der Ringmitte im Ring.
+    const yUnten = CY;
+    const PRO_STAMM_FADEN = Math.round(STEM_PARTICLES / STRANDS);
+    this.stemCount = STRANDS * PRO_STAMM_FADEN;
+    this.stem = new Float32Array(this.stemCount * 5); // b, y, weite, seed, size
+    k = 0;
+    for (let strand = 0; strand < STRANDS; strand++) {
+      const b0 = (strand / STRANDS) * Math.PI * 2;
+      const rScale = this.fadenR[strand];
+      const seed = this.fadenSeed[strand];
+      for (let j = 0; j < PRO_STAMM_FADEN; j++) {
+        let y = STEM_TOP + Math.random() * (yUnten - STEM_TOP);
+        let weite = capR;
+        // Dieselbe Verjüngung wie an den Ringenden: in der Kappe bleibt ein
+        // Punkt nur mit der Wahrscheinlichkeit der Breite, sonst wird neu
+        // gezogen. Sonst leuchtet die Spitze heller als der Stamm.
+        while (y < yTopCap) {
+          const dy = y - yTopCap;
+          // Die halbe Sehne des Kreises auf dieser Hoehe. Hier einmal beim
+          // Bauen gerechnet, damit im Bild pro Punkt keine Wurzel anfaellt.
+          weite = Math.sqrt(Math.max(0, capR * capR - dy * dy));
+          if (Math.random() <= weite / capR) break;
+          y = STEM_TOP + Math.random() * (yUnten - STEM_TOP);
+          weite = capR;
+        }
+        this.stem[k++] = b0 + (Math.random() - 0.5) * 0.18;
+        this.stem[k++] = y;
+        this.stem[k++] = weite * rScale * (0.9 + Math.random() * 0.2);
+        this.stem[k++] = seed;
+        this.stem[k++] = 2.1 + Math.random() * 1.8;
+      }
+    }
+    this.stemCx = stemCx;
+
+    // Ziel für die berechneten Bildpunkte: x, y, grösse, Helligkeitsstufe
+    // Die Grösse kommt aus `stemCount` und nicht aus der Konstante. Die Zahl
+    // der Faeden rundet, und bei einem Wert, der nicht durch STRANDS teilbar
+    // ist, entstehen mehr Punkte als die Konstante sagt. Der Puffer waere dann
+    // zu klein, und Float32Array schreibt still nicht weiter: der Stamm haette
+    // ein Stueck weniger, ohne Fehlermeldung.
+    this.out = new Float32Array((this.ringCount + this.stemCount) * 4);
+  }
+
+  /**
+   * Grösse neu setzen.
+   *
+   * Nur die Breite wird gemessen, die Höhe kommt daraus. Der Kreis ist
+   * quadratisch, und die Höhe des Knopfes hängt am Canvas: liest man beide
+   * Seiten aus dem Element, hält sich eine einmal zu gross gesetzte Höhe für
+   * immer, weil das Canvas sie selbst erzeugt. Genau das ist passiert, als der
+   * Kreis beim ersten Gespräch schrumpfen sollte und stattdessen oben
+   * abgeschnitten stehen blieb.
+   */
+  resize() {
+    // Auf der Website abweichend von der App: gemessen wird die Breite ohne
+    // Transformation. Das d startet dort klein im Telefon und wächst auf ein
+    // Vielfaches, und eine Leinwand in der kleinen Grösse wäre danach unscharf.
+    const rect = { width: this.el.offsetWidth };
+    if (rect.width === 0) return;
+    const dpr = Math.min(globalThis.devicePixelRatio || 1, 2);
+    const kante = Math.round(rect.width * dpr);
+    if (this.canvas.width === kante) return;
+    this.canvas.width = kante;
+    this.canvas.height = kante;
+    this.canvas.style.width = `${rect.width}px`;
+    this.canvas.style.height = `${rect.width}px`;
+    this.scale = kante / DESIGN;
+    this.refreshTheme();
+  }
+
+  /** Nach einem Wechsel zwischen hell und dunkel neu einlesen. */
+  refreshTheme() {
+    this.rgb = brandColor(this.el);
+    this.hell = grundIstHell();
+  }
+
+  setProgress(value) {
+    this.progress = Math.max(0, Math.min(1, Number(value) || 0));
+  }
+
+  setLevel(value) {
+    this.level = Math.max(0, Math.min(1, Number(value) || 0));
+  }
+
+  setState(state) {
+    this.state = state;
+    this.el.dataset.state = state;
+  }
+
+  /** Wellenparameter je Zustand. */
+  motion() {
+    // scale wächst beim Zuhören und Sprechen. Der ganze Kreis geht auf,
+    // so wie Siri grösser wird, wenn sie zuhört.
+    if (this.state === "listening") {
+      return {
+        amp: 12 + this.level * 44, speed: 1.7,
+        bright: 0.95 + this.level * 0.05,
+        spread: 1 + this.level * 0.45,
+        scale: 1.06 + this.level * 0.16,
+      };
+    }
+    if (this.state === "thinking") {
+      return { amp: 22, speed: 4.2, bright: 0.96, spread: 1, scale: 1.04 + Math.sin(this.phase * 3) * 0.02 };
+    }
+    if (this.state === "speaking") {
+      const pulse = Math.abs(Math.sin(this.phase * 4));
+      return {
+        amp: 14 + pulse * 20, speed: 2.4,
+        bright: 0.9 + pulse * 0.1,
+        spread: 1 + pulse * 0.18,
+        scale: 1.05 + pulse * 0.09,
+      };
+    }
+    const breath = (Math.sin(this.phase * 0.8) + 1) / 2;
+    return { amp: 8 + breath * 6, speed: 0.7, bright: 0.82 + breath * 0.1, spread: 1, scale: 1 + breath * 0.015 };
+  }
+
+  frame() {
+    const { ctx, scale } = this;
+    if (!scale) return;
+    if (!this.reduced) this.phase += 0.016;
+
+    const m = this.motion();
+    const t = this.phase * m.speed;
+    const [r, g, b] = this.rgb;
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    ctx.setTransform(scale, 0, 0, scale, -ORIGIN_X * scale, -ORIGIN_Y * scale);
+    ctx.globalCompositeOperation = this.hell ? "source-over" : "lighter";
+
+    // Erst alle Bildpunkte rechnen, dann nach Helligkeit gebündelt zeichnen.
+    // Ein fillStyle je Punkt kostet pro Bild tausende Zeichenketten.
+    const out = this.out;
+    let o = 0;
+
+    // Wo Stamm und Ring übereinanderliegen, zeichnet nur der Stamm. Beide
+    // zusammen ergäben dort die doppelte Dichte, und die Naht stünde als
+    // dunklerer Fleck im Buchstaben. Geprüft wird die aktuelle Lage und
+    // nicht die Ruhelage, denn die Punkte wandern mit der Drehung durch den
+    // Schlauch.
+    //
+    // Die Grenze ist weich. Ein harter Schnitt am Rand des Stamms liess dort
+    // eine helle Fuge stehen, weil der Stamm an seinem Rand dünner besetzt
+    // ist als in der Mitte: nicht jeder Faden reicht bis ganz aussen. Im
+    // Übergang bleibt ein Ringpunkt mit wachsender Wahrscheinlichkeit
+    // stehen, gewählt über eine feste Zahl je Punkt, damit nichts flackert.
+    const innen = TUBE * 0.7;
+    const aussen = TUBE * 1.15;
+    for (let i = 0; i < this.ringCount; i++) {
+      const p = i * 5;
+      const a = this.ring[p];
+      const bAng = this.ring[p + 1] + t * 0.45;
+      const rScale = this.ring[p + 2];
+      const seed = this.ring[p + 3];
+      const size = this.ring[p + 4];
+
+      const wave =
+        Math.sin(a * 3 + t * 1.1 + seed) * 0.6 +
+        Math.sin(a * 5 - t * 0.7 + seed * 1.7) * 0.3 +
+        Math.sin(a * 8 + t * 1.9) * 0.2;
+      const radial = R + Math.cos(bAng) * TUBE * rScale * m.spread + wave * m.amp;
+      const angle = a - Math.PI / 2;
+      const depth = 0.42 + 0.58 * (0.5 + 0.5 * Math.sin(bAng));
+
+      const px = CX + Math.cos(angle) * radial;
+      const py = CY + Math.sin(angle) * radial;
+      if (py < CY) {
+        const dx = Math.abs(px - this.stemCx);
+        if (dx < aussen) {
+          const u = Math.max(0, (dx - innen) / (aussen - innen));
+          const behalten = u * u * (3 - 2 * u);
+          if (this.ringLos[i] >= behalten) continue;
+        }
+      }
+      out[o++] = px;
+      out[o++] = py;
+      out[o++] = size * (0.6 + depth * 0.7);
+      out[o++] = depth * m.bright;
+    }
+
+    for (let i = 0; i < this.stemCount; i++) {
+      const p = i * 5;
+      // Dieselbe Drehung wie beim Ring, 0.45 je Sekunde. Liefen beide Teile
+      // verschieden schnell, zerfiele der Buchstabe beim Zusehen in zwei.
+      const bAng = this.stem[p] + t * 0.45;
+      const y = this.stem[p + 1];
+      const weite = this.stem[p + 2];
+      const seed = this.stem[p + 3];
+      const size = this.stem[p + 4];
+      // Der Stamm wogt mit derselben Welle wie der Ring, als liefe der Bogen
+      // von drei Uhr aus geradeaus nach oben weiter. An der Naht haben beide
+      // damit denselben Wert und dieselbe Steigung, und es entsteht kein
+      // Knick. Vorher hatte der Stamm eine eigene, schwächere Welle, und die
+      // Naht stand als Kante im Buchstaben.
+      const a = Math.PI / 2 - (CY - y) / R;
+      const wobble = (
+        Math.sin(a * 3 + t * 1.1 + seed) * 0.6 +
+        Math.sin(a * 5 - t * 0.7 + seed * 1.7) * 0.3 +
+        Math.sin(a * 8 + t * 1.9) * 0.2
+      ) * m.amp;
+      // Dieselbe Tiefenformel wie beim Ring, damit beide gleich hell wirken.
+      const depth = 0.42 + 0.58 * (0.5 + 0.5 * Math.sin(bAng));
+
+      out[o++] = this.stemCx + Math.cos(bAng) * weite + wobble;
+      out[o++] = y;
+      out[o++] = size * (0.6 + depth * 0.7);
+      out[o++] = Math.min(1, depth * m.bright * 1.1);
+    }
+
+    const total = o / 4;
+    for (let step = 0; step < ALPHA_STEPS; step++) {
+      // Auf hellem Grund sind kleine Punkte mit wenig Deckkraft kaum zu sehen.
+      // Deshalb dort ein Sockel, statt linear bei null zu beginnen.
+      const roh = (step + 1) / ALPHA_STEPS;
+      const alpha = this.hell ? 0.4 + roh * 0.6 : roh;
+      ctx.fillStyle = `rgba(${r},${g},${b},${alpha.toFixed(3)})`;
+      let drew = false;
+      for (let i = 0; i < total; i++) {
+        const q = i * 4;
+        const bucket = Math.min(ALPHA_STEPS - 1, Math.max(0, Math.round(out[q + 3] * ALPHA_STEPS) - 1));
+        if (bucket !== step) continue;
+        const s = out[q + 2];
+        ctx.fillRect(out[q] - s / 2, out[q + 1] - s / 2, s, s);
+        drew = true;
+      }
+      if (!drew) continue;
+    }
+
+    ctx.globalCompositeOperation = "source-over";
+    this.el.style.setProperty("--glow", m.bright.toFixed(3));
+    this.el.style.setProperty("--level", this.level.toFixed(3));
+    this.el.style.setProperty("--orb-scale", m.scale.toFixed(3));
+  }
+
+  loop() {
+    const tick = () => {
+      this.frame();
+      this.rafId = requestAnimationFrame(tick);
+    };
+    tick();
+  }
+
+  destroy() {
+    cancelAnimationFrame(this.rafId);
+    this.observer?.disconnect();
+  }
+}
+
+
+/* ---------- Bühnen ----------
+   Jede Bühne liest ihren Fortschritt aus der Scrollposition. Er wird nicht
+   direkt übernommen, sondern weich nachgezogen. Dadurch fühlt sich auch ein
+   ruckartiger Wisch auf dem Telefon flüssig an. */
+(() => {
+  const orb = new Orb(document.getElementById("orb"));
+  document.addEventListener("thema", () => orb.refreshTheme());
+  const kopfLeiste = document.getElementById("kopf");
+  let tempo = 0, letztesY = scrollY, zeit = 0;
+  let zeigerX = 0, zeigerY = 0;
+  addEventListener("pointermove", (e) => { zeigerX = e.clientX / innerWidth - .5; zeigerY = e.clientY / innerHeight - .5; }, { passive: true });
+
+  // Bühne 1
+  const orbHalter = document.getElementById("orbHalter");
+  const orbEl = document.getElementById("orb");
+  const startText = document.getElementById("startText");
+  const portal = document.getElementById("portal");
+  const portalRand = document.getElementById("portalRand");
+  const portalLabel = portal.querySelector(".portal-label");
+  const wuerfel = document.getElementById("wuerfel");
+  const walzeStand = [...document.querySelectorAll("#walzeStand i")];
+  const startTel = document.getElementById("startTel");
+  const orbPlatz = document.getElementById("orbPlatz");
+  const buehne1 = startTel.closest(".buehne");
+  // Wo das d im Telefon sitzt, gemessen ohne jede Bewegung und relativ zur Bühne
+  let platz = null;
+  function platzMessen() {
+    const vorher = startTel.style.transform;
+    startTel.style.transform = "none";
+    const b = buehne1.getBoundingClientRect(), r = orbPlatz.getBoundingClientRect(), t = startTel.getBoundingClientRect();
+    startTel.style.transform = vorher;
+    platz = r.width ? {
+      x: r.left - b.left + r.width / 2 - b.width / 2, y: r.top - b.top + r.height / 2 - b.height / 2, w: r.width,
+      tel: { left: t.left - b.left, top: t.top - b.top, w: t.width, h: t.height },
+    } : null;
+  }
+  addEventListener("resize", () => { platz = null; });
+  // Das Telefon blendet anfangs ein, danach steht es erst an seinem Platz
+  setTimeout(() => { platz = null; }, 1800);
+  const portalFuss = document.getElementById("portalFuss");
+  const weiter = document.getElementById("weiter");
+  const schwebeOrte = [...document.querySelectorAll(".glas-ort")].map((el) => ({
+    el, tel: el.dataset.tel.split(" ").map(Number), telSchmal: el.dataset.telSchmal.split(" ").map(Number),
+  }));
+  function eroeffnung(p) {
+    const w = innerWidth, h = innerHeight, basis = orbEl.offsetWidth;
+    // Start unten rechts, klein
+    if (!platz) platzMessen();
+    // Start im Telefon, gerade und so gross wie der Platz dort
+    const x0 = platz ? platz.x : w * .24, y0 = platz ? platz.y : h * .19, s0 = platz ? platz.w / basis : .5;
+    const m = sanft(teil(p, .06, .42));
+    const g = sanft(teil(p, .36, .66));
+    const sk = (s0 + (1 - s0) * m) * (1 + g * 2.8);
+    // Die Mitte des Rings, gemessen am gezeichneten d: etwas links und unter
+    // der Mitte der Fläche. Beim Wachsen rückt das d so, dass diese Mitte in
+    // der Bildmitte landet.
+    const ringX = -basis * sk * .09, ringY = basis * sk * .05;
+    const x = x0 * (1 - m) - ringX * g, y = y0 * (1 - m) - ringY * g;
+    orbHalter.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${sk})`;
+    // Klein im Telefon leuchtet es kräftiger, sonst verliert der Schein in der Verkleinerung
+    orbHalter.style.filter = m < 1 ? `brightness(${(1.4 - .4 * m).toFixed(3)}) saturate(1.15)` : "";
+    orbHalter.style.opacity = 1 - teil(p, .54, .68);
+    // Das Telefon bleibt zurück, während das d aus ihm herauswächst
+    const tw = sanft(teil(p, .05, .3));
+    startTel.style.transform = `translate3d(0, ${tw * 10}vh, 0) scale(${1 - tw * .08})`;
+    startTel.style.opacity = 1 - tw;
+    // Die Karten schweben um das d, folgen dem Zeiger und fliegen beim Scrollen auseinander
+    const dX = w / 2 + x0 * (1 - m), dY = h / 2 + y0 * (1 - m);
+    const weg = sanft(teil(p, .02, .3));
+    schwebeOrte.forEach((o, i) => {
+      if (!o.el.offsetWidth) return;
+      // Breit hängt die Karte mit ihrer rechten Kante am Telefon, damit sie dessen Rahmen
+      // überlappt und nicht den Text auf dem Bildschirm. Schmal liegt sie am linken Rand.
+      let kx, ky;
+      if (platz) {
+        const [ax, ay] = breit() ? o.tel : o.telSchmal;
+        kx = klemme(platz.tel.left + platz.tel.w * ax - o.el.offsetWidth, 16, w - o.el.offsetWidth - 16);
+        ky = platz.tel.top + platz.tel.h * ay;
+      } else { kx = 16; ky = h * .6; }
+      const mx = kx + o.el.offsetWidth / 2 - dX, my = ky + o.el.offsetHeight / 2 - dY;
+      const tx = kx + Math.sin(zeit * .55 + i * 2.1) * 8 + zeigerX * (16 + i * 10) + mx * weg * .9;
+      const ty = ky + Math.cos(zeit * .45 + i * 1.7) * 7 + zeigerY * (12 + i * 8) + my * weg * .9 - tempo * .3;
+      o.el.style.transform = `translate3d(${tx}px, ${ty}px, 0) scale(${1 - weg * .15})`;
+      o.el.style.opacity = 1 - teil(p, .04, .24);
+    });
+    const t = teil(p, .03, .26);
+    startText.style.opacity = 1 - t;
+    startText.style.transform = `translate3d(0, ${-t * 10}vh, 0)`;
+    weiter.style.opacity = 1 - teil(p, 0, .06);
+    // Im Ring öffnet sich die nächste Seite. Die Mitte des Rings liegt etwas unter der Mitte der Fläche.
+    const q = teil(p, .42, .68);
+    const cx = w / 2 + x + ringX, cy = h / 2 + y + ringY;
+    const r0 = basis * sk * .19;
+    const r = q <= 0 ? 0 : r0 + (Math.hypot(w, h) * .62 - r0) * sanft(q);
+    portal.style.clipPath = `circle(${r}px at ${cx}px ${cy}px)`;
+    portal.style.pointerEvents = q > .9 ? "auto" : "none";
+    portalRand.style.opacity = q > 0 ? 1 - teil(p, .6, .7) : 0;
+    portalRand.style.width = portalRand.style.height = `${r * 2}px`;
+    portalRand.style.transform = `translate3d(${cx - r}px, ${cy - r}px, 0)`;
+    const l = teil(p, .56, .62);
+    portalLabel.style.opacity = l;
+    const wu = sanft(teil(p, .56, .64));
+    wuerfel.style.opacity = wu;
+    wuerfel.style.transform = `translate3d(0, ${(1 - wu) * 30}px, 0)`;
+    const f = sanft(teil(p, .84, .9));
+    portalFuss.style.opacity = f;
+    portalFuss.style.transform = `translate3d(0, ${(1 - f) * 24}px, 0)`;
+    // Beim Wischen hört das d zu und wogt, wie in der App beim Sprechen
+    const pegel = klemme(Math.abs(tempo) / 40 + g * .35, 0, .6);
+    orb.setLevel(pegel);
+    const sollHoeren = pegel > .06;
+    if (sollHoeren && orb.state !== "listening") orb.setState("listening");
+    if (!sollHoeren && orb.state === "listening") orb.setState("idle");
+  }
+
+  // Bühne 2
+  const gedanken = [...document.querySelectorAll(".gedanke")];
+  const kopfEins = document.querySelector(".kopf-titel .eins");
+  const kopfZwei = document.querySelector(".kopf-titel .zwei");
+  const kopfText = document.querySelector(".kopf-titel p");
+  const ueberschriften = document.querySelectorAll(".schublade h3");
+  const schrittMarke = document.getElementById("schrittMarke");
+  let streuung = [];
+  function streuen() {
+    // Jeder Gedanke bekommt einen festen Platz im Durcheinander, gemessen ab seinem Platz in der Schublade
+    const bEl = document.querySelector(".kopf-szene .buehne");
+    const vorher = bEl.style.transform;
+    bEl.style.transform = "none";
+    gedanken.forEach((g) => (g.style.transform = "none"));
+    const buehne = bEl.getBoundingClientRect();
+    streuung = gedanken.map((g, i) => {
+      const r = g.getBoundingClientRect();
+      const zx = buehne.left + buehne.width * (.08 + ((i * 0.61803) % 1) * .72);
+      // Gestreut wird unter der Überschrift, nie über sie
+      const zy = buehne.top + buehne.height * (.53 + ((i * 0.38197 + .17) % 1) * .34);
+      return { dx: zx - r.left, dy: zy - r.top, rot: ((i * 37) % 24) - 12, phase: i * 1.7 };
+    });
+    bEl.style.transform = vorher;
+  }
+  function kopf(p) {
+    if (!streuung.length) streuen();
+    gedanken.forEach((g, i) => {
+      const st = streuung[i];
+      const k = sanft(teil(p, .16 + i * .028, .5 + i * .028));
+      const drift = (1 - k);
+      const dx = st.dx * (1 - k) + Math.sin(zeit * .9 + st.phase) * 14 * drift + zeigerX * 60 * drift * (i % 2 ? 1 : -1);
+      const dy = st.dy * (1 - k) + Math.cos(zeit * .7 + st.phase) * 12 * drift + zeigerY * 40 * drift + klemme(tempo, -25, 25) * .6 * drift;
+      g.style.transform = `translate3d(${dx}px, ${dy}px, 0) rotate(${st.rot * (1 - k)}deg)`;
+      const hl = teil(p, .72, .86);
+      g.style.opacity = g.dataset.naechster !== undefined ? 1 : 1 - hl * .55;
+      g.classList.toggle("naechster", g.dataset.naechster !== undefined && hl > .5);
+    });
+    const t1 = teil(p, .3, .45), t2 = sanft(teil(p, .5, .66));
+    kopfEins.style.opacity = 1 - t1; kopfEins.style.transform = `translate3d(0, ${-t1 * 40}px, 0)`;
+    kopfZwei.style.opacity = t2; kopfZwei.style.transform = `translate3d(0, ${(1 - t2) * 40}px, 0)`;
+    kopfText.style.opacity = t2;
+    ueberschriften.forEach((u) => (u.style.opacity = teil(p, .48, .62)));
+    const m = teil(p, .76, .9);
+    schrittMarke.style.opacity = m; schrittMarke.style.transform = `translate3d(0, ${(1 - m) * 16}px, 0)`;
+  }
+
+  // Bühne 3
+  const telefon = document.getElementById("telefon");
+  const screens = telefon.querySelectorAll(".screen");
+  const telTexte = document.querySelectorAll(".tel-text");
+  const telTitel = document.querySelector(".tel-links");
+  let neigung = 0;
+  function tel(p) {
+    const k = sanft(teil(p, 0, .18));
+    neigung += (klemme(tempo * .35, -10, 10) - neigung) * .12;
+    const rx = (1 - k) * 58 + zeigerY * -8 * k;
+    const ry = (1 - k) * -26 + zeigerX * 14 * k + neigung;
+    const rz = (1 - k) * -18;
+    const s = .5 + .5 * k;
+    telefon.style.transform = `perspective(1600px) translate3d(0, ${(1 - k) * 22}vh, 0) rotateX(${rx}deg) rotateY(${ry}deg) rotateZ(${rz}deg) scale(${s})`;
+    telTitel.style.opacity = teil(p, .03, .15);
+    const grenzen = [[.16, .44], [.44, .72], [.72, 1.01]];
+    grenzen.forEach(([a, b], i) => {
+      // Erst blendet der alte Bildschirm aus, dann der neue ein. Zwei Texte
+      // zur selben Zeit halb sichtbar lesen sich als einer, und keiner davon.
+      const ein = i === 0 ? 1 : sanft(teil(p, a + .005, a + .05));
+      const aus = i === 2 ? 0 : sanft(teil(p, b - .05, b - .005));
+      const o = klemme(ein - aus);
+      // Der neue Bildschirm liegt über dem alten und deckt ihn, deshalb dürfen
+      // sich beide überschneiden. Bei den Texten darunter nicht.
+      const sEin = i === 0 ? 1 : sanft(teil(p, a - .03, a + .03));
+      // Wischen statt Überblenden: halb durchsichtig zeigen zwei Bildschirme
+      // ihren Text übereinander, ein Wisch deckt den alten sauber ab.
+      screens[i].style.opacity = sEin > 0 ? 1 : 0;
+      screens[i].style.clipPath = `inset(${(1 - sEin) * 100}% 0 0 0 round 38px)`;
+      screens[i].style.transform = `translate3d(0, ${(1 - sEin) * 8}%, 0)`;
+      const t = i === 0 ? klemme(teil(p, .1, .18) - aus) : o;
+      telTexte[i].style.opacity = t;
+      telTexte[i].style.transform = `translate3d(0, ${(1 - t) * 18}px, 0)`;
+    });
+  }
+
+  // Bühne 3b
+  const kTitelA = document.querySelector(".k-titel .a"), kTitelB = document.querySelector(".k-titel .b");
+  const kTextA = document.querySelector(".k-text.a"), kTextB = document.querySelector(".k-text.b");
+  const kEssen = document.getElementById("kEssen"), kTraining = document.getElementById("kTraining");
+  const kFoto = kEssen.querySelector(".foto"), kScan = document.getElementById("kScan");
+  const kPosten = [...kEssen.querySelectorAll(".posten")];
+  const kRing = document.getElementById("kRing"), kKcal = document.getElementById("kKcal");
+  const kMakro = [["kP", 73, 104, 160], ["kF", 36, 62, 80], ["kC", 147, 204, 290]].map(([id, vor, nach, ziel]) => ({ el: document.getElementById(id), balken: document.getElementById(id).closest(".makro").querySelector("i"), vor, nach, ziel }));
+  const kRest = document.getElementById("kRest");
+  const kUeb = [...document.querySelectorAll("#kUebungen li")];
+  const kAnp = document.getElementById("kAnpassung");
+  const UMFANG = 263.89;
+  function koerper(p) {
+    const wechsel = sanft(teil(p, .48, .58));
+    kTitelA.style.opacity = kTextA.style.opacity = 1 - wechsel;
+    kTitelB.style.opacity = kTextB.style.opacity = wechsel;
+    kTitelA.style.transform = kTextA.style.transform = `translate3d(0, ${-wechsel * 30}px, 0)`;
+    kTitelB.style.transform = kTextB.style.transform = `translate3d(0, ${(1 - wechsel) * 30}px, 0)`;
+    kEssen.style.opacity = 1 - wechsel;
+    kEssen.style.transform = `translate3d(${-wechsel * 8}%, 0, 0) scale(${1 - wechsel * .06})`;
+    kTraining.style.opacity = wechsel;
+    kTraining.style.transform = `translate3d(${(1 - wechsel) * 8}%, 0, 0) scale(${.94 + wechsel * .06})`;
+    // Essen: Foto, Abtasten, Posten, dann wächst der Tag
+    const f = sanft(teil(p, 0, .1));
+    kFoto.style.transform = `scale(${.86 + .14 * f}) rotate(${(1 - f) * -4}deg)`;
+    kFoto.style.opacity = .3 + .7 * f;
+    const sc = teil(p, .06, .2);
+    kScan.style.top = `${sc * 100}%`;
+    kScan.style.opacity = sc > 0 && sc < 1 ? 1 : 0;
+    kPosten.forEach((el, i) => {
+      const k = sanft(teil(p, .16 + i * .03, .23 + i * .03));
+      el.style.opacity = k;
+      el.style.transform = `translate3d(${(1 - k) * 14}cqw, 0, 0)`;
+    });
+    const t = sanft(teil(p, .3, .42));
+    const kcal = 1204 + 586 * t;
+    kKcal.textContent = Math.round(kcal);
+    kRing.style.strokeDashoffset = UMFANG * (1 - kcal / 2520);
+    kMakro.forEach((m) => {
+      const v = m.vor + (m.nach - m.vor) * t;
+      m.el.textContent = `${Math.round(v)} / ${m.ziel} g`;
+      m.balken.style.width = `${(v / m.ziel) * 100}%`;
+    });
+    const r = teil(p, .4, .46);
+    kRest.style.opacity = r;
+    kRest.style.transform = `translate3d(0, ${(1 - r) * 12}px, 0)`;
+    // Training: Übungen, dann die Anpassung an die Nacht
+    kUeb.forEach((li, i) => {
+      const k = sanft(teil(p, .56 + i * .03, .62 + i * .03));
+      li.style.opacity = k;
+      li.style.transform = `translate3d(0, ${(1 - k) * 4}cqw, 0)`;
+    });
+    const an = sanft(teil(p, .76, .84));
+    kAnp.style.opacity = an;
+    kAnp.style.transform = `translate3d(0, ${(1 - an) * 6}cqw, 0) scale(${.96 + .04 * an})`;
+    const weniger = p > .82;
+    kUeb.forEach((li) => {
+      const z = li.lastElementChild;
+      // Gekürzt wie in der App: Sätze mal 0,75, gerundet, siehe trainingsanpassung.ts
+      const soll = weniger ? z.dataset.nachher : z.dataset.vorher;
+      if (z.textContent !== soll) z.textContent = soll;
+      z.classList.toggle("weniger", weniger);
+    });
+  }
+  kUeb.forEach((li) => (li.lastElementChild.dataset.nachher = li.lastElementChild.textContent));
+
+  // Bühne 4
+  const daevoBloecke = [...document.querySelectorAll(".block.daevo")];
+  const punkte = [...document.querySelectorAll("#tagPunkte li")];
+  function tag(p) {
+    daevoBloecke.forEach((b, i) => {
+      const k = sanft(teil(p, .12 + i * .13, .26 + i * .13));
+      b.style.opacity = k;
+      b.style.transform = `translate3d(${(1 - k) * 70}%, 0, 0) scale(${.9 + .1 * k})`;
+    });
+    punkte.forEach((li, i) => li.classList.toggle("an", p > .1 + i * .15));
+  }
+
+  const szenen = [...document.querySelectorAll("[data-szene]")].map((el) => ({
+    el, fn: { eroeffnung, kopf, telefon: tel, koerper, tag }[el.dataset.szene], p: 0, ziel: 0,
+    buehne: el.querySelector(".buehne"), oben: 0, netz: el.classList.contains("mit-netz"),
+    auto: el.dataset.auto ? { dauer: Number(el.dataset.auto), zustand: "wartet", beginn: 0, oben: 0 } : null, erste: el.dataset.szene === "eroeffnung",
+  }));
+  function zielLesen() {
+    for (const s of szenen) {
+      const r = s.el.getBoundingClientRect();
+      s.ziel = klemme(-r.top / Math.max(1, r.height - innerHeight));
+      s.oben = r.top;
+      s.sichtbar = r.bottom > -innerHeight * .2 && r.top < innerHeight * 1.2;
+    }
+  }
+
+  // Jede Bühne kommt als Karte von unten, wächst auf volle Grösse und tritt am Ende zurück.
+  // So läuft die eine Szene in die nächste über, statt hart zu wechseln.
+  function uebergang(s) {
+    const ein = s.erste ? 1 : sanft(klemme(1 - s.oben / innerHeight));
+    // Eine Bühne, die von selbst abläuft, tritt nicht am Ende ihres Ablaufs zurück, sondern bleibt stehen
+    const aus = s.auto ? 0 : sanft(teil(s.p, s.erste ? .95 : .9, 1));
+    const sk = (.9 + .1 * ein) * (1 - .05 * aus);
+    s.buehne.style.transform = ein >= 1 && aus <= 0 ? "none" : `translate3d(0, ${-aus * 3}vh, 0) scale(${sk})`;
+    // Der Radius nur, wenn er sich ändert: jedes Setzen zwingt den Browser, die Fläche neu zu malen
+    const radius = Math.round((1 - ein) * 44 + aus * 32);
+    if (s.radius !== radius) { s.buehne.style.borderRadius = `${radius}px`; s.radius = radius; }
+    s.buehne.style.opacity = 1 - aus * .55;
+    // Das Raster wandert langsamer als der Inhalt, das gibt Tiefe
+    if (s.netz) s.buehne.style.setProperty("--py", (s.p * -140).toFixed(1));
+  }
+
+  if (ruhig) {
+    // Ohne Bewegung: jede Bühne zeigt ihren Endzustand
+    for (const s of szenen) { if (s.fn !== eroeffnung && s.fn !== koerper) s.fn(1); }
+    gedanken.forEach((g) => (g.style.transform = "none"));
+    return;
+  }
+
+  addEventListener("resize", () => { streuung = []; });
+  // ---------- Der Einstieg läuft auf einen Wisch ab ----------
+  // Vorher war er 560 Bildschirmhöhen Scrollweg, und man musste sich durch
+  // das Wachsen des d hindurchwischen. Jetzt startet der erste Wisch den
+  // ganzen Ablauf mit fester Dauer, und erst danach scrollt die Seite.
+  const OFFEN = .66, ENDE = .9;
+  const intro = { p: 0, zustand: scrollY < 4 ? "start" : "offen", von: 0, nach: 0, beginn: 0, dauer: 1 };
+  if (intro.zustand === "offen") intro.p = ENDE;
+  const abspielen = (nach, dauer) => { intro.von = intro.p; intro.nach = nach; intro.beginn = performance.now(); intro.dauer = dauer; };
+  const oeffnen = () => { if (intro.zustand !== "start") return; intro.zustand = "spielt"; abspielen(OFFEN, 1450); };
+  const schliessen = () => { intro.zustand = "zurueck"; abspielen(0, 1100); };
+  const autoLauf = () => szenen.find((s) => s.auto && s.auto.zustand === "spielt");
+  // Gleiten: nach einer Bühne, die von selbst lief, trägt der nächste Wisch die Seite
+  // bis zum Anfang der nächsten. Vorher lag dazwischen ein ganzer Bildschirm Leerlauf.
+  let gleit = null;
+  const gesperrt = () => intro.zustand === "start" || intro.zustand === "spielt" || intro.zustand === "zurueck" || !!autoLauf() || !!gleit;
+  function gleitSchritt(jetzt) {
+    if (!gleit) return;
+    const k = Math.min(1, (jetzt - gleit.beginn) / gleit.dauer);
+    scrollTo(0, Math.round(gleit.von + (gleit.nach - gleit.von) * (1 - Math.pow(1 - k, 3))));
+    if (k >= 1) gleit = null;
+  }
+  // Steht der Besucher am Ende einer Bühne, die fertig ist, gleitet die Seite zur nächsten
+  function weiterGleiten() {
+    let ziel = null;
+    if ((intro.zustand === "offen" || intro.zustand === "nachlauf") && scrollY <= 2) ziel = szenen[1].el;
+    else {
+      const fertig = szenen.find((s) => s.auto && s.auto.zustand === "fertig" && s.oben <= 2 && s.oben + s.el.offsetHeight >= innerHeight - 2);
+      if (fertig) ziel = fertig.el.nextElementSibling;
+    }
+    if (!ziel) return false;
+    gleit = { von: scrollY, nach: ziel.offsetTop, beginn: performance.now(), dauer: 780 };
+    return true;
+  }
+  const offenOben = () => (intro.zustand === "offen" || intro.zustand === "nachlauf") && scrollY <= 0;
+  function introSchritt(jetzt) {
+    if (intro.zustand === "start" || intro.zustand === "offen") return;
+    const k = Math.min(1, (jetzt - intro.beginn) / intro.dauer);
+    intro.p = intro.von + (intro.nach - intro.von) * (intro.zustand === "nachlauf" ? k : sanft(k));
+    if (k < 1) return;
+    if (intro.zustand === "spielt") { intro.zustand = "nachlauf"; abspielen(ENDE, 1100); wuerfelStarten(); }
+    else if (intro.zustand === "nachlauf") intro.zustand = "offen";
+    else if (intro.zustand === "zurueck") { intro.zustand = "start"; wuerfelStoppen(); }
+  }
+  addEventListener("wheel", (e) => {
+    if (intro.zustand === "start" && e.deltaY > 0) { e.preventDefault(); oeffnen(); }
+    else if (gesperrt()) e.preventDefault();
+    else if (e.deltaY > 0 && weiterGleiten()) e.preventDefault();
+    else if (offenOben() && e.deltaY < 0) { e.preventDefault(); schliessen(); }
+  }, { passive: false });
+  let fingerY = null;
+  addEventListener("touchstart", (e) => { fingerY = e.touches[0].clientY; }, { passive: true });
+  addEventListener("touchmove", (e) => {
+    if (fingerY === null) return;
+    const dy = fingerY - e.touches[0].clientY;
+    if (intro.zustand === "start") { e.preventDefault(); if (dy > 8) oeffnen(); }
+    else if (gesperrt()) e.preventDefault();
+    else if (dy > 8 && weiterGleiten()) e.preventDefault();
+    else if (offenOben() && dy < -8) { e.preventDefault(); schliessen(); }
+  }, { passive: false });
+  addEventListener("keydown", (e) => {
+    if (e.target.closest?.("input, textarea, select, button")) return;
+    const runter = ["ArrowDown", "PageDown", " "].includes(e.key), hoch = ["ArrowUp", "PageUp"].includes(e.key);
+    if (intro.zustand === "start" && runter) { e.preventDefault(); oeffnen(); }
+    else if (gesperrt() && (runter || hoch)) e.preventDefault();
+    else if (runter && weiterGleiten()) e.preventDefault();
+    else if (offenOben() && hoch) { e.preventDefault(); schliessen(); }
+  });
+  // Ein Sprung über die Navigation überspringt den Einstieg, statt ihn festzuhalten
+  // Während eines Sprungs starten die Bühnen unterwegs nicht, sonst hielte die erste den Sprung fest
+  let sprungBis = 0;
+  document.querySelectorAll('a[href^="#"]').forEach((a) => a.addEventListener("click", (e) => {
+    if (a.id === "weiter" && intro.zustand === "start") { e.preventDefault(); oeffnen(); return; }
+    sprungBis = performance.now() + 1800;
+    if (gesperrt()) { intro.zustand = "offen"; intro.p = ENDE; wuerfelStarten(); }
+  }));
+  // Rollbalken oder andere Wege: die Seite bleibt oben, bis der Einstieg gelaufen ist
+  addEventListener("scroll", () => {
+    // Läuft eine Bühne von selbst ab, bleibt die Seite genau dort stehen
+    if (gleit) return;
+    const lauf = autoLauf();
+    if (lauf) { if (Math.abs(scrollY - lauf.auto.oben) > 1) scrollTo(0, lauf.auto.oben); return; }
+    if (!gesperrt() || scrollY <= 0) return;
+    scrollTo(0, 0);
+    if (intro.zustand === "start") oeffnen();
+  }, { passive: true });
+
+  // ---------- Der kippende Quader ----------
+  const ANSPRUECHE = [...document.querySelectorAll("#ansprueche li")].map((li) => ({ text: li.textContent, blau: li.classList.contains("blau") }));
+  const wKoerper = document.getElementById("wuerfelKoerper");
+  const vorn = document.getElementById("wuerfelVorn"), unten = document.getElementById("wuerfelUnten");
+  let wIndex = 0, wTakt = null, wKippt = false;
+  const setzen = (el, i) => { el.textContent = ANSPRUECHE[i].text; el.classList.toggle("blau", ANSPRUECHE[i].blau); };
+  const standZeigen = () => walzeStand.forEach((el, i) => el.classList.toggle("an", i === wIndex));
+  function kippen() {
+    if (wKippt || document.hidden) return;
+    wKippt = true;
+    const n = (wIndex + 1) % ANSPRUECHE.length;
+    setzen(unten, n);
+    wKoerper.style.transition = "transform .65s cubic-bezier(.65, 0, .35, 1)";
+    wKoerper.style.transform = "translateZ(calc(var(--tiefe-halb) * -1)) rotateX(90deg)";
+    setTimeout(() => {
+      wKoerper.style.transition = "none";
+      wIndex = n; setzen(vorn, n);
+      wKoerper.style.transform = "translateZ(calc(var(--tiefe-halb) * -1)) rotateX(0deg)";
+      standZeigen();
+      wKippt = false;
+    }, 670);
+  }
+  // Der erste Wechsel kommt nach 1,2 Sekunden, danach alle 2. Vorher stand das
+  // erste Wort 2,6 Sekunden, und wer weiterwischte, sah nur dieses eine.
+  let wErst = null;
+  function wuerfelStarten() { if (wTakt || wErst) return; wErst = setTimeout(() => { wErst = null; kippen(); wTakt = setInterval(kippen, 2000); }, 1200); }
+  function wuerfelStoppen() { clearTimeout(wErst); wErst = null; clearInterval(wTakt); wTakt = null; wIndex = 0; setzen(vorn, 0); standZeigen(); }
+  setzen(vorn, 0); standZeigen();
+  if (intro.zustand === "offen") wuerfelStarten();
+
+  let vorher = performance.now();
+  (function bild(jetzt = performance.now()) {
+    const dt = Math.min(.1, Math.max(0, (jetzt - vorher) / 1000));
+    vorher = jetzt;
+    zeit += dt;
+    // Derselbe Nachzug bei 30 wie bei 120 Bildern je Sekunde
+    const zug = 1 - Math.pow(1 - .13, dt * 60);
+    const y = scrollY;
+    tempo += ((y - letztesY) - tempo) * .2;
+    letztesY = y;
+    introSchritt(jetzt);
+    gleitSchritt(jetzt);
+    zielLesen();
+    for (const s of szenen) {
+      // Ausserhalb des Bildes springt der Stand mit, sonst spielt eine Bühne
+      // beim Zurückscrollen erst ihren ganzen Weg rückwärts ab.
+      if (s.erste) { s.p = intro.p; if (s.sichtbar) { s.fn(s.p); uebergang(s); } continue; }
+      if (s.auto) {
+        // Steht die Bühne, startet ihr Ablauf mit fester Dauer. Wer wieder ganz
+        // darüber zurückscrollt, sieht ihn beim nächsten Mal von vorn.
+        const a = s.auto;
+        if (a.zustand === "wartet" && jetzt < sprungBis && s.oben < innerHeight) a.zustand = "fertig";
+        if (a.zustand === "wartet" && s.oben <= 2 && s.oben > -innerHeight * .3) { a.zustand = "spielt"; a.beginn = jetzt; a.oben = Math.round(scrollY + s.oben); }
+        if (a.zustand === "spielt") { s.p = Math.min(1, (jetzt - a.beginn) / a.dauer); if (s.p >= 1) a.zustand = "fertig"; }
+        else s.p = a.zustand === "fertig" ? 1 : 0;
+        if (s.oben > innerHeight) a.zustand = "wartet";
+        if (s.sichtbar) { s.fn(s.p); uebergang(s); }
+        continue;
+      }
+      if (!s.sichtbar) s.p = s.ziel;
+      s.p += (s.ziel - s.p) * zug;
+      if (Math.abs(s.ziel - s.p) < .0005) s.p = s.ziel;
+      if (s.sichtbar) { s.fn(s.p); uebergang(s); }
+    }
+    kopfLeiste.classList.toggle("unten", y > innerHeight * .6);
+    requestAnimationFrame(bild);
+  })();
+})();
+
+/*
+  Rasterpunkte. Ein Feld aus Punkten, deren Grösse aus einem langsamen
+  Verlauf kommt. Dort, wo das d liegt, wachsen sie zur vollen Grösse:
+  der Buchstabe entsteht aus dem Raster, statt darauf zu liegen.
+*/
+(() => {
+  const cv = document.getElementById("punktKanvas");
+  const ctx = cv.getContext("2d");
+  let w = 0, h = 0, dpr = 1, sichtbar = false, t = 0;
+  // Die Punktfarbe kommt aus dem Stylesheet und wechselt mit hell und dunkel
+  let farbe = "#96d8f0";
+  const farbeLesen = () => { farbe = getComputedStyle(cv).getPropertyValue("--punktfarbe").trim() || "#96d8f0"; };
+  farbeLesen();
+  document.addEventListener("thema", () => { farbeLesen(); if (ruhig) bild(); });
+  function groesse() {
+    const r = cv.getBoundingClientRect();
+    dpr = Math.min(devicePixelRatio || 1, 2);
+    w = r.width; h = r.height;
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  }
+  addEventListener("resize", () => { groesse(); if (ruhig) bild(); }); groesse();
+  new IntersectionObserver((e) => { sichtbar = e[0].isIntersecting; }).observe(cv);
+  // Abstand eines Punkts zum d, in Einheiten der Wortmarke
+  function abstandD(x, y) {
+    const CX = 32.5, CY = -27.7, R = 21.5, SWEEP = 280 * Math.PI / 180;
+    const dx = x - CX, dy = y - CY;
+    let a = Math.atan2(dx, -dy); if (a < 0) a += Math.PI * 2;
+    let dRing;
+    if (a <= SWEEP) dRing = Math.abs(Math.hypot(dx, dy) - R);
+    else {
+      const ex = CX + Math.sin(SWEEP) * R, ey = CY - Math.cos(SWEEP) * R;
+      dRing = Math.min(Math.hypot(x - ex, y - ey), Math.hypot(x - CX, y - (CY - R)));
+    }
+    const yy = Math.max(-73, Math.min(CY, y));
+    return Math.min(dRing, Math.hypot(x - 54, y - yy));
+  }
+  function bild() {
+    const raster = Math.max(11, Math.round(Math.min(w, h) / 46));
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
+    // Das d sitzt rechts, so hoch wie die Fläche
+    // Die Rasterkante liegt drei Einheiten ausserhalb des Strichs, deshalb 87 Einheiten Höhe
+    // Schmal steht das d oben über dem Text statt dahinter, sonst liest man die Schrift nicht
+    const schmal = w < 760;
+    const masz = schmal ? Math.min(h * .4, w * .8) / 87 : h * 0.78 / 87;
+    const ox = schmal ? w - 66 * masz - 12 : w - 66 * masz - Math.max(20, w * .05);
+    const oy = schmal ? 18 + 83 * masz : h * .11 + 83 * masz;
+    ctx.fillStyle = farbe;
+    for (let y = raster / 2; y < h; y += raster) {
+      for (let x = raster / 2; x < w; x += raster) {
+        const ux = (x - ox) / masz, uy = (y - oy) / masz;
+        const d = abstandD(ux, uy);
+        const imD = Math.max(0, Math.min(1, (10 - d) / 5));
+        const feld = 0.5 + 0.5 * Math.sin(x * .006 + t * .6) * Math.cos(y * .008 - t * .4);
+        const verlauf = Math.max(0, (x / w) * .55 + (1 - y / h) * .2) * feld;
+        const g = Math.max(imD, verlauf * .55);
+        if (g < 0.04) continue;
+        // Das d liegt nur leicht im Raster, es soll die Schrift davor nicht übertönen
+        ctx.globalAlpha = imD > 0 ? .2 + (1 - imD) * .3 : .55;
+        ctx.beginPath(); ctx.arc(x, y, g * raster * .46, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+  (function schleife() { if (sichtbar || !t) { if (!ruhig) t += 0.012; bild(); } if (!ruhig) requestAnimationFrame(schleife); })();
+  if (ruhig) bild();
+})();
+
+</script>
+
+<script>
+/* ---------- Die Walze ----------
+   Neun Karten auf dem Mantel eines Zylinders. Alle zwei Sekunden dreht sie
+   eine Karte weiter, über eine Feder statt einer festen Dauer. Wer wischt
+   oder klickt, hält sie an, nach fünf Sekunden läuft sie weiter. Ausserhalb
+   des Bildes und in einem verdeckten Tab steht sie. */
+(() => {
+  const abschnitt = document.getElementById("alles");
+  const buehne = document.getElementById("walzeBuehne");
+  const walze = document.getElementById("walze");
+  const karten = [...walze.children];
+  const n = karten.length;
+  const schritt = 360 / n;
+  const punkte = document.getElementById("walzePunkte");
+  const stand = document.getElementById("karteStand");
+  const TAKT = 2000;
+  karten.forEach((k, i) => {
+    const p = document.createElement("button");
+    p.type = "button"; p.setAttribute("aria-label", `Karte ${i + 1}: ${k.querySelector("h3").textContent}`);
+    p.addEventListener("click", () => { halten(); gehe(naechstesZiel(i)); });
+    punkte.append(p);
+  });
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) { abschnitt.classList.add("flach"); return; }
+
+  let radius = 0, pos = 0, ziel = 0, zeigt = -1, laeuft = false, tempo = 0;
+  const vorn = () => ((Math.round(pos) % n) + n) % n;
+  function bauen() {
+    const b = karten[0].offsetWidth;
+    radius = Math.round((b / 2) / Math.tan(Math.PI / n) * 1.04);
+    karten.forEach((k, i) => { k.style.transform = `rotateY(${i * schritt}deg) translateZ(${radius}px)`; });
+    zeichnen();
+  }
+  function zeichnen() {
+    walze.style.transform = `translateZ(${-radius}px) rotateY(${(-pos * schritt).toFixed(3)}deg)`;
+    karten.forEach((k, i) => {
+      let d = ((i - pos) % n + n) % n; if (d > n / 2) d -= n;
+      const a = Math.abs(d);
+      k.style.opacity = a > 1.9 ? "0" : String(Math.max(0, 1 - a * .42).toFixed(3));
+      k.style.filter = `brightness(${(1 - Math.min(a, 1.5) * .28).toFixed(3)})`;
+      const aktiv = a < .5;
+      k.style.pointerEvents = aktiv ? "auto" : "none";
+      k.setAttribute("aria-hidden", String(!aktiv));
+      if (aktiv) k.removeAttribute("inert"); else k.setAttribute("inert", "");
+    });
+    const v = vorn();
+    if (v !== zeigt) {
+      zeigt = v;
+      [...punkte.children].forEach((p, i) => p.classList.toggle("an", i === v));
+      stand.textContent = `Karte ${v + 1} von ${n}: ${karten[v].querySelector("h3").textContent}`;
+    }
+  }
+  // Leicht gedämpfte Feder: kommt weich an, ohne nachzuschwingen
+  function schleife() {
+    tempo = (tempo + (ziel - pos) * .07) * .72;
+    pos += tempo;
+    if (Math.abs(ziel - pos) < .0008 && Math.abs(tempo) < .0008) { pos = ziel; laeuft = false; zeichnen(); return; }
+    zeichnen();
+    requestAnimationFrame(schleife);
+  }
+  function gehe(z) { ziel = z; if (!laeuft) { laeuft = true; requestAnimationFrame(schleife); } }
+  function naechstesZiel(i) { const basis = Math.round(ziel); let d = ((i - basis) % n + n) % n; if (d > n / 2) d -= n; return basis + d; }
+
+  // Der eigene Lauf
+  let sichtbar = false, pauseBis = 0, takt = null;
+  const halten = () => { pauseBis = performance.now() + 5000; };
+  function weiter() {
+    if (!sichtbar || document.hidden || start || performance.now() < pauseBis) return;
+    gehe(Math.round(ziel) + 1);
+  }
+  new IntersectionObserver(([e]) => {
+    sichtbar = e.isIntersecting;
+    if (sichtbar && !takt) takt = setInterval(weiter, TAKT);
+    if (!sichtbar && takt) { clearInterval(takt); takt = null; }
+  }, { threshold: .35 }).observe(buehne);
+
+  document.getElementById("walzeVor").addEventListener("click", () => { halten(); gehe(Math.round(ziel) + 1); });
+  document.getElementById("walzeZurueck").addEventListener("click", () => { halten(); gehe(Math.round(ziel) - 1); });
+  buehne.tabIndex = 0;
+  buehne.setAttribute("aria-label", "Karten, mit Pfeiltasten drehen");
+  buehne.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight") { e.preventDefault(); halten(); gehe(Math.round(ziel) + 1); }
+    if (e.key === "ArrowLeft") { e.preventDefault(); halten(); gehe(Math.round(ziel) - 1); }
+  });
+  buehne.addEventListener("focusin", halten);
+
+  // Ziehen. Senkrecht bleibt Scrollen, entschieden wird nach acht Pixeln.
+  let start = null;
+  buehne.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    start = { x: e.clientX, y: e.clientY, pos, richtung: null, letzteX: e.clientX, letzteZeit: performance.now(), v: 0 };
+  });
+  buehne.addEventListener("pointermove", (e) => {
+    if (!start) return;
+    const dx = e.clientX - start.x, dy = e.clientY - start.y;
+    if (!start.richtung && Math.hypot(dx, dy) > 8) {
+      start.richtung = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+      if (start.richtung === "x") { buehne.setPointerCapture(e.pointerId); buehne.classList.add("zieht"); laeuft = false; tempo = 0; }
+    }
+    if (start.richtung !== "x") return;
+    pos = start.pos - dx / (karten[0].offsetWidth * 1.05);
+    const jetzt = performance.now();
+    start.v = (e.clientX - start.letzteX) / Math.max(1, jetzt - start.letzteZeit);
+    start.letzteX = e.clientX; start.letzteZeit = jetzt;
+    ziel = pos; zeichnen();
+  });
+  const loslassen = () => {
+    if (!start) return;
+    if (start.richtung === "x") { halten(); gehe(Math.round(pos + Math.max(-2, Math.min(2, -start.v * .9)))); }
+    buehne.classList.remove("zieht");
+    start = null;
+  };
+  buehne.addEventListener("pointerup", loslassen);
+  buehne.addEventListener("pointercancel", loslassen);
+  let radSperre = 0;
+  buehne.addEventListener("wheel", (e) => {
+    if (Math.abs(e.deltaX) <= Math.abs(e.deltaY) || Math.abs(e.deltaX) < 12) return;
+    e.preventDefault();
+    const jetzt = performance.now();
+    if (jetzt < radSperre) return;
+    radSperre = jetzt + 420; halten();
+    gehe(Math.round(ziel) + (e.deltaX > 0 ? 1 : -1));
+  }, { passive: false });
+  addEventListener("resize", bauen);
+  bauen();
+})();
+</script>
+
+<script>
+/* Zahlweise der Preise. Der Schieber wandert unter den gewählten Knopf. */
+(() => {
+  const knoepfe = [...document.querySelectorAll("#takt button")];
+  const schieber = document.getElementById("taktSchieber");
+  const setzen = (takt) => {
+    knoepfe.forEach((k) => k.setAttribute("aria-checked", String(k.dataset.takt === takt)));
+    const an = knoepfe.find((k) => k.dataset.takt === takt);
+    schieber.style.width = an.offsetWidth + "px";
+    schieber.style.transform = `translateX(${an.offsetLeft}px)`;
+    document.querySelectorAll("#preise [data-jahr]").forEach((el) => { el.textContent = el.dataset[takt]; });
+  };
+  const aktuell = () => knoepfe.find((k) => k.getAttribute("aria-checked") === "true").dataset.takt;
+  knoepfe.forEach((k) => k.addEventListener("click", () => setzen(k.dataset.takt)));
+  document.getElementById("takt").addEventListener("keydown", (e) => {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    const neu = knoepfe.find((k) => k.dataset.takt !== aktuell()); neu.focus(); setzen(neu.dataset.takt);
+  });
+  addEventListener("resize", () => setzen(aktuell()));
+  if (document.fonts) document.fonts.ready.then(() => setzen(aktuell()));
+  setzen("jahr");
+})();
+</script>
+
+</html>
