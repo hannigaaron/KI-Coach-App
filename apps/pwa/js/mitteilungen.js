@@ -113,7 +113,7 @@ export function mitteilungsPlan({ store, jetzt, luecke = null, vorausblicke = []
         // Eine Frage bekommt "Antworten": auf der Uhr und am Sperrbildschirm
         // tippt oder diktiert man die Antwort, ohne die App zu öffnen. Ohne
         // das stand auf der Uhr nur "Schließen" unter der Frage.
-        plan.push({ id: `impuls-${impuls.art}-${tag}`, tag, uhrzeit: impuls.at, titel: impuls.titel, text: impuls.text, art: impuls.art, ...(impuls.frage ? { kategorie: "frage" } : {}) });
+        plan.push({ id: `impuls-${impuls.art}-${tag}`, tag, uhrzeit: impuls.at, titel: impuls.titel, text: impuls.text, art: impuls.art, ...(KATEGORIE_IMPULS[impuls.art] ? { kategorie: KATEGORIE_IMPULS[impuls.art] } : impuls.frage ? { kategorie: "frage" } : {}) });
       }
     }
     if (!aus.morgen && profil) {
@@ -229,6 +229,13 @@ export function lueckeFuerPlan(store, heute) {
 }
 
 /** Was heute schon eingetragen ist, für `impulsNoetig`. */
+/**
+ * Knöpfe direkt an der Mitteilung. Wer ans Trinken erinnert wird, tippt
+ * 0,5 Liter und ist fertig, wer ans Essen erinnert wird, tippt oder diktiert
+ * es. Die Knöpfe stehen in `MitteilungenPlugin.swift`, auf der Uhr dieselben.
+ */
+const KATEGORIE_IMPULS = { trinken: "trinken", protein: "essen", shake: "essen" };
+
 export function impulsLage(store, tag) {
   const d = store.getDay(tag);
   const beantwortet = store.getSettings().impulsBeantwortet || {};

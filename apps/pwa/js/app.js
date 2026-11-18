@@ -70,6 +70,7 @@ import { NATIV_PUSH, gesundheitHolen, postfachHolen, pushAbmelden, pushAbo, push
 import { kodierungReparieren, newId, nowTime, store, todayIso } from "./storage.js";
 import { bestellteEinheit } from "./vorhaben.js";
 import { healthEinfangen, healthkitAbgleichen } from "./healthkit.js";
+import { wasserAusAktion } from "./schnellaktion.js";
 import { antwortAufFrage, trainingErkannt } from "./training-erkannt.js";
 import { abosAbgleichen, kaufenNativ, startAnlass } from "./kauf.js";
 import { anmeldeWege, anmeldenApple, anmeldenGoogleNativ, anmeldungSenden, anmeldungText } from "./anmeldung.js";
@@ -4946,6 +4947,14 @@ async function kalenderStill() {
   if (!s.appleKalender && !kalenderAbos(s).length) return;
   try {
     const r = await kalenderAbgleichen();
+    // Der Plan aus dem Profil gehört auch in den echten Kalender.
+    if (s.appleKalender) {
+      const { planInDenKalender } = await import("./kalender-schreiben.js");
+      const p = await planInDenKalender();
+      if (p.angelegt || p.entfernt) refreshAll();
+      // Überschneidungen sofort melden, nicht erst, wenn iOS die Wache weckt.
+      nativAufruf("Kalender", "wachePruefen").catch(() => {});
+    }
     if (!r.uebersprungen && r.ergebnisse.some((e) => e.anzahl !== undefined)) {
       refreshAll();
       // Ein SLEEP Eintrag im Kalender verschiebt die Erinnerungen vor dem
@@ -6446,17 +6455,11 @@ async function mitteilungenNativ() {
   try {
     const { antworten = [], geoeffnet = null } = await nativAufruf("Mitteilungen", "abholen");
     for (const eintrag of antworten) {
-      if (eintrag?.aktion === "antworten") { await mitteilungAntworten(eintrag); continue; }
-      if (eintrag?.art === "kalender") {
-        // "Lassen" heisst nichts tun. "Umplanen" rechnet den Platz hier,
-        // denn die Mitteilung kam aus dem Hintergrund ohne Web Ansicht.
-        if (eintrag.aktion !== "umplanen" || !eintrag.eid) continue;
-        const { konfliktUmplanen } = await import("./kalender-schreiben.js");
-        const satz = await konfliktUmplanen({ eid: eintrag.eid, von: eintrag.von });
-        toast(satz.replace(/^Noch nicht gespeichert\. /, ""), 8000);
-        refreshAll();
-        continue;
-      }
+      if (eintrag?.text) { await mitteilungAntworten(eintrag); continue; }
+      // Knöpfe ohne Text: Wasser dazu, Training verschieben. "Lassen" und
+      // "Kalender öffnen" heissen für die App nichts tun.
+      if (await aktionAusMitteilung(eintrag)) continue;
+      if (eintrag?.art === "kalender") continue;
       if (antwortVerarbeiten(eintrag, { store, brain })) toast("Antwort übernommen");
     }
     // Ein Training von der Uhr: Chat öffnen und Health lesen, dort entsteht
@@ -6504,10 +6507,30 @@ window.daevoMitteilungAntworten = async () => {
   if (!istNativ()) return;
   const { antworten = [] } = await nativAufruf("Mitteilungen", "abholen");
   for (const eintrag of antworten) {
-    if (eintrag?.aktion === "antworten") await mitteilungAntworten(eintrag);
+    if (eintrag?.text) await mitteilungAntworten(eintrag);
+    else if (await aktionAusMitteilung(eintrag)) continue;
     else if (antwortVerarbeiten(eintrag, { store, brain })) refreshAll();
   }
 };
+
+/**
+ * Ein Knopf an einer Mitteilung, der etwas tut: Wasser dazu oder das Training
+ * verschieben. Das Ergebnis steht als Meldung in der App, liegt die App nicht
+ * vorn, als Mitteilung: ein Knopf ohne Rückmeldung wird zweimal getippt.
+ */
+async function aktionAusMitteilung(eintrag) {
+  let satz = wasserAusAktion(eintrag, store);
+  if (!satz && eintrag?.art === "kalender" && eintrag.aktion === "umplanen" && eintrag.eid) {
+    // Den freien Platz rechnet die App mit denselben Regeln wie im Gespräch.
+    const { konfliktUmplanen } = await import("./kalender-schreiben.js");
+    satz = (await konfliktUmplanen({ eid: eintrag.eid, von: eintrag.von })).replace(/^Noch nicht gespeichert\. /, "");
+  }
+  if (!satz) return false;
+  refreshAll();
+  if (document.visibilityState === "visible") toast(satz, 8000);
+  else await nativAufruf("Mitteilungen", "sofort", { titel: "daevo", text: satz }).catch(() => {});
+  return true;
+}
 
 async function mitteilungenNeuPlanen() {
   const d = new Date();
@@ -7118,6 +7141,7 @@ $("btnAddSession").addEventListener("click", async () => {
     store.setProfile(profile);
     renderSessions();
     toast("Einheit hinzugefügt");
+    kalenderStill();
     return;
   }
   profile.sessions = profile.sessions.map((s, k) => (k === i ? neu : s));
@@ -7130,6 +7154,7 @@ $("btnAddSession").addEventListener("click", async () => {
   toast(r.anzahl
     ? `Geändert, ${r.anzahl} ${r.anzahl === 1 ? "Termin" : "Termine"} im Kalender mitverschoben`
     : "Geändert", 4000);
+  kalenderStill();
   refreshAll();
 });
 
@@ -7139,6 +7164,7 @@ $("btnDelSession").addEventListener("click", () => {
   store.setProfile(profile);
   sessionFormular(-1);
   toast("Einheit entfernt");
+  kalenderStill();
 });
 
 $("sessionList").addEventListener("click", (event) => {

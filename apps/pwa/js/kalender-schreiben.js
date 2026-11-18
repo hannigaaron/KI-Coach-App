@@ -17,7 +17,7 @@
  *
  * Kein `document`, kein `window`: das Modul läuft auch in den Tests.
  */
-import { foldUmlauts, freienPlatzFinden, platzText } from "@daevo/core";
+import { bereichVon, foldUmlauts, freienPlatzFinden, platzText } from "@daevo/core";
 import { istNativ } from "./konfig.js";
 import { store } from "./storage.js";
 import { nativAufruf } from "./nativ.js";
@@ -418,6 +418,80 @@ export async function einheitImKalenderAnpassen(alt, neu, { jetzt = Date.now() }
   }
   if (anzahl) await neuLesen();
   return { anzahl };
+}
+
+/**
+ * Der Trainingsplan aus dem Profil steht auch im echten Kalender.
+ *
+ * Vorher stand "Krafttraining 14:00" nur in daevo, und wer seinen Tag im
+ * Google Kalender liest, sah nichts davon. Was daevo plant, muss dort stehen,
+ * sonst taugt es nicht. Für die nächsten 14 Tage wird jede Einheit aus dem
+ * Profil eingetragen, an der Uhrzeit des Profils, auch wenn dort schon ein
+ * anderer Termin liegt: die Einheit ist die Vorgabe des Nutzers, und die
+ * Überschneidung meldet danach `KalenderWache` mit der Wahl zwischen
+ * Belassen, Verschieben und Kalender öffnen.
+ *
+ * Nichts wird doppelt angelegt: steht innerhalb einer Stunde schon ein
+ * Training im Kalender, von daevo oder der Nutzer selbst, bleibt es dabei.
+ * Was der Nutzer danach löscht, legt daevo nicht wieder an, `settings.planKalender`
+ * merkt sich je Tag und Einheit, dass es schon einmal dort stand. Läuft bei
+ * jeder Änderung am Plan und höchstens alle drei Stunden sonst.
+ */
+const PLAN_TAGE = 14;
+const PLAN_ABSTAND_MS = 3 * 3600000;
+
+export function planUnterschrift(profile) {
+  return JSON.stringify((profile?.sessions || []).map((s) => [s.type, s.weekday, s.startsAt, s.minutes]));
+}
+
+export async function planInDenKalender({ jetzt = Date.now(), zwang = false } = {}) {
+  if (!kannSchreiben()) return { angelegt: 0, entfernt: 0 };
+  const profile = store.getProfile();
+  const sessions = (profile?.sessions || []).filter((x) => /^\d{1,2}:\d{2}$/.test(String(x.startsAt || "")) && Number(x.minutes) > 0);
+  const stand = store.getSettings().planKalender || {};
+  const sig = planUnterschrift(profile);
+  if (!zwang && stand.sig === sig && jetzt - (stand.at || 0) < PLAN_ABSTAND_MS) return { angelegt: 0, entfernt: 0, uebersprungen: true };
+
+  const termine = store.getKalender().termine || [];
+  const keys = { ...(stand.keys || {}) };
+  let angelegt = 0, entfernt = 0;
+
+  // Einheiten, die es im Profil nicht mehr gibt: ihre Termine, die daevo
+  // angelegt hat und die noch dort stehen, wo daevo sie hingelegt hat, gehen
+  // wieder raus. Ein verschobener Termin gehört dem Nutzer.
+  const gibtEs = (w, u, art) => sessions.some((x) => x.weekday === w && x.startsAt === u && x.type === art);
+  for (const [key, eintrag] of Object.entries(keys)) {
+    const [tag, w, u, art] = key.split("|");
+    if (tagBeginn(tag) + 86400000 < jetzt) { delete keys[key]; continue; }
+    if (gibtEs(Number(w), u, art) || !eintrag?.eid) continue;
+    const t = termine.find((x) => x.eid === eintrag.eid);
+    delete keys[key];
+    if (!t || Math.abs(t.von - eintrag.von) > 60000 || t.von < jetzt) continue;
+    try { await nativAufruf("Kalender", "loeschen", { eid: eintrag.eid, alt: eintrag.von }); entfernt++; } catch { /* schon weg */ }
+  }
+
+  for (let i = 0; i < PLAN_TAGE; i++) {
+    const d = new Date(jetzt); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() + i);
+    const tag = tagIso(d.getTime());
+    for (const x of sessions.filter((e) => e.weekday === d.getDay())) {
+      const von = tagBeginn(tag) + (Number(x.startsAt.slice(0, 2)) * 60 + Number(x.startsAt.slice(3, 5))) * 60000;
+      const bis = von + Number(x.minutes) * 60000;
+      const key = `${tag}|${x.weekday}|${x.startsAt}|${x.type}`;
+      if (bis <= jetzt || keys[key]) continue;
+      const schonDa = termine.some((t) => !t.ganztags && Math.abs(t.von - von) <= 3600000
+        && (t.daevo || bereichVon(String(t.titel || "")) === "fitness"));
+      if (schonDa) { keys[key] = { eid: "", von }; continue; }
+      try {
+        const titel = `Training: ${ART_TITEL[x.type] || "Training"}`;
+        const r = await nativAufruf("Kalender", "anlegen", { titel, von, bis, notiz: "Aus deinem Trainingsplan in daevo.", kalender: zielKalenderId() });
+        keys[key] = { eid: r?.eid || "", von };
+        angelegt++;
+      } catch { /* ohne Zugriff bleibt es beim nächsten Lauf offen */ }
+    }
+  }
+  store.setSettings({ ...store.getSettings(), planKalender: { sig, at: jetzt, keys } });
+  if (angelegt || entfernt) await neuLesen();
+  return { angelegt, entfernt };
 }
 
 /**

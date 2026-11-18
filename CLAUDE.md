@@ -1008,7 +1008,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1462 Tests
+npm test           # 1467 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1116,6 +1116,40 @@ Antwort. Jede Änderung liegt in `settings.kalenderAenderungen`, die letzten
 20, und "mach die Kalenderänderung rückgängig" nimmt genau die letzte
 zurück. Ohne Kalender oder Termin im Satz greift der Regelpfad nicht,
 sonst nähme "mach das rückgängig" nach einer Mahlzeit einen Termin zurück.
+
+### Der Plan aus dem Profil steht im echten Kalender
+
+`planInDenKalender` in `kalender-schreiben.js`. Im Betrieb stand
+"Krafttraining 14:00" nur in daevo, und im Google Kalender fehlte es: wer
+seinen Tag dort liest, sah nichts davon. Jetzt trägt daevo jede Einheit aus dem
+Profil für die nächsten 14 Tage ein, an der Uhrzeit des Profils, auch über
+einem anderen Termin. Die Einheit ist die Vorgabe des Nutzers, die
+Überschneidung meldet danach die Wache. Steht innerhalb einer Stunde schon ein
+Training dort, von daevo oder selbst, kommt keins daneben. Was der Nutzer
+löscht, legt daevo nicht wieder an: `settings.planKalender` merkt je Tag und
+Einheit, dass sie schon einmal dort stand. Entfällt eine Einheit im Profil,
+gehen ihre Termine wieder raus, sofern sie noch dort stehen, wo daevo sie
+hinlegte. Läuft beim Abgleich, bei jeder Änderung am Plan und sonst alle drei
+Stunden, danach prüft `wachePruefen` sofort auf Überschneidungen. Nur in der
+iPhone App.
+
+### Knöpfe an Mitteilungen
+
+`MitteilungenZentrale` in `MitteilungenPlugin.swift`, `schnellaktion.js`. Jede
+Mitteilung lässt sich lang gedrückt direkt beantworten, wie bei WhatsApp: Text
+tippen oder diktieren, ohne die App zu öffnen. Auf der Apple Watch zeigt
+watchOS dieselben Knöpfe, sie hängen an der Kategorie der Mitteilung. Eigene
+Knöpfe haben das Trinken (+ 0,25, + 0,5, + 1 Liter), Essen und Eiweiss ("Jetzt
+eintippen" mit Textfeld) und die Überschneidung im Kalender: So belassen,
+Training verschieben, Kalender öffnen. Verschieben rechnet die Web Ansicht, wenn
+sie noch im Speicher liegt, mit denselben Regeln wie im Gespräch, und das
+Ergebnis kommt als Mitteilung zurück: ein Knopf ohne Rückmeldung wird zweimal
+getippt. War die App beendet, sagt eine Mitteilung, dass es beim Öffnen
+erledigt wird. Das Wasser zählt am Tag des Tipps, nicht des Öffnens. Kalender
+öffnen springt zu Google Kalender, wenn das Training dort liegt, sonst zum Apple
+Kalender. Was iOS nicht zulässt: die Wache läuft nicht jeden Tag zu einer
+festen Zeit, das entscheidet das System. Offen und ungeprüft auf dem Gerät: der
+ganze Swift Teil.
 
 ### Was in den Kalender kommt
 
