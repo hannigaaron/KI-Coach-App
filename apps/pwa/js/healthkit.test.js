@@ -13,7 +13,7 @@ class SpeicherAttrappe {
 globalThis.localStorage = new SpeicherAttrappe();
 
 const { store } = await import("./storage.js");
-const { healthkitAbgleichen, healthkitSchreiben, workoutsSchreiben } = await import("./healthkit.js");
+const { healthEinfangen, healthkitAbgleichen, healthkitSchreiben, workoutsSchreiben } = await import("./healthkit.js");
 const { brauchtWiederherstellung, schnappschuss } = await import("./nativ.js");
 
 const HEUTE = "2026-10-19";
@@ -357,4 +357,42 @@ test("Aktive Kalorien über der Planung heben das Tagesziel, darunter bleibt es"
   assert.equal(n.targets.kcal - ohne, n.aktivitaet.zuschlagKcal);
   store.setSettings({ ...store.getSettings(), aktivZumZiel: false });
   assert.equal(dayNumbers("2026-10-18").targets.kcal, ohne);
+});
+
+const lokalISO = (h, m) => { const d = new Date(); d.setHours(h, m, 0, 0); return d.toISOString(); };
+
+test("Läuft ein Training in daevo, wartet die kurze Aufzeichnung der Uhr", () => {
+  frisch();
+  const tag = HEUTE;
+  store.setSettings({ ...store.getSettings(), trainingEntwurf: { datum: tag, titel: "Pull", start: lokalISO(14, 9), uebungen: [] } });
+  const w = [{ id: "K1", tag, uhrzeit: "14:59", minuten: 10, art: "strength", kcal: 60 }];
+  assert.equal(workoutsSchreiben(w, { store, heute: HEUTE }), 0);
+  assert.equal((store.getDay(tag).trainings || []).length, 0);
+});
+
+test("Beim Beenden geht die Uhr in den Eintrag aus daevo, Kalorien auf die Dauer hochgerechnet", () => {
+  frisch();
+  const tag = HEUTE;
+  // Die Uhr war schon eingetragen, etwa von einem früheren Abgleich.
+  store.addTraining(tag, { id: "hk-K1", type: "strength", minutes: 10, at: "14:59", quelle: "health", kcal: 60, puls: 118 });
+  store.addTraining(tag, { id: "d1", type: "strength", minutes: 55, at: "14:09", note: "Pull" });
+  const neu = healthEinfangen(store, tag, store.getDay(tag).trainings.at(-1));
+  const t = store.getDay(tag).trainings;
+  assert.equal(t.length, 1);
+  assert.equal(neu.minutes, 55);
+  assert.equal(neu.kcal, 330);
+  assert.equal(neu.kcalHochgerechnet, true);
+  assert.equal(neu.puls, 118);
+  // Der nächste Abgleich legt die Aufzeichnung nicht noch einmal an.
+  assert.equal(workoutsSchreiben([{ id: "K1", tag, uhrzeit: "14:59", minuten: 10, art: "strength", kcal: 60 }], { store, heute: HEUTE }), 0);
+  assert.equal(store.getDay(tag).trainings.length, 1);
+});
+
+test("Eine Aufzeichnung in passender Länge wird nicht hochgerechnet", () => {
+  frisch();
+  store.addTraining(HEUTE, { id: "hk-K2", type: "strength", minutes: 50, at: "14:15", quelle: "health", kcal: 300 });
+  store.addTraining(HEUTE, { id: "d2", type: "strength", minutes: 55, at: "14:09", note: "Pull" });
+  const neu = healthEinfangen(store, HEUTE, store.getDay(HEUTE).trainings.at(-1));
+  assert.equal(neu.kcal, 300);
+  assert.equal(neu.kcalHochgerechnet, undefined);
 });

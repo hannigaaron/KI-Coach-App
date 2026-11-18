@@ -2694,13 +2694,21 @@ h1,
   transition: border-color 0.2s ease;
 }
 .composer-bar:focus-within { border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
-.composer-bar input {
+.composer-bar input, .composer-bar textarea {
   flex: 1; min-width: 0; margin: 0;
   border: none; background: none; border-radius: 0; box-shadow: none;
   padding: 12px 6px; font-size: 16px; color: var(--text);
 }
-.composer-bar input:focus { outline: none; box-shadow: none; }
-.composer-bar input::placeholder { color: var(--muted); opacity: 0.9; }
+/* Das Feld wächst mit dem Text, bis zu sieben Zeilen, danach scrollt es.
+   Wer diktiert oder tippt, will sehen, was im Feld steht, und nicht nur das
+   Ende einer langen Zeile. Die Knöpfe bleiben unten, wie bei Claude. */
+.composer-bar textarea {
+  resize: none; display: block; min-height: 0; max-height: 11.5em; overflow-y: auto;
+  line-height: 1.4; padding: 10px 6px; font-family: inherit; -webkit-appearance: none; appearance: none;
+}
+.composer-bar:has(textarea) { align-items: flex-end; }
+.composer-bar input:focus, .composer-bar textarea:focus { outline: none; box-shadow: none; }
+.composer-bar input::placeholder, .composer-bar textarea::placeholder { color: var(--muted); opacity: 0.9; }
 
 .co-btn {
   position: relative; flex: none; display: grid; place-items: center; width: 42px; height: 42px; padding: 0;

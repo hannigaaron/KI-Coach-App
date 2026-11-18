@@ -205,6 +205,12 @@ solange die Betriebsart läuft, und sind dann der Knopf zum Beenden. Das Menü
 stößt sie nur an. Eine Zeile mit zwei Wörtern, die dauernd dastand, sah aus wie
 Knöpfe, die man drücken muss, und niemand wusste, was "Hey daevo" dort sollte.
 
+Das Feld ist ein `textarea` und wächst mit dem Text bis zu sieben Zeilen, damit
+man bei Tippfehlern und falsch Diktiertem sieht, was dasteht. Gesetzt wird
+`value` an vielen Stellen, auch von der Spracherkennung, ohne Ereignis, deshalb
+wächst es über einen Setter am Feld und nicht über `input` allein. Return sendet,
+Umschalt Return macht eine neue Zeile. Die Knöpfe bleiben unten.
+
 Ein Punkt am Plus zeigt, dass etwas läuft oder anhängt. Symbole sind Linien in
 einer Stärke mit runden Enden, keine zusammengesetzten Rahmen.
 
@@ -652,6 +658,27 @@ Rücken ohne Brust und Trizeps, dann heisst Schultern nur die hintere
 Schulter. Im Betrieb bestellte das Modell Pull mit Schultern und bekam
 Schulterdrücken und Seitheben an einem Zugtag. Ein Test prüft jede Dauer.
 
+Eine Partie ist immer ganz gemeint, `PFLICHT` und `reizVon` im Kern. Im
+Betrieb kam für Rücken und Bizeps T-Bar Rudern, Face Pull und zwei Curls
+zurück: kein Zug von oben, also kein Latissimus, und kein Hammergriff, also
+kein Brachialis. Jetzt hat jede Partie feste Plätze, die beim Kürzen nie
+wegfallen, `geschuetzt` an der Vorlage: Rücken Zug von oben und Rudern, Bizeps
+dreimal, Trizeps zweimal, Brust zweimal, Schultern drei. Welche Übung welchen
+Teil trifft, entscheidet `reizVon` über das Bewegungsmuster: Latissimus ist der
+Zug von oben, Rudern der obere Rücken, Bizeps kurz, lang (Schrägbank,
+Bayesian) und Brachialis (Hammergriff), Trizeps lang (über Kopf, liegend)
+und kurz, Brust Mitte und obere Brust. Die Plätze wiederholen sich, und in
+`einheitBauen` tritt eine Übung hinter eine zurück, die denselben Teil schon
+trifft: im Tag mit Gewicht 1000, im Plan der Woche 150. Das gilt auch im
+Wochenplan, dort über die Woche. Passt es nicht in die Zeit, kürzen zuerst
+Pausen und Sätze bis zwei je Übung, dann fällt die verzichtbarste Übung weg:
+30 Minuten für drei Partien gehen nicht. Einsteiger bekommen den langen Kopf
+nicht, die Schrägbank und das Bayesian Curl sind Mittelstufe. Eine Regel der
+App aus der Praxis, keine Studie. Eine selbst diktierte Einheit bleibt, wie
+sie ist: `abdeckungsLuecken` nennt, was fehlt, und der Coach fragt, ob er es
+dazunimmt. Offen: eine Satzzahl je Partie, "fünf Sätze Rücken", kennt das
+Werkzeug nicht.
+
 Einzelne Übungen ändert der Coach selbst, `weglassen` und `tauschen` an
 `training_heute`, `einheitAendern` in `assistant.js`. Der Name wird in
 beide Richtungen abgeglichen, getauscht wird gegen dieselbe Bewegung nach
@@ -981,7 +1008,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1456 Tests
+npm test           # 1462 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -4501,6 +4528,15 @@ wenn sich darin etwas änderte. Jetzt, in beide Richtungen:
   `Sitzung.swift`, Apple Fitness zählt die Zeit dann nicht.
 
 ## Trainings in Kalender und Apple Health
+
+Läuft in daevo ein Training, wartet eine Aufzeichnung der Uhr, die danach
+beginnt, `workoutsSchreiben` in `healthkit.js`. Beim Beenden geht sie in den
+Eintrag aus daevo, `healthEinfangen`: Dauer und Beginn gelten wie in daevo,
+denn dort steht jeder Satz. Im Betrieb lobte daevo "10 Minuten Krafttraining",
+während alle Übungen einer Stunde abgehakt waren, weil die Uhr zu spät
+gestartet war. Ist die Aufzeichnung kürzer als 60 Prozent, `KURZ_ANTEIL`,
+rechnet `kcalFuerTraining` die Kalorien auf die Dauer hoch und der Eintrag
+trägt `kcalHochgerechnet`. Der Puls bleibt, wie die Uhr ihn maß.
 
 Ein beendetes Training aus daevo steht im Tag mit seinem Beginn und nicht
 mit dem Ende, kommt über `trainingInDenKalender` in den Kalender, mit dem

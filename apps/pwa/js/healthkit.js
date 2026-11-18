@@ -20,6 +20,27 @@ export const HEALTH_FASSUNG = 6;
 /** Trainings innerhalb dieses Abstands zu einem eigenen Eintrag gleicher Art gelten als derselbe. */
 const GLEICH_MINUTEN = 90;
 
+/**
+ * Eine Aufzeichnung der Uhr, die weniger als diesen Anteil des Trainings in
+ * daevo dauert, gilt als zu spät gestartet oder zu früh beendet. Wer 55
+ * Minuten Sätze abhakt, hat nicht 10 Minuten trainiert, und kein Mensch
+ * macht 10 Minuten Krafttraining mit neun Übungen. Eine Regel der App.
+ */
+export const KURZ_ANTEIL = 0.6;
+
+/**
+ * Kalorien der Uhr für das Training in daevo. War die Aufzeichnung viel
+ * kürzer als das Training, rechnet sie auf dessen Dauer hoch, und der Eintrag
+ * sagt es: `kcalHochgerechnet`. Der Puls bleibt, wie die Uhr ihn gemessen hat.
+ */
+export function kcalFuerTraining(kcal, uhrMin, daevoMin) {
+  if (!(kcal > 0)) return {};
+  if (uhrMin > 0 && daevoMin > 0 && uhrMin < daevoMin * KURZ_ANTEIL) {
+    return { kcal: Math.round((kcal / uhrMin) * daevoMin), kcalHochgerechnet: true };
+  }
+  return { kcal: Math.round(kcal) };
+}
+
 function minutenVon(uhrzeit) {
   const m = /^(\d{1,2}):(\d{2})/.exec(String(uhrzeit || ""));
   return m ? Number(m[1]) * 60 + Number(m[2]) : null;
@@ -47,6 +68,17 @@ export function workoutsSchreiben(workouts, { store, heute, neueListe = [] }) {
     const vorhanden = day.trainings || [];
     if (vorhanden.some((t) => t.id === id || t.healthId === id)) continue;
     const start = minutenVon(w.uhrzeit);
+    // Läuft in daevo gerade ein Training, das vor dieser Aufzeichnung begann,
+    // gehört sie dazu. Sie wird beim Beenden eingefangen, `healthEinfangen`.
+    // Vorher stand sie als eigenes Training von 10 Minuten im Tag, und daevo
+    // lobte "10 Minuten Krafttraining" neben einem abgehakten Training von
+    // einer Stunde.
+    const entwurf = store.getSettings?.().trainingEntwurf;
+    if (w.art === "strength" && entwurf && !entwurf.rueckblick && entwurf.datum === w.tag && Date.parse(entwurf.start)) {
+      const b = new Date(entwurf.start);
+      const entwurfStart = b.getHours() * 60 + b.getMinutes();
+      if (start === null || start >= entwurfStart - 15) continue;
+    }
     const kcal = Number(w.kcal) > 0 ? Math.round(Number(w.kcal)) : undefined;
     const puls = Number(w.puls) > 0 ? Math.round(Number(w.puls)) : undefined;
     const pulsMax = Number(w.pulsMax) > 0 ? Math.round(Number(w.pulsMax)) : undefined;
@@ -61,8 +93,9 @@ export function workoutsSchreiben(workouts, { store, heute, neueListe = [] }) {
       // dem Puls, die nur die Uhr kennt. Jetzt kommen sie an den Eintrag.
       if (!doppelt.healthId && (kcal || puls)) {
         const tag = store.getDay(w.tag);
+        const passend = kcalFuerTraining(kcal, minuten, Number(doppelt.minutes));
         tag.trainings = (tag.trainings || []).map((t) => (t === doppelt || t.id === doppelt.id
-          ? { ...t, healthId: id, ...(kcal ? { kcal } : {}), ...(puls ? { puls } : {}), ...(pulsMax ? { pulsMax } : {}) }
+          ? { ...t, healthId: id, ...passend, ...(puls ? { puls } : {}), ...(pulsMax ? { pulsMax } : {}) }
           : t));
         store.setDay(w.tag, tag);
       }
@@ -76,6 +109,33 @@ export function workoutsSchreiben(workouts, { store, heute, neueListe = [] }) {
     neueListe.push({ id: w.id, tag: w.tag, uhrzeit: w.uhrzeit || "", minuten, art: w.art, ...(w.name ? { name: w.name } : {}) });
     neu++;
   }
+  return neu;
+}
+
+/**
+ * Wenn ein Training in daevo endet: was die Uhr dazu aufgezeichnet hat, geht
+ * in den Eintrag und steht nicht daneben. Gesucht wird ein Krafttraining aus
+ * Health am selben Tag, dessen Beginn nah am Beginn des Trainings liegt. Das
+ * Training in daevo gilt, denn dort steht jeder Satz: Dauer und Beginn
+ * bleiben, Kalorien kommen von der Uhr und werden bei einer zu kurzen
+ * Aufzeichnung hochgerechnet. Die Kennung aus Health bleibt am Eintrag, damit
+ * der nächste Abgleich es nicht noch einmal anlegt.
+ */
+export function healthEinfangen(store, tag, eintrag) {
+  const start = minutenVon(eintrag.at);
+  const daevoMin = Number(eintrag.minutes);
+  const data = store.getDay(tag);
+  const trainings = data.trainings || [];
+  const uhr = trainings.find((t) => t.quelle === "health" && t.type === eintrag.type && t.id !== eintrag.id
+    && (start === null || minutenVon(t.at) === null || Math.abs(minutenVon(t.at) - start) <= GLEICH_MINUTEN));
+  if (!uhr) return null;
+  const passend = kcalFuerTraining(Number(uhr.kcal), Number(uhr.minutes), daevoMin);
+  const neu = {
+    ...eintrag, healthId: uhr.id, ...passend,
+    ...(uhr.puls ? { puls: uhr.puls } : {}), ...(uhr.pulsMax ? { pulsMax: uhr.pulsMax } : {}),
+  };
+  data.trainings = trainings.filter((t) => t !== uhr && t.id !== uhr.id).map((t) => (t.id === eintrag.id ? neu : t));
+  store.setDay(tag, data);
   return neu;
 }
 

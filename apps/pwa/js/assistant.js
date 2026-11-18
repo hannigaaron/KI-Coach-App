@@ -4,7 +4,7 @@ import {
   mahlzeitAusFoto, modellFuerBilder, naehrwerteImNetz, produktPerBarcode, produkteSuchen, summiere, vorratAusFoto,
   todoistAbhaken, todoistAufgaben, todoistIdVon, todoistWiederOeffnen, PERSONA_TEILE,
 } from "@daevo/coach";
-import { essenszeitAus, foldUmlauts, wochenrueckblick, wochenbeginn, wochenschnitt, wochenschnittText, tagKurz, tagStand, rueckblickArt, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, einzeltrainingBauen, FOKUS_NAME, alternativen, planNachrechnen, positionFuer } from "@daevo/core";
+import { essenszeitAus, foldUmlauts, wochenrueckblick, wochenbeginn, wochenschnitt, wochenschnittText, tagKurz, tagStand, rueckblickArt, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, einzeltrainingBauen, abdeckungsLuecken, FOKUS_NAME, alternativen, planNachrechnen, positionFuer } from "@daevo/core";
 import { trainingsTageAusQuellen } from "./luecke.js";
 import { UEBUNGEN } from "./uebungen-daten.js";
 import { GERAETE, uebungenFiltern } from "./uebungen.js";
@@ -4664,6 +4664,11 @@ async function eigeneEinheitSpeichern({ tag, zukunft, um, jetzt, uebungen, hinzu
     zeilen.push(`- ${p.name}: ${p.saetze} x ${p.wdh}, ${p.reserve} in Reserve${supersatzZusatz(p, einheit.positionen)}${st ? `. ${st.text}` : ""}`);
   }
   for (const c of cardioNeu) zeilen.push(`- ${cardioText(c)}`);
+  // Die Einheit bleibt, wie er sie gesagt hat. Fehlt ein Teil des Muskels,
+  // etwa der Latissimus bei nur Rudern oder der Brachialis bei Curls ohne
+  // Hammergriff, sagt die App es in einem Satz und baut es nicht heimlich ein.
+  const luecken = abdeckungsLuecken(einheit.positionen.map((p) => p.id), UEBUNGEN);
+  if (luecken.length) zeilen.push(`In dieser Einheit fehlt noch: ${luecken.join(", ")}. Soll ich dafür eine Übung dazunehmen?`);
   if (r.unbekannt.length) zeilen.push(`${r.unbekannt.join(", ")} kenne ich nicht aus der Übungsdatenbank. ${r.unbekannt.length > 1 ? "Sie stehen" : "Sie steht"} trotzdem unter deinem Namen drin, nur ohne Foto und Anleitung.`);
   const gesagt = Number(minuten);
   if (ganz && Number.isFinite(gesagt) && gesagt > 0 && Math.abs(gesagt - einheit.dauerMin) > 15) {

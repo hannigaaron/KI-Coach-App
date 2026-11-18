@@ -69,7 +69,7 @@ import { symbol } from "./symbole.js";
 import { NATIV_PUSH, gesundheitHolen, postfachHolen, pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
 import { kodierungReparieren, newId, nowTime, store, todayIso } from "./storage.js";
 import { bestellteEinheit } from "./vorhaben.js";
-import { healthkitAbgleichen } from "./healthkit.js";
+import { healthEinfangen, healthkitAbgleichen } from "./healthkit.js";
 import { antwortAufFrage, trainingErkannt } from "./training-erkannt.js";
 import { abosAbgleichen, kaufenNativ, startAnlass } from "./kauf.js";
 import { anmeldeWege, anmeldenApple, anmeldenGoogleNativ, anmeldungSenden, anmeldungText } from "./anmeldung.js";
@@ -247,6 +247,37 @@ document.addEventListener("click", (event) => {
   $("anhangMenue").hidden = true;
 });
 $("chatInput").addEventListener("focus", () => { $("anhangMenue").hidden = true; });
+
+/**
+ * Das Nachrichtenfeld wächst mit dem Text. Gesetzt wird `value` an vielen
+ * Stellen, auch von der Spracherkennung, und kein Ereignis meldet das. Deshalb
+ * läuft die Anpassung über den Setter des Feldes und nicht über `input` allein.
+ * Return sendet, Umschalt Return macht eine neue Zeile.
+ */
+(() => {
+  const feld = $("chatInput");
+  const anpassen = () => {
+    feld.style.height = "auto";
+    // Versteckt, etwa beim Diktieren, ist scrollHeight 0. Dann bleibt es bei
+    // der Höhe aus dem Stylesheet, sonst käme das Feld mit null Pixeln zurück.
+    if (feld.scrollHeight > 0) feld.style.height = `${feld.scrollHeight}px`;
+  };
+  const roh = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value");
+  Object.defineProperty(feld, "value", {
+    configurable: true,
+    get() { return roh.get.call(this); },
+    set(v) { roh.set.call(this, v); anpassen(); },
+  });
+  feld.addEventListener("input", anpassen);
+  feld.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+    event.preventDefault();
+    $("composer").requestSubmit();
+  });
+  // Nach dem Diktat wieder sichtbar: die Höhe neu messen.
+  new MutationObserver(anpassen).observe($("composer"), { attributes: true, attributeFilter: ["class"] });
+  anpassen();
+})();
 $("anhangMenue").addEventListener("click", (event) => {
   const button = event.target.closest("[data-anhang]");
   if (!button) return;
@@ -3368,6 +3399,8 @@ const training = trainingStarten({
     const beginn = Date.parse(start) ? new Date(start) : new Date(Date.now() - minuten * 60000);
     const at = `${String(beginn.getHours()).padStart(2, "0")}:${String(beginn.getMinutes()).padStart(2, "0")}`;
     store.addTraining(todayIso(), { id: newId(), type: "strength", minutes: minuten, at, note: titel });
+    // Hat die Uhr dazu etwas aufgezeichnet, geht es in diesen Eintrag.
+    healthEinfangen(store, todayIso(), store.getDay(todayIso()).trainings.at(-1));
     trainingInDenKalender({ titel, datum, start: beginn.toISOString(), minuten });
     // In Apple Health, damit es in Apple Fitness und den Ringen zählt. Lief
     // es auf der Uhr mit, hat die Uhr es schon gespeichert.

@@ -327,6 +327,12 @@ interface Tagesvorlage {
    * Liste waren 90 Minuten derselbe Plan wie 60, rund 55 Minuten lang.
    */
   extra?: Platz[];
+  /**
+   * Plätze, die beim Kürzen nie wegfallen. Für das Training für heute: wer
+   * Rücken und Bizeps nennt, bekommt die ganze Partie oder gar keine Einheit
+   * mit dem Namen. Gekürzt werden dann die Sätze, bis zwei je Übung.
+   */
+  geschuetzt?: Platz[];
 }
 
 // Kurze Einheiten: fünf Bewegungen, keine Isolation. Die Varianten wechseln
@@ -535,6 +541,70 @@ function dauerMin(positionen: PlanPosition[]): number {
   return AUFWAERMEN_MIN + Math.round(sek / 60);
 }
 
+/**
+ * Welchen Teil eines Muskels eine Übung vor allem trifft. Wer Rücken sagt,
+ * meint den Latissimus und den oberen Rücken, wer Bizeps sagt, alle Köpfe und
+ * den Brachialis, und ein Training, das nur einen Teil trifft, hat die Partie
+ * nicht trainiert. Eine Regel der App aus der Praxis, keine Studie: der lange
+ * Kopf des Bizeps arbeitet am stärksten, wenn der Arm hinter dem Körper
+ * liegt, der Brachialis beim Hammergriff, und der Trizeps lange Kopf beim
+ * Strecken über Kopf.
+ */
+const BIZEPS_LANG: ReadonlySet<string> = new Set(["incline-curl", "bayesian-curl-kabel"]);
+
+export function reizVon(e: PlanUebung): { familie: string; reiz: string } | null {
+  switch (e.pattern) {
+    case "elbow_flexion":
+      if (e.primaryMuscles.some((m) => /Brachialis/.test(m))) return { familie: "bizeps", reiz: "brachialis" };
+      return { familie: "bizeps", reiz: BIZEPS_LANG.has(e.id) ? "lang" : "kurz" };
+    case "elbow_extension":
+      return { familie: "trizeps", reiz: e.primaryMuscles.some((m) => /langer Kopf/.test(m)) || e.id === "french-press" ? "lang" : "kurz" };
+    case "horizontal_push": return e.gruppe === "brust" ? { familie: "brust", reiz: "mitte" } : null;
+    case "incline_push": return { familie: "brust", reiz: "oben" };
+    case "vertical_pull": return { familie: "ruecken", reiz: "lat" };
+    case "horizontal_pull":
+      if (e.id === "face-pull") return null;
+      // Rudern trifft den Rücken in der Dicke, auch wenn der Latissimus mitarbeitet.
+      // Der Latissimus steht für den Zug von oben: wer Klimmzug und Latzug
+      // weglässt, hat ihn nicht trainiert, egal wie viel er rudert.
+      return { familie: "ruecken", reiz: "oben" };
+    default: return null;
+  }
+}
+
+/** Welche Teile jeder Muskelfamilie ein Training treffen muss, damit die Partie als trainiert gilt. */
+export const REIZE: Record<string, string[]> = {
+  bizeps: ["kurz", "lang", "brachialis"], trizeps: ["kurz", "lang"], brust: ["mitte", "oben"], ruecken: ["lat", "oben"],
+};
+const REIZ_NAME: Record<string, string> = {
+  "bizeps:kurz": "kurzer Kopf des Bizeps", "bizeps:lang": "langer Kopf des Bizeps", "bizeps:brachialis": "Brachialis",
+  "trizeps:kurz": "seitlicher und medialer Trizeps", "trizeps:lang": "langer Kopf des Trizeps",
+  "brust:mitte": "mittlere und untere Brust", "brust:oben": "obere Brust",
+  "ruecken:lat": "Latissimus", "ruecken:oben": "oberer Rücken",
+};
+
+/**
+ * Welche Teile einer Muskelfamilie in dieser Einheit fehlen, obwohl die
+ * Familie vorkommt. Eine Einheit ganz ohne Bizeps hat keine Lücke im Bizeps,
+ * sie trainiert ihn nicht. Für Einheiten, die jemand selbst diktiert hat: die
+ * App ändert sie nie, sie sagt nur, was fehlt.
+ */
+export function abdeckungsLuecken(ids: string[], uebungen: PlanUebung[]): string[] {
+  const nachId = new Map(uebungen.map((e) => [e.id, e]));
+  const da = new Map<string, Set<string>>();
+  for (const id of ids) {
+    const r = nachId.get(id) ? reizVon(nachId.get(id)!) : null;
+    if (!r) continue;
+    if (!da.has(r.familie)) da.set(r.familie, new Set());
+    da.get(r.familie)!.add(r.reiz);
+  }
+  const luecken: string[] = [];
+  for (const [familie, reize] of da) {
+    for (const r of REIZE[familie] ?? []) if (!reize.has(r)) luecken.push(REIZ_NAME[`${familie}:${r}`] ?? r);
+  }
+  return luecken;
+}
+
 interface BauKontext {
   wunsch: PlanWunsch;
   erlaubt: PlanUebung[];
@@ -553,6 +623,7 @@ interface BauKontext {
 function einheitBauen(vorlage: Tagesvorlage, { wunsch, erlaubt, imPlan, kurz, einsteiger, variante }: BauKontext): PlanEinheit {
   const gewaehlt: Array<{ e: PlanUebung; platz: Platz }> = [];
   const benutzt = new Set<string>();
+  const nachIdErlaubt = new Map(erlaubt.map((e) => [e.id, e]));
 
   const kandidatenFuer = (platz: Platz): PlanUebung[] => {
     const alle = erlaubt.filter((e) => PASST[platz](e) && !benutzt.has(e.id) && !zuSchwerZusammen(e.id, benutzt));
@@ -579,8 +650,25 @@ function einheitBauen(vorlage: Tagesvorlage, { wunsch, erlaubt, imPlan, kurz, ei
     if (!kandidaten.length) return null;
     // Wer schon in dieser Woche dran war, kommt später. Danach zählt der Abstand
     // zum eigenen Niveau, dann ein stabiler Streuwert für Abwechslung.
+    // Dazu der Teil des Muskels: was in dieser Einheit schon einen Kopf des
+    // Bizeps oder den Latissimus trifft, tritt hinter eine Übung zurück, die
+    // einen anderen trifft. So deckt eine Einheit die ganze Partie ab, und ein
+    // Plan über die Woche ebenfalls, nur schwächer gewichtet.
+    const teilZahl = (e: PlanUebung): number => {
+      const r = reizVon(e);
+      if (!r) return 0;
+      const hier = [...benutzt].filter((id) => {
+        const x = nachIdErlaubt.get(id) ? reizVon(nachIdErlaubt.get(id)!) : null;
+        return x?.familie === r.familie && x.reiz === r.reiz;
+      }).length;
+      const woche = [...imPlan.keys()].filter((id) => {
+        const x = nachIdErlaubt.get(id) ? reizVon(nachIdErlaubt.get(id)!) : null;
+        return x?.familie === r.familie && x.reiz === r.reiz;
+      }).length;
+      return hier * 1000 + woche * 150;
+    };
     const wertung = (e: PlanUebung) =>
-      (imPlan.get(e.id) ?? 0) * 100 + Math.abs(RANG[e.level] - RANG[wunsch.niveau]) * 20 + streu(`${e.id}|${vorlage.titel}`, variante) / 100;
+      (imPlan.get(e.id) ?? 0) * 100 + teilZahl(e) + Math.abs(RANG[e.level] - RANG[wunsch.niveau]) * 20 + streu(`${e.id}|${vorlage.titel}`, variante) / 100;
     kandidaten.sort((a, b) => wertung(a) - wertung(b));
     const treffer = kandidaten[0];
     if (!treffer) return null;
@@ -682,23 +770,41 @@ function einheitBauen(vorlage: Tagesvorlage, { wunsch, erlaubt, imPlan, kurz, ei
     // Schulter und Brust, die Rumpfübung zuletzt. Grundübungen bleiben.
     const passt = (liste: typeof drin, minus = 0, plus = 0, iso = 0) => dauerMin(baue(liste, minus, Infinity, plus, iso)) <= wunsch.minuten;
     // Eine Fokusübung fällt als letzte Isolation weg, nach dem Rumpf.
-    const verzicht = (g: { platz: Platz }) => (imFokus(g.platz, wunsch.fokus) && VERZICHT[g.platz] > 0 ? 0.5 : VERZICHT[g.platz]);
+    const verzicht = (g: { platz: Platz }) =>
+      (vorlage.geschuetzt?.includes(g.platz) ? 0 : imFokus(g.platz, wunsch.fokus) && VERZICHT[g.platz] > 0 ? 0.5 : VERZICHT[g.platz]);
     while (!passt(drin) && drin.some((g) => verzicht(g) > 0) && drin.length > 3) {
       const raus = drin.reduce((a, b) => (verzicht(b) >= verzicht(a) ? b : a));
       drin = drin.filter((g) => g !== raus);
     }
-    const minus = passt(drin) ? 0 : 1;
+    let minus = passt(drin) ? 0 : 1;
+    let pauseMax = Infinity;
+    // Geschützte Plätze bleiben, auch wenn die Zeit knapp ist: erst kürzere
+    // Pausen, dann zwei Sätze je Übung. Passt es auch dann nicht, fällt die
+    // verzichtbarste Übung weg, denn eine Einheit, die nicht in die Zeit
+    // passt, wird nicht gemacht.
+    if (vorlage.geschuetzt && !passt(drin, minus)) {
+      const stufen: Array<[number, number]> = [[0, 120], [0, 90], [1, 90], [1, 75], [1, 60]];
+      const stufe = stufen.find(([m, pause]) => dauerMin(baue(drin, m, pause)) <= wunsch.minuten);
+      if (stufe) { minus = stufe[0]; pauseMax = stufe[1]; }
+      else {
+        minus = 1; pauseMax = 60;
+        while (dauerMin(baue(drin, minus, pauseMax)) > wunsch.minuten && drin.length > 3) {
+          const raus = drin.reduce((a, b) => (VERZICHT[b.platz] >= VERZICHT[a.platz] ? b : a));
+          drin = drin.filter((g) => g !== raus);
+        }
+      }
+    }
     // Zu kurz: Zusatzübungen in der Reihenfolge der Vorlage, solange sie
     // in die Zeit passen. Danach ein vierter Satz auf den Grundübungen,
     // wenn auch der noch passt, zuletzt ein dritter Satz auf der Isolation.
     // So wird eine Einheit von 90 Minuten auch 90 Minuten lang, und die
     // Reihenfolge bleibt: schwer zuerst, Isolation danach, Rumpf am Ende.
     // In der Entlastungswoche wird nicht aufgefüllt: sie soll kürzer sein.
-    const fuellen = minus === 0 && !wunsch.deload;
+    const fuellen = minus === 0 && pauseMax === Infinity && !wunsch.deload;
     if (fuellen) for (const z of zusatz) if (passt([...drin, z], minus)) drin.push(z);
     const plus = fuellen && passt(drin, 0, 1) ? 1 : 0;
     const iso = fuellen && passt(drin, 0, plus, 1) ? 1 : 0;
-    positionen = baue(drin, minus, Infinity, plus, iso);
+    positionen = baue(drin, minus, pauseMax, plus, iso);
   }
   for (const p of positionen) imPlan.set(p.id, (imPlan.get(p.id) ?? 0) + 1);
   // Fällt ein Platz weg, etwa die Kniebeuge bei Knieschmerzen, darf der
@@ -902,6 +1008,23 @@ export interface EinzelWunsch {
 export const EINZEL_TITEL = "Training für heute";
 
 /**
+ * Was zu einer Partie gehört, damit sie ganz getroffen ist, in der Reihenfolge
+ * der Schwere. Ein Platz mehrfach heisst: mehrere Übungen mit verschiedenem
+ * Reiz, gewählt über `reizVon`. Beine und Po bleiben bei ihren zwei
+ * Grundbewegungen, sonst wären 30 Minuten Beine keine Einheit mehr.
+ */
+const PFLICHT: Partial<Record<FokusGruppe, Platz[]>> = {
+  ruecken: ["ziehen_v", "ziehen_h"],
+  brust: ["druecken_h", "druecken_h"],
+  schultern: ["druecken_v", "seitlich", "hintere"],
+  bizeps: ["bizeps", "bizeps", "bizeps"],
+  trizeps: ["trizeps", "trizeps"],
+  arme: ["bizeps", "bizeps", "bizeps", "trizeps", "trizeps"],
+  beine: ["kniebeuge", "huefte"],
+  po: ["huefte"],
+};
+
+/**
  * Eine einzelne Einheit für heute, aus Zeit und den Partien, die diese Woche
  * noch fehlen. Für den Tag, an dem der Plan nicht passt: nur eine halbe
  * Stunde, und Push und Pull waren schon dran.
@@ -930,13 +1053,28 @@ export function einzeltrainingBauen(w: EinzelWunsch, uebungen: PlanUebung[]): Pl
   // "Pull mit Schultern" mit Schulterdrücken zurück, und ein Drücken hat an
   // einem Zugtag nichts verloren.
   const zugTag = gruppen.includes("ruecken") && !gruppen.includes("brust") && !gruppen.includes("trizeps");
-  const listen = ohneRumpf.map((g) => FOKUS_PLAETZE[g].filter((p) =>
-    !(drueckTag && p === "hintere") && !(zugTag && g === "schultern" && p !== "hintere")));
+  const erlaubtPlatz = (g: FokusGruppe, p: Platz) => !(drueckTag && p === "hintere") && !(zugTag && g === "schultern" && p !== "hintere");
+  const listen = ohneRumpf.map((g) => FOKUS_PLAETZE[g].filter((p) => erlaubtPlatz(g, p)));
   if (gruppen.includes("ruecken") && !gruppen.includes("schultern") && !drueckTag) listen.push(["hintere"]);
+  // Was zur ganzen Partie gehört, steht fest und fällt beim Kürzen nicht weg:
+  // Rücken ist Latissimus und oberer Rücken, Bizeps drei Reize, Brust Mitte
+  // und obere Brust. Welche Übung welchen Teil trifft, wählt `einheitBauen`
+  // über `reizVon`, die Plätze wiederholen sich dafür.
   const plaetze: Platz[] = [];
+  const geschuetzt: Platz[] = [];
+  // Je Platz die grösste Zahl, die eine Partie verlangt: Beine und Po teilen
+  // sich die Hüftübung und bekommen nicht zwei.
+  const noetig = new Map<Platz, number>();
+  for (const g of ohneRumpf) {
+    const pflicht = (PFLICHT[g] ?? [FOKUS_PLAETZE[g][0] as Platz]).filter((p) => erlaubtPlatz(g, p));
+    const zahl = new Map<Platz, number>();
+    for (const p of pflicht) zahl.set(p, (zahl.get(p) ?? 0) + 1);
+    for (const [p, n] of zahl) noetig.set(p, Math.max(noetig.get(p) ?? 0, n));
+  }
+  for (const [p, n] of noetig) { for (let i = 0; i < n; i++) plaetze.push(p); geschuetzt.push(p); }
+  if (gruppen.includes("ruecken") && !gruppen.includes("schultern") && !drueckTag) plaetze.push("hintere");
   const extra: Platz[] = [];
   const nehmen = (ziel: Platz[], p: Platz | undefined) => { if (p && !plaetze.includes(p) && !extra.includes(p)) ziel.push(p); };
-  for (const l of listen) nehmen(plaetze, l[0]);
   const tiefe = Math.max(0, ...listen.map((l) => l.length));
   for (let i = 1; i < tiefe; i++) for (const l of listen) nehmen(extra, l[i]);
   // Ein zweiter Durchgang mit denselben Plätzen und anderen Übungen, falls
@@ -953,18 +1091,16 @@ export function einzeltrainingBauen(w: EinzelWunsch, uebungen: PlanUebung[]): Pl
   // zwei Züge von oben und nur einen waagerecht. Eine Regel der App.
   const zweiter = (l: Platz[]) => (l[0] === "ziehen_v" && l.includes("ziehen_h") ? "ziehen_h" : l[0]);
   for (const l of [...listen].sort((a, b) => a.length - b.length)) if (l[0] && !einmal.has(l[0])) extra.push(zweiter(l) as Platz);
-  // Ein Armtag hat je Partie nur einen Platz. Nach zwei Durchgängen waren das
-  // vier Übungen, und 60 Minuten Arme endeten nach gut 30. Deshalb ein
-  // dritter Durchgang, wenn jede Partie nur einen Platz kennt: drei
-  // Bizepsübungen und drei Trizepsübungen, solange die Zeit reicht.
-  if (listen.length && listen.every((l) => l.length === 1)) for (const l of listen) if (l[0] && !einmal.has(l[0])) extra.push(l[0]);
+  // Ein Armtag hat dank der festen Plätze drei Bizeps und zwei Trizepsübungen,
+  // der zweite Durchgang füllt die Zeit. Ein dritter war nur nötig, als jede
+  // Partie einen Platz kannte.
   if (gruppen.includes("rumpf")) plaetze.push("rumpf");
   const wunsch: PlanWunsch = {
     tage: 1, minuten: w.minuten, niveau: w.niveau, ziel: w.ziel, ort: w.ort, beschwerden: w.beschwerden,
     meiden: w.meiden, fokus: w.fokus, variante: w.variante ?? 0,
   };
   const erlaubt = uebungen.filter((e) => RANG[e.level] <= RANG[w.niveau] && uebungErlaubt(e, wunsch));
-  const vorlage: Tagesvorlage = { titel: EINZEL_TITEL, fokus: gruppen.map((g) => FOKUS_NAME[g]).join(", "), plaetze, extra };
+  const vorlage: Tagesvorlage = { titel: EINZEL_TITEL, fokus: gruppen.map((g) => FOKUS_NAME[g]).join(", "), plaetze, extra, geschuetzt };
   const einheit = einheitBauen(vorlage, {
     wunsch, erlaubt, imPlan: new Map((w.zuletzt ?? []).map((id) => [id, 1])), kurz: false, einsteiger: w.niveau === "beginner", variante: w.variante ?? 0,
   });

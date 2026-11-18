@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { einheitHaeltZns, positionFuer } from "@daevo/core";
+import { abdeckungsLuecken, einheitHaeltZns, positionFuer, reizVon, uebungsplanBauen } from "@daevo/core";
 import { UEBUNGEN } from "./uebungen-daten.js";
 import { STANDARD_WUNSCH, aktualisierungHtml, planFuer, planPruefen, verlaufHtml } from "./plaene.js";
 import {
@@ -148,7 +148,7 @@ test("Der Verlauf zeigt gespeicherte Trainings mit Sätzen, neuestes zuerst", ()
 
 /* ---------- Fokus und Training für heute, gegen die echte Datenbank ---------- */
 
-import { einzeltrainingBauen, fehlendePartien, uebungsplanBauen, wocheTrainiert } from "@daevo/core";
+import { einzeltrainingBauen, fehlendePartien, wocheTrainiert } from "@daevo/core";
 import { heuteEinheit, heuteVorschlag } from "./plaene.js";
 
 const partieVon = (id) => {
@@ -270,13 +270,47 @@ test("Push ohne Curl und hintere Schulter, Pull mit hinterer Schulter und ohne T
   assert.ok(pull.positionen.some((p) => UEBUNGEN.find((u) => u.id === p.id).primaryMuscles.some((m) => /hintere Schulter/.test(m)) || p.id === "face-pull"));
 });
 
-test("60 Minuten Arme füllen die Zeit mit drei Bizeps und drei Trizepsübungen", () => {
+test("60 Minuten Arme füllen die Zeit und treffen alle Köpfe", () => {
   const e = einzeltrainingBauen({ minuten: 60, gruppen: ["bizeps", "trizeps"], niveau: "intermediate", ziel: "muskel" }, UEBUNGEN);
   const muster = e.positionen.map((p) => UEBUNGEN.find((u) => u.id === p.id).pattern);
-  assert.equal(muster.filter((m) => m === "elbow_flexion").length, 3);
-  assert.equal(muster.filter((m) => m === "elbow_extension").length, 3);
+  assert.ok(muster.filter((m) => m === "elbow_flexion").length >= 3);
+  assert.ok(muster.filter((m) => m === "elbow_extension").length >= 2);
   assert.equal(new Set(e.positionen.map((p) => p.id)).size, e.positionen.length, "keine Übung doppelt");
   assert.ok(e.dauerMin >= 45, `nur ${e.dauerMin} Minuten`);
+});
+
+test("Wer eine Partie nennt, bekommt sie ganz: Latissimus und oberer Rücken, alle Köpfe, obere Brust", () => {
+  const erwartet = { ruecken: ["lat", "oben"], bizeps: ["kurz", "lang", "brachialis"], trizeps: ["kurz", "lang"], brust: ["mitte", "oben"] };
+  for (const minuten of [30, 45, 60, 75, 90]) {
+    for (const gruppen of [["ruecken", "bizeps"], ["brust", "schultern", "trizeps"], ["ruecken"], ["bizeps", "trizeps"], ["brust"], ["ruecken", "bizeps", "schultern"]]) {
+      // Drei Partien mit je zwei bis drei Übungen passen in 30 Minuten nicht.
+      if (minuten < 45 && gruppen.length > 2) continue;
+      const e = einzeltrainingBauen({ minuten, gruppen, niveau: "intermediate", ziel: "muskel" }, UEBUNGEN);
+      const reize = {};
+      for (const p of e.positionen) { const r = reizVon(nachId.get(p.id)); if (r) (reize[r.familie] ??= new Set()).add(r.reiz); }
+      for (const g of gruppen) for (const f of Object.keys(erwartet).filter((k) => k === g)) {
+        for (const r of erwartet[f]) assert.ok(reize[f]?.has(r), `${minuten}/${gruppen}: ${f} ohne ${r}: ${e.positionen.map((p) => p.id)}`);
+      }
+      assert.ok(e.dauerMin <= minuten + 5, `${minuten}/${gruppen}: ${e.dauerMin}`);
+    }
+  }
+});
+
+test("Fehlt einer selbst diktierten Einheit ein Teil des Muskels, sagt die App es und ändert nichts", () => {
+  const luecken = abdeckungsLuecken(["t-bar-rudern", "face-pull", "incline-curl", "curl-kabel-liegend"], UEBUNGEN);
+  assert.ok(luecken.includes("Latissimus"), luecken.join(","));
+  assert.ok(!luecken.includes("oberer Rücken"));
+  assert.ok(luecken.includes("Brachialis"));
+  assert.ok(!luecken.includes("langer Kopf des Bizeps"));
+  assert.deepEqual(abdeckungsLuecken(["bankdruecken"], UEBUNGEN), ["obere Brust"]);
+  // Ohne Bizeps in der Einheit gibt es keine Lücke im Bizeps.
+  assert.deepEqual(abdeckungsLuecken(["kniebeuge-langhantel"], UEBUNGEN), []);
+});
+
+test("Über die Woche kommen alle Köpfe des Bizeps vor", () => {
+  const plan = uebungsplanBauen({ tage: 5, minuten: 75, niveau: "intermediate", ziel: "muskel" }, UEBUNGEN);
+  const koepfe = new Set(plan.einheiten.flatMap((e) => e.positionen).map((p) => reizVon(nachId.get(p.id))).filter((r) => r?.familie === "bizeps").map((r) => r.reiz));
+  assert.deepEqual([...koepfe].sort(), ["brachialis", "kurz", "lang"]);
 });
 
 test("Pull mit Schultern ist ein Zugtag: kein Drücken, nur die hintere Schulter", () => {
