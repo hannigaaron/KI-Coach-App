@@ -83,7 +83,7 @@ import { anteilAmZiel, eigeneLebensmittel, eigeneSuche, eigenerPosten, lebensmit
 import { abschlussDaten, abschlussHtml, storyTeilen } from "./abschluss.js";
 import { bewegungStarten, wischenZumLoeschen, zahlenZaehlen, zeileRaus } from "./bewegung.js";
 import { einwilligungOffen, einwilligungSetzen, einwilligungText, kiErlaubt } from "./einwilligung.js";
-import { ABO_STUFEN, ABO_TAKTE, aboPreis, ersparnisProzent, aboAnlass, aboAnlassLeer, aboLeiste, aboLink, kontoLoeschen, kontoSicherstellen, kontoStand, kontoText } from "./konto.js";
+import { ABO_STUFEN, ABO_TAKTE, aboPreis, ersparnisProzent, aboAnlass, aboAnlassLeer, aboLeiste, aboLink, kontoLoeschen, kontoSicherstellen, kontoStand, kontoText, sperreFuer } from "./konto.js";
 
 const $ = (id) => document.getElementById(id);
 const WEEKDAYS = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
@@ -504,6 +504,8 @@ async function send(text, { vonUhr = false } = {}) {
       mitteilungenNativ();
     }
     if (reply.fehlerArt === "kontingent") {
+      // Ein Kontingent von null heisst: gesperrt. Der Server sagt es.
+      sperrePruefen().catch(() => {});
       const anlass = aboAnlassLeer(store.getSettings().aboHinweise, Date.now(), reply.modus);
       if (anlass) setTimeout(() => aboOeffnen(anlass), 700);
     }
@@ -6677,12 +6679,12 @@ function aboStufenZeigen() {
   $("aboKaufen").textContent = aboAnlassJetzt?.testphase ? `${aboAnlassJetzt.knopf}, danach ${p.preis} ${p.zeitraum}` : `${s.name} holen, ${p.preis} ${p.zeitraum}`;
   $("aboKaufen").hidden = !link && !(istNativ() && KONFIG.chatUrl);
   $("aboHinweis").textContent = aboAnlassJetzt?.testphase
-    ? `Die ersten 7 Tage kosten nichts. Ab Tag 8 ${p.preis} ${p.zeitraum}, bis Tag 7 kostenlos kündbar${istNativ() ? " in den Einstellungen deiner Apple ID" : " über den Link in der Bestätigungsmail"}. Ohne Abo läuft alles weiter, was keine KI braucht.`
+    ? `Die ersten 7 Tage kosten nichts. Ab Tag 8 ${p.preis} ${p.zeitraum}, bis Tag 7 kostenlos kündbar${istNativ() ? " in den Einstellungen deiner Apple ID" : " über den Link in der Bestätigungsmail"}.`
     : istNativ()
-    ? "Abgerechnet über deine Apple ID, kündbar in deren Einstellungen. Alles ohne KI bleibt in jeder Stufe frei."
+    ? "Abgerechnet über deine Apple ID, kündbar in deren Einstellungen."
     : aboTakt === "jahr"
-      ? "Einmal im Jahr abgerechnet. Das Kontingent an Nachrichten gilt je Monat. Alles ohne KI bleibt in jeder Stufe frei."
-      : "Monatlich abgerechnet. Alles ohne KI bleibt in jeder Stufe frei: Essen eintragen, Pläne, Erinnerungen, Balance Board.";
+      ? "Einmal im Jahr abgerechnet. Das Kontingent an Nachrichten gilt je Monat."
+      : "Monatlich abgerechnet, jederzeit kündbar.";
 }
 
 let aboAnlassJetzt = null;
@@ -6693,7 +6695,12 @@ function aboOeffnen(anlass = null) {
   aboWahl = anlass?.empfohlen || "plus";
   $("aboMarke").textContent = anlass?.marke || "Plus und Pro";
   $("aboTitel").textContent = anlass?.titel || "Deinen Coach freischalten";
-  $("aboSpaeter").textContent = anlass?.testphase ? "Erst ohne KI umsehen" : "Später";
+  $("aboSpaeter").textContent = "Später";
+  // Gesperrt: kein Kreuz, kein Später, kein Tipp daneben. Weg geht es nur
+  // über ein Abo.
+  $("aboBlatt").classList.toggle("gesperrt", Boolean(anlass?.gesperrt));
+  $("aboSperrLinks").hidden = !anlass?.gesperrt;
+  $("aboWiederherstellen").hidden = !(anlass?.gesperrt && (istNativ() || KONFIG.chatUrl));
   $("aboText").textContent = anlass?.text || "Mit Abo denkt daevo mit: Fotos auswerten, deinen Tag planen, mit dir reden.";
   aboStufenZeigen();
   aboMerken(anlass?.merken);
@@ -6703,6 +6710,7 @@ function aboOeffnen(anlass = null) {
 }
 
 function aboSchliessen() {
+  if (gesperrtJetzt) return;
   $("aboBlatt").hidden = true;
   document.body.classList.remove("blatt-offen");
   aboAnlassJetzt = null;
@@ -6720,6 +6728,60 @@ function aboFensterZu() {
 $("aboSchliessen").addEventListener("click", aboSchliessen);
 $("aboSpaeter").addEventListener("click", aboSchliessen);
 $("aboBlatt").addEventListener("click", (event) => { if (event.target === $("aboBlatt")) aboSchliessen(); });
+
+/* ---------- Die Sperre ---------- */
+
+var gesperrtJetzt = false;
+
+const SPERR_ANLASS = {
+  frei: { marke: "Testphase vorbei", titel: "Mach mit daevo weiter", text: "Deine Testphase ist zu Ende. Mit Plus oder Pro geht es genau dort weiter, wo du aufgehört hast. Deine Daten bleiben erhalten." },
+  start: { marke: "7 Tage kostenlos", titel: "Starte deine Testphase", text: "Du schließt das Abo jetzt ab und zahlst erst ab Tag 8. Kündigst du bis Tag 7, kostet es nichts.", knopf: "7 Tage gratis testen", testphase: true },
+  abgelaufen: { marke: "Abo abgelaufen", titel: "Dein Abo ist abgelaufen", text: "Mit Plus oder Pro geht es genau dort weiter, wo du aufgehört hast. Deine Daten bleiben erhalten." },
+};
+
+function sperreSetzen(sperre) {
+  const aktiv = Boolean(sperre);
+  // Alles ausser dem Abo Fenster wird für Tastatur und Hilfstechnik stillgelegt.
+  for (const kind of $("app").children) if (kind.id !== "aboBlatt") kind.inert = aktiv;
+  if (aktiv) {
+    gesperrtJetzt = false;
+    aboOeffnen({ ...SPERR_ANLASS[sperre.grund], gesperrt: true });
+    gesperrtJetzt = true;
+  } else if (gesperrtJetzt) {
+    gesperrtJetzt = false;
+    aboSchliessen();
+  }
+}
+
+/** Fragt den Server und sperrt oder gibt frei. Ohne Netz gilt der letzte Stand. */
+async function sperrePruefen(stand) {
+  if (!KONFIG.chatUrl) return null;
+  const s = stand ?? await kontoStand();
+  sperreSetzen(sperreFuer(s, store.getSettings(), todayIso()));
+  return s;
+}
+
+$("aboWiederherstellen").addEventListener("click", async () => {
+  const knopf = $("aboWiederherstellen");
+  knopf.disabled = true;
+  if (istNativ()) await abosAbgleichen().catch(() => null);
+  const s = await kontoStand();
+  knopf.disabled = false;
+  if (s?.fehler) { toast(s.fehler, 5000); return; }
+  await sperrePruefen(s);
+  if (gesperrtJetzt) toast("Zu diesem Konto gehört kein aktives Abo.", 5000);
+  else { toast("Abo gefunden. Willkommen zurück."); kontoStand().then(aboLeisteZeigen).catch(() => {}); }
+});
+$("aboDatenSichern").addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(store.exportAll(), null, 2)], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `daevo-sicherung-${todayIso()}.json`;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+$("aboKontoLoeschen").addEventListener("click", () => $("btnReset").click());
 $("btnAboZeigen").addEventListener("click", () => aboOeffnen());
 $("aboKaufen").addEventListener("click", async () => {
   if (istNativ()) {
@@ -6731,7 +6793,9 @@ $("aboKaufen").addEventListener("click", async () => {
     if (r.fehler) { toast(r.fehler, 6000); return; }
     if (r.wartet) toast("Der Kauf wartet auf eine Freigabe, etwa durch die Familienfreigabe.", 6000);
     else toast(aboAnlassJetzt?.testphase ? "Testphase läuft. Viel Spaß mit daevo." : "Abo aktiv.");
-    aboSchliessen();
+    // Gesperrt schliesst das Fenster nur der Server: erst wenn er das Abo
+    // kennt, geht die App auf.
+    if (gesperrtJetzt) await sperrePruefen(); else aboSchliessen();
     kontoStand().then(aboLeisteZeigen).catch(() => {});
     return;
   }
@@ -6764,6 +6828,9 @@ async function aboBeimStart() {
   if (istNativ()) await abosAbgleichen().catch(() => null);
   const stand = await kontoStand();
   aboLeisteZeigen(stand);
+  // Ohne Testphase und ohne Abo ist die App zu. Das geht allem anderen vor.
+  await sperrePruefen(stand);
+  if (gesperrtJetzt) return;
   // Startet die Testphase erst mit dem Abo, kommt das Fenster direkt nach
   // dem Fragebogen und vor der Einführung.
   const start = startAnlass(stand, store.getSettings().aboHinweise);
@@ -7337,6 +7404,8 @@ document.addEventListener("visibilitychange", () => {
   // Nach Mitternacht wandert eine Seite, die auf heute stand, mit.
   if (current !== day) { if (heuteTag === day) heuteTag = current; day = current; }
   refreshAll();
+  // Die Testphase endet auch, während die App im Hintergrund liegt.
+  sperrePruefen().catch(() => {});
 });
 
 applyTheme(store.getSettings().theme || "system");

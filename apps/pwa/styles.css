@@ -3429,6 +3429,11 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 }
 .abo-knopf:active { transform: scale(.98); }
 .abo-klein { margin: 0; text-align: center; color: rgba(255, 255, 255, .6); font-size: 14px; line-height: 1.45; }
+.abo-blatt.gesperrt { z-index: 94; }
+.abo-blatt.gesperrt .abo-x, .abo-blatt.gesperrt .abo-spaeter { display: none; }
+.abo-sperrlinks { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 6px; margin-top: 4px; }
+.abo-sperrlinks button { border: 0; background: none; color: rgba(255, 255, 255, .6); font-size: 14px; padding: 8px 10px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.abo-sperrlinks span { flex-basis: 100%; display: flex; justify-content: center; flex-wrap: wrap; }
 .abo-spaeter { align-self: center; border: 0; background: none; color: rgba(255, 255, 255, .6); font-size: 15px; padding: 8px 16px; cursor: pointer; }
 
 /* Die Leiste auf dem Start. Eine Textzeile ohne Kasten und ohne Fläche:

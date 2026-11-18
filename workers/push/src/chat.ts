@@ -161,7 +161,7 @@ export async function chatWeiterreichen(
     const grund = kontingentPruefen(stufe, folge ? { ...stand, nachrichten: 0 } : stand);
     // 402 und nicht 429: ein erneuter Versuch hilft hier nicht, erst der
     // nächste Monat oder eine andere Stufe.
-    if (grund) return fehlerAntwort(402, grund, "kontingent");
+    if (grund) return fehlerAntwort(402, grund, stufe === "frei" ? "gesperrt" : "kontingent");
     const proStunde = await zaehlen(env.ABOS, `chat.konto.${stunde}.${gefunden.konto.id}`, KONTO_STUNDENGRENZE, 60 * 70);
     if (!proStunde.erlaubt) return fehlerAntwort(429, "Zu viele Anfragen in dieser Stunde. Probier es gleich nochmal.");
   }

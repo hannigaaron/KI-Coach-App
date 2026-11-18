@@ -6,8 +6,8 @@ Betreiber in den Konten bei Apple, Google, Stripe und Cloudflare anlegen.
 ## 1. Testphase erst mit Abo
 
 Der Worker kennt zwei Formen. Ohne Einstellung bekommt jedes neue Konto
-sieben Tage KI ohne Abo, wie bisher. Mit `TESTPHASE=abo` startet ein neues
-Konto ohne KI, und die sieben Tage beginnen mit dem abgeschlossenen Abo.
+sieben Tage ohne Abo, danach ist die App gesperrt, bis ein Abo da ist. Mit
+`TESTPHASE=abo` startet ein neues Konto gesperrt, und die sieben Tage beginnen mit dem abgeschlossenen Abo.
 Der Nutzer zahlt ab Tag 8 und kann bis Tag 7 kostenlos kündigen.
 
 Erst einschalten, wenn App Store oder Stripe wie unten eingerichtet sind.

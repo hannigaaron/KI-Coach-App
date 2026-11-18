@@ -981,7 +981,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1452 Tests
+npm test           # 1456 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -4074,9 +4074,10 @@ keiner, und die App legt nach der Ablehnung über `kontoStand` ein neues an.
 ### Testphase und Abo
 
 Jedes neue Konto hat sieben Tage Testphase, Stufe `test` mit `bis`. Danach
-fällt es auf `frei`, und `frei` heisst: keine KI, aber alles ohne Modell. Das
-ist eine harte Paywall und eine Entscheidung des Betreibers. Der Regelweg
-bleibt in jeder Stufe frei, denn er kostet nichts. Preise: Plus 11,99 Euro,
+fällt es auf `frei`, und `frei` heisst: gesperrt. Das ist eine harte Paywall
+und eine Entscheidung des Betreibers: ohne Testphase und ohne Abo lässt sich
+die App gar nicht mehr benutzen, auch nicht ohne KI. Der Regelweg ist damit
+kein freies Angebot mehr, sondern Teil des Abos. Preise: Plus 11,99 Euro,
 Pro 19,99 Euro im Monat, oder jährlich 99,99 und 159,99 Euro. Das Jahr
 spart bei Plus 30 und bei Pro 33 Prozent und ist im Abo Fenster vorgewählt.
 Plus kostete vorher 9,99 und 79,99 Euro mit 7 Dollar Budget. Nachgerechnet
@@ -4140,8 +4141,37 @@ eingerichtet sind, sonst kann niemand die Testphase starten. Schritte in
 `docs/ABO-EINRICHTEN.md`.
 
 Das Fenster dazu kommt direkt nach dem Fragebogen, `startAnlass` in
-`apps/pwa/js/kauf.js`, und die Einführung wartet, bis es zu ist. Ein Ausweg
-"Erst ohne KI umsehen" bleibt: alles ohne Modell ist in jeder Stufe frei.
+`apps/pwa/js/kauf.js`, und die Einführung wartet, bis es zu ist. Einen
+Ausweg gibt es nicht mehr, siehe "Die Sperre".
+
+### Die Sperre
+
+`sperreFuer` in `apps/pwa/js/konto.js`, `sperrePruefen` und `sperreSetzen` in
+`app.js`. Ist die Stufe `frei`, also nach der Testphase oder einem
+abgelaufenen Abo, öffnet sich das Abo Fenster als Vollbild ohne Kreuz und ohne
+"Später", ein Tipp daneben tut nichts, und alles dahinter ist `inert`. Der
+Server meldet `gesperrt` an `GET /konto`, und `/chat` antwortet einem
+`frei` Konto mit 402 und der Art `gesperrt`, ohne Anthropic zu fragen.
+
+Geprüft wird beim Start, beim Zurückholen der App und nach einer Nachricht,
+die am Kontingent scheitert. Ohne Netz gilt der letzte Stand aus
+`settings.kontoStufe` und `kontoBis`: war er `frei`, bleibt es zu, eine Stufe
+mit Ende gilt einen Tag darüber hinaus, denn eine Verlängerung kommt manchmal
+Stunden später an. Ein Gerät ohne bekannten Stand wird nicht gesperrt, dort
+gibt es nichts zu schützen, und das Konto entsteht ohnehin erst mit Netz.
+
+Ohne `chatUrl` gibt es keine Sperre: die Entwicklerfassung mit eigenem
+Schlüssel und die Demo ohne Konto haben nichts, was ablaufen könnte. Wer die
+Fassung für Nutzer baut, hat sie immer.
+
+Erreichbar bleibt in der Sperre, was jemand ohne Abo braucht: Kauf, Kauf
+wiederherstellen, die Daten sichern, das Konto löschen (Apple verlangt es in
+der App) und die Rechtstexte. Ein Konto, dessen Testphase mit dem Abo
+beginnt und das noch nie ein Abo hatte, sieht "Starte deine Testphase" statt
+"Testphase vorbei". Die Sperre fällt erst, wenn der Server das Abo kennt, nicht
+schon nach dem Tipp auf Kaufen. Offen: Postfach, Gesundheits Kurzbefehl und
+Aufträge laufen am Gerät vorbei auf dem Worker und prüfen kein Konto, sie
+tragen nur Zahlen oder feste Texte.
 
 App Store: `AboPlugin.swift` mit StoreKit 2. Jede Transaktion geht als JWS
 an `/appstore`, `workers/push/src/apple-jws.ts` prüft die Kette gegen die

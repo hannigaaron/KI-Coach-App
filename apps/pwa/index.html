@@ -541,6 +541,17 @@ try {
         <button id="aboKaufen" class="abo-knopf">Plus holen</button>
         <p id="aboHinweis" class="abo-klein"></p>
         <button id="aboSpaeter" class="abo-spaeter">Später</button>
+        <!-- Nur bei gesperrter App. Was jemand ohne Abo trotzdem erreichen
+             muss: das Abo zurückholen, die eigenen Daten mitnehmen, das Konto
+             löschen (Apple verlangt das in der App) und die Rechtstexte. -->
+        <div id="aboSperrLinks" class="abo-sperrlinks" hidden>
+          <button id="aboWiederherstellen" type="button">Kauf wiederherstellen</button>
+          <button id="aboDatenSichern" type="button">Meine Daten sichern</button>
+          <button id="aboKontoLoeschen" type="button">Konto löschen</button>
+          <span><button type="button" data-recht="datenschutz">Datenschutz</button>
+          <button type="button" data-recht="nutzungsbedingungen">Bedingungen</button>
+          <button type="button" data-recht="impressum">Impressum</button></span>
+        </div>
       </div>
     </div>
   </div>

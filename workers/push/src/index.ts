@@ -136,6 +136,9 @@ export default {
             ok: true,
             id: gefunden.konto.id,
             stufe,
+            // Die App sperrt sich daran. Eine Stufe ohne Kontingent ist keine
+            // Stufe mit weniger, sondern ohne Abo.
+            gesperrt: stufe === "frei",
             name: s.name,
             bis: gefunden.konto.bis ?? null,
             login: gefunden.konto.login ?? null,
