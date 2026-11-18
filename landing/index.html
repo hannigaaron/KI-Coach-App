@@ -771,6 +771,14 @@ html:not(.bewegt) .saeule { min-height: 0; }
 .saetze h3 b { font-weight: 600; color: var(--blau); }
 .saetze p { margin: 0; color: var(--nebel); font-weight: 400; font-size: 17px; max-width: 52ch; }
 
+.gewohnheit { padding-block: clamp(80px, 10vw, 140px); border-top: 1px dashed var(--linie); }
+.gewohnheit h2 { font-size: clamp(48px, 7vw, 104px); }
+.gewohnheit-kopf { display: grid; gap: 20px; margin-bottom: clamp(32px, 5vw, 56px); }
+@media (min-width: 900px) { .gewohnheit-kopf { grid-template-columns: 1fr 1fr; align-items: end; } }
+.gewohnheit-kopf p { margin: 0; color: var(--nebel); font-size: 18px; max-width: 44ch; font-weight: 400; }
+.fokus-liste { list-style: none; margin: 0 0 clamp(32px, 5vw, 56px); padding: 0; display: flex; flex-wrap: wrap; gap: 10px; }
+.fokus-liste li { padding: 12px 20px; border-radius: 999px; background: var(--glas); box-shadow: inset 0 0 0 1px var(--haar); font-family: var(--etikett); font-weight: 600; font-size: 16px; letter-spacing: -.01em; }
+
 /* ---------- Ablauf und Schluss ---------- */
 .ablauf { padding-block: 0 clamp(80px, 10vw, 140px); }
 .schritte { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); }
@@ -816,6 +824,7 @@ footer { border-top: 1px dashed var(--linie); padding-block: 36px 48px; color: v
     <a href="#kalender">Kalender</a>
     <a href="#balance">Balance</a>
     <a href="#alles">Alles</a>
+    <a href="#gewohnheiten">Gewohnheiten</a>
     <a href="#preise">Preise</a>
     <a class="kopf-demo" href="https://daevo.pages.dev" target="_blank" rel="noopener">Demo</a>
   </nav>
@@ -1223,6 +1232,29 @@ footer { border-top: 1px dashed var(--linie); padding-block: 36px 48px; color: v
           <p>Kleine Schritte, jeden Tag. daevo zeigt dir, was sie bewirken. Woche für Woche wird dein Alltag ruhiger, klarer und ein Stück mehr deiner.</p>
         </div>
       </div>
+    </div>
+  </section>
+
+  <section class="gewohnheit" id="gewohnheiten">
+    <div class="innen">
+      <span class="augenbraue auf">Gewohnheiten</span>
+      <div class="gewohnheit-kopf">
+        <h2 class="display auf">Routinen,<br><span class="blau">die bleiben.</span></h2>
+        <p class="auf">daevo hilft dir, Gewohnheiten zu verändern und nachhaltig aufzubauen. Du entscheidest, worauf der Fokus liegt. daevo coacht dich dort, Tag für Tag.</p>
+      </div>
+      <ul class="fokus-liste auf" aria-label="Bereiche, in denen daevo dich coacht">
+        <li>Gewohnheiten ändern</li>
+        <li>Fitness</li>
+        <li>Schlaf</li>
+        <li>Ernährung</li>
+        <li>Struktur und Disziplin</li>
+      </ul>
+      <ul class="saetze">
+        <li class="auf"><h3>Erinnere dich <b>selbst.</b></h3><p>Stell dir eigene Erinnerungen ein, zum Beispiel für Tabletten, Supplemente oder die Abendroutine. Mit fester Uhrzeit oder passend zu deinem Tag, etwa eine Stunde vor dem Schlafen.</p></li>
+        <li class="auf"><h3>Du bestimmst, <b>wie oft.</b></h3><p>Einmalig, täglich oder nur an bestimmten Wochentagen. Jede Erinnerung kommt als Mitteilung und lässt sich direkt beantworten.</p></li>
+        <li class="auf"><h3>Dein Fokus. <b>Dein Coach.</b></h3><p>Rundum Gewohnheiten ändern, Fitness, Schlaf, Ernährung oder mehr Struktur und Disziplin im Alltag. daevo richtet sein Coaching danach aus.</p></li>
+        <li class="auf"><h3>Routinen <b>erlernen.</b></h3><p>Mindeststandards, Check-ins und die Abendroutine machen aus guten Vorsätzen feste Abläufe. Wenn eine Routine reißt, fragt daevo nach, was dazwischen kam, ohne Vorwurf.</p></li>
+      </ul>
     </div>
   </section>
 
