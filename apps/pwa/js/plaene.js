@@ -322,12 +322,13 @@ export function planKopfHtml(plan, { woche, naechste, kurz = false }) {
 }
 
 /** Ohne gespeicherten Plan: was der Plan ist und ein Knopf, der ihn anlegt. */
-export function planEinstiegHtml() {
+export function planEinstiegHtml({ profilText = "" } = {}) {
   return `<div class="pl-plankopf pl-einstieg">
     <p class="pl-ueber">Dein Trainingsplan</p>
     <h3>Ein Plan, der zu deinem Alltag passt</h3>
     <p>Sag daevo, wie oft und wie lange du trainierst, wo und was dir wichtig ist. Daraus rechnet daevo deinen Plan für die nächsten zwölf Wochen. Er bleibt gespeichert, und jedes Training startet mit deinen Gewichten, Wiederholungen und RIR vom letzten Mal.</p>
-    <button type="button" class="primary breit" data-pl-anpassen>Plan erstellen</button>
+    ${profilText ? `<button type="button" class="primary breit" data-pl-profil>Plan aus meinen Daten anlegen</button><p class="pl-ueber">${profilText}</p>` : ""}
+    <button type="button" class="${profilText ? "pl-knopf breit" : "primary breit"}" data-pl-anpassen>${profilText ? "Plan selbst einstellen" : "Plan erstellen"}</button>
   </div>`;
 }
 
@@ -605,7 +606,7 @@ export function zeilenZiehen(behaelter, anwenden, spuer = () => {}) {
 export function plaeneStarten({
   speicher, kurz: kurzSpeicher = { lesen: () => null, schreiben: () => {} }, woche: wocheSpeicher = { lesen: () => null, schreiben: () => {} },
   oeffne, melde, starte = () => {}, frei = () => {}, starteEinheit = () => {}, log = () => [], heute = () => new Date().toISOString().slice(0, 10),
-  heuteBestellt = () => null, abschluss = () => {}, ansehen = () => {}, mitwachsen = () => true, proOeffnen = () => {}, zuModus = () => {},
+  profilWunsch = () => null, heuteBestellt = () => null, abschluss = () => {}, ansehen = () => {}, mitwachsen = () => true, proOeffnen = () => {}, zuModus = () => {},
 }) {
   // Acht Wochen um: Fortschritt prüfen, bevor irgendetwas gezeigt wird. Den
   // Plan, der mitwächst, gibt es mit Pro. Ohne Pro bleibt der Plan, wie er
@@ -678,7 +679,7 @@ export function plaeneStarten({
         + `<div class="pl-update-knoepfe"><button type="button" class="pl-mini" data-pro-anpassung>Pro ansehen</button></div></div>`
       : aktualisierungHtml(gespeichert, heute());
     if (!plan) {
-      $("plStart").innerHTML = planEinstiegHtml();
+      $("plStart").innerHTML = planEinstiegHtml({ profilText: profilWunsch()?.text ?? "" });
       $("plEinheiten").innerHTML = "";
       $("plStress").innerHTML = "";
     } else {
@@ -898,6 +899,21 @@ export function plaeneStarten({
   /** Klicks auf Kopf, Einheiten und Kurzplan, alle auf "Mein Plan". */
   const planKlick = (event) => {
     if (event.target.closest("[data-pl-anpassen]")) { zuModus("anpassen"); return; }
+    // Ein Tipp legt den Plan aus Krafttagen und Dauer im Profil an und
+    // speichert ihn. Anpassen bleibt der Weg, ihn danach zu ändern.
+    if (event.target.closest("[data-pl-profil]")) {
+      const aus = profilWunsch();
+      if (!aus) { zuModus("anpassen"); return; }
+      const w = wunschPruefen({ ...wunsch, ...aus.wunsch });
+      const neuerPlan = { ...planFuer(w), beginn: heute(), gespeichertAm: new Date().toISOString() };
+      speicher.schreiben(neuerPlan);
+      gespeichert = gespeicherterPlan(speicher.lesen());
+      entwurf = gespeichert;
+      wunsch = wunschPruefen(gespeichert.wunsch);
+      zeichnen();
+      melde("Dein Plan steht für zwölf Wochen. Unter Anpassen änderst du ihn.");
+      return;
+    }
     const kurzStart = event.target.closest("[data-kurz-start]");
     if (kurzStart) {
       const e = kurzplan?.einheiten[Number(kurzStart.dataset.kurzStart)];

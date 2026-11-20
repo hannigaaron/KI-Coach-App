@@ -3428,6 +3428,17 @@ const training = trainingStarten({
 });
 const plaene = plaeneStarten({
   speicher: planSpeicher,
+  // Krafttage und Dauer aus dem Profil. Wer den Fragebogen vor dem Plan
+  // beendet hat, hat Trainingstage, aber keinen gespeicherten Plan.
+  profilWunsch: () => {
+    const kraft = (store.getProfile()?.sessions || []).filter((x) => x.type === "strength");
+    if (!kraft.length) return null;
+    const tage = Math.min(5, new Set(kraft.map((x) => x.weekday)).size);
+    const dauer = kraft.map((x) => Number(x.minutes)).filter((n) => n > 0).sort((p, q) => p - q);
+    const mitte = dauer.length ? dauer[Math.floor(dauer.length / 2)] : 60;
+    const minuten = [30, 45, 60, 75, 90].reduce((b, m) => (Math.abs(m - mitte) < Math.abs(b - mitte) ? m : b), 60);
+    return { wunsch: { tage, minuten }, text: `${tage} Krafttage pro Woche, ${minuten} Minuten, wie in deinem Profil.` };
+  },
   // Der Kurzplan für stressige Wochen und ob er diese Woche gilt. Beides in
   // den Einstellungen und damit in der Sicherung.
   kurz: { lesen: () => store.getSettings().planKurz ?? null, schreiben: (planKurz) => { store.setSettings({ ...store.getSettings(), planKurz }); uhrSpaeter(); } },

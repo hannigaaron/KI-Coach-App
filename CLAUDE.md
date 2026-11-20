@@ -427,8 +427,11 @@ Einheit nach der zuletzt gemachten, über den Titel, im Kreis. Ein Plan
 läuft `PLAN_WOCHEN`, zwölf Wochen, ab `beginn`, eine Regel von Coach
 Aaron: Fortschritt zeigt sich nur an einem Plan, den man durchzieht. Danach
 sagt der Kopf, dass die zwölf Wochen um sind, und verweist auf Anpassen.
-Ohne Plan steht `planEinstiegHtml` da, eine Einführung mit "Plan
-erstellen". Die Felder im Training bleiben mit Kilo, Wiederholungen und RIR
+Ohne Plan steht `planEinstiegHtml` da, eine Einführung. Hat das Profil Krafttage,
+legt "Plan aus meinen Daten anlegen" (`profilWunsch` in `app.js`, Tage und
+mittlere Dauer) den Plan mit einem Tipp an und speichert ihn, "Plan selbst
+einstellen" führt zu Anpassen. Wer den Fragebogen vor dem Plan beendet hat,
+hatte Trainingstage und keinen Plan. Die Felder im Training bleiben mit Kilo, Wiederholungen und RIR
 vom letzten Mal vorbelegt wie bisher. Änderungen über Bearbeiten speichern
 sofort, Fertig schliesst nur.
 
