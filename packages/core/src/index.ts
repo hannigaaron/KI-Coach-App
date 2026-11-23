@@ -52,3 +52,4 @@ export * from "./wochentraining.js";
 export * from "./zyklus.js";
 export * from "./wochenrueckblick.js";
 export * from "./essensverlauf.js";
+export * from "./gedenktage.js";

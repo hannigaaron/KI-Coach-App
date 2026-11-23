@@ -4606,6 +4606,13 @@ async function zielKalenderZeigen() {
     .join("");
 }
 
+$("btnKalAlle").addEventListener("click", async () => {
+  const s = store.getSettings();
+  store.setSettings({ ...s, kalenderAlle: !s.kalenderAlle });
+  await kalenderAbgleichen({ zwang: true });
+  refreshAll();
+});
+
 function renderKalender() {
   renderTodoist();
   $("kalTag").value = kalenderTag;
@@ -4614,6 +4621,17 @@ function renderKalender() {
   $("btnAppleKalender").hidden = Boolean(sync.appleKalender);
   $("kalKonten").textContent = sync.appleKalender ? kontenText(sync.kalenderKonten) : "";
   zielKalenderZeigen();
+  // Welcher Kalender gelesen wird. Ohne die Zeile wüsste niemand, warum ein
+  // Termin aus dem alten iCloud Kalender nicht mehr im Briefing steht.
+  const ue = sync.kalenderUebersicht;
+  const mehrere = Boolean(sync.appleKalender && (sync.kalenderAlle || ue?.ignoriert?.length));
+  $("kalHaupt").textContent = !sync.appleKalender || !ue ? ""
+    : sync.kalenderAlle ? "daevo liest alle Kalender auf deinem iPhone."
+    : ue.haupt ? `daevo liest ${ue.haupt.name} mit ${ue.haupt.anzahl} Terminen, den Kalender, den du am meisten nutzt. `
+      + `Nicht gelesen: ${ue.ignoriert.map((z) => `${z.name} (${z.anzahl})`).join(", ")}. Geburtstage und Feiertage laufen separat.`
+    : "";
+  $("btnKalAlle").hidden = !mehrere;
+  $("btnKalAlle").textContent = sync.kalenderAlle ? "Nur den meistgenutzten Kalender lesen" : "Alle Kalender lesen";
   $("btnKalAbgleich").hidden = !(sync.appleKalender || kalenderAbos(sync).length);
 
   const stand = kalenderStand();
@@ -4659,11 +4677,12 @@ function renderKalender() {
     ? `${uhrzeit(a.fokusblock.von)} bis ${uhrzeit(a.fokusblock.bis)}, ${kurzDauer(a.fokusblock.minuten)}`
     : "keiner";
 
-  fuelleListe("kalListe", [...a.ganztags, ...a.termine].map((t) => ({
+  const geburtstage = (a.geburtstage || []).map((n) => ({ titel: `${n} hat Geburtstag`, sub: "ganztägig", seite: "" }));
+  fuelleListe("kalListe", [...geburtstage, ...[...a.ganztags, ...a.termine].map((t) => ({
     titel: t.titel,
     sub: t.ganztags ? "ganztägig" : `${uhrzeit(t.von)} bis ${uhrzeit(t.bis)}${t.ort ? `, ${t.ort}` : ""}`,
     seite: t.quelle || "",
-  })), "Keine Termine an diesem Tag.");
+  }))], "Keine Termine an diesem Tag.");
 
   essenZeichnen(kalenderTag);
 
@@ -4782,10 +4801,13 @@ function briefingZeichnen() {
   }
   if (vorbei > 0) html += `<p class="kb-vorbei">${vorbei} ${vorbei === 1 ? "Punkt ist" : "Punkte sind"} heute schon vorbei.</p>`;
 
+  // Der Geburtstag steht ganz unten, nach allem, was zu tun ist.
+  const gratulieren = abschnitt("Nicht vergessen");
   const grenze = abschnitt("Deine Untergrenze");
   if (grenze) {
     html += `<details class="kb-grenze"><summary>Deine Untergrenze, ${grenze.zeilen.length} offen</summary><ul>${grenze.zeilen.map((z) => `<li>${escapeHtml(z)}</li>`).join("")}</ul></details>`;
   }
+  if (gratulieren) html += `<p class="kb-gratulieren">${escapeHtml(gratulieren.zeilen[0])}</p>`;
   ziel.innerHTML = html;
 }
 $("kalBriefing").addEventListener("click", async (event) => {

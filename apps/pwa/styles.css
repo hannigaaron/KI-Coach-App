@@ -4145,7 +4145,7 @@ button small, button .erfassen-sub, button .me-werte, button .me-werte *,
    keine an. Das Nächste trägt Fläche, Markenfarbe und den grossen Haken,
    alles danach steht leiser auf einer Zeitachse ohne Kästen. */
 .kb { display: flex; flex-direction: column; gap: var(--s-4); margin: 0 0 var(--s-6); }
-.kb-stand, .kb-ganz, .kb-vorbei { margin: 0; font-size: var(--t-xs, 13px); color: var(--muted); line-height: 1.45; }
+.kb-stand, .kb-ganz, .kb-vorbei, .kb-gratulieren { margin: 0; font-size: var(--t-xs, 13px); color: var(--muted); line-height: 1.45; }
 .kb-jetzt {
   padding: var(--s-5); border-radius: var(--r-lg, 22px);
   background: color-mix(in srgb, var(--brand-text, var(--accent)) 12%, var(--flaeche, var(--panel)));
@@ -4545,3 +4545,6 @@ button { overflow-wrap: anywhere; text-wrap: balance; }
 .wc-tb-paar dd { margin: 0; font-size: var(--t-sm); line-height: 1.5; white-space: pre-line; }
 .wc-tb-daevo { margin-top: var(--s-4); padding-top: var(--s-4); border-top: 1px solid var(--linie); }
 .wc-tb-von { margin: 0 0 var(--s-2); font-size: var(--t-xs); letter-spacing: 0.06em; text-transform: uppercase; color: var(--brand-text); }
+
+/* Der Geburtstag ganz unten im Briefing, nach allem, was zu tun ist. */
+.kb-gratulieren { margin-top: var(--s-6, 24px); padding-top: var(--s-3, 12px); border-top: 1px dashed var(--line, currentColor); }

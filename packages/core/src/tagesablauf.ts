@@ -1,4 +1,5 @@
 import { bereichVon } from "./balance.js";
+import { gedenkArt, geburtstagsName, istGanztagsartig } from "./gedenktage.js";
 import type { Termin } from "./ical.js";
 import { uhrzeit } from "./ical.js";
 import type { MacroTargets, UserProfile } from "./types.js";
@@ -41,7 +42,10 @@ export interface Tagesablauf {
   tag: string;
   /** Termine des Tages, ohne ganztägige. */
   termine: Termin[];
+  /** Ganztägige Einträge ohne Geburtstage und Feiertage. */
   ganztags: Termin[];
+  /** Namen derer, die an diesem Tag Geburtstag haben. Feiertage stehen nirgends. */
+  geburtstage: string[];
   /** Wach von, wach bis, aus dem Profil. */
   wachVon: number;
   wachBis: number;
@@ -75,25 +79,6 @@ const MIN_FOKUS_MINUTEN = 60;
  */
 function istTraining(titel: string): boolean {
   return bereichVon(titel) === "fitness";
-}
-
-/**
- * Ob ein Eintrag ein Gedenktag ist und kein Termin. Geburtstage, Feiertage
- * und Jahrestage stehen in vielen Kalendern als Eintrag um 00:00 ohne
- * Ganztags Kennzeichen, etwa aus Kontakten oder einem importierten Feed. Wer
- * sie als Termin liest, bekommt um 20 Uhr die Mitteilung, morgen beginne
- * "Zoe Geburtstag" vor der Aufstehzeit. Sie belegen auch keine Zeit: ein Tag
- * mit einem Geburtstag ist nicht voll.
- *
- * Erkannt wird, was um 00:00 beginnt und mindestens 12 Stunden oder gar keine
- * Zeit dauert, dazu ein Gedenktag Wort im Titel um 00:00.
- */
-export function istGanztagsartig(t: { titel: string; von: number; bis: number; ganztags?: boolean }): boolean {
-  if (t.ganztags) return true;
-  const d = new Date(t.von);
-  if (d.getHours() !== 0 || d.getMinutes() !== 0) return false;
-  const dauer = t.bis - t.von;
-  return dauer <= 0 || dauer >= 12 * 3600_000 || /\b(geburtstag|feiertag|jahrestag|namenstag)\b/i.test(t.titel);
 }
 
 /**
@@ -133,8 +118,13 @@ export function tagesablauf(params: {
       return true;
     })
     .sort((a, b) => a.von - b.von);
-  const ganztags = alle.filter((t) => istGanztagsartig(t)).map((t) => ({ ...t, ganztags: true }));
-  const termine = alle.filter((t) => !istGanztagsartig(t));
+  // Geburtstage und Feiertage sind keine Termine und keine Aufgaben. Feiertage
+  // fallen ganz weg, Geburtstage stehen als Namen am Ende des Briefings.
+  const art = (t: Termin) => t.art ?? gedenkArt(t);
+  const geburtstage = [...new Set(alle.filter((t) => art(t) === "geburtstag").map((t) => geburtstagsName(t.titel)).filter(Boolean))];
+  const ohneGedenk = alle.filter((t) => !art(t));
+  const ganztags = ohneGedenk.filter((t) => istGanztagsartig(t)).map((t) => ({ ...t, ganztags: true }));
+  const termine = ohneGedenk.filter((t) => !istGanztagsartig(t));
 
   const belegt = verschmelze(termine.map((t) => ({ von: t.von, bis: t.bis })));
   const belegtImWachfenster = belegt
@@ -161,6 +151,7 @@ export function tagesablauf(params: {
     tag,
     termine,
     ganztags,
+    geburtstage,
     wachVon,
     wachBis,
     auslastung: Math.min(1, belegtMinuten / wachMinuten),
@@ -504,6 +495,7 @@ export function tagesablaufText(a: Tagesablauf, essen?: string): string {
   if (a.ganztags.length) {
     zeilen.push(`Ganztägig: ${a.ganztags.map((t) => t.titel).join(", ")}.`);
   }
+  if (a.geburtstage.length) zeilen.push(`Geburtstag: ${a.geburtstage.join(", ")}. Gratulieren nicht vergessen, ganz am Ende des Tages erwähnen.`);
 
   if (a.termine.length === 0) {
     zeilen.push("Keine Termine mit Uhrzeit.");

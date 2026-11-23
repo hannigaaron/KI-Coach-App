@@ -1011,7 +1011,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1471 Tests
+npm test           # 1475 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1267,6 +1267,34 @@ kommt nur zwischen Aufstehen und Schlafenszeit ihres Tages,
 `imWachfenster` in `mitteilungsPlan`. Wer um 11 aufsteht, bekommt um 9 keinen
 Eiweiss Impuls. Eine Erinnerung zu einer Uhrzeit, die der Nutzer gesagt hat,
 bleibt davon unberührt.
+
+### Gedenktage und der Kalender, dem daevo glaubt
+
+`packages/core/src/gedenktage.ts`. Geburtstage und Feiertage sind keine
+Termine und keine Aufgaben. `gedenkArt` erkennt sie: der Kalender
+Geburtstage von iOS (Typ 4), abonnierte Kalender mit ganztägigen Einträgen
+(Typ 3), Kalender mit Feiertag im Namen, und ganztägige oder um 00:00
+beginnende Einträge mit Geburtstag oder einem Feiertagsnamen im Titel. Ein
+Termin am Abend mit Geburtstag im Titel bleibt ein Termin. In
+`tagesablauf` fallen Feiertage ganz weg, Geburtstage stehen als Namen in
+`geburtstage`. Das Briefing nennt sie zuletzt, nach Zu tun, Essen und
+Untergrenze, in einem Abschnitt "Nicht vergessen": wem heute noch zu
+gratulieren ist. Auf der Kalenderseite stehen sie in der Liste des Tages.
+`geburtstagsName` macht aus "Zoe Geburtstag" den Namen und kürzt den
+Genitiv nur bei Namen auf oe oder ee: ein falsch gekürztes "Thoma" ist
+schlimmer als "Zoes".
+
+`kalenderWaehlen` entscheidet, welchen Kalender daevo liest. Wer im Google
+Kalender eine Serie gelöscht hat, sah sie in daevo weiter, weil sie im alten
+iCloud Kalender noch stand. Jetzt zählt der Kalender mit den meisten
+Terminen im gelesenen Fenster, `kalenderZaehlen`, und nur er. Von daevo
+Eingetragenes und Gedenktage bleiben immer. Der Schlüssel ist Konto und
+Name, damit zwei Kalender namens Kalender nicht zusammenfallen. Das Plugin
+schickt dafür `kalenderTyp` und `kalenderQuelle` mit. Die Kalenderseite
+nennt, welcher gelesen wird und welche nicht, mit Zahl, und "Alle Kalender
+lesen" schaltet es zurück, `settings.kalenderAlle`. Abos über eine Adresse
+bleiben unberührt, die hat der Nutzer selbst gewählt. Ungeprüft: der Swift
+Teil ist nicht kompiliert.
 
 ## Das Tagesbriefing
 

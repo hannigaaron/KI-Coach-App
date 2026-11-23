@@ -207,6 +207,18 @@ export function tagesbriefing(e: BriefingEingaben): TagesBriefing {
 
   if (e.standards.length) abschnitte.push({ titel: "Deine Untergrenze", zeilen: e.standards.slice(0, 3) });
 
+  // Zuletzt, nach allem, was zu tun ist: wem heute zu gratulieren ist.
+  const geb = e.ablauf?.geburtstage ?? [];
+  if (geb.length) {
+    const namen = geb.length === 1 ? geb[0]! : `${geb.slice(0, -1).join(", ")} und ${geb[geb.length - 1]}`;
+    abschnitte.push({
+      titel: "Nicht vergessen",
+      zeilen: [morgens
+        ? `${namen} ${geb.length === 1 ? "hat" : "haben"} heute Geburtstag. Gratulier ${geb.length === 1 ? "heute noch" : "ihnen heute noch"}.`
+        : `${namen} ${geb.length === 1 ? "hat" : "haben"} morgen Geburtstag. Gratulier ${geb.length === 1 ? "morgen" : "ihnen morgen"} gleich früh.`],
+    });
+  }
+
   // Die Mitteilung: abends das, was heute Abend zu tun ist, morgens der Tag
   // in einer Zeile und der Fokus.
   const titel = morgens ? `Dein Tag, ${e.datum}` : (e.vorausblick?.titel ?? `Morgen, ${e.datum}`);

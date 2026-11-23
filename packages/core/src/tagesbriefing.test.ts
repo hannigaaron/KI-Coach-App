@@ -48,10 +48,10 @@ test("abends: zuerst der heutige Stand, Protein fehlt wird gesagt", () => {
   assert.match(b.kurz, /Frühstück und Tasche/);
 });
 
-test("doppelte Feiertage und Schlaftermine stehen nicht im Briefing", () => {
+test("Feiertage und Schlaftermine stehen nicht im Briefing", () => {
   const b = briefing("morgen", [ganz("Allerheiligen"), ganz("Allerheiligen"), t("10:00", "11:00", "Kunde"), t("22:30", "23:00", "SLEEP")]);
   const tag = b.abschnitte.find((a) => a.titel === "Dein Tag")!.zeilen.join("\n");
-  assert.equal((tag.match(/Allerheiligen/g) ?? []).length, 1);
+  assert.doesNotMatch(tag, /Allerheiligen/);
   assert.doesNotMatch(tag, /SLEEP/);
   assert.match(tag, /1 Termin,/);
 });

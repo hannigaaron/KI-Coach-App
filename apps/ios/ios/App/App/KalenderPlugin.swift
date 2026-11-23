@@ -175,6 +175,10 @@ public class KalenderPlugin: CAPPlugin, CAPBridgedPlugin {
                 "bis": e.endDate.timeIntervalSince1970 * 1000,
                 "ganztags": e.isAllDay,
                 "kalender": e.calendar?.title ?? "",
+                // Typ (3 abonniert, 4 Geburtstage) und Konto: daevo liest nur den
+                // Kalender mit den meisten Terminen und erkennt Gedenktage daran.
+                "kalenderTyp": e.calendar?.type.rawValue ?? 0,
+                "kalenderQuelle": e.calendar?.source?.title ?? "",
                 "eid": e.eventIdentifier ?? "",
                 "daevo": e.url?.scheme == "daevo",
                 "schreibbar": e.calendar?.allowsContentModifications ?? false,
