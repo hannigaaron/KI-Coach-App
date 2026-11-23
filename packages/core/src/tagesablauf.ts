@@ -78,6 +78,25 @@ function istTraining(titel: string): boolean {
 }
 
 /**
+ * Ob ein Eintrag ein Gedenktag ist und kein Termin. Geburtstage, Feiertage
+ * und Jahrestage stehen in vielen Kalendern als Eintrag um 00:00 ohne
+ * Ganztags Kennzeichen, etwa aus Kontakten oder einem importierten Feed. Wer
+ * sie als Termin liest, bekommt um 20 Uhr die Mitteilung, morgen beginne
+ * "Zoe Geburtstag" vor der Aufstehzeit. Sie belegen auch keine Zeit: ein Tag
+ * mit einem Geburtstag ist nicht voll.
+ *
+ * Erkannt wird, was um 00:00 beginnt und mindestens 12 Stunden oder gar keine
+ * Zeit dauert, dazu ein Gedenktag Wort im Titel um 00:00.
+ */
+export function istGanztagsartig(t: { titel: string; von: number; bis: number; ganztags?: boolean }): boolean {
+  if (t.ganztags) return true;
+  const d = new Date(t.von);
+  if (d.getHours() !== 0 || d.getMinutes() !== 0) return false;
+  const dauer = t.bis - t.von;
+  return dauer <= 0 || dauer >= 12 * 3600_000 || /\b(geburtstag|feiertag|jahrestag|namenstag)\b/i.test(t.titel);
+}
+
+/**
  * Wertet einen Tag aus.
  *
  * `jetzt` ist der Bezugspunkt für "der Tag ist schon halb rum". Der Aufrufer
@@ -114,8 +133,8 @@ export function tagesablauf(params: {
       return true;
     })
     .sort((a, b) => a.von - b.von);
-  const ganztags = alle.filter((t) => t.ganztags);
-  const termine = alle.filter((t) => !t.ganztags);
+  const ganztags = alle.filter((t) => istGanztagsartig(t)).map((t) => ({ ...t, ganztags: true }));
+  const termine = alle.filter((t) => !istGanztagsartig(t));
 
   const belegt = verschmelze(termine.map((t) => ({ von: t.von, bis: t.bis })));
   const belegtImWachfenster = belegt

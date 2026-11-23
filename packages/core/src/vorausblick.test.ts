@@ -78,3 +78,19 @@ test("die Mitteilung kommt um 20 Uhr, spätestens 90 Minuten vor dem Schlafen", 
   assert.equal(vorausblickUhrzeit({ ...PROFIL, sleepTime: "21:00" }, TAG), "19:30");
   assert.equal(vorausblickUhrzeit({ ...PROFIL, sleepTime: "01:00" }, TAG), "20:00");
 });
+
+test("ein Geburtstag um 00:00 ist kein Termin und kein früher Start", () => {
+  // Im Betrieb kam um 20 Uhr: "Morgen beginnt Zoe Geburtstag schon um 00:00,
+  // vor deiner Aufstehzeit". Gedenktage belegen keine Zeit.
+  const geburtstag = t("00:00", "00:00", "Zoe Geburtstag");
+  assert.equal(blick([geburtstag]), null);
+  const mitTermin = blick([geburtstag, t("09:00", "10:00", "Kunde")]);
+  assert.equal(mitTermin, null);
+  // Auch als Eintrag über den ganzen Tag ohne Kennzeichen.
+  assert.equal(blick([t("00:00", "23:59", "Feiertag")]), null);
+  assert.equal(blick([{ ...t("00:00", "01:00", "Max Geburtstag") }, t("12:00", "13:00", "Kunde")]), null);
+});
+
+test("ein echter früher Termin meldet sich weiter, auch wenn er vor dem Aufstehen liegt", () => {
+  assert.match(vorausblickText(blick([t("05:30", "06:30", "Flug")])), /Wecker/);
+});

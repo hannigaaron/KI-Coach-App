@@ -1011,7 +1011,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1467 Tests
+npm test           # 1471 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1250,6 +1250,23 @@ Was offen ist: die Mitteilung ist so alt wie das letzte Öffnen der App.
 Ändert sich der Kalender danach, ohne dass die App offen war, kommt der
 alte Stand. Die `KalenderWache` im Hintergrund prüft nur Überschneidungen
 mit eingetragenen Trainings, nicht den Ausblick.
+
+### Nur Mitteilungen, die Sinn ergeben
+
+Im Betrieb kam um 20 Uhr "Morgen geht es früh los: Morgen beginnt Zoe
+Geburtstag schon um 00:00, vor deiner Aufstehzeit". Ein Geburtstag steht in
+vielen Kalendern als Eintrag um 00:00 ohne Ganztags Kennzeichen.
+`istGanztagsartig` in `tagesablauf.ts` nimmt solche Einträge aus den
+Terminen: um 00:00 beginnend und mindestens 12 Stunden oder gar keine Zeit
+lang, dazu Geburtstag, Feiertag, Jahrestag und Namenstag im Titel. Sie
+belegen keine Zeit, lösen keinen frühen Start und keinen vollen Tag aus und
+stehen unter Ganztägig. Ein echter früher Termin meldet sich weiter.
+
+Dazu gilt für jede Mitteilung ausser einer selbst gesetzten Erinnerung: sie
+kommt nur zwischen Aufstehen und Schlafenszeit ihres Tages,
+`imWachfenster` in `mitteilungsPlan`. Wer um 11 aufsteht, bekommt um 9 keinen
+Eiweiss Impuls. Eine Erinnerung zu einer Uhrzeit, die der Nutzer gesagt hat,
+bleibt davon unberührt.
 
 ## Das Tagesbriefing
 

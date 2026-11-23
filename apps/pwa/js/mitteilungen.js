@@ -193,7 +193,21 @@ export function mitteilungsPlan({ store, jetzt, luecke = null, vorausblicke = []
     plan.push({ id: `luecke-${tag}`, tag, uhrzeit: LUECKE_UHRZEIT, titel: luecke.titel, text: luecke.text, art: "luecke", kategorie: "luecke" });
   }
 
+  // Nichts ausser einer selbst gesetzten Erinnerung kommt ausserhalb der
+  // Wachzeit dieses Tages. Wer um 11 aufsteht, braucht um 9 keinen Eiweiss
+  // Impuls, und nach der Schlafenszeit fragt niemand nach der Energie.
+  const imWachfenster = (m) => {
+    if (m.art === "eigene" || !profil) return true;
+    const rand = randMitKalender(profil, m.tag, termine);
+    const von = minuten(rand.wakeTime);
+    let bis = minuten(rand.sleepTime);
+    if (bis <= von) bis += 1440;
+    const t = minuten(m.uhrzeit);
+    return (t >= von && t <= bis) || (t + 1440 >= von && t + 1440 <= bis);
+  };
+
   return plan
+    .filter(imWachfenster)
     .filter((m) => m.tag > jetzt.tag || minuten(m.uhrzeit) > minuten(jetzt.uhrzeit))
     .sort((a, b) => `${a.tag} ${a.uhrzeit}`.localeCompare(`${b.tag} ${b.uhrzeit}`))
     // Wenn gekürzt werden muss, gehen eigene Erinnerungen vor, dann die

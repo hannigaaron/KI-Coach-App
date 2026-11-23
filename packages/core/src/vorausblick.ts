@@ -167,8 +167,10 @@ export function vorausblick(p: {
   // Früher Start: der erste Termin liegt in der ersten Stunde nach dem
   // Aufstehen oder davor. Dann gehört das Frühstück auf den Abend vorher.
   const rand = tagesrandFuer(profile, morgen.tag);
-  const erster = morgen.termine[0]!;
   const aufstehen = zeitAmTag(morgen.tag, rand.wakeTime);
+  // Gedenktage um 00:00 sind schon in `tagesablauf` aus den Terminen
+  // genommen, hier steht nur, was wirklich Zeit braucht.
+  const erster = morgen.termine[0]!;
   if (erster.von < aufstehen + 60 * 60000) {
     punkte.push({
       art: "frueh",
