@@ -4610,3 +4610,28 @@ button { overflow-wrap: anywhere; text-wrap: balance; }
    Kante und Wort, der Text bleibt in Textfarbe und lesbar. */
 .tr-warnung { margin: var(--s-3) 0; padding: var(--s-3) var(--s-4); border-radius: var(--r-md, 14px); background: color-mix(in srgb, var(--warn) 14%, transparent); box-shadow: inset 3px 0 0 var(--warn); font-size: var(--t-sm); line-height: 1.45; color: var(--text); }
 .tr-warnung b { display: block; margin-bottom: 2px; color: var(--warn); font-size: var(--t-xs); letter-spacing: 0.04em; text-transform: uppercase; }
+
+/* ---------- Schlaf ----------
+   Phasenfarben wie in den bekannten Schlaf Apps, damit man sie ohne
+   Legende liest: Wach warm, Kern blau, Tief dunkler Indigo, REM violett. */
+:root { --schlaf-wach: #e9944a; --schlaf-kern: #3b82d6; --schlaf-tief: #6b6ff0; --schlaf-rem: #c056d6; }
+.schlaf-woche { display: flex; justify-content: space-between; gap: 4px; margin: var(--s-3) 0 var(--s-4); }
+.schlaf-tag { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 0 8px; border: 0; border-radius: var(--r-md, 14px); background: none; color: var(--muted); font: inherit; font-size: var(--t-xs); cursor: pointer; }
+.schlaf-tag.an { background: var(--flaeche, var(--panel)); color: var(--text); box-shadow: inset 0 0 0 1.5px var(--brand); }
+.schlaf-held { display: flex; flex-direction: column; align-items: center; margin: var(--s-2) 0 var(--s-5); }
+.schlaf-titel { margin: var(--s-2) 0 0; color: var(--muted); font-size: var(--t-sm); }
+.schlaf-dauer { margin: 4px 0 0; font-size: var(--t-lg, 20px); font-weight: 700; text-align: center; }
+.schlaf-dauer span { display: block; font-size: var(--t-sm); font-weight: 400; color: var(--muted); }
+.schlaf-raster { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); margin: var(--s-3) 0; }
+.schlaf-raster div { padding: var(--s-3) var(--s-4); border-radius: var(--r-md, 14px); background: var(--flaeche, var(--panel)); display: flex; flex-direction: column; gap: 2px; }
+.schlaf-raster small { color: var(--muted); font-size: var(--t-xs); }
+.schlaf-raster b { font-size: var(--t-lg, 20px); font-variant-numeric: tabular-nums; }
+.schlaf-balken { display: flex; height: 12px; border-radius: 6px; overflow: hidden; gap: 2px; margin: var(--s-3) 0; }
+.schlaf-verlauf { display: block; width: 100%; height: auto; margin: var(--s-3) 0; }
+.schlaf-liste { list-style: none; margin: 0; padding: 0; }
+.schlaf-liste li { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-3) 0; border-bottom: 1px solid var(--line); }
+.schlaf-farbe { flex: none; width: 4px; height: 32px; border-radius: 2px; }
+.schlaf-phase { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.schlaf-phase small, .schlaf-min small { color: var(--muted); font-size: var(--t-xs); }
+.schlaf-min { flex: none; display: flex; flex-direction: column; align-items: flex-end; font-variant-numeric: tabular-nums; }
+.bw-knopf { font: inherit; color: inherit; text-align: left; cursor: pointer; border: 0; }

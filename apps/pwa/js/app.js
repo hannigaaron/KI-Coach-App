@@ -7,7 +7,7 @@ import {
   impulseFuerTag, naechsterPunkt, planFuer, saubereUrl, uhrzeit, undListe, weckwortGehoert, weightTrend,
   belastung,
   belastungText,
-  regeneration, regenFarbton, regenSatz, essensUhrzeiten, tagesrandFuer,
+  regeneration, regenFarbton, regenSatz, schlafwert, schlafZiel, phasenUrteil, PHASEN_SPANNE, essensUhrzeiten, tagesrandFuer,
   bereitschaft,
   bereitschaftText,
   berichtText,
@@ -1010,7 +1010,7 @@ document.addEventListener("visibilitychange", () => {
  * jemand später hinzufügt, bekommt damit einen vernünftigen Übergang, ohne
  * dass er daran denken muss.
  */
-const ANSICHT_TIEFE = ["assistant", "gespraeche", "heute", "essen", "rezepte", "tag", "balance", "bereitschaft", "zyklus", "checkin", "wochencheck", "bericht", "profil", "reflexion"];
+const ANSICHT_TIEFE = ["assistant", "gespraeche", "heute", "essen", "rezepte", "tag", "balance", "bereitschaft", "schlaf", "zyklus", "checkin", "wochencheck", "bericht", "profil", "reflexion"];
 
 let letzteAnsicht = "assistant";
 
@@ -1068,6 +1068,7 @@ function showView(name) {
   }
   if (name === "balance") renderBalance();
   if (name === "bereitschaft") renderBereitschaft();
+  if (name === "schlaf") renderSchlaf();
   if (name === "zyklus") zyklus.zeichnen();
   if (name === "bericht") { berichtZeitraumFuellen(); renderBericht(); }
   if (name === "standards") { renderStandards(); zeigeAngebot("standardsAngebot"); }
@@ -1589,6 +1590,128 @@ function letzterStress() {
   return { stress: Number(letzter.werte.stress), stressAlterTage: Number.isFinite(tage) ? tage : null };
 }
 
+/* ---------- Schlaf ---------- */
+
+let schlafTag = null;
+
+/** Der Wert als Ring in Grün, Gelb oder Rot, wie die anderen Ringe der App gezeichnet. */
+function schlafRing(wert, groesse, text = String(wert)) {
+  const r = groesse / 2 - 6;
+  const u = 2 * Math.PI * r;
+  const ton = wert >= 80 ? "var(--good)" : wert >= 60 ? "var(--warn)" : "var(--bad)";
+  return `<svg viewBox="0 0 ${groesse} ${groesse}" width="${groesse}" height="${groesse}" aria-hidden="true">
+    <circle cx="${groesse / 2}" cy="${groesse / 2}" r="${r}" fill="none" stroke="var(--spur)" stroke-width="${groesse > 80 ? 12 : 4}"/>
+    <circle cx="${groesse / 2}" cy="${groesse / 2}" r="${r}" fill="none" stroke="${ton}" stroke-width="${groesse > 80 ? 12 : 4}" stroke-linecap="round"
+      stroke-dasharray="${(u * Math.max(0, Math.min(100, wert)) / 100).toFixed(1)} ${u.toFixed(1)}" transform="rotate(-90 ${groesse / 2} ${groesse / 2})"/>
+    <text x="50%" y="50%" text-anchor="middle" dominant-baseline="central" fill="var(--text)" font-size="${groesse > 80 ? 46 : 13}" font-weight="700">${text}</text>
+  </svg>`;
+}
+
+const PHASE_FARBE = { w: "var(--schlaf-wach)", c: "var(--schlaf-kern)", d: "var(--schlaf-tief)", r: "var(--schlaf-rem)" };
+const PHASE_NAME = { w: "Wach", c: "Kern", d: "Tief", r: "REM" };
+
+/** Der Verlauf der Nacht als Treppe: unten tief, oben wach, wie in den Schlaf Apps. */
+function hypnogramm(nacht) {
+  const B = 320, H = 132, L = 40;
+  const ebene = { w: 0, r: 1, c: 2, d: 3 };
+  const gesamt = Math.max(1, (nacht.ende - nacht.beginn) / 60000);
+  const x = (m) => L + (m / gesamt) * (B - L);
+  const y = (p) => 12 + ebene[p] * 30;
+  const flaechen = nacht.phasen.map(([von, dauer, p]) =>
+    `<rect x="${x(von).toFixed(1)}" y="${y(p) - 9}" width="${Math.max(0.8, x(von + dauer) - x(von)).toFixed(1)}" height="18" rx="2" fill="${PHASE_FARBE[p]}"/>`).join("");
+  const beschr = ["w", "r", "c", "d"].map((p) => `<text x="0" y="${y(p) + 4}" font-size="11" fill="var(--muted)">${PHASE_NAME[p]}</text>`).join("");
+  // Volle Stunden als Achse.
+  const start = new Date(nacht.beginn);
+  const ersteStunde = new Date(start); ersteStunde.setMinutes(60, 0, 0);
+  let achse = "";
+  for (let t = ersteStunde.getTime(); t < nacht.ende; t += 3600000) {
+    const m = (t - nacht.beginn) / 60000;
+    achse += `<line x1="${x(m)}" x2="${x(m)}" y1="4" y2="${H - 22}" stroke="var(--line)" stroke-width="0.6"/>`
+      + `<text x="${x(m)}" y="${H - 6}" font-size="10" text-anchor="middle" fill="var(--muted)">${String(new Date(t).getHours()).padStart(2, "0")}</text>`;
+  }
+  return `<svg class="schlaf-verlauf" viewBox="0 0 ${B} ${H}" role="img" aria-label="Schlafphasen im Verlauf der Nacht">${achse}${beschr}${flaechen}</svg>`;
+}
+
+function renderSchlaf() {
+  const profil = store.getProfile();
+  const heute = todayIso();
+  // Die letzten sieben Nächte, die mit Daten. Ohne Nacht von heute die letzte vorhandene.
+  const tage = Array.from({ length: 7 }, (_, i) => tagVor(heute, 6 - i));
+  const nacht = (tag) => store.getDay(tag).gesundheit?.nacht ?? null;
+  if (!schlafTag || !tage.includes(schlafTag)) schlafTag = [...tage].reverse().find((t) => nacht(t)) ?? heute;
+  const werte = Object.fromEntries(tage.map((t) => {
+    const n = nacht(t);
+    const r = tagesrandFuer(profil, tagVor(t, 1));
+    return [t, n ? schlafwert({ tag: t, ...n }, schlafZiel(r.sleepTime, tagesrandFuer(profil, t).wakeTime)) : null];
+  }));
+  const kurz = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+  const leiste = `<div class="schlaf-woche" role="tablist">${tage.map((t) => {
+    const w = werte[t];
+    const d = new Date(`${t}T12:00:00`);
+    return `<button type="button" role="tab" aria-selected="${t === schlafTag}" class="schlaf-tag${t === schlafTag ? " an" : ""}" data-schlaf-tag="${t}">
+      <span>${kurz[d.getDay()]}</span>${schlafRing(w?.wert ?? 0, 38, String(d.getDate()))}</button>`;
+  }).join("")}</div>`;
+
+  const n = nacht(schlafTag);
+  const w = werte[schlafTag];
+  const g = store.getDay(schlafTag).gesundheit || {};
+  if (!n || !w) {
+    const nurDauer = Number.isFinite(g.schlafMinuten)
+      ? `<p class="sub">In dieser Nacht stehen ${Math.floor(g.schlafMinuten / 60)} h ${g.schlafMinuten % 60} min Schlaf in Apple Health, aber keine Phasen.</p>` : "";
+    $("schlafInhalt").innerHTML = `${leiste}${nurDauer}
+      <p class="sub">Phasen kommen aus Apple Health. Dort schreiben die Apple Watch und auch Oura, Garmin und Whoop,
+        wenn du in deren App das Teilen mit Apple Health einschaltest. daevo liest sie beim Öffnen der iPhone App.</p>`;
+    return;
+  }
+  const uhr = (ms) => { const d = new Date(ms); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
+  const dauer = (m) => `${Math.floor(m / 60)} h ${String(Math.round(m % 60)).padStart(2, "0")} min`;
+  const gesamt = n.tiefMin + n.remMin + n.kernMin + n.wachMin || 1;
+  const balken = ["w", "c", "d", "r"].map((p) => {
+    const m = { w: n.wachMin, c: n.kernMin, d: n.tiefMin, r: n.remMin }[p];
+    return m ? `<span style="flex:${m};background:${PHASE_FARBE[p]}"></span>` : "";
+  }).join("");
+  const zeile = (p, m, spanne, text) => `<li><span class="schlaf-farbe" style="background:${PHASE_FARBE[p]}"></span>
+    <span class="schlaf-phase"><b>${PHASE_NAME[p]}</b><small>${text}</small></span>
+    <span class="schlaf-min"><b>${dauer(m)}</b>${spanne ? `<small>${Math.round(m / w.schlafMin * 100)} %</small>` : ""}</span></li>`;
+  const sp = PHASEN_SPANNE;
+  $("schlafInhalt").innerHTML = `${leiste}
+    <div class="schlaf-held">${schlafRing(w.wert, 180)}
+      <p class="schlaf-titel">Schlafwert</p>
+      <p class="schlaf-dauer">${dauer(w.schlafMin)} <span>von ${dauer(w.zielMin)} Ziel</span></p>
+    </div>
+    <div class="schlaf-raster">
+      <div><small>Eingeschlafen</small><b>${uhr(n.beginn)}</b></div>
+      <div><small>Aufgewacht</small><b>${uhr(n.ende)}</b></div>
+      <div><small>Effizienz</small><b>${w.effizienz} %</b></div>
+      <div><small>Wach geworden</small><b>${n.wachPhasen}×</b></div>
+    </div>
+    <h2 class="abschnitt">Phasen</h2>
+    <div class="schlaf-balken">${balken}</div>
+    ${n.phasen?.length ? hypnogramm(n) : ""}
+    <ul class="schlaf-liste">
+      ${zeile("w", n.wachMin, false, "Kurzes Aufwachen ist normal")}
+      ${zeile("c", n.kernMin, true, `üblich ${sp.kern[0]} bis ${sp.kern[1]} %, ${phasenUrteil(w.anteil.kern, sp.kern)}`)}
+      ${zeile("d", n.tiefMin, true, `üblich ${sp.tief[0]} bis ${sp.tief[1]} %, ${phasenUrteil(w.anteil.tief, sp.tief)}`)}
+      ${zeile("r", n.remMin, true, `üblich ${sp.rem[0]} bis ${sp.rem[1]} %, ${phasenUrteil(w.anteil.rem, sp.rem)}`)}
+    </ul>
+    <div class="schlaf-raster">
+      <div><small>Geschlafen</small><b>${dauer(w.schlafMin)}</b></div>
+      <div><small>Im Bett</small><b>${dauer(w.imBettMin)}</b></div>
+    </div>
+    <p class="fineprint">Gemessen von ${escapeHtml(n.quelle || "deiner Uhr")}, gelesen aus Apple Health. Uhren und Ringe erkennen Schlaf und
+      Wachsein recht gut, die Phasen deutlich ungenauer (de Zambotti und andere 2019). Der Schlafwert ist eine Regel
+      von daevo: Dauer gegen dein Ziel 50, Effizienz 20, Tief 15 und REM 15 Punkte. Das Ziel ist dein Plan aus
+      Schlafens und Aufstehzeit, nie unter sieben Stunden (Watson und andere 2015). Die üblichen Spannen sind
+      Richtwerte für junge Erwachsene nach Ohayon und andere 2004, keine Diagnose.</p>`;
+}
+
+$("schlafInhalt").addEventListener("click", (e) => {
+  const t = e.target.closest("[data-schlaf-tag]");
+  if (!t) return;
+  schlafTag = t.dataset.schlafTag;
+  renderSchlaf();
+});
+
 /** Gefühl je Partie: kein Eintrag, frisch, Muskelkater, wieder von vorn. */
 const REGEN_STUFE = { "": "frisch", frisch: "kater", kater: "" };
 
@@ -1713,12 +1836,12 @@ function renderBewegung(n, istHeute) {
   // gegen die 30 von Apple.
   const farbe = (t) => ["fett", "protein", "kohlenhydrate", "wasser"].includes(t) ? `var(--makro-${t})` : `var(--bereich-${t})`;
   $("bwRaster").innerHTML = kacheln.map(([sym, ton, name, wert, einheit, zusatz, anteil]) =>
-    `<div class="bw-karte" style="--ton:${farbe(ton)}">`
+    (sym === "schlaf" ? `<button type="button" class="bw-karte bw-knopf" data-go="schlaf" style="--ton:${farbe(ton)}">` : `<div class="bw-karte" style="--ton:${farbe(ton)}">`)
     + `<div class="bw-kopf"><span class="bw-sym">${symbol(sym, { groesse: 18 })}</span><span class="bw-name">${escapeHtml(name)}</span></div>`
     + `<p class="bw-wert"><b>${escapeHtml(wert)}</b>${einheit ? `<i>${escapeHtml(einheit)}</i>` : ""}</p>`
     + (anteil !== null ? `<span class="bw-spur"><span style="width:${Math.round(Math.min(1, Math.max(0, anteil)) * 100)}%"></span></span>` : "")
     + (zusatz ? `<small>${escapeHtml(zusatz)}</small>` : "")
-    + `</div>`).join("");
+    + (sym === "schlaf" ? `</button>` : `</div>`)).join("");
 
   const trainings = (d.trainings || []).filter((t) => t.minutes > 0);
   const ART = { strength: "Krafttraining", cardio: "Ausdauer", team_sport: "Mannschaftssport", mobility: "Mobilität" };
@@ -3419,6 +3542,13 @@ function menuSeite(name) {
 // verlassen hat, sucht beim nächsten Mal sonst den Weg zurück.
 $("btnMenu").addEventListener("click", () => { menuSeite("start"); $("menu").hidden = false; });
 $("btnMenuClose").addEventListener("click", () => { $("menu").hidden = true; });
+// Ausserhalb des Menüs führt `data-go` ebenso in eine Ansicht, etwa die
+// Schlafkarte auf Heute oder der Knopf zum Schlaf unter Bereitschaft.
+document.addEventListener("click", (event) => {
+  const item = event.target.closest("[data-go]");
+  if (!item || item.closest("#menu")) return;
+  showView(item.dataset.go);
+});
 $("menu").addEventListener("click", (event) => {
   const item = event.target.closest("[data-go]");
   // Aus dem Menü heisst Heute wieder heute, auch wenn vorher ein anderer Tag gewählt war.

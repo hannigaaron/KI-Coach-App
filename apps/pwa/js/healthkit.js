@@ -281,9 +281,42 @@ export function healthkitSchreiben(antwort, { store, heute }) {
     perioden = (zyklus.perioden || []).length - vorher;
     store.setSettings({ ...store.getSettings(), zyklus });
   }
+  const naechte = naechteSchreiben(antwort?.naechte, { store, heute });
   const neueTrainings = [];
   const trainings = workoutsSchreiben(antwort?.workouts, { store, heute, neueListe: neueTrainings });
-  return { ...bericht, trainings, neueTrainings, ...essen, perioden };
+  return { ...bericht, trainings, neueTrainings, ...essen, perioden, naechte };
+}
+
+/**
+ * Die Nächte mit Phasen aus Health, je Tag des Aufwachens unter
+ * `gesundheit.nacht`. Der Verlauf der Phasen braucht Platz, deshalb bleibt er
+ * nur für die letzten 14 Nächte, ältere behalten die Summen.
+ */
+export function naechteSchreiben(naechte, { store, heute }) {
+  if (!Array.isArray(naechte)) return 0;
+  const grenze = new Date(Date.parse(`${heute}T00:00:00Z`) - 14 * 86400000).toISOString().slice(0, 10);
+  let n = 0;
+  for (const x of naechte) {
+    if (!x || !/^\d{4}-\d{2}-\d{2}$/.test(String(x.tag)) || x.tag > heute) continue;
+    if (!(Number(x.ende) > Number(x.beginn))) continue;
+    const day = store.getDay(x.tag);
+    const zahl = (v) => (Number.isFinite(Number(v)) ? Math.max(0, Math.round(Number(v))) : 0);
+    const phasen = x.tag >= grenze && Array.isArray(x.phasen)
+      ? x.phasen.filter((p) => Array.isArray(p) && ["d", "r", "c", "w"].includes(p[2])).map((p) => [zahl(p[0]), zahl(p[1]), p[2]])
+      : undefined;
+    day.gesundheit = {
+      ...(day.gesundheit || {}),
+      nacht: {
+        beginn: Number(x.beginn), ende: Number(x.ende),
+        tiefMin: zahl(x.tiefMin), remMin: zahl(x.remMin), kernMin: zahl(x.kernMin), wachMin: zahl(x.wachMin),
+        wachPhasen: zahl(x.wachPhasen), quelle: String(x.quelle || "").slice(0, 60),
+        ...(phasen?.length ? { phasen } : {}),
+      },
+    };
+    store.setDay(x.tag, day);
+    n++;
+  }
+  return n;
 }
 
 /**

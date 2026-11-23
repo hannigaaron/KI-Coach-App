@@ -89,6 +89,7 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
 
         var ergebnis: [String: [String: Any]] = [:]
         var workouts: [[String: Any]] = []
+        var naechte: [[String: Any]] = []
         let gruppe = DispatchGroup()
         let sperre = NSLock()
 
@@ -169,20 +170,54 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
                         zusammen.append((von, bis))
                     }
                 }
-                // Tief und REM getrennt, nur ab iOS 16, davor schreibt die Uhr
-                // keine Phasen. Phasen überlappen sich nicht, Doppeltes aus
-                // Uhr und iPhone gibt es hier nicht, denn nur die Uhr misst sie.
+                // Phasen je Nacht, ab iOS 16. Apple Watch, Oura, Garmin und
+                // Whoop schreiben sie alle in Health, jede App unter ihrer
+                // eigenen Quelle. Zwei Quellen für dieselbe Nacht zu addieren
+                // hiesse doppelten Tiefschlaf, also gilt je Nacht die Quelle
+                // mit den meisten Minuten in Phasen. Die Nacht gehört zum Tag
+                // des Aufwachens.
                 if #available(iOS 16.0, *) {
-                    var tief: [String: Double] = [:]
-                    var rem: [String: Double] = [:]
-                    for p in (proben as? [HKCategorySample] ?? []) where p.sourceRevision.source.bundleIdentifier.hasPrefix("com.apple.health") {
+                    let alle = proben as? [HKCategorySample] ?? []
+                    let phasenWerte: [Int: String] = [
+                        HKCategoryValueSleepAnalysis.asleepDeep.rawValue: "d",
+                        HKCategoryValueSleepAnalysis.asleepREM.rawValue: "r",
+                        HKCategoryValueSleepAnalysis.asleepCore.rawValue: "c",
+                        HKCategoryValueSleepAnalysis.awake.rawValue: "w",
+                    ]
+                    var jeQuelle: [String: [String: Double]] = [:]
+                    for p in alle where phasenWerte[p.value] != nil && phasenWerte[p.value] != "w" {
                         let tag = GesundheitPlugin.tagText(p.endDate)
-                        let minuten = p.endDate.timeIntervalSince(p.startDate) / 60
-                        if p.value == HKCategoryValueSleepAnalysis.asleepDeep.rawValue { tief[tag, default: 0] += minuten }
-                        if p.value == HKCategoryValueSleepAnalysis.asleepREM.rawValue { rem[tag, default: 0] += minuten }
+                        jeQuelle[tag, default: [:]][p.sourceRevision.source.bundleIdentifier, default: 0] += p.endDate.timeIntervalSince(p.startDate) / 60
                     }
-                    for (tag, m) in tief where tag >= GesundheitPlugin.tagText(anfang) { setzen(tag, "tiefschlafMinuten", m.rounded()) }
-                    for (tag, m) in rem where tag >= GesundheitPlugin.tagText(anfang) { setzen(tag, "remMinuten", m.rounded()) }
+                    for (tag, quellen) in jeQuelle where tag >= GesundheitPlugin.tagText(anfang) {
+                        guard let quelle = quellen.max(by: { $0.value < $1.value })?.key else { continue }
+                        let teile = alle
+                            .filter { GesundheitPlugin.tagText($0.endDate) == tag && $0.sourceRevision.source.bundleIdentifier == quelle && phasenWerte[$0.value] != nil }
+                            .sorted { $0.startDate < $1.startDate }
+                        guard let beginn = teile.first?.startDate, let ende = teile.map({ $0.endDate }).max() else { continue }
+                        var summe: [String: Double] = ["d": 0, "r": 0, "c": 0, "w": 0]
+                        var phasen: [[Any]] = []
+                        var wachPhasen = 0
+                        for (i, t) in teile.enumerated() {
+                            let art = phasenWerte[t.value] ?? "c"
+                            let dauer = t.endDate.timeIntervalSince(t.startDate) / 60
+                            summe[art, default: 0] += dauer
+                            // Wach am Anfang und am Ende ist kein Aufwachen in der Nacht.
+                            if art == "w" && i > 0 && i < teile.count - 1 { wachPhasen += 1 }
+                            phasen.append([Int((t.startDate.timeIntervalSince(beginn) / 60).rounded()), Int(dauer.rounded()), art])
+                        }
+                        let name = teile.first?.sourceRevision.source.name ?? ""
+                        sperre.lock()
+                        naechte.append([
+                            "tag": tag, "beginn": beginn.timeIntervalSince1970 * 1000, "ende": ende.timeIntervalSince1970 * 1000,
+                            "tiefMin": summe["d"]!.rounded(), "remMin": summe["r"]!.rounded(), "kernMin": summe["c"]!.rounded(),
+                            "wachMin": summe["w"]!.rounded(), "wachPhasen": wachPhasen, "quelle": name,
+                            "phasen": phasen.count <= 400 ? phasen : [],
+                        ])
+                        sperre.unlock()
+                        setzen(tag, "tiefschlafMinuten", summe["d"]!.rounded())
+                        setzen(tag, "remMinuten", summe["r"]!.rounded())
+                    }
                 }
                 var jeTag: [String: Double] = [:]
                 for (von, bis) in zusammen {
@@ -278,7 +313,7 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
 
         gruppe.notify(queue: .main) {
             let liste = ergebnis.values.sorted { ($0["tag"] as? String ?? "") < ($1["tag"] as? String ?? "") }
-            call.resolve(["tage": liste, "workouts": workouts, "nahrung": nahrung, "periode": periode, "von": GesundheitPlugin.tagText(anfang)])
+            call.resolve(["tage": liste, "workouts": workouts, "nahrung": nahrung, "periode": periode, "naechte": naechte, "von": GesundheitPlugin.tagText(anfang)])
         }
     }
 

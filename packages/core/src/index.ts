@@ -59,3 +59,4 @@ export * from "./tagwahl.js";
 export * from "./tagesfrage.js";
 export * from "./prioritaetsmuster.js";
 export * from "./regeneration.js";
+export * from "./schlafwert.js";
