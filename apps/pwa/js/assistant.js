@@ -4,7 +4,7 @@ import {
   mahlzeitAusFoto, modellFuerBilder, naehrwerteImNetz, produktPerBarcode, produkteSuchen, summiere, vorratAusFoto,
   todoistAbhaken, todoistAufgaben, todoistIdVon, todoistWiederOeffnen, PERSONA_TEILE,
 } from "@daevo/coach";
-import { essenszeitAus, foldUmlauts, wochenrueckblick, wochenbeginn, wochenschnitt, wochenschnittText, tagKurz, tagStand, rueckblickArt, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, einzeltrainingBauen, abdeckungsLuecken, FOKUS_NAME, alternativen, planNachrechnen, positionFuer } from "@daevo/core";
+import { essenszeitAus, foldUmlauts, wochenrueckblick, wochenbeginn, wochenschnitt, wochenschnittText, tagKurz, tagStand, rueckblickArt, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, aufgabeStufe, einzeltrainingBauen, abdeckungsLuecken, FOKUS_NAME, alternativen, planNachrechnen, positionFuer } from "@daevo/core";
 import { trainingsTageAusQuellen } from "./luecke.js";
 import { UEBUNGEN } from "./uebungen-daten.js";
 import { GERAETE, uebungenFiltern } from "./uebungen.js";
@@ -1943,15 +1943,23 @@ export function tagesbriefingFuer(art = "morgen", jetzt = Date.now(), fuerTag) {
   const profile = profilFuerTag(tag) || store.getProfile();
 
   let aufgaben = [];
+  let warten = [];
+  // Einstufung nach Umsatz, Geld, Frist und Wichtigkeit: daevo sortiert, der Nutzer sieht warum.
+  const eingestuft = (a) => {
+    const e = aufgabeStufe({ text: a.text, wichtigkeit: a.wichtigkeit, faellig: a.faellig || undefined }, heute);
+    return { stufe: e.stufe, grund: e.grund };
+  };
   if (art === "morgen") {
     const { plan, zeiten } = tagesplan(jetzt);
     const um = new Map(zeiten.bloecke.map((b) => [b.aufgabe.id ?? b.aufgabe.text, uhrzeitVon(b.von)]));
-    aufgaben = plan.heute.map((a) => ({ id: a.id, text: a.text, um: um.get(a.id ?? a.text), wichtig: a.wichtigkeit >= 3 }));
+    aufgaben = plan.heute.map((a) => ({ id: a.id, text: a.text, um: um.get(a.id ?? a.text), wichtig: a.wichtigkeit >= 3, ...eingestuft(a) }));
+    warten = [...(plan.morgen || []), ...(plan.spaeter || [])].map((a) => ({ id: a.id, text: a.text, grund: a.faellig ? `fällig ${datumKurz(a.faellig)}` : "" }));
   } else if (tag === morgenIso) {
     // Für übermorgen kennt die Priorisierung keine Reihenfolge, dann lieber
     // keine Aufgabe als die falsche.
     const plan = aufgabenPlan(jetzt);
-    aufgaben = plan.morgen.map((a) => ({ id: a.id, text: a.text, wichtig: a.wichtigkeit >= 3 }));
+    aufgaben = plan.morgen.map((a) => ({ id: a.id, text: a.text, wichtig: a.wichtigkeit >= 3, ...eingestuft(a) }));
+    warten = (plan.spaeter || []).map((a) => ({ id: a.id, text: a.text, grund: a.faellig ? `fällig ${datumKurz(a.faellig)}` : "" }));
   }
 
   const status = standardsUebersicht();
@@ -1968,6 +1976,7 @@ export function tagesbriefingFuer(art = "morgen", jetzt = Date.now(), fuerTag) {
       : null,
     training: trainingFuerBriefing(tag),
     aufgaben,
+    warten,
     ziele: { kcal: n.targets.kcal, proteinG: n.targets.proteinG },
     heute: art === "abend"
       ? { kcal: h.totals.kcal, zielKcal: h.targets.kcal, proteinG: h.totals.proteinG, zielProteinG: h.targets.proteinG, erledigt }

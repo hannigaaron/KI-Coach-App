@@ -1011,7 +1011,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1479 Tests
+npm test           # 1482 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1314,6 +1314,29 @@ steht kein Termin, der erst beginnt, wenn die Abendroutine läuft, 90
 Minuten vor der Schlafenszeit, ein Essen um 20:30 bleibt. Feierabend steht
 als Punkt auf der Zeitachse und als letzte Zeile unter Zu tun. Im Kalender
 und für Überschneidungen bleiben alle Termine, nur das Briefing lässt sie weg.
+
+### daevo sortiert den Tag
+
+`packages/core/src/sortierung.ts`, `reihenfolgeBauen` in `tagesbriefing.ts`,
+Darstellung in `apps/pwa/js/sortierung.js`. Das Briefing zeigt nicht mehr eine
+Liste, sondern Stufen: 1 Absolute Priorität (Umsatz, Geld, Frist heute oder
+überfällig, höchste Wichtigkeit), 2 Priorität 2 (wichtig, Frist in den nächsten
+drei Tagen), Dazwischen (Termine, Essen, Training nach Uhrzeit), 3 Kann auf
+morgen warten, und Abends. `aufgabeStufe` rechnet Wichtigkeit mal 10, dazu
+Frist und Umsatzwörter, und nennt den Grund, der unter der Aufgabe steht.
+Die Wortliste und die Punkte sind Regeln der App, keine Studie.
+
+Termine nach Feierabend stehen nicht im Tag und nicht unter Zu tun, sondern
+in einer eigenen Gruppe "Abends, nach Feierabend". Termine ab Beginn der
+Abendroutine bleiben weg, wie vorher.
+
+Beim ersten Zeigen fliegen die Punkte der Reihe nach in ihre Gruppe, wie bei
+"daevo sortiert" auf der Website. Danach steht die Reihe ruhig da: gemerkt
+über die Signatur, `sortiertGezeigt`. Mit weniger Bewegung gibt es keine
+Animation. Dieselbe Ansicht steht auf der Kalenderseite, im Morgen Check-in
+und unter der Antwort im Chat, wenn der Coach `tagesplan_erstellen` oder
+`aufgaben_priorisieren` genutzt hat (Vermerk "Tag sortiert"), nur unter der
+letzten solchen Antwort. Ungeprüft: Durchlauf mit echten Daten auf dem Gerät.
 
 ## Das Tagesbriefing
 

@@ -4548,3 +4548,43 @@ button { overflow-wrap: anywhere; text-wrap: balance; }
 
 /* Der Geburtstag ganz unten im Briefing, nach allem, was zu tun ist. */
 .kb-gratulieren { margin-top: var(--s-6, 24px); padding-top: var(--s-3, 12px); border-top: 1px dashed var(--line, currentColor); }
+
+/* ---------- Sortierte Übersicht: daevo legt jeden Punkt in seine Stufe ---------- */
+.so { --so-ton: var(--brand); --so-auf: #0b0d10; }
+:root[data-theme="light"] .so { --so-ton: #1e7fa8; --so-auf: #fff; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .so { --so-ton: #1e7fa8; --so-auf: #fff; } }
+.so { display: flex; flex-direction: column; gap: var(--s-5); margin: var(--s-4) 0; }
+.so-titel { display: flex; align-items: center; gap: var(--s-2); margin: 0; font-size: var(--t-xs); letter-spacing: var(--lauf-weit, .04em); text-transform: uppercase; color: var(--muted); }
+.so-puls { width: 8px; height: 8px; border-radius: 50%; background: var(--so-ton); box-shadow: 0 0 0 4px color-mix(in srgb, var(--so-ton) 22%, transparent); }
+.so-gruppe { display: flex; flex-direction: column; gap: var(--s-2); }
+.so-kopf { display: flex; align-items: center; gap: var(--s-3); padding-bottom: var(--s-2); border-bottom: 1px dashed var(--line, var(--haarlinie, rgba(128,128,128,.3))); }
+.so-kopf h3 { margin: 0; font-size: var(--t-md); line-height: 1.2; }
+.so-kopf p { margin: 2px 0 0; font-size: var(--t-xs); color: var(--muted); }
+.so-nr { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: var(--t-sm); background: var(--so-ton); color: var(--so-auf); }
+.so-g-danach .so-nr { background: color-mix(in srgb, var(--so-ton) 60%, transparent); }
+.so-g-warten .so-nr { background: var(--flaeche, rgba(128,128,128,.25)); color: var(--muted); }
+.so-ohne { background: transparent; border: 2px solid var(--so-ton); width: 12px; height: 12px; margin: 8px; }
+.so-g-abends .so-ohne { border-color: var(--muted); }
+.so-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-2); }
+.so-punkt { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-3) var(--s-4); border-radius: var(--r-md, 14px); background: var(--flaeche, rgba(128,128,128,.12)); }
+.so-g-zuerst .so-punkt { background: color-mix(in srgb, var(--so-ton) 16%, transparent); }
+.so-g-zuerst .so-erster { background: var(--so-ton); color: var(--so-auf); box-shadow: 0 12px 34px -16px var(--so-ton); }
+.so-g-zuerst .so-erster small { color: inherit; opacity: .8; }
+.so-g-warten .so-punkt, .so-g-abends .so-punkt { opacity: .78; }
+.so-zeit { flex: none; min-width: 42px; font-size: var(--t-xs); font-variant-numeric: tabular-nums; color: var(--muted); }
+.so-erster .so-zeit { color: inherit; opacity: .8; }
+.so-was { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.so-was b { font-weight: 600; overflow-wrap: anywhere; }
+.so-was small { font-size: var(--t-xs); color: var(--muted); }
+.so-haken { flex: none; width: 32px; height: 32px; border-radius: 50%; border: 1.5px solid currentColor; background: transparent; color: inherit; display: grid; place-items: center; opacity: .7; }
+.so-haken.an { background: var(--so-ton); color: var(--so-auf); opacity: 1; }
+.so-punkt[data-rezept] { cursor: pointer; }
+/* Der Flug: nur beim ersten Zeigen, jeder Punkt der Reihe nach. */
+.so-neu .so-punkt { animation: soFlug .62s var(--kurve, cubic-bezier(.2,.8,.2,1)) both; animation-delay: var(--d); }
+.so-neu .so-kopf { animation: soKopf .5s var(--kurve, ease-out) both; animation-delay: calc(var(--gi) * .08s); }
+.so-neu .so-puls { animation: soPuls 1.4s ease-in-out 2; }
+@keyframes soFlug { 0% { opacity: 0; transform: translate3d(calc(var(--dx) - 26px), -34px, 0) scale(.88); } 60% { opacity: 1; transform: translate3d(0, 3px, 0) scale(1.01); } 100% { opacity: 1; transform: none; } }
+@keyframes soKopf { from { opacity: 0; transform: translate3d(-8px, 0, 0); } to { opacity: 1; transform: none; } }
+@keyframes soPuls { 50% { box-shadow: 0 0 0 9px color-mix(in srgb, var(--so-ton) 0%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .so-neu .so-punkt, .so-neu .so-kopf, .so-neu .so-puls { animation: none; } }
+.msg .so { margin: var(--s-4) 0 0; }

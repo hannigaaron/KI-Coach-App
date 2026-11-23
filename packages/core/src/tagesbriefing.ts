@@ -1,5 +1,6 @@
 import { abendroutineBeginn, darfNachFeierabend, feierabendZeitpunkt } from "./feierabend.js";
 import { uhrzeit } from "./ical.js";
+import type { SortierGruppe, SortierPunkt, SortierStufe } from "./sortierung.js";
 import type { Tagesablauf } from "./tagesablauf.js";
 import type { Tagesessen } from "./tagesessen.js";
 import type { Vorausblick } from "./vorausblick.js";
@@ -49,6 +50,8 @@ export interface TagesBriefing {
   text: string;
   /** Der Tag als eine Liste nach Uhrzeit, für die Ansicht, siehe `briefingPunkte`. */
   punkte: BriefingPunkt[];
+  /** Dieselbe Liste in der Reihenfolge, die daevo vorgibt: zuerst, danach, dazwischen, warten, abends. */
+  reihenfolge: SortierGruppe[];
 }
 
 export interface BriefingPunkt {
@@ -77,7 +80,9 @@ export interface BriefingEingaben {
   /** Das Training an diesem Tag, wenn eines geplant ist. */
   training: null | { titel: string; um?: string; minuten?: number; gestrichen?: boolean; uebungen?: number };
   /** Aufgaben für diesen Tag, wichtigste zuerst, mit Uhrzeit, wenn sie einen Platz hat. */
-  aufgaben: Array<{ id?: string; text: string; um?: string; wichtig?: boolean }>;
+  aufgaben: Array<{ id?: string; text: string; um?: string; wichtig?: boolean; stufe?: SortierStufe; grund?: string }>;
+  /** Aufgaben, die bis morgen warten dürfen. Sie stehen als dritte SortierStufe da, nicht im Tag. */
+  warten?: Array<{ id?: string; text: string; grund?: string }>;
   ziele: { kcal: number; proteinG: number };
   /** Nur abends: wie der heutige Tag stand. */
   heute?: { kcal: number; zielKcal: number; proteinG: number; zielProteinG: number; erledigt: number };
@@ -170,10 +175,14 @@ export function tagesbriefing(roh: BriefingEingaben): TagesBriefing {
   // Der Tag: Termine knapp, mit freier Zeit.
   const tag: string[] = [];
   let kopf = "";
+  const feierabendMs = grenze.feierabend;
+  const tagTermine = (e.ablauf?.termine ?? []).filter((t) => feierabendMs === null || t.von < feierabendMs);
+  const abendTermine = (e.ablauf?.termine ?? []).filter((t) => feierabendMs !== null && t.von >= feierabendMs);
   if (!e.ablauf) {
     tag.push("Kein Kalender verbunden. Ich sehe deine Termine nicht.");
   } else {
-    const a = e.ablauf;
+    // Termine nach Feierabend stehen nicht im Tag, sondern unter "Abends".
+    const a = { ...e.ablauf, termine: tagTermine };
     const feiertage = ganztaegig(a);
     if (feiertage.length) tag.push(`Ganztägig: ${feiertage.join(", ")}.`);
     if (!a.termine.length) {
@@ -214,12 +223,23 @@ export function tagesbriefing(roh: BriefingEingaben): TagesBriefing {
       : `${e.training.titel}${e.training.um ? ` um ${e.training.um}` : ""}${e.training.minuten ? `, ${e.training.minuten} Minuten` : ""}`
         + `${e.training.uebungen ? `, ${e.training.uebungen} Übungen` : ""}.`);
   }
-  // Die drei wichtigsten, dann nach Uhrzeit: so liest man den Tag von oben nach unten.
-  const drei = e.aufgaben.slice(0, 3).sort((x, y) => (x.um ?? "99").localeCompare(y.um ?? "99"));
-  for (const a of drei) tun.push(`${a.um ? `${a.um} ` : ""}${a.text}`);
-  if (e.aufgaben.length > 3) tun.push(`und ${e.aufgaben.length - 3} weitere unter Dein Tag`);
+  // In der Reihenfolge, die daevo vorgibt: absolute Priorität, dann Priorität 2.
+  // Ohne Einstufung zählt eine wichtige Aufgabe als SortierStufe 1, jede andere als 2.
+  const stufeVon = (a: BriefingEingaben["aufgaben"][number]): SortierStufe => a.stufe ?? (a.wichtig ? 1 : 2);
+  const sortiert = e.aufgaben.map((a, i) => ({ a, i })).sort((x, y) => stufeVon(x.a) - stufeVon(y.a) || x.i - y.i).map((x) => x.a);
+  for (const a of sortiert.slice(0, 3)) {
+    tun.push(`${stufeVon(a) === 1 ? "Zuerst" : "Danach"}: ${a.um ? `${a.um} ` : ""}${a.text}${a.grund ? ` (${a.grund})` : ""}`);
+  }
+  if (sortiert.length > 3) tun.push(`und ${sortiert.length - 3} weitere unter Dein Tag`);
   if (grenze.feierabend !== null) tun.push(`Ab ${uhrzeit(grenze.feierabend)} ist Feierabend. Danach kein Termin und keine Aufgabe mehr, ausser es brennt.`);
   if (tun.length) abschnitte.push({ titel: "Zu tun", zeilen: tun });
+  const warten = e.warten ?? [];
+  if (warten.length) {
+    abschnitte.push({ titel: "Kann bis morgen warten", zeilen: [warten.slice(0, 4).map((w) => w.text).join(", ") + (warten.length > 4 ? ` und ${warten.length - 4} weitere` : "")] });
+  }
+  if (abendTermine.length) {
+    abschnitte.push({ titel: "Abends, nach Feierabend", zeilen: abendTermine.map((t) => `${uhrzeit(t.von)} ${ohneEigeneUhrzeit(t.titel, uhrzeit(t.von))}`) });
+  }
 
   // Essen: jede Mahlzeit mit Uhrzeit und Gericht.
   const essen = (e.essen?.mahlzeiten ?? []).map((m) =>
@@ -255,7 +275,7 @@ export function tagesbriefing(roh: BriefingEingaben): TagesBriefing {
     ...abschnitte.map((a) => `\n${a.titel}\n${a.zeilen.map((z) => (a.zeilen.length > 1 ? `- ${z}` : z)).join("\n")}`),
   ].join("\n");
 
-  return { art: e.art, titel, kurz, abschnitte, text, punkte: briefingPunkte(e) };
+  return { art: e.art, titel, kurz, abschnitte, text, punkte: briefingPunkte(e), reihenfolge: reihenfolgeBauen(e, grenze.feierabend) };
 }
 
 function amTag(tag: string, hhmm: string): number | null {
@@ -314,4 +334,45 @@ export function briefingPunkte(e: BriefingEingaben): BriefingPunkt[] {
 export function naechsterPunkt(punkte: BriefingPunkt[], jetzt: number): number {
   const i = punkte.findIndex((p) => p.um === null || (p.bis ?? p.um + 15 * 60000) > jetzt);
   return i;
+}
+
+
+/**
+ * Der Tag in der Reihenfolge, die daevo vorgibt, für die Anzeige:
+ * 1 absolute Priorität, 2 Priorität 2, dazwischen Termine, Essen und
+ * Training nach Uhrzeit, dann was bis morgen warten darf, und ganz unten die
+ * Abendtermine nach Feierabend. Aufgaben stehen nie unter Abends: nach
+ * Feierabend ist Schluss, ausser etwas darf nicht warten, und das steht dann
+ * schon oben unter Zuerst.
+ */
+export function reihenfolgeBauen(e: BriefingEingaben, feierabend: number | null): SortierGruppe[] {
+  const tag = e.ablauf?.tag ?? "";
+  const stufeVon = (a: BriefingEingaben["aufgaben"][number]): SortierStufe => a.stufe ?? (a.wichtig ? 1 : 2);
+  const alsPunkt = (a: BriefingEingaben["aufgaben"][number]): SortierPunkt => ({
+    art: "aufgabe", titel: a.text, id: a.id, grund: a.grund,
+    um: tag && a.um ? amTag(tag, a.um) : null,
+    unter: [a.um ? `um ${a.um}` : "", a.grund ?? ""].filter(Boolean).join(", ") || "Aufgabe",
+  });
+  const zuerst = e.aufgaben.filter((a) => stufeVon(a) === 1).map(alsPunkt);
+  const danach = e.aufgaben.filter((a) => stufeVon(a) === 2).map(alsPunkt);
+  // Eine Aufgabe der dritten SortierStufe, die heute Platz hat, darf heute, muss aber nicht.
+  const warten: SortierPunkt[] = [
+    ...e.aufgaben.filter((a) => stufeVon(a) === 3).map((a) => ({ ...alsPunkt(a), unter: "wenn Zeit bleibt" })),
+    ...(e.warten ?? []).map((w): SortierPunkt => ({ art: "aufgabe", titel: w.text, id: w.id, um: null, unter: w.grund || "kann warten", grund: w.grund })),
+  ];
+
+  const alle = briefingPunkte(e).filter((p) => p.art !== "aufgabe" && p.art !== "feierabend");
+  const vorFeierabend = (p: BriefingPunkt) => feierabend === null || p.um === null || p.um < feierabend;
+  const alsSort = (p: BriefingPunkt): SortierPunkt => ({ art: p.art as SortierPunkt["art"], titel: p.titel, unter: p.unter, um: p.um, rezeptId: p.rezeptId, foto: p.foto });
+  const dazwischen = alle.filter(vorFeierabend).map(alsSort);
+  const abends = alle.filter((p) => !vorFeierabend(p) && p.art === "termin").map(alsSort);
+
+  const gruppen: SortierGruppe[] = [
+    { id: "zuerst", nr: 1, titel: "Absolute Priorität", unter: "Umsatz, Geld, Frist heute, höchste Wichtigkeit", punkte: zuerst },
+    { id: "danach", nr: 2, titel: "Priorität 2", unter: "wichtig, Frist in den nächsten Tagen", punkte: danach },
+    { id: "dazwischen", titel: "Dazwischen", unter: "Termine, Essen und Training nach Uhrzeit", punkte: dazwischen },
+    { id: "warten", nr: 3, titel: "Kann auf morgen warten", unter: "ohne Frist und ohne Umsatz", punkte: warten },
+    { id: "abends", titel: "Abends, nach Feierabend", unter: feierabend !== null ? `ab ${uhrzeit(feierabend)}, nur Termine` : "nur Termine", punkte: abends },
+  ];
+  return gruppen.filter((g) => g.punkte.length > 0);
 }

@@ -720,9 +720,9 @@ async function execute(
         return { text: await actions.aufgabeAbhaken({ text }), notiz: "Aufgabe abgehakt" };
       }
       case "aufgaben_priorisieren":
-        return { text: await actions.aufgabenPriorisieren() };
+        return { text: await actions.aufgabenPriorisieren(), notiz: "Tag sortiert" };
       case "tagesplan_erstellen":
-        return { text: await actions.tagesplanErstellen() };
+        return { text: await actions.tagesplanErstellen(), notiz: "Tag sortiert" };
       case "wochenplan_erstellen":
         return { text: await actions.wochenplanErstellen() };
       case "training_anpassen":
@@ -1820,8 +1820,9 @@ export async function runOffline(
   // steht "tagesplan" auch, und die Antwort dort kennt nur Termine, keine
   // Aufgaben. Wer fragt, was er heute machen muss, meint seine Liste.
   if (pattern("was muss ich heute", "was habe? ich heute zu (tun|erledigen)", "tagesplan",
-    "plan(e)? (mir )?(meinen|den) tag", "sinnvolle reihenfolge", "to ?dos? (fur|fuer) heute").test(text)) {
-    return { text: await actions.tagesplanErstellen(), ausgeführt, source: "offline" };
+    "plan(e)? (mir )?(meinen|den) tag", "sinnvolle reihenfolge", "to ?dos? (fur|fuer) heute",
+    "was soll ich (wann|heute|jetzt) (alles )?(machen|tun|erledigen)", "so viel vor (mir|heute)").test(text)) {
+    return { text: await actions.tagesplanErstellen(), ausgeführt: [...ausgeführt, "Tag sortiert"], source: "offline" };
   }
 
   // Erinnerungen vor allem, was einträgt. "Erinnere mich um 8 an das
@@ -2080,7 +2081,7 @@ export async function runOffline(
 
   if (pattern("was zuerst", "womit anfangen", "priorit", "reihenfolge", "was mache ich (jetzt|zuerst)",
     "rest des tages", "schaffe ich heute", "was kann warten", "to do", "todo", "aufgabenliste").test(text)) {
-    return { text: await actions.aufgabenPriorisieren(), ausgeführt, source: "offline" };
+    return { text: await actions.aufgabenPriorisieren(), ausgeführt: [...ausgeführt, "Tag sortiert"], source: "offline" };
   }
 
   // "Ich muss bis Freitag die Steuer machen" ist eine Aufgabe mit Frist. Die

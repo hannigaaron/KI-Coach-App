@@ -82,6 +82,7 @@ import { spueren } from "./haptik.js";
 import { eanAusBild } from "./ean.js";
 import { anteilAmZiel, eigeneLebensmittel, eigeneSuche, eigenerPosten, lebensmittelLoeschen, lebensmittelSpeichern, eigeneRezepte, essensplanFrei, proFrei, hauptMakro, rezeptGrenze, rezeptLoeschen, rezeptSpeichern, summe as postenSumme, tabellenBild, tabellenPosten, tabellenSuche, zuletztGegessen, vorschlaege, produktGemerkt, produktPosten } from "./bibliothek.js";
 import { abschlussDaten, abschlussHtml, storyTeilen } from "./abschluss.js";
+import { sortiertHtml, sortiertGezeigt } from "./sortierung.js";
 import { bewegungStarten, wischenZumLoeschen, zahlenZaehlen, zeileRaus } from "./bewegung.js";
 import { einwilligungOffen, einwilligungSetzen, einwilligungText, kiErlaubt } from "./einwilligung.js";
 import { ABO_STUFEN, ABO_TAKTE, aboPreis, ersparnisProzent, aboAnlass, aboAnlassLeer, aboLeiste, aboLink, kontoLoeschen, kontoSicherstellen, kontoStand, kontoText, sperreFuer } from "./konto.js";
@@ -328,9 +329,16 @@ function markeSvg() {
 function renderTranscript() {
   const chat = store.getChat();
   const el = $("transcript");
+  // Die sortierte Übersicht steht nur unter der letzten Antwort dieser Art:
+  // eine ältere wäre mit dem Stand von gestern gerechnet.
+  const letzteSortierung = chat.slice(-40).map((m) => Boolean(m.ausgeführt?.includes("Tag sortiert"))).lastIndexOf(true);
+  let sortierung = "";
+  if (letzteSortierung >= 0) {
+    try { sortierung = sortiertHtml(tagesbriefingFuer("morgen").reihenfolge, { schluessel: "chat", mitHaken: false }); } catch (e) { console.error(e); }
+  }
   el.innerHTML = chat
     .slice(-40)
-    .map((m) => {
+    .map((m, idx) => {
       const done = m.ausgeführt?.length ? `<span class="msg-done">${escapeHtml(m.ausgeführt.join(" und "))}</span>` : "";
       const bilder = m.bilder?.length
         ? `<div class="msg-bilder">${m.bilder.map((b) => `<img src="${b}" alt="Mitgeschicktes Bild">`).join("")}</div>`
@@ -349,9 +357,10 @@ function renderTranscript() {
           `<button type="button" class="ghost" data-heute-neu>Neue Übungen</button></div>`
         : "";
       return `<div class="msg assistant">${markeSvg()}` +
-        `<div class="msg-text">${bilder}${dateien}${chatHtml(m.text)}${done}${knopf}</div></div>`;
+        `<div class="msg-text">${bilder}${dateien}${chatHtml(m.text)}${done}${idx === letzteSortierung ? sortierung : ""}${knopf}</div></div>`;
     })
     .join("");
+  sortiertGezeigt(el);
   // Erst wenn der Nutzer selbst etwas gesagt hat, schrumpft der Kreis. Die
   // Begrüssung allein zählt nicht, sonst sieht man den großen Kreis nie.
   $("assistant").classList.toggle("has-chat", chat.some((m) => m.role === "user"));
@@ -4791,7 +4800,10 @@ function briefingZeichnen() {
   const achtung = abschnitt("Achtung") || abschnitt("Heute Abend vorbereiten");
   if (achtung) html += `<p class="kb-achtung"><b>${escapeHtml(achtung.titel)}:</b> ${escapeHtml(achtung.zeilen[0])}</p>`;
 
-  if (rest.length) {
+  if (b.reihenfolge?.length) {
+    // daevo zeigt, was er sortiert hat: Stufe 1, Stufe 2, dazwischen, warten, abends.
+    html += sortiertHtml(b.reihenfolge, { schluessel: `kal-${briefingArt}`, mitHaken: true });
+  } else if (rest.length) {
     const sichtbar = briefingAlles ? rest : rest.slice(0, 4);
     html += `<h3 class="kb-danach">Danach</h3><ol class="kb-liste">${sichtbar.map((p) => `<li class="kb-${p.art}"${p.art === "essen" && p.rezeptId ? ` data-rezept="${escapeHtml(p.rezeptId)}" role="button" tabindex="0"` : ""}>
       <span class="kb-zeit">${zeit(p)}</span><span class="kb-was"><b>${escapeHtml(p.titel)}</b><small>${escapeHtml(PUNKT_ART[p.art])}${p.art === "essen" ? `, ${escapeHtml(p.unter.split(", ").slice(1).join(", "))}` : ""}</small></span>${haken(p, false)}</li>`).join("")}</ol>`;
@@ -4809,6 +4821,7 @@ function briefingZeichnen() {
   }
   if (gratulieren) html += `<p class="kb-gratulieren">${escapeHtml(gratulieren.zeilen[0])}</p>`;
   ziel.innerHTML = html;
+  sortiertGezeigt(ziel);
 }
 $("kalBriefing").addEventListener("click", async (event) => {
   if (event.target.closest("[data-mehr]")) { briefingAlles = !briefingAlles; briefingZeichnen(); return; }

@@ -304,7 +304,8 @@ export const AGENT_TOOLS: ToolDefinition[] = [
       "heute noch frei ist, und sagt, was bis morgen warten kann. " +
       "Nehmen, wenn der Nutzer fragt, was er zuerst machen soll, wenn er sich überfordert fühlt, " +
       "wenn er nach seinem Rest des Tages fragt, und immer am Nachmittag. " +
-      "Die Aufteilung aus dieser Antwort übernimmst du, du sortierst nicht selbst um.",
+      "Die Aufteilung aus dieser Antwort übernimmst du, du sortierst nicht selbst um. " +
+      "Die App zeigt unter deiner Antwort die sortierte Übersicht (absolute Priorität, Priorität 2, dazwischen, kann warten), du musst sie nicht abschreiben.",
     input_schema: { type: "object", properties: {} },
   },
   {
@@ -315,7 +316,8 @@ export const AGENT_TOOLS: ToolDefinition[] = [
       "sind schon ausgespart. " +
       "Nehmen, wenn der Nutzer fragt, was er heute machen muss, nach einer Reihenfolge oder einer Tagesplanung, " +
       "und morgens. Die Uhrzeiten aus der Antwort übernimmst du unverändert, du verschiebst nichts selbst. " +
-      "Danach darfst du coachen: was am Plan auffällt, wo es eng wird, was er streichen könnte.",
+      "Danach darfst du coachen: was am Plan auffällt, wo es eng wird, was er streichen könnte. " +
+      "Die App zeigt unter deiner Antwort die sortierte Übersicht, du musst sie nicht abschreiben.",
     input_schema: { type: "object", properties: {} },
   },
   {
