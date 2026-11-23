@@ -1011,7 +1011,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1527 Tests
+npm test           # 1542 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1380,6 +1380,75 @@ den Tag mit Wochentag und Datum, `tagWort`. Die Persona verlangt, bei jeder
 Frage nach einem Tag das Werkzeug mit `tag` zu rufen und Wochentag und Datum
 der Antwort zu prüfen. Offen: Fragen zum Wetter, und "morgen früh Training
 um 7" als Eintrag.
+
+## Regeneration je Muskel
+
+`packages/core/src/regeneration.ts` rechnet, `regenerationSvg` in
+`muskelkarte.js` zeichnet, `regeneration-daten.js` liest das Protokoll,
+Ansicht unter Bereitschaft. Je Partie ein Prozentwert aus den Sätzen der
+letzten 28 Tage: jedes Training legt eine Ermüdung an, die über eine
+Erholungszeit linear abklingt, 36 Stunden für kleine Muskeln bis 72 für
+Beine und unteren Rücken, länger nach vielen Sätzen. Mehrere Trainings
+addieren sich. Ab fünf Tagen ohne Reiz steht eine erholte Partie auf
+fällig, gestützt auf zwei Reize je Woche (Schoenfeld und andere 2016). Die
+Figur ist dieselbe wie im Abschluss, Rot belastet über Gelb nach Grün,
+leicht durchsichtig, ohne Training grau. Ein Tipp auf eine Partie setzt für
+heute frisch oder Muskelkater, `settings.regenGefuehl`, das Tempo schnell,
+normal oder langsam steht in `settings.regenTempo`. Ein Modell und keine
+Messung, die Stunden sind Regeln der App, und das steht in der Ansicht.
+`trainingsplan_abrufen` gibt den Stand für heute an den Coach. Trainings ohne
+Übungen, etwa Volleyball aus Health, kennt die Rechnung nicht.
+
+## Schmerz in der Übungsnotiz
+
+`schmerzHinweis` in `training.js`. Steht in der letzten Notiz einer Übung
+Schmerz, Ziehen, reingefahren, zwickt oder ähnliches, kommt beim nächsten
+Mal über den Sätzen ein Hinweis mit der Notiz: den ersten Satz leichter,
+nachspüren, sonst weglassen oder tauschen. Die Wortliste ist eng, "Sitz auf
+4" löst nichts aus. Im Rückblick auf ein altes Training kein Hinweis.
+
+## Schlaf mit Phasen
+
+`packages/core/src/schlafwert.ts`, `renderSchlaf` in `app.js`, Ansicht
+`schlaf`, erreichbar über die Schlafkarte auf Heute und unter Bereitschaft.
+Das Plugin liest je Nacht Kern, Tief, REM und Wach mit Verlauf. Apple Watch,
+Oura, Garmin und Whoop schreiben alle in Apple Health, und je Nacht gilt die
+Quelle mit den meisten Minuten in Phasen: zwei Quellen addiert hiessen
+doppelten Tiefschlaf. Gespeichert unter `gesundheit.nacht`, der Verlauf nur
+für 14 Nächte, `naechteSchreiben` in `healthkit.js`. Der Schlafwert ist
+eine Regel der App: Dauer gegen das Ziel 50, Effizienz 20, Tief 15, REM 15.
+Das Ziel ist der eigene Plan, nie unter sieben Stunden (Watson 2015), die
+Spannen der Phasen Richtwerte nach Ohayon 2004. Wearables messen Phasen
+ungenau (de Zambotti 2019), die Ansicht sagt das. Eigene Anbindungen an
+Garmin, Oura oder Whoop gibt es nicht, deren Schnittstellen brauchen eine
+Registrierung beim Anbieter, siehe `docs/ROADMAP.md`. Ungeprüft: der Swift
+Teil ist nicht kompiliert.
+
+## Essenszeiten und Mahlzeiten im Kalender
+
+Der Fragebogen fragt auf eigener Seite, wann die erste Mahlzeit nach dem
+Aufstehen kommt und wann Mittag und Abend, `profile.essenszeiten`, im Profil
+unter den Tagesrändern änderbar. `tagesessen` legt die Fenster darum,
+`essensUhrzeiten` nennt die Uhrzeiten je Tag mit der Aufstehzeit dieses
+Tages. Übernommene Mahlzeiten kommen als "Abendessen: Gericht" in den
+Kalender, `mahlzeitenEinplanen` in `kalender-schreiben.js`: aus dem
+Essensplan mit "Plan übernehmen, in meinen Kalender", aus einem Vorschlag
+im Rezeptblatt mit "Einplanen", im Gespräch über `kalender_termin`, wenn er
+zugesagt hat. Je Tag und Mahlzeit steht höchstens ein Termin von daevo,
+ein neuer Plan ersetzt den alten, ein selbst verschobener bleibt.
+
+## Pläne aus Foto oder PDF
+
+Werkzeuge `plan_uebernehmen` und `ernaehrungsplan_uebernehmen`,
+`planImportieren` und `ernaehrungsplanImportieren` in `assistant.js`. Das
+Modell liest den Plan aus dem Anhang ab, daevo ordnet zu und rechnet. Ein
+Trainingsplan läuft je Einheit durch `einheitAusDiktat`, Unbekanntes bleibt
+mit `eigen-` Kennung, und `gespeicherterPlan` lässt solche Übungen jetzt
+stehen. Ein Ernährungsplan wird je Mahlzeit ein eigenes Rezept, Nährwerte
+aus den Zutaten über `parseMeal`, nie vom Blatt. Danach der Abgleich mit
+dem Tagesziel als ein Faktor auf alle Mengen, damit die Mahlzeiten des
+Coaches erkennbar bleiben. Ohne KI gibt es keinen Import: ein Bild lesen
+kann der Regelweg nicht.
 
 ## Das Tagesbriefing
 
@@ -3108,14 +3177,15 @@ wie Eier ganz. Die Nährwerte werden aus den gerundeten Mengen neu gerechnet:
 was angezeigt wird, ist das, was eingetragen wird. Die Passung ist eine Regel:
 Kalorien und Protein je 35 Prozent, Fett und Kohlenhydrate je 15.
 
-55 Rezepte, davon 24 aus den Guides von Personal Coach Aaron. Deren Kalorien
+69 Rezepte, davon 24 aus den Guides von Personal Coach Aaron. Deren Kalorien
 werden nicht übernommen: sie stehen dort als "ca." und liegen bei mehreren
 Gerichten unter dem, was die Zutaten ergeben. Gerechnet wird wie überall aus
 der Zutatentabelle.
 
 Fotos: `foto: true` am Rezept, Datei unter `apps/pwa/img/rezepte/<id>.jpg`
 (800 x 600), Stil wie bei den Übungen. Ein Test prüft, dass jede Kennzeichnung
-eine Datei hat. Alle 55 Rezepte haben ein Foto. Ohne Foto trägt die Karte ein Zeichen
+eine Datei hat. 14 schnelle Rezepte mit höchstens fünf Zutaten und 25
+Minuten kamen im November 2026 dazu, Fotos nur mit freier Lizenz. Ohne Foto trägt die Karte ein Zeichen
 auf einem Verlauf. Die Karte steht im Verhältnis 4 zu 3 und ist auf breiten
 Bildschirmen gedeckelt, vorher füllte sie auf dem Laptop den halben
 Bildschirm.

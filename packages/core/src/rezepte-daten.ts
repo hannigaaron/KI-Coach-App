@@ -285,6 +285,78 @@ export const REZEPTE: Rezept[] = [
     schritte: ["Nudeln kochen.", "Hähnchen würfeln und mit der Zwiebel in Öl anbraten.", "Passierte Tomaten dazu, würzen und zehn Minuten köcheln.", "Mit den Nudeln mischen und Parmesan darüber reiben."],
   },
 
+  // Schnell und einfach, auf Wunsch des Nutzers: höchstens fünf Zutaten
+  // ausser Öl und Gewürz, höchstens 25 Minuten, nichts, was man üben muss.
+  {
+    id: "wrap-ruehrei-schinken", name: "Frühstückswrap mit Rührei und Schinken", art: "fruehstueck", minuten: 8, geraete: ["Herd"],
+    zutaten: [{ z: "wrap", g: 65 }, { z: "ei", g: 116 }, { z: "kochschinken", g: 50 }, { z: "tomate", g: 60 }, { z: "olivenoel", g: 3 }],
+    schritte: ["Eier verquirlen und in wenig Öl zu Rührei stocken lassen.", "Wrap kurz in der Pfanne warm machen.", "Rührei, Schinken und Tomatenscheiben darauf legen und einrollen."],
+  },
+  {
+    id: "brot-huettenkaese", name: "Vollkornbrot mit Hüttenkäse, Tomate und Gurke", art: "fruehstueck", minuten: 5, geraete: [],
+    zutaten: [{ z: "vollkornbrot", g: 90 }, { z: "huettenkaese", g: 150 }, { z: "tomate", g: 100 }, { z: "gurke", g: 80 }],
+    schritte: ["Hüttenkäse auf die Brotscheiben streichen.", "Tomate und Gurke in Scheiben darauf legen.", "Mit Salz und Pfeffer würzen."],
+  },
+  {
+    id: "skyr-apfel-zimt", name: "Skyr mit Apfel, Zimt und Hafer", art: "fruehstueck", minuten: 5, geraete: [],
+    zutaten: [{ z: "skyr", g: 250 }, { z: "apfel", g: 150 }, { z: "haferflocken", g: 30 }, { z: "zimt", g: 2 }],
+    schritte: ["Apfel klein würfeln.", "Mit Skyr und Haferflocken mischen.", "Zimt darüber streuen."],
+  },
+  {
+    id: "porridge-apfel-zimt", name: "Apfel Zimt Porridge mit Whey", art: "fruehstueck", minuten: 8, geraete: ["Herd", "Mikrowelle"],
+    zutaten: [{ z: "haferflocken", g: 60 }, { z: "milch", g: 250 }, { z: "apfel", g: 120 }, { z: "whey", g: 25 }, { z: "zimt", g: 2 }],
+    schritte: ["Haferflocken mit Milch und dem gewürfelten Apfel aufkochen, vier Minuten quellen lassen.", "Vom Herd nehmen, Whey einrühren.", "Mit Zimt bestreuen."],
+  },
+  {
+    id: "thunfisch-wrap", name: "Thunfisch Wraps mit Mais", art: "hauptmahlzeit", minuten: 8, geraete: [],
+    zutaten: [{ z: "wrap", g: 130 }, { z: "thunfisch", g: 130 }, { z: "mais", g: 60 }, { z: "salat", g: 40 }, { z: "joghurt", g: 50 }],
+    schritte: ["Thunfisch abtropfen lassen und mit Joghurt, Mais, Salz und Pfeffer verrühren.", "Salat auf die Wraps legen, Thunfisch darauf.", "Fest einrollen und halbieren."],
+  },
+  {
+    id: "spaghetti-bolognese", name: "Schnelle Bolognese mit Vollkornnudeln", art: "hauptmahlzeit", minuten: 20, geraete: ["Herd"],
+    zutaten: [{ z: "nudeln", g: 90 }, { z: "rinderhack", g: 150 }, { z: "passata", g: 200 }, { z: "zwiebel", g: 40 }, { z: "parmesan", g: 10 }],
+    schritte: ["Nudeln nach Packung kochen.", "Zwiebel würfeln, mit dem Hack krümelig anbraten.", "Passata dazu, mit Salz, Pfeffer und Oregano zehn Minuten köcheln.", "Mit den Nudeln und Parmesan servieren."],
+  },
+  {
+    id: "haehnchen-curry-reis", name: "Hähnchen Curry mit Reis", art: "hauptmahlzeit", minuten: 20, geraete: ["Herd"],
+    zutaten: [{ z: "haehnchen", g: 180 }, { z: "reis", g: 80 }, { z: "paprika", g: 100 }, { z: "kochsahne", g: 50 }, { z: "zwiebel", g: 40 }, { z: "olivenoel", g: 5 }],
+    schritte: ["Reis kochen.", "Hähnchen in Würfeln mit Zwiebel und Paprika in Öl anbraten.", "Einen Teelöffel Currypulver kurz mitrösten, Kochsahne und einen Schluck Wasser dazu.", "Fünf Minuten köcheln, mit dem Reis servieren."],
+  },
+  {
+    id: "nudeln-thunfisch-tomate", name: "Nudeln mit Thunfisch Tomatensauce", art: "hauptmahlzeit", minuten: 15, geraete: ["Herd"],
+    zutaten: [{ z: "nudeln", g: 90 }, { z: "thunfisch", g: 130 }, { z: "passata", g: 200 }, { z: "zwiebel", g: 30 }, { z: "olivenoel", g: 5 }],
+    schritte: ["Nudeln nach Packung kochen.", "Zwiebel in Öl andünsten, Passata dazu und fünf Minuten köcheln.", "Thunfisch unterheben, nur warm werden lassen.", "Mit den Nudeln mischen."],
+  },
+  {
+    id: "garnelen-reispfanne", name: "Garnelen Reispfanne mit Paprika und Mais", art: "hauptmahlzeit", minuten: 15, geraete: ["Herd"],
+    zutaten: [{ z: "reis", g: 80 }, { z: "garnelen", g: 180 }, { z: "paprika", g: 100 }, { z: "mais", g: 60 }, { z: "sojasauce", g: 10 }, { z: "olivenoel", g: 5 }],
+    schritte: ["Reis kochen, gern vom Vortag.", "Paprika in Öl anbraten, Garnelen dazu, bis sie rosa sind.", "Reis und Mais unterheben, mit Sojasauce ablöschen."],
+  },
+  {
+    id: "ofen-feta-pasta", name: "Ofen Feta Pasta mit Hähnchen", art: "hauptmahlzeit", minuten: 25, geraete: ["Backofen"],
+    zutaten: [{ z: "nudeln", g: 80 }, { z: "feta", g: 50 }, { z: "tomate", g: 250 }, { z: "haehnchen", g: 130 }, { z: "olivenoel", g: 5 }],
+    schritte: ["Tomaten und Feta in eine Form, mit Öl, Salz und Pfeffer, 20 Minuten bei 200 Grad.", "Nudeln kochen, Hähnchen in Streifen anbraten.", "Feta und Tomaten zerdrücken, mit Nudeln und Hähnchen mischen."],
+  },
+  {
+    id: "rote-linsen-suppe", name: "Rote Linsen Suppe mit Brot", art: "hauptmahlzeit", minuten: 25, geraete: ["Herd"],
+    zutaten: [{ z: "roteLinsen", g: 80 }, { z: "karotte", g: 100 }, { z: "kartoffeln", g: 150 }, { z: "zwiebel", g: 40 }, { z: "vollkornbrot", g: 45 }, { z: "olivenoel", g: 5 }],
+    schritte: ["Zwiebel, Karotte und Kartoffel würfeln und in Öl andünsten.", "Linsen und 600 ml Brühe dazu, 18 Minuten köcheln.", "Pürieren oder stückig lassen, mit Kreuzkümmel und Zitrone abschmecken."],
+  },
+  {
+    id: "bohnen-reis-bowl", name: "Bohnen Reis Bowl mit Mais und Joghurt", art: "hauptmahlzeit", minuten: 15, geraete: ["Herd"],
+    zutaten: [{ z: "reis", g: 70 }, { z: "kidneybohnen", g: 150 }, { z: "mais", g: 80 }, { z: "paprika", g: 80 }, { z: "joghurt", g: 100 }],
+    schritte: ["Reis kochen.", "Bohnen und Mais abspülen, mit gewürfelter Paprika kurz in der Pfanne erwärmen, mit Paprikapulver würzen.", "Alles in eine Schale, Joghurt darauf."],
+  },
+  {
+    id: "bauernfruehstueck", name: "Kartoffel Ei Pfanne mit Spinat", art: "hauptmahlzeit", minuten: 20, geraete: ["Herd"],
+    zutaten: [{ z: "kartoffeln", g: 300 }, { z: "ei", g: 174 }, { z: "zwiebel", g: 40 }, { z: "spinat", g: 60 }, { z: "olivenoel", g: 8 }],
+    schritte: ["Kartoffeln in Scheiben schneiden, mit Zwiebel in Öl knusprig braten, etwa 12 Minuten.", "Spinat unterheben.", "Verquirlte Eier darüber, stocken lassen, salzen und pfeffern."],
+  },
+  {
+    id: "couscous-haehnchen-salat", name: "Couscous Salat mit Hähnchen und Feta", art: "hauptmahlzeit", minuten: 15, geraete: ["Herd"],
+    zutaten: [{ z: "couscous", g: 70 }, { z: "haehnchen", g: 150 }, { z: "gurke", g: 100 }, { z: "tomate", g: 100 }, { z: "feta", g: 30 }, { z: "olivenoel", g: 5 }],
+    schritte: ["Couscous mit der gleichen Menge kochendem Wasser übergiessen, fünf Minuten quellen lassen.", "Hähnchen in Streifen anbraten.", "Gurke und Tomate würfeln, alles mit Feta, Öl und Zitrone mischen."],
+  },
   // Snacks. Die mit standard stammen aus der Liste von Coach Aaron, Zucker
   // nur ums Training.
   {
