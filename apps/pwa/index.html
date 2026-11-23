@@ -974,6 +974,25 @@ try {
       <p class="fineprint">Das ist keine Messung. daevo hat keinen Sensor. Die Zahl fasst zusammen, was du selbst
         angegeben hast, plus deine eigene Trainingslast. Jeder Teil nennt seine Quelle.</p>
 
+      <h2 class="abschnitt">Regeneration je Muskel</h2>
+      <p class="sub" id="regenSub">Grün ist frisch, Rot erholt sich noch.</p>
+      <div class="regen-karte" id="regenKarte"></div>
+      <div class="regen-legende" aria-hidden="true"><span>Belastet</span><i></i><span>Frisch</span></div>
+      <div class="regen-liste" id="regenListe"></div>
+      <label class="regen-tempo">Wie schnell erholst du dich?
+        <select id="regenTempo">
+          <option value="schnell">Schneller als die meisten</option>
+          <option value="normal" selected>Normal</option>
+          <option value="langsam">Langsamer, etwa mit wenig Schlaf</option>
+        </select>
+      </label>
+      <p class="fineprint">Ein Modell aus deinem Trainingsprotokoll, keine Messung. Gerechnet wird mit 36 bis 72
+        Stunden Erholung je Muskel, länger nach vielen Sätzen. Gestützt auf MacDougall 1995 und Damas 2016
+        (Proteinsynthese 24 bis 48 Stunden erhöht) und Schoenfeld 2016 (zwei Reize je Woche). Ab fünf Tagen
+        ohne Reiz steht eine Partie auf fällig. Tipp auf eine Partie, wenn du es anders spürst: frisch oder
+        Muskelkater gilt für heute. Trainings ohne Übungen, etwa Volleyball aus Apple Health, kennt die
+        Rechnung nicht.</p>
+
       <h2 class="abschnitt">Belastung</h2>
       <p class="sub">Deine letzten sieben Tage gegen deinen Schnitt der letzten achtundzwanzig, beide in Minuten.</p>
       <pre class="pre" id="belastungText">Wird beim Öffnen gerechnet.</pre>
@@ -1807,7 +1826,7 @@ try {
         <div class="menu-liste">
           <button class="menu-zeile" data-go="plaene"><span class="menu-sym" data-sym="liste"></span><span><b>Trainingsplan</b><small>Dein Plan für zwölf Wochen</small></span></button>
           <button class="menu-zeile" data-go="uebungen"><span class="menu-sym" data-sym="hantel"></span><span><b>Übungen</b><small>Foto, Muskeln, Erklärvideo</small></span></button>
-          <button class="menu-zeile" data-go="bereitschaft"><span class="menu-sym" data-sym="puls"></span><span><b>Bereitschaft</b><small>Tagesform und Belastung</small></span></button>
+          <button class="menu-zeile" data-go="bereitschaft"><span class="menu-sym" data-sym="puls"></span><span><b>Bereitschaft</b><small>Tagesform, Regeneration, Belastung</small></span></button>
           <button class="menu-zeile" data-go="zyklus" id="menuZyklus" hidden><span class="menu-sym" data-sym="zyklus"></span><span><b>Zyklus</b><small>Phase, Periode und Training danach</small></span></button>
         </div>
       </section>

@@ -4,7 +4,10 @@ import {
   mahlzeitAusFoto, modellFuerBilder, naehrwerteImNetz, produktPerBarcode, produkteSuchen, summiere, vorratAusFoto,
   todoistAbhaken, todoistAufgaben, todoistIdVon, todoistWiederOeffnen, PERSONA_TEILE,
 } from "@daevo/coach";
-import { essenszeitAus, foldUmlauts, wochenrueckblick, wochenbeginn, wochenschnitt, wochenschnittText, tagKurz, tagStand, rueckblickArt, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, freienPlatzFinden, platzText, tagLang, tagWort, tagAufloesen, tagAusText, aufgabeStufe, vernachlaessigteBereiche, bereichDerAufgabe, familienNamenAus, anheben, einzeltrainingBauen, abdeckungsLuecken, FOKUS_NAME, alternativen, planNachrechnen, positionFuer } from "@daevo/core";
+import { essenszeitAus, foldUmlauts, wochenrueckblick, wochenbeginn, wochenschnitt, wochenschnittText, tagKurz, tagStand, rueckblickArt, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, freienPlatzFinden, platzText, tagLang, tagWort, tagAufloesen, tagAusText, aufgabeStufe, vernachlaessigteBereiche, bereichDerAufgabe, familienNamenAus, anheben, einzeltrainingBauen, abdeckungsLuecken, FOKUS_NAME, alternativen, planNachrechnen, positionFuer, regeneration, regenText,
+} from "@daevo/core";
+import { REGIONEN } from "./muskelkarte.js";
+import { regenTrainings, regenGefuehlHeute } from "./regeneration-daten.js";
 import { trainingsTageAusQuellen } from "./luecke.js";
 import { UEBUNGEN } from "./uebungen-daten.js";
 import { GERAETE, uebungenFiltern } from "./uebungen.js";
@@ -152,6 +155,12 @@ function provider({ ohneZaehlung = false } = {}) {
  * direkt über iOS, `nativHolen`, im Browser über den eigenen Worker, siehe
  * workers/push/src/produkt.ts. Ohne beides bleiben die Wege mit CORS Kopf.
  */
+/** Die Regeneration je Muskel jetzt, als Text für den Coach. */
+export function regenAktuell() {
+  const st = store.getSettings();
+  return regenText(regeneration(regenTrainings(store), Date.now(), { tempo: st.regenTempo || "normal", gefuehl: regenGefuehlHeute(st, todayIso()) }), REGIONEN);
+}
+
 export function offOptionen() {
   if (istNativ()) return { fetchImpl: (url) => nativHolen(url).catch(() => fetch(url)) };
   const proxy = (KONFIG.chatUrl || "").replace(/\/+$/, "");
@@ -3981,6 +3990,9 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       } else if (heute.some((s) => s.type === "strength")) {
         zeilen.push("Einen Plan mit Übungen hast du noch nicht gespeichert. Den rechnet dir die App unter Training, Anpassen.");
       }
+      // Wie erholt jeder Muskel ist, damit der Coach nicht Beine empfiehlt,
+      // die gestern zehn Sätze hatten.
+      if (inTagen === 0 && heute.some((s) => s.type === "strength")) zeilen.push(regenAktuell());
       return zeilen.join("\n");
     },
 

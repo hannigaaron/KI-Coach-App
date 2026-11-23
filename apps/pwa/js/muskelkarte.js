@@ -170,3 +170,33 @@ export function muskelkarteSvg(saetze, { farben = KARTE_DUNKEL, beschriftung = t
 
 /** Alle Partien, die die Karte zeichnet. Für den Test, dass keine fehlt. */
 export const GEZEICHNET = new Set(FLAECHEN.flatMap(([p]) => p));
+
+/**
+ * Dieselbe Figur für die Regeneration: jede Partie in einem Farbton von Rot
+ * (noch belastet) über Gelb nach Grün (frisch), leicht durchsichtig über dem
+ * Grau, damit die Fugen lesbar bleiben. Eine Partie ohne Training in vier
+ * Wochen bleibt grau, denn über sie weiss daevo nichts.
+ * `werte` ist { partie: Prozent oder null }, `farbton` kommt aus dem Kern.
+ */
+export function regenerationSvg(werte, farbton, { farben = KARTE_DUNKEL } = {}) {
+  const f = { ...KARTE_DUNKEL, ...farben };
+  const R = KARTE_RAHMEN;
+  const schrift = 'font-family="Satoshi, system-ui, sans-serif" font-size="15" text-anchor="middle"';
+  const schein = f.schein
+    ? `<filter id="rgSchein" x="-20%" y="-10%" width="140%" height="120%"><feGaussianBlur stdDeviation="9"/></filter>`
+      + `<path d="${UMRISS}" fill="${f.schein}" fill-opacity="0.22" filter="url(#rgSchein)"/>`
+    : "";
+  const teil = ([partien, d]) => {
+    // Gilt die schwächste Partie der Fläche: der Deltamuskel von vorn ist
+    // vordere und seitliche Schulter, und müde ist er, wenn eine davon müde ist.
+    const p = partien.map((x) => werte[x]).filter((x) => typeof x === "number");
+    if (!p.length) return `<path d="${d}" fill="${f.muskel}"/>`;
+    const wert = Math.min(...p);
+    return `<path d="${d}" fill="${f.muskel}"/><path d="${d}" fill="hsl(${farbton(wert)} 72% 50%)" fill-opacity="0.78"/>`;
+  };
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${R.x} ${R.y} ${R.breite} ${R.hoehe + 20}" role="img" aria-label="Regeneration je Muskel, vorn und hinten">`
+    + schein
+    + `<path d="${UMRISS}" fill="${f.linie}"/>`
+    + FLAECHEN.map(teil).join("")
+    + `<text x="${R.vorn}" y="516" ${schrift} fill="${f.text}">Vorn</text><text x="${R.hinten}" y="516" ${schrift} fill="${f.text}">Hinten</text></svg>`;
+}

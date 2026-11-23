@@ -7,6 +7,7 @@ import {
   impulseFuerTag, naechsterPunkt, planFuer, saubereUrl, uhrzeit, undListe, weckwortGehoert, weightTrend,
   belastung,
   belastungText,
+  regeneration, regenFarbton, regenSatz,
   bereitschaft,
   bereitschaftText,
   berichtText,
@@ -69,6 +70,8 @@ import { symbol } from "./symbole.js";
 import { NATIV_PUSH, gesundheitHolen, postfachHolen, pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
 import { kodierungReparieren, newId, nowTime, store, todayIso } from "./storage.js";
 import { bestellteEinheit } from "./vorhaben.js";
+import { REGIONEN, KARTE_DUNKEL, KARTE_HELL, regenerationSvg } from "./muskelkarte.js";
+import { regenTrainings, regenGefuehlHeute } from "./regeneration-daten.js";
 import { healthEinfangen, healthkitAbgleichen } from "./healthkit.js";
 import { wasserAusAktion } from "./schnellaktion.js";
 import { antwortAufFrage, trainingErkannt } from "./training-erkannt.js";
@@ -1414,6 +1417,10 @@ $("berichtWerte").addEventListener("keydown", (event) => {
 });
 
 $("berichtZeitraum").addEventListener("change", renderBericht);
+$("regenTempo").addEventListener("change", (e) => {
+  store.setSettings({ ...store.getSettings(), regenTempo: e.target.value });
+  renderRegeneration();
+});
 
 /*
  * Teilen, wo es das gibt, sonst in die Zwischenablage.
@@ -1582,7 +1589,47 @@ function letzterStress() {
   return { stress: Number(letzter.werte.stress), stressAlterTage: Number.isFinite(tage) ? tage : null };
 }
 
+/** Gefühl je Partie: kein Eintrag, frisch, Muskelkater, wieder von vorn. */
+const REGEN_STUFE = { "": "frisch", frisch: "kater", kater: "" };
+
+function renderRegeneration() {
+  const s = store.getSettings();
+  const tempo = s.regenTempo || "normal";
+  $("regenTempo").value = tempo;
+  const partien = regeneration(regenTrainings(store), Date.now(), { tempo, gefuehl: regenGefuehlHeute(s, todayIso()) });
+  const werte = Object.fromEntries(partien.map((p) => [p.id, p.prozent]));
+  $("regenKarte").innerHTML = regenerationSvg(werte, regenFarbton, { farben: hellerModus() ? KARTE_HELL : KARTE_DUNKEL });
+  const bekannt = partien.filter((p) => p.stand !== "keine");
+  $("regenSub").textContent = bekannt.length
+    ? `${bekannt.filter((p) => p.stand === "erholt" || p.stand === "faellig").length} von ${bekannt.length} trainierten Partien sind wieder frisch.`
+    : "Noch keine Trainings mit Übungen in den letzten vier Wochen. Sobald du eins im Trainingsmodus beendest, steht hier die Regeneration.";
+  // Müde zuerst, dann fällig: das sind die zwei, nach denen man plant.
+  const rang = { muede: 0, faellig: 1, fast: 2, erholt: 3, keine: 4 };
+  const liste = $("regenListe");
+  liste.innerHTML = "";
+  for (const p of [...partien].sort((a, b) => rang[a.stand] - rang[b.stand] || (a.prozent ?? 101) - (b.prozent ?? 101))) {
+    const zeile = document.createElement("button");
+    zeile.type = "button";
+    zeile.className = "regen-zeile";
+    const farbe = p.prozent === null ? "var(--muted)" : `hsl(${regenFarbton(p.prozent)} 72% 50%)`;
+    zeile.innerHTML = `<span class="regen-punkt" style="background:${farbe}"></span>
+      <span class="regen-text"><b>${REGIONEN[p.id] ?? p.id}</b><small>${regenSatz(p)}</small></span>
+      <span class="regen-wert">${p.prozent === null ? "–" : `${p.prozent}%`}${p.gefuehl ? `<small>${p.gefuehl === "frisch" ? "frisch" : "Kater"}</small>` : ""}</span>`;
+    zeile.setAttribute("aria-label", `${REGIONEN[p.id] ?? p.id}, tippen ändert dein Gefühl für heute`);
+    zeile.addEventListener("click", () => {
+      const st = store.getSettings();
+      const heute = regenGefuehlHeute(st, todayIso());
+      const neu = REGEN_STUFE[heute[p.id] ?? ""];
+      if (neu) heute[p.id] = neu; else delete heute[p.id];
+      store.setSettings({ ...st, regenGefuehl: { datum: todayIso(), werte: heute } });
+      renderRegeneration();
+    });
+    liste.appendChild(zeile);
+  }
+}
+
 function renderBereitschaft() {
+  renderRegeneration();
   const last = belastung({ tage: tageFuerBelastung(), heute: todayIso() });
   $("belastungText").textContent = belastungText(last);
 

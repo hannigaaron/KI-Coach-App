@@ -4589,3 +4589,19 @@ button { overflow-wrap: anywhere; text-wrap: balance; }
 @media (prefers-reduced-motion: reduce) { .so-neu .so-punkt, .so-neu .so-kopf, .so-neu .so-puls { animation: none; } }
 .msg .so { margin: var(--s-4) 0 0; }
 .so-muster { margin: 0; padding: var(--s-3) var(--s-4); border-radius: var(--r-md, 14px); font-size: var(--t-sm); line-height: 1.45; background: color-mix(in srgb, var(--so-ton) 14%, transparent); color: var(--text); }
+
+/* Regeneration je Muskel, Ansicht Bereitschaft. Die Farben kommen als
+   Farbton aus dem Kern, Rot belastet, Grün frisch. */
+.regen-karte { margin: var(--s-4) auto var(--s-2); max-width: 380px; }
+.regen-karte svg { display: block; width: 100%; height: auto; }
+.regen-legende { display: flex; align-items: center; gap: var(--s-2); max-width: 280px; margin: 0 auto var(--s-4); font-size: var(--t-xs); color: var(--muted); }
+.regen-legende i { flex: 1; height: 6px; border-radius: 3px; background: linear-gradient(90deg, hsl(0 72% 50%), hsl(45 72% 50%), hsl(140 72% 50%)); opacity: 0.85; }
+.regen-liste { display: flex; flex-direction: column; }
+.regen-zeile { display: flex; align-items: center; gap: var(--s-3); width: 100%; padding: var(--s-3) 0; background: none; border: 0; border-bottom: 1px solid var(--line); color: var(--text); text-align: left; font: inherit; cursor: pointer; }
+.regen-punkt { flex: none; width: 12px; height: 12px; border-radius: 50%; }
+.regen-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.regen-text b { font-weight: 600; font-size: var(--t-sm); }
+.regen-text small { color: var(--muted); font-size: var(--t-xs); line-height: 1.35; }
+.regen-wert { flex: none; display: flex; flex-direction: column; align-items: flex-end; font-weight: 600; font-variant-numeric: tabular-nums; }
+.regen-wert small { font-weight: 400; font-size: var(--t-2xs, 11px); color: var(--muted); }
+.regen-tempo { display: flex; flex-direction: column; gap: var(--s-2); margin: var(--s-4) 0; font-size: var(--t-sm); color: var(--muted); }
