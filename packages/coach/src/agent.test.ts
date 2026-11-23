@@ -1009,10 +1009,13 @@ test("eine Frage nach einer Mahlzeit zeigt aus dem Essensplan nur diese", async 
 });
 
 test("was morgen ansteht, kommt aus dem Briefing für morgen", async () => {
-  let art = "";
-  const a: AgentActions = { ...stubActions([]), async briefingErstellen(e) { art = e.art; return "Morgen."; } };
+  let tag = "";
+  const a: AgentActions = { ...stubActions([]), async briefingErstellen(e) { tag = e.tag ?? ""; return "Morgen."; } };
   await runOffline("Was steht morgen an?", a);
-  assert.equal(art, "abend");
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  const morgen = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  assert.equal(tag, morgen);
 });
 
 test("ein eigenes Lebensmittel wird angelegt und nicht als Mahlzeit eingetragen", async () => {

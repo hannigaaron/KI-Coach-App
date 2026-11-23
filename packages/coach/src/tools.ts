@@ -220,6 +220,12 @@ export const AGENT_TOOLS: ToolDefinition[] = [
       type: "object",
       properties: {
         tage: { type: "number", description: "Wie viele Tage ab heute, 1 bis 14. Ohne Angabe 7." },
+        tag: {
+          type: "string",
+          description:
+            "Nur ein einzelner Tag: heute, morgen, uebermorgen, ein Wochentag oder JJJJ-MM-TT. Bei \"was steht morgen " +
+            "im Kalender\" immer setzen, sonst kommen die nächsten sieben Tage. Hat Vorrang vor tage.",
+        },
         stand: {
           type: "boolean",
           description:
@@ -240,7 +246,7 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     input_schema: {
       type: "object",
       properties: {
-        tag: { type: "string", description: "Datum als JJJJ-MM-TT. Ohne Angabe heute." },
+        tag: { type: "string", description: "heute, morgen, uebermorgen, ein Wochentag oder JJJJ-MM-TT. Ohne Angabe heute. Bei \"was soll ich morgen essen\" immer morgen." },
       },
     },
   },
@@ -311,7 +317,7 @@ export const AGENT_TOOLS: ToolDefinition[] = [
   {
     name: "tagesplan_erstellen",
     description:
-      "Plant den heutigen Tag mit Uhrzeiten: die offenen Aufgaben, eigene und die aus Todoist, in die freien " +
+      "Plant nur den HEUTIGEN Tag mit Uhrzeiten (für morgen oder jeden anderen Tag briefing_erstellen mit tag): die offenen Aufgaben, eigene und die aus Todoist, in die freien " +
       "Blöcke des Kalenders, wichtigstes zuerst, mit Luft dazwischen. Training aus dem Profil und Essenszeiten " +
       "sind schon ausgespart. " +
       "Nehmen, wenn der Nutzer fragt, was er heute machen muss, nach einer Reihenfolge oder einer Tagesplanung, " +
@@ -369,14 +375,20 @@ export const AGENT_TOOLS: ToolDefinition[] = [
   {
     name: "briefing_erstellen",
     description:
-      "Baut das Morgenbriefing oder den Tagesabschluss aus Kalender, Zielen, Aufgaben und Mindeststandards. " +
-      "Nehmen, wenn der Nutzer morgens fragt, wie sein Tag aussieht, oder abends den Tag abschliessen will.",
+      "Der Tag des Nutzers auf einen Blick: Termine aus dem Kalender, Aufgaben, Training, Mahlzeiten mit Uhrzeit, " +
+      "Fokus und was vorzubereiten ist. Gilt für jeden Tag, nicht nur für heute. " +
+      "IMMER tag setzen, wenn der Nutzer einen Tag nennt: \"Briefing für morgen\", \"was steht morgen an\", " +
+      "\"wie sieht morgen aus\", \"was muss ich morgen machen\", \"was ist am Freitag\" heissen tag morgen " +
+      "beziehungsweise freitag. tag nimmt heute, morgen, uebermorgen, einen Wochentag oder JJJJ-MM-TT. " +
+      "Ohne tag ist es das Briefing von heute. Der Text nennt Wochentag und Datum, prüfe, dass es der Tag ist, " +
+      "nach dem gefragt wurde. art nur setzen, wenn der Nutzer abends den Tag abschliessen will, " +
+      "sonst weglassen: art morgen heisst das Morgenbriefing VON HEUTE, nicht den Tag morgen.",
     input_schema: {
       type: "object",
       properties: {
-        art: { type: "string", enum: ["morgen", "abend"], description: "Welcher der beiden Texte." },
+        tag: { type: "string", description: "heute, morgen, uebermorgen, ein Wochentag oder JJJJ-MM-TT. Der Tag, nach dem gefragt ist." },
+        art: { type: "string", enum: ["morgen", "abend"], description: "Nur ohne tag: morgen ist das Morgenbriefing von heute, abend der Blick auf morgen." },
       },
-      required: ["art"],
     },
   },
   {

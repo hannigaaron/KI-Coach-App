@@ -1011,7 +1011,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1486 Tests
+npm test           # 1527 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1355,6 +1355,31 @@ Welcher Bereich eine Aufgabe ist, sagt die Wortliste des Boards, dazu Namen:
 `settings.bereichNamen` nimmt eigene je Bereich. Ohne das wäre "Lydi
 schreiben" keinem Bereich zugeordnet. Offen: eine Oberfläche, um Namen von
 Hand zu pflegen, und Termine rücken nicht vor, nur Aufgaben.
+
+## Der gefragte Tag gilt
+
+`packages/core/src/tagwahl.ts` und `packages/core/src/tagesfrage.ts`,
+`apps/pwa/js/alltag.test.js`. Im Betrieb fragte der Nutzer um 22:37 am Montag
+nach dem Briefing für morgen und bekam die Daten von heute, mit dem Satz,
+morgen sei eigentlich Dienstag. Die Ursache lag im Werkzeug
+`briefing_erstellen`: `art` "morgen" hiess das Morgenbriefing für heute,
+"abend" den Blick auf morgen, und das Modell nahm das Wort wörtlich. Der
+Regelweg ignorierte den Tag in mehreren Zweigen ganz.
+
+Jetzt entscheidet allein der Tag. `tagAusText` liest heute, morgen,
+übermorgen, gestern, Wochentage (der nächste, nie derselbe Tag nochmal) und
+Daten, nie "Guten Morgen" und nie "heute Morgen". Das Werkzeug trägt `tag`,
+`art` gilt nur ohne Tag, und der Tag wird nie geraten: ist er nicht lesbar,
+fragt die Antwort danach. `tagesfrageAus` erkennt im Regelweg Fragen nach
+einem Tag, nach dem Essen und nach dem Training, Befehle wie "erinnere mich
+morgen" und Einträge wie "heute Morgen hatte ich Eier" nicht. Für jeden Tag
+ausser heute besteht "Zu tun" aus den Aufgaben des Plans für morgen und allen
+offenen mit Frist an diesem Tag, die Stufe rechnet gegen diesen Tag, der
+Kalender kommt über `kalenderEinTag`. Überschrift, Fokus und Fristen nennen
+den Tag mit Wochentag und Datum, `tagWort`. Die Persona verlangt, bei jeder
+Frage nach einem Tag das Werkzeug mit `tag` zu rufen und Wochentag und Datum
+der Antwort zu prüfen. Offen: Fragen zum Wetter, und "morgen früh Training
+um 7" als Eintrag.
 
 ## Das Tagesbriefing
 

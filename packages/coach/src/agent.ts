@@ -1,4 +1,4 @@
-import { erinnerungAus, planAenderungAus, kalenderAuftragAus, ARTEN } from "@daevo/core";
+import { erinnerungAus, planAenderungAus, kalenderAuftragAus, tagesfrageAus, tagAusText, ARTEN } from "@daevo/core";
 import type { KalenderAuftrag } from "@daevo/core";
 import type { PlanAenderung, TrainingType } from "@daevo/core";
 import { fehlerErklaerung } from "./fehler.js";
@@ -104,7 +104,9 @@ export interface AgentActions {
    * auszugeben. Beides über eine Aktion, weil beides aus demselben Bestand
    * kommt.
    */
-  kalenderAbrufen(input: { tage?: number; stand?: boolean }): Promise<string>;
+  kalenderAbrufen(input: { tage?: number; stand?: boolean; tag?: string }): Promise<string>;
+  /** Wann an einem Tag trainiert wird, mit freiem Platz. Optional, ältere Fassungen kennen es nicht. */
+  trainingZeit?(input: { tag?: string }): Promise<string>;
   aufgabeAnlegen(input: { text: string; minuten?: number; faellig?: string; wichtigkeit?: number }): Promise<string>;
   aufgabeAbhaken(input: { text: string }): Promise<string>;
   aufgabenPriorisieren(): Promise<string>;
@@ -138,7 +140,7 @@ export interface AgentActions {
   mittagscheckSpeichern(input: {
     energie: number; konzentration: number; saettigung: number; notiz?: string;
   }): Promise<string>;
-  briefingErstellen(input: { art: "morgen" | "abend" }): Promise<string>;
+  briefingErstellen(input: { art?: "morgen" | "abend"; tag?: string }): Promise<string>;
   tagesablaufPlanen(input: { tag?: string }): Promise<string>;
   gewichtEintragen(kg: number): Promise<string>;
   trainingEintragen(input: { art: string; minuten: number; notiz?: string }): Promise<string>;
@@ -697,10 +699,12 @@ async function execute(
       case "kalender_abrufen": {
         if (input.stand === true) return { text: await actions.kalenderAbrufen({ stand: true }) };
         const tage = Number.isFinite(Number(input.tage)) ? clamp(Number(input.tage), 1, 14) : undefined;
-        return { text: await actions.kalenderAbrufen({ tage }) };
+        const tag = typeof input.tag === "string" && input.tag.trim() ? input.tag.trim() : undefined;
+        return { text: await actions.kalenderAbrufen({ tage, tag }) };
       }
       case "tagesablauf_planen": {
-        const tag = typeof input.tag === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.tag) ? input.tag : undefined;
+        // Auch "morgen" oder "freitag": die Auflösung macht die App, nicht das Modell.
+        const tag = typeof input.tag === "string" && input.tag.trim() ? input.tag.trim() : undefined;
         return { text: await actions.tagesablaufPlanen({ tag }) };
       }
       case "aufgabe_anlegen": {
@@ -871,7 +875,8 @@ async function execute(
       }
       case "briefing_erstellen": {
         const art = input.art === "abend" ? "abend" : "morgen";
-        return { text: await actions.briefingErstellen({ art }) };
+        const tag = typeof input.tag === "string" && input.tag.trim() ? input.tag.trim() : undefined;
+        return { text: await actions.briefingErstellen({ art, tag }) };
       }
       case "gewicht_eintragen": {
         const kg = Number(input.kg);
@@ -1562,6 +1567,25 @@ export function anDaevo(text: string): boolean {
   return woerter >= 12 && anreden >= 2;
 }
 
+/**
+ * "Was soll ich heute Abend essen" fragt nach einer Mahlzeit und nicht nach dem
+ * ganzen Tag. Dann bleibt die Kopfzeile des Plans und genau diese Zeile.
+ */
+function mahlzeitAusPlan(plan: string, nachricht: string): string {
+  const klein = nachricht.toLowerCase();
+  const mahlzeit = /abend/.test(klein) ? "Abendessen" : /mittag/.test(klein) ? "Mittagessen"
+    : /(frühstück|fruehstueck)/.test(klein) ? "Frühstück" : /snack/.test(klein) ? "Snack" : null;
+  const zeilen = plan.split("\n");
+  const treffer = mahlzeit ? zeilen.filter((z) => z.startsWith(`${mahlzeit}:`)) : [];
+  return treffer.length ? [zeilen[0], ...treffer].join("\n") : plan;
+}
+
+/** Heute als JJJJ-MM-TT in Ortszeit, wie die App es zählt. */
+function heuteIsoLokal(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export async function runOffline(
   nachricht: string,
   actions: AgentActions,
@@ -1638,6 +1662,41 @@ export async function runOffline(
       source: "offline",
       unverstanden: true,
     };
+  }
+
+  // Die einfachen Fragen nach einem Tag: "Briefing für morgen", "was steht am
+  // Freitag an", "was soll ich morgen essen", "wann trainiere ich morgen".
+  // Der Tag kommt aus dem Satz und von keiner anderen Stelle. Vorher kam auf
+  // "Kurzes Briefing für morgen" der heutige Tag zurück. Steht vor allen
+  // Zweigen, die ohne Tag antworten.
+  const tagesfrage = tagesfrageAus(nachricht, heuteIsoLokal());
+  if (tagesfrage) {
+    const diff = Math.round((Date.parse(`${tagesfrage.tag}T00:00:00Z`) - Date.parse(`${heuteIsoLokal()}T00:00:00Z`)) / 86_400_000);
+    if (tagesfrage.art === "essen") {
+      // Mit Essensplan wie überall sonst daraus, ohne ihn die Mahlzeiten nach dem Kalender.
+      if (actions.essensplanAbrufen && diff >= 0 && diff <= 6) {
+        return { text: mahlzeitAusPlan(await actions.essensplanAbrufen({ inTagen: diff }), nachricht), ausgeführt, source: "offline" };
+      }
+      return { text: await actions.tagesablaufPlanen({ tag: tagesfrage.tag }), ausgeführt, source: "offline" };
+    }
+    if (tagesfrage.art === "training") {
+      const zeit = actions.trainingZeit ? await actions.trainingZeit({ tag: tagesfrage.tag }) : "";
+      // Steht schon da, dass an dem Tag nichts im Plan ist, wiederholt der Plan es nur.
+      let plan = diff >= 0 && diff <= 6 && !/kein Training/.test(zeit) ? await actions.trainingsplanAbrufen({ inTagen: diff }) : "";
+      // Die Zeile mit Tag und Uhrzeit steht oben schon, der Plan trägt nur noch die Übungen nach.
+      if (zeit && plan) plan = plan.split("\n").slice(1).join("\n");
+      return { text: [zeit, plan].filter(Boolean).join("\n\n"), ausgeführt, source: "offline" };
+    }
+    return { text: await actions.briefingErstellen({ tag: tagesfrage.tag }), ausgeführt, source: "offline" };
+  }
+
+  // Ein Briefing ohne Tag: bis zum späten Nachmittag das von heute, danach der Blick auf morgen.
+  if (/\b(briefing|uebersicht)\b/.test(text) && !tagAusText(nachricht, heuteIsoLokal())) {
+    const spaet = new Date().getHours() >= 17;
+    const d = new Date();
+    if (spaet) d.setDate(d.getDate() + 1);
+    const tag = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    return { text: await actions.briefingErstellen({ tag }), ausgeführt, source: "offline" };
   }
 
   if (pattern("merk dir", "merke dir", "denk dran", "nicht vergessen", "behalte").test(text)) {
@@ -2008,10 +2067,17 @@ export async function runOffline(
 
   // Der Kalender liegt im Gerät. Dafür braucht es kein Modell, nur die Frage
   // nach der Zeit zu erkennen.
-  if (pattern("wann habe ich", "wann muss ich", "was steht an", "mein tag", "heute noch vor",
-    "wie sieht (mein|der) tag", "zeit habe ich", "freie zeit", "wann trainiere",
+  if (pattern("was steht an", "mein tag", "heute noch vor", "wie sieht (mein|der) tag").test(text)) {
+    // Der Tag als Ganzes ist das Briefing: Termine, Aufgaben, Training, Essen.
+    const gemeint = tagAusText(nachricht, heuteIsoLokal());
+    return { text: await actions.briefingErstellen(gemeint ? { tag: gemeint.tag } : { tag: heuteIsoLokal() }), ausgeführt, source: "offline" };
+  }
+  if (pattern("wann habe ich", "wann muss ich", "zeit habe ich", "freie zeit", "wann trainiere",
     "wann soll ich essen", "tagesablauf").test(text)) {
-    return { text: await actions.tagesablaufPlanen({}), ausgeführt, source: "offline" };
+    // Der Tag aus dem Satz, auch ein vergangener. Ohne ihn kam auf "was hatte
+    // ich gestern" der heutige Tag zurück.
+    const gemeint = tagAusText(nachricht, heuteIsoLokal());
+    return { text: await actions.tagesablaufPlanen(gemeint ? { tag: gemeint.tag } : {}), ausgeführt, source: "offline" };
   }
 
   // Die Frage nach der Verbindung steht vor der Frage nach den Terminen.
@@ -2028,8 +2094,10 @@ export async function runOffline(
     return { text: await actions.kalenderAbrufen({ stand: true }), ausgeführt, source: "offline" };
   }
 
-  if (pattern("kalender", "termine", "diese woche", "nächste woche", "naechste woche").test(text)) {
-    return { text: await actions.kalenderAbrufen({}), ausgeführt, source: "offline" };
+  if (pattern("kalender", "termine", "diese woche", "nächste woche", "naechste woche",
+    "wie sieht (meine|die|diese|naechste) woche", "meine woche aus").test(text)) {
+    const gemeint = /\bwoche\b/.test(text) ? null : tagAusText(nachricht, heuteIsoLokal());
+    return { text: await actions.kalenderAbrufen(gemeint ? { tag: gemeint.tag } : {}), ausgeführt, source: "offline" };
   }
 
   // Aufgaben und Prioritäten. Auch das läuft ohne Modell, weil die
@@ -2079,7 +2147,7 @@ export async function runOffline(
     return { text: await actions.widerspruechePruefen(), ausgeführt, source: "offline" };
   }
 
-  if (pattern("was zuerst", "womit anfangen", "priorit", "reihenfolge", "was mache ich (jetzt|zuerst)",
+  if (pattern("was zuerst", "womit anfangen", "als naechstes", "als nächstes", "was jetzt", "priorit", "reihenfolge", "was mache ich (jetzt|zuerst)",
     "rest des tages", "schaffe ich heute", "was kann warten", "to do", "todo", "aufgabenliste").test(text)) {
     return { text: await actions.aufgabenPriorisieren(), ausgeführt: [...ausgeführt, "Tag sortiert"], source: "offline" };
   }

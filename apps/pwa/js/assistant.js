@@ -4,7 +4,7 @@ import {
   mahlzeitAusFoto, modellFuerBilder, naehrwerteImNetz, produktPerBarcode, produkteSuchen, summiere, vorratAusFoto,
   todoistAbhaken, todoistAufgaben, todoistIdVon, todoistWiederOeffnen, PERSONA_TEILE,
 } from "@daevo/coach";
-import { essenszeitAus, foldUmlauts, wochenrueckblick, wochenbeginn, wochenschnitt, wochenschnittText, tagKurz, tagStand, rueckblickArt, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, aufgabeStufe, vernachlaessigteBereiche, bereichDerAufgabe, familienNamenAus, anheben, einzeltrainingBauen, abdeckungsLuecken, FOKUS_NAME, alternativen, planNachrechnen, positionFuer } from "@daevo/core";
+import { essenszeitAus, foldUmlauts, wochenrueckblick, wochenbeginn, wochenschnitt, wochenschnittText, tagKurz, tagStand, rueckblickArt, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, freienPlatzFinden, platzText, tagLang, tagWort, tagAufloesen, tagAusText, aufgabeStufe, vernachlaessigteBereiche, bereichDerAufgabe, familienNamenAus, anheben, einzeltrainingBauen, abdeckungsLuecken, FOKUS_NAME, alternativen, planNachrechnen, positionFuer } from "@daevo/core";
 import { trainingsTageAusQuellen } from "./luecke.js";
 import { UEBUNGEN } from "./uebungen-daten.js";
 import { GERAETE, uebungenFiltern } from "./uebungen.js";
@@ -1229,6 +1229,55 @@ export function tagesablaufUebersicht(tagIso = todayIso()) {
   return tagesablaufText(ablaufFuer(tagIso), tagesessenText(tagesessenFuer(tagIso)) || undefined);
 }
 
+/**
+ * Ein einzelner Tag aus dem Kalender: Wochentag, Datum und jeder Termin mit
+ * Uhrzeit. "Was steht morgen im Kalender" bekam vorher sieben Tage, und der
+ * eine gefragte ging darin unter.
+ */
+export function kalenderEinTag(tagIso) {
+  if ((store.getKalender().termine || []).length === 0) {
+    return "Kein Kalender verbunden. Im Menü unter Alltag, Kalender lässt sich einer hinzufügen.";
+  }
+  const a = ablaufFuer(tagIso);
+  const kopf = `${tagLang(tagIso)} (${tagWort(tagIso, todayIso())}):`;
+  const uhr = (ms) => new Date(ms).toTimeString().slice(0, 5);
+  const zeilen = a.termine.map((t) => `- ${uhr(t.von)} bis ${uhr(t.bis)}: ${t.titel}`);
+  const ganz = (a.ganztags || []).map((t) => `- ganztägig: ${t.titel}`);
+  const geb = (a.geburtstage || []).map((n) => `- Geburtstag: ${n}`);
+  if (!zeilen.length && !ganz.length && !geb.length) return `${kopf} nichts im Kalender.`;
+  const frei = a.fokusblock ? `\nLängster freier Block: ${uhr(a.fokusblock.von)} bis ${uhr(a.fokusblock.bis)}.` : "";
+  return [kopf, ...zeilen, ...ganz, ...geb].join("\n") + frei;
+}
+
+/**
+ * Wann am gegebenen Tag trainiert wird: die Einheit mit Uhrzeit aus Kalender,
+ * Bestellung oder Profil. Steht dort nichts, kommt der erste freie Platz, den
+ * der Kern rechnet, nie eine Uhrzeit aus dem Modell.
+ */
+export function trainingZeitText(tagIso) {
+  const wort = tagWort(tagIso, todayIso());
+  const t = trainingFuerBriefing(tagIso);
+  const termine = store.getKalender().termine || [];
+  const profile = store.getProfile() || PROFIL_NOTFALL;
+  if (t?.gestrichen) return `Das Training ist ${wort} gestrichen, der Tag gehört der Erholung.`;
+  if (t?.um) {
+    const dauer = t.minuten || 60;
+    const von = new Date(`${tagIso}T${t.um}:00`).getTime();
+    const bis = von + dauer * 60000;
+    const stoerer = termineFuer(tagIso).find((x) => !x.ganztags && x.von < bis && x.bis > von
+      && !/training|gym|sport|workout/i.test(x.titel || ""));
+    const basis = `${t.titel} ${wort === "heute" || wort === "morgen" || wort === "übermorgen" ? wort : `am ${tagLang(tagIso)}`} um ${t.um}, rund ${dauer} Minuten.`;
+    if (!stoerer) return basis;
+    const platz = freienPlatzFinden({ termine, profile, wunsch: { minuten: dauer, ab: new Date(`${tagIso}T00:00:00`).getTime(), tage: 1, uhrzeit: t.um } });
+    return `${basis} Dort liegt aber „${stoerer.titel}“. ${platz ? `Frei wäre ${platzText(platz)}.` : "An dem Tag finde ich keinen freien Platz dafür."}`;
+  }
+  // Für heute zählt der Rest des Tages, nicht der Morgen, der schon vorbei ist.
+  const ab = Math.max(Date.now(), new Date(`${tagIso}T00:00:00`).getTime());
+  const platz = freienPlatzFinden({ termine, profile, wunsch: { minuten: 60, ab, tage: tagIso === todayIso() ? 3 : 1 } });
+  const fuer = wort === "heute" || wort === "morgen" || wort === "übermorgen" ? wort : tagLang(tagIso);
+  return `Für ${fuer} steht kein Training in deinem Plan. ${platz ? `Wenn du trainieren willst, ist ${platzText(platz)} frei.` : "Ein freier Platz für eine Stunde ist an dem Tag nicht da."}`;
+}
+
 /** Die nächsten Tage in je einer Zeile. */
 export function kalenderUebersicht(tage = 7) {
   if ((store.getKalender().termine || []).length === 0) {
@@ -1934,10 +1983,15 @@ function trainingFuerBriefing(tagIso) {
  * Das Briefing als Struktur, morgens für heute, abends für morgen.
  * Abschnitte für die Ansicht, `kurz` für die Mitteilung, `text` für den Chat.
  */
-export function tagesbriefingFuer(art = "morgen", jetzt = Date.now(), fuerTag) {
+export function tagesbriefingFuer(artVorgabe = "morgen", jetzt = Date.now(), fuerTag, opt = {}) {
   const heute = todayIso();
   const morgenIso = tagPlusIso(heute, 1);
-  const tag = fuerTag || (art === "abend" ? morgenIso : heute);
+  const tag = fuerTag || (artVorgabe === "abend" ? morgenIso : heute);
+  // "art" heisst nur noch, ob der Text ein Morgenbriefing für heute ist oder der
+  // Blick auf einen späteren Tag. Welcher Tag es ist, bestimmt allein `tag`:
+  // "Briefing für morgen" lieferte vorher den heutigen Tag, weil art "morgen"
+  // das Morgenbriefing hiess.
+  const art = tag === heute ? "morgen" : "abend";
   const hatKalender = (store.getKalender().termine || []).length > 0;
   const n = dayNumbers(tag);
   const profile = profilFuerTag(tag) || store.getProfile();
@@ -1950,21 +2004,33 @@ export function tagesbriefingFuer(art = "morgen", jetzt = Date.now(), fuerTag) {
   const luecken = bereichsLuecken();
   const namen = bereichNamen();
   const eingestuft = (a) => {
-    const e = aufgabeStufe({ text: a.text, wichtigkeit: a.wichtigkeit, faellig: a.faellig || undefined }, heute);
+    // Gerechnet wird gegen den Tag, um den es geht: eine Aufgabe von heute ist morgen überfällig.
+    const e = aufgabeStufe({ text: a.text, wichtigkeit: a.wichtigkeit, faellig: a.faellig || undefined }, tag);
     const hoch = anheben(e.stufe, bereichDerAufgabe(a.text, namen), luecken);
     return hoch ? { stufe: hoch.stufe, grund: hoch.grund } : { stufe: e.stufe, grund: e.grund };
   };
-  if (art === "morgen") {
+  if (tag === heute) {
     const { plan, zeiten } = tagesplan(jetzt);
     const um = new Map(zeiten.bloecke.map((b) => [b.aufgabe.id ?? b.aufgabe.text, uhrzeitVon(b.von)]));
     aufgaben = plan.heute.map((a) => ({ id: a.id, text: a.text, um: um.get(a.id ?? a.text), wichtig: a.wichtigkeit >= 3, ...eingestuft(a) }));
     warten = [...(plan.morgen || []), ...(plan.spaeter || [])].map((a) => ({ id: a.id, text: a.text, grund: a.faellig ? `fällig ${datumKurz(a.faellig)}` : "" }));
-  } else if (tag === morgenIso) {
-    // Für übermorgen kennt die Priorisierung keine Reihenfolge, dann lieber
-    // keine Aufgabe als die falsche.
-    const plan = aufgabenPlan(jetzt);
-    aufgaben = plan.morgen.map((a) => ({ id: a.id, text: a.text, wichtig: a.wichtigkeit >= 3, ...eingestuft(a) }));
-    warten = (plan.spaeter || []).map((a) => ({ id: a.id, text: a.text, grund: a.faellig ? `fällig ${datumKurz(a.faellig)}` : "" }));
+  } else {
+    // Ein anderer Tag: was dort fällig ist, dazu bei morgen, was die
+    // Priorisierung von heute auf morgen schiebt. Beides zusammen, sonst fehlt
+    // eine Aufgabe, die für morgen fällig ist, aber heute noch Platz hätte.
+    const plan = tag === morgenIso ? aufgabenPlan(jetzt) : null;
+    const offen = alleAufgaben().filter((a) => !a.erledigt);
+    const ids = new Set();
+    const gewaehlt = [];
+    for (const a of [...(plan?.morgen || []), ...offen.filter((x) => x.faellig === tag)]) {
+      const k = a.id ?? a.text;
+      if (ids.has(k)) continue;
+      ids.add(k);
+      gewaehlt.push(a);
+    }
+    aufgaben = gewaehlt.map((a) => ({ id: a.id, text: a.text, wichtig: a.wichtigkeit >= 3, ...eingestuft(a) }));
+    warten = (plan?.spaeter || []).filter((a) => !ids.has(a.id ?? a.text))
+      .map((a) => ({ id: a.id, text: a.text, grund: a.faellig ? `fällig ${datumKurz(a.faellig)}` : "" }));
   }
 
   const status = standardsUebersicht();
@@ -1974,10 +2040,12 @@ export function tagesbriefingFuer(art = "morgen", jetzt = Date.now(), fuerTag) {
   return tagesbriefing({
     art,
     datum: datumLang(tag),
+    tagWort: tagWort(tag, heute),
+    stunde: new Date(jetzt).getHours(),
     ablauf: hatKalender ? ablaufFuer(tag) : null,
     essen: tagesessenFuer(tag, jetzt),
     vorausblick: hatKalender && profile
-      ? vorausblick({ morgen: ablaufFuer(tag), termine: store.getKalender().termine, profile, fuer: art === "abend" ? "morgen" : "heute" })
+      ? vorausblick({ morgen: ablaufFuer(tag), termine: store.getKalender().termine, profile, fuer: tag === heute ? "heute" : "morgen" })
       : null,
     training: trainingFuerBriefing(tag),
     aufgaben,
@@ -1986,7 +2054,7 @@ export function tagesbriefingFuer(art = "morgen", jetzt = Date.now(), fuerTag) {
       ? `${luecken.map((l) => l.name).join(" und ")} ${luecken.length > 1 ? "kamen" : "kam"} in den letzten sieben Tagen zu kurz. Passende Aufgaben stehen deshalb weiter vorn.`
       : null,
     ziele: { kcal: n.targets.kcal, proteinG: n.targets.proteinG },
-    heute: art === "abend"
+    heute: art === "abend" && !opt.ohneRueckblick
       ? { kcal: h.totals.kcal, zielKcal: h.targets.kcal, proteinG: h.totals.proteinG, zielProteinG: h.targets.proteinG, erledigt }
       : undefined,
     standards: status.filter((s) => !s.aktuell).map((s) => s.satz),
@@ -1994,7 +2062,9 @@ export function tagesbriefingFuer(art = "morgen", jetzt = Date.now(), fuerTag) {
 }
 
 /** Morgenbriefing und Tagesabschluss als Text. Ohne Modellaufruf. */
-export function briefing(art = "morgen") {
+export function briefing(art = "morgen", tag) {
+  // Mit Tag ist es eine Frage nach genau diesem Tag, ohne den Rückblick auf heute.
+  if (tag) return tagesbriefingFuer(art === "abend" ? "abend" : "morgen", Date.now(), tag, { ohneRueckblick: true }).text;
   return tagesbriefingFuer(art === "abend" ? "abend" : "morgen").text;
 }
 
@@ -3549,12 +3619,24 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       return mittagscheckText(befund);
     },
 
-    async briefingErstellen({ art } = {}) {
+    async briefingErstellen({ art, tag } = {}) {
       const hinweis = await todoistAktualisieren();
-      return [briefing(art === "abend" ? "abend" : "morgen"), hinweis].filter(Boolean).join("\n");
+      // Ein genannter Tag schlägt art. Lässt er sich nicht lesen, wird gefragt
+      // und nicht stillschweigend heute genommen.
+      const iso = tag ? tagAufloesen(tag, todayIso()) : null;
+      if (tag && !iso) return `Welchen Tag meinst du? "${tag}" konnte ich nicht als Tag lesen.`;
+      return [briefing(art === "abend" ? "abend" : "morgen", iso || undefined), hinweis].filter(Boolean).join("\n");
     },
 
-    async kalenderAbrufen({ tage, stand } = {}) {
+    async trainingZeit({ tag } = {}) {
+      const iso = tag ? tagAufloesen(tag, todayIso()) : todayIso();
+      if (!iso) return `Welchen Tag meinst du? "${tag}" konnte ich nicht als Tag lesen.`;
+      return trainingZeitText(iso);
+    },
+
+    async kalenderAbrufen({ tage, stand, tag } = {}) {
+      const einTag = tag ? tagAufloesen(tag, todayIso()) : null;
+      if (tag && !einTag) return `Welchen Tag meinst du? "${tag}" konnte ich nicht als Tag lesen.`;
       // In der iPhone App verbindet daevo den Kalender gleich selbst, statt
       // auf das Menü zu verweisen. Wer im Gespräch nach seinem Kalender
       // fragt, will ihn verbunden haben, und die Frage von iOS nach dem
@@ -3567,16 +3649,19 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
           if (r?.fehler) return r.fehler;
           const apple = (r?.ergebnisse || []).find((e) => e.name === "Apple Kalender");
           if (apple?.fehler) return `Der Zugriff ist erlaubt, das Lesen ging aber nicht: ${apple.fehler}`;
-          return `Kalender verbunden, ${apple?.anzahl ?? 0} Termine gelesen. ${stand ? "" : kalenderUebersicht(tage || 7)}`.trim();
+          return `Kalender verbunden, ${apple?.anzahl ?? 0} Termine gelesen. ${stand ? "" : (einTag ? kalenderEinTag(einTag) : kalenderUebersicht(tage || 7))}`.trim();
         } catch (e) {
           return `Den Kalender konnte ich nicht verbinden: ${e?.message || e}`;
         }
       }
+      if (einTag) return kalenderEinTag(einTag);
       return stand ? kalenderStandText() : kalenderUebersicht(tage || 7);
     },
 
     async tagesablaufPlanen({ tag } = {}) {
-      return tagesablaufUebersicht(tag || todayIso());
+      const iso = tag ? tagAufloesen(tag, todayIso()) : todayIso();
+      if (!iso) return `Welchen Tag meinst du? "${tag}" konnte ich nicht als Tag lesen.`;
+      return tagesablaufUebersicht(iso);
     },
 
     async fotoAlsMahlzeit({ hinweis, tag, uhrzeit } = {}) {
@@ -3866,12 +3951,13 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       const wochentag = d.getDay();
       const tag = new Date(Date.parse(`${todayIso()}T12:00:00Z`) + inTagen * 86_400_000).toISOString().slice(0, 10);
       const wann = inTagen === 0 ? "Heute" : inTagen === 1 ? "Morgen" : `Am ${WEEKDAYS[wochentag]}`;
+      const wannWochentag = inTagen <= 1 ? `${wann}, ${WEEKDAYS[wochentag]}` : wann;
       const sessions = store.getProfile()?.sessions || [];
       const heute = sessions.filter((s) => s.weekday === wochentag).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
       if (heute.length === 0) {
-        return `${wann}, ${WEEKDAYS[wochentag]}, steht kein Training in deinem Wochenplan. Ein Ruhetag gehört zum Plan.`;
+        return `${wannWochentag} steht kein Training in deinem Wochenplan. Ein Ruhetag gehört zum Plan.`;
       }
-      const zeilen = [`${wann}, ${WEEKDAYS[wochentag]}: ` + heute.map((s) => `${TYP_LABEL[s.type] || s.type} um ${s.startsAt}, ${s.minutes} Minuten`).join(", ") + "."];
+      const zeilen = [`${wannWochentag}: ` + heute.map((s) => `${TYP_LABEL[s.type] || s.type} um ${s.startsAt}, ${s.minutes} Minuten`).join(", ") + "."];
       // Nach der Nachfrage am Mittag mit Fitheit 1 oder 2 ist das Training gestrichen.
       const morgens = inTagen === 0 ? (store.getDay(todayIso()).checkins || []).filter((c) => c.kind === "morning" && c.morgen).pop() : null;
       if (morgens?.trainingGestrichen) {

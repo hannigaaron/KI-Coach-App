@@ -84,6 +84,10 @@ export interface BriefingEingaben {
   /** Aufgaben für diesen Tag, wichtigste zuerst, mit Uhrzeit, wenn sie einen Platz hat. */
   aufgaben: Array<{ id?: string; text: string; um?: string; wichtig?: boolean; stufe?: SortierStufe; grund?: string }>;
   musterHinweis?: string | null;
+  /** Wie der Tag heisst: heute, morgen, übermorgen oder Wochentag mit Datum. Ohne Angabe folgt es aus art. */
+  tagWort?: string;
+  /** Stunde, zu der gefragt wird. Nach 11 Uhr heisst das Briefing von heute nicht mehr "Guten Morgen". */
+  stunde?: number;
   /** Aufgaben, die bis morgen warten dürfen. Sie stehen als dritte SortierStufe da, nicht im Tag. */
   warten?: Array<{ id?: string; text: string; grund?: string }>;
   ziele: { kcal: number; proteinG: number };
@@ -135,7 +139,10 @@ function dauer(min: number): string {
  */
 function fokus(e: BriefingEingaben, tagWort: string): string {
   const voll = (e.ablauf?.auslastung ?? 0) >= 0.7;
-  const wichtig = e.aufgaben.find((a) => a.wichtig) ?? e.aufgaben[0];
+  // Die Aufgabe der ersten Stufe geht vor: dieselbe Reihenfolge wie in der Übersicht,
+  // sonst nennt der Fokus eine andere als das, was darunter oben steht.
+  const stufe = (a: BriefingEingaben["aufgaben"][number]): number => a.stufe ?? (a.wichtig ? 1 : 2);
+  const wichtig = e.aufgaben.find((a) => stufe(a) === 1) ?? e.aufgaben.find((a) => a.wichtig) ?? e.aufgaben[0];
   if (voll) {
     return wichtig
       ? `Der Tag ist voll. Nur eins zählt: ${wichtig.text}${wichtig.um ? ` um ${wichtig.um}` : ""}. Alles andere darf warten.`
@@ -147,7 +154,7 @@ function fokus(e: BriefingEingaben, tagWort: string): string {
     // widersprach sich: Denise um 08:45, darunter "Slide zuerst" um 11:00.
     const frueher = wichtig.um ? e.aufgaben.some((a) => a !== wichtig && a.um && a.um < wichtig.um!) : false;
     return frueher || !wichtig.um
-      ? `${wichtig.text}${wichtig.um ? ` um ${wichtig.um}` : ""}. Das ist heute das Wichtigste.`
+      ? `${wichtig.text}${wichtig.um ? ` um ${wichtig.um}` : ""}. Das ist ${tagWort === "heute" ? "heute" : tagWort} das Wichtigste.`
       : `${wichtig.text}, eingeplant um ${wichtig.um}. Das zuerst, alles andere danach.`;
   }
   if (e.training && !e.training.gestrichen) return `Dein ${e.training.titel}${e.training.um ? ` um ${e.training.um}` : ""}. Das ist ${tagWort} der feste Punkt.`;
@@ -160,8 +167,10 @@ export function tagesbriefing(roh: BriefingEingaben): TagesBriefing {
   const grenze = begrenzt(roh);
   const e: BriefingEingaben = { ...roh, aufgaben: grenze.aufgaben, ablauf: roh.ablauf ? { ...roh.ablauf, termine: grenze.termine } : null };
   const morgens = e.art === "morgen";
-  const tagWort = morgens ? "heute" : "morgen";
-  const TagWort = morgens ? "Heute" : "Morgen";
+  const tagWort = e.tagWort ?? (morgens ? "heute" : "morgen");
+  const TagWort = tagWort.charAt(0).toUpperCase() + tagWort.slice(1);
+  // Ein Tag weiter als morgen heisst im Abschnitt wie im Satz: Wochentag und Datum.
+  const nurEinTag = tagWort === "heute" || tagWort === "morgen";
   const abschnitte: BriefingAbschnitt[] = [];
 
   // Abends zuerst, wie heute lief. Eine Zeile, kein Urteil.
@@ -189,7 +198,7 @@ export function tagesbriefing(roh: BriefingEingaben): TagesBriefing {
     const feiertage = ganztaegig(a);
     if (feiertage.length) tag.push(`Ganztägig: ${feiertage.join(", ")}.`);
     if (!a.termine.length) {
-      kopf = `${TagWort} stehen keine Termine im Kalender.`;
+      kopf = nurEinTag ? `${TagWort} stehen keine Termine im Kalender.` : `Am ${TagWort} stehen keine Termine im Kalender.`;
       tag.push(kopf);
     } else {
       const erster = a.termine[0]!;
@@ -208,7 +217,7 @@ export function tagesbriefing(roh: BriefingEingaben): TagesBriefing {
       }
     }
   }
-  abschnitte.push({ titel: morgens ? "Dein Tag" : "Morgen", zeilen: tag });
+  abschnitte.push({ titel: morgens ? "Dein Tag" : (tagWort === "morgen" ? "Morgen" : TagWort), zeilen: tag });
 
   // Der Fokus, ein Satz.
   const fokusSatz = fokus(e, tagWort);
@@ -274,7 +283,7 @@ export function tagesbriefing(roh: BriefingEingaben): TagesBriefing {
     : (achtung[0] ?? [kopf || null, `Fokus: ${fokusSatz}`].filter(Boolean).join(" "));
 
   const text = [
-    morgens ? `Guten Morgen. ${e.datum}.` : `Dein Blick auf morgen, ${e.datum}.`,
+    morgens ? ((e.stunde === undefined || e.stunde < 11) ? `Guten Morgen. ${e.datum}.` : `Dein Tag, ${e.datum}.`) : (nurEinTag ? `Dein Blick auf morgen, ${e.datum}.` : `Dein Blick auf ${tagWort}.`),
     ...abschnitte.map((a) => `\n${a.titel}\n${a.zeilen.map((z) => (a.zeilen.length > 1 ? `- ${z}` : z)).join("\n")}`),
   ].join("\n");
 
