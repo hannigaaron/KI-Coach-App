@@ -1,3 +1,4 @@
+import { abendroutineBeginn, darfNachFeierabend, feierabendZeitpunkt } from "./feierabend.js";
 import { uhrzeit } from "./ical.js";
 import type { Tagesablauf } from "./tagesablauf.js";
 import type { Tagesessen } from "./tagesessen.js";
@@ -51,7 +52,7 @@ export interface TagesBriefing {
 }
 
 export interface BriefingPunkt {
-  art: "aufgabe" | "termin" | "essen" | "training";
+  art: "aufgabe" | "termin" | "essen" | "training" | "feierabend";
   /** Zeitpunkt in Millisekunden, null für eine Aufgabe ohne Platz im Tag. */
   um: number | null;
   /** Ende, wo es eines gibt, damit ein laufender Termin noch als jetzt gilt. */
@@ -85,6 +86,26 @@ export interface BriefingEingaben {
 }
 
 const MAX_TERMINE = 6;
+
+/**
+ * Was im Briefing steht, nach Feierabend gerechnet. Ein Termin, der erst
+ * beginnt, wenn die Abendroutine läuft, steht nicht mehr da: um 22 Uhr sagt
+ * daevo "Handy weg", und um 23 Uhr steht im Briefing noch ein Termin. Eine
+ * Aufgabe nach Feierabend nur, wenn sie nicht warten darf.
+ */
+function begrenzt(e: BriefingEingaben): { termine: Tagesablauf["termine"]; aufgaben: BriefingEingaben["aufgaben"]; feierabend: number | null } {
+  const a = e.ablauf;
+  if (!a) return { termine: [], aufgaben: e.aufgaben, feierabend: null };
+  const feierabend = feierabendZeitpunkt(a.wachVon, a.wachBis);
+  const abend = abendroutineBeginn(a.wachBis);
+  const tag = a.tag;
+  const aufgaben = e.aufgaben.filter((x) => {
+    if (!x.um || !/^\d{1,2}:\d{2}$/.test(x.um)) return true;
+    const um = new Date(`${tag}T00:00:00`).getTime() + (Number(x.um.slice(0, 2)) * 60 + Number(x.um.slice(3))) * 60000;
+    return um < feierabend || darfNachFeierabend({ text: x.text, wichtigkeit: x.wichtig ? 3 : 1 });
+  });
+  return { termine: a.termine.filter((t) => t.von < abend), aufgaben, feierabend };
+}
 
 /** Ganztägige Einträge ohne Dubletten: "Allerheiligen" steckt in "Allerheiligen (Feiertag)". */
 function ganztaegig(ablauf: Tagesablauf): string[] {
@@ -127,7 +148,9 @@ function fokus(e: BriefingEingaben, tagWort: string): string {
   return "Protein treffen und vor deiner Schlafenszeit im Bett sein. Das reicht für einen guten Tag.";
 }
 
-export function tagesbriefing(e: BriefingEingaben): TagesBriefing {
+export function tagesbriefing(roh: BriefingEingaben): TagesBriefing {
+  const grenze = begrenzt(roh);
+  const e: BriefingEingaben = { ...roh, aufgaben: grenze.aufgaben, ablauf: roh.ablauf ? { ...roh.ablauf, termine: grenze.termine } : null };
   const morgens = e.art === "morgen";
   const tagWort = morgens ? "heute" : "morgen";
   const TagWort = morgens ? "Heute" : "Morgen";
@@ -195,6 +218,7 @@ export function tagesbriefing(e: BriefingEingaben): TagesBriefing {
   const drei = e.aufgaben.slice(0, 3).sort((x, y) => (x.um ?? "99").localeCompare(y.um ?? "99"));
   for (const a of drei) tun.push(`${a.um ? `${a.um} ` : ""}${a.text}`);
   if (e.aufgaben.length > 3) tun.push(`und ${e.aufgaben.length - 3} weitere unter Dein Tag`);
+  if (grenze.feierabend !== null) tun.push(`Ab ${uhrzeit(grenze.feierabend)} ist Feierabend. Danach kein Termin und keine Aufgabe mehr, ausser es brennt.`);
   if (tun.length) abschnitte.push({ titel: "Zu tun", zeilen: tun });
 
   // Essen: jede Mahlzeit mit Uhrzeit und Gericht.
@@ -249,6 +273,10 @@ function amTag(tag: string, hhmm: string): number | null {
 export function briefingPunkte(e: BriefingEingaben): BriefingPunkt[] {
   const tag = e.ablauf?.tag ?? (e.essen?.mahlzeiten[0] ? new Date(e.essen.mahlzeiten[0].um).toISOString().slice(0, 10) : "");
   const punkte: BriefingPunkt[] = [];
+  if (e.ablauf) {
+    const fa = feierabendZeitpunkt(e.ablauf.wachVon, e.ablauf.wachBis);
+    punkte.push({ art: "feierabend", um: fa, titel: "Feierabend", unter: "Ab jetzt kein Termin und keine Aufgabe mehr" });
+  }
   for (const t of e.ablauf?.termine ?? []) {
     punkte.push({ art: "termin", um: t.von, bis: t.bis, titel: ohneEigeneUhrzeit(t.titel, uhrzeit(t.von)), unter: `Termin bis ${uhrzeit(t.bis)}` });
   }

@@ -236,7 +236,7 @@ export function ergebnisHtml(r) {
  * in dem jemand ohnehin auf den Tag schaut, und eine zweite Mitteilung zur
  * selben Zeit wäre Lärm. Ohne Briefing bleibt der Teil leer.
  */
-const ART_WORT = { termin: "Termin", aufgabe: "Aufgabe", essen: "Essen", training: "Training" };
+const ART_WORT = { termin: "Termin", aufgabe: "Aufgabe", essen: "Essen", training: "Training", feierabend: "Schluss für heute" };
 
 /**
  * Das Briefing unter dem Morgen Check-in.

@@ -92,6 +92,8 @@ import {
   bericht,
   berichtText,
   zeitplan,
+  feierabendZeitpunkt,
+  darfNachFeierabend,
   zeitplanText,
   lueckenOhne,
   wochenplan,
@@ -1366,8 +1368,10 @@ export function tagesplan(jetzt = Date.now()) {
   for (const k of (Array.isArray(store.getSettings().kalenderAenderungen) ? store.getSettings().kalenderAenderungen : [])) {
     if (k.art === "angelegt" && k.aufgabeId && k.nachher && ortsTag(k.nachher.von) === tag) fest.set(k.aufgabeId, k.nachher);
   }
-  if (!fest.size) return { plan, zeiten: zeitplan({ aufgaben: plan.heute, luecken, ab: jetzt }) };
-  const z = zeitplan({ aufgaben: plan.heute.filter((a) => !fest.has(a.id)), luecken, ab: jetzt });
+  // Nach Feierabend kommt nichts mehr auf den Plan, ausser es darf nicht warten.
+  const grenze = { spaetestens: feierabendZeitpunkt(ablauf.wachVon, ablauf.wachBis), ausnahme: darfNachFeierabend };
+  if (!fest.size) return { plan, zeiten: zeitplan({ aufgaben: plan.heute, luecken, ab: jetzt, ...grenze }) };
+  const z = zeitplan({ aufgaben: plan.heute.filter((a) => !fest.has(a.id)), luecken, ab: jetzt, ...grenze });
   const gesetzt = plan.heute.filter((a) => fest.has(a.id)).map((a) => ({ aufgabe: a, von: fest.get(a.id).von, bis: fest.get(a.id).bis }));
   return { plan, zeiten: { ...z, bloecke: [...z.bloecke, ...gesetzt].sort((x, y) => x.von - y.von) } };
 }

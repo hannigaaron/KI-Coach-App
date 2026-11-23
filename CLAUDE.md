@@ -1011,7 +1011,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1475 Tests
+npm test           # 1479 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1295,6 +1295,25 @@ nennt, welcher gelesen wird und welche nicht, mit Zahl, und "Alle Kalender
 lesen" schaltet es zurück, `settings.kalenderAlle`. Abos über eine Adresse
 bleiben unberührt, die hat der Nutzer selbst gewählt. Ungeprüft: der Swift
 Teil ist nicht kompiliert.
+
+### Feierabend
+
+`packages/core/src/feierabend.ts`. Das Ziel ist Entlastung. Im Betrieb stand
+im Briefing ein Termin um 23 Uhr, während die Abendroutine um 22 Uhr schon
+"Handy weg" gesagt hatte: zwei Aussagen der App, die sich widersprechen.
+Feierabend ist 13,5 Stunden nach dem Aufstehen, bei 6:30 also 20 Uhr, nie
+vor 19 Uhr und nie weniger als zwei Stunden vor der Schlafenszeit,
+`feierabendZeitpunkt`. Wer später aufsteht, hat später Feierabend. Die 13,5
+Stunden sind eine Regel der App und keine Studie.
+
+Folgen, in `begrenzt` in `tagesbriefing.ts` und `zeitplan` mit
+`spaetestens` und `ausnahme`: der Zeitplan legt nach Feierabend keine
+Aufgabe mehr, ausser `darfNachFeierabend`: höchste Wichtigkeit oder Geld
+(Rechnung, Steuer, Zahlung, Miete, Euro und ähnliche Wörter). Im Briefing
+steht kein Termin, der erst beginnt, wenn die Abendroutine läuft, 90
+Minuten vor der Schlafenszeit, ein Essen um 20:30 bleibt. Feierabend steht
+als Punkt auf der Zeitachse und als letzte Zeile unter Zu tun. Im Kalender
+und für Überschneidungen bleiben alle Termine, nur das Briefing lässt sie weg.
 
 ## Das Tagesbriefing
 

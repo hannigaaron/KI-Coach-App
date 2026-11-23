@@ -4743,7 +4743,7 @@ $("kalTag").addEventListener("change", (event) => {
 let briefingArt = "morgen";
 /** Ob die blassen Punkte nach den ersten vier aufgeklappt sind. */
 let briefingAlles = false;
-const PUNKT_ART = { aufgabe: "Aufgabe", termin: "Termin", essen: "Essen", training: "Training" };
+const PUNKT_ART = { aufgabe: "Aufgabe", termin: "Termin", essen: "Essen", training: "Training", feierabend: "Schluss für heute" };
 
 /**
  * Das Briefing als ein Blick: oben gross, was jetzt dran ist, darunter der
