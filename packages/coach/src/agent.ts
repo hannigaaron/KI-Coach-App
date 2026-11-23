@@ -88,6 +88,8 @@ export interface AgentActions {
   /** Was an einem früheren Tag gegessen wurde, oder der Schnitt einer Woche. */
   essensverlaufAbrufen?(input: { tag?: string; tageZurueck?: number; woche?: boolean; wochenZurueck?: number }): Promise<string>;
   uebungenSuchen?(input: { suche?: string; ersatzFuer?: string }): Promise<string>;
+  planUebernehmen?(input: { einheiten: Array<{ titel: string; uebungen: Array<Record<string, unknown>> }> }): Promise<string>;
+  ernaehrungsplanUebernehmen?(input: { mahlzeiten: Array<{ art: string; name: string; zutaten: string }> }): Promise<string>;
   zyklus?(input: { aktion: string; tag?: string; symptome?: string[] }): Promise<string>;
   lebensmittelAnlegen?(input: { name: string; kcal: number; proteinG?: number; fatG?: number; carbsG?: number; portionG?: number }): Promise<string>;
   standardsAbrufen(): Promise<string>;
@@ -1005,6 +1007,28 @@ async function execute(
         });
         if (text.startsWith(NICHT_GESPEICHERT)) return { text, fehler: true };
         return { text, notiz: "Lebensmittel angelegt" };
+      }
+      case "plan_uebernehmen": {
+        if (!actions.planUebernehmen) return { text: "Pläne übernehmen geht in dieser Fassung nicht.", fehler: true };
+        const einheiten = (Array.isArray(input.einheiten) ? input.einheiten : [])
+          .map((e) => e as { titel?: unknown; uebungen?: unknown })
+          .map((e) => ({ titel: String(e.titel ?? "").trim() || "Einheit", uebungen: (Array.isArray(e.uebungen) ? e.uebungen : []) as Array<Record<string, unknown>> }))
+          .filter((e) => e.uebungen.length);
+        if (!einheiten.length) return { text: `${NICHT_GESPEICHERT} Im Plan stand keine Übung, die ich lesen konnte.`, fehler: true };
+        const text = await actions.planUebernehmen({ einheiten });
+        if (text.startsWith(NICHT_GESPEICHERT)) return { text, fehler: true };
+        return { text, notiz: "Plan übernommen" };
+      }
+      case "ernaehrungsplan_uebernehmen": {
+        if (!actions.ernaehrungsplanUebernehmen) return { text: "Ernährungspläne übernehmen geht in dieser Fassung nicht.", fehler: true };
+        const mahlzeiten = (Array.isArray(input.mahlzeiten) ? input.mahlzeiten : [])
+          .map((m) => m as Record<string, unknown>)
+          .map((m) => ({ art: String(m.art ?? "mittagessen"), name: String(m.name ?? "").trim(), zutaten: String(m.zutaten ?? "").trim() }))
+          .filter((m) => m.name && m.zutaten);
+        if (!mahlzeiten.length) return { text: `${NICHT_GESPEICHERT} Im Plan stand keine Mahlzeit mit Zutaten, die ich lesen konnte.`, fehler: true };
+        const text = await actions.ernaehrungsplanUebernehmen({ mahlzeiten });
+        if (text.startsWith(NICHT_GESPEICHERT)) return { text, fehler: true };
+        return { text, notiz: "Ernährungsplan übernommen" };
       }
       case "uebungen_suchen": {
         if (!actions.uebungenSuchen) return { text: "Die Übungsdatenbank gibt es in dieser Fassung nicht.", fehler: true };

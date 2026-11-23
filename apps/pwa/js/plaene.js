@@ -77,7 +77,10 @@ export function planFuer(wunsch) {
 export function gespeicherterPlan(roh) {
   if (!roh || !Array.isArray(roh.einheiten)) return null;
   const einheiten = roh.einheiten
-    .map((e) => ({ ...e, positionen: (Array.isArray(e.positionen) ? e.positionen : []).filter((p) => nachId.has(p.id)) }))
+    // Eigene Übungen aus einem diktierten oder importierten Plan tragen
+    // `eigen-` und stehen in keiner Datenbank. Sie bleiben, sonst fehlte nach
+    // dem Import genau das, was die Datenbank nicht kennt.
+    .map((e) => ({ ...e, positionen: (Array.isArray(e.positionen) ? e.positionen : []).filter((p) => nachId.has(p.id) || String(p.id).startsWith("eigen-")) }))
     .filter((e) => e.positionen.length);
   if (!einheiten.length) return null;
   return { ...roh, wunsch: wunschPruefen(roh.wunsch), einheiten };

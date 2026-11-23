@@ -1071,6 +1071,73 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: "plan_uebernehmen",
+    description:
+      "Übernimmt einen Trainingsplan, den der Nutzer als Foto, Screenshot, PDF oder Text schickt, als seinen Plan in daevo. " +
+      "Lies jede Einheit und jede Übung genau so ab, wie sie dasteht: Name, Sätze, Wiederholungen, Reserve oder RIR, " +
+      "Pause, Supersatz. Nichts ergänzen, nichts weglassen, keine eigenen Übungen dazuschreiben. daevo ordnet die " +
+      "Namen der eigenen Datenbank zu, was es nicht kennt, bleibt unter dem abgelesenen Namen. Danach sagst du, welche " +
+      "Übungen nicht zugeordnet werden konnten. Erst aufrufen, wenn der Nutzer will, dass der Plan übernommen wird.",
+    input_schema: {
+      type: "object",
+      properties: {
+        einheiten: {
+          type: "array",
+          description: "Je Trainingstag eine Einheit, in der Reihenfolge des Plans.",
+          items: {
+            type: "object",
+            properties: {
+              titel: { type: "string", description: "Name der Einheit, etwa \"Push\", \"Tag A\", \"Oberkörper 1\"." },
+              uebungen: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string" },
+                    saetze: { type: "number" },
+                    wdh: { type: "string", description: "Wiederholungen oder Bereich, etwa \"8-12\"." },
+                    reserve: { type: "number", description: "RIR, wenn angegeben." },
+                    pauseSek: { type: "number" },
+                    superset: { type: "string", description: "Buchstabe oder Name des Partners, wenn Supersatz." },
+                  },
+                  required: ["name"],
+                },
+              },
+            },
+            required: ["titel", "uebungen"],
+          },
+        },
+      },
+      required: ["einheiten"],
+    },
+  },
+  {
+    name: "ernaehrungsplan_uebernehmen",
+    description:
+      "Übernimmt einen Ernährungsplan aus Foto, PDF oder Text: jede Mahlzeit wird ein eigenes Rezept in daevo, die " +
+      "Nährwerte rechnet daevo selbst aus den Zutaten. Danach vergleicht daevo den Tag mit dem Ziel des Nutzers und " +
+      "nennt, wie die Mengen angepasst werden. Zutaten mit Menge ablesen, wie sie dastehen, nichts erfinden. Steht " +
+      "keine Menge da, die Zutat ohne Menge nennen. Erst aufrufen, wenn der Nutzer die Übernahme will.",
+    input_schema: {
+      type: "object",
+      properties: {
+        mahlzeiten: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              art: { type: "string", enum: ["fruehstueck", "mittagessen", "snack", "abendessen"] },
+              name: { type: "string", description: "Name der Mahlzeit, wie im Plan, sonst kurz beschrieben." },
+              zutaten: { type: "string", description: "Zutaten mit Mengen als ein Satz, etwa \"80 g Haferflocken, 250 ml Milch, 30 g Whey\"." },
+            },
+            required: ["art", "name", "zutaten"],
+          },
+        },
+      },
+      required: ["mahlzeiten"],
+    },
+  },
+  {
     name: "uebungen_suchen",
     description:
       "Sucht in der Übungsdatenbank von daevo nach Name, Muskel, Gerät oder Suchwort, etwa \"Übungen an der " +

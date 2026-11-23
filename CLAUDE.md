@@ -79,7 +79,7 @@ Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
 
-Der Assistent hat sechsundfünfzig Werkzeuge und verändert die App wirklich. Zahlen
+Der Assistent hat achtundfünfzig Werkzeuge und verändert die App wirklich. Zahlen
 über den Nutzer kommen immer aus Werkzeugen, nie aus dem Modell. Allgemeines
 Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App

@@ -114,7 +114,7 @@ import { KONFIG, istNativ } from "./konfig.js";
 import { kontoSicherstellen, kontoToken } from "./konto.js";
 import { kiErlaubt } from "./einwilligung.js";
 import { NACHTRAG_TAGE, tageZurueck } from "./exif.js";
-import { eigeneLebensmittel, eigenerPosten, eigenesIn, lebensmittelSpeichern } from "./bibliothek.js";
+import { eigeneLebensmittel, eigenerPosten, eigenesIn, lebensmittelSpeichern, rezeptGrenze, rezeptSpeichern } from "./bibliothek.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
 import { aktiverPlan, bestellteEinheit, planEinheitFuer } from "./vorhaben.js";
 
@@ -3798,6 +3798,26 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
     async uebungenSuchen({ suche, ersatzFuer } = {}) {
       return uebungenSuchenText({ suche, ersatzFuer });
     },
+
+    async planUebernehmen({ einheiten }) {
+      const text = planImportieren(einheiten);
+      changed();
+      return text;
+    },
+
+    async ernaehrungsplanUebernehmen({ mahlzeiten }) {
+      // Die Nährwerte rechnet daevo aus den Zutaten, über denselben Weg wie
+      // beim Eintragen, mit Tabelle und eigenen Lebensmitteln. Eine Zahl, die
+      // auf dem Plan steht, wäre die Zahl eines anderen Rechners.
+      const gelesen = [];
+      for (const m of mahlzeiten.slice(0, 12)) {
+        const parsed = mitEigenenLebensmitteln(await coach.parseMeal(m.zutaten), store.getSettings());
+        gelesen.push({ ...m, posten: parsed.entries, offen: parsed.unresolved ?? [] });
+      }
+      const text = ernaehrungsplanImportieren(gelesen);
+      changed();
+      return text;
+    },
     async wochenrueckblick() {
       return wochenrueckblickFuer().text;
     },
@@ -4615,6 +4635,91 @@ export function wochenschnittFuer(tagIso = todayIso(), gemessen = gemessenerVerb
  * Trainingsort und mit den Beschwerden geht, liegt vorn. Ohne Treffer null:
  * eine geratene Übung im Training ist schlimmer als eine ohne Foto.
  */
+const ART_NAME = { fruehstueck: "Frühstück", mittagessen: "Mittagessen", snack: "Snack", abendessen: "Abendessen" };
+
+/**
+ * Ein Trainingsplan von einem Foto oder PDF, wie das Modell ihn abgelesen
+ * hat, als gespeicherter Plan. Jede Einheit läuft durch dieselbe Zuordnung
+ * wie eine diktierte Einheit: Studionamen gegen die Datenbank, was sie nicht
+ * kennt, bleibt unter dem gelesenen Namen mit `eigen-` Kennung. Der Plan
+ * beginnt heute, seine zwölf Wochen zählen ab jetzt.
+ */
+export function planImportieren(einheiten, heute = todayIso()) {
+  const alt = store.getSettings().plan;
+  const wunsch = {
+    ...(alt?.wunsch ?? { minuten: 60, niveau: "intermediate", ziel: "muskel", ort: "studio", beschwerden: [], meiden: [], fokus: [] }),
+    tage: Math.max(1, Math.min(5, einheiten.length)),
+    variante: 0,
+  };
+  const unbekannt = [];
+  const gebaut = [];
+  for (const e of einheiten.slice(0, 7)) {
+    const { positionen, unbekannt: u } = einheitAusDiktat(e.uebungen, wunsch);
+    if (!positionen.length) continue;
+    unbekannt.push(...u);
+    gebaut.push({ titel: String(e.titel).slice(0, 40), fokus: "aus deinem Plan", positionen, dauerMin: 0 });
+  }
+  if (!gebaut.length) return `${NICHT_GESPEICHERT} Ich konnte keiner Einheit eine Übung zuordnen.`;
+  const plan = planNachrechnen({
+    wunsch, einheiten: gebaut, wochensaetze: {},
+    hinweise: ["Übernommen aus deinem eigenen Plan. Übungen, Sätze und Wiederholungen stehen so da, wie sie im Plan standen."],
+    quellen: [],
+  }, UEBUNGEN);
+  store.setSettings({ ...store.getSettings(), plan: { ...plan, beginn: heute, bearbeitet: true, importiert: true } });
+  const zeilen = [`Dein Plan ist übernommen, ${gebaut.length} ${gebaut.length === 1 ? "Einheit" : "Einheiten"}, ab heute Woche 1:`];
+  for (const e of plan.einheiten) zeilen.push(`- ${e.titel}: ${e.positionen.length} Übungen, etwa ${e.dauerMin} Minuten`);
+  if (unbekannt.length) {
+    zeilen.push(`Nicht in der Datenbank, deshalb ohne Foto und Anleitung, aber mit allen Sätzen im Plan: ${[...new Set(unbekannt)].join(", ")}.`);
+  }
+  if (gebaut.length > 5) zeilen.push("Mehr als fünf Einheiten rechnet der Planer nicht, die übrigen stehen trotzdem im Plan.");
+  zeilen.push("Du findest ihn unter Training, Mein Plan. Dort lässt sich jede Übung tauschen, verschieben oder ändern.");
+  return zeilen.join("\n");
+}
+
+/**
+ * Ein Ernährungsplan als eigene Rezepte, je Mahlzeit eines, und der Abgleich
+ * mit dem eigenen Tagesziel. Angepasst wird über einen Faktor auf alle
+ * Mengen, denn das hält die Verhältnisse des Plans: wer einen Plan von seinem
+ * Coach hat, soll dessen Mahlzeiten wiedererkennen. Die Grenze der eigenen
+ * Rezepte gilt auch hier, Mahlzeiten darüber werden genannt und nicht still
+ * verworfen.
+ */
+export function ernaehrungsplanImportieren(mahlzeiten) {
+  let s = store.getSettings();
+  const grenze = rezeptGrenze(s, KONFIG);
+  const gespeichert = [];
+  const nichtGespeichert = [];
+  const offen = [];
+  const tag = { kcal: 0, proteinG: 0, fatG: 0, carbsG: 0 };
+  for (const m of mahlzeiten) {
+    if (!m.posten.length) { nichtGespeichert.push(`${m.name} (keine Zutat erkannt)`); continue; }
+    const name = `${ART_NAME[m.art] ?? "Mahlzeit"}: ${m.name}`.slice(0, 60);
+    const ergebnis = rezeptSpeichern(s, name, m.posten, { grenze, id: newId });
+    if (ergebnis.fehler) { nichtGespeichert.push(m.name); continue; }
+    s = ergebnis.settings;
+    const sum = m.posten.reduce((a, p) => ({ kcal: a.kcal + p.kcal, proteinG: a.proteinG + p.proteinG, fatG: a.fatG + p.fatG, carbsG: a.carbsG + p.carbsG }), { kcal: 0, proteinG: 0, fatG: 0, carbsG: 0 });
+    for (const k of Object.keys(tag)) tag[k] += sum[k];
+    gespeichert.push(`- ${name}, ${Math.round(sum.kcal)} kcal, ${Math.round(sum.proteinG)} g Protein`);
+    offen.push(...m.offen);
+  }
+  store.setSettings(s);
+  if (!gespeichert.length) return `${NICHT_GESPEICHERT} Keine Mahlzeit liess sich speichern${nichtGespeichert.length ? `: ${nichtGespeichert.join(", ")}` : ""}.`;
+  const ziel = dayNumbers(todayIso()).targets;
+  const zeilen = [`Übernommen als eigene Rezepte, im Mahlzeit Editor unter Eigene:`, ...gespeichert];
+  zeilen.push(`Der Plan ergibt am Tag ${Math.round(tag.kcal)} kcal und ${Math.round(tag.proteinG)} g Protein. Dein Ziel liegt bei ${ziel.kcal} kcal und ${ziel.proteinG} g Protein.`);
+  const faktor = tag.kcal > 0 ? ziel.kcal / tag.kcal : 1;
+  if (Math.abs(faktor - 1) > 0.08) {
+    zeilen.push(`Angepasst auf dein Ziel heisst das: jede Menge mal ${faktor.toFixed(2).replace(".", ",")}, also ${faktor > 1 ? "etwa" : "nur"} ${Math.round(faktor * 100)} Prozent der Mengen im Plan. Beim Eintragen stellst du die Menge im Editor so ein.`);
+  } else {
+    zeilen.push("Das passt zu deinem Ziel, die Mengen können bleiben.");
+  }
+  const proteinNach = tag.proteinG * faktor;
+  if (proteinNach < ziel.proteinG * 0.9) zeilen.push(`Auch angepasst fehlen dann rund ${Math.round(ziel.proteinG - proteinNach)} g Protein, etwa ein Skyr oder ein Shake dazu.`);
+  if (offen.length) zeilen.push(`Nicht erkannt und nicht mitgerechnet: ${[...new Set(offen)].join(", ")}. Sag mir die Werte, dann lege ich sie als eigenes Lebensmittel an.`);
+  if (nichtGespeichert.length) zeilen.push(`Nicht gespeichert, weil die Grenze deiner Stufe erreicht ist: ${nichtGespeichert.join(", ")}.`);
+  return zeilen.join("\n");
+}
+
 export function uebungZuName(name, wunsch = {}) {
   // Umlaute fallen ganz auf den Vokal, nicht auf ae, oe, ue: sonst ist
   // "Klimmzüge" ("klimmzuege") kein Plural von "Klimmzug" mehr.

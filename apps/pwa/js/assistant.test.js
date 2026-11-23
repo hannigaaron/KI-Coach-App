@@ -1025,3 +1025,33 @@ test("Training für heute aus dem Diktat: genau diese Einheit, mit Cardio, danac
   assert.equal(neu[4].name, "Face Pull");
   assert.equal(store.getSettings().heuteTraining.cardio[0].art, "Fahrrad");
 });
+
+const importe = await import("./assistant.js");
+
+test("ein abfotografierter Trainingsplan wird der eigene Plan, Unbekanntes bleibt mit Namen", () => {
+  frischerTag();
+  const text = importe.planImportieren([
+    { titel: "Push", uebungen: [{ name: "Bankdrücken", saetze: 4, wdh: "6-8" }, { name: "Seitheben", saetze: 3, wdh: "12-15" }] },
+    { titel: "Pull", uebungen: [{ name: "Klimmzüge", saetze: 3, wdh: "6-10" }, { name: "Zirkusnummer Spezial", saetze: 3, wdh: "10" }] },
+  ], "2026-11-24");
+  const plan = store.getSettings().plan;
+  assert.equal(plan.einheiten.length, 2);
+  assert.equal(plan.beginn, "2026-11-24");
+  assert.equal(plan.einheiten[0].positionen[0].saetze, 4);
+  assert.equal(plan.einheiten[0].positionen[0].wdh, "6-8");
+  assert.ok(plan.einheiten[1].positionen.some((p) => p.id.startsWith("eigen-")));
+  assert.match(text, /Zirkusnummer Spezial/);
+});
+
+test("ein Ernährungsplan wird zu eigenen Rezepten mit Abgleich am Ziel", () => {
+  frischerTag();
+  const posten = (kcal, p) => [{ name: "Test", quantity: "100 g", kcal, proteinG: p, fatG: 10, carbsG: 40 }];
+  const text = importe.ernaehrungsplanImportieren([
+    { art: "fruehstueck", name: "Porridge", posten: posten(500, 30), offen: [] },
+    { art: "abendessen", name: "Reis mit Hähnchen", posten: posten(700, 50), offen: ["Geheimsauce"] },
+  ]);
+  assert.equal(store.getSettings().eigeneRezepte.length, 2);
+  assert.match(text, /1200 kcal/);
+  assert.match(text, /jede Menge mal/);
+  assert.match(text, /Geheimsauce/);
+});
