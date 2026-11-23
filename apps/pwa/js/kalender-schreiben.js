@@ -26,6 +26,8 @@ import { kalenderAbgleichen } from "./kalender-sync.js";
 /** Muss zu NICHT_GESPEICHERT in `packages/coach/src/agent.ts` passen. */
 const NICHT_GESPEICHERT = "Noch nicht gespeichert.";
 const STAPEL_MAX = 20;
+/** Eine Mahlzeit aus einem übernommenen Plan, "Abendessen: Lachs mit Reis". */
+const MAHLZEITTITEL = /^(fruhstuck|fruehstueck|mittagessen|abendessen|snack)\s*:/;
 const TRAININGSTITEL = /\b(training|gym|studio|kraft\w*|workout|einheit|volleyball|laufen|joggen|lauf|cardio|mobility)\b/;
 const ART_TITEL = { strength: "Krafttraining", team_sport: "Volleyball", cardio: "Ausdauer", mobility: "Mobilität" };
 
@@ -66,7 +68,7 @@ export function eintragErlaubt(titel, auftrag = {}) {
   if (liste) {
     return `${NICHT_GESPEICHERT} Eine Liste von Aufgaben trage ich nicht in deinen Kalender ein, sonst ist er so voll, dass du den Überblick verlierst. In den Kalender kommt je Termin genau eine Sache.`;
   }
-  if (TRAININGSTITEL.test(t) || auftrag.erbeten === true || auftrag.aufgabe === true) return null;
+  if (TRAININGSTITEL.test(t) || MAHLZEITTITEL.test(t) || auftrag.erbeten === true || auftrag.aufgabe === true) return null;
   return `${NICHT_GESPEICHERT} Von mir aus trage ich nur Trainings und dringende Aufgaben aus Todoist ein. Alles andere nur, wenn du ausdrücklich darum bittest.`;
 }
 
@@ -522,4 +524,51 @@ export async function erinnerungAustragen(kalender) {
     await nativAufruf("Kalender", "loeschen", { eid: kalender.eid, alt: kalender.von });
     await neuLesen();
   } catch { /* schon weg oder kein Zugriff, die Erinnerung ist trotzdem gelöscht */ }
+}
+
+const MAHLZEIT_NAME = { fruehstueck: "Frühstück", mittagessen: "Mittagessen", snack: "Snack", abendessen: "Abendessen" };
+
+/**
+ * Übernommene Mahlzeiten als Termine in den Kalender, "Abendessen: Lachs mit
+ * Reis" zur eigenen Essenszeit. Je Tag und Art steht höchstens ein Termin
+ * von daevo: wer den Plan neu übernimmt, bekommt den alten Termin ersetzt
+ * und nicht einen zweiten daneben. Was der Nutzer verschoben hat, bleibt.
+ * Mahlzeiten liegen auch über anderen Terminen, denn gegessen wird trotzdem,
+ * und ein Kalender, in dem das Mittagessen fehlt, weil um 12:30 ein Call ist,
+ * hilft beim Planen nicht.
+ */
+export async function mahlzeitenEinplanen(liste, { jetzt = Date.now() } = {}) {
+  if (!kannSchreiben()) return { angelegt: 0, ersetzt: 0, ohneKalender: true };
+  const stand = { ...(store.getSettings().mahlzeitKalender || {}) };
+  const termine = store.getKalender().termine || [];
+  let angelegt = 0, ersetzt = 0;
+  for (const m of liste) {
+    if (!m?.tag || !/^\d{1,2}:\d{2}$/.test(String(m.uhrzeit || ""))) continue;
+    const von = tagBeginn(m.tag) + (Number(m.uhrzeit.split(":")[0]) * 60 + Number(m.uhrzeit.split(":")[1])) * 60000;
+    if (von < jetzt) continue;
+    const key = `${m.tag}|${m.art}`;
+    const alt = stand[key];
+    if (alt?.eid) {
+      const t = termine.find((x) => x.eid === alt.eid);
+      if (t && Math.abs(t.von - alt.von) <= 60000) {
+        try { await nativAufruf("Kalender", "loeschen", { eid: alt.eid, alt: alt.von }); ersetzt++; } catch { /* schon weg */ }
+      } else if (t) {
+        continue; // selbst verschoben: gehört dem Nutzer
+      }
+    }
+    try {
+      const titel = `${MAHLZEIT_NAME[m.art] || "Essen"}: ${m.name}`;
+      const r = await nativAufruf("Kalender", "anlegen", {
+        titel, von, bis: von + (Number(m.minuten) || 30) * 60000,
+        notiz: m.notiz || "Aus deinem Essensplan in daevo.", kalender: zielKalenderId(),
+      });
+      stand[key] = { eid: r?.eid || "", von, titel };
+      angelegt++;
+    } catch { /* ohne Zugriff bleibt es offen */ }
+  }
+  // Vergangene Einträge fallen raus, sonst wächst die Liste ohne Ende.
+  for (const [k, v] of Object.entries(stand)) if ((v?.von ?? 0) + 86400000 < jetzt) delete stand[k];
+  store.setSettings({ ...store.getSettings(), mahlzeitKalender: stand });
+  if (angelegt || ersetzt) await neuLesen();
+  return { angelegt, ersetzt };
 }

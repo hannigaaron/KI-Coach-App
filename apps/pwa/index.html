@@ -652,6 +652,7 @@ try {
       <div class="rb-knoepfe">
         <button type="button" id="rbHeute" class="primary breit">Für heute eintragen</button>
         <button type="button" id="rbMorgen" class="ghost breit">Für morgen eintragen</button>
+        <button type="button" id="rbKalender" class="ghost breit" data-nur-nativ hidden>Einplanen, in meinen Kalender</button>
       </div>
     </div>
   </div>
@@ -1018,6 +1019,7 @@ try {
         <div id="epTag"></div>
         <div class="ep-aktionen">
           <button type="button" id="epEinkauf" class="primary breit">Zutaten in die Einkaufsliste</button>
+          <button type="button" id="epKalender" class="ghost breit">Plan übernehmen, in meinen Kalender</button>
           <button type="button" id="epAnders" class="ghost breit">Anderer Plan</button>
         </div>
         <p class="fineprint" id="epHinweis"></p>
@@ -1489,6 +1491,19 @@ try {
       <div class="field-row">
         <div class="field"><label for="e-wake">Aufstehen</label><input id="e-wake" type="time"></div>
         <div class="field"><label for="e-sleep">Schlafen</label><input id="e-sleep" type="time"></div>
+      </div>
+      <div class="field">
+        <label for="e-ersteMahlzeit">Erste Mahlzeit nach dem Aufstehen</label>
+        <select id="e-ersteMahlzeit">
+          <option value="15">Gleich nach dem Aufstehen</option>
+          <option value="45" selected>Nach einer halben bis einer Stunde</option>
+          <option value="90">Nach etwa eineinhalb Stunden</option>
+          <option value="180">Erst nach zwei bis vier Stunden</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <div class="field"><label for="e-mittag">Mittagessen um</label><input id="e-mittag" type="time"></div>
+        <div class="field"><label for="e-abend">Abendessen um</label><input id="e-abend" type="time"></div>
       </div>
       <div id="e-wochenbox" class="field" hidden>
         <label>Deine Woche</label>

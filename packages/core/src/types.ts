@@ -19,6 +19,8 @@ export type Occupation = "sitzend" | "gemischt" | "stehend" | "koerperlich";
 export type Leisure = "ruhig" | "gemischt" | "aktiv";
 
 export interface UserProfile {
+  /** Eigene Essenszeiten aus dem Fragebogen, siehe `tagesessen.ts`. */
+  essenszeiten?: { ersteNachMin?: number; mittag?: string; abend?: string };
   sex: Sex;
   ageYears: number;
   heightCm: number;

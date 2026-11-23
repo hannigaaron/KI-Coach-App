@@ -100,3 +100,10 @@ test("abends mit viel Rest: Abendessen und ein später Snack statt eines Riesent
   assert.ok(p.mahlzeiten.every((m) => m.kcal < 1000), p.mahlzeiten.map((m) => m.kcal).join(", "));
   assert.ok(p.mahlzeiten[1]!.um <= new Date(`${TAG}T22:30:00`).getTime());
 });
+
+import { essensUhrzeiten } from "./tagesessen.js";
+
+test("eigene Essenszeiten: erste Mahlzeit nach dem Aufstehen, Mittag und Abend", () => {
+  assert.deepEqual(essensUhrzeiten("06:30", { ersteNachMin: 60, mittag: "13:00", abend: "19:30" }), { fruehstueck: "07:30", mittagessen: "13:00", abendessen: "19:30" });
+  assert.deepEqual(essensUhrzeiten("07:00"), { fruehstueck: "07:45", mittagessen: "12:30", abendessen: "19:00" });
+});

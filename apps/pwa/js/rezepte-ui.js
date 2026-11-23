@@ -30,7 +30,7 @@ const zahl = (n) => Math.round(n).toLocaleString("de-DE");
  * `beiEintrag` kommt aus app.js und zeichnet den Rest der App neu. Diese Datei
  * soll nicht wissen, welche Ansichten es sonst noch gibt.
  */
-export function rezepteAnsicht({ wurzel, toast, beiEintrag, planFrei = () => true, proOeffnen = () => {} }) {
+export function rezepteAnsicht({ wurzel, toast, beiEintrag, planFrei = () => true, proOeffnen = () => {}, inKalender = null }) {
   const zustand = { art: null, index: 0, verworfen: new Set(), modus: "einzeln", tag: 0, offen: -1 };
 
   const el = (id) => wurzel.querySelector(`#${id}`);
@@ -268,6 +268,10 @@ export function rezepteAnsicht({ wurzel, toast, beiEintrag, planFrei = () => tru
       zustand.plan = essensplanRechnen({ andere: true });
       zustand.offen = -1;
       return zeichnen();
+    }
+    if (event.target.closest("#epKalender") && zustand.plan && inKalender) {
+      inKalender(zustand.plan);
+      return;
     }
     if (event.target.closest("#epEinkauf") && zustand.plan) {
       const n = essensplanEinkauf(zustand.plan);

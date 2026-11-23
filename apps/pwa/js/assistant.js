@@ -1938,6 +1938,7 @@ export function tagesessenFuer(tagIso = todayIso(), jetzt = Date.now()) {
     trainings: trainingAusProfil(profile.sessions, tagIso),
     ernaehrung: ernaehrungMitNotizen(profile),
     vorrat: store.getFridge(),
+    essenszeiten: profile.essenszeiten,
   });
 }
 

@@ -7,7 +7,7 @@ import {
   impulseFuerTag, naechsterPunkt, planFuer, saubereUrl, uhrzeit, undListe, weckwortGehoert, weightTrend,
   belastung,
   belastungText,
-  regeneration, regenFarbton, regenSatz,
+  regeneration, regenFarbton, regenSatz, essensUhrzeiten, tagesrandFuer,
   bereitschaft,
   bereitschaftText,
   berichtText,
@@ -2892,6 +2892,11 @@ function renderProfile() {
   $("e-goal").value = profile.goal;
   $("e-wake").value = profile.wakeTime;
   $("e-sleep").value = profile.sleepTime;
+  // Ein Wert, den die Liste nicht kennt, fällt auf den nächsten bekannten.
+  const erste = Number(profile.essenszeiten?.ersteNachMin ?? 45);
+  $("e-ersteMahlzeit").value = String([15, 45, 90, 180].reduce((a, b) => (Math.abs(b - erste) < Math.abs(a - erste) ? b : a)));
+  $("e-mittag").value = profile.essenszeiten?.mittag || "12:30";
+  $("e-abend").value = profile.essenszeiten?.abend || "19:00";
   // Nur ein Wert, den das Feld kennt. Ein fremder Wert liess es leer stehen.
   $("e-randmodus").value = profile.wechselndeZeiten ? "wechselnd" : (profile.randModus === "wochentag" ? "wochentag" : "gleich");
   renderWochenzeiten();
@@ -3167,7 +3172,34 @@ const rezepte = rezepteAnsicht({
   planFrei: () => essensplanFrei(store.getSettings(), KONFIG),
   proOeffnen: () => aboOeffnen({ marke: "Pro", titel: "Dein Essensplan für die Woche", empfohlen: "pro",
     text: "Sieben Tage aus den Rezepten, gerechnet auf deine Kalorien und Makros, mit Abendessen zum Vorkochen und fertiger Einkaufsliste." }),
+  inKalender: (plan) => essensplanInKalender(plan),
 });
+
+/**
+ * Der übernommene Essensplan steht danach im Kalender: Frühstück, Mittag und
+ * Abend zu den eigenen Essenszeiten, je Tag mit der Aufstehzeit dieses Tages.
+ * Snacks nicht, sonst stehen fünf Termine am Tag nur fürs Essen da.
+ */
+async function essensplanInKalender(plan) {
+  if (!istNativ()) {
+    toast("Den Plan trage ich in der iPhone App in deinen Kalender ein. Im Browser komme ich an deinen Kalender nicht heran.");
+    return;
+  }
+  const p = store.getProfile();
+  const liste = [];
+  for (const tag of plan.tage) {
+    const zeiten = essensUhrzeiten(tagesrandFuer(p, tag.datum).wakeTime, p.essenszeiten);
+    for (const m of tag.mahlzeiten) {
+      if (!zeiten[m.art]) continue;
+      liste.push({ tag: tag.datum, art: m.art, name: m.empfehlung.rezept.name, uhrzeit: zeiten[m.art], minuten: m.art === "abendessen" && m.vorkochen === "doppelt" ? 45 : 30,
+        notiz: `${m.empfehlung.summe.kcal} kcal, ${m.empfehlung.summe.proteinG} g Protein. Aus deinem Essensplan in daevo.` });
+    }
+  }
+  const { mahlzeitenEinplanen } = await import("./kalender-schreiben.js");
+  const r = await mahlzeitenEinplanen(liste);
+  if (r.ohneKalender) { toast("Verbinde zuerst deinen Kalender, auf der Kalenderseite unter Apple Kalender."); return; }
+  toast(r.angelegt ? `${r.angelegt} Mahlzeiten stehen jetzt in deinem Kalender${r.ersetzt ? `, ${r.ersetzt} alte ersetzt` : ""}.` : "Alles schon eingetragen oder schon vorbei.");
+}
 
 function einfuehrungGesehen() {
   store.setSettings({ ...store.getSettings(), einfuehrungGesehen: true });
@@ -5198,6 +5230,11 @@ $("btnSaveProfile").addEventListener("click", () => {
     randModus: $("e-randmodus").value === "wochentag" ? "wochentag" : "gleich",
     wechselndeZeiten: $("e-randmodus").value === "wechselnd",
     wochenraender: $("e-randmodus").value === "wochentag" ? wochenzeitenLesen() : undefined,
+    essenszeiten: {
+      ersteNachMin: Number($("e-ersteMahlzeit").value),
+      mittag: $("e-mittag").value || "12:30",
+      abend: $("e-abend").value || "19:00",
+    },
     // Ausnahmen für einzelne Tage bleiben erhalten. Sie hängen nicht am Modus,
     // und wer sie beim Speichern des Profils verlöre, müsste seine Schicht für
     // morgen jedes Mal neu eintragen.
@@ -5317,6 +5354,11 @@ $("btnSaveTage").addEventListener("click", () => {
     randModus: $("e-randmodus").value === "wochentag" ? "wochentag" : "gleich",
     wechselndeZeiten: $("e-randmodus").value === "wechselnd",
     wochenraender: $("e-randmodus").value === "wochentag" ? wochenzeitenLesen() : undefined,
+    essenszeiten: {
+      ersteNachMin: Number($("e-ersteMahlzeit").value),
+      mittag: $("e-mittag").value || "12:30",
+      abend: $("e-abend").value || "19:00",
+    },
   };
   store.setProfile(profile);
   refreshAll();
@@ -5570,6 +5612,20 @@ $("rbSchliessen").addEventListener("click", rezeptBlattSchliessen);
 $("rezeptBlatt").addEventListener("click", (ev) => { if (ev.target === $("rezeptBlatt")) rezeptBlattSchliessen(); });
 $("rbHeute").addEventListener("click", () => { const m = rbMahlzeit; rezeptBlattSchliessen(); if (m) rezeptInEditor(m, todayIso()); });
 $("rbMorgen").addEventListener("click", () => { const m = rbMahlzeit; rezeptBlattSchliessen(); if (m) rezeptInEditor(m, folgetag(todayIso())); });
+// Einplanen heisst: daevo hat es vorgeschlagen, du isst es, also steht es im
+// Kalender zu der Zeit, zu der daevo es gerechnet hat.
+$("rbKalender").addEventListener("click", async () => {
+  const m = rbMahlzeit;
+  if (!m?.rezept) return;
+  const d = new Date(m.um);
+  const tag = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const { mahlzeitenEinplanen } = await import("./kalender-schreiben.js");
+  const r = await mahlzeitenEinplanen([{ tag, art: m.art, name: m.rezept.name, uhrzeit: uhrzeit(m.um),
+    notiz: `${m.rezept.kcal} kcal, ${m.rezept.proteinG} g Protein. Von daevo vorgeschlagen.` }]);
+  rezeptBlattSchliessen();
+  toast(r.ohneKalender ? "Verbinde zuerst deinen Kalender, auf der Kalenderseite unter Apple Kalender."
+    : r.angelegt ? `${m.name} um ${uhrzeit(m.um)} steht in deinem Kalender.` : "Die Zeit ist schon vorbei.");
+});
 
 /** Sucht den Vorschlag mit diesem Rezept an diesem Tag. */
 function vorschlagFuer(tag, rezeptId) {

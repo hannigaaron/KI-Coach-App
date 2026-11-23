@@ -50,6 +50,31 @@ export interface GeplanteMahlzeit {
   };
 }
 
+/** Die eigenen Essenszeiten aus dem Fragebogen. */
+export interface Essenszeiten {
+  /** Minuten vom Aufstehen bis zur ersten Mahlzeit. */
+  ersteNachMin?: number;
+  /** Mittagessen als HH:MM. */
+  mittag?: string;
+  /** Abendessen als HH:MM. */
+  abend?: string;
+}
+
+/**
+ * Die Uhrzeit je Hauptmahlzeit an einem Tag, aus Aufstehzeit und Fragebogen,
+ * als HH:MM. Für den Kalender, wenn ein Plan übernommen wird. Ohne Angabe
+ * gelten 45 Minuten nach dem Aufstehen, 12:30 und 19:00, dieselben Wünsche
+ * wie in den Fenstern oben.
+ */
+export function essensUhrzeiten(aufstehen: string, ez: Essenszeiten = {}): Record<"fruehstueck" | "mittagessen" | "abendessen", string> {
+  const [h = 7, m = 0] = (aufstehen || "07:00").split(":").map(Number);
+  const erste = (h * 60 + m) + (Number.isFinite(ez.ersteNachMin) ? Number(ez.ersteNachMin) : 45);
+  const viertel = Math.round(erste / 15) * 15;
+  const fruehstueck = `${String(Math.floor(viertel / 60) % 24).padStart(2, "0")}:${String(viertel % 60).padStart(2, "0")}`;
+  const gueltig = (x?: string) => (x && /^\d{1,2}:\d{2}$/.test(x) ? x.padStart(5, "0") : null);
+  return { fruehstueck, mittagessen: gueltig(ez.mittag) ?? "12:30", abendessen: gueltig(ez.abend) ?? "19:00" };
+}
+
 export interface Tagesessen {
   mahlzeiten: GeplanteMahlzeit[];
   /** Was schon gegessen ist, in Kalorien. */
@@ -112,6 +137,12 @@ export function tagesessen(p: {
   ernaehrung?: Ernaehrung;
   vorrat?: string[];
   rezepte?: Rezept[];
+  /**
+   * Die eigenen Essenszeiten aus dem Fragebogen: Minuten vom Aufstehen bis
+   * zur ersten Mahlzeit, Mittag und Abend als HH:MM. Sie werden der Wunsch im
+   * Fenster, der Kalender und das Training gehen weiter vor.
+   */
+  essenszeiten?: Essenszeiten;
 }): Tagesessen {
   const { ablauf: a, ziele } = p;
   const hinweise: string[] = [];
@@ -147,6 +178,25 @@ export function tagesessen(p: {
     fruehstueck: { von: aufstehen + 0.25, bis: Math.max(aufstehen + 2.5, 10.5), wunsch: aufstehen + 0.75 },
   };
   const schlafen = stundeVon(a.wachBis) < aufstehen ? stundeVon(a.wachBis) + 24 : stundeVon(a.wachBis);
+  const ez = p.essenszeiten;
+  if (ez) {
+    // Wer erst zwei Stunden nach dem Aufstehen isst, bekommt kein Frühstück
+    // um viertel nach sieben vorgeschlagen. Das Fenster wandert mit, eine
+    // Stunde Spielraum nach beiden Seiten für den Kalender.
+    if (Number.isFinite(ez.ersteNachMin)) {
+      const w = aufstehen + Math.max(0, Math.min(300, Number(ez.ersteNachMin))) / 60;
+      fenster.fruehstueck = { von: Math.max(aufstehen, w - 1), bis: Math.max(w + 1.5, fenster.fruehstueck.bis), wunsch: w };
+    }
+    const um = (hhmm?: string) => (hhmm && /^\d{1,2}:\d{2}$/.test(hhmm) ? Number(hhmm.split(":")[0]) + Number(hhmm.split(":")[1]) / 60 : null);
+    const mittag = um(ez.mittag);
+    if (mittag !== null) fenster.mittagessen = { von: mittag - 1, bis: mittag + 1.5, wunsch: mittag };
+    const abend = um(ez.abend);
+    if (abend !== null) fenster.abendessen = { von: abend - 1, bis: abend + 1.5, wunsch: abend };
+    // Der Snack liegt zwischen Mittag und Abend, nie darüber.
+    if (mittag !== null && abend !== null && abend - mittag >= 3) {
+      fenster.snack = { von: mittag + 2, bis: abend - 1, wunsch: (mittag + abend) / 2 };
+    }
+  }
   fenster.abendessen = { ...fenster.abendessen, bis: Math.min(fenster.abendessen.bis + 1, schlafen - 1.5) };
 
   const rollen: Partial<Record<MahlzeitArt, { training: "davor" | "danach"; grund: string; wunsch?: number }>> = {};
