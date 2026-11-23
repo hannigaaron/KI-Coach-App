@@ -334,7 +334,7 @@ function renderTranscript() {
   const letzteSortierung = chat.slice(-40).map((m) => Boolean(m.ausgeführt?.includes("Tag sortiert"))).lastIndexOf(true);
   let sortierung = "";
   if (letzteSortierung >= 0) {
-    try { sortierung = sortiertHtml(tagesbriefingFuer("morgen").reihenfolge, { schluessel: "chat", mitHaken: false }); } catch (e) { console.error(e); }
+    try { sortierung = (() => { const bb = tagesbriefingFuer("morgen"); return sortiertHtml(bb.reihenfolge, { schluessel: "chat", mitHaken: false, hinweis: bb.musterHinweis }); })(); } catch (e) { console.error(e); }
   }
   el.innerHTML = chat
     .slice(-40)
@@ -4802,7 +4802,7 @@ function briefingZeichnen() {
 
   if (b.reihenfolge?.length) {
     // daevo zeigt, was er sortiert hat: Stufe 1, Stufe 2, dazwischen, warten, abends.
-    html += sortiertHtml(b.reihenfolge, { schluessel: `kal-${briefingArt}`, mitHaken: true });
+    html += sortiertHtml(b.reihenfolge, { schluessel: `kal-${briefingArt}`, mitHaken: true, hinweis: b.musterHinweis });
   } else if (rest.length) {
     const sichtbar = briefingAlles ? rest : rest.slice(0, 4);
     html += `<h3 class="kb-danach">Danach</h3><ol class="kb-liste">${sichtbar.map((p) => `<li class="kb-${p.art}"${p.art === "essen" && p.rezeptId ? ` data-rezept="${escapeHtml(p.rezeptId)}" role="button" tabindex="0"` : ""}>

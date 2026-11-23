@@ -1011,7 +1011,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1482 Tests
+npm test           # 1486 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1337,6 +1337,24 @@ Animation. Dieselbe Ansicht steht auf der Kalenderseite, im Morgen Check-in
 und unter der Antwort im Chat, wenn der Coach `tagesplan_erstellen` oder
 `aufgaben_priorisieren` genutzt hat (Vermerk "Tag sortiert"), nur unter der
 letzten solchen Antwort. Ungeprüft: Durchlauf mit echten Daten auf dem Gerät.
+
+### Was zu kurz kam, rückt vor
+
+`packages/core/src/prioritaetsmuster.ts`, `bereichsLuecken` und
+`bereichNamen` in `assistant.js`. Kam ein Lebensbereich des Balance Boards in
+den letzten sieben Tagen unter 40 Prozent seines Ziels, rückt jede Aufgabe aus
+diesem Bereich eine Stufe vor: Stufe 3 wird 2, Stufe 2 wird nur bei unter 20
+Prozent 1, Stufe 1 bleibt. Der Grund steht unter der Aufgabe ("Familie und
+Beziehung kam diese Woche zu kurz, 5 Prozent vom Ziel"), dazu ein Satz über der
+Übersicht, `musterHinweis`. Karriere nie: Arbeit fällt selten aus. Nur mit
+mindestens vier Tagen mit gemessener Zeit, denn ein Bereich ohne Eintrag ist
+vergessen und kein Bereich ohne Zeit. Die Schwellen sind Regeln der App.
+
+Welcher Bereich eine Aufgabe ist, sagt die Wortliste des Boards, dazu Namen:
+`familienNamenAus` liest sie aus den Notizen ("meine Schwester Lydi"), und
+`settings.bereichNamen` nimmt eigene je Bereich. Ohne das wäre "Lydi
+schreiben" keinem Bereich zugeordnet. Offen: eine Oberfläche, um Namen von
+Hand zu pflegen, und Termine rücken nicht vor, nur Aufgaben.
 
 ## Das Tagesbriefing
 

@@ -51,6 +51,8 @@ export interface TagesBriefing {
   /** Der Tag als eine Liste nach Uhrzeit, für die Ansicht, siehe `briefingPunkte`. */
   punkte: BriefingPunkt[];
   /** Dieselbe Liste in der Reihenfolge, die daevo vorgibt: zuerst, danach, dazwischen, warten, abends. */
+  /** Ein Satz, wenn ein Lebensbereich diese Woche zu kurz kam und Aufgaben deshalb vorrücken. */
+  musterHinweis: string | null;
   reihenfolge: SortierGruppe[];
 }
 
@@ -81,6 +83,7 @@ export interface BriefingEingaben {
   training: null | { titel: string; um?: string; minuten?: number; gestrichen?: boolean; uebungen?: number };
   /** Aufgaben für diesen Tag, wichtigste zuerst, mit Uhrzeit, wenn sie einen Platz hat. */
   aufgaben: Array<{ id?: string; text: string; um?: string; wichtig?: boolean; stufe?: SortierStufe; grund?: string }>;
+  musterHinweis?: string | null;
   /** Aufgaben, die bis morgen warten dürfen. Sie stehen als dritte SortierStufe da, nicht im Tag. */
   warten?: Array<{ id?: string; text: string; grund?: string }>;
   ziele: { kcal: number; proteinG: number };
@@ -275,7 +278,7 @@ export function tagesbriefing(roh: BriefingEingaben): TagesBriefing {
     ...abschnitte.map((a) => `\n${a.titel}\n${a.zeilen.map((z) => (a.zeilen.length > 1 ? `- ${z}` : z)).join("\n")}`),
   ].join("\n");
 
-  return { art: e.art, titel, kurz, abschnitte, text, punkte: briefingPunkte(e), reihenfolge: reihenfolgeBauen(e, grenze.feierabend) };
+  return { art: e.art, titel, kurz, abschnitte, text, punkte: briefingPunkte(e), reihenfolge: reihenfolgeBauen(e, grenze.feierabend), musterHinweis: roh.musterHinweis ?? null };
 }
 
 function amTag(tag: string, hhmm: string): number | null {

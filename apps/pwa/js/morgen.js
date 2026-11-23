@@ -251,7 +251,7 @@ const ART_WORT = { termin: "Termin", aufgabe: "Aufgabe", essen: "Essen", trainin
 export function briefingHtml(b) {
   if (!b?.abschnitte?.length) return "";
   // Mit Reihenfolge sortiert daevo sichtbar, statt eine Zeitleiste zu zeigen.
-  const sortiert = b.reihenfolge?.length ? sortiertHtml(b.reihenfolge, { schluessel: "morgen" }) : "";
+  const sortiert = b.reihenfolge?.length ? sortiertHtml(b.reihenfolge, { schluessel: "morgen", hinweis: b.musterHinweis }) : "";
   const punkte = sortiert ? [] : (b.punkte || []).slice(0, 12);
   const fokus = b.abschnitte.find((a) => a.titel === "Fokus");
   const rest = b.abschnitte.filter((a) => a.titel !== "Deine Untergrenze" && a.titel !== "Fokus"

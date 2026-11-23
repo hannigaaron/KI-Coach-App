@@ -4588,3 +4588,4 @@ button { overflow-wrap: anywhere; text-wrap: balance; }
 @keyframes soPuls { 50% { box-shadow: 0 0 0 9px color-mix(in srgb, var(--so-ton) 0%, transparent); } }
 @media (prefers-reduced-motion: reduce) { .so-neu .so-punkt, .so-neu .so-kopf, .so-neu .so-puls { animation: none; } }
 .msg .so { margin: var(--s-4) 0 0; }
+.so-muster { margin: 0; padding: var(--s-3) var(--s-4); border-radius: var(--r-md, 14px); font-size: var(--t-sm); line-height: 1.45; background: color-mix(in srgb, var(--so-ton) 14%, transparent); color: var(--text); }

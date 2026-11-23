@@ -47,6 +47,7 @@ export function sortiertHtml(gruppen, opt = {}) {
   };
   return `<div class="so${neu ? " so-neu" : ""}" data-so="${esc(opt.schluessel || "x")}" data-so-sig="${esc(sortiertSignatur(gruppen))}">`
     + `<p class="so-titel"><span class="so-puls" aria-hidden="true"></span>daevo hat deinen Tag sortiert</p>`
+    + (opt.hinweis ? `<p class="so-muster">${esc(opt.hinweis)}</p>` : "")
     + gruppen.map(gruppe).join("") + `</div>`;
 }
 

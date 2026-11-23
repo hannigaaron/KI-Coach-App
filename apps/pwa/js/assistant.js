@@ -4,7 +4,7 @@ import {
   mahlzeitAusFoto, modellFuerBilder, naehrwerteImNetz, produktPerBarcode, produkteSuchen, summiere, vorratAusFoto,
   todoistAbhaken, todoistAufgaben, todoistIdVon, todoistWiederOeffnen, PERSONA_TEILE,
 } from "@daevo/coach";
-import { essenszeitAus, foldUmlauts, wochenrueckblick, wochenbeginn, wochenschnitt, wochenschnittText, tagKurz, tagStand, rueckblickArt, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, aufgabeStufe, einzeltrainingBauen, abdeckungsLuecken, FOKUS_NAME, alternativen, planNachrechnen, positionFuer } from "@daevo/core";
+import { essenszeitAus, foldUmlauts, wochenrueckblick, wochenbeginn, wochenschnitt, wochenschnittText, tagKurz, tagStand, rueckblickArt, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, aufgabeStufe, vernachlaessigteBereiche, bereichDerAufgabe, familienNamenAus, anheben, einzeltrainingBauen, abdeckungsLuecken, FOKUS_NAME, alternativen, planNachrechnen, positionFuer } from "@daevo/core";
 import { trainingsTageAusQuellen } from "./luecke.js";
 import { UEBUNGEN } from "./uebungen-daten.js";
 import { GERAETE, uebungenFiltern } from "./uebungen.js";
@@ -1945,9 +1945,14 @@ export function tagesbriefingFuer(art = "morgen", jetzt = Date.now(), fuerTag) {
   let aufgaben = [];
   let warten = [];
   // Einstufung nach Umsatz, Geld, Frist und Wichtigkeit: daevo sortiert, der Nutzer sieht warum.
+  // Kam ein Lebensbereich in den letzten sieben Tagen zu kurz, rückt eine
+  // Aufgabe daraus eine Stufe nach vorn: das Muster entscheidet, nicht die Frist.
+  const luecken = bereichsLuecken();
+  const namen = bereichNamen();
   const eingestuft = (a) => {
     const e = aufgabeStufe({ text: a.text, wichtigkeit: a.wichtigkeit, faellig: a.faellig || undefined }, heute);
-    return { stufe: e.stufe, grund: e.grund };
+    const hoch = anheben(e.stufe, bereichDerAufgabe(a.text, namen), luecken);
+    return hoch ? { stufe: hoch.stufe, grund: hoch.grund } : { stufe: e.stufe, grund: e.grund };
   };
   if (art === "morgen") {
     const { plan, zeiten } = tagesplan(jetzt);
@@ -1977,6 +1982,9 @@ export function tagesbriefingFuer(art = "morgen", jetzt = Date.now(), fuerTag) {
     training: trainingFuerBriefing(tag),
     aufgaben,
     warten,
+    musterHinweis: luecken.length
+      ? `${luecken.map((l) => l.name).join(" und ")} ${luecken.length > 1 ? "kamen" : "kam"} in den letzten sieben Tagen zu kurz. Passende Aufgaben stehen deshalb weiter vorn.`
+      : null,
     ziele: { kcal: n.targets.kcal, proteinG: n.targets.proteinG },
     heute: art === "abend"
       ? { kcal: h.totals.kcal, zielKcal: h.targets.kcal, proteinG: h.totals.proteinG, zielProteinG: h.targets.proteinG, erledigt }
@@ -2427,6 +2435,33 @@ export function balanceFuer(tage = 1, bisIso = todayIso()) {
     basisMinuten: wachSumme,
     tage,
   });
+}
+
+
+/**
+ * Welche Lebensbereiche in den letzten sieben Tagen zu kurz kamen.
+ * Nur mit genug gemessenen Tagen: ein leerer Bereich kann auch ein
+ * Bereich sein, den niemand eingetragen hat.
+ */
+export function bereichsLuecken() {
+  try {
+    let tageMitZeit = 0;
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(`${todayIso()}T12:00:00`);
+      d.setDate(d.getDate() - i);
+      const iso = d.toISOString().slice(0, 10);
+      const zeiten = store.getZeiten().some((z) => z.tag === iso);
+      if (zeiten || termineFuer(iso).length || (store.getDay(iso).trainings || []).length) tageMitZeit++;
+    }
+    return vernachlaessigteBereiche(balanceFuer(7).bereiche, tageMitZeit);
+  } catch { return []; }
+}
+
+/** Namen, die ein Bereich trägt: eigene Wahl in den Einstellungen plus Familie aus den Notizen. */
+export function bereichNamen() {
+  const eigene = store.getSettings().bereichNamen || {};
+  const aus = familienNamenAus(store.getMemories().map((m) => String(m.text || "")));
+  return { ...eigene, beziehung: [...(eigene.beziehung || []), ...aus] };
 }
 
 /**
