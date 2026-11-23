@@ -80,6 +80,29 @@ export function letzteNotiz(log, id, vor) {
   return treffer?.notiz ?? "";
 }
 
+/*
+ * Wörter, an denen eine Notiz nach Schmerz klingt. Bewusst eng: "Sitz auf 4"
+ * darf keinen Hinweis auslösen, sonst wird er überlesen, wenn er zählt.
+ * Verglichen wird ohne Umlaute, beide Seiten durch dieselbe Faltung.
+ */
+const SCHMERZ = /\b(schmerz\w*|tut\s+weh|weh\s+getan|wehgetan|zieh(t|en)|gezogen|reingefahren|eingefahren|eingeklemmt|klemmt|stech\w*|sticht|zwick\w*|zerr\w*|gezerrt|verletz\w*|verdreht|umgeknickt|knackt|autsch|aua|probleme?\s+(mit|im|in|an))\b/;
+
+function falten(text) {
+  return String(text ?? "").toLowerCase().replace(/ä/g, "a").replace(/ö/g, "o").replace(/ü/g, "u").replace(/ß/g, "ss");
+}
+
+/**
+ * Hat die letzte Notiz einer Übung Schmerz gemeldet, steht beim nächsten Mal
+ * ein Hinweis über den Sätzen. Eine Notiz im Feld liest man nicht, ein
+ * Hinweis in Farbe schon. Kein Verbot: die App kennt die Ursache nicht.
+ */
+export function schmerzHinweis(notiz) {
+  const text = String(notiz ?? "").trim();
+  if (!text || !SCHMERZ.test(falten(text))) return "";
+  const kurz = text.length > 90 ? `${text.slice(0, 88).trimEnd()}…` : text;
+  return `Letztes Mal notiert: „${kurz}". Geh den ersten Satz leichter an und spür nach. Tut es wieder weh, lass die Übung heute weg oder tausch sie über die drei Punkte.`;
+}
+
 /** Setzt die Notiz einer Übung im Entwurf, höchstens 500 Zeichen. */
 export function notizSetzen(entwurf, ui, text) {
   const notiz = String(text ?? "").slice(0, 500);
@@ -525,6 +548,8 @@ export function trainingHtml(entwurf, log, { menue = false, vorschlaege = [], pa
         ${entwurf.rueckblick ? '<button type="button" role="menuitem" class="tr-ersatz" data-tr-karte><b>Muskelkarte und Teilen</b></button>' : ""}
       </div>`
     : "";
+  // Im Rückblick zählt die Notiz von damals nicht als Warnung für heute.
+  const warnung = entwurf.rueckblick ? "" : schmerzHinweis(letzteNotiz(log, u.id, entwurf.datum));
   if (waehlen) return `<div class="tr-leiste">${leiste}</div>${auswahlHtml(auswahl, suche, ersetzen ? "ersatz" : "dazu", u.name)}`;
   // Wo man in der Einheit steht, als Zahl und als Balken. Die Daumen allein
   // sagen das nicht, sobald die Leiste breiter als der Bildschirm ist.
@@ -543,6 +568,7 @@ export function trainingHtml(entwurf, log, { menue = false, vorschlaege = [], pa
   return `${fortschritt}<div class="tr-leiste">${leiste}</div>
     ${kopf}
     ${menueHtml}
+    ${warnung ? `<p class="tr-warnung" role="note"><b>Achtung</b>${esc(warnung)}</p>` : ""}
     <div class="tr-tabelle">
       <div class="tr-kopf"><span>#</span>${kopfKnopf("last", masse.last === "ohne" ? "KG" : L.kopf, einheitWahl)}${kopfKnopf("menge", M.kopf, einheitWahl)}<span>${mitWdh ? "RIR" : ""}</span><span></span></div>
       ${einheitWahl ? einheitWahlHtml(einheitWahl, masse) : ""}

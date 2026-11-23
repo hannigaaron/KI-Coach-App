@@ -462,3 +462,14 @@ test("Ein früheres Training lässt sich öffnen und korrigieren", () => {
   assert.equal(neu.find((x) => x.datum === "2026-11-14").saetze.length, 2);
   assert.ok(neu.some((x) => x.datum === "2026-11-12"), "andere Tage bleiben");
 });
+
+import { schmerzHinweis, trainingHtml as tHtml, entwurfFrei as eFrei } from "./training.js";
+
+test("eine Notiz mit Schmerz wird beim nächsten Mal ein Hinweis, eine Einstellung nicht", () => {
+  assert.match(schmerzHinweis("Leichtes Ziehen in der rechten Schulter"), /ersten Satz leichter/);
+  assert.match(schmerzHinweis("Ist mir in den Rücken reingefahren"), /Letztes Mal notiert/);
+  assert.match(schmerzHinweis("Knie tut weh bei tiefer Position"), /Achtung|ersten Satz/);
+  assert.match(schmerzHinweis("Schmerzen im Ellbogen"), /ersten Satz/);
+  assert.equal(schmerzHinweis("Sitz auf 4, Griff eng"), "");
+  assert.equal(schmerzHinweis(""), "");
+});
