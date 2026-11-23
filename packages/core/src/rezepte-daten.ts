@@ -313,7 +313,7 @@ export const REZEPTE: Rezept[] = [
     schritte: ["Thunfisch abtropfen lassen und mit Joghurt, Mais, Salz und Pfeffer verrühren.", "Salat auf die Wraps legen, Thunfisch darauf.", "Fest einrollen und halbieren."],
   },
   {
-    id: "spaghetti-bolognese", name: "Schnelle Bolognese mit Vollkornnudeln", art: "hauptmahlzeit", minuten: 20, geraete: ["Herd"],
+    id: "spaghetti-bolognese", foto: true, name: "Schnelle Bolognese mit Vollkornnudeln", art: "hauptmahlzeit", minuten: 20, geraete: ["Herd"],
     zutaten: [{ z: "nudeln", g: 90 }, { z: "rinderhack", g: 150 }, { z: "passata", g: 200 }, { z: "zwiebel", g: 40 }, { z: "parmesan", g: 10 }],
     schritte: ["Nudeln nach Packung kochen.", "Zwiebel würfeln, mit dem Hack krümelig anbraten.", "Passata dazu, mit Salz, Pfeffer und Oregano zehn Minuten köcheln.", "Mit den Nudeln und Parmesan servieren."],
   },
@@ -328,7 +328,7 @@ export const REZEPTE: Rezept[] = [
     schritte: ["Nudeln nach Packung kochen.", "Zwiebel in Öl andünsten, Passata dazu und fünf Minuten köcheln.", "Thunfisch unterheben, nur warm werden lassen.", "Mit den Nudeln mischen."],
   },
   {
-    id: "garnelen-reispfanne", name: "Garnelen Reispfanne mit Paprika und Mais", art: "hauptmahlzeit", minuten: 15, geraete: ["Herd"],
+    id: "garnelen-reispfanne", foto: true, name: "Garnelen Reispfanne mit Paprika und Mais", art: "hauptmahlzeit", minuten: 15, geraete: ["Herd"],
     zutaten: [{ z: "reis", g: 80 }, { z: "garnelen", g: 180 }, { z: "paprika", g: 100 }, { z: "mais", g: 60 }, { z: "sojasauce", g: 10 }, { z: "olivenoel", g: 5 }],
     schritte: ["Reis kochen, gern vom Vortag.", "Paprika in Öl anbraten, Garnelen dazu, bis sie rosa sind.", "Reis und Mais unterheben, mit Sojasauce ablöschen."],
   },

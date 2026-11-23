@@ -3185,7 +3185,11 @@ der Zutatentabelle.
 Fotos: `foto: true` am Rezept, Datei unter `apps/pwa/img/rezepte/<id>.jpg`
 (800 x 600), Stil wie bei den Übungen. Ein Test prüft, dass jede Kennzeichnung
 eine Datei hat. 14 schnelle Rezepte mit höchstens fünf Zutaten und 25
-Minuten kamen im November 2026 dazu, Fotos nur mit freier Lizenz. Ohne Foto trägt die Karte ein Zeichen
+Minuten kamen im November 2026 dazu. Fotos nur unter CC0 aus Openverse und
+nur, wenn das Bild das Gericht zeigt, Quelle je Datei in
+`img/rezepte/NACHWEIS.json`. Bisher Bolognese und Garnelen Reispfanne, die
+übrigen zwölf tragen das Zeichen. Openverse antwortete im November oft mit
+504, Wikimedia und Flickr blocken automatische Abrufe. Ohne Foto trägt die Karte ein Zeichen
 auf einem Verlauf. Die Karte steht im Verhältnis 4 zu 3 und ist auf breiten
 Bildschirmen gedeckelt, vorher füllte sie auf dem Laptop den halben
 Bildschirm.
