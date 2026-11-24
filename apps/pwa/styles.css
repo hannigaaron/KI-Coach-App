@@ -2904,7 +2904,7 @@ h1,
 .pl-aktionen { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 30px; }
 .pl-knopf {
   min-height: 50px; border-radius: var(--r-pill); border: 1px solid var(--linie); background: none; color: var(--text);
-  font-family: var(--schrift-display); font-size: 15px; font-weight: 600; transition: transform 0.15s ease;
+  font-size: 15px; font-weight: 400; transition: transform 0.15s ease;
 }
 .pl-knopf:active { transform: scale(0.98); }
 .pl-knopf.haupt { grid-column: 1 / -1; min-height: 56px; background: var(--stark); border-color: transparent; color: var(--auf-stark); font-size: 16px; }

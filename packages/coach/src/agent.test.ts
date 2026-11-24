@@ -8,7 +8,8 @@ function stubActions(log: string[]): AgentActions {
   return {
     async mahlzeitErfassen(b) { log.push(`mahlzeit:${b}`); return "Eingetragen: 500 kcal, 40 g Protein."; },
     async mahlzeitKorrigieren(i) { log.push(`korrigieren:${i.posten ?? ""}:${i.neueMenge}`); return "Korrigiert."; },
-    async eintragZuruecknehmen(i) { log.push(`zurueck:${i.art ?? ""}:${i.suche ?? ""}`); return "Raus: 200 g Magerquark."; },
+    async eintragZuruecknehmen(i) { log.push(`zurueck:${i.art ?? ""}:${i.suche ?? ""}${i.tag ? `:${i.tag}` : ""}`); return "Raus: 200 g Magerquark."; },
+    async trainingsverlaufAbrufen(i) { log.push(`trainingsverlauf:${i.tage}`); return "2 Trainings."; },
     async tagZuEndePlanen(i) { log.push(`planen:${(i.mahlzeiten ?? []).join("+")}`); return "Abendessen 900 kcal."; },
     async gespraecheDurchsuchen(i) { log.push(`suche:${i.suche}`); return "Zwei Gespräche gefunden."; },
     async gespraechEinordnenAktiv(i) { log.push(`einordnen:${i.ordner}`); return "Verschoben."; },
@@ -50,7 +51,7 @@ function stubActions(log: string[]): AgentActions {
     async musterErkennen(i) { log.push(`muster:${i.tage ?? ""}`); return "Schlaf und Energie hängen zusammen."; },
     async belastungAbrufen() { log.push("belastung"); return "240 Minuten in 7 Tagen, dein Schnitt liegt bei 210."; },
     async berichtErstellen(i) { log.push(`bericht:${i.tage ?? ""}`); return "daevo Bericht, 7 Tage."; },
-    async bereitschaftAbrufen() { log.push("bereitschaft"); return "Bereitschaft 72 von 100."; },
+    async bereitschaftAbrufen(input?: { fokus?: string }) { log.push(input?.fokus ? `bereitschaft:${input.fokus}` : "bereitschaft"); return "Bereitschaft 72 von 100."; },
     async balanceAbrufen(i) { log.push(`balance:${i.tage ?? ""}`); return "Karriere 40 Stunden, Me Time 0 Minuten."; },
     async zeitEintragen(i) { log.push(`zeit:${i.bereich}:${i.minuten}`); return "Gebucht."; },
     async erinnerungAnlegen(i) { log.push(`erinnerung:${i.text}:${i.uhrzeit ?? i.bezug}`); return "Erinnerung angelegt."; },
@@ -880,6 +881,28 @@ test("Regelweg nach dem zweiten Durchlauf: Gym, Kundentermin, Beschwerde, Befind
   assert.ok(leer.log[0]?.startsWith("checkin:"));
   assert.doesNotMatch(leer.r.text, /Rest des Tages vor/);
   assert.deepEqual((await fall("Mein Ziel ist jetzt Muskelaufbau")).log, ['profil:{"ziel":"lean_bulk"}']);
+});
+
+test("Regelweg: Fragen nach Schlaf, Stress und Regeneration lesen Werte statt einen Check-in anzulegen", async () => {
+  const fall = async (satz: string) => { const log: string[] = []; await runOffline(satz, stubActions(log)); return log; };
+  assert.deepEqual(await fall("Wie hab ich geschlafen?"), ["bereitschaft:schlaf"]);
+  assert.deepEqual(await fall("Wie ist mein Stress laut Uhr?"), ["bereitschaft:koerper"]);
+  assert.deepEqual(await fall("Wie ist meine Erholung?"), ["bereitschaft:koerper"]);
+  assert.deepEqual(await fall("Welche Muskeln sind erholt?"), ["bereitschaft:regeneration"]);
+  assert.deepEqual(await fall("Wie ist meine Regeneration"), ["bereitschaft:regeneration"]);
+  assert.ok(!(await fall("Was hilft gegen Stress?")).some((e) => e.startsWith("checkin:")));
+  // Ein Termin ist keine Tageszeit, auch wenn "ende" in "Kalender" steckt.
+  const termin = await fall("Trag morgen um 17 Uhr Training in meinen Kalender ein");
+  assert.ok(!termin.some((e) => e.startsWith("zeiten:")), termin.join(","));
+  assert.ok(termin.some((e) => e.startsWith("kalender")), termin.join(","));
+  assert.deepEqual(await fall("War heute 90 Minuten Volleyball"), ["training:team_sport/90"]);
+  assert.deepEqual(await fall("Lösch das Training von gestern"), ["zurueck:training::gestern"]);
+  assert.deepEqual(await fall("Was hab ich diese Woche trainiert?"), ["trainingsverlauf:7"]);
+  // Ein Markenprodukt ohne Tabellenwert: Barcode, nicht "sag es mit Menge".
+  const riegel = await runOffline("Hab gerade einen Proteinriegel gegessen", stubActions([]));
+  assert.doesNotMatch(riegel.text, /mit Menge/);
+  // Eine Aussage bleibt ein Check-in.
+  assert.ok((await fall("Hab heute echt schlecht geschlafen"))[0]?.startsWith("checkin:"));
 });
 
 test("Regelweg beim Essen: Frage, nichts gegessen, gleich essen, Frühstück löschen, Menge richtigstellen", async () => {

@@ -1011,7 +1011,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1547 Tests
+npm test           # 1548 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -3147,6 +3147,31 @@ der Testphase erlebt hätte. Jeder dieser Fehler hat jetzt einen Test in
   "steh morgen um 5 auf", "was trainiere ich morgen", "hi" und "danke",
   Posten auf die Einkaufsliste, Fragen nach der letzten Woche, und eine
   Fachfrage bekommt den ehrlichen Satz, dass sie die KI braucht.
+
+### Der dritte Durchlauf, November 2026
+
+34 Sätze im Browser gegen die Fassung für Nutzer, ohne KI. Jeder Fehler hat
+einen Test in `agent.test.ts`:
+
+- "Wie hab ich geschlafen?" und "Wie ist mein Stress laut Uhr?" legten einen
+  Check-in mit der Frage als Notiz an, "wie ist meine Erholung" landete beim
+  Balance Board. Fragen nach Schlaf, Körpersignalen und Regeneration gehen
+  jetzt an `bereitschaft_abrufen` mit `fokus`, und eine Frage legt nie einen
+  Check-in an: "was hilft gegen Stress" ist eine Fachfrage.
+- "Trag morgen um 17 Uhr Training in meinen Kalender ein" setzte das Ende
+  des Tages auf 17 Uhr, weil "ende" in "Kalender" steckt. `schichtAus` sucht
+  auf Wortgrenzen und greift nie bei Kalender, Termin oder Training.
+- "War heute 90 Minuten Volleyball" verstand der Regelweg nicht, eine
+  Sportart mit war oder hatte zählt jetzt als vorbei.
+- "Lösch das Training von gestern" suchte nur heute, `tag` an
+  `eintrag_zuruecknehmen`.
+- "Was hab ich diese Woche trainiert" bekam den Kalender, jetzt die
+  eingetragenen Trainings je Tag, `trainingsverlaufAbrufen`.
+- "Übungen für den Rücken ohne Geräte" zeigte Bankdrücken, denn die Suche
+  nimmt Teilwörter. Partie und "ohne Geräte" sind in `uebungenSuchenText`
+  Filter und keine Suchwörter.
+- "Einen Proteinriegel gegessen" bekam die Bitte um eine Menge, jetzt die
+  um Barcode oder Werte je 100 g.
 
 Bei leerem Kontingent steht die Antwort des Regelwegs vorn, sobald er den
 Satz verstanden hat, auch wenn er nur etwas vorliest. Die Meldung zum Abo

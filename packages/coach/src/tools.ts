@@ -84,6 +84,10 @@ export const AGENT_TOOLS: ToolDefinition[] = [
           type: "string",
           description: "Teil des Namens, wenn der Nutzer einen bestimmten Eintrag nennt, etwa Magerquark.",
         },
+        tag: {
+          type: "string",
+          description: "Tag des Eintrags, wenn nicht heute: gestern, vorgestern oder YYYY-MM-DD.",
+        },
       },
     },
   },
@@ -714,8 +718,13 @@ export const AGENT_TOOLS: ToolDefinition[] = [
       "Nehmen, wenn er fragt, ob er heute hart trainieren kann, wie seine Tagesform ist, " +
       "oder bevor du ihm für heute etwas Anstrengendes vorschlägst. " +
       "Das ist ausdrücklich keine Messung, daevo hat keinen Sensor. Es ist zusammengefasst, was er " +
-      "selbst angegeben hat. Gib es genau so weiter und tu nie so, als wäre es Physiologie.",
-    input_schema: { type: "object", properties: {} },
+      "selbst angegeben hat. Gib es genau so weiter und tu nie so, als wäre es Physiologie. " +
+      "Mit fokus nur ein Teil: schlaf für die letzte Nacht aus Apple Health, koerper für HRV, " +
+      "Ruhepuls und die abgeleitete Lage, regeneration für die Erholung je Muskel aus dem Protokoll.",
+    input_schema: {
+      type: "object",
+      properties: { fokus: { type: "string", enum: ["schlaf", "koerper", "regeneration"] } },
+    },
   },
   {
     name: "widersprueche_pruefen",

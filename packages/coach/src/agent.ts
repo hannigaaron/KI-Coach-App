@@ -60,7 +60,7 @@ export interface AgentActions {
   tagZuEndePlanen(input: { mahlzeiten?: string[] }): Promise<string>;
   gespraechEinordnenAktiv(input: { ordner: string; titel?: string }): Promise<string>;
   mahlzeitKorrigieren(input: { posten?: string; neueMenge: number; mengeText?: string }): Promise<string>;
-  eintragZuruecknehmen(input: { art?: string; suche?: string }): Promise<string>;
+  eintragZuruecknehmen(input: { art?: string; suche?: string; tag?: string }): Promise<string>;
   wasserEintragen(ml: number): Promise<string>;
   tagesstandAbrufen(): Promise<string>;
   mahlzeitVorschlagen(wunsch?: string): Promise<string>;
@@ -85,6 +85,7 @@ export interface AgentActions {
   }): Promise<string>;
   essensplanAbrufen?(input: { inTagen?: number }): Promise<string>;
   wochenrueckblick?(): Promise<string>;
+  trainingsverlaufAbrufen?(input: { tage?: number }): Promise<string>;
   /** Was an einem früheren Tag gegessen wurde, oder der Schnitt einer Woche. */
   essensverlaufAbrufen?(input: { tag?: string; tageZurueck?: number; woche?: boolean; wochenZurueck?: number }): Promise<string>;
   uebungenSuchen?(input: { suche?: string; ersatzFuer?: string }): Promise<string>;
@@ -122,7 +123,7 @@ export interface AgentActions {
   musterErkennen(input: { tage?: number }): Promise<string>;
   belastungAbrufen(): Promise<string>;
   berichtErstellen(input: { tage?: number }): Promise<string>;
-  bereitschaftAbrufen(): Promise<string>;
+  bereitschaftAbrufen(input?: { fokus?: "schlaf" | "koerper" | "regeneration" }): Promise<string>;
   balanceAbrufen(input: { tage?: number }): Promise<string>;
   zeitEintragen(input: { bereich: string; minuten: number; was: string; tag?: string }): Promise<string>;
   /**
@@ -659,6 +660,7 @@ async function execute(
         const text = await actions.eintragZuruecknehmen({
           art: typeof input.art === "string" ? input.art : undefined,
           suche: typeof input.suche === "string" ? input.suche : undefined,
+          tag: typeof input.tag === "string" ? input.tag : undefined,
         });
         return { text, notiz: "Eintrag zurückgenommen" };
       }
@@ -859,7 +861,7 @@ async function execute(
       case "belastung_abrufen":
         return { text: await actions.belastungAbrufen() };
       case "bereitschaft_abrufen":
-        return { text: await actions.bereitschaftAbrufen() };
+        return { text: await actions.bereitschaftAbrufen({ fokus: input.fokus as "schlaf" | "koerper" | "regeneration" | undefined }) };
       case "widersprueche_pruefen":
         return { text: await actions.widerspruechePruefen() };
       case "mittagscheck_speichern": {
@@ -1363,7 +1365,7 @@ export function trainingHeuteAus(text: string, jetzt: Date = new Date()): { grup
  * einem Wort fuer den Gegenstand. "Loeschen" allein koennte auch das
  * Gedaechtnis meinen, und ein geloeschter Eintrag ist nicht rueckholbar.
  */
-function ruecknahmeAus(text: string): { art?: string; suche?: string } | null {
+function ruecknahmeAus(text: string): { art?: string; suche?: string; tag?: string } | null {
   const ruecknahme = pattern("loesch", "loeschen", "entferne", "entfernen",
     "raus damit", "rueckgaengig", "war falsch", "stimmt nicht", "doch nicht gegessen",
     "nicht gegessen", "falsch eingetragen", "doppelt drin", "steht doppelt").test(text)
@@ -1386,6 +1388,9 @@ function ruecknahmeAus(text: string): { art?: string; suche?: string } | null {
   // Wasser nur, wenn Wasser gemeint ist. "Den Kaffee hab ich doch nicht
   // getrunken" setzte im Live-Test das Wasser des Tages auf null, denn die
   // Rücknahme beim Wasser kennt nur die Summe.
+  // "Lösch das Training von gestern" meint gestern. Vorher suchte die App nur
+  // heute und meldete, für heute stehe kein Training drin.
+  const tag = /\bvorgestern\b/.test(text) ? "vorgestern" : /\bgestern\b/.test(text) ? "gestern" : undefined;
   const getraenk = /\b(kaffee|cappuccino|latte|tee|cola|limo|saft|bier|wein|milch|shake|smoothie|schorle)\b/.exec(text);
   const art = pattern("wasser").test(text) || (pattern("getrunken").test(text) && !getraenk) ? "wasser"
     : pattern("training", "einheit").test(text) ? "training"
@@ -1396,9 +1401,9 @@ function ruecknahmeAus(text: string): { art?: string; suche?: string } | null {
     // letzte. Die App sucht dann über die Uhrzeit des Eintrags.
     const tageszeit = /\b(fruehstueck|mittagessen|abendessen|snack)\b/.exec(text)?.[1];
     const suche = getraenk?.[1] ?? parseMealOffline(text).entries[0]?.name ?? tageszeit;
-    return suche ? { art, suche } : { art };
+    return { art, ...(suche ? { suche } : {}), ...(tag ? { tag } : {}) };
   }
-  return { art };
+  return { art, ...(tag ? { tag } : {}) };
 }
 
 /**
@@ -1412,8 +1417,12 @@ function schichtAus(text: string): { tag?: string; aufstehen?: string; schlafen?
   const wann = /\bmorgen\b/.test(text) ? 1 : /\bgestern\b/.test(text) ? -1 : /\bheute\b/.test(text) ? 0 : null;
   if (wann === null) return null;
 
-  const aufstehen = uhrzeitNach(text, /(aufstehen|aufstehe|\bsteh\w*\b.{0,25}\bauf\b|raus|wecker|frueh(dienst|schicht)|start)/);
-  const schlafen = uhrzeitNach(text, /(schlafen|ins bett|bett|feierabend|spaet(dienst|schicht)|ende|fertig)/);
+  // Ein Termin oder Training ist keine Tageszeit. Im Test wurde aus "trag
+  // morgen um 17 Uhr Training in meinen Kalender ein" ein Tag, der um 17 Uhr
+  // endet: "ende" steckt in "Kalender". Deshalb Wortgrenzen.
+  if (/\b(kalender|termin\w*|training|trainieren|meeting|call)\b/.test(text)) return null;
+  const aufstehen = uhrzeitNach(text, /(\baufstehen?\b|\bsteh\w*\b.{0,25}\bauf\b|\braus\b|\bwecker\b|\bfrueh(dienst|schicht)\b|\bstart\b)/);
+  const schlafen = uhrzeitNach(text, /(\bschlafen\b|\bins bett\b|\bbett\b|\bfeierabend\b|\bspaet(dienst|schicht)\b|\bende\b|\bfertig\b)/);
   if (!aufstehen && !schlafen) return null;
 
   const d = new Date();
@@ -1668,7 +1677,7 @@ export async function runOffline(
   const ruecknahme = ruecknahmeAus(text);
   if (ruecknahme) {
     const antwort = await actions.eintragZuruecknehmen(ruecknahme);
-    const erledigt = !/^(Dazu finde ich|Für heute steht|Es gibt)/.test(antwort);
+    const erledigt = !/^(Dazu finde ich|Für heute steht|Für gestern steht|Für vorgestern steht|Am .* steht|Es gibt)/.test(antwort);
     return { text: antwort, ausgeführt: erledigt ? ["Eintrag zurückgenommen"] : [], source: "offline" };
   }
 
@@ -1785,6 +1794,14 @@ export async function runOffline(
       erfassen: pattern("gegessen", "esse", "hatte", "getrunken", "eintragen").test(text),
     });
     return { text: antwort, ausgeführt, source: "offline" };
+  }
+
+  // "Was hab ich diese Woche trainiert": die eingetragenen Trainings und nicht
+  // der Kalender, der bei diesem Nutzer fast nur Kundentermine trägt.
+  if (actions.trainingsverlaufAbrufen && /\b(was|welche\w*|wie oft|wie viel\w*|wann)\b.{0,30}\b(trainiert|trainings?|einheiten|sport gemacht)\b/.test(text)
+    && /\b(woche|letzten|letzte|tagen|monat)\b/.test(text) && !/\b(morgen|naechste\w*|plan)\b/.test(text)) {
+    const tage = /\bmonat\b/.test(text) ? 30 : Number(/\b(\d{1,2}) tage/.exec(text)?.[1]) || 7;
+    return { text: await actions.trainingsverlaufAbrufen({ tage }), ausgeführt: [], source: "offline" };
   }
 
   // "Wie lief meine Woche", "Wochenrückblick", "Zwischenstand". Vor dem
@@ -2136,6 +2153,22 @@ export async function runOffline(
     return { text: await actions.kopfLeeren({ text: nachricht }), ausgeführt: ["Kopf geleert"], source: "offline" };
   }
 
+  // Fragen nach Schlaf, Stress, Körpersignalen und Regeneration lesen, was
+  // gemessen ist. Im Betrieb legte "wie hab ich geschlafen" einen Check-in mit
+  // der Frage als Notiz an, und "wie ist meine Erholung" landete beim Balance
+  // Board unter Me Time. Nur als Frage: "hab schlecht geschlafen" bleibt ein
+  // Check-in.
+  const frageForm = /\?|^(wie|was|welche\w*|zeig\w*|sag mir|bin ich|hab ich|habe ich|ist mein\w*)\b/.test(text.trim());
+  if (frageForm) {
+    // Eng gefasst: "was hilft gegen Stress" ist eine Fachfrage und "was esse
+    // ich heute Nacht" keine nach dem Schlaf.
+    const fokus = /\b(regeneration|regeneriert|muskelkater|welche muskeln|muskel\w* (frisch|erholt|bereit))/.test(text) ? "regeneration"
+      : /\b(geschlafen|mein schlaf|schlafwert|schlafphasen|tiefschlaf|rem ?schlaf|letzte nacht)\b/.test(text) ? "schlaf"
+      : /\b(mein\w* stress|stress ?(level|wert)|stress laut|hrv|herzfrequenz\w*|ruhepuls|mein puls|sauerstoff|meine erholung|erholt|apple watch|laut (meiner )?uhr|whoop|oura|garmin)\b/.test(text) ? "koerper"
+      : null;
+    if (fokus) return { text: await actions.bereitschaftAbrufen({ fokus }), ausgeführt, source: "offline" };
+  }
+
   if (pattern("balance", "ausgleich", "zu wenig zeit", "keine zeit für", "keine zeit fuer",
     "wie war meine woche", "wochenübersicht", "wochenubersicht", "me time", "erholung").test(text)) {
     return { text: await actions.balanceAbrufen({}), ausgeführt, source: "offline" };
@@ -2239,7 +2272,9 @@ export async function runOffline(
   }
 
   // "fühl mich" ohne e ist die häufigere Form im Gesprochenen.
-  if (pattern("geschlafen", "energie", "fühl", "müde", "stress", "erschöpft", "kaputt", "ausgebrannt", "kraftlos",
+  // Nie bei einer Frage: "was hilft gegen Stress" ist eine Fachfrage und kein
+  // Check-in mit der Frage als Notiz.
+  if (!frageForm && pattern("geschlafen", "energie", "fühl", "müde", "stress", "erschöpft", "kaputt", "ausgebrannt", "kraftlos",
     "überfordert", "total leer", "so leer", "innerlich leer").test(text)) {
     const antwort = await actions.checkinSpeichern({
       notiz: nachricht,
@@ -2548,11 +2583,15 @@ function trainingAus(text: string): { art: string; minuten: number } | null {
   const gemacht = pattern("trainiert", "training gemacht", "im gym", "im studio", "fitnessstudio", "war trainieren",
     "krafttraining", "beintag", "oberkoerper", "unterkoerper", "ganzkoerper",
     "gespielt", "spielen", "workout", "einheit gemacht", "gedehnt",
-    "dehnen", "joggen", "laufen", "gelaufen", "schwimmen", "geschwommen").test(text);
+    "dehnen", "joggen", "laufen", "gelaufen", "schwimmen", "geschwommen").test(text)
+    // "War heute 90 Minuten Volleyball" hat kein Verb der Tätigkeit. Eine
+    // Sportart mit war, hatte oder hab ist trotzdem vorbei.
+    || (pattern("volleyball", "fussball", "basketball", "handball", "tennis", "yoga", "spinning", "radfahren").test(text)
+      && /\b(war|waren|hatte|hab|habe|bin)\b/.test(text));
   if (!gemacht) return null;
 
-  const art = pattern("volleyball", "fussball", "basketball", "handball", "mannschaft").test(text) ? "team_sport"
-    : pattern("laufen", "joggen", "gelaufen", "cardio", "rad", "schwimmen", "joggen").test(text) ? "cardio"
+  const art = pattern("volleyball", "fussball", "basketball", "handball", "tennis", "mannschaft").test(text) ? "team_sport"
+    : pattern("laufen", "joggen", "gelaufen", "cardio", "rad", "radfahren", "spinning", "schwimmen", "joggen").test(text) ? "cardio"
       : pattern("mobility", "gedehnt", "dehnen", "beweglichkeit", "yoga").test(text) ? "mobility"
         : "strength";
 

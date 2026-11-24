@@ -4,7 +4,7 @@ import {
   mahlzeitAusFoto, modellFuerBilder, naehrwerteImNetz, produktPerBarcode, produkteSuchen, summiere, vorratAusFoto,
   todoistAbhaken, todoistAufgaben, todoistIdVon, todoistWiederOeffnen, PERSONA_TEILE,
 } from "@daevo/coach";
-import { essenszeitAus, foldUmlauts, wochenrueckblick, wochenbeginn, wochenschnitt, wochenschnittText, tagKurz, tagStand, rueckblickArt, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, freienPlatzFinden, platzText, tagLang, tagWort, tagAufloesen, tagAusText, aufgabeStufe, vernachlaessigteBereiche, bereichDerAufgabe, familienNamenAus, anheben, einzeltrainingBauen, abdeckungsLuecken, FOKUS_NAME, alternativen, planNachrechnen, positionFuer, regeneration, regenText, koerperlage, koerperlageText,
+import { essenszeitAus, foldUmlauts, wochenrueckblick, wochenbeginn, wochenschnitt, wochenschnittText, tagKurz, tagStand, rueckblickArt, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, freienPlatzFinden, platzText, tagLang, tagWort, tagAufloesen, tagVerschieben, tagAusText, aufgabeStufe, vernachlaessigteBereiche, bereichDerAufgabe, familienNamenAus, anheben, einzeltrainingBauen, abdeckungsLuecken, FOKUS_NAME, alternativen, planNachrechnen, positionFuer, regeneration, regenText, koerperlage, koerperlageText,
 } from "@daevo/core";
 import { REGIONEN } from "./muskelkarte.js";
 import { regenTrainings, regenGefuehlHeute } from "./regeneration-daten.js";
@@ -2849,8 +2849,12 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
         // Mahlzeit. Eine Rückfrage nach Mengen wirkt dann, als hätte die App
         // nicht zugehört, und genau das ist im Betrieb passiert, als ein
         // Tagesplan mit "zwei gute Mahlzeiten essen" als Eintrag gelesen wurde.
-        return [ohneModell, "Daraus konnte ich keine Mahlzeit lesen. Wenn du etwas eintragen willst, "
-          + "sag es mir mit Menge, etwa 200 Gramm Magerquark."].filter(Boolean).join(" ");
+        // Die Rückfrage aus dem Kern unterscheidet beides: "einen Proteinriegel"
+        // ist eine Mahlzeit ohne Tabellenwert und bekommt die Bitte um den
+        // Barcode, nicht die um eine Menge, die schon dasteht.
+        const frage = parsed.followUpQuestion || "Daraus konnte ich keine Mahlzeit lesen. Wenn du etwas eintragen willst, "
+          + "sag es mir mit Menge, etwa 200 Gramm Magerquark.";
+        return [ohneModell, frage].filter(Boolean).join(" ");
       }
       // Der Riegel gegen doppeltes Zählen. Das Modell sieht die Zahlen des
       // Tages im Kontext und schickt beim nächsten Eintrag die ganze bisherige
@@ -3163,8 +3167,10 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
      * Richtung. Was weg ist, steht in der Antwort mit seinen Zahlen, damit es
      * sich in einem Satz wieder eintragen lässt.
      */
-    async eintragZuruecknehmen({ art, suche } = {}) {
-      const day = todayIso();
+    async eintragZuruecknehmen({ art, suche, tag } = {}) {
+      const day = tagAufloesen(tag, todayIso()) || todayIso();
+      // "Für heute", "Für gestern" oder "Am Montag, 23. November".
+      const fuer = (() => { const w = tagWort(day, todayIso()); return /^(heute|gestern|vorgestern)$/.test(w) ? `Für ${w}` : `Am ${w}`; })();
       const gesucht = String(suche || "").toLowerCase().trim();
 
       if (art === "wasser") {
@@ -3184,11 +3190,11 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
         const data = store.getDay(day);
         const trainings = data.trainings || [];
         const weg = trainings[trainings.length - 1];
-        if (!weg) return "Für heute steht kein Training drin.";
+        if (!weg) return `${fuer} steht kein Training drin.`;
         data.trainings = trainings.slice(0, -1);
         store.setDay(day, data);
         changed();
-        return `Zurückgenommen: ${TYP_LABEL[weg.type] || weg.type}, ${weg.minutes} Minuten.`;
+        return `Zurückgenommen${day === todayIso() ? "" : ` für ${tagWort(day, todayIso())}`}: ${weg.name || TYP_LABEL[weg.type] || weg.type}, ${weg.minutes} Minuten.`;
       }
 
       if (art === "aufgabe") {
@@ -3214,8 +3220,8 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
           : meals[meals.length - 1];
       if (!treffer) {
         return gesucht
-          ? (gesucht.split(/\s+/).length > 3 ? "Dazu finde ich heute keinen passenden Eintrag." : `Dazu finde ich heute keinen Eintrag mit ${suche}.`)
-          : "Für heute steht noch keine Mahlzeit drin.";
+          ? (gesucht.split(/\s+/).length > 3 ? `Dazu finde ich ${tagWort(day, todayIso())} keinen passenden Eintrag.` : `Dazu finde ich ${tagWort(day, todayIso())} keinen Eintrag mit ${suche}.`)
+          : `${fuer} steht noch keine Mahlzeit drin.`;
       }
       const posten = (treffer.entries || []).map((e) => `${e.quantity} ${e.name}`).join(", ");
       const kcal = Math.round((treffer.entries || []).reduce((sum, e) => sum + e.kcal, 0));
@@ -3622,8 +3628,11 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
      * fällt raus, statt mit null zu zählen: sonst misst die Zahl, wie fleissig
      * jemand Check-ins ausfüllt.
      */
-    async bereitschaftAbrufen() {
-      return bereitschaftText(bereitschaft(bereitschaftsEingabe()));
+    async bereitschaftAbrufen({ fokus } = {}) {
+      const ohneHealth = "In Apple Health steht dafür nichts aus den letzten zwei Tagen. In der iPhone App liest daevo Schlaf, HRV und Puls von selbst, sobald Health freigegeben ist.";
+      if (fokus === "regeneration") return regenAktuell();
+      if (fokus === "schlaf" || fokus === "koerper") return koerperText() || ohneHealth;
+      return [bereitschaftText(bereitschaft(bereitschaftsEingabe())), koerperText()].filter(Boolean).join("\n\n");
     },
 
     async tagesplanErstellen() {
@@ -3852,6 +3861,30 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       changed();
       return text;
     },
+    /**
+     * Die eingetragenen Trainings der letzten Tage, je Tag. "Was hab ich diese
+     * Woche trainiert" bekam vorher die Termine aus dem Kalender, und das sind
+     * bei diesem Nutzer fast nur Kundenstunden.
+     */
+    async trainingsverlaufAbrufen({ tage } = {}) {
+      const n = Math.max(1, Math.min(31, tage || 7));
+      const heute = todayIso();
+      const zeilen = [];
+      let summe = 0;
+      let zahl = 0;
+      for (let i = n - 1; i >= 0; i--) {
+        const tag = tagVerschieben(heute, -i);
+        const t = store.getDay(tag).trainings || [];
+        if (!t.length) continue;
+        zahl += t.length;
+        summe += t.reduce((a, x) => a + (Number(x.minutes) || 0), 0);
+        const teile = t.map((x) => `${x.name || TYP_LABEL[x.type] || x.type}${x.minutes ? ` ${x.minutes} min` : ""}`);
+        zeilen.push(`${tagKurz(tag)}: ${teile.join(", ")}`);
+      }
+      if (!zahl) return `In den letzten ${n} Tagen steht kein Training drin. Was nicht eingetragen ist, kennt daevo nicht.`;
+      return `${zahl} ${zahl === 1 ? "Training" : "Trainings"} in den letzten ${n} Tagen, zusammen ${summe} Minuten:\n${zeilen.join("\n")}`;
+    },
+
     async wochenrueckblick() {
       return wochenrueckblickFuer().text;
     },
@@ -5052,7 +5085,19 @@ export function uebungenSuchenText({ suche, ersatzFuer } = {}) {
     if (!andere.length) return `Für ${quelle.name} kenne ich keine Übung mit derselben Bewegung, die zu deinem Ort und deinen Beschwerden passt.`;
     return `Statt ${quelle.name}, dieselbe Bewegung:\n${andere.map(zeile).join("\n")}\nIm Trainingsmodus tauschst du sie über die drei Punkte neben dem Namen.`;
   }
-  const treffer = uebungenFiltern({ text: suche || "" });
+  // Partie und "ohne Geräte" werden Filter und nicht Suchwörter. Als Wort
+  // traf "Rücken" das Bankdrücken, denn die Suche nimmt Teilwörter, und
+  // "ohne Geräte" fand gar nichts.
+  let text = foldUmlauts(String(suche || "").toLowerCase());
+  let gruppe = "alle";
+  let geraet = "alle";
+  const PARTIE = [["beine", /\b(beine?|po|gesaess|unterkoerper)\b/], ["brust", /\bbrust\b/], ["ruecken", /\bruecken\b/],
+    ["schultern", /\bschultern?\b/], ["arme", /\barme?\b/], ["rumpf", /\b(bauch|rumpf|core)\b/]];
+  for (const [id, re] of PARTIE) if (re.test(text)) { gruppe = id; text = text.replace(re, " "); break; }
+  const OHNE = /\b(ohne (geraete?|equipment|gewichte?|hanteln?)|zu ?hause|koerpergewicht|eigengewicht)\b/;
+  if (OHNE.test(text)) { geraet = "bodyweight"; text = text.replace(OHNE, " "); }
+  text = text.replace(/\b(fuer|den|die|das|ohne|nur|uebungen?|training)\b/g, " ").replace(/\s+/g, " ").trim();
+  const treffer = uebungenFiltern({ text, gruppe, geraet });
   if (!treffer.length) return `Zu "${suche}" finde ich keine Übung. Unter Training, Übungen kannst du nach Muskel und Gerät filtern.`;
   const gezeigt = treffer.slice(0, 12);
   const rest = treffer.length - gezeigt.length;

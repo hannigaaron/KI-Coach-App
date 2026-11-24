@@ -1657,7 +1657,9 @@ function koerperHtml() {
       : `${kommaZahl(sig.wert, stellen)} ${d.einheit}`;
     const gegen = sig.basis === null ? "eigener Schnitt ab sieben Tagen"
       : sig.art === "handgelenkTemp" ? "gegen deinen Schnitt"
-      : `Schnitt ${kommaZahl(sig.basis, stellen)}, ${sig.abweichung > 0 ? "+" : ""}${kommaZahl(sig.abweichung, stellen)}`;
+      // Schnitt und Abstand mit einer Stelle: ein Median von 49,5 und ein Abstand
+      // von 2,5 hiessen gerundet "+3 · im Rahmen", obwohl 3 die Grenze ist.
+      : `Schnitt ${kommaZahl(sig.basis, 1)}, ${sig.abweichung > 0 ? "+" : ""}${kommaZahl(sig.abweichung, 1)}`;
     const wort = { belastet: "spricht für Belastung", erholt: "spricht für Erholung", im_rahmen: "im Rahmen", offen: "" }[sig.richtung];
     return `<div class="ks-zeile" style="--ton:${d.ton}">
       <div class="ks-kopf"><span class="ks-name">${d.name}</span><span class="ks-wert"><b>${escapeHtml(wert)}</b></span></div>
