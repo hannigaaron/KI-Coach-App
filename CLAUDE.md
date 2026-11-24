@@ -1011,7 +1011,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1542 Tests
+npm test           # 1547 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1423,6 +1423,26 @@ ungenau (de Zambotti 2019), die Ansicht sagt das. Eigene Anbindungen an
 Garmin, Oura oder Whoop gibt es nicht, deren Schnittstellen brauchen eine
 Registrierung beim Anbieter, siehe `docs/ROADMAP.md`. Ungeprüft: der Swift
 Teil ist nicht kompiliert.
+
+## Körpersignale und Erholung
+
+`packages/core/src/koerpersignale.ts`, `koerperHtml` und `renderSchlaf` in
+`app.js`, die Ansicht heisst Erholung. Das Plugin liest ab `HEALTH_FASSUNG` 7
+dazu Puls über den Tag mit Schnitt, tiefstem und höchstem Wert, Gehpuls,
+Atemfrequenz, Sauerstoff, Hauttemperatur in der Nacht und Achtsamkeit in
+Minuten, je Tag in `gesundheit`. Einen Stresswert gibt es in Apple Health
+nicht, und Garmin, Oura und Whoop geben ihren nicht weiter. daevo leitet
+eine Lage ab: HRV, Ruhepuls, Atmung und Temperatur gegen den eigenen Median
+der 28 Tage davor, ab sieben Werten. HRV und Ruhepuls zählen bis zwei
+Punkte, die anderen einen, ab drei angespannt. Ableitung, keine Messung,
+und so steht es da. Der Coach bekommt Werte und Lage über `koerperText`.
+
+Gestaltung: kein Nachbau von Thalos. Der Nutzer will den Stil von daevo,
+also `wertungsRing` für den Schlafwert, kleine Ringe in der Markenfarbe für
+die Woche, Balkenzeilen `messwert` für die Phasen, die Linie aus dem Bericht
+für die Signale, Zahlen frei ohne Kästen, Farben aus der Familie der
+Bereiche und Makros statt einer Ampel. Die Karten Schlaf, Ruhepuls, HRV,
+Puls und Sauerstoff auf Heute führen in die Ansicht.
 
 ## Essenszeiten und Mahlzeiten im Kalender
 

@@ -4,7 +4,7 @@ import {
   mahlzeitAusFoto, modellFuerBilder, naehrwerteImNetz, produktPerBarcode, produkteSuchen, summiere, vorratAusFoto,
   todoistAbhaken, todoistAufgaben, todoistIdVon, todoistWiederOeffnen, PERSONA_TEILE,
 } from "@daevo/coach";
-import { essenszeitAus, foldUmlauts, wochenrueckblick, wochenbeginn, wochenschnitt, wochenschnittText, tagKurz, tagStand, rueckblickArt, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, freienPlatzFinden, platzText, tagLang, tagWort, tagAufloesen, tagAusText, aufgabeStufe, vernachlaessigteBereiche, bereichDerAufgabe, familienNamenAus, anheben, einzeltrainingBauen, abdeckungsLuecken, FOKUS_NAME, alternativen, planNachrechnen, positionFuer, regeneration, regenText,
+import { essenszeitAus, foldUmlauts, wochenrueckblick, wochenbeginn, wochenschnitt, wochenschnittText, tagKurz, tagStand, rueckblickArt, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, freienPlatzFinden, platzText, tagLang, tagWort, tagAufloesen, tagAusText, aufgabeStufe, vernachlaessigteBereiche, bereichDerAufgabe, familienNamenAus, anheben, einzeltrainingBauen, abdeckungsLuecken, FOKUS_NAME, alternativen, planNachrechnen, positionFuer, regeneration, regenText, koerperlage, koerperlageText,
 } from "@daevo/core";
 import { REGIONEN } from "./muskelkarte.js";
 import { regenTrainings, regenGefuehlHeute } from "./regeneration-daten.js";
@@ -527,7 +527,24 @@ export function koerperText(heute = todayIso()) {
     const t = tage.find((x) => zahl(x.g[feld]));
     if (t) teile.push(`${name} ${String(t.g[feld]).replace(".", ",")} ${einheit} (${t.tag})`);
   }
-  return teile.length ? `Apple Health: ${teile.join(". ")}.` : "";
+  const g0 = zahl(tage[0].g.pulsSchnitt) ? tage[0].g : zahl(tage[1].g.pulsSchnitt) ? tage[1].g : null;
+  if (g0) teile.push(`Puls über den Tag Schnitt ${Math.round(g0.pulsSchnitt)}${zahl(g0.pulsMin) ? `, tiefster ${Math.round(g0.pulsMin)}` : ""}${zahl(g0.pulsMax) ? `, höchster ${Math.round(g0.pulsMax)}` : ""} bpm`);
+  const o2 = tage.slice(0, 2).find((t) => zahl(t.g.sauerstoff));
+  if (o2) teile.push(`Sauerstoff im Blut ${Math.round(o2.g.sauerstoff <= 1 ? o2.g.sauerstoff * 100 : o2.g.sauerstoff)} %`);
+  const achtsam = tage.slice(0, 7).reduce((s, t) => s + (zahl(t.g.achtsamMinuten) ? Number(t.g.achtsamMinuten) : 0), 0);
+  if (achtsam) teile.push(`Achtsamkeit in den letzten sieben Tagen ${Math.round(achtsam)} Minuten`);
+  const lage = koerperlage(signalTage(heute), heute);
+  const lageText = lage.stufe === "offen" ? "" : `\n${koerperlageText(lage)}`;
+  return teile.length ? `Apple Health: ${teile.join(". ")}.${lageText}` : "";
+}
+
+/** Die Tage mit Körpersignalen für den Kern, 42 Tage zurück, damit 28 Tage Schnitt vor gestern reichen. */
+export function signalTage(heute = todayIso()) {
+  return Array.from({ length: 42 }, (_, i) => {
+    const tag = new Date(Date.parse(`${heute}T00:00:00Z`) - i * 86400000).toISOString().slice(0, 10);
+    const g = store.getDay(tag).gesundheit || {};
+    return { tag, hrv: g.hrv ?? null, ruhepuls: g.ruhepuls ?? null, atemfrequenz: g.atemfrequenz ?? null, handgelenkTemp: g.handgelenkTemp ?? null };
+  });
 }
 
 function lageText() {
