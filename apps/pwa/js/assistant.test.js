@@ -1055,3 +1055,11 @@ test("ein Ernährungsplan wird zu eigenen Rezepten mit Abgleich am Ziel", () => 
   assert.match(text, /jede Menge mal/);
   assert.match(text, /Geheimsauce/);
 });
+
+test("eine Frist vom Modell bleibt, auch ohne Wichtigkeit", async () => {
+  frischerTag();
+  await buildActions({}).aufgabeAnlegen({ text: "Rechnung Müller verschicken", minuten: 15, faellig: "2026-12-01" });
+  const a = store.getAufgaben().find((x) => x.text.startsWith("Rechnung"));
+  assert.equal(a.faellig, "2026-12-01");
+  assert.equal(a.minuten, 15);
+});

@@ -60,3 +60,4 @@ export * from "./tagesfrage.js";
 export * from "./prioritaetsmuster.js";
 export * from "./regeneration.js";
 export * from "./schlafwert.js";
+export * from "./koerpersignale.js";

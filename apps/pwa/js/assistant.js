@@ -2017,7 +2017,10 @@ export function tagesbriefingFuer(artVorgabe = "morgen", jetzt = Date.now(), fue
     // Gerechnet wird gegen den Tag, um den es geht: eine Aufgabe von heute ist morgen überfällig.
     const e = aufgabeStufe({ text: a.text, wichtigkeit: a.wichtigkeit, faellig: a.faellig || undefined }, tag);
     const hoch = anheben(e.stufe, bereichDerAufgabe(a.text, namen), luecken);
-    return hoch ? { stufe: hoch.stufe, grund: hoch.grund } : { stufe: e.stufe, grund: e.grund };
+    // "Frist heute" hiesse im Blick auf morgen den falschen Tag. Gemeint ist
+    // der Tag des Briefings, also steht er da.
+    const grund = tag !== heute && e.grund === "Frist heute" ? `Frist ${tagWort(tag, heute)}` : e.grund;
+    return hoch ? { stufe: hoch.stufe, grund: hoch.grund } : { stufe: e.stufe, grund };
   };
   if (tag === heute) {
     const { plan, zeiten } = tagesplan(jetzt);
@@ -3431,9 +3434,23 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
     async aufgabeAnlegen({ text, minuten, faellig, wichtigkeit } = {}) {
       // Kommen Werte vom Modell, gelten sie. Fehlen sie, wird eingestuft,
       // statt still auf normal und dreissig Minuten zu fallen.
-      const a = Number.isFinite(Number(wichtigkeit)) && Number.isFinite(Number(minuten))
+      // Was das Modell mitgibt, gilt auch dann, wenn ein anderer Wert fehlt:
+      // vorher fiel eine Frist ohne Wichtigkeit still weg, und "Rechnung bis
+      // morgen" stand im Briefing für morgen nicht da.
+      let a = Number.isFinite(Number(wichtigkeit)) && Number.isFinite(Number(minuten))
         ? aufgabeAnlegen({ text, minuten, faellig, wichtigkeit, warum: "vom Coach gesetzt", quelle: "coach" })
         : (await aufgabeAnlegenEingestuft(text, "coach"))?.aufgabe;
+      if (a) {
+        const gesetzt = {
+          ...(faellig && /^\d{4}-\d{2}-\d{2}$/.test(String(faellig)) ? { faellig } : {}),
+          ...(Number.isFinite(Number(minuten)) && Number(minuten) > 0 ? { minuten: Math.max(5, Math.min(480, Number(minuten))) } : {}),
+          ...(Number.isFinite(Number(wichtigkeit)) ? { wichtigkeit: Math.max(1, Math.min(3, Number(wichtigkeit))) } : {}),
+        };
+        if (Object.keys(gesetzt).length) {
+          store.setAufgaben(store.getAufgaben().map((x) => (x.id === a.id ? { ...x, ...gesetzt } : x)));
+          a = { ...a, ...gesetzt };
+        }
+      }
       if (!a) return "Das war zu kurz für eine Aufgabe.";
       changed();
       return `Steht auf der Liste: ${a.text}, ${a.minuten} Minuten, ` +

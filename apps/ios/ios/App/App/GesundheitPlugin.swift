@@ -30,12 +30,19 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
         let mengen: [HKQuantityTypeIdentifier] = [
             .stepCount, .activeEnergyBurned, .restingHeartRate, .heartRateVariabilitySDNN, .bodyMass,
             .bodyFatPercentage, .vo2Max, .appleExerciseTime,
-            // Der Puls, für Schnitt und Höchstwert eines Trainings.
+            // Der Puls, für Schnitt und Höchstwert eines Trainings und des Tages.
             .heartRate,
+            // Körpersignale: Gehpuls, Atemfrequenz und Sauerstoff. Apple
+            // Watch, Oura, Garmin und Whoop schreiben sie, wenn das Teilen
+            // mit Health in deren App an ist.
+            .walkingHeartRateAverage, .respiratoryRate, .oxygenSaturation,
         ]
         for id in mengen {
             if let t = HKObjectType.quantityType(forIdentifier: id) { typen.insert(t) }
         }
+        if #available(iOS 16.0, *), let t = HKObjectType.quantityType(forIdentifier: .appleSleepingWristTemperature) { typen.insert(t) }
+        // Achtsamkeit: Atemübungen der Uhr und Meditations Apps.
+        if let achtsam = HKObjectType.categoryType(forIdentifier: .mindfulSession) { typen.insert(achtsam) }
         if let schlaf = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) { typen.insert(schlaf) }
         // Die Periode, wenn die Nutzerin sie in Health oder einer Zyklus App
         // führt. Nur lesen, daevo schreibt nichts nach Health.
@@ -104,7 +111,8 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
         // Je Tag eine Statistik: Summe für Schritte und Kalorien, Schnitt für
         // Puls und HRV, der letzte Wert für das Gewicht. Gerundet wird hier,
         // weil niemand 8432,7 Schritte gemacht hat.
-        let statistiken: [(HKQuantityTypeIdentifier, String, HKStatisticsOptions, HKUnit, Int)] = [
+        let bpm = HKUnit.count().unitDivided(by: .minute())
+        var statistiken: [(HKQuantityTypeIdentifier, String, HKStatisticsOptions, HKUnit, Int)] = [
             (.stepCount, "schritte", .cumulativeSum, .count(), 0),
             (.activeEnergyBurned, "aktivKcal", .cumulativeSum, .kilocalorie(), 0),
             (.restingHeartRate, "ruhepuls", .discreteAverage, HKUnit.count().unitDivided(by: .minute()), 0),
@@ -114,7 +122,18 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
             (.bodyFatPercentage, "koerperfett", .mostRecent, .percent(), 3),
             (.vo2Max, "vo2max", .mostRecent, HKUnit(from: "ml/kg*min"), 1),
             (.appleExerciseTime, "trainingsMinuten", .cumulativeSum, .minute(), 0),
+            // Puls über den ganzen Tag: Schnitt, tiefster und höchster Wert.
+            (.heartRate, "pulsSchnitt", .discreteAverage, bpm, 0),
+            (.heartRate, "pulsMin", .discreteMin, bpm, 0),
+            (.heartRate, "pulsMax", .discreteMax, bpm, 0),
+            (.walkingHeartRateAverage, "gehpuls", .discreteAverage, bpm, 0),
+            (.respiratoryRate, "atemfrequenz", .discreteAverage, bpm, 1),
+            // Sauerstoff kommt als Anteil von 0 bis 1.
+            (.oxygenSaturation, "sauerstoff", .discreteAverage, .percent(), 3),
         ]
+        if #available(iOS 16.0, *) {
+            statistiken.append((.appleSleepingWristTemperature, "handgelenkTemp", .discreteAverage, .degreeCelsius(), 2))
+        }
 
         for (id, feld, option, einheit, stellen) in statistiken {
             guard let typ = HKQuantityType.quantityType(forIdentifier: id) else { continue }
@@ -132,6 +151,8 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
                     switch option {
                     case .cumulativeSum: menge = stat.sumQuantity()
                     case .discreteAverage: menge = stat.averageQuantity()
+                    case .discreteMin: menge = stat.minimumQuantity()
+                    case .discreteMax: menge = stat.maximumQuantity()
                     default: menge = stat.mostRecentQuantity()
                     }
                     guard let m = menge else { return }
@@ -139,6 +160,32 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
                     let wert = (m.doubleValue(for: einheit) * faktor).rounded() / faktor
                     setzen(GesundheitPlugin.tagText(stat.startDate), feld, wert)
                 }
+                gruppe.leave()
+            }
+            store.execute(abfrage)
+        }
+
+        // Achtsamkeit in Minuten je Tag. Überlappende Einträge aus zwei Apps
+        // werden zusammengelegt, wie beim Schlaf.
+        if let achtsamTyp = HKObjectType.categoryType(forIdentifier: .mindfulSession) {
+            gruppe.enter()
+            let abfrage = HKSampleQuery(
+                sampleType: achtsamTyp,
+                predicate: HKQuery.predicateForSamples(withStart: anfang, end: ende),
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
+            ) { _, proben, _ in
+                var zusammen: [(Date, Date)] = []
+                for p in proben ?? [] {
+                    if let letzter = zusammen.last, p.startDate <= letzter.1 {
+                        zusammen[zusammen.count - 1].1 = max(letzter.1, p.endDate)
+                    } else {
+                        zusammen.append((p.startDate, p.endDate))
+                    }
+                }
+                var jeTag: [String: Double] = [:]
+                for (von, bis) in zusammen { jeTag[GesundheitPlugin.tagText(von), default: 0] += bis.timeIntervalSince(von) / 60 }
+                for (tag, minuten) in jeTag { setzen(tag, "achtsamMinuten", minuten.rounded()) }
                 gruppe.leave()
             }
             store.execute(abfrage)

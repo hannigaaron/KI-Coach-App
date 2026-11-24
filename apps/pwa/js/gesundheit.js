@@ -109,6 +109,7 @@ async function stromFuer(datei) {
  */
 export const GESUNDHEIT_FELDER = [
   "schlafMinuten", "tiefschlafMinuten", "remMinuten", "ruhepuls", "hrv", "aktivKcal", "vo2max", "trainingsMinuten",
+  "pulsSchnitt", "pulsMin", "pulsMax", "gehpuls", "atemfrequenz", "sauerstoff", "handgelenkTemp", "achtsamMinuten",
 ];
 
 export function healthSchreiben(ergebnis, { store, heute = new Date().toISOString().slice(0, 10), stempel = "healthImport" }) {

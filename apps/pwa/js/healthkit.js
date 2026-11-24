@@ -14,8 +14,8 @@
 import { zyklusAusHealth } from "@daevo/core";
 import { healthSchreiben } from "./gesundheit.js";
 
-/** Welche Fassung der Leseberechtigung zuletzt erfragt wurde. 2 brachte die Ernährung, 3 Körperfett, VO2max und Trainingsminuten, 4 die Periode, 5 den Puls im Training. */
-export const HEALTH_FASSUNG = 6;
+/** Welche Fassung der Leseberechtigung zuletzt erfragt wurde. 2 brachte die Ernährung, 3 Körperfett, VO2max und Trainingsminuten, 4 die Periode, 5 den Puls im Training, 6 das Schreiben von Trainings, 7 Puls über den Tag, Atmung, Sauerstoff, Temperatur und Achtsamkeit. */
+export const HEALTH_FASSUNG = 7;
 
 /** Trainings innerhalb dieses Abstands zu einem eigenen Eintrag gleicher Art gelten als derselbe. */
 const GLEICH_MINUTEN = 90;
