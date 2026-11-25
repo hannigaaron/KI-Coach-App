@@ -20,7 +20,14 @@
 const esc = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 /** Linien in einer Stärke mit runden Enden, wie überall in daevo. */
+/** Was "Anpassen" auf welcher Karte heisst. Start und Ende haben nichts anzupassen, Essen ändert je Zeile. */
+const ANPASSEN = {
+  rueckblick: "Essen nachtragen", fokus: "Fokus ändern", tag: "Im Kalender ändern", tun: "Aufgaben anpassen",
+  achtung: "Im Kalender ansehen", untergrenze: "Standards anpassen",
+};
+
 const ZEICHEN = {
+  stift: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
   sonne: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/>',
   mond: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',
   ziel: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.8"/>',
@@ -146,10 +153,13 @@ export function folieHtml(f) {
       break;
     }
     case "essen": {
+      // Die ganze Zeile ist ein Knopf: wer etwas anderes isst, tippt auf das Essen.
       const zeilen = f.mahlzeiten.map((m, i) => `
-        <li ${rein(2 + i)}><time>${esc(m.um)}</time>
+        <li ${rein(2 + i)}><button type="button" class="bs-mahlzeit${m.gewaehlt ? " gewaehlt" : ""}" data-bs-essen="${i}" aria-label="${esc(m.name)} ändern">
+          <time>${esc(m.um)}</time>
           <div><b>${esc(m.gericht)}</b><small>${esc([m.name, m.rolle].filter(Boolean).join(", "))}</small></div>
-          <span class="bs-kcal">${esc(m.kcal)}<small>kcal</small></span></li>`).join("");
+          <span class="bs-kcal">${esc(m.kcal)}<small>kcal</small></span>
+          <span class="bs-aendern">${zeichen("stift")} Ändern</span></button></li>`).join("");
       innen = `
         <p class="bs-etikett" ${rein(0)}>${zeichen("essen")} Essen</p>
         <p class="bs-ziel" ${rein(1)}><b>${esc(f.zielKcal)}</b> kcal · <b>${esc(f.zielProteinG)}</b> g Protein</p>
@@ -179,38 +189,52 @@ export function folieHtml(f) {
       innen = "";
   }
   // `bs-f-` vor der Art: `.bs-essen` hiess sonst Karte und Liste zugleich.
-  return `<section class="bs-folie bs-f-${f.art}" style="--ton:${ton}">${innen}</section>`;
+  // Jede Karte mit Inhalt lässt sich anpassen. Der Knopf steht unten und
+  // klein, die Karte soll gelesen werden und nicht nach Formular aussehen.
+  const anpassen = ANPASSEN[f.art];
+  const knopf = anpassen ? `<button type="button" class="bs-anpassen" data-bs-anpassen="${f.art}">${zeichen("stift")} ${anpassen}</button>` : "";
+  return `<section class="bs-folie bs-f-${f.art}" style="--ton:${ton}">${innen}${knopf}</section>`;
 }
 
 /**
  * Zeigt das Briefing. `briefing` ist das Ergebnis von `tagesbriefingFuer`,
  * `wurzel` das leere Element `#briefingShow`. `aktion` bekommt "tag" oder
- * "fertig" vom letzten Knopf.
+ * "fertig" vom letzten Knopf, `anpassen` die Art der Karte und bei einer
+ * Mahlzeit deren Zeile. Zurück kommt eine Steuerung: `anhalten`, solange
+ * ein Blatt zum Ändern offen ist, und `aktualisieren` mit dem neu
+ * gerechneten Briefing, auf derselben Karte.
  */
-export function briefingZeigen(briefing, wurzel, { aktion } = {}) {
-  const folien = (briefing?.folien ?? []).filter(Boolean);
-  if (!wurzel || !folien.length) return;
+export function briefingZeigen(briefing, wurzel, { aktion, anpassen } = {}) {
+  let folien = (briefing?.folien ?? []).filter(Boolean);
+  if (!wurzel || !folien.length) return null;
   const wenigBewegung = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
   wurzel.innerHTML = `
-    <div class="bs-leisten">${folien.map(() => '<span><i></i></span>').join("")}</div>
+    <div class="bs-leisten"></div>
     <button type="button" class="bs-x" aria-label="Briefing schliessen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     <div class="bs-buehne" aria-live="polite"></div>
     <p class="bs-hilfe">Tippen für weiter, halten zum Anhalten</p>`;
   const buehne = wurzel.querySelector(".bs-buehne");
-  const leisten = [...wurzel.querySelectorAll(".bs-leisten i")];
+  let leisten = [];
+  const leistenBauen = () => {
+    wurzel.querySelector(".bs-leisten").innerHTML = folien.map(() => "<span><i></i></span>").join("");
+    leisten = [...wurzel.querySelectorAll(".bs-leisten i")];
+  };
+  leistenBauen();
   let index = 0;
   let laeuft = 0;
   let start = 0;
   let pause = false;
+  let aussen = false;
   let pauseSeit = 0;
   let bild = 0;
 
-  const zeigen = (i) => {
+  const zeigen = (i, { ohneAnimation = false } = {}) => {
     index = Math.max(0, Math.min(folien.length - 1, i));
     buehne.innerHTML = folieHtml(folien[index]);
     const f = buehne.firstElementChild;
     // Ein Bild später, damit die Übergänge vom Anfang aus laufen.
-    requestAnimationFrame(() => f?.classList.add("an"));
+    if (ohneAnimation) f?.classList.add("an", "fest");
+    else requestAnimationFrame(() => f?.classList.add("an"));
     leisten.forEach((l, j) => { l.style.transform = `scaleX(${j < index ? 1 : 0})`; });
     laeuft = 0;
     start = performance.now();
@@ -218,7 +242,7 @@ export function briefingZeigen(briefing, wurzel, { aktion } = {}) {
 
   const schritt = (jetzt) => {
     bild = requestAnimationFrame(schritt);
-    if (pause || document.hidden) return;
+    if (pause || aussen || document.hidden) return;
     const dauer = folieDauer(folien[index]);
     laeuft = jetzt - start;
     const anteil = Number.isFinite(dauer) ? Math.min(1, laeuft / dauer) : 1;
@@ -234,6 +258,7 @@ export function briefingZeigen(briefing, wurzel, { aktion } = {}) {
   };
 
   const taste = (ev) => {
+    if (aussen) return;
     if (ev.key === "Escape") schliessen();
     else if (ev.key === "ArrowRight" || ev.key === " ") zeigen(index + 1);
     else if (ev.key === "ArrowLeft") zeigen(index - 1);
@@ -267,6 +292,14 @@ export function briefingZeigen(briefing, wurzel, { aktion } = {}) {
     const k = ev.target.closest("button");
     if (!k) return;
     if (k.classList.contains("bs-x")) return schliessen();
+    // Anpassen hält die Karte an, das Blatt darüber gehört der App.
+    if (k.dataset.bsAnpassen || k.dataset.bsEssen !== undefined) {
+      const f = folien[index];
+      const zeile = k.dataset.bsEssen !== undefined && f.art === "essen" ? f.mahlzeiten[Number(k.dataset.bsEssen)] : null;
+      const weiter = anpassen?.(k.dataset.bsAnpassen || "essen", zeile, steuerung);
+      if (weiter === "schliessen") schliessen();
+      return;
+    }
     const was = k.dataset.bs;
     if (was === "nochmal") return zeigen(0);
     schliessen();
@@ -274,8 +307,27 @@ export function briefingZeigen(briefing, wurzel, { aktion } = {}) {
   };
   document.addEventListener("keydown", taste);
 
+  const steuerung = {
+    anhalten(an) {
+      if (an && !aussen) pauseSeit = performance.now();
+      if (!an && aussen) start += performance.now() - pauseSeit;
+      aussen = Boolean(an);
+    },
+    /** Neu gerechnet, zurück auf die Karte derselben Art. */
+    aktualisieren(neu) {
+      const art = folien[index]?.art;
+      folien = (neu?.folien ?? []).filter(Boolean);
+      if (!folien.length) return schliessen();
+      leistenBauen();
+      const i = folien.findIndex((f) => f.art === art);
+      zeigen(i >= 0 ? i : Math.min(index, folien.length - 1), { ohneAnimation: true });
+    },
+    schliessen,
+  };
+
   wurzel.classList.toggle("ruhig", Boolean(wenigBewegung));
   wurzel.hidden = false;
   zeigen(0);
   bild = requestAnimationFrame(schritt);
+  return steuerung;
 }

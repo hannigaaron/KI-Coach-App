@@ -43,6 +43,7 @@ import {
   schluesselPruefen, tagesnutzungFuer,
   trainingsplanUebernehmen, trainingsplanVorschlag, widerspruchListe,
   kalenderEntfernen, kalenderImportieren, kalenderStand, tagesbriefingFuer, wochenrueckblickFuer, tagesessenFuer,
+  briefingTag, essenWahlAusFoto, essenWahlAusText, essenWahlFuer, essenWahlSetzen, fokusKandidaten, fokusWaehlen,
   kostenUebersicht, recommendations, standardsUebersicht, tagesErinnerungen, verlaufPunkte,
   berichtFuer,
   berichtZeitraeume,
@@ -4842,11 +4843,180 @@ diktatKnopf("btnKopfDiktat", "kopfText", "Sprich in Ruhe. Tipp auf Fertig, wenn 
  * Das Briefing als Präsentation, morgens für heute, abends für morgen. Der
  * Text dazu steht weiter im Chat und in der Mitteilung, hier nur Karten.
  */
-function briefingShowOeffnen(art) {
-  let b;
-  try { b = tagesbriefingFuer(art === "abend" ? "abend" : "morgen"); } catch (e) { console.error(e); toast("Das Briefing liess sich nicht rechnen."); return; }
-  briefingZeigen(b, $("briefingShow"), { aktion: (was) => { if (was === "tag") showView("tag"); } });
+let bsArt = "morgen";
+let bsSteuerung = null;
+function briefingRechnen() {
+  return tagesbriefingFuer(bsArt === "abend" ? "abend" : "morgen");
 }
+function briefingShowOeffnen(art) {
+  bsArt = art === "abend" ? "abend" : "morgen";
+  let b;
+  try { b = briefingRechnen(); } catch (e) { console.error(e); toast("Das Briefing liess sich nicht rechnen."); return; }
+  bsSteuerung = briefingZeigen(b, $("briefingShow"), {
+    aktion: (was) => { if (was === "tag") showView("tag"); },
+    anpassen: briefingAnpassen,
+  });
+}
+
+/** Nach einer Änderung neu rechnen und auf derselben Karte weiter. */
+function briefingNeu() {
+  try { bsSteuerung?.aktualisieren(briefingRechnen()); } catch (e) { console.error(e); }
+  refreshAll();
+}
+
+/**
+ * "Anpassen" auf einer Karte. Essen und Fokus ändern sich direkt im
+ * Briefing, die Präsentation hält so lange an. Der Rest gehört auf seine
+ * Seite: Termine in den Kalender, Aufgaben auf Dein Tag, Standards zu den
+ * Standards. Dorthin schliesst die Präsentation.
+ */
+function briefingAnpassen(art, zeile, steuerung) {
+  if (art === "essen" && zeile) { steuerung.anhalten(true); bsaOeffnen(zeile); return; }
+  if (art === "fokus") { steuerung.anhalten(true); bsfOeffnen(); return; }
+  const ziel = { tag: "kalender", achtung: "kalender", tun: "tag", untergrenze: "standards", rueckblick: "heute" }[art];
+  if (!ziel) return;
+  if (ziel === "heute") heuteTag = todayIso();
+  showView(ziel);
+  if (art === "rueckblick") setTimeout(() => erfassenOeffnen({ currentTarget: $("btnErfassenHeute") }), 250);
+  return "schliessen";
+}
+
+/* ---------- Eine Mahlzeit im Briefing ändern ---------- */
+
+let bsaZeile = null;
+const MAHLZEIT_NAME = { fruehstueck: "Frühstück", mittagessen: "Mittagessen", snack: "Snack", abendessen: "Abendessen" };
+
+function bsaOeffnen(zeile) {
+  bsaZeile = zeile;
+  const tag = briefingTag(bsArt);
+  const gewaehlt = essenWahlFuer(tag).some((w) => w.art === zeile.art);
+  $("bsaTitel").textContent = `${MAHLZEIT_NAME[zeile.art] || zeile.name} ändern`;
+  $("bsaVorschlag").textContent = `${gewaehlt ? "Gerade" : "Vorschlag"}: ${zeile.gericht}, ${zeile.kcal} kcal um ${zeile.um}`;
+  $("bsaText").value = "";
+  $("bsaHinweis").textContent = "";
+  $("bsaVorschlagZurueck").hidden = !gewaehlt;
+  bsaBeschaeftigt(false);
+  $("bsAendern").hidden = false;
+}
+
+function bsaSchliessen({ weiter = true } = {}) {
+  $("bsAendern").hidden = true;
+  bsaZeile = null;
+  if (weiter) bsSteuerung?.anhalten(false);
+}
+
+function bsaBeschaeftigt(an, text = "") {
+  for (const id of ["bsaUebernehmen", "bsaFoto", "bsaScan", "bsaSuchen", "bsaMikro"]) $(id).disabled = an;
+  $("bsaUebernehmen").textContent = an ? "daevo rechnet" : "Übernehmen";
+  if (text) $("bsaHinweis").textContent = text;
+}
+
+/** Nach einer gespeicherten Wahl: zu, neu rechnen, kurz sagen, was gilt. */
+function bsaFertig(satz) {
+  bsaSchliessen();
+  briefingNeu();
+  toast(satz || "Geändert. Der Rest des Tages ist neu gerechnet.", 3500);
+}
+
+$("bsaZu").addEventListener("click", () => bsaSchliessen());
+$("bsAendern").addEventListener("click", (ev) => { if (ev.target === $("bsAendern")) bsaSchliessen(); });
+diktatKnopf("bsaMikro", "bsaText", "Sag, was du stattdessen isst, mit Menge. Tipp auf Fertig, dann übernimmt daevo.", {
+  nachFertig: () => $("bsaUebernehmen").click(),
+});
+
+$("bsaUebernehmen").addEventListener("click", async () => {
+  const text = $("bsaText").value.trim();
+  if (!bsaZeile) return;
+  if (!text) { $("bsaHinweis").textContent = "Schreib oder sag, was du isst, etwa 200 g Reis mit Hähnchen."; $("bsaText").focus(); return; }
+  bsaBeschaeftigt(true, "");
+  const r = await essenWahlAusText(briefingTag(bsArt), bsaZeile.art, text);
+  bsaBeschaeftigt(false);
+  if (!r.ok) { $("bsaHinweis").textContent = r.text; return; }
+  bsaFertig(r.text ? `Geändert. ${r.text}` : "");
+});
+
+$("bsaFoto").addEventListener("click", async () => {
+  if (!(await kiFreigabe())) { toast("Fotos auswerten braucht die KI. Du kannst sie im Profil unter Datenschutz erlauben."); return; }
+  $("bsaDatei").value = "";
+  $("bsaDatei").click();
+});
+$("bsaDatei").addEventListener("change", async () => {
+  const datei = $("bsaDatei").files?.[0];
+  if (!datei || !bsaZeile) return;
+  bsaBeschaeftigt(true, "daevo schaut sich das Foto an.");
+  const anhang = await anhangAusDatei(datei);
+  if (anhang.fehler) { bsaBeschaeftigt(false, anhang.fehler); return; }
+  const r = await essenWahlAusFoto(briefingTag(bsArt), bsaZeile.art, anhang);
+  bsaBeschaeftigt(false, r.ok ? "" : r.text);
+  if (r.ok) bsaFertig();
+});
+
+/** Scannen und Suchen laufen über den Editor, dort lässt sich die Menge danach ändern. */
+function bsaImEditor(fokus) {
+  const zeile = bsaZeile;
+  if (!zeile) return;
+  const tag = briefingTag(bsArt);
+  const vorher = essenWahlFuer(tag).find((w) => w.art === zeile.art);
+  bsaSchliessen({ weiter: false });
+  $("briefingShow").hidden = true;
+  wahlEditorOeffnen({
+    tag, art: zeile.art, um: vorher?.um || zeile.um, posten: vorher?.posten || [],
+    titel: `${MAHLZEIT_NAME[zeile.art] || zeile.name} ändern`, fokus,
+    fertig: (gespeichert) => {
+      $("briefingShow").hidden = false;
+      if (gespeichert) briefingNeu();
+      bsSteuerung?.anhalten(false);
+    },
+  });
+}
+$("bsaScan").addEventListener("click", () => bsaImEditor("barcode"));
+$("bsaSuchen").addEventListener("click", () => bsaImEditor("suche"));
+$("bsaVorschlagZurueck").addEventListener("click", () => {
+  if (!bsaZeile) return;
+  essenWahlSetzen(briefingTag(bsArt), bsaZeile.art, null);
+  bsaFertig("Wieder der Vorschlag von daevo.");
+});
+
+/* ---------- Den Fokus im Briefing wählen ---------- */
+
+function bsfOeffnen() {
+  const tag = briefingTag(bsArt);
+  const jetzt = store.getSettings().briefingFokus;
+  const liste = fokusKandidaten().slice(0, 8);
+  $("bsfListe").innerHTML = liste.length
+    ? liste.map((t, i) => `<button type="button" class="bsf-wahl${jetzt?.tag === tag && jetzt.text === t ? " an" : ""}" data-bsf="${i}">${escapeHtml(t)}</button>`).join("")
+    : '<p class="bsa-vorschlag">Keine offenen Aufgaben. Schreib unten, worauf es ankommt.</p>';
+  $("bsfListe").dataset.liste = JSON.stringify(liste);
+  $("bsfText").value = "";
+  $("bsfZurueck").hidden = !(jetzt?.tag === tag);
+  $("bsFokus").hidden = false;
+}
+function bsfSchliessen() { $("bsFokus").hidden = true; bsSteuerung?.anhalten(false); }
+function bsfSetzen(text) {
+  fokusWaehlen(briefingTag(bsArt), text);
+  $("bsFokus").hidden = true;
+  briefingNeu();
+  bsSteuerung?.anhalten(false);
+}
+$("bsfZu").addEventListener("click", bsfSchliessen);
+$("bsFokus").addEventListener("click", (ev) => {
+  if (ev.target === $("bsFokus")) return bsfSchliessen();
+  const k = ev.target.closest("[data-bsf]");
+  if (!k) return;
+  const liste = JSON.parse($("bsfListe").dataset.liste || "[]");
+  if (liste[Number(k.dataset.bsf)]) bsfSetzen(liste[Number(k.dataset.bsf)]);
+});
+$("bsfSetzen").addEventListener("click", async () => {
+  const text = $("bsfText").value.trim();
+  if (!text) { $("bsfText").focus(); return; }
+  // Ein eigener Fokus wird eine Aufgabe für diesen Tag: sonst gälte er nur,
+  // solange er in der Liste steht, und dort stünde er nie.
+  if (!fokusKandidaten().includes(text)) {
+    try { await aufgabeAnlegenEingestuft(text); } catch (e) { console.error(e); }
+  }
+  bsfSetzen(text);
+});
+$("bsfZurueck").addEventListener("click", () => bsfSetzen(null));
 for (const k of document.querySelectorAll(".bs-wahl [data-briefing-zeigen]")) {
   k.addEventListener("click", () => briefingShowOeffnen(k.dataset.briefingZeigen));
 }
@@ -5682,6 +5852,13 @@ let mePosten = [];
 let meArt = "";
 let meScanLaeuft = false;
 
+/**
+ * Der Editor als Wahl für das Briefing: dieselbe Suche, derselbe Scanner,
+ * dieselben Mengen, nur gespeichert wird nicht in den Tag, sondern als
+ * geplante Mahlzeit in `settings.essenWahl`. Morgen ist noch nichts gegessen.
+ */
+let meWahl = null;
+
 /** Öffnet den Editor für eine Mahlzeit des heutigen Tages. */
 /** Ob die offene Mahlzeit gerade erst für diesen Editor angelegt wurde. */
 let meNeu = false;
@@ -5715,9 +5892,15 @@ function mahlzeitSchliessen() {
   // abbricht, darf keine Zeile mit null Kalorien im Verlauf zurücklassen.
   // Gezählt wird, was gespeichert ist: ein vorbelegtes Rezept hat Posten im
   // Editor, aber noch keine im Tag, und Abbrechen darf es nicht stehen lassen.
-  if (meMahlzeit && meNeu && !store.getDay(meTag).meals.find((m) => m.id === meMahlzeit.id)?.entries?.length) {
+  if (!meWahl && meMahlzeit && meNeu && !store.getDay(meTag).meals.find((m) => m.id === meMahlzeit.id)?.entries?.length) {
     store.removeMeal(meTag, meMahlzeit.id);
   }
+  // Aus dem Briefing geöffnet: zurück in die Präsentation, gespeichert oder nicht.
+  const wahl = meWahl;
+  meWahl = null;
+  $("meTitel").textContent = "Mahlzeit";
+  $("meLoeschen").textContent = "Mahlzeit löschen";
+  if (wahl) setTimeout(() => wahl.fertig?.(wahl.gespeichert), 0);
   meNeu = false;
   $("mahlzeitEditor").hidden = true;
   document.body.classList.remove("blatt-offen");
@@ -5758,6 +5941,31 @@ function mahlzeitLoeschen(tag, id) {
     refreshAll();
     if (!$("herkunftBlatt").hidden) herkunftZeigen();
   });
+}
+
+function wahlEditorOeffnen({ tag, art, um, posten = [], titel, fokus, fertig }) {
+  meWahl = { tag, art, fertig, gespeichert: false };
+  meTag = tag;
+  meMahlzeit = { id: "wahl", at: um || "12:00", entries: [] };
+  meNeu = false;
+  mePosten = posten.map((e) => ({ ...e }));
+  meArt = art;
+  $("meZeit").value = um || "12:00";
+  $("meSuche").value = "";
+  $("meTreffer").hidden = true;
+  $("meSuchHinweis").textContent = "";
+  $("meHandHinweis").textContent = "";
+  $("meRezeptForm").hidden = true;
+  $("meRezeptHinweis").textContent = "";
+  $("meTitel").textContent = titel || "Mahlzeit ändern";
+  $("meLoeschen").textContent = "Wieder den Vorschlag nehmen";
+  meArtenZeichnen();
+  mePostenZeichnen();
+  meBibliothekZeichnen();
+  $("mahlzeitEditor").hidden = false;
+  document.body.classList.add("blatt-offen");
+  if (fokus === "suche") $("meSuche").focus();
+  if (fokus === "barcode") meScanStarten();
 }
 
 function mahlzeitNeu(fokus, tag = day) {
@@ -6439,6 +6647,12 @@ $("meHandAdd").addEventListener("click", () => {
 
 $("meLoeschen").addEventListener("click", () => {
   if (!meMahlzeit) return;
+  if (meWahl) {
+    essenWahlSetzen(meWahl.tag, meWahl.art, null);
+    meWahl.gespeichert = true;
+    mahlzeitSchliessen();
+    return;
+  }
   const { id } = meMahlzeit;
   const tag = meTag;
   // Erst schliessen, dann löschen: mahlzeitSchliessen räumt eine neue, leere
@@ -6450,6 +6664,15 @@ $("meLoeschen").addEventListener("click", () => {
 
 $("meSpeichern").addEventListener("click", () => {
   if (!meMahlzeit) return;
+  if (meWahl) {
+    // Leer heisst: wieder der Vorschlag.
+    essenWahlSetzen(meWahl.tag, meWahl.art, mePosten.length
+      ? { name: mePosten.map((e) => e.name).join(", "), um: $("meZeit").value || undefined, posten: mePosten } : null);
+    meWahl.gespeichert = true;
+    mahlzeitSchliessen();
+    toast(mePosten.length ? "Geändert. Der Rest des Tages ist neu gerechnet." : "Wieder der Vorschlag von daevo.");
+    return;
+  }
   // Eine Mahlzeit ohne Posten ist keine Mahlzeit. Sie stehen zu lassen hiesse,
   // eine Zeile mit null Kalorien im Verlauf zu führen.
   if (mePosten.length === 0) {

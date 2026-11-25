@@ -4757,7 +4757,19 @@ button { overflow-wrap: anywhere; text-wrap: balance; }
 
 .bs-ziel { margin: -4px 0 16px; font-size: 15px; color: rgba(255,255,255,.6); }
 .bs-ziel b { color: #fff; font-size: 17px; }
-.bs-essen li { display: grid; grid-template-columns: 52px 1fr auto; gap: 10px; align-items: center; padding: 12px 0; border-top: 1px solid rgba(255,255,255,.08); }
+.bs-essen li { border-top: 1px solid rgba(255,255,255,.08); }
+/* Die Zeile ist ein Knopf, sieht aber aus wie eine Zeile: Text links, Zahl rechts, darunter klein "Ändern". */
+.bs-mahlzeit {
+  display: grid; grid-template-columns: 52px 1fr auto; grid-template-rows: auto auto; gap: 4px 10px; align-items: center;
+  width: 100%; min-height: 0; padding: 12px 0; margin: 0; border: 0; border-radius: 0; background: none; box-shadow: none;
+  color: #fff; text-align: left; font-family: var(--schrift-text); font-size: 16px; letter-spacing: normal;
+}
+.bs-mahlzeit time { grid-row: 1 / span 2; }
+.bs-mahlzeit .bs-aendern { grid-column: 3; display: inline-flex; align-items: center; justify-content: flex-end; gap: 4px; font-size: 12.5px; font-weight: 600; color: var(--ton); }
+.bs-mahlzeit .bs-aendern .bs-zeichen { width: 13px; height: 13px; }
+.bs-mahlzeit > div { grid-row: 1 / span 2; }
+.bs-mahlzeit.gewaehlt small { color: var(--ton); }
+.bs-mahlzeit:active { opacity: .7; }
 .bs-essen li:first-child { border-top: 0; }
 .bs-essen time { font-size: 15px; font-weight: 600; color: var(--ton); font-variant-numeric: tabular-nums; }
 .bs-essen b { display: block; font-size: 16.5px; font-weight: 500; line-height: 1.3; overflow-wrap: anywhere; }
@@ -4797,3 +4809,65 @@ button { overflow-wrap: anywhere; text-wrap: balance; }
 .bs-wahl .bs-start-knopf:first-child { box-shadow: var(--haarlinie), inset 0 0 0 1.5px color-mix(in srgb, var(--accent-text, #1e7fa8) 45%, transparent); }
 .bs-wahl.abends .bs-start-knopf:first-child { box-shadow: var(--haarlinie); }
 .bs-wahl.abends #btnBriefingAbend { box-shadow: var(--haarlinie), inset 0 0 0 1.5px color-mix(in srgb, var(--accent-text, #1e7fa8) 45%, transparent); }
+
+/* "Anpassen" unten auf einer Karte: klein und ruhig, die Karte wird gelesen. */
+.bs-anpassen {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; margin-top: 26px; min-height: 40px; padding: 8px 16px;
+  border: 0; border-radius: 999px; background: rgba(255,255,255,.08); box-shadow: inset 0 0 0 1px rgba(255,255,255,.12);
+  color: #fff; font-family: var(--schrift-text); font-size: 14.5px; font-weight: 500; letter-spacing: normal;
+}
+.bs-anpassen .bs-zeichen { width: 15px; height: 15px; color: var(--ton); }
+.bs-anpassen:active { transform: scale(.97); }
+.bs-folie.fest .bs-rein { animation: none; opacity: 1; transform: none; }
+
+/* Das Blatt zum Ändern, über der Präsentation. Dunkel wie sie. */
+.bsa {
+  position: fixed; inset: 0; z-index: 97; display: flex; align-items: flex-end; justify-content: center;
+  background: rgba(0,0,0,.55); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+}
+.bsa[hidden] { display: none; }
+.bsa-innen {
+  width: 100%; max-width: 560px; max-height: 88vh; overflow: auto; color: #fff; background: #161a21;
+  border-radius: 26px 26px 0 0; padding: 18px 20px calc(env(safe-area-inset-bottom, 0px) + 22px);
+  box-shadow: 0 -12px 40px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.08);
+  animation: bsa-hoch .28s var(--kurve, ease-out) both;
+}
+@keyframes bsa-hoch { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .bsa-innen { animation: none; } }
+.bsa-kopf { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.bsa-kopf h2 { margin: 0; font-family: var(--schrift-akzent); font-weight: 400; font-size: 28px; line-height: 1.1; }
+.bsa-x { width: 40px; height: 40px; padding: 9px; border: 0; border-radius: 50%; background: rgba(255,255,255,.08); color: #fff; box-shadow: none; flex: none; }
+.bsa-x svg { width: 20px; height: 20px; }
+.bsa-vorschlag { margin: 8px 0 16px; font-size: 14.5px; line-height: 1.45; color: rgba(255,255,255,.62); }
+.bsa-label { display: block; margin: 0 0 8px; font-size: 13px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #96d8f0; }
+#bsaText, #bsfText {
+  width: 100%; box-sizing: border-box; border: 0; border-radius: 16px; padding: 12px 14px; resize: none;
+  background: rgba(255,255,255,.07); box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); color: #fff;
+  font-family: var(--schrift-text); font-size: 16px; line-height: 1.4;
+}
+#bsaText::placeholder, #bsfText::placeholder { color: rgba(255,255,255,.38); }
+.bsa-reihe { display: flex; gap: 10px; margin-top: 10px; align-items: stretch; }
+.bsa-reihe #bsfText { flex: 1; min-width: 0; }
+.bsa-mikro, .bsa-los {
+  min-height: 48px; padding: 0 18px; border: 0; border-radius: 999px; box-shadow: none; font-size: 17px;
+}
+.bsa-mikro { flex: 1; background: rgba(255,255,255,.1); color: #fff; }
+.bsa-mikro.hoert { background: #e694ad; color: #0b0d10; }
+.bsa-los { flex: 1.4; background: #96d8f0; color: #0b0d10; }
+#bsfSetzen { flex: none; }
+.bsa-wege { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px; }
+.bsa-weg {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; min-height: 76px; padding: 12px 6px;
+  border: 0; border-radius: 18px; background: rgba(255,255,255,.06); box-shadow: inset 0 0 0 1px rgba(255,255,255,.1); color: #fff; font-size: 16px;
+}
+.bsa-weg svg { width: 24px; height: 24px; color: #96d8f0; }
+.bsa-innen button:disabled { opacity: .5; }
+.bsa-hinweis { min-height: 1em; margin: 14px 0 0; font-size: 14px; line-height: 1.45; color: rgba(255,255,255,.75); }
+.bsa .text-knopf { color: rgba(255,255,255,.6); margin-top: 6px; }
+.bsf-liste { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+.bsf-wahl {
+  width: 100%; min-height: 48px; padding: 12px 14px; border: 0; border-radius: 16px; text-align: left;
+  background: rgba(255,255,255,.06); box-shadow: inset 0 0 0 1px rgba(255,255,255,.1); color: #fff;
+  font-family: var(--schrift-text); font-size: 16px; line-height: 1.35; letter-spacing: normal;
+}
+.bsf-wahl.an { box-shadow: inset 0 0 0 2px #96d8f0; }

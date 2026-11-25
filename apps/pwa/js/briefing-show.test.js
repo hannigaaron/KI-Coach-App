@@ -27,3 +27,14 @@ test("jede Art von Karte zeichnet sich, Text wird maskiert", () => {
   // Mehr Zeilen, mehr Zeit.
   assert.ok(folieDauer({ art: "tun", punkte: [1, 2, 3, 4] }) > folieDauer({ art: "tun", punkte: [1] }));
 });
+
+test("jede Karte mit Inhalt lässt sich anpassen, jede Mahlzeit ändern", () => {
+  assert.match(folieHtml({ art: "fokus", haupt: "X", zusatz: "Y" }), /data-bs-anpassen="fokus"/);
+  assert.doesNotMatch(folieHtml({ art: "start", morgens: true, gruss: "G", datum: "D", zeile: "Z" }), /data-bs-anpassen/);
+  const essen = folieHtml({ art: "essen", zielKcal: 2000, zielProteinG: 150, mahlzeiten: [
+    { art: "fruehstueck", um: "08:00", name: "Frühstück", gericht: "Skyr", kcal: 400, proteinG: 30, rolle: "" },
+    { art: "abendessen", um: "19:00", name: "Abendessen", gericht: "Brot", kcal: 300, proteinG: 25, rolle: "deine Wahl", gewaehlt: true },
+  ] });
+  assert.equal((essen.match(/data-bs-essen=/g) || []).length, 2);
+  assert.match(essen, /bs-mahlzeit gewaehlt/);
+});

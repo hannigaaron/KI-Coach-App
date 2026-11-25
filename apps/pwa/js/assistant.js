@@ -1938,6 +1938,69 @@ export function herausforderungSpeichern(text) {
  * gegessen ist, zählt ab, das Training verschiebt Zeit und Grösse, und jede
  * Mahlzeit bekommt ein Gericht, das zu Ausschlüssen und Vorrat passt.
  */
+/**
+ * Selbst gewählte Mahlzeiten statt des Vorschlags, aus dem Briefing über
+ * "Ändern". Sie liegen getrennt vom Tag in `settings.essenWahl`: eine
+ * Mahlzeit für morgen ist geplant und nicht gegessen. Als Eintrag stünde sie
+ * heute schon in den Zahlen, und was nicht eingetragen ist, gilt als
+ * vergessen, nicht umgekehrt. Ist sie gegessen und eingetragen, gilt der
+ * Eintrag. Gehalten werden 14 Tage.
+ */
+export function essenWahlFuer(tagIso) {
+  return (store.getSettings().essenWahl || []).filter((w) => w.tag === tagIso);
+}
+
+export function essenWahlSetzen(tagIso, art, wahl) {
+  const st = store.getSettings();
+  const grenze = isoMinus(todayIso(), 14);
+  const liste = (st.essenWahl || []).filter((w) => !(w.tag === tagIso && w.art === art) && w.tag >= grenze);
+  if (wahl?.posten?.length) {
+    liste.push({ tag: tagIso, art, name: String(wahl.name || "").trim().slice(0, 80) || wahl.posten.map((x) => x.name).join(", ").slice(0, 80),
+      ...(wahl.um ? { um: wahl.um } : {}),
+      posten: wahl.posten.map((x) => ({ name: x.name, quantity: x.quantity, kcal: Number(x.kcal) || 0, proteinG: Number(x.proteinG) || 0, fatG: Number(x.fatG) || 0, carbsG: Number(x.carbsG) || 0 })) });
+  }
+  store.setSettings({ ...store.getSettings(), essenWahl: liste });
+}
+
+/** Text oder Diktat zu Posten, über denselben Weg wie beim Eintragen, ohne etwas einzutragen. */
+export async function essenWahlAusText(tagIso, art, text) {
+  const coach = new Coach(provider({ ohneZaehlung: true }));
+  const parsed = mitEigenenLebensmitteln(await coach.parseMeal(text), store.getSettings());
+  if (!parsed.entries.length) return { ok: false, text: parsed.followUpQuestion || "Daraus konnte ich kein Essen lesen. Sag es mit Menge, etwa 200 g Reis mit Hähnchen." };
+  essenWahlSetzen(tagIso, art, { name: text, posten: parsed.entries });
+  return { ok: true, text: parsed.followUpQuestion || "" };
+}
+
+/** Ein Foto des geplanten Essens oder der Packung, über die Bildauswertung. */
+export async function essenWahlAusFoto(tagIso, art, bild) {
+  try {
+    const modell = modellFuerBilder(store.getSettings().modellWahl || "auto");
+    const ergebnis = await mahlzeitAusFoto(provider(), [bild], "Das ist ein geplantes Essen, nicht schon gegessen.", modell.id);
+    if (!ergebnis.entries.length) return { ok: false, text: `Auf dem Bild sehe ich kein Essen. ${ergebnis.beschreibung || ""}`.trim() };
+    essenWahlSetzen(tagIso, art, { name: ergebnis.beschreibung || "Foto", posten: ergebnis.entries });
+    return { ok: true, text: "" };
+  } catch (e) {
+    const d = fehlerErklaerung(e);
+    return { ok: false, text: `Das Foto liess sich nicht auswerten. ${d?.text || ""}`.trim() };
+  }
+}
+
+/** Den Fokus im Briefing selbst setzen, null nimmt wieder den gerechneten. */
+export function fokusWaehlen(tagIso, text) {
+  const st = store.getSettings();
+  store.setSettings({ ...st, briefingFokus: text ? { tag: tagIso, text } : null });
+}
+
+/** Offene Aufgaben, aus denen der Fokus gewählt werden kann, wichtigste zuerst. */
+export function fokusKandidaten() {
+  return alleAufgaben().filter((a) => !a.erledigt).sort((x, y) => (y.wichtigkeit || 0) - (x.wichtigkeit || 0)).map((a) => a.text);
+}
+
+/** Der Tag, um den es im Briefing geht: morgens heute, abends morgen. */
+export function briefingTag(art) {
+  return art === "abend" ? tagPlusIso(todayIso(), 1) : todayIso();
+}
+
 export function tagesessenFuer(tagIso = todayIso(), jetzt = Date.now()) {
   const n = dayNumbers(tagIso);
   const profile = n.profile || PROFIL_NOTFALL;
@@ -1956,6 +2019,7 @@ export function tagesessenFuer(tagIso = todayIso(), jetzt = Date.now()) {
     ernaehrung: ernaehrungMitNotizen(profile),
     vorrat: store.getFridge(),
     essenszeiten: profile.essenszeiten,
+    gewaehlt: essenWahlFuer(tagIso),
   });
 }
 
@@ -2088,6 +2152,11 @@ export function tagesbriefingFuer(artVorgabe = "morgen", jetzt = Date.now(), fue
       ? { kcal: h.totals.kcal, zielKcal: h.targets.kcal, proteinG: h.totals.proteinG, zielProteinG: h.targets.proteinG, erledigt }
       : undefined,
     standards: status.filter((s) => !s.aktuell).map((s) => s.satz),
+    // Ein gewählter Fokus gilt nur für seinen Tag und nur, solange die Aufgabe offen ist.
+    fokusWahl: (() => {
+      const f = store.getSettings().briefingFokus;
+      return f?.tag === tag && fokusKandidaten().includes(f.text) ? f.text : undefined;
+    })(),
   });
 }
 

@@ -67,11 +67,11 @@ export interface TagesBriefing {
 export type BriefingFolie =
   | { art: "start"; morgens: boolean; gruss: string; datum: string; zeile: string }
   | { art: "rueckblick"; kcal: number; zielKcal: number; proteinG: number; zielProteinG: number; erledigt: number; satz: string }
-  | { art: "fokus"; haupt: string; um?: string; zusatz: string }
+  | { art: "fokus"; haupt: string; um?: string; zusatz: string; gewaehlt?: boolean }
   | { art: "tag"; titel: string; termine: Array<{ um: string; bis: string; titel: string }>; mehr: number; frei: null | { von: string; bis: string; training?: string }; belegt: string; ganztags: string[] }
   | { art: "tun"; punkte: Array<{ art: "training" | "aufgabe"; text: string; um?: string; zuerst: boolean; grund?: string; id?: string }>; mehr: number; feierabend?: string; gestrichen?: boolean }
   | { art: "achtung"; titel: string; punkte: Array<{ art: string; kurz: string; tun: string }> }
-  | { art: "essen"; zielKcal: number; zielProteinG: number; mahlzeiten: Array<{ um: string; name: string; gericht: string; kcal: number; proteinG: number; rolle: string; rezeptId?: string; foto?: boolean }> }
+  | { art: "essen"; zielKcal: number; zielProteinG: number; mahlzeiten: Array<{ art: string; um: string; name: string; gericht: string; kcal: number; proteinG: number; rolle: string; gewaehlt?: boolean; rezeptId?: string; foto?: boolean }> }
   | { art: "untergrenze"; punkte: Array<{ titel: string; stand: string }>; geburtstage: string[] }
   | { art: "ende"; morgens: boolean; satz: string };
 
@@ -114,6 +114,8 @@ export interface BriefingEingaben {
   heute?: { kcal: number; zielKcal: number; proteinG: number; zielProteinG: number; erledigt: number };
   /** Mindeststandards, die noch offen sind, je ein kurzer Satz. */
   standards: string[];
+  /** Ein selbst gewählter Fokus aus dem Briefing, schlägt die Rechnung. */
+  fokusWahl?: string;
 }
 
 const MAX_TERMINE = 6;
@@ -156,6 +158,10 @@ function dauer(min: number): string {
  * Dieselbe Entscheidung wie `fokus`, nur ohne den Satz drumherum.
  */
 function fokusTeile(e: BriefingEingaben, tagWort: string): { haupt: string; um?: string; zusatz: string } {
+  if (e.fokusWahl) {
+    const a = e.aufgaben.find((x) => x.text === e.fokusWahl);
+    return { haupt: e.fokusWahl, um: a?.um, zusatz: `Dein Fokus für ${tagWort}, selbst gewählt.` };
+  }
   const voll = (e.ablauf?.auslastung ?? 0) >= 0.7;
   const stufe = (a: BriefingEingaben["aufgaben"][number]): number => a.stufe ?? (a.wichtig ? 1 : 2);
   const wichtig = e.aufgaben.find((a) => stufe(a) === 1) ?? e.aufgaben.find((a) => a.wichtig) ?? e.aufgaben[0];
@@ -211,7 +217,7 @@ function briefingFolien(e: BriefingEingaben, g: { tagWort: string; feierabend: n
   }
 
   const f = fokusTeile(e, g.tagWort);
-  folien.push({ art: "fokus", haupt: f.haupt, ...(f.um ? { um: f.um } : {}), zusatz: f.zusatz });
+  folien.push({ art: "fokus", haupt: f.haupt, ...(f.um ? { um: f.um } : {}), zusatz: f.zusatz, ...(e.fokusWahl ? { gewaehlt: true } : {}) });
 
   if (e.ablauf && (g.tagTermine.length || e.ablauf.fokusblock)) {
     const a = e.ablauf;
@@ -252,8 +258,9 @@ function briefingFolien(e: BriefingEingaben, g: { tagWort: string; feierabend: n
   if (achtung.length) folien.push({ art: "achtung", titel: morgens ? "Darauf achten" : "Heute Abend vorbereiten", punkte: achtung.slice(0, 4) });
 
   const mahlzeiten = (e.essen?.mahlzeiten ?? []).map((m) => ({
-    um: uhrzeit(m.um), name: m.name, gericht: m.rezept?.name ?? m.name, kcal: m.kcal, proteinG: m.proteinG,
-    rolle: m.mitnehmen ? "zum Mitnehmen" : m.training === "davor" ? "vor dem Training" : m.training === "danach" ? "nach dem Training" : "",
+    art: m.art, um: uhrzeit(m.um), name: m.name, gericht: m.rezept?.name ?? m.gewaehlt?.name ?? m.name, kcal: m.kcal, proteinG: m.proteinG,
+    rolle: m.gewaehlt ? "deine Wahl" : m.mitnehmen ? "zum Mitnehmen" : m.training === "davor" ? "vor dem Training" : m.training === "danach" ? "nach dem Training" : "",
+    ...(m.gewaehlt ? { gewaehlt: true } : {}),
     ...(m.rezept ? { rezeptId: m.rezept.id, foto: m.rezept.foto } : {}),
   }));
   if (mahlzeiten.length) folien.push({ art: "essen", zielKcal: e.ziele.kcal, zielProteinG: e.ziele.proteinG, mahlzeiten });
@@ -279,6 +286,10 @@ function briefingFolien(e: BriefingEingaben, g: { tagWort: string; feierabend: n
  * Block. Ein voller Tag bekommt keinen Ehrgeiz, sondern die Untergrenze.
  */
 function fokus(e: BriefingEingaben, tagWort: string): string {
+  if (e.fokusWahl) {
+    const a = e.aufgaben.find((x) => x.text === e.fokusWahl);
+    return `${e.fokusWahl}${a?.um ? ` um ${a.um}` : ""}. Das hast du dir für ${tagWort} als Fokus gesetzt.`;
+  }
   const voll = (e.ablauf?.auslastung ?? 0) >= 0.7;
   // Die Aufgabe der ersten Stufe geht vor: dieselbe Reihenfolge wie in der Übersicht,
   // sonst nennt der Fokus eine andere als das, was darunter oben steht.
@@ -396,7 +407,7 @@ export function tagesbriefing(roh: BriefingEingaben): TagesBriefing {
 
   // Essen: jede Mahlzeit mit Uhrzeit und Gericht.
   const essen = (e.essen?.mahlzeiten ?? []).map((m) =>
-    `${uhrzeit(m.um)} ${m.name}: ${m.rezept ? `${m.rezept.name}, ` : ""}${m.kcal} kcal, ${m.proteinG} g Protein`
+    `${uhrzeit(m.um)} ${m.name}: ${m.rezept ? `${m.rezept.name}, ` : m.gewaehlt ? `${m.gewaehlt.name}, ` : ""}${m.kcal} kcal, ${m.proteinG} g Protein`
     + `${m.mitnehmen ? ", zum Mitnehmen" : m.training === "davor" ? ", vor dem Training" : m.training === "danach" ? ", nach dem Training" : ""}`);
   if (essen.length) {
     abschnitte.push({ titel: "Essen", zeilen: [`Ziel: ${e.ziele.kcal} kcal, ${e.ziele.proteinG} g Protein.`, ...essen] });
@@ -460,7 +471,7 @@ export function briefingPunkte(e: BriefingEingaben): BriefingPunkt[] {
   for (const m of e.essen?.mahlzeiten ?? []) {
     const rolle = m.mitnehmen ? ", zum Mitnehmen" : m.training === "davor" ? ", vor dem Training" : m.training === "danach" ? ", nach dem Training" : "";
     punkte.push({
-      art: "essen", um: m.um, titel: m.rezept ? m.rezept.name : m.name,
+      art: "essen", um: m.um, titel: m.rezept ? m.rezept.name : m.gewaehlt ? m.gewaehlt.name : m.name,
       unter: `${m.name}, ${m.kcal} kcal, ${m.proteinG} g Protein${rolle}`,
       rezeptId: m.rezept?.id, foto: m.rezept?.foto,
     });

@@ -525,6 +525,50 @@ try {
   -->
   <div id="briefingShow" class="bs" hidden role="dialog" aria-modal="true" aria-label="Briefing"></div>
 
+  <!-- Eine Mahlzeit im Briefing ändern: sprechen, tippen, Foto, Scannen oder
+       Suchen. Über der Präsentation, die so lange anhält. -->
+  <div id="bsAendern" class="bsa" hidden role="dialog" aria-modal="true" aria-labelledby="bsaTitel">
+    <div class="bsa-innen">
+      <header class="bsa-kopf">
+        <h2 id="bsaTitel">Mahlzeit ändern</h2>
+        <button id="bsaZu" type="button" class="bsa-x" aria-label="Schliessen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </header>
+      <p class="bsa-vorschlag" id="bsaVorschlag"></p>
+      <label class="bsa-label" for="bsaText">Was isst du stattdessen?</label>
+      <textarea id="bsaText" rows="2" placeholder="Etwa 2 Scheiben Vollkornbrot mit Hüttenkäse und Tomate"></textarea>
+      <div class="bsa-reihe">
+        <button id="bsaMikro" type="button" class="bsa-mikro">Sprechen</button>
+        <button id="bsaUebernehmen" type="button" class="bsa-los">Übernehmen</button>
+      </div>
+      <div class="bsa-wege">
+        <button id="bsaFoto" type="button" class="bsa-weg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span>Foto</span></button>
+        <button id="bsaScan" type="button" class="bsa-weg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 8V5h3M17 5h3v3M20 16v3h-3M7 19H4v-3M8 9v6M11 9v6M14 9v6M17 9v6"/></svg><span>Scannen</span></button>
+        <button id="bsaSuchen" type="button" class="bsa-weg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg><span>Suchen</span></button>
+      </div>
+      <input id="bsaDatei" type="file" accept="image/*" hidden>
+      <p class="bsa-hinweis" id="bsaHinweis" aria-live="polite"></p>
+      <button id="bsaVorschlagZurueck" type="button" class="text-knopf" hidden>Wieder den Vorschlag von daevo nehmen</button>
+    </div>
+  </div>
+
+  <!-- Den Fokus im Briefing selbst wählen, aus den offenen Aufgaben. -->
+  <div id="bsFokus" class="bsa" hidden role="dialog" aria-modal="true" aria-labelledby="bsfTitel">
+    <div class="bsa-innen">
+      <header class="bsa-kopf">
+        <h2 id="bsfTitel">Fokus wählen</h2>
+        <button id="bsfZu" type="button" class="bsa-x" aria-label="Schliessen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </header>
+      <p class="bsa-vorschlag">Was ist das Eine, das zählt? daevo stellt es an den Anfang.</p>
+      <div class="bsf-liste" id="bsfListe"></div>
+      <label class="bsa-label" for="bsfText">Oder etwas anderes</label>
+      <div class="bsa-reihe">
+        <input id="bsfText" type="text" placeholder="Angebot für Anna fertig machen">
+        <button id="bsfSetzen" type="button" class="bsa-los">Setzen</button>
+      </div>
+      <button id="bsfZurueck" type="button" class="text-knopf" hidden>Wieder den Fokus von daevo nehmen</button>
+    </div>
+  </div>
+
   <div id="aboBlatt" class="blatt abo-blatt" hidden>
     <div class="abo-innen" role="dialog" aria-modal="true" aria-labelledby="aboTitel">
       <div class="abo-bild" aria-hidden="true">

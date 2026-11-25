@@ -1011,7 +1011,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1551 Tests
+npm test           # 1553 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1535,6 +1535,26 @@ Für die Karte "daevo ist aufgefallen" tragen die Punkte des Vorausblicks
 `kurz` und `tun`, wenige Wörter statt des ganzen Satzes. Abends ohne einen
 einzigen Eintrag sagt die Karte das, statt 168 g Protein vor dem Schlafen zu
 empfehlen: was nicht eingetragen ist, ist vergessen.
+
+Jede Karte mit Inhalt trägt unten "Anpassen". Fokus und Essen ändern sich
+direkt, die Präsentation hält dabei an und springt danach neu gerechnet auf
+dieselbe Karte, `aktualisieren` an der Steuerung aus `briefingZeigen`. Der
+Fokus kommt aus den offenen Aufgaben oder als eigener Satz, der dann eine
+Aufgabe wird, `settings.briefingFokus` je Tag, `fokusWahl` im Kern. Termine,
+Aufgaben, Standards und Nachtragen öffnen ihre Seite.
+
+Jede Mahlzeit auf der Essenskarte ist ein Knopf "Ändern", das Blatt
+`#bsAendern`: tippen oder sprechen geht über `parseMeal` wie beim Eintragen,
+ein Foto über die Bildauswertung, Scannen und Suchen über den Mahlzeit
+Editor in der Betriebsart Wahl, `wahlEditorOeffnen`. Gespeichert wird nicht
+in den Tag, sondern als geplante Mahlzeit in `settings.essenWahl`,
+`essenWahlSetzen` in `assistant.js`: morgen ist noch nichts gegessen, und als
+Eintrag stünde es heute schon in den Zahlen. `tagesessen` nimmt sie über
+`gewaehlt` wie gegessen für den Rest, die übrigen Mahlzeiten werden um sie
+herum gerechnet, und sie steht mit eigenen Werten und "deine Wahl" im Plan.
+Ist die Mahlzeit dieser Art eingetragen, gilt der Eintrag. Offen: eine
+gewählte Mahlzeit lässt sich noch nicht mit einem Tipp als gegessen
+eintragen.
 
 Geöffnet wird sie oben auf Dein Tag, ab 17 Uhr steht "Briefing für morgen"
 vorn, auf der Kalenderseite unter dem Briefing, über die Mitteilung am Abend
