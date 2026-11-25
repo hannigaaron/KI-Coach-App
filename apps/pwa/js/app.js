@@ -1,5 +1,6 @@
 import "./nativ.js";
 import { chatHtml, chatSprechbar } from "./chat-format.js";
+import { briefingZeigen } from "./briefing-show.js";
 import {
   BEREICHE, BEREICH_NAME, CHECKIN_BOEGEN, CHECKIN_MITTE, STANDARD_ZIELE, WOCHENTAGE,
   MAHLZEITEN, bogenAmTag, bogenFuer, eintragAus100g, energyBreakdown, hatAngebot, mengeLesen,
@@ -336,6 +337,8 @@ function renderTranscript() {
   // Die sortierte Übersicht steht nur unter der letzten Antwort dieser Art:
   // eine ältere wäre mit dem Stand von gestern gerechnet.
   const letzteSortierung = chat.slice(-40).map((m) => Boolean(m.ausgeführt?.includes("Tag sortiert"))).lastIndexOf(true);
+  const istBriefing = (m) => m.role !== "user" && (m.ausgeführt?.includes("Briefing erstellt") || /^(Guten Morgen\.|Dein Tag, |Dein Blick auf )/.test(m.text || ""));
+  const letztesBriefing = chat.slice(-40).map(istBriefing).lastIndexOf(true);
   let sortierung = "";
   if (letzteSortierung >= 0) {
     try { sortierung = (() => { const bb = tagesbriefingFuer("morgen"); return sortiertHtml(bb.reihenfolge, { schluessel: "chat", mitHaken: false, hinweis: bb.musterHinweis }); })(); } catch (e) { console.error(e); }
@@ -356,10 +359,18 @@ function renderTranscript() {
       // Eine Einheit, die der Coach für heute gerechnet hat, startet direkt
       // aus dem Gespräch. Nur heute: gestern gerechnet ist heute Geschichte.
       const startbar = m.ausgeführt?.includes("Training für heute bereit") && Boolean(bestellteEinheit(store.getSettings(), todayIso()));
+      // Ein Briefing im Chat bekommt den Weg zur Präsentation. Der Text dort
+      // ist der aus dem Kern, er beginnt immer gleich, oder der Coach hat das
+      // Werkzeug benutzt.
+      const briefingArt = idx === letztesBriefing
+        ? (/^Dein Blick auf|\bmorgen\b/i.test(m.text.replace(/^Guten Morgen/, "")) ? "abend" : "morgen")
+        : null;
       const knopf = startbar
         ? `<div class="msg-aktionen"><button type="button" class="primary" data-heute-starten>Training starten</button>` +
           `<button type="button" class="ghost" data-heute-neu>Neue Übungen</button></div>`
-        : "";
+        : briefingArt
+          ? `<div class="msg-aktionen"><button type="button" class="primary" data-briefing-zeigen="${briefingArt}">Als Präsentation ansehen</button></div>`
+          : "";
       return `<div class="msg assistant">${markeSvg()}` +
         `<div class="msg-text">${bilder}${dateien}${chatHtml(m.text)}${done}${idx === letzteSortierung ? sortierung : ""}${knopf}</div></div>`;
     })
@@ -1117,7 +1128,11 @@ function refreshAll() {
   if (name === "reflexion") renderMemories();
   if (name === "einkauf") renderEinkauf();
   if (name === "kalender") renderKalender();
-  if (name === "tag") renderTag();
+  if (name === "tag") {
+    renderTag();
+    // Ab 17 Uhr steht der Blick auf morgen vorn, morgens das Briefing für heute.
+    document.querySelector(".bs-wahl")?.classList.toggle("abends", new Date().getHours() >= 17);
+  }
   if (name === "balance") renderBalance();
   if (name === "standards") { renderStandards(); zeigeAngebot("standardsAngebot"); }
 }
@@ -3818,6 +3833,8 @@ $("transcript").addEventListener("click", (ev) => {
   // "Neue Übungen" geht als Satz an den Coach, damit es im Gespräch steht
   // und derselbe Weg rechnet wie beim Tippen.
   if (ev.target.closest("[data-heute-neu]")) { send("Neue Übungen für heute"); return; }
+  const show = ev.target.closest("[data-briefing-zeigen]");
+  if (show) { briefingShowOeffnen(show.dataset.briefingZeigen); return; }
   if (!ev.target.closest("[data-heute-starten]")) return;
   const ht = bestellteEinheit(store.getSettings(), todayIso());
   if (!ht?.einheit) { toast("Diese Einheit war für einen anderen Tag. Sag mir, was du heute trainierst."); return; }
@@ -4821,8 +4838,19 @@ $("btnKopf").addEventListener("click", async () => {
 
 diktatKnopf("btnKopfDiktat", "kopfText", "Sprich in Ruhe. Tipp auf Fertig, wenn du durch bist.");
 
-$("btnBriefingMorgen").addEventListener("click", () => { $("briefingText").textContent = briefing("morgen"); });
-$("btnBriefingAbend").addEventListener("click", () => { $("briefingText").textContent = briefing("abend"); });
+/**
+ * Das Briefing als Präsentation, morgens für heute, abends für morgen. Der
+ * Text dazu steht weiter im Chat und in der Mitteilung, hier nur Karten.
+ */
+function briefingShowOeffnen(art) {
+  let b;
+  try { b = tagesbriefingFuer(art === "abend" ? "abend" : "morgen"); } catch (e) { console.error(e); toast("Das Briefing liess sich nicht rechnen."); return; }
+  briefingZeigen(b, $("briefingShow"), { aktion: (was) => { if (was === "tag") showView("tag"); } });
+}
+for (const k of document.querySelectorAll(".bs-wahl [data-briefing-zeigen]")) {
+  k.addEventListener("click", () => briefingShowOeffnen(k.dataset.briefingZeigen));
+}
+$("kalBriefingShow").addEventListener("click", () => briefingShowOeffnen(briefingArt));
 
 $("btnMittag").addEventListener("click", () => {
   const zahl = (id, min, max) => Math.max(min, Math.min(max, Number($(id).value) || min));
@@ -7355,7 +7383,11 @@ function impulsOeffnen(daten, { still = false } = {}) {
     if (ziel.aktion === "erfassen") erfassenOeffnen({ currentTarget: $("btnErfassenHeute") });
     else if (ziel.aktion === "wasser") setTimeout(() => $("wBar")?.closest(".balken-zeile")?.scrollIntoView({ block: "center", behavior: "smooth" }), 250);
     else if (ziel.aktion === "rueckblick") { renderBericht(); $("berichtRueckblick").open = true; }
-    else if (ziel.aktion === "morgen") document.querySelector('#kalBriefingWahl [data-briefing="abend"]')?.click();
+    else if (ziel.aktion === "morgen") {
+      document.querySelector('#kalBriefingWahl [data-briefing="abend"]')?.click();
+      // Abends kommt der Blick auf morgen als Präsentation, darunter liegt der Kalender.
+      setTimeout(() => briefingShowOeffnen("abend"), 260);
+    }
     return;
   }
   if (!ziel && !impulseFuerTag(todayIso()).some((i) => i.art === art)) return;

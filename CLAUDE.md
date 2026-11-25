@@ -1011,7 +1011,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1548 Tests
+npm test           # 1551 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1511,6 +1511,34 @@ die App den Kalender frisch, höchstens vier Sekunden, `kalenderFrisch`. Offen
 gleicht sie ihn alle 15 Minuten ab, `ABGLEICH_ABSTAND_MS`. Die Zeilen heissen
 `.mg-zeile`, denn `.mg-punkt` sind die Knöpfe der Skala, und derselbe Name
 gab den Zeilen im ersten Versuch Pillen und feste Höhen.
+
+### Das Briefing als Präsentation
+
+`briefingFolien` in `tagesbriefing.ts` rechnet Karten, `apps/pwa/js/briefing-show.js`
+zeigt sie im Vollbild `#briefingShow`. Der Nutzer wollte keinen Textblock mehr:
+fünf Abschnitte mit Strichen und ganzen Sätzen liest abends niemand. Jede Karte
+trägt einen Gedanken, eine Zahl oder höchstens fünf Zeilen, immer in derselben
+Reihenfolge: Begrüssung, abends wie heute lief, Fokus, der Tag als Zeitleiste,
+Zu tun, was daevo aufgefallen ist, Essen, Untergrenze und Geburtstage,
+Schluss. Eine Karte ohne Inhalt fällt weg. Der Text in `abschnitte` bleibt für
+Chat und Mitteilung.
+
+Wie eine Story: Balken oben, die Karten laufen von selbst weiter, die Dauer
+hängt an der Zahl der Zeilen, `folieDauer`. Tipp rechts weiter, links zurück,
+halten hält an, seitlich wischen blättert, nach unten wischen schliesst. Die
+letzte Karte bleibt stehen. Dunkel in beiden Modi wie das Abo Fenster, je Karte
+eine Akzentfarbe aus den Familien der Makros und Bereiche. Die Klassen der
+Karten heissen `bs-f-<art>`: `.bs-essen` war zuerst Karte und Liste zugleich,
+und die Essenskarte rutschte aus dem Bild.
+
+Für die Karte "daevo ist aufgefallen" tragen die Punkte des Vorausblicks
+`kurz` und `tun`, wenige Wörter statt des ganzen Satzes. Abends ohne einen
+einzigen Eintrag sagt die Karte das, statt 168 g Protein vor dem Schlafen zu
+empfehlen: was nicht eingetragen ist, ist vergessen.
+
+Geöffnet wird sie oben auf Dein Tag, ab 17 Uhr steht "Briefing für morgen"
+vorn, auf der Kalenderseite unter dem Briefing, über die Mitteilung am Abend
+und unter einer Antwort mit Briefing im Chat, Vermerk "Briefing erstellt".
 
 Snacks in den Mahlzeiten nach dem Kalender folgen derselben Regel wie im
 Wochenplan: Standard zuerst, Zucker nur ums Training, `snackRegel` in

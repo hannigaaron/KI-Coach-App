@@ -4641,3 +4641,159 @@ button { overflow-wrap: anywhere; text-wrap: balance; }
 .ks-zeile .funke circle { fill: var(--ton, var(--brand)); }
 .ks-unter { margin: 0; color: var(--muted); font-size: var(--t-xs); }
 .bw-knopf { font: inherit; color: inherit; text-align: left; cursor: pointer; border: 0; }
+
+/* Das Briefing als Präsentation, js/briefing-show.js. Dunkel in beiden
+   Modi wie das Abo Fenster, damit es sich wie ein eigener Moment anfühlt
+   und nicht wie eine weitere Seite. Je Karte eine Akzentfarbe aus den
+   Familien von Makros und Bereichen, `--ton`, als Schein oben und für
+   Zeichen und Zahlen. Text bleibt weiss oder grau, nie farbig. */
+.bs {
+  position: fixed; inset: 0; z-index: 96; overflow: hidden;
+  background: #0b0d10; color: #fff; font-family: var(--schrift-text);
+  -webkit-user-select: none; user-select: none; touch-action: pan-x;
+  padding: calc(env(safe-area-inset-top, 0px) + 14px) 0 calc(env(safe-area-inset-bottom, 0px) + 10px);
+  display: flex; flex-direction: column;
+}
+.bs[hidden] { display: none; }
+.bs-leisten { display: flex; gap: 4px; padding: 0 16px; flex: none; }
+.bs-leisten span { flex: 1; height: 3px; border-radius: 3px; background: rgba(255,255,255,.18); overflow: hidden; }
+.bs-leisten i { display: block; height: 100%; background: #fff; transform-origin: left center; transform: scaleX(0); }
+.bs-x {
+  position: absolute; top: calc(env(safe-area-inset-top, 0px) + 26px); right: 10px; z-index: 2;
+  width: 40px; height: 40px; padding: 8px; border: 0; border-radius: 50%; background: transparent; color: rgba(255,255,255,.8); box-shadow: none;
+}
+.bs-x svg { width: 22px; height: 22px; }
+.bs-buehne { position: relative; flex: 1; min-height: 0; }
+.bs-hilfe { margin: 0; text-align: center; font-size: 12px; color: rgba(255,255,255,.38); flex: none; }
+.bs-folie {
+  position: absolute; inset: 0; overflow: hidden;
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 56px 26px 24px; max-width: 560px; margin: 0 auto;
+}
+.bs-folie::before {
+  content: ""; position: absolute; left: 50%; top: -18%; width: 150%; aspect-ratio: 1; transform: translateX(-50%);
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--ton) 26%, transparent), transparent 72%);
+  pointer-events: none; z-index: -1;
+}
+.bs-rein { opacity: 0; transform: translateY(14px); }
+.bs-folie.an .bs-rein { animation: bs-rein .62s var(--kurve, cubic-bezier(.2,.8,.2,1)) both; animation-delay: calc(var(--i, 0) * 110ms + 60ms); }
+@keyframes bs-rein { from { opacity: 0; transform: translateY(14px); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+.bs.ruhig .bs-rein, .bs.ruhig .bs-folie.an .bs-rein { animation: none; opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) { .bs-rein, .bs-folie.an .bs-rein { animation: none; opacity: 1; transform: none; } }
+
+.bs-etikett {
+  display: flex; align-items: center; gap: 8px; margin: 0 0 14px;
+  font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ton);
+}
+.bs-zeichen { width: 18px; height: 18px; flex: none; }
+.bs-gross-zeichen { width: 54px; height: 54px; color: var(--ton); margin-bottom: 18px; }
+.bs-gruss { margin: 0; font-family: var(--schrift-akzent); font-weight: 400; font-size: 52px; line-height: 1.02; letter-spacing: -.01em; }
+.bs-datum { margin: 10px 0 0; font-size: 17px; color: rgba(255,255,255,.72); }
+.bs-zeile { margin: 26px 0 0; font-size: 19px; line-height: 1.45; color: rgba(255,255,255,.9); max-width: 30ch; }
+.bs-satz { margin: 18px 0 0; font-size: 17px; line-height: 1.5; color: rgba(255,255,255,.72); }
+.bs-titel { margin: 0 0 18px; font-family: var(--schrift-akzent); font-weight: 400; font-size: 36px; line-height: 1.08; }
+.bs-unter { margin: -6px 0 18px; font-size: 15px; color: rgba(255,255,255,.6); }
+.bs-mehr { margin: 10px 0 0; font-size: 14px; color: rgba(255,255,255,.5); }
+
+.bs-fokus { margin: 0; font-family: var(--schrift-akzent); font-weight: 400; font-size: 40px; line-height: 1.1; overflow-wrap: anywhere; }
+.bs-fokus.lang { font-size: 31px; }
+.bs-pille {
+  display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; margin: 18px 0 0; padding: 7px 14px;
+  border-radius: 999px; background: color-mix(in srgb, var(--ton) 18%, transparent); color: var(--ton); font-weight: 600; font-size: 16px;
+}
+
+.bs-ringe { display: flex; justify-content: center; gap: 22px; margin: 6px 0 4px; }
+.bs-ring { position: relative; margin: 0; width: 140px; text-align: center; }
+.bs-ring svg { width: 140px; height: 140px; display: block; }
+.bs-ring circle { fill: none; stroke-width: 7; }
+.bs-ring-spur { stroke: rgba(255,255,255,.1); }
+.bs-ring-wert { stroke: var(--ton); stroke-linecap: round; stroke-dasharray: var(--voll); stroke-dashoffset: var(--voll); }
+.bs-folie.an .bs-ring-wert { transition: stroke-dashoffset 1.2s var(--kurve, ease-out) .35s; stroke-dashoffset: var(--rest); }
+.bs.ruhig .bs-ring-wert { transition: none; stroke-dashoffset: var(--rest); }
+.bs-ring-zahl { position: absolute; top: 0; left: 0; width: 140px; height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.bs-ring-zahl b { font-size: 30px; font-weight: 600; line-height: 1; }
+.bs-ring-zahl span { font-size: 12px; color: rgba(255,255,255,.55); margin-top: 4px; }
+.bs-ring figcaption { margin-top: 8px; font-size: 14px; color: rgba(255,255,255,.75); }
+.bs-zahlzeile { margin: 18px 0 0; text-align: center; font-size: 17px; color: rgba(255,255,255,.75); }
+.bs-zahlzeile b { color: var(--ton); font-size: 22px; }
+.bs-f-rueckblick .bs-satz { text-align: center; }
+
+.bs-zeitleiste { list-style: none; margin: 0; padding: 0; position: relative; }
+.bs-zeitleiste::before { content: ""; position: absolute; left: 63px; top: 10px; bottom: 10px; width: 2px; background: rgba(255,255,255,.12); border-radius: 2px; }
+.bs-zeitleiste li { display: grid; grid-template-columns: 52px 22px 1fr; align-items: center; gap: 0 4px; padding: 9px 0; }
+.bs-zeitleiste time { font-size: 15px; font-weight: 600; color: rgba(255,255,255,.75); font-variant-numeric: tabular-nums; }
+.bs-punkt { width: 10px; height: 10px; border-radius: 50%; background: var(--ton); justify-self: center; box-shadow: 0 0 0 4px #0b0d10; position: relative; }
+.bs-termin { font-size: 17px; line-height: 1.3; overflow-wrap: anywhere; }
+.bs-frei {
+  margin-top: 16px; padding: 14px 16px; border-radius: 18px;
+  background: color-mix(in srgb, var(--ton) 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ton) 30%, transparent);
+  display: flex; flex-direction: column; gap: 3px;
+}
+.bs-frei b { color: var(--ton); font-size: 17px; }
+.bs-frei span { font-size: 14px; color: rgba(255,255,255,.7); }
+
+.bs-liste, .bs-hinweise, .bs-essen, .bs-standards { list-style: none; margin: 0; padding: 0; }
+.bs-liste li { display: flex; gap: 14px; align-items: flex-start; padding: 11px 0; }
+.bs-kreis {
+  flex: none; width: 26px; height: 26px; margin-top: 1px; border-radius: 50%;
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.35); display: grid; place-items: center; color: var(--ton);
+}
+.bs-kreis .bs-zeichen { width: 15px; height: 15px; }
+.bs-liste li.zuerst .bs-kreis { box-shadow: inset 0 0 0 2px var(--ton); }
+.bs-liste li.training .bs-kreis { box-shadow: none; background: color-mix(in srgb, var(--ton) 20%, transparent); }
+.bs-liste b { display: block; font-size: 17px; font-weight: 500; line-height: 1.32; overflow-wrap: anywhere; }
+.bs-liste small { display: block; margin-top: 3px; font-size: 13.5px; color: rgba(255,255,255,.55); }
+.bs-liste li.zuerst small { color: var(--ton); }
+.bs-feierabend { margin: 16px 0 0; font-size: 15px; color: rgba(255,255,255,.6); }
+.bs-feierabend b { color: #fff; }
+
+.bs-hinweise li { display: flex; gap: 14px; align-items: flex-start; padding: 12px 0; }
+.bs-zeichen-rund {
+  flex: none; width: 40px; height: 40px; padding: 9px; border-radius: 50%;
+  background: color-mix(in srgb, var(--ton) 16%, transparent); color: var(--ton);
+}
+.bs-hinweise b { display: block; font-size: 17px; font-weight: 600; line-height: 1.3; }
+.bs-hinweise span { display: block; margin-top: 3px; font-size: 15px; line-height: 1.4; color: rgba(255,255,255,.7); }
+
+.bs-ziel { margin: -4px 0 16px; font-size: 15px; color: rgba(255,255,255,.6); }
+.bs-ziel b { color: #fff; font-size: 17px; }
+.bs-essen li { display: grid; grid-template-columns: 52px 1fr auto; gap: 10px; align-items: center; padding: 12px 0; border-top: 1px solid rgba(255,255,255,.08); }
+.bs-essen li:first-child { border-top: 0; }
+.bs-essen time { font-size: 15px; font-weight: 600; color: var(--ton); font-variant-numeric: tabular-nums; }
+.bs-essen b { display: block; font-size: 16.5px; font-weight: 500; line-height: 1.3; overflow-wrap: anywhere; }
+.bs-essen small { display: block; margin-top: 2px; font-size: 13px; color: rgba(255,255,255,.55); }
+.bs-kcal { text-align: right; font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.bs-kcal small { display: block; font-size: 11px; font-weight: 400; color: rgba(255,255,255,.5); }
+
+.bs-standards li { padding: 12px 0; border-top: 1px solid rgba(255,255,255,.08); }
+.bs-standards li:first-child { border-top: 0; }
+.bs-standards b { display: block; font-size: 16.5px; font-weight: 500; line-height: 1.35; }
+.bs-standards span { display: inline-block; margin-top: 5px; font-size: 14px; font-weight: 600; color: var(--ton); }
+.bs-geburtstag { display: flex; gap: 12px; align-items: center; margin-top: 18px; padding: 14px 16px; border-radius: 18px; background: rgba(255,255,255,.06); font-size: 16px; }
+.bs-geburtstag .bs-zeichen { width: 24px; height: 24px; color: #e591c9; }
+
+.bs-f-ende { align-items: center; text-align: center; }
+.bs-f-ende .bs-zeile { margin-left: auto; margin-right: auto; }
+.bs-f-start .bs-zeile { max-width: 26ch; }
+.bs-knoepfe { display: flex; gap: 10px; margin-top: 34px; width: 100%; max-width: 360px; }
+.bs-knopf {
+  flex: 1; min-height: 52px; border: 0; border-radius: 999px; background: var(--brand, #96d8f0); color: #0b0d10;
+  font-family: var(--schrift-akzent); font-size: 19px; box-shadow: none;
+}
+.bs-knopf.zweit { background: rgba(255,255,255,.1); color: #fff; }
+
+/* Die Knöpfe auf Dein Tag, die das Briefing öffnen. */
+.bs-wahl { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); margin-top: var(--s-3); }
+.bs-start-knopf {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 10px; text-align: left;
+  min-height: 112px; padding: 16px; border: 0; border-radius: 22px;
+  background: var(--flaeche); box-shadow: var(--haarlinie); color: var(--text);
+}
+.bs-start-knopf svg { width: 28px; height: 28px; color: var(--accent-text, var(--brand)); }
+.bs-start-knopf b { display: block; font-family: var(--schrift-akzent); font-weight: 400; font-size: 20px; line-height: 1.15; }
+.bs-start-knopf small { display: block; margin-top: 3px; font-family: var(--schrift-text); font-size: var(--t-sm); color: var(--muted); }
+.bs-als-show { width: 100%; margin-top: var(--s-3); }
+.bs-wahl.abends #btnBriefingAbend { order: -1; }
+.bs-wahl .bs-start-knopf:first-child { box-shadow: var(--haarlinie), inset 0 0 0 1.5px color-mix(in srgb, var(--accent-text, #1e7fa8) 45%, transparent); }
+.bs-wahl.abends .bs-start-knopf:first-child { box-shadow: var(--haarlinie); }
+.bs-wahl.abends #btnBriefingAbend { box-shadow: var(--haarlinie), inset 0 0 0 1.5px color-mix(in srgb, var(--accent-text, #1e7fa8) 45%, transparent); }

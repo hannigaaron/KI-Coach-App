@@ -880,7 +880,8 @@ async function execute(
       case "briefing_erstellen": {
         const art = input.art === "abend" ? "abend" : "morgen";
         const tag = typeof input.tag === "string" && input.tag.trim() ? input.tag.trim() : undefined;
-        return { text: await actions.briefingErstellen({ art, tag }) };
+        // Der Vermerk holt unter der Antwort den Knopf zur Präsentation.
+        return { text: await actions.briefingErstellen({ art, tag }), notiz: "Briefing erstellt" };
       }
       case "gewicht_eintragen": {
         const kg = Number(input.kg);

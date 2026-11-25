@@ -54,7 +54,26 @@ export interface TagesBriefing {
   /** Ein Satz, wenn ein Lebensbereich diese Woche zu kurz kam und Aufgaben deshalb vorrücken. */
   musterHinweis: string | null;
   reihenfolge: SortierGruppe[];
+  /** Dasselbe als Karten für die kleine Präsentation, siehe `briefingFolien`. */
+  folien: BriefingFolie[];
 }
+
+/**
+ * Eine Karte der Präsentation. Jede trägt nur Zahlen und wenige Wörter, die
+ * Sätze für Chat und Mitteilung bleiben in `abschnitte`. Ein Abschnitt mit
+ * fünf Zeilen Fliesstext liest abends niemand, eine Karte mit einer Zahl und
+ * drei Zeilen schon.
+ */
+export type BriefingFolie =
+  | { art: "start"; morgens: boolean; gruss: string; datum: string; zeile: string }
+  | { art: "rueckblick"; kcal: number; zielKcal: number; proteinG: number; zielProteinG: number; erledigt: number; satz: string }
+  | { art: "fokus"; haupt: string; um?: string; zusatz: string }
+  | { art: "tag"; titel: string; termine: Array<{ um: string; bis: string; titel: string }>; mehr: number; frei: null | { von: string; bis: string; training?: string }; belegt: string; ganztags: string[] }
+  | { art: "tun"; punkte: Array<{ art: "training" | "aufgabe"; text: string; um?: string; zuerst: boolean; grund?: string; id?: string }>; mehr: number; feierabend?: string; gestrichen?: boolean }
+  | { art: "achtung"; titel: string; punkte: Array<{ art: string; kurz: string; tun: string }> }
+  | { art: "essen"; zielKcal: number; zielProteinG: number; mahlzeiten: Array<{ um: string; name: string; gericht: string; kcal: number; proteinG: number; rolle: string; rezeptId?: string; foto?: boolean }> }
+  | { art: "untergrenze"; punkte: Array<{ titel: string; stand: string }>; geburtstage: string[] }
+  | { art: "ende"; morgens: boolean; satz: string };
 
 export interface BriefingPunkt {
   art: "aufgabe" | "termin" | "essen" | "training" | "feierabend";
@@ -130,6 +149,128 @@ function dauer(min: number): string {
   const h = Math.floor(min / 60);
   const m = min % 60;
   return m ? `${h} h ${String(m).padStart(2, "0")}` : `${h} ${h === 1 ? "Stunde" : "Stunden"}`;
+}
+
+/**
+ * Der Fokus in zwei Teilen für die Karte: was, und ein kurzer Satz warum.
+ * Dieselbe Entscheidung wie `fokus`, nur ohne den Satz drumherum.
+ */
+function fokusTeile(e: BriefingEingaben, tagWort: string): { haupt: string; um?: string; zusatz: string } {
+  const voll = (e.ablauf?.auslastung ?? 0) >= 0.7;
+  const stufe = (a: BriefingEingaben["aufgaben"][number]): number => a.stufe ?? (a.wichtig ? 1 : 2);
+  const wichtig = e.aufgaben.find((a) => stufe(a) === 1) ?? e.aufgaben.find((a) => a.wichtig) ?? e.aufgaben[0];
+  if (voll) {
+    return wichtig
+      ? { haupt: wichtig.text, um: wichtig.um, zusatz: "Der Tag ist voll. Nur das zählt, alles andere darf warten." }
+      : { haupt: "Deine Mindeststandards", zusatz: "Der Tag ist voll. Mehr braucht es nicht." };
+  }
+  if (wichtig) {
+    const frueher = wichtig.um ? e.aufgaben.some((a) => a !== wichtig && a.um && a.um < wichtig.um!) : false;
+    return { haupt: wichtig.text, um: wichtig.um, zusatz: frueher || !wichtig.um ? `Das ist ${tagWort} das Wichtigste.` : "Das zuerst, alles andere danach." };
+  }
+  if (e.training && !e.training.gestrichen) return { haupt: e.training.titel, um: e.training.um, zusatz: `Der feste Punkt ${tagWort}.` };
+  const block = e.ablauf?.fokusblock;
+  if (block) return { haupt: `${uhrzeit(block.von)} bis ${uhrzeit(block.bis)} frei`, zusatz: "Leg dort hinein, was dich wirklich weiterbringt." };
+  return { haupt: "Protein treffen, pünktlich ins Bett", zusatz: "Das reicht für einen guten Tag." };
+}
+
+/** "Ich liege an fünf Tagen vor 23:00 im Bett: diese Woche 0 von 5, es fehlen noch 5" in Titel und Stand. */
+function standardTeile(satz: string): { titel: string; stand: string } {
+  const i = satz.indexOf(": ");
+  if (i < 0) return { titel: satz, stand: "" };
+  const stand = satz.slice(i + 2).replace(/^diese Woche\s+/i, "").replace(/,\s*es fehlen noch.*$/i, "");
+  return { titel: satz.slice(0, i).replace(/^Ich\s+/, "").replace(/^\w/, (c) => c.toUpperCase()), stand };
+}
+
+/**
+ * Das Briefing als Karten, in der Reihenfolge, in der man einen Tag denkt:
+ * Begrüssung, abends wie heute lief, der eine Fokus, der Tag nach Uhrzeit,
+ * was zu tun ist, was daevo aufgefallen ist, das Essen, die Untergrenze,
+ * Schluss. Eine Karte ohne Inhalt fällt weg, eine leere Karte wäre eine
+ * Sekunde Warten für nichts.
+ */
+function briefingFolien(e: BriefingEingaben, g: { tagWort: string; feierabend: number | null; tagTermine: Tagesablauf["termine"]; kopf: string }): BriefingFolie[] {
+  const morgens = e.art === "morgen";
+  const folien: BriefingFolie[] = [];
+  const TagWort = g.tagWort.charAt(0).toUpperCase() + g.tagWort.slice(1);
+  const gruss = morgens
+    ? ((e.stunde === undefined || e.stunde < 11) ? "Guten Morgen" : "Dein Tag")
+    : (g.tagWort === "morgen" ? "Dein Morgen" : TagWort);
+  folien.push({ art: "start", morgens, gruss, datum: e.datum, zeile: g.kopf || (e.ablauf ? `${TagWort} ist frei im Kalender.` : "Kein Kalender verbunden.") });
+
+  if (!morgens && e.heute) {
+    const h = e.heute;
+    // Ohne Eintrag ist ein Tag vergessen und kein Tag ohne Essen. Ein Rat,
+    // 168 g Protein vor dem Schlafen nachzuholen, wäre dann falsch.
+    const satz = h.kcal === 0
+      ? "Heute steht noch kein Essen drin. Trag nach, was du gegessen hast."
+      : h.proteinG < h.zielProteinG - 25
+        ? `Noch ${h.zielProteinG - h.proteinG} g Protein offen. Ein Shake oder Quark schliesst das.`
+        : "Protein ist gedeckt. Gut gemacht.";
+    folien.push({ art: "rueckblick", kcal: h.kcal, zielKcal: h.zielKcal, proteinG: h.proteinG, zielProteinG: h.zielProteinG, erledigt: h.erledigt, satz });
+  }
+
+  const f = fokusTeile(e, g.tagWort);
+  folien.push({ art: "fokus", haupt: f.haupt, ...(f.um ? { um: f.um } : {}), zusatz: f.zusatz });
+
+  if (e.ablauf && (g.tagTermine.length || e.ablauf.fokusblock)) {
+    const a = e.ablauf;
+    const tr = e.training && !e.training.gestrichen && e.training.um ? e.training.um : "";
+    const block = a.fokusblock;
+    const drin = Boolean(block && tr && tr >= uhrzeit(block.von) && tr < uhrzeit(block.bis));
+    folien.push({
+      art: "tag",
+      titel: morgens ? "Dein Tag" : TagWort,
+      termine: g.tagTermine.slice(0, 5).map((t) => ({ um: uhrzeit(t.von), bis: uhrzeit(t.bis), titel: ohneEigeneUhrzeit(t.titel, uhrzeit(t.von)) })),
+      mehr: Math.max(0, g.tagTermine.length - 5),
+      frei: block ? { von: uhrzeit(block.von), bis: uhrzeit(block.bis), ...(drin ? { training: tr } : {}) } : null,
+      belegt: dauer(a.belegtMinuten),
+      ganztags: ganztaegig(a),
+    });
+  }
+
+  const stufeVon = (a: BriefingEingaben["aufgaben"][number]): SortierStufe => a.stufe ?? (a.wichtig ? 1 : 2);
+  const sortiert = e.aufgaben.map((a, i) => ({ a, i })).sort((x, y) => stufeVon(x.a) - stufeVon(y.a) || x.i - y.i).map((x) => x.a);
+  const tun: Extract<BriefingFolie, { art: "tun" }>["punkte"] = [];
+  if (e.training && !e.training.gestrichen) {
+    tun.push({ art: "training", text: e.training.titel, ...(e.training.um ? { um: e.training.um } : {}), zuerst: false,
+      grund: [e.training.minuten ? `${e.training.minuten} Minuten` : "", e.training.uebungen ? `${e.training.uebungen} Übungen` : ""].filter(Boolean).join(", ") || undefined });
+  }
+  for (const a of sortiert.slice(0, 4)) {
+    tun.push({ art: "aufgabe", text: a.text, ...(a.um ? { um: a.um } : {}), zuerst: stufeVon(a) === 1, ...(a.grund ? { grund: a.grund } : {}), ...(a.id ? { id: a.id } : {}) });
+  }
+  if (tun.length || e.training?.gestrichen) {
+    folien.push({ art: "tun", punkte: tun, mehr: Math.max(0, sortiert.length - 4),
+      ...(g.feierabend !== null ? { feierabend: uhrzeit(g.feierabend) } : {}), ...(e.training?.gestrichen ? { gestrichen: true } : {}) });
+  }
+
+  // Was daevo aufgefallen ist: der Blick in den Kalender und das Muster der Woche.
+  const achtung: Extract<BriefingFolie, { art: "achtung" }>["punkte"] = (e.vorausblick?.punkte ?? [])
+    .filter((p) => p.kurz)
+    .map((p) => ({ art: p.art, kurz: p.kurz!, tun: p.tun ?? "" }));
+  if (e.musterHinweis) achtung.push({ art: "muster", kurz: "Zu kurz gekommen", tun: e.musterHinweis.replace(/ Passende Aufgaben.*$/, "") });
+  if (achtung.length) folien.push({ art: "achtung", titel: morgens ? "Darauf achten" : "Heute Abend vorbereiten", punkte: achtung.slice(0, 4) });
+
+  const mahlzeiten = (e.essen?.mahlzeiten ?? []).map((m) => ({
+    um: uhrzeit(m.um), name: m.name, gericht: m.rezept?.name ?? m.name, kcal: m.kcal, proteinG: m.proteinG,
+    rolle: m.mitnehmen ? "zum Mitnehmen" : m.training === "davor" ? "vor dem Training" : m.training === "danach" ? "nach dem Training" : "",
+    ...(m.rezept ? { rezeptId: m.rezept.id, foto: m.rezept.foto } : {}),
+  }));
+  if (mahlzeiten.length) folien.push({ art: "essen", zielKcal: e.ziele.kcal, zielProteinG: e.ziele.proteinG, mahlzeiten });
+
+  const geb = e.ablauf?.geburtstage ?? [];
+  if (e.standards.length || geb.length) {
+    folien.push({ art: "untergrenze", punkte: e.standards.slice(0, 3).map(standardTeile), geburtstage: geb });
+  }
+
+  const erster = g.tagTermine[0];
+  folien.push({
+    art: "ende", morgens,
+    satz: morgens
+      ? `Eins nach dem anderen. Zuerst: ${f.haupt}.`
+      : erster ? `Morgen geht es um ${uhrzeit(erster.von)} los. Schlaf gut.` : "Schlaf gut. Morgen ist ein neuer Tag.",
+  });
+  return folien;
 }
 
 /**
@@ -287,7 +428,8 @@ export function tagesbriefing(roh: BriefingEingaben): TagesBriefing {
     ...abschnitte.map((a) => `\n${a.titel}\n${a.zeilen.map((z) => (a.zeilen.length > 1 ? `- ${z}` : z)).join("\n")}`),
   ].join("\n");
 
-  return { art: e.art, titel, kurz, abschnitte, text, punkte: briefingPunkte(e), reihenfolge: reihenfolgeBauen(e, grenze.feierabend), musterHinweis: roh.musterHinweis ?? null };
+  const folien = briefingFolien(e, { tagWort, feierabend: grenze.feierabend, tagTermine, kopf });
+  return { art: e.art, titel, kurz, abschnitte, text, punkte: briefingPunkte(e), reihenfolge: reihenfolgeBauen(e, grenze.feierabend), musterHinweis: roh.musterHinweis ?? null, folien };
 }
 
 function amTag(tag: string, hhmm: string): number | null {

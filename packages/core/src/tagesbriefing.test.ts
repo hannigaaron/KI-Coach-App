@@ -97,3 +97,33 @@ test("ohneEigeneUhrzeit: die Uhrzeit im Titel fällt nur weg, wenn sie dem Begin
   assert.equal(ohneEigeneUhrzeit("14:00 Uhr Simone Pt", "13:00"), "14:00 Uhr Simone Pt");
   assert.equal(ohneEigeneUhrzeit("Arbeit dafits Studio", "08:00"), "Arbeit dafits Studio");
 });
+
+test("die Karten: feste Reihenfolge, wenig Text, leere Karten fallen weg", () => {
+  const b = briefing("abend", [t("07:30", "08:00", "Kunde früh"), t("09:00", "12:00", "Kunde Müller")], [{ text: "Angebot schreiben", wichtig: true }]);
+  const arten = b.folien.map((f) => f.art);
+  assert.deepEqual(arten.slice(0, 3), ["start", "rueckblick", "fokus"]);
+  assert.equal(arten[arten.length - 1], "ende");
+  // Die Reihenfolge ist jeden Tag dieselbe, auch wenn Karten fehlen.
+  const ordnung = ["start", "rueckblick", "fokus", "tag", "tun", "achtung", "essen", "untergrenze", "ende"];
+  assert.deepEqual([...arten].sort((x, y) => ordnung.indexOf(x) - ordnung.indexOf(y)), arten);
+  assert.ok(!arten.includes("untergrenze"), "ohne Standards keine Karte");
+  const fokus = b.folien.find((f) => f.art === "fokus");
+  assert.equal(fokus?.art === "fokus" && fokus.haupt, "Angebot schreiben");
+  const achtung = b.folien.find((f) => f.art === "achtung");
+  assert.ok(achtung?.art === "achtung" && achtung.punkte.some((p) => p.kurz === "Start um 07:30" && /Frühstück/.test(p.tun)));
+  // Auf einer Karte stehen Stichworte, keine Absätze.
+  for (const p of achtung?.art === "achtung" ? achtung.punkte : []) assert.ok(p.kurz.length <= 40 && p.tun.length <= 60, p.kurz + p.tun);
+});
+
+test("die Karten abends: ohne Essen kein Rat, Protein nachzuholen", () => {
+  const ablauf = tagesablauf({ tag: TAG, termine: [], profile: PROFIL, ziele: ZIELE });
+  const b = tagesbriefing({
+    art: "abend", datum: "Montag, 7. September", ablauf, essen: null, vorausblick: null, training: null, aufgaben: [], ziele: ZIELE,
+    heute: { kcal: 0, zielKcal: 3000, proteinG: 0, zielProteinG: 175, erledigt: 0 },
+    standards: ["Ich liege an mindestens fünf Tagen die Woche vor 23:00 im Bett: diese Woche 0 von 5, es fehlen noch 5"],
+  });
+  const r = b.folien.find((f) => f.art === "rueckblick");
+  assert.ok(r?.art === "rueckblick" && /kein Essen/.test(r.satz) && !/Shake/.test(r.satz));
+  const u = b.folien.find((f) => f.art === "untergrenze");
+  assert.deepEqual(u?.art === "untergrenze" && u.punkte[0], { titel: "Liege an mindestens fünf Tagen die Woche vor 23:00 im Bett", stand: "0 von 5" });
+});
