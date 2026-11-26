@@ -53,6 +53,29 @@ export interface Wochenrueckblick {
   tipps: string[];
   fokus: string;
   text: string;
+  /**
+   * Dieselben Zahlen wie in `bilanz`, nur einzeln. Die Präsentation setzt
+   * eine Zahl gross auf eine Karte, und aus dem fertigen Satz liesse sie
+   * sich nur mit einer Regex zurückholen. `null` heisst: nicht gemessen.
+   */
+  zahlen: RueckblickZahlen;
+}
+
+export interface RueckblickZahlen {
+  tage: number;
+  eingetragen: number;
+  gezaehlt: number;
+  proteinGedeckt: number | null;
+  proteinSchnitt: number | null;
+  proteinZiel: number | null;
+  kcalSchnitt: number | null;
+  kcalZiel: number | null;
+  kcalGetroffen: number | null;
+  wasserProzent: number | null;
+  trainiert: number;
+  geplant: number;
+  gewichtDiff: number | null;
+  schlafStunden: number | null;
 }
 
 const PROTEIN_GEDECKT = 0.9;
@@ -86,6 +109,12 @@ export function wochenrueckblick(tage: RueckblickTag[], { art, ziel }: { art: Wo
   const gut: string[] = [];
   const besser: string[] = [];
   const tipps: { rang: number; text: string }[] = [];
+  const zahlen: RueckblickZahlen = {
+    tage: n, eingetragen: mitEssen.length, gezaehlt: vollstaendig.length,
+    proteinGedeckt: null, proteinSchnitt: null, proteinZiel: null,
+    kcalSchnitt: null, kcalZiel: null, kcalGetroffen: null, wasserProzent: null,
+    trainiert: 0, geplant: 0, gewichtDiff: null, schlafStunden: null,
+  };
 
   bilanz.push(`Ernährung eingetragen an ${mitEssen.length} von ${n} Tagen.`);
   if (unvollstaendig > 0) {
@@ -99,6 +128,7 @@ export function wochenrueckblick(tage: RueckblickTag[], { art, ziel }: { art: Wo
     proteinQuote = gedeckt / vollstaendig.length;
     const schnitt = Math.round(vollstaendig.reduce((s, t) => s + t.proteinG, 0) / vollstaendig.length);
     const zielP = Math.round(vollstaendig.reduce((s, t) => s + t.zielProteinG, 0) / vollstaendig.length);
+    Object.assign(zahlen, { proteinGedeckt: gedeckt, proteinSchnitt: schnitt, proteinZiel: zielP });
     bilanz.push(`Protein gedeckt an ${gedeckt} von ${vollstaendig.length} gezählten Tagen, im Schnitt ${schnitt} von ${zielP} g.`);
     if (proteinQuote >= 0.7) gut.push(`Dein Protein sitzt: an ${gedeckt} von ${vollstaendig.length} Tagen gedeckt.`);
     else {
@@ -112,6 +142,7 @@ export function wochenrueckblick(tage: RueckblickTag[], { art, ziel }: { art: Wo
     const kcalZiel = Math.round(vollstaendig.reduce((s, t) => s + t.zielKcal, 0) / vollstaendig.length);
     const getroffen = vollstaendig.filter((t) => Math.abs(t.kcal - t.zielKcal) <= t.zielKcal * KCAL_SPANNE).length;
     const abw = kcalZiel > 0 ? (kcalSchnitt - kcalZiel) / kcalZiel : 0;
+    Object.assign(zahlen, { kcalSchnitt, kcalZiel, kcalGetroffen: getroffen });
     bilanz.push(`Kalorien im Schnitt ${kcalSchnitt} von ${kcalZiel} kcal, getroffen an ${getroffen} von ${vollstaendig.length} Tagen.`);
     if (Math.abs(abw) <= KCAL_SPANNE) gut.push(`Deine Kalorien liegen im Schnitt im Ziel.`);
     else if (abw > 0) {
@@ -135,6 +166,7 @@ export function wochenrueckblick(tage: RueckblickTag[], { art, ziel }: { art: Wo
   const mitWasser = tage.filter((t) => t.wasserMl > 0 && t.zielWasserMl > 0);
   if (mitWasser.length > 0) {
     const quote = mitWasser.reduce((s, t) => s + Math.min(1.5, t.wasserMl / t.zielWasserMl), 0) / mitWasser.length;
+    zahlen.wasserProzent = prozent(quote);
     if (quote >= WASSER_GENUG) gut.push(`Wasser im Schnitt bei ${prozent(quote)} Prozent deines Ziels.`);
     else {
       besser.push(`Wasser im Schnitt bei ${prozent(quote)} Prozent deines Ziels.`);
@@ -144,6 +176,7 @@ export function wochenrueckblick(tage: RueckblickTag[], { art, ziel }: { art: Wo
 
   const geplant = tage.reduce((s, t) => s + t.geplant, 0);
   const trainiert = tage.reduce((s, t) => s + t.trainings, 0);
+  Object.assign(zahlen, { trainiert, geplant });
   if (geplant > 0) {
     bilanz.push(`Training: ${trainiert} von ${geplant} geplanten Einheiten, aus App, Apple Health und Kalender.`);
     if (trainiert >= geplant) gut.push(`Alle geplanten Trainings gemacht.`);
@@ -158,6 +191,7 @@ export function wochenrueckblick(tage: RueckblickTag[], { art, ziel }: { art: Wo
   const gewichte = tage.filter((t) => t.gewichtKg != null && Number(t.gewichtKg) > 0);
   if (gewichte.length >= 2) {
     const diff = Math.round((Number(gewichte[gewichte.length - 1]!.gewichtKg) - Number(gewichte[0]!.gewichtKg)) * 10) / 10;
+    zahlen.gewichtDiff = diff;
     bilanz.push(`Gewicht: ${diff > 0 ? "+" : ""}${String(diff).replace(".", ",")} kg zwischen erster und letzter Wiegung.`);
     const richtig = ziel === "fat_loss" ? diff < 0 : ziel === "lean_bulk" ? diff > 0 : Math.abs(diff) <= 0.5;
     if (richtig) gut.push(`Das Gewicht bewegt sich in Richtung deines Ziels.`);
@@ -172,6 +206,7 @@ export function wochenrueckblick(tage: RueckblickTag[], { art, ziel }: { art: Wo
   const mitSchlaf = tage.filter((t) => t.schlafMin != null && Number(t.schlafMin) > 0);
   if (mitSchlaf.length >= 3) {
     const h = mitSchlaf.reduce((s, t) => s + Number(t.schlafMin), 0) / mitSchlaf.length / 60;
+    zahlen.schlafStunden = Math.round(h * 10) / 10;
     bilanz.push(`Schlaf im Schnitt ${String(Math.round(h * 10) / 10).replace(".", ",")} Stunden laut Apple Health.`);
     if (h < 7) {
       besser.push(`Unter sieben Stunden Schlaf im Schnitt.`);
@@ -199,5 +234,5 @@ export function wochenrueckblick(tage: RueckblickTag[], { art, ziel }: { art: Wo
     `Fokus für ${fuer}: ${fokus}`,
   ].filter(Boolean).join("\n\n");
 
-  return { art, titel, kurz, bilanz, gut, besser, tipps: gewaehlt, fokus, text };
+  return { art, titel, kurz, bilanz, gut, besser, tipps: gewaehlt, fokus, text, zahlen };
 }

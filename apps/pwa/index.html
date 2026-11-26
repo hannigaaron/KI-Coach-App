@@ -948,6 +948,11 @@ try {
     <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Auswertung</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
       <p class="sub">Abgeleitet aus deinen eigenen Zahlen. Jede Empfehlung nennt den Wert, auf dem sie beruht.</p>
+      <button type="button" class="kal-show story-start" id="btnAuswertungShow">
+        <span class="kal-show-balken" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+        <span class="kal-show-text"><b>Auswertung ansehen</b><small id="btnAuswertungShowUnter">Eine Karte je Befund, jede mit einer Frage</small></span>
+        <span class="kal-show-play" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></span>
+      </button>
       <div id="recoList"></div>
 
       <h2 class="abschnitt">Woran es bei dir wirklich hängt</h2>
@@ -987,6 +992,16 @@ try {
       <div class="field"><label for="berichtZeitraum">Zeitraum</label>
         <select id="berichtZeitraum"></select></div>
       <p class="sub" id="berichtKopf"></p>
+      <button type="button" class="kal-show story-start" id="btnBerichtShow">
+        <span class="kal-show-balken" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+        <span class="kal-show-text"><b>Als Story ansehen</b><small id="btnBerichtShowUnter">Eine Zahl je Karte, zum Teilen</small></span>
+        <span class="kal-show-play" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></span>
+      </button>
+      <button type="button" class="kal-show story-start" id="btnRueckblickShow">
+        <span class="kal-show-balken" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+        <span class="kal-show-text"><b>Wochenrückblick ansehen</b><small id="btnRueckblickShowUnter">Zahlen, was gut lief, ein Fokus</small></span>
+        <span class="kal-show-play" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></span>
+      </button>
       <!-- Der Wochenrückblick aus der Mitteilung am Mittwoch und Sonntag steht
            hier und nicht im Chat: ein Tipp auf die Mitteilung soll auf der
            Seite landen, um die es geht. -->

@@ -40,6 +40,16 @@ const ZEICHEN = {
   geschenk: '<path d="M4 11h16v9H4zM3 7.5h18V11H3zM12 7.5V20M12 7.5c-1.5-3-5-3.5-5-1s3 1 5 1c2 0 5 1.5 5-1s-3.5-2-5 1"/>',
   topf: '<path d="M4 10h16v6a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4zM2.5 10h19M9 6.5c0-1 1-1.5 1-2.5M14 6.5c0-1 1-1.5 1-2.5"/>',
   muster: '<path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/>',
+  trend: '<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
+  blitz: '<path d="M13 2.5L5 13.5h6l-1 8 8-11h-6z"/>',
+  bett: '<path d="M3 18V8M3 14h18v4M21 14v-2a3 3 0 0 0-3-3h-7v5"/><circle cx="7" cy="11" r="1.6"/>',
+  frage: '<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5v.4M12 16.8v.2"/>',
+  krone: '<path d="M4 18h16M4.5 15L3 7l5 3.5L12 5l4 5.5L21 7l-1.5 8z"/>',
+  wolke: '<path d="M7 18h10a4 4 0 0 0 .6-8 5.5 5.5 0 0 0-10.6 1.2A3.5 3.5 0 0 0 7 18z"/>',
+  gabel: '<path d="M12 21v-7M12 14L6 6M12 14l6-8M6 6v4M6 6h4M18 6v4M18 6h-4"/>',
+  hand: '<path d="M8 12V5.5a1.5 1.5 0 0 1 3 0V11M11 10V4.5a1.5 1.5 0 0 1 3 0V11M14 10.5V6a1.5 1.5 0 0 1 3 0v7.5a7 7 0 0 1-7 7h-.5a6 6 0 0 1-5-2.7L3 14.5a1.6 1.6 0 0 1 2.6-1.8L8 15"/>',
+  kalender: '<rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+  teilen: '<path d="M12 15V3.5M7.5 8L12 3.5 16.5 8M5 13v6a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 19v-6"/>',
 };
 
 function zeichen(name, klasse = "bs-zeichen") {
@@ -76,8 +86,41 @@ export function folieDauer(f) {
     case "essen": return 4000 + 1000 * (f.mahlzeiten?.length ?? 0);
     case "untergrenze": return 4000 + 1200 * ((f.punkte?.length ?? 0) + (f.geburtstage?.length ? 1 : 0));
     case "ende": return Infinity;
+    // Die Karten der übrigen Präsentationen: Rückblick, Morgen, Auswertung,
+    // Monat, Planende, Training und Kopf leeren.
+    case "titel": return 3800;
+    case "zahl": return 5200 + (f.zeilen?.length ?? 0) * 900;
+    case "ringe": return 6000;
+    case "punkte": return 3800 + 1300 * (f.punkte?.length ?? 0);
+    case "frage": return 8000;
+    case "bild": return 7000;
+    case "schluss": return Infinity;
     default: return 5000;
   }
+}
+
+/**
+ * Eine kleine Linie ohne Achse. `null` unterbricht sie, statt auf null zu
+ * fallen, wie im Bericht: ein Tag ohne Eintrag ist kein Einbruch.
+ */
+function linie(werte) {
+  const zahlen = (werte ?? []).filter((w) => w != null && Number.isFinite(Number(w))).map(Number);
+  if (zahlen.length < 3) return "";
+  const min = Math.min(...zahlen);
+  const max = Math.max(...zahlen);
+  const spanne = max - min || 1;
+  const n = werte.length;
+  const stuecke = [];
+  let akt = [];
+  werte.forEach((w, i) => {
+    if (w == null || !Number.isFinite(Number(w))) { if (akt.length) stuecke.push(akt); akt = []; return; }
+    const x = n === 1 ? 150 : (i / (n - 1)) * 300;
+    const y = max === min ? 30 : 54 - ((Number(w) - min) / spanne) * 48;
+    akt.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+  });
+  if (akt.length) stuecke.push(akt);
+  const wege = stuecke.map((p) => (p.length === 1 ? `<circle cx="${p[0].split(",")[0]}" cy="${p[0].split(",")[1]}" r="2.6"/>` : `<polyline points="${p.join(" ")}"/>`)).join("");
+  return `<svg class="bs-linie" viewBox="-4 0 308 60" preserveAspectRatio="none" aria-hidden="true">${wege}</svg>`;
 }
 
 /** Die Farbe je Karte, aus den Familien von Makros und Bereichen im dunklen Modus. */
@@ -185,15 +228,82 @@ export function folieHtml(f) {
           <button type="button" class="bs-knopf" data-bs="${f.morgens ? "tag" : "fertig"}">${f.morgens ? "Zu deinem Tag" : "Fertig"}</button>
         </div>`;
       break;
+    case "titel":
+      innen = `
+        <div ${rein(0)}>${zeichen(f.zeichen ?? "sonne", "bs-gross-zeichen")}</div>
+        ${f.etikett ? `<p class="bs-etikett" ${rein(1)}>${esc(f.etikett)}</p>` : ""}
+        <h2 class="bs-gruss" ${rein(2)}>${esc(f.titel)}</h2>
+        ${f.unter ? `<p class="bs-datum" ${rein(3)}>${esc(f.unter)}</p>` : ""}
+        ${f.zeile ? `<p class="bs-zeile" ${rein(4)}>${esc(f.zeile)}</p>` : ""}`;
+      break;
+    case "zahl": {
+      const zeilen = (f.zeilen ?? []).map((z, i) => `<li ${rein(5 + i)}><span>${esc(z.name)}</span><b>${esc(z.wert)}</b></li>`).join("");
+      innen = `
+        <p class="bs-etikett" ${rein(0)}>${zeichen(f.zeichen ?? "muster")} ${esc(f.etikett)}</p>
+        <p class="bs-grosszahl${String(f.zahl).length > 6 ? " lang" : ""}" ${rein(1)}><b>${esc(f.zahl)}</b>${f.einheit ? `<span>${esc(f.einheit)}</span>` : ""}</p>
+        ${f.unter ? `<p class="bs-zahl-unter" ${rein(2)}>${esc(f.unter)}</p>` : ""}
+        ${f.trend ? `<p class="bs-pille" ${rein(3)}>${zeichen("trend")} ${esc(f.trend)}</p>` : ""}
+        ${f.verlauf ? `<div ${rein(3)}>${linie(f.verlauf)}</div>` : ""}
+        ${f.satz ? `<p class="bs-satz" ${rein(4)}>${esc(f.satz)}</p>` : ""}
+        ${zeilen ? `<ul class="bs-werte">${zeilen}</ul>` : ""}`;
+      break;
+    }
+    case "ringe":
+      innen = `
+        <p class="bs-etikett" ${rein(0)}>${zeichen(f.zeichen ?? "haken")} ${esc(f.etikett)}</p>
+        ${f.titel ? `<h2 class="bs-titel" ${rein(0)}>${esc(f.titel)}</h2>` : ""}
+        <div class="bs-ringe" ${rein(1)}>${(f.ringe ?? []).map((r) => ring(r.wert, r.ziel, r.ton ?? ton, r.beschriftung, r.einheit)).join("")}</div>
+        ${f.satz ? `<p class="bs-satz bs-mitte" ${rein(3)}>${esc(f.satz)}</p>` : ""}`;
+      break;
+    case "punkte": {
+      const zeilen = (f.punkte ?? []).map((p, i) => `
+        <li ${rein(1 + i)}>${zeichen(p.zeichen ?? f.zeichen ?? "haken", "bs-zeichen-rund")}
+          <div><b>${esc(p.titel)}</b>${p.text ? `<span>${esc(p.text)}</span>` : ""}</div></li>`).join("");
+      innen = `
+        <p class="bs-etikett" ${rein(0)}>${zeichen(f.zeichen ?? "haken")} ${esc(f.etikett)}</p>
+        ${f.titel ? `<h2 class="bs-titel" ${rein(0)}>${esc(f.titel)}</h2>` : ""}
+        <ul class="bs-hinweise">${zeilen}</ul>
+        ${f.mehr ? `<p class="bs-mehr" ${rein(7)}>${esc(f.mehr)}</p>` : ""}`;
+      break;
+    }
+    case "frage":
+      innen = `
+        <p class="bs-etikett" ${rein(0)}>${zeichen(f.zeichen ?? "frage")} ${esc(f.etikett)}</p>
+        ${f.zahl != null ? `<p class="bs-grosszahl" ${rein(1)}><b>${esc(f.zahl)}</b>${f.einheit ? `<span>${esc(f.einheit)}</span>` : ""}</p>` : ""}
+        <h2 class="bs-fokus${String(f.titel ?? "").length > 70 || f.zahl != null ? " lang" : ""}" ${rein(2)}>${esc(f.titel)}</h2>
+        ${f.satz ? `<p class="bs-satz" ${rein(3)}>${esc(f.satz)}</p>` : ""}
+        ${f.frage ? `<p class="bs-frage" ${rein(4)}>${zeichen("frage")}<span>${esc(f.frage)}</span></p>` : ""}`;
+      break;
+    case "bild":
+      // `html` kommt nie vom Nutzer, sondern aus einer Zeichenfunktion der App.
+      innen = `
+        <p class="bs-etikett" ${rein(0)}>${zeichen(f.zeichen ?? "hantel")} ${esc(f.etikett)}</p>
+        ${f.titel ? `<h2 class="bs-titel" ${rein(0)}>${esc(f.titel)}</h2>` : ""}
+        <div class="bs-bild" ${rein(1)}>${f.html ?? ""}</div>
+        ${f.satz ? `<p class="bs-satz bs-mitte" ${rein(2)}>${esc(f.satz)}</p>` : ""}`;
+      break;
+    case "schluss": {
+      const knoepfe = (f.knoepfe ?? [{ id: "fertig", text: "Fertig" }]).map((k) => `<button type="button" class="bs-knopf${k.zweit ? " zweit" : ""}" data-bs="${esc(k.id)}">${esc(k.text)}</button>`).join("");
+      innen = `
+        <div ${rein(0)}>${zeichen(f.zeichen ?? "haken", "bs-gross-zeichen")}</div>
+        <h2 class="bs-gruss" ${rein(1)}>${esc(f.titel)}</h2>
+        ${f.satz ? `<p class="bs-zeile" ${rein(2)}>${esc(f.satz)}</p>` : ""}
+        <div class="bs-knoepfe${(f.knoepfe?.length ?? 1) > 2 ? " drei" : ""}" ${rein(3)}>${knoepfe}</div>`;
+      break;
+    }
     default:
       innen = "";
   }
   // `bs-f-` vor der Art: `.bs-essen` hiess sonst Karte und Liste zugleich.
   // Jede Karte mit Inhalt lässt sich anpassen. Der Knopf steht unten und
   // klein, die Karte soll gelesen werden und nicht nach Formular aussehen.
-  const anpassen = ANPASSEN[f.art];
-  const knopf = anpassen ? `<button type="button" class="bs-anpassen" data-bs-anpassen="${f.art}">${zeichen("stift")} ${anpassen}</button>` : "";
-  return `<section class="bs-folie bs-f-${f.art}" style="--ton:${ton}">${innen}${knopf}</section>`;
+  // Die übrigen Präsentationen bringen ihr "Anpassen" an der Karte mit,
+  // mit eigener Kennung und eigenem Wort.
+  const eigen = f.anpassen && typeof f.anpassen === "object" ? f.anpassen : null;
+  const anpassen = eigen ? eigen.text : ANPASSEN[f.art];
+  const kennung = eigen ? eigen.id : f.art;
+  const knopf = anpassen ? `<button type="button" class="bs-anpassen" data-bs-anpassen="${esc(kennung)}">${zeichen(eigen?.zeichen ?? "stift")} ${esc(anpassen)}</button>` : "";
+  return `<section class="bs-folie bs-f-${f.art}" style="--ton:${esc(f.ton ?? ton)}">${innen}${knopf}</section>`;
 }
 
 /**
@@ -204,13 +314,13 @@ export function folieHtml(f) {
  * ein Blatt zum Ändern offen ist, und `aktualisieren` mit dem neu
  * gerechneten Briefing, auf derselben Karte.
  */
-export function briefingZeigen(briefing, wurzel, { aktion, anpassen } = {}) {
+export function briefingZeigen(briefing, wurzel, { aktion, anpassen, name = "Briefing" } = {}) {
   let folien = (briefing?.folien ?? []).filter(Boolean);
   if (!wurzel || !folien.length) return null;
   const wenigBewegung = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
   wurzel.innerHTML = `
     <div class="bs-leisten"></div>
-    <button type="button" class="bs-x" aria-label="Briefing schliessen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    <button type="button" class="bs-x" aria-label="${esc(name)} schliessen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     <div class="bs-buehne" aria-live="polite"></div>
     <p class="bs-hilfe">Tippen für weiter, halten zum Anhalten</p>`;
   const buehne = wurzel.querySelector(".bs-buehne");
@@ -302,8 +412,9 @@ export function briefingZeigen(briefing, wurzel, { aktion, anpassen } = {}) {
     }
     const was = k.dataset.bs;
     if (was === "nochmal") return zeigen(0);
+    // Teilen und ähnliches lassen die Präsentation offen, alles andere schliesst sie.
+    if (was && aktion?.(was, steuerung) === "bleiben") return;
     schliessen();
-    if (was && aktion) aktion(was);
   };
   document.addEventListener("keydown", taste);
 
@@ -325,6 +436,7 @@ export function briefingZeigen(briefing, wurzel, { aktion, anpassen } = {}) {
     schliessen,
   };
 
+  wurzel.setAttribute("aria-label", name);
   wurzel.classList.toggle("ruhig", Boolean(wenigBewegung));
   wurzel.hidden = false;
   zeigen(0);

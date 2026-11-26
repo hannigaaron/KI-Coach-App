@@ -49,6 +49,13 @@ export interface Widerspruch {
   frage: string;
   /** Höher heisst dringender. */
   gewicht: number;
+  /**
+   * Die eine Zahl, die in der Präsentation gross steht, mit Einheit. Einzeln
+   * und nicht aus `wirklichkeit` gelesen: eine Regex auf den eigenen Satz
+   * bricht bei der nächsten Umformulierung still.
+   */
+  zahl?: string;
+  einheit?: string;
 }
 
 /** Ab dieser Abweichung wird ein Ziel als verfehlt behandelt. */
@@ -86,6 +93,7 @@ export function widersprueche(e: WiderspruchEingabe): Widerspruch[] {
         wirklichkeit: `An den ${mitEintrag.length} erfassten Tagen waren es im Schnitt ${Math.round(proteinSchnitt)} g, also ${fehlt} g zu wenig.`,
         frage: `Willst du das Ziel halten und ${fehlt} g dazulegen, oder ist das Ziel zu hoch angesetzt?`,
         gewicht: 70,
+        zahl: `-${fehlt}`, einheit: "g Protein am Tag",
       });
     }
 
@@ -103,6 +111,7 @@ export function widersprueche(e: WiderspruchEingabe): Widerspruch[] {
           ? "Ist das Ziel zu knapp gerechnet, oder fehlt die Umsetzung an den Abenden?"
           : "Isst du wirklich so wenig, oder fehlt einfach die Hälfte in der Erfassung?",
         gewicht: 65,
+        zahl: `${zuViel ? "+" : "-"}${Math.abs(Math.round(kcalSchnitt - e.ziele.kcal))}`, einheit: "kcal am Tag",
       });
     }
   }
@@ -116,6 +125,7 @@ export function widersprueche(e: WiderspruchEingabe): Widerspruch[] {
       wirklichkeit: `An ${mitEintrag.length} von ${tage.length} Tagen ist etwas erfasst, das sind ${Math.round(quote * 100)} Prozent.`,
       frage: "Ohne die andere Hälfte kann ich nichts messen. Reicht dir eine Woche sauber erfassen, um es zu prüfen?",
       gewicht: 80,
+      zahl: `${Math.round(quote * 100)}`, einheit: "Prozent der Tage erfasst",
     });
   }
 
@@ -131,6 +141,7 @@ export function widersprueche(e: WiderspruchEingabe): Widerspruch[] {
         wirklichkeit: `In ${Math.round(wochen * 10) / 10} Wochen sind ${tatsaechlich} Einheiten eingetragen, geplant wären ${Math.round(geplant)}.`,
         frage: "Trägst du sie nur nicht ein, oder fallen sie wirklich aus? Beides hat eine andere Lösung.",
         gewicht: 60,
+        zahl: `${tatsaechlich} von ${Math.round(geplant)}`, einheit: "Einheiten",
       });
     }
   }
@@ -148,6 +159,7 @@ export function widersprueche(e: WiderspruchEingabe): Widerspruch[] {
       wirklichkeit: `"${aeltest.a.text}" steht seit ${aeltest.tage} Tagen offen, geschätzt ${aeltest.a.minuten} Minuten Aufwand.`,
       frage: "Entweder heute ein Termin dafür, oder runter auf normal. Eine wichtige Aufgabe, die vier Wochen liegt, war nicht wichtig.",
       gewicht: 85,
+      zahl: `${aeltest.tage}`, einheit: "Tage offen",
     });
   }
 
@@ -163,6 +175,7 @@ export function widersprueche(e: WiderspruchEingabe): Widerspruch[] {
         wirklichkeit: `Im Kalender stehen ${stunden(kunden)} Kundenarbeit und ${stunden(aufbau)} für Aufbau und Content.`,
         frage: "Wie soll aus dieser Aufteilung etwas entstehen, das ohne dich läuft? Welcher Kundentermin fällt dafür weg?",
         gewicht: 90,
+        zahl: stundenKurz(aufbau), einheit: `Aufbau gegen ${stundenKurz(kunden)} Kunden`,
       });
     }
   }
@@ -178,6 +191,7 @@ export function widersprueche(e: WiderspruchEingabe): Widerspruch[] {
         wirklichkeit: `Im Schnitt sind ${Math.round(schnittMinuten)} Minuten am Tag verplant, das sind ${stunden(schnittMinuten)}.`,
         frage: "Wo in diesem Tag liegen Erholung und der Aufbau, von dem du redest?",
         gewicht: 75,
+        zahl: stundenKurz(schnittMinuten), einheit: "verplant am Tag",
       });
     }
   }
@@ -212,6 +226,14 @@ function tageSeit(vonIso: string, bisIso: string): number {
 
 function schnitt(werte: number[]): number {
   return werte.length === 0 ? 0 : werte.reduce((s, w) => s + w, 0) / werte.length;
+}
+
+/** Für die grosse Zahl einer Karte: "8 h 20" statt eines halben Satzes. */
+function stundenKurz(minuten: number): string {
+  const h = Math.floor(minuten / 60);
+  const m = Math.round(minuten % 60);
+  if (h === 0) return `${m} min`;
+  return m === 0 ? `${h} h` : `${h} h ${m}`;
 }
 
 function stunden(minuten: number): string {

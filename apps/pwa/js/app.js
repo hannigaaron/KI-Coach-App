@@ -18,13 +18,17 @@ import {
   MAX_EIGENE,
   erinnerungZeile,
   istEinmalig,
-  bilanzSatz, tageListe, tagStand, zeitraumText,
+  bilanzSatz, tageListe, tagStand, zeitraumText, uebungsTrend,
 } from "@daevo/core";
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, PREISE_STAND, aktuellesModell, produktPerBarcode, produkteSuchen } from "@daevo/coach";
 import { Coach, AnthropicProvider, FOODS } from "@daevo/coach";
 import { KONFIG, istDemo, istNativ } from "./konfig.js";
 import { uebungenStarten } from "./uebungen.js";
-import { planFuer as uebungsplanFuer, plaeneStarten } from "./plaene.js";
+import { planFuer as uebungsplanFuer, plaeneStarten, gespeicherterPlan, planWoche, planBeginn } from "./plaene.js";
+import {
+  auswertungFolien, bildTeilen, blockDaten, blockFolien, kopfFolien, monatsBild, monatsFolien,
+  morgenFolien, rekorde, rueckblickFolien, trainingFolien,
+} from "./storys.js";
 import { trainingStarten } from "./training.js";
 import { morgenStarten, morgenVonHeute, trainingGestrichen } from "./morgen.js";
 import { abendStarten, schlafWocheFuer, schlafWocheHtml } from "./abend.js";
@@ -39,7 +43,7 @@ import {
   buildActions, begruessung, dayNumbers, einkaufslisteText, ensureStandards, kalenderNotizAufraeumen, aufgabenAufraeumen, herausforderungSpeichern,
   aktuelleLage, frischesGespraech, gegesseneArten, gespraechBegonnen, gespraecheMitInhalt, gespraechLoeschen, gespraechNachziehen,
   gespraechOeffnen, gespraecheSuchen,
-  aufgabenPlanText, energieCheck, kopfSortieren, mittagscheck, mittagscheckText, musterUebersicht,
+  aufgabenPlanText, energieCheck, kopfSortieren, kopfLetzter, musterBefunde, mittagscheck, mittagscheckText, musterUebersicht,
   schluesselPruefen, tagesnutzungFuer,
   trainingsplanUebernehmen, trainingsplanVorschlag, widerspruchListe,
   kalenderEntfernen, kalenderImportieren, kalenderStand, tagesbriefingFuer, wochenrueckblickFuer, tagesessenFuer,
@@ -73,7 +77,7 @@ import { symbol } from "./symbole.js";
 import { NATIV_PUSH, gesundheitHolen, postfachHolen, pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
 import { kodierungReparieren, newId, nowTime, store, todayIso } from "./storage.js";
 import { bestellteEinheit } from "./vorhaben.js";
-import { REGIONEN, KARTE_DUNKEL, KARTE_HELL, regenerationSvg } from "./muskelkarte.js";
+import { REGIONEN, KARTE_DUNKEL, KARTE_HELL, regenerationSvg, muskelkarteSvg } from "./muskelkarte.js";
 import { regenTrainings, regenGefuehlHeute } from "./regeneration-daten.js";
 import { healthEinfangen, healthkitAbgleichen } from "./healthkit.js";
 import { wasserAusAktion } from "./schnellaktion.js";
@@ -88,6 +92,7 @@ import { spueren } from "./haptik.js";
 import { eanAusBild } from "./ean.js";
 import { anteilAmZiel, eigeneLebensmittel, eigeneSuche, eigenerPosten, lebensmittelLoeschen, lebensmittelSpeichern, eigeneRezepte, essensplanFrei, proFrei, hauptMakro, rezeptGrenze, rezeptLoeschen, rezeptSpeichern, summe as postenSumme, tabellenBild, tabellenPosten, tabellenSuche, zuletztGegessen, vorschlaege, produktGemerkt, produktPosten } from "./bibliothek.js";
 import { abschlussDaten, abschlussHtml, storyTeilen } from "./abschluss.js";
+import { UEBUNGEN } from "./uebungen-daten.js";
 import { sortiertHtml, sortiertGezeigt } from "./sortierung.js";
 import { bewegungStarten, wischenZumLoeschen, zahlenZaehlen, zeileRaus } from "./bewegung.js";
 import { einwilligungOffen, einwilligungSetzen, einwilligungText, kiErlaubt } from "./einwilligung.js";
@@ -340,6 +345,9 @@ function renderTranscript() {
   const letzteSortierung = chat.slice(-40).map((m) => Boolean(m.ausgeführt?.includes("Tag sortiert"))).lastIndexOf(true);
   const istBriefing = (m) => m.role !== "user" && (m.ausgeführt?.includes("Briefing erstellt") || /^(Guten Morgen\.|Dein Tag, |Dein Blick auf )/.test(m.text || ""));
   const letztesBriefing = chat.slice(-40).map(istBriefing).lastIndexOf(true);
+  const letzterRueckblick = chat.slice(-40).map((m) => m.role !== "user" && /Dein (Wochenrückblick|Zwischenstand zur Wochenmitte)/.test(m.text || "")).lastIndexOf(true);
+  const kopfDa = Boolean(kopfLetzter());
+  const letzterKopf = kopfDa ? chat.slice(-40).map((m) => m.role !== "user" && (m.ausgeführt || []).some((a) => /Kopf geleert|Aufgaben angelegt/.test(a))).lastIndexOf(true) : -1;
   let sortierung = "";
   if (letzteSortierung >= 0) {
     try { sortierung = (() => { const bb = tagesbriefingFuer("morgen"); return sortiertHtml(bb.reihenfolge, { schluessel: "chat", mitHaken: false, hinweis: bb.musterHinweis }); })(); } catch (e) { console.error(e); }
@@ -366,12 +374,17 @@ function renderTranscript() {
       const briefingArt = idx === letztesBriefing
         ? (/^Dein Blick auf|\bmorgen\b/i.test(m.text.replace(/^Guten Morgen/, "")) ? "abend" : "morgen")
         : null;
+      // Rückblick und Kopf leeren bekommen denselben Weg, nur unter der
+      // letzten Antwort dieser Art: eine ältere wäre mit altem Stand gerechnet.
+      const story = idx === letzterRueckblick ? "rueckblick" : idx === letzterKopf ? "kopf" : null;
       const knopf = startbar
         ? `<div class="msg-aktionen"><button type="button" class="primary" data-heute-starten>Training starten</button>` +
           `<button type="button" class="ghost" data-heute-neu>Neue Übungen</button></div>`
         : briefingArt
           ? `<div class="msg-aktionen"><button type="button" class="primary" data-briefing-zeigen="${briefingArt}">Als Präsentation ansehen</button></div>`
-          : "";
+          : story
+            ? `<div class="msg-aktionen"><button type="button" class="primary" data-story-zeigen="${story}">Als Präsentation ansehen</button></div>`
+            : "";
       return `<div class="msg assistant">${markeSvg()}` +
         `<div class="msg-text">${bilder}${dateien}${chatHtml(m.text)}${done}${idx === letzteSortierung ? sortierung : ""}${knopf}</div></div>`;
     })
@@ -652,6 +665,8 @@ async function dumpFertig(text) {
     gespraechNachziehen();
     renderTranscript();
     refreshAll();
+    // Das Sortierte gleich als Karten, eine je Schublade.
+    if (ergebnis) kopfShow(ergebnis.ergebnis);
   } catch (error) {
     pending.node.remove();
     const chat = store.getChat();
@@ -1058,6 +1073,7 @@ function showView(name) {
   // Eine offene Detailseite samt Animation endet mit dem Verlassen der Ansicht.
   if (name !== "uebungen") uebungen?.schliessen();
   if (name === "uebungen") uebungen?.modus(aufPlaene ? "plaene" : "uebungen");
+  if (aufPlaene) setTimeout(blockVielleicht, 320);
   if (name === "heute") renderToday();
   if (name === "essen") { $("fridgeInput").value = store.getFridge().join(", "); renderVerlauf(); renderRestDesTages(); }
   if (name === "checkin") renderCheckins();
@@ -1369,8 +1385,13 @@ function renderBericht() {
     const text = wochenrueckblickFuer().text;
     $("berichtRueckblickText").innerHTML = chatHtml(text);
     $("berichtRueckblick").hidden = !text;
-  } catch { $("berichtRueckblick").hidden = true; }
+    $("btnRueckblickShow").hidden = !text;
+  } catch { $("berichtRueckblick").hidden = true; $("btnRueckblickShow").hidden = true; }
   const b = berichtFuer($("berichtZeitraum").value || "7");
+  const zr = $("berichtZeitraum");
+  $("btnBerichtShowUnter").textContent = /^\d+$/.test(zr.value || "7")
+    ? "Eine Zahl je Karte, zum Teilen"
+    : `Dein ${zr.selectedOptions[0]?.textContent?.replace(/, bisher$/, "") || "Monat"} wie ein Jahresrückblick, zum Teilen`;
   $("berichtKopf").textContent =
     `${spanneKurz(b.von, b.bis)}, ${b.tageMitDaten} von ${b.tageGesamt} Tagen mit Eintrag.`;
 
@@ -3728,7 +3749,7 @@ const training = trainingStarten({
     $("plOffen").hidden = true;
     plaene.verlaufNeu();
     refreshAll();
-    abschlussOeffnen(abschlussDaten(eintraege, { titel, datum, minuten }));
+    trainingShow(abschlussDaten(eintraege, { titel, datum, minuten }), eintraege, datum);
   },
   geaendert: () => plaene.laden(),
   // Getauscht im Training für heute gilt auch beim nächsten Mal mit denselben Partien.
@@ -3790,6 +3811,69 @@ const plaene = plaeneStarten({
   ansehen: (datum, einheit) => training.ansehen(datum, einheit),
 });
 
+/*
+ * 6. Nach Beenden erst die Präsentation: Dauer und Volumen, Bestwerte,
+ * Muskelkarte. "Alle Übungen" öffnet das Blatt mit jeder Übung, das aus dem
+ * Verlauf weiter direkt kommt.
+ */
+function trainingShow(daten, eintraege, datum) {
+  const st = storyOeffnen("Training", () => trainingFolien(daten, {
+    rekordListe: rekorde(eintraege, trainingslog(), datum),
+    karte: muskelkarteSvg(daten.jePartie, { farben: KARTE_DUNKEL }),
+    name: (id) => UEBUNGEN.find((u) => u.id === id)?.name ?? id,
+  }), {
+    aktion: (was) => {
+      if (was === "details") { abschlussOeffnen(daten); return; }
+      if (was !== "teilen") return;
+      storyTeilen(daten).then((r) => { if (r === "gespeichert") toast("Bild gespeichert"); }).catch(() => toast("Das Bild ließ sich nicht erstellen."));
+      return "bleiben";
+    },
+  });
+  if (!st) abschlussOeffnen(daten);
+}
+
+/*
+ * 5. Ein Trainingsblock nach acht und nach zwölf Wochen, je einmal. Beim
+ * Öffnen der Pläne, denn dort steht als Nächstes, was sich ändert.
+ */
+function blockVielleicht({ immer = false } = {}) {
+  const plan = gespeicherterPlan(planSpeicher.lesen());
+  const beginn = planBeginn(plan);
+  if (!plan || !beginn) return false;
+  const heute = todayIso();
+  const woche = planWoche(plan, heute);
+  const wochen = woche.fertig ? 12 : woche.woche >= 9 ? 8 : null;
+  if (!wochen) return false;
+  const s = store.getSettings();
+  const schluessel = `${beginn}|${wochen}`;
+  if (!immer && s.blockGezeigt?.[schluessel]) return false;
+  store.setSettings({ ...s, blockGezeigt: { ...(s.blockGezeigt ?? {}), [schluessel]: true } });
+  const log = trainingslog();
+  const name = (id) => UEBUNGEN.find((u) => u.id === id)?.name ?? id;
+  // Was die Prüfung getauscht hat: der alte Stand reist am Plan mit.
+  const vorher = plan.aktualisierung?.vorher ?? null;
+  const getauscht = [];
+  if (vorher) {
+    vorher.forEach((e, ei) => (e.positionen ?? []).forEach((p, pi) => {
+      const jetzt = plan.einheiten[ei]?.positionen?.[pi];
+      if (jetzt && jetzt.id !== p.id) getauscht.push({ alt: name(p.id), neu: name(jetzt.id), prozent: uebungsTrend(log, p.id, heute).prozent });
+    }));
+  }
+  const ende = new Date(`${beginn}T12:00:00`);
+  ende.setDate(ende.getDate() + wochen * 7 - 1);
+  const bis = todayIso(ende) < heute ? todayIso(ende) : heute;
+  storyOeffnen("Trainingsblock", () => blockFolien(
+    blockDaten({ log, beginn, heute: bis, wochen, trend: (id) => uebungsTrend(log, id, bis), name }),
+    { titel: plan.einheiten.map((e) => e.titel).slice(0, 3).join(", "), getauscht },
+  ), {
+    aktion: (was) => {
+      if (was === "anpassen") { showView("plaene"); uebungen?.modus("anpassen"); }
+      else if (was === "plan") showView("plaene");
+    },
+  });
+  return true;
+}
+
 /* Der Abschluss eines Trainings, nach Beenden und aus dem Verlauf. */
 let abStand = null;
 const hellerModus = () => document.documentElement.dataset.theme === "light"
@@ -3836,6 +3920,8 @@ $("transcript").addEventListener("click", (ev) => {
   if (ev.target.closest("[data-heute-neu]")) { send("Neue Übungen für heute"); return; }
   const show = ev.target.closest("[data-briefing-zeigen]");
   if (show) { briefingShowOeffnen(show.dataset.briefingZeigen); return; }
+  const story = ev.target.closest("[data-story-zeigen]");
+  if (story) { if (story.dataset.storyZeigen === "kopf") kopfShow(); else rueckblickShow(); return; }
   if (!ev.target.closest("[data-heute-starten]")) return;
   const ht = bestellteEinheit(store.getSettings(), todayIso());
   if (!ht?.einheit) { toast("Diese Einheit war für einen anderen Tag. Sag mir, was du heute trainierst."); return; }
@@ -4837,6 +4923,7 @@ $("btnKopf").addEventListener("click", async () => {
     $("kopfText").value = "";
     renderTag();
     refreshAll();
+    kopfShow(ergebnis.ergebnis);
   } catch (error) {
     $("kopfErgebnis").textContent = `Das hat nicht geklappt: ${error.message}`;
   } finally {
@@ -4871,6 +4958,70 @@ function briefingShowOeffnen(art, { nur = null } = {}) {
   bsSteuerung = briefingZeigen(b, $("briefingShow"), {
     aktion: (was) => { if (was === "tag") showView("tag"); },
     anpassen: briefingAnpassen,
+  });
+}
+
+/**
+ * Eine der übrigen Präsentationen auf derselben Bühne wie das Briefing.
+ * Rechnet sie nicht, steht eine Meldung da statt einer leeren Bühne.
+ */
+let storySteuerung = null;
+function storyOeffnen(name, rechnen, { aktion, anpassen } = {}) {
+  let folien;
+  try { folien = rechnen(); } catch (e) { console.error(e); toast(`${name} liess sich nicht rechnen.`); return null; }
+  if (!folien?.length) return null;
+  storySteuerung = briefingZeigen({ folien }, $("briefingShow"), { name, aktion, anpassen });
+  return storySteuerung;
+}
+
+/* 1. Der Wochenrückblick. */
+function rueckblickShow() {
+  storyOeffnen("Wochenrückblick", () => rueckblickFolien(wochenrueckblickFuer()), {
+    anpassen: (id, _zeile, st) => {
+      if (id === "nachtragen") { st.schliessen(); showView("essen"); return; }
+      if (id === "fokus-aufgabe") {
+        const r = wochenrueckblickFuer();
+        const neu = aufgabeAnlegenEingestuft(r.fokus.replace(/\.$/, ""));
+        Promise.resolve(neu).then(() => { renderTag(); toast("Als Aufgabe unter Dein Tag gemerkt."); }).catch(() => toast("Das liess sich nicht speichern."));
+      }
+    },
+  });
+}
+
+/* 3. Die Auswertung, eine Karte je Befund. */
+function auswertungShow() {
+  storyOeffnen("Auswertung", () => {
+    const m = musterBefunde(60);
+    return auswertungFolien({ befunde: m.befunde, widersprueche: widerspruchListe(), tage: m.tage });
+  });
+}
+
+/* 4. Der Zeitraum aus dem Bericht, im Monat wie ein Jahresrückblick. */
+function berichtShow() {
+  const wahl = $("berichtZeitraum");
+  const wert = wahl.value || "28";
+  const text = wahl.selectedOptions[0]?.textContent?.replace(/, bisher$/, "") || "Monat";
+  const monat = !/^\d+$/.test(wert);
+  const opt = monat
+    ? { name: text, etikett: "Monatsrückblick" }
+    : { name: text, titel: wert === "7" ? "Deine Woche" : "Deine vier Wochen", ende: "Das war dein Zeitraum", etikett: "Rückblick" };
+  storyOeffnen(monat ? "Monatsrückblick" : "Rückblick", () => monatsFolien(berichtFuer(wert), opt), {
+    aktion: (was) => {
+      if (was !== "teilen") return;
+      monatsBild(berichtFuer(wert), opt.titel ?? `Dein ${text}`)
+        .then((blob) => bildTeilen(blob, `daevo-${wert}.png`, text))
+        .then((r) => { if (r === "gespeichert") toast("Bild gespeichert"); })
+        .catch(() => toast("Das Bild ließ sich nicht erstellen."));
+      return "bleiben";
+    },
+  });
+}
+
+/* 7. Kopf leeren: eine Karte je Schublade, dann der erste Schritt. */
+function kopfShow(ergebnis = kopfLetzter()) {
+  if (!ergebnis) { toast("Das letzte Kopf leeren ist älter als ein Tag."); return; }
+  storyOeffnen("Kopf leeren", () => kopfFolien(ergebnis), {
+    anpassen: (id, _z, st) => { if (id === "aufgaben") { st.schliessen(); showView("tag"); } },
   });
 }
 
@@ -5089,6 +5240,9 @@ function kalShowSetzen() {
   $("kalShowNeben").dataset.art = abends ? "abschluss" : "abend";
   $("kalShowNeben").textContent = abends ? "Tagesabschluss von heute" : "Schon mal auf morgen schauen";
 }
+$("btnRueckblickShow").addEventListener("click", rueckblickShow);
+$("btnBerichtShow").addEventListener("click", berichtShow);
+$("btnAuswertungShow").addEventListener("click", auswertungShow);
 $("kalShowHaupt").addEventListener("click", () => briefingShowOeffnen($("kalShowHaupt").dataset.art));
 $("kalShowNeben").addEventListener("click", () => {
   const art = $("kalShowNeben").dataset.art;
@@ -7267,7 +7421,7 @@ const morgen = morgenStarten({
   store, heute: todayIso, melde: (text) => toast(text),
   // Neu planen: nach Fitheit 1 oder 2 kommt die Nachfrage am Mittag dazu,
   // nach der Nachfrage fällt sie wieder weg.
-  gespeichert: () => { refreshAll(); mitteilungenNativ(); },
+  gespeichert: (r) => { refreshAll(); mitteilungenNativ(); morgenShow(r); },
   tagesbriefing: () => { try { return tagesbriefingFuer("morgen"); } catch { return null; } },
   schlafWoche: () => { try { return schlafWocheHtml(schlafWocheFuer(store, todayIso())); } catch { return ""; } },
   kalenderFrisch: async () => {
@@ -7281,6 +7435,26 @@ const morgen = morgenStarten({
 // Wer daevo den Tag über offen hat, sieht sonst bis zum nächsten Start den
 // Stand vom Morgen.
 setInterval(() => { if (document.visibilityState === "visible") kalenderStill(); }, 15 * 60 * 1000);
+
+/*
+ * 2. Das Ergebnis des Morgen Check-ins als Präsentation, direkt nach dem
+ * Absenden. Darunter bleibt das Blatt mit dem Ergebnis, ein Tipp auf
+ * "Als Präsentation ansehen" dort zeigt sie noch einmal.
+ */
+let morgenLetzt = null;
+function morgenShow(r = morgenLetzt) {
+  if (!r) return;
+  morgenLetzt = r;
+  const morgens = r.gestrichen === undefined;
+  const datum = new Date().toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" });
+  storyOeffnen("Morgen Check-in", () => morgenFolien(r, { datum, gruss: morgens ? "Guten Morgen" : "Mittags nachgefragt", mitBriefing: morgens }), {
+    aktion: (was) => { if (was === "briefing") setTimeout(() => briefingShowOeffnen("morgen"), 60); },
+    anpassen: (id, _z, st) => {
+      if (id === "plan") { st.schliessen(); $("morgenBlatt").hidden = true; document.body.classList.remove("blatt-offen"); showView("plaene"); }
+    },
+  });
+}
+$("morgenBlatt").addEventListener("click", (ev) => { if (ev.target.closest("[data-morgen-show]")) morgenShow(); });
 
 /**
  * Öffnet den Morgen Check-in, wenn es Zeit ist. Nie während der Einführung
@@ -7686,7 +7860,7 @@ function impulsOeffnen(daten, { still = false } = {}) {
     showView(ziel.ansicht);
     if (ziel.aktion === "erfassen") erfassenOeffnen({ currentTarget: $("btnErfassenHeute") });
     else if (ziel.aktion === "wasser") setTimeout(() => $("wBar")?.closest(".balken-zeile")?.scrollIntoView({ block: "center", behavior: "smooth" }), 250);
-    else if (ziel.aktion === "rueckblick") { renderBericht(); $("berichtRueckblick").open = true; }
+    else if (ziel.aktion === "rueckblick") { renderBericht(); $("berichtRueckblick").open = true; setTimeout(rueckblickShow, 260); }
     else if (ziel.aktion === "morgen") {
       document.querySelector('#kalBriefingWahl [data-briefing="abend"]')?.click();
       // Abends kommt der Blick auf morgen als Präsentation, darunter liegt der Kalender.
