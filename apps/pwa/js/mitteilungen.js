@@ -13,7 +13,7 @@
  *
  * Kein `document`, kein `window`: das Modul läuft auch in den Tests.
  */
-import { LUECKE_UHRZEIT, NACHFRAGE_UHRZEIT, erinnerungAmTag, erinnerungUhrzeit, impulseFuerTag, impulsNoetig, morgenUhrzeit, rueckblickArt, nachfrageNoetig, schlafenszeitAusKalender, tagesrandFuer, wochentagVon } from "@daevo/core";
+import { ABEND_VORLAUF_MIN, CHECKIN_BOEGEN, abendplan, stundenText, LUECKE_UHRZEIT, NACHFRAGE_UHRZEIT, erinnerungAmTag, erinnerungUhrzeit, impulseFuerTag, impulsNoetig, morgenUhrzeit, rueckblickArt, nachfrageNoetig, schlafenszeitAusKalender, tagesrandFuer, wochentagVon } from "@daevo/core";
 
 /**
  * Aufsteh und Schlafenszeit eines Tages für die Mitteilungen. Was der Nutzer
@@ -63,6 +63,31 @@ function uhrzeitAus(min) {
  * weg: eine Mitteilung von heute Morgen, die abends nachgereicht wird, ist
  * keine Erinnerung mehr, sondern Lärm.
  */
+/**
+ * Wohin ein Tipp auf eine Mitteilung führt. Vorher landete fast jede im
+ * Chat auf der Startseite, auch der Wochenrückblick und die Erinnerung ans
+ * Trinken. Der Nutzer will die Seite, um die es geht: Trinken auf Heute beim
+ * Wasser, Eiweiss und Nachlegen auf Heute mit offenem Erfassen, der
+ * Rückblick im Bericht, der Blick auf morgen im Kalender, der Wochenbogen
+ * im Bogen. Fragen, die man mit einer Zahl oder einem Satz beantwortet,
+ * Energie, Stress und die fünf Minuten, bleiben im Chat: dort steht die
+ * Frage, und dort wird geantwortet.
+ */
+export const MITTEILUNG_ZIEL = {
+  protein: { ansicht: "heute", aktion: "erfassen" },
+  shake: { ansicht: "heute", aktion: "erfassen" },
+  trinken: { ansicht: "heute", aktion: "wasser" },
+  rueckblick: { ansicht: "bericht", aktion: "rueckblick" },
+  vorausblick: { ansicht: "kalender", aktion: "morgen" },
+  wochencheck: { ansicht: "wochencheck" },
+  runterfahren: { ansicht: "abend" },
+  energie: { ansicht: "assistant", aktion: "frage" },
+  stress: { ansicht: "assistant", aktion: "frage" },
+  pause: { ansicht: "assistant", aktion: "frage" },
+  training: { ansicht: "assistant" },
+  antwort: { ansicht: "assistant" },
+};
+
 export function mitteilungsPlan({ store, jetzt, luecke = null, vorausblicke = [] }) {
   const profil = store.getProfile();
   const aus = store.getSettings().mitteilungenAus || {};
@@ -88,7 +113,7 @@ export function mitteilungsPlan({ store, jetzt, luecke = null, vorausblicke = []
         // Eine Frage bekommt "Antworten": auf der Uhr und am Sperrbildschirm
         // tippt oder diktiert man die Antwort, ohne die App zu öffnen. Ohne
         // das stand auf der Uhr nur "Schließen" unter der Frage.
-        plan.push({ id: `impuls-${impuls.art}-${tag}`, tag, uhrzeit: impuls.at, titel: impuls.titel, text: impuls.text, art: impuls.art, ...(impuls.frage ? { kategorie: "frage" } : {}) });
+        plan.push({ id: `impuls-${impuls.art}-${tag}`, tag, uhrzeit: impuls.at, titel: impuls.titel, text: impuls.text, art: impuls.art, ...(KATEGORIE_IMPULS[impuls.art] ? { kategorie: KATEGORIE_IMPULS[impuls.art] } : impuls.frage ? { kategorie: "frage" } : {}) });
       }
     }
     if (!aus.morgen && profil) {
@@ -124,16 +149,31 @@ export function mitteilungsPlan({ store, jetzt, luecke = null, vorausblicke = []
         art: "rueckblick",
       });
     }
+    // Der Wochenbogen, Mittwoch und Sonntag. Vorher kam er nur als Web Push
+    // über den Worker und in der iPhone App gar nicht. Ist er heute schon
+    // abgeschickt, kommt nichts.
+    const bogen = CHECKIN_BOEGEN.find((b) => b.wochentag === new Date(`${tag}T12:00:00`).getDay());
+    const bogenFertig = bogen && (store.getCheckinBoegen?.() || []).some((b) => b.bogen === bogen.id && b.tag === tag);
+    if (!aus.wochencheck && bogen && !bogenFertig) {
+      plan.push({
+        id: `wochencheck-${tag}`, tag, uhrzeit: bogen.uhrzeit, titel: "Check-in",
+        text: bogen.id === "woche" ? "Dein Wochenbogen ist dran: wie war die Woche? Zwei Minuten." : "Zwischencheck zur Wochenmitte: Energie, Laune, Stress. Eine Minute.",
+        art: "wochencheck", bogen: bogen.id,
+      });
+    }
     if (!aus.runterfahren && profil) {
-      // Dieselbe Zeit wie im Erinnerungsplan, siehe reminders.ts: 45 Minuten
-      // vor der Schlafenszeit dieses Tages, mit Wochentag und Ausnahmen.
+      // Die Abendroutine, 90 Minuten vor der Schlafenszeit dieses Tages, mit
+      // Wochentag, Ausnahmen und SLEEP im Kalender. Ein Tipp öffnet das
+      // Blatt mit dem Ablauf, siehe abend.js. Vorher kamen 45 Minuten vorher
+      // nur zwei Sätze, und für Lüften, Supplements und Lesen war es da zu spät.
       const { sleepTime } = randMitKalender(profil, tag, termine);
+      const p = abendplan(sleepTime, randMitKalender(profil, tagPlus(tag, 1), termine).wakeTime);
       plan.push({
         id: `runterfahren-${tag}`,
         tag,
-        uhrzeit: uhrzeitAus(minuten(sleepTime) - 45),
-        titel: "Runterfahren",
-        text: "Handy weg. Dein Schlaf entscheidet über die Energie von morgen.",
+        uhrzeit: uhrzeitAus(minuten(sleepTime) - ABEND_VORLAUF_MIN),
+        titel: "Dein Abend",
+        text: `Um ${p.schritte[0].uhrzeit} Handy weg, um ${sleepTime} schlafen. Das sind ${stundenText(p.schlafMinuten)} bis zu deinem Wecker.`,
         art: "runterfahren",
       });
     }
@@ -153,7 +193,21 @@ export function mitteilungsPlan({ store, jetzt, luecke = null, vorausblicke = []
     plan.push({ id: `luecke-${tag}`, tag, uhrzeit: LUECKE_UHRZEIT, titel: luecke.titel, text: luecke.text, art: "luecke", kategorie: "luecke" });
   }
 
+  // Nichts ausser einer selbst gesetzten Erinnerung kommt ausserhalb der
+  // Wachzeit dieses Tages. Wer um 11 aufsteht, braucht um 9 keinen Eiweiss
+  // Impuls, und nach der Schlafenszeit fragt niemand nach der Energie.
+  const imWachfenster = (m) => {
+    if (m.art === "eigene" || !profil) return true;
+    const rand = randMitKalender(profil, m.tag, termine);
+    const von = minuten(rand.wakeTime);
+    let bis = minuten(rand.sleepTime);
+    if (bis <= von) bis += 1440;
+    const t = minuten(m.uhrzeit);
+    return (t >= von && t <= bis) || (t + 1440 >= von && t + 1440 <= bis);
+  };
+
   return plan
+    .filter(imWachfenster)
     .filter((m) => m.tag > jetzt.tag || minuten(m.uhrzeit) > minuten(jetzt.uhrzeit))
     .sort((a, b) => `${a.tag} ${a.uhrzeit}`.localeCompare(`${b.tag} ${b.uhrzeit}`))
     // Wenn gekürzt werden muss, gehen eigene Erinnerungen vor, dann die
@@ -189,6 +243,13 @@ export function lueckeFuerPlan(store, heute) {
 }
 
 /** Was heute schon eingetragen ist, für `impulsNoetig`. */
+/**
+ * Knöpfe direkt an der Mitteilung. Wer ans Trinken erinnert wird, tippt
+ * 0,5 Liter und ist fertig, wer ans Essen erinnert wird, tippt oder diktiert
+ * es. Die Knöpfe stehen in `MitteilungenPlugin.swift`, auf der Uhr dieselben.
+ */
+const KATEGORIE_IMPULS = { trinken: "trinken", protein: "essen", shake: "essen" };
+
 export function impulsLage(store, tag) {
   const d = store.getDay(tag);
   const beantwortet = store.getSettings().impulsBeantwortet || {};

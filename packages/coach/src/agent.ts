@@ -1,4 +1,4 @@
-import { erinnerungAus, planAenderungAus, kalenderAuftragAus, ARTEN } from "@daevo/core";
+import { erinnerungAus, planAenderungAus, kalenderAuftragAus, tagesfrageAus, tagAusText, ARTEN } from "@daevo/core";
 import type { KalenderAuftrag } from "@daevo/core";
 import type { PlanAenderung, TrainingType } from "@daevo/core";
 import { fehlerErklaerung } from "./fehler.js";
@@ -17,6 +17,23 @@ import { anhangBlock, ohneKaputteDenkbloecke, type Anhang, type ChatMessage, typ
  * eintragen, Stand nennen, sich etwas merken. Damit ist die App auch ohne
  * Schlüssel benutzbar und nicht nur eine leere Hülle.
  */
+
+/** Eine Übung, wie der Nutzer sie diktiert hat. Abgeglichen wird in der App. */
+export interface DiktatUebung { name: string; saetze?: number; wdh?: string; reserve?: number; superset?: string }
+
+/** Liest die diktierten Übungen aus der Eingabe eines Werkzeugs. Höchstens zwanzig. */
+export function diktatListe(v: unknown): DiktatUebung[] {
+  if (!Array.isArray(v)) return [];
+  return v.filter((x): x is Record<string, unknown> => Boolean(x) && typeof x === "object" && String((x as Record<string, unknown>).name ?? "").trim() !== "")
+    .slice(0, 20)
+    .map((x) => ({
+      name: String(x.name).trim().slice(0, 80),
+      ...(Number(x.saetze) > 0 ? { saetze: Number(x.saetze) } : {}),
+      ...(x.wdh != null && String(x.wdh).trim() ? { wdh: String(x.wdh).trim().slice(0, 10) } : {}),
+      ...(x.reserve != null && Number.isFinite(Number(x.reserve)) ? { reserve: Number(x.reserve) } : {}),
+      ...(x.superset ? { superset: String(x.superset).slice(0, 60) } : {}),
+    }));
+}
 
 export interface AgentContext {
   /** Wer der Nutzer ist, in zwei bis vier Zeilen. */
@@ -43,7 +60,7 @@ export interface AgentActions {
   tagZuEndePlanen(input: { mahlzeiten?: string[] }): Promise<string>;
   gespraechEinordnenAktiv(input: { ordner: string; titel?: string }): Promise<string>;
   mahlzeitKorrigieren(input: { posten?: string; neueMenge: number; mengeText?: string }): Promise<string>;
-  eintragZuruecknehmen(input: { art?: string; suche?: string }): Promise<string>;
+  eintragZuruecknehmen(input: { art?: string; suche?: string; tag?: string }): Promise<string>;
   wasserEintragen(ml: number): Promise<string>;
   tagesstandAbrufen(): Promise<string>;
   mahlzeitVorschlagen(wunsch?: string): Promise<string>;
@@ -62,12 +79,18 @@ export interface AgentActions {
    * macht sie im Chat startbar. Die Übungen kommen aus dem Rechenkern, nie aus
    * dem Modell.
    */
-  trainingHeute?(input: { gruppen: string[]; minuten?: number; neu?: boolean; tag?: string; uhrzeit?: string; weglassen?: string[]; tauschen?: string[] }): Promise<string>;
+  trainingHeute?(input: {
+    gruppen: string[]; minuten?: number; neu?: boolean; tag?: string; uhrzeit?: string; weglassen?: string[]; tauschen?: string[];
+    uebungen?: DiktatUebung[]; hinzufuegen?: DiktatUebung[]; cardio?: Array<{ art: string; minuten?: number; km?: number }>;
+  }): Promise<string>;
   essensplanAbrufen?(input: { inTagen?: number }): Promise<string>;
   wochenrueckblick?(): Promise<string>;
+  trainingsverlaufAbrufen?(input: { tage?: number }): Promise<string>;
   /** Was an einem früheren Tag gegessen wurde, oder der Schnitt einer Woche. */
   essensverlaufAbrufen?(input: { tag?: string; tageZurueck?: number; woche?: boolean; wochenZurueck?: number }): Promise<string>;
   uebungenSuchen?(input: { suche?: string; ersatzFuer?: string }): Promise<string>;
+  planUebernehmen?(input: { einheiten: Array<{ titel: string; uebungen: Array<Record<string, unknown>> }> }): Promise<string>;
+  ernaehrungsplanUebernehmen?(input: { mahlzeiten: Array<{ art: string; name: string; zutaten: string }> }): Promise<string>;
   zyklus?(input: { aktion: string; tag?: string; symptome?: string[] }): Promise<string>;
   lebensmittelAnlegen?(input: { name: string; kcal: number; proteinG?: number; fatG?: number; carbsG?: number; portionG?: number }): Promise<string>;
   standardsAbrufen(): Promise<string>;
@@ -84,7 +107,9 @@ export interface AgentActions {
    * auszugeben. Beides über eine Aktion, weil beides aus demselben Bestand
    * kommt.
    */
-  kalenderAbrufen(input: { tage?: number; stand?: boolean }): Promise<string>;
+  kalenderAbrufen(input: { tage?: number; stand?: boolean; tag?: string }): Promise<string>;
+  /** Wann an einem Tag trainiert wird, mit freiem Platz. Optional, ältere Fassungen kennen es nicht. */
+  trainingZeit?(input: { tag?: string }): Promise<string>;
   aufgabeAnlegen(input: { text: string; minuten?: number; faellig?: string; wichtigkeit?: number }): Promise<string>;
   aufgabeAbhaken(input: { text: string }): Promise<string>;
   aufgabenPriorisieren(): Promise<string>;
@@ -98,7 +123,7 @@ export interface AgentActions {
   musterErkennen(input: { tage?: number }): Promise<string>;
   belastungAbrufen(): Promise<string>;
   berichtErstellen(input: { tage?: number }): Promise<string>;
-  bereitschaftAbrufen(): Promise<string>;
+  bereitschaftAbrufen(input?: { fokus?: "schlaf" | "koerper" | "regeneration" }): Promise<string>;
   balanceAbrufen(input: { tage?: number }): Promise<string>;
   zeitEintragen(input: { bereich: string; minuten: number; was: string; tag?: string }): Promise<string>;
   /**
@@ -118,7 +143,7 @@ export interface AgentActions {
   mittagscheckSpeichern(input: {
     energie: number; konzentration: number; saettigung: number; notiz?: string;
   }): Promise<string>;
-  briefingErstellen(input: { art: "morgen" | "abend" }): Promise<string>;
+  briefingErstellen(input: { art?: "morgen" | "abend"; tag?: string }): Promise<string>;
   tagesablaufPlanen(input: { tag?: string }): Promise<string>;
   gewichtEintragen(kg: number): Promise<string>;
   trainingEintragen(input: { art: string; minuten: number; notiz?: string }): Promise<string>;
@@ -635,6 +660,7 @@ async function execute(
         const text = await actions.eintragZuruecknehmen({
           art: typeof input.art === "string" ? input.art : undefined,
           suche: typeof input.suche === "string" ? input.suche : undefined,
+          tag: typeof input.tag === "string" ? input.tag : undefined,
         });
         return { text, notiz: "Eintrag zurückgenommen" };
       }
@@ -677,10 +703,12 @@ async function execute(
       case "kalender_abrufen": {
         if (input.stand === true) return { text: await actions.kalenderAbrufen({ stand: true }) };
         const tage = Number.isFinite(Number(input.tage)) ? clamp(Number(input.tage), 1, 14) : undefined;
-        return { text: await actions.kalenderAbrufen({ tage }) };
+        const tag = typeof input.tag === "string" && input.tag.trim() ? input.tag.trim() : undefined;
+        return { text: await actions.kalenderAbrufen({ tage, tag }) };
       }
       case "tagesablauf_planen": {
-        const tag = typeof input.tag === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.tag) ? input.tag : undefined;
+        // Auch "morgen" oder "freitag": die Auflösung macht die App, nicht das Modell.
+        const tag = typeof input.tag === "string" && input.tag.trim() ? input.tag.trim() : undefined;
         return { text: await actions.tagesablaufPlanen({ tag }) };
       }
       case "aufgabe_anlegen": {
@@ -700,9 +728,9 @@ async function execute(
         return { text: await actions.aufgabeAbhaken({ text }), notiz: "Aufgabe abgehakt" };
       }
       case "aufgaben_priorisieren":
-        return { text: await actions.aufgabenPriorisieren() };
+        return { text: await actions.aufgabenPriorisieren(), notiz: "Tag sortiert" };
       case "tagesplan_erstellen":
-        return { text: await actions.tagesplanErstellen() };
+        return { text: await actions.tagesplanErstellen(), notiz: "Tag sortiert" };
       case "wochenplan_erstellen":
         return { text: await actions.wochenplanErstellen() };
       case "training_anpassen":
@@ -833,7 +861,7 @@ async function execute(
       case "belastung_abrufen":
         return { text: await actions.belastungAbrufen() };
       case "bereitschaft_abrufen":
-        return { text: await actions.bereitschaftAbrufen() };
+        return { text: await actions.bereitschaftAbrufen({ fokus: input.fokus as "schlaf" | "koerper" | "regeneration" | undefined }) };
       case "widersprueche_pruefen":
         return { text: await actions.widerspruechePruefen() };
       case "mittagscheck_speichern": {
@@ -851,7 +879,9 @@ async function execute(
       }
       case "briefing_erstellen": {
         const art = input.art === "abend" ? "abend" : "morgen";
-        return { text: await actions.briefingErstellen({ art }) };
+        const tag = typeof input.tag === "string" && input.tag.trim() ? input.tag.trim() : undefined;
+        // Der Vermerk holt unter der Antwort den Knopf zur Präsentation.
+        return { text: await actions.briefingErstellen({ art, tag }), notiz: "Briefing erstellt" };
       }
       case "gewicht_eintragen": {
         const kg = Number(input.kg);
@@ -921,7 +951,13 @@ async function execute(
         const namen = (v: unknown) => (Array.isArray(v) ? v.map(String).filter(Boolean).slice(0, 8) : []);
         const weglassen = namen(input.weglassen);
         const tauschen = namen(input.tauschen);
-        const text = await actions.trainingHeute({ gruppen, minuten, neu: input.neu === true, tag, uhrzeit, weglassen, tauschen });
+        const uebungen = diktatListe(input.uebungen);
+        const hinzufuegen = diktatListe(input.hinzufuegen);
+        const cardio = Array.isArray(input.cardio)
+          ? input.cardio.filter((c): c is Record<string, unknown> => Boolean(c) && typeof c === "object").slice(0, 4)
+            .map((c) => ({ art: String(c.art ?? ""), minuten: Number(c.minuten) || undefined, km: Number(c.km) || undefined }))
+          : [];
+        const text = await actions.trainingHeute({ gruppen, minuten, neu: input.neu === true, tag, uhrzeit, weglassen, tauschen, uebungen, hinzufuegen, cardio });
         if (weglassen.length || tauschen.length) {
           const geaendert = !text.startsWith(NICHT_GESPEICHERT);
           return geaendert ? { text, notiz: "Training angepasst" } : { text, fehler: true };
@@ -974,6 +1010,28 @@ async function execute(
         });
         if (text.startsWith(NICHT_GESPEICHERT)) return { text, fehler: true };
         return { text, notiz: "Lebensmittel angelegt" };
+      }
+      case "plan_uebernehmen": {
+        if (!actions.planUebernehmen) return { text: "Pläne übernehmen geht in dieser Fassung nicht.", fehler: true };
+        const einheiten = (Array.isArray(input.einheiten) ? input.einheiten : [])
+          .map((e) => e as { titel?: unknown; uebungen?: unknown })
+          .map((e) => ({ titel: String(e.titel ?? "").trim() || "Einheit", uebungen: (Array.isArray(e.uebungen) ? e.uebungen : []) as Array<Record<string, unknown>> }))
+          .filter((e) => e.uebungen.length);
+        if (!einheiten.length) return { text: `${NICHT_GESPEICHERT} Im Plan stand keine Übung, die ich lesen konnte.`, fehler: true };
+        const text = await actions.planUebernehmen({ einheiten });
+        if (text.startsWith(NICHT_GESPEICHERT)) return { text, fehler: true };
+        return { text, notiz: "Plan übernommen" };
+      }
+      case "ernaehrungsplan_uebernehmen": {
+        if (!actions.ernaehrungsplanUebernehmen) return { text: "Ernährungspläne übernehmen geht in dieser Fassung nicht.", fehler: true };
+        const mahlzeiten = (Array.isArray(input.mahlzeiten) ? input.mahlzeiten : [])
+          .map((m) => m as Record<string, unknown>)
+          .map((m) => ({ art: String(m.art ?? "mittagessen"), name: String(m.name ?? "").trim(), zutaten: String(m.zutaten ?? "").trim() }))
+          .filter((m) => m.name && m.zutaten);
+        if (!mahlzeiten.length) return { text: `${NICHT_GESPEICHERT} Im Plan stand keine Mahlzeit mit Zutaten, die ich lesen konnte.`, fehler: true };
+        const text = await actions.ernaehrungsplanUebernehmen({ mahlzeiten });
+        if (text.startsWith(NICHT_GESPEICHERT)) return { text, fehler: true };
+        return { text, notiz: "Ernährungsplan übernommen" };
       }
       case "uebungen_suchen": {
         if (!actions.uebungenSuchen) return { text: "Die Übungsdatenbank gibt es in dieser Fassung nicht.", fehler: true };
@@ -1187,6 +1245,61 @@ const PARTIE_WOERTER: Array<[RegExp, string[]]> = [
 ];
 
 /**
+ * Eine diktierte Einheit ohne Modell: "3 Sätze Bankdrücken, 2 Sätze
+ * Seitheben am Kabel, Pushdowns 3x12 im Supersatz mit Cable Crunches, danach
+ * 30 Minuten Fahrrad". Erkannt wird nur, was eine Satzzahl trägt, und erst ab
+ * zwei solchen Übungen: ein einzelnes "3 Sätze" ist eher eine Frage als eine
+ * Einheit. Was in der Vergangenheit steht, ist ein Eintrag und keine Einheit.
+ * Den Namen gleicht die App ab, hier wird nur geschnitten.
+ */
+export function eigeneEinheitAus(nachricht: string): { gruppen: string[]; uebungen: DiktatUebung[]; cardio: Array<{ art: string; minuten?: number; km?: number }> } | null {
+  const roh = nachricht.replace(/\s+/g, " ").trim();
+  const gefaltet = roh.toLowerCase().replace(/ä/g, "a").replace(/ö/g, "o").replace(/ü/g, "u").replace(/ß/g, "ss");
+  if (/\b(hab|habe|hatte|war|gemacht|trainiert)\b/.test(gefaltet) && !/\b(will|mochte|mach|mache|plan|stell|bau|trag|heute|morgen)\b/.test(gefaltet)) return null;
+  const ZAHL: Record<string, number> = { ein: 1, eine: 1, einen: 1, zwei: 2, drei: 3, vier: 4, funf: 5, fuenf: 5, fünf: 5, sechs: 6 };
+  const zahl = (t: string | undefined) => (t === undefined ? undefined : /^\d+$/.test(t) ? Number(t) : ZAHL[t.toLowerCase()]);
+  const Z = "(\\d{1,2}|ein|eine|einen|zwei|drei|vier|fünf|funf|sechs)";
+  const W = "(\\d{1,2}(?:\\s*(?:-|bis)\\s*\\d{1,2})?)";
+  const SATZ = "(?:sätze|saetze|satze|satz|sets?)";
+  const vorne = new RegExp(`^${Z}\\s*(?:x\\s*${W}\\s+|${SATZ}\\s+(?:(?:à|a|je|mit|zu)\\s+${W}\\s*(?:wdh\\.?|wiederholungen)?\\s+)?)(.+)$`, "i");
+  const hinten = new RegExp(`^(.+?)\\s*:?\\s+${Z}\\s*(?:x\\s*${W}|${SATZ}(?:\\s+(?:à|a|je|mit|zu)\\s+${W}\\s*(?:wdh\\.?|wiederholungen)?)?)\\s*$`, "i");
+  const CARDIO = /\b(fahrrad\w*|rad ?fahren|radfahren|ergometer|laufband|crosstrainer|rudergerat|stepper|joggen|laufen|treppensteiger)\b/;
+  const uebungen: DiktatUebung[] = [];
+  const cardio: Array<{ art: string; minuten?: number; km?: number }> = [];
+  const stuecke = roh.split(/[,;\n]|\.\s|\b(?:dann|danach|anschließend|anschliessend|zum schluss|am ende)\b|\bund\b/i)
+    .map((t) => t.trim()).filter(Boolean);
+  for (const stueck of stuecke) {
+    const f = stueck.toLowerCase().replace(/ä/g, "a").replace(/ö/g, "o").replace(/ü/g, "u").replace(/ß/g, "ss");
+    const c = CARDIO.exec(f);
+    if (c) {
+      const min = /(\d{1,3})\s*(?:min|minuten)\b/.exec(f);
+      const std = /\b(halbe|eine|1)\s+stunde\b/.exec(f);
+      const km = /(\d{1,3}(?:[.,]\d)?)\s*(?:km|kilometer)\b/.exec(f);
+      const art = /fahrrad|rad ?fahren|radfahren|ergometer/.test(c[1]!) ? "Fahrrad" : c[1]!.charAt(0).toUpperCase() + c[1]!.slice(1);
+      cardio.push({ art, ...(min ? { minuten: Number(min[1]) } : std ? { minuten: std[1] === "halbe" ? 30 : 60 } : {}), ...(km ? { km: Number(km[1]!.replace(",", ".")) } : {}) });
+      continue;
+    }
+    // "Stell mir folgendes zusammen: 3 Sätze Bankdrücken" und "Heute:
+    // Bankdrücken 3x8". Was vor dem Doppelpunkt steht, ist der Auftrag.
+    let text = stueck.replace(/^[^:]*:\s*/, "").replace(/^(?:und|noch|ich (?:mache|mach|will|möchte)|heute|machen wir|mach(?:e)?)\s+/i, "").trim();
+    let superset: string | undefined;
+    const ss = /\s*(?:,\s*)?(?:im\s+|als\s+)?super\s?(?:set|satz)\s+mit\s+(.+)$/i.exec(text);
+    if (ss) { superset = ss[1]!.replace(/\s+(?:die|in der)\s+letzte.*$/i, "").trim(); text = text.slice(0, ss.index).trim(); }
+    const a = vorne.exec(text);
+    const b = a ? null : hinten.exec(text);
+    const saetze = zahl(a ? a[1] : b?.[2]);
+    if (!saetze) continue;
+    const wdh = (a ? (a[2] ?? a[3]) : (b?.[3] ?? b?.[4]))?.replace(/\s*bis\s*/, "-").replace(/\s+/g, "");
+    let name = (a ? a[4] : b?.[1])!.replace(/^(?:(?:à|a|je|mit)\s+)?(?:den|die|das|der|dem)\s+/i, "").replace(/[.!?]+$/, "").trim();
+    name = name.replace(/\s+(?:im|am)\s+(?:supersatz|superset)$/i, "").trim();
+    if (name.length < 3) continue;
+    uebungen.push({ name, saetze, ...(wdh ? { wdh } : {}), ...(superset ? { superset } : {}) });
+  }
+  if (uebungen.length < 2) return null;
+  return { gruppen: [], uebungen, cardio };
+}
+
+/**
  * Ob jemand eine Einheit bestellt, für welchen Tag und welche. Nur mit einem
  * Wort der Absicht und einer Partie, nie in der Vergangenheit: "war eben 60
  * min Oberkörper" ist ein Eintrag und keine Bestellung.
@@ -1253,7 +1366,7 @@ export function trainingHeuteAus(text: string, jetzt: Date = new Date()): { grup
  * einem Wort fuer den Gegenstand. "Loeschen" allein koennte auch das
  * Gedaechtnis meinen, und ein geloeschter Eintrag ist nicht rueckholbar.
  */
-function ruecknahmeAus(text: string): { art?: string; suche?: string } | null {
+function ruecknahmeAus(text: string): { art?: string; suche?: string; tag?: string } | null {
   const ruecknahme = pattern("loesch", "loeschen", "entferne", "entfernen",
     "raus damit", "rueckgaengig", "war falsch", "stimmt nicht", "doch nicht gegessen",
     "nicht gegessen", "falsch eingetragen", "doppelt drin", "steht doppelt").test(text)
@@ -1276,6 +1389,9 @@ function ruecknahmeAus(text: string): { art?: string; suche?: string } | null {
   // Wasser nur, wenn Wasser gemeint ist. "Den Kaffee hab ich doch nicht
   // getrunken" setzte im Live-Test das Wasser des Tages auf null, denn die
   // Rücknahme beim Wasser kennt nur die Summe.
+  // "Lösch das Training von gestern" meint gestern. Vorher suchte die App nur
+  // heute und meldete, für heute stehe kein Training drin.
+  const tag = /\bvorgestern\b/.test(text) ? "vorgestern" : /\bgestern\b/.test(text) ? "gestern" : undefined;
   const getraenk = /\b(kaffee|cappuccino|latte|tee|cola|limo|saft|bier|wein|milch|shake|smoothie|schorle)\b/.exec(text);
   const art = pattern("wasser").test(text) || (pattern("getrunken").test(text) && !getraenk) ? "wasser"
     : pattern("training", "einheit").test(text) ? "training"
@@ -1286,9 +1402,9 @@ function ruecknahmeAus(text: string): { art?: string; suche?: string } | null {
     // letzte. Die App sucht dann über die Uhrzeit des Eintrags.
     const tageszeit = /\b(fruehstueck|mittagessen|abendessen|snack)\b/.exec(text)?.[1];
     const suche = getraenk?.[1] ?? parseMealOffline(text).entries[0]?.name ?? tageszeit;
-    return suche ? { art, suche } : { art };
+    return { art, ...(suche ? { suche } : {}), ...(tag ? { tag } : {}) };
   }
-  return { art };
+  return { art, ...(tag ? { tag } : {}) };
 }
 
 /**
@@ -1302,8 +1418,12 @@ function schichtAus(text: string): { tag?: string; aufstehen?: string; schlafen?
   const wann = /\bmorgen\b/.test(text) ? 1 : /\bgestern\b/.test(text) ? -1 : /\bheute\b/.test(text) ? 0 : null;
   if (wann === null) return null;
 
-  const aufstehen = uhrzeitNach(text, /(aufstehen|aufstehe|\bsteh\w*\b.{0,25}\bauf\b|raus|wecker|frueh(dienst|schicht)|start)/);
-  const schlafen = uhrzeitNach(text, /(schlafen|ins bett|bett|feierabend|spaet(dienst|schicht)|ende|fertig)/);
+  // Ein Termin oder Training ist keine Tageszeit. Im Test wurde aus "trag
+  // morgen um 17 Uhr Training in meinen Kalender ein" ein Tag, der um 17 Uhr
+  // endet: "ende" steckt in "Kalender". Deshalb Wortgrenzen.
+  if (/\b(kalender|termin\w*|training|trainieren|meeting|call)\b/.test(text)) return null;
+  const aufstehen = uhrzeitNach(text, /(\baufstehen?\b|\bsteh\w*\b.{0,25}\bauf\b|\braus\b|\bwecker\b|\bfrueh(dienst|schicht)\b|\bstart\b)/);
+  const schlafen = uhrzeitNach(text, /(\bschlafen\b|\bins bett\b|\bbett\b|\bfeierabend\b|\bspaet(dienst|schicht)\b|\bende\b|\bfertig\b)/);
   if (!aufstehen && !schlafen) return null;
 
   const d = new Date();
@@ -1481,6 +1601,25 @@ export function anDaevo(text: string): boolean {
   return woerter >= 12 && anreden >= 2;
 }
 
+/**
+ * "Was soll ich heute Abend essen" fragt nach einer Mahlzeit und nicht nach dem
+ * ganzen Tag. Dann bleibt die Kopfzeile des Plans und genau diese Zeile.
+ */
+function mahlzeitAusPlan(plan: string, nachricht: string): string {
+  const klein = nachricht.toLowerCase();
+  const mahlzeit = /abend/.test(klein) ? "Abendessen" : /mittag/.test(klein) ? "Mittagessen"
+    : /(frühstück|fruehstueck)/.test(klein) ? "Frühstück" : /snack/.test(klein) ? "Snack" : null;
+  const zeilen = plan.split("\n");
+  const treffer = mahlzeit ? zeilen.filter((z) => z.startsWith(`${mahlzeit}:`)) : [];
+  return treffer.length ? [zeilen[0], ...treffer].join("\n") : plan;
+}
+
+/** Heute als JJJJ-MM-TT in Ortszeit, wie die App es zählt. */
+function heuteIsoLokal(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export async function runOffline(
   nachricht: string,
   actions: AgentActions,
@@ -1539,7 +1678,7 @@ export async function runOffline(
   const ruecknahme = ruecknahmeAus(text);
   if (ruecknahme) {
     const antwort = await actions.eintragZuruecknehmen(ruecknahme);
-    const erledigt = !/^(Dazu finde ich|Für heute steht|Es gibt)/.test(antwort);
+    const erledigt = !/^(Dazu finde ich|Für heute steht|Für gestern steht|Für vorgestern steht|Am .* steht|Es gibt)/.test(antwort);
     return { text: antwort, ausgeführt: erledigt ? ["Eintrag zurückgenommen"] : [], source: "offline" };
   }
 
@@ -1557,6 +1696,41 @@ export async function runOffline(
       source: "offline",
       unverstanden: true,
     };
+  }
+
+  // Die einfachen Fragen nach einem Tag: "Briefing für morgen", "was steht am
+  // Freitag an", "was soll ich morgen essen", "wann trainiere ich morgen".
+  // Der Tag kommt aus dem Satz und von keiner anderen Stelle. Vorher kam auf
+  // "Kurzes Briefing für morgen" der heutige Tag zurück. Steht vor allen
+  // Zweigen, die ohne Tag antworten.
+  const tagesfrage = tagesfrageAus(nachricht, heuteIsoLokal());
+  if (tagesfrage) {
+    const diff = Math.round((Date.parse(`${tagesfrage.tag}T00:00:00Z`) - Date.parse(`${heuteIsoLokal()}T00:00:00Z`)) / 86_400_000);
+    if (tagesfrage.art === "essen") {
+      // Mit Essensplan wie überall sonst daraus, ohne ihn die Mahlzeiten nach dem Kalender.
+      if (actions.essensplanAbrufen && diff >= 0 && diff <= 6) {
+        return { text: mahlzeitAusPlan(await actions.essensplanAbrufen({ inTagen: diff }), nachricht), ausgeführt, source: "offline" };
+      }
+      return { text: await actions.tagesablaufPlanen({ tag: tagesfrage.tag }), ausgeführt, source: "offline" };
+    }
+    if (tagesfrage.art === "training") {
+      const zeit = actions.trainingZeit ? await actions.trainingZeit({ tag: tagesfrage.tag }) : "";
+      // Steht schon da, dass an dem Tag nichts im Plan ist, wiederholt der Plan es nur.
+      let plan = diff >= 0 && diff <= 6 && !/kein Training/.test(zeit) ? await actions.trainingsplanAbrufen({ inTagen: diff }) : "";
+      // Die Zeile mit Tag und Uhrzeit steht oben schon, der Plan trägt nur noch die Übungen nach.
+      if (zeit && plan) plan = plan.split("\n").slice(1).join("\n");
+      return { text: [zeit, plan].filter(Boolean).join("\n\n"), ausgeführt, source: "offline" };
+    }
+    return { text: await actions.briefingErstellen({ tag: tagesfrage.tag }), ausgeführt, source: "offline" };
+  }
+
+  // Ein Briefing ohne Tag: bis zum späten Nachmittag das von heute, danach der Blick auf morgen.
+  if (/\b(briefing|uebersicht)\b/.test(text) && !tagAusText(nachricht, heuteIsoLokal())) {
+    const spaet = new Date().getHours() >= 17;
+    const d = new Date();
+    if (spaet) d.setDate(d.getDate() + 1);
+    const tag = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    return { text: await actions.briefingErstellen({ tag }), ausgeführt, source: "offline" };
   }
 
   if (pattern("merk dir", "merke dir", "denk dran", "nicht vergessen", "behalte").test(text)) {
@@ -1623,6 +1797,14 @@ export async function runOffline(
     return { text: antwort, ausgeführt, source: "offline" };
   }
 
+  // "Was hab ich diese Woche trainiert": die eingetragenen Trainings und nicht
+  // der Kalender, der bei diesem Nutzer fast nur Kundentermine trägt.
+  if (actions.trainingsverlaufAbrufen && /\b(was|welche\w*|wie oft|wie viel\w*|wann)\b.{0,30}\b(trainiert|trainings?|einheiten|sport gemacht)\b/.test(text)
+    && /\b(woche|letzten|letzte|tagen|monat)\b/.test(text) && !/\b(morgen|naechste\w*|plan)\b/.test(text)) {
+    const tage = /\bmonat\b/.test(text) ? 30 : Number(/\b(\d{1,2}) tage/.exec(text)?.[1]) || 7;
+    return { text: await actions.trainingsverlaufAbrufen({ tage }), ausgeführt: [], source: "offline" };
+  }
+
   // "Wie lief meine Woche", "Wochenrückblick", "Zwischenstand". Vor dem
   // Bericht, denn der kennt nur Zahlen und keine Tipps.
   if (actions.wochenrueckblick && (/\b(wochenrueckblick|wochenbilanz|zwischenstand|wochenabschluss)\b/.test(text)
@@ -1663,6 +1845,14 @@ export async function runOffline(
   // "Neue Übungen" nach einer Einheit für heute, auch als Knopf unter der
   // Antwort. Kurz oder mit heute, sonst ist es eine Frage zum Wochenplan.
   const neuWunsch = /\b(neue|andere)\s+uebungen\b/.test(text) && (text.split(/\s+/).length <= 6 || /\bheute\b/.test(text));
+  // Eine diktierte Einheit geht vor den Partien: wer seine Übungen nennt,
+  // will diese und keine gerechnete.
+  const diktat = eigeneEinheitAus(nachricht);
+  if (diktat && actions.trainingHeute) {
+    const antwort = await actions.trainingHeute(diktat);
+    const ok = !antwort.startsWith(NICHT_GESPEICHERT);
+    return { text: antwort, ausgeführt: ok ? [...ausgeführt, "Training für heute bereit"] : ausgeführt, source: "offline" };
+  }
   const heute = neuWunsch ? { ...(trainingHeuteAus(text) ?? { gruppen: [] }), neu: true } : trainingHeuteAus(text);
   if (heute && actions.trainingHeute) {
     const antwort = await actions.trainingHeute(heute);
@@ -1731,8 +1921,9 @@ export async function runOffline(
   // steht "tagesplan" auch, und die Antwort dort kennt nur Termine, keine
   // Aufgaben. Wer fragt, was er heute machen muss, meint seine Liste.
   if (pattern("was muss ich heute", "was habe? ich heute zu (tun|erledigen)", "tagesplan",
-    "plan(e)? (mir )?(meinen|den) tag", "sinnvolle reihenfolge", "to ?dos? (fur|fuer) heute").test(text)) {
-    return { text: await actions.tagesplanErstellen(), ausgeführt, source: "offline" };
+    "plan(e)? (mir )?(meinen|den) tag", "sinnvolle reihenfolge", "to ?dos? (fur|fuer) heute",
+    "was soll ich (wann|heute|jetzt) (alles )?(machen|tun|erledigen)", "so viel vor (mir|heute)").test(text)) {
+    return { text: await actions.tagesplanErstellen(), ausgeführt: [...ausgeführt, "Tag sortiert"], source: "offline" };
   }
 
   // Erinnerungen vor allem, was einträgt. "Erinnere mich um 8 an das
@@ -1918,10 +2109,17 @@ export async function runOffline(
 
   // Der Kalender liegt im Gerät. Dafür braucht es kein Modell, nur die Frage
   // nach der Zeit zu erkennen.
-  if (pattern("wann habe ich", "wann muss ich", "was steht an", "mein tag", "heute noch vor",
-    "wie sieht (mein|der) tag", "zeit habe ich", "freie zeit", "wann trainiere",
+  if (pattern("was steht an", "mein tag", "heute noch vor", "wie sieht (mein|der) tag").test(text)) {
+    // Der Tag als Ganzes ist das Briefing: Termine, Aufgaben, Training, Essen.
+    const gemeint = tagAusText(nachricht, heuteIsoLokal());
+    return { text: await actions.briefingErstellen(gemeint ? { tag: gemeint.tag } : { tag: heuteIsoLokal() }), ausgeführt, source: "offline" };
+  }
+  if (pattern("wann habe ich", "wann muss ich", "zeit habe ich", "freie zeit", "wann trainiere",
     "wann soll ich essen", "tagesablauf").test(text)) {
-    return { text: await actions.tagesablaufPlanen({}), ausgeführt, source: "offline" };
+    // Der Tag aus dem Satz, auch ein vergangener. Ohne ihn kam auf "was hatte
+    // ich gestern" der heutige Tag zurück.
+    const gemeint = tagAusText(nachricht, heuteIsoLokal());
+    return { text: await actions.tagesablaufPlanen(gemeint ? { tag: gemeint.tag } : {}), ausgeführt, source: "offline" };
   }
 
   // Die Frage nach der Verbindung steht vor der Frage nach den Terminen.
@@ -1938,8 +2136,10 @@ export async function runOffline(
     return { text: await actions.kalenderAbrufen({ stand: true }), ausgeführt, source: "offline" };
   }
 
-  if (pattern("kalender", "termine", "diese woche", "nächste woche", "naechste woche").test(text)) {
-    return { text: await actions.kalenderAbrufen({}), ausgeführt, source: "offline" };
+  if (pattern("kalender", "termine", "diese woche", "nächste woche", "naechste woche",
+    "wie sieht (meine|die|diese|naechste) woche", "meine woche aus").test(text)) {
+    const gemeint = /\bwoche\b/.test(text) ? null : tagAusText(nachricht, heuteIsoLokal());
+    return { text: await actions.kalenderAbrufen(gemeint ? { tag: gemeint.tag } : {}), ausgeführt, source: "offline" };
   }
 
   // Aufgaben und Prioritäten. Auch das läuft ohne Modell, weil die
@@ -1952,6 +2152,22 @@ export async function runOffline(
     || (!nachModellfehler && nachricht.split(/\s+/).filter(Boolean).length > 60)
     || (!nachModellfehler && nachricht.split(/\s+/).filter(Boolean).length > 30 && (nachricht.match(/,/g) ?? []).length >= 4)) {
     return { text: await actions.kopfLeeren({ text: nachricht }), ausgeführt: ["Kopf geleert"], source: "offline" };
+  }
+
+  // Fragen nach Schlaf, Stress, Körpersignalen und Regeneration lesen, was
+  // gemessen ist. Im Betrieb legte "wie hab ich geschlafen" einen Check-in mit
+  // der Frage als Notiz an, und "wie ist meine Erholung" landete beim Balance
+  // Board unter Me Time. Nur als Frage: "hab schlecht geschlafen" bleibt ein
+  // Check-in.
+  const frageForm = /\?|^(wie|was|welche\w*|zeig\w*|sag mir|bin ich|hab ich|habe ich|ist mein\w*)\b/.test(text.trim());
+  if (frageForm) {
+    // Eng gefasst: "was hilft gegen Stress" ist eine Fachfrage und "was esse
+    // ich heute Nacht" keine nach dem Schlaf.
+    const fokus = /\b(regeneration|regeneriert|muskelkater|welche muskeln|muskel\w* (frisch|erholt|bereit))/.test(text) ? "regeneration"
+      : /\b(geschlafen|mein schlaf|schlafwert|schlafphasen|tiefschlaf|rem ?schlaf|letzte nacht)\b/.test(text) ? "schlaf"
+      : /\b(mein\w* stress|stress ?(level|wert)|stress laut|hrv|herzfrequenz\w*|ruhepuls|mein puls|sauerstoff|meine erholung|erholt|apple watch|laut (meiner )?uhr|whoop|oura|garmin)\b/.test(text) ? "koerper"
+      : null;
+    if (fokus) return { text: await actions.bereitschaftAbrufen({ fokus }), ausgeführt, source: "offline" };
   }
 
   if (pattern("balance", "ausgleich", "zu wenig zeit", "keine zeit für", "keine zeit fuer",
@@ -1989,9 +2205,9 @@ export async function runOffline(
     return { text: await actions.widerspruechePruefen(), ausgeführt, source: "offline" };
   }
 
-  if (pattern("was zuerst", "womit anfangen", "priorit", "reihenfolge", "was mache ich (jetzt|zuerst)",
+  if (pattern("was zuerst", "womit anfangen", "als naechstes", "als nächstes", "was jetzt", "priorit", "reihenfolge", "was mache ich (jetzt|zuerst)",
     "rest des tages", "schaffe ich heute", "was kann warten", "to do", "todo", "aufgabenliste").test(text)) {
-    return { text: await actions.aufgabenPriorisieren(), ausgeführt, source: "offline" };
+    return { text: await actions.aufgabenPriorisieren(), ausgeführt: [...ausgeführt, "Tag sortiert"], source: "offline" };
   }
 
   // "Ich muss bis Freitag die Steuer machen" ist eine Aufgabe mit Frist. Die
@@ -2057,7 +2273,9 @@ export async function runOffline(
   }
 
   // "fühl mich" ohne e ist die häufigere Form im Gesprochenen.
-  if (pattern("geschlafen", "energie", "fühl", "müde", "stress", "erschöpft", "kaputt", "ausgebrannt", "kraftlos",
+  // Nie bei einer Frage: "was hilft gegen Stress" ist eine Fachfrage und kein
+  // Check-in mit der Frage als Notiz.
+  if (!frageForm && pattern("geschlafen", "energie", "fühl", "müde", "stress", "erschöpft", "kaputt", "ausgebrannt", "kraftlos",
     "überfordert", "total leer", "so leer", "innerlich leer").test(text)) {
     const antwort = await actions.checkinSpeichern({
       notiz: nachricht,
@@ -2366,11 +2584,15 @@ function trainingAus(text: string): { art: string; minuten: number } | null {
   const gemacht = pattern("trainiert", "training gemacht", "im gym", "im studio", "fitnessstudio", "war trainieren",
     "krafttraining", "beintag", "oberkoerper", "unterkoerper", "ganzkoerper",
     "gespielt", "spielen", "workout", "einheit gemacht", "gedehnt",
-    "dehnen", "joggen", "laufen", "gelaufen", "schwimmen", "geschwommen").test(text);
+    "dehnen", "joggen", "laufen", "gelaufen", "schwimmen", "geschwommen").test(text)
+    // "War heute 90 Minuten Volleyball" hat kein Verb der Tätigkeit. Eine
+    // Sportart mit war, hatte oder hab ist trotzdem vorbei.
+    || (pattern("volleyball", "fussball", "basketball", "handball", "tennis", "yoga", "spinning", "radfahren").test(text)
+      && /\b(war|waren|hatte|hab|habe|bin)\b/.test(text));
   if (!gemacht) return null;
 
-  const art = pattern("volleyball", "fussball", "basketball", "handball", "mannschaft").test(text) ? "team_sport"
-    : pattern("laufen", "joggen", "gelaufen", "cardio", "rad", "schwimmen", "joggen").test(text) ? "cardio"
+  const art = pattern("volleyball", "fussball", "basketball", "handball", "tennis", "mannschaft").test(text) ? "team_sport"
+    : pattern("laufen", "joggen", "gelaufen", "cardio", "rad", "radfahren", "spinning", "schwimmen", "joggen").test(text) ? "cardio"
       : pattern("mobility", "gedehnt", "dehnen", "beweglichkeit", "yoga").test(text) ? "mobility"
         : "strength";
 

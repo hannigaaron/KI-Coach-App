@@ -79,7 +79,7 @@ Bild in SVG nicht flüssig laufen. Gemessen: 60 Bilder pro Sekunde bei
 dreifacher Pixeldichte. Alles andere liegt im Menue. Wer das ändert,
 ändert den Kern des Produkts.
 
-Der Assistent hat sechsundfünfzig Werkzeuge und verändert die App wirklich. Zahlen
+Der Assistent hat achtundfünfzig Werkzeuge und verändert die App wirklich. Zahlen
 über den Nutzer kommen immer aus Werkzeugen, nie aus dem Modell. Allgemeines
 Wissen darf und soll er benutzen, dafür braucht er kein Werkzeug. Jede
 Fähigkeit hat einen Regelpfad in `packages/coach/src/agent.ts`, damit die App
@@ -204,6 +204,12 @@ Eingabehilfen. Ihre Knöpfe (`btnDump`, `btnWeckwort`) stehen nur über der Pill
 solange die Betriebsart läuft, und sind dann der Knopf zum Beenden. Das Menü
 stößt sie nur an. Eine Zeile mit zwei Wörtern, die dauernd dastand, sah aus wie
 Knöpfe, die man drücken muss, und niemand wusste, was "Hey daevo" dort sollte.
+
+Das Feld ist ein `textarea` und wächst mit dem Text bis zu sieben Zeilen, damit
+man bei Tippfehlern und falsch Diktiertem sieht, was dasteht. Gesetzt wird
+`value` an vielen Stellen, auch von der Spracherkennung, ohne Ereignis, deshalb
+wächst es über einen Setter am Feld und nicht über `input` allein. Return sendet,
+Umschalt Return macht eine neue Zeile. Die Knöpfe bleiben unten.
 
 Ein Punkt am Plus zeigt, dass etwas läuft oder anhängt. Symbole sind Linien in
 einer Stärke mit runden Enden, keine zusammengesetzten Rahmen.
@@ -345,6 +351,19 @@ Strichfiguren, keine Clip Art, keine Karten mit Rahmen um Text.
   vorn an ihr. Am Kabel stehen beide Türme gleich weit vor der Person, damit
   der Zug nach hinten aussen geht, fotografiert von vorn und erhöht, sonst
   sieht man am Boden nicht, wo die Türme stehen.
+- Ablauf je Bild, ohne Ausnahme, auch wenn viele auf einmal anstehen:
+  1. ein echtes Foto oder Video der Übung herunterladen und ansehen, nicht
+     nur einen Text darüber lesen,
+  2. Aufbau, Abstand zum Gerät, Kabelverlauf und Gelenkwinkel aus diesem
+     Foto Teil für Teil in den Auftrag schreiben,
+  3. den Auftrag gegen die Punkte oben prüfen, dann absenden, höchstens zwei
+     gleichzeitig,
+  4. das Ergebnis nach der Liste prüfen und dem Nutzer zur Freigabe zeigen.
+  Das Video einer neuen Übung wird über sein Vorschaubild geprüft, nicht nur
+  über den Titel. Im November 2026 lief eine Runde mit neun Bildern ohne
+  Schritt 1: der Bayesian Curl stand weit weg vom Turm statt direkt vor der
+  unteren Rolle, beim Seagull Row lag die Person nicht auf der Bank, und das
+  Video "Seagull Rows" zeigte eine andere Übung.
 - Klimmzug eng: eine normale Klimmzugstation, oben ein Rahmen aus vorderer
   und hinterer Stange, in der Mitte zwei parallele Streben von vorn nach
   hinten, daran neutral gegriffen. Reverse Butterfly am Kabel: Kabel von der
@@ -359,6 +378,35 @@ Strichfiguren, keine Clip Art, keine Karten mit Rahmen um Text.
   Reverse Butterfly an der Maschine und Trizepsstrecken über Kopf liegend
   mit Kurzhanteln. Der Curl auf der Schrägbank ist beidarmig gleichzeitig,
   Schritte und Foto zeigen das.
+- Bauch am Boden: Crunch, Sit-up, Russian Twist, Bicycle Crunch und
+  Hüftheben am Boden (Reverse Crunch, langsam abrollen). Russian Twist und
+  Bicycle tragen `core_rotation`. Ihre Videos sind über die Vorschaubilder
+  geprüft. Die Fotos sind seit November 2026 da, Studio wie beim Plank.
+- Dazu aus der Liste des Nutzers: Bayesian Curl (direkt vor der unteren
+  Rolle, Arm hinter dem Körper), Preacher Curl einarmig, Superman, Shoulder
+  Taps, Trizepsdrücken kniend, einbeiniges Kreuzheben mit einer Kurzhantel,
+  Pallof Rotation, Landmine Rudern eng und breit, Russian Twist an der
+  Landmine, Negativ Sit-up, Power Clean, Seagull Row mit Kurz und
+  Langhantel, Schrägbank Brustpresse, Pendulum Squat, Box Squat, Toes to
+  Bar, Slam Ball. Das Video zum Seagull Row "Seagull Rows" zeigte eine
+  andere Übung und ist ersetzt.
+- Einarmiges Latziehen im Halbkniestand, `latziehen-einarmig-kniend`, vom
+  Nutzer freigegeben. Richtig ist: das Bein der Gegenseite steht, linker
+  Arm zieht bei stehendem rechten Bein, Ellbogen Richtung Becken. Das Foto
+  zeigt Arm und stehendes Bein auf derselben Seite, die Schritte sagen es
+  richtig.
+- Trizepsstrecken am Kabel über Kreuz, `trizeps-kabel-ueberkreuz`, an
+  einer engen Doppelrolle wie der Life Fitness Dual Adjustable Pulley:
+  rechte Hand zur linken Rolle und umgekehrt, beide Arme schräg nach unten
+  außen strecken. Vier Fassungen davor ohne Treffer: die Person stand
+  neben der Station, und mit der Kamera direkt hinter ihr zeichnete das
+  Modell die Kabel über den Rücken. Gelungen ist es mit der Person zur
+  Station gedreht und nah davor, der Endposition mit gestreckten Armen und
+  der Kamera schräg hinten rechts, sodass die Kabel vor dem Körper
+  herunterlaufen.
+- `uebungZuName`: Eigennamen wie Bayesian, Seagull, Pallof oder Landmine
+  kosten 8, wenn sie niemand gesagt hat. Sonst wurde "Curls am Kabel" zum
+  Bayesian Curl.
 - Die Suche: trifft kein Eintrag jedes Wort, kommen die mit den meisten
   Treffern, solange ein Wort ab vier Zeichen im Namen trifft. "Isolation
   Curl" fand im Studio nichts, obwohl zehn Curls dastehen. Aliase wie
@@ -379,8 +427,11 @@ Einheit nach der zuletzt gemachten, über den Titel, im Kreis. Ein Plan
 läuft `PLAN_WOCHEN`, zwölf Wochen, ab `beginn`, eine Regel von Coach
 Aaron: Fortschritt zeigt sich nur an einem Plan, den man durchzieht. Danach
 sagt der Kopf, dass die zwölf Wochen um sind, und verweist auf Anpassen.
-Ohne Plan steht `planEinstiegHtml` da, eine Einführung mit "Plan
-erstellen". Die Felder im Training bleiben mit Kilo, Wiederholungen und RIR
+Ohne Plan steht `planEinstiegHtml` da, eine Einführung. Hat das Profil Krafttage,
+legt "Plan aus meinen Daten anlegen" (`profilWunsch` in `app.js`, Tage und
+mittlere Dauer) den Plan mit einem Tipp an und speichert ihn, "Plan selbst
+einstellen" führt zu Anpassen. Wer den Fragebogen vor dem Plan beendet hat,
+hatte Trainingstage und keinen Plan. Die Felder im Training bleiben mit Kilo, Wiederholungen und RIR
 vom letzten Mal vorbelegt wie bisher. Änderungen über Bearbeiten speichern
 sofort, Fertig schliesst nur.
 
@@ -610,6 +661,27 @@ Rücken ohne Brust und Trizeps, dann heisst Schultern nur die hintere
 Schulter. Im Betrieb bestellte das Modell Pull mit Schultern und bekam
 Schulterdrücken und Seitheben an einem Zugtag. Ein Test prüft jede Dauer.
 
+Eine Partie ist immer ganz gemeint, `PFLICHT` und `reizVon` im Kern. Im
+Betrieb kam für Rücken und Bizeps T-Bar Rudern, Face Pull und zwei Curls
+zurück: kein Zug von oben, also kein Latissimus, und kein Hammergriff, also
+kein Brachialis. Jetzt hat jede Partie feste Plätze, die beim Kürzen nie
+wegfallen, `geschuetzt` an der Vorlage: Rücken Zug von oben und Rudern, Bizeps
+dreimal, Trizeps zweimal, Brust zweimal, Schultern drei. Welche Übung welchen
+Teil trifft, entscheidet `reizVon` über das Bewegungsmuster: Latissimus ist der
+Zug von oben, Rudern der obere Rücken, Bizeps kurz, lang (Schrägbank,
+Bayesian) und Brachialis (Hammergriff), Trizeps lang (über Kopf, liegend)
+und kurz, Brust Mitte und obere Brust. Die Plätze wiederholen sich, und in
+`einheitBauen` tritt eine Übung hinter eine zurück, die denselben Teil schon
+trifft: im Tag mit Gewicht 1000, im Plan der Woche 150. Das gilt auch im
+Wochenplan, dort über die Woche. Passt es nicht in die Zeit, kürzen zuerst
+Pausen und Sätze bis zwei je Übung, dann fällt die verzichtbarste Übung weg:
+30 Minuten für drei Partien gehen nicht. Einsteiger bekommen den langen Kopf
+nicht, die Schrägbank und das Bayesian Curl sind Mittelstufe. Eine Regel der
+App aus der Praxis, keine Studie. Eine selbst diktierte Einheit bleibt, wie
+sie ist: `abdeckungsLuecken` nennt, was fehlt, und der Coach fragt, ob er es
+dazunimmt. Offen: eine Satzzahl je Partie, "fünf Sätze Rücken", kennt das
+Werkzeug nicht.
+
 Einzelne Übungen ändert der Coach selbst, `weglassen` und `tauschen` an
 `training_heute`, `einheitAendern` in `assistant.js`. Der Name wird in
 beide Richtungen abgeglichen, getauscht wird gegen dieselbe Bewegung nach
@@ -636,6 +708,38 @@ Reihenfolge der Partien von damals. Ein Tausch im Trainingsmodus gilt über
 "Training starten" der Knopf "Neue Übungen". Er schickt den Satz an den
 Coach, und die Übungen vom letzten Mal stehen dann hinten an, `zuletzt` im
 `EinzelWunsch`: nur die Variante zu erhöhen tauschte zwei von sieben.
+
+### Die eigene Einheit aus dem Diktat
+
+`uebungen`, `hinzufuegen` und `cardio` an `training_heute`,
+`eigeneEinheitSpeichern`, `einheitAusDiktat` und `uebungZuName` in
+`assistant.js`, Regelpfad `eigeneEinheitAus` in `agent.ts`. Im Betrieb
+diktierte der Nutzer seine Einheit mit Sätzen, Supersatz und Fahrrad, und
+der Coach antwortete, er könne keine Sätze festlegen und keine Übungen frei
+hinzufügen. Das ist der Fehler, der eine App gelöscht werden lässt. Jetzt
+gilt: wer seine Übungen nennt, bekommt genau diese, in seiner Reihenfolge,
+mit seinen Zahlen. Was er nicht sagt, kommt aus `positionFuer`. Die
+Persona verbietet, das abzulehnen oder durch eine gerechnete Einheit zu
+ersetzen.
+
+`uebungZuName` gleicht Studionamen gegen die Datenbank ab: Umlaute fallen
+auf den Vokal, damit "Klimmzüge" der Plural von "Klimmzug" bleibt,
+Endungen zählen nicht, ein genanntes Gerät wiegt mit, und jedes Wort im
+Namen, das niemand gesagt hat, kostet, eine Abart wie Hammer, liegend oder
+einarmig mehr. So sind "Pushdowns" das beidarmige Trizepsdrücken und nicht
+das liegende, "Curls am Kabel" der Curl mit Stange und nicht der Hammer
+Curl. Ein Test hält zehn Studionamen fest. Kennt die Datenbank eine Übung
+nicht, steht sie unter dem gesagten Namen mit `eigen-` Kennung drin, ohne
+Foto: sie wegzulassen hiesse, seine Einheit zu ändern.
+
+Ein Supersatz trägt an beiden Übungen dieselbe Marke, A, B, und beide
+stehen hintereinander. Im Trainingsmodus springt der Haken ohne Pause zur
+Partnerübung, nach beiden kommt die Pause und es geht zurück zur ersten,
+`supersatzWeiter` in `training.js`. Die Dauer zählt eine Pause für beide.
+Cardio steht in `einheit.cardio` und zählt zur Dauer. Unter Trainingspläne
+steht die diktierte Einheit über `fest` genau so da, ohne "Andere Übungen".
+`hinzufuegen` ändert die Sätze einer vorhandenen Übung oder hängt eine an,
+der Rest bleibt.
 
 ### Schweres Heben und Beugen nie am selben Tag
 
@@ -706,6 +810,52 @@ verhindert das Bildmenü von iOS. Der Klick nach dem Loslassen öffnet die
 nicht gespeichert ist, speichert ihn damit: ohne gespeicherten Plan gibt es
 nichts, woran nach acht Wochen gemessen wird.
 
+### Einheiten je Übung
+
+`apps/pwa/js/masse.js`, `masseSetzen` und `letztesMal` in `training.js`.
+Kilo und Wiederholungen passen nicht zu jeder Übung: im Betrieb stand beim
+Plank "2 × 20-60s Wdh · 2 RIR" mit einem Feld für Kilo. Jetzt trägt jede
+Übung im Training ihre Masse, `last` für die erste Spalte (Kilo, ohne
+Gewicht, Stufe, km/h, km, Watt) und `menge` für die zweite (Wiederholungen,
+Sekunden, Minuten, Meter). Ein Tipp auf den Kopf der Spalte öffnet die Wahl.
+RIR steht nur bei Wiederholungen. `standardMasse` wählt den Anfang: Ausdauer
+nach dem Namen in Minuten auf einer Stufe, Halteübungen in Sekunden, beim
+Plank ohne Gewicht, alles andere Kilo und Wiederholungen.
+
+Kilo und Wiederholungen bleiben in `kg` und `wdh`, alles andere steht in
+`last` und `menge`, und der Eintrag im Protokoll trägt `masse`. Ein Satz in
+Sekunden hat `wdh` 0 und gilt deshalb für Steigerung, Kurve und die Prüfung
+nach acht Wochen nicht: die rechnen nie mit Sekunden, als wären es
+Wiederholungen. `letzteEinheit` im Kern übersieht solche Einträge, deshalb
+liest das Training über `letztesMal`, und das nächste Mal beginnt mit
+denselben Massen und Werten. Abschluss und "Deine letzten Trainings"
+schreiben über `satzText` "45 s" oder "20 min · Stufe 8" statt "0 Wdh". Die
+Wahl ist in Satoshi und klein, `.tr-masse`: in der Serife der Knöpfe brach
+"Wiederholungen" mitten im Wort um. Offen: die Uhr zeigt solche Übungen
+weiter mit Kilo und Wiederholungen.
+
+### Notizen je Übung
+
+`notizSetzen` und `letzteNotiz` in `training.js`. Unter den Sätzen steht ein
+Feld Notiz, es landet als `notiz` am Eintrag im Protokoll. Notizen sind
+meist Einstellungen am Gerät, Sitzhöhe oder Griff, und die gelten beim
+nächsten Mal wieder: die letzte Notiz einer Übung steht deshalb im neuen
+Training schon im Feld.
+
+### Frühere Trainings öffnen
+
+`entwurfAusLog` und `rueckblickSpeichern` in `training.js`, `ansehen` an
+`trainingStarten`. Ein Tipp unter "Deine letzten Trainings" öffnet das
+Training im Trainingsmodus, alle Sätze abgehakt, mit Massen und Notizen,
+Titel mit Tag. Vorher klappte nur eine Zeile mit Punkten auf. Ändern geht
+wie im Training, "Speichern" ersetzt alle Einträge dieses Tages und dieser
+Einheit, auch eine entfernte Übung ist dann weg. Ein laufendes Training
+bleibt dabei erhalten, `laufend`, und der Rückblick geht nie in
+`settings.trainingEntwurf`: sonst stünde nach einem Anruf das Training von
+Samstag als laufendes da. Ohne Pause und ohne Uhr, das Training ist vorbei.
+Muskelkarte und Teilen stehen im Menü der drei Punkte und als Link unter
+der Zeile.
+
 ### Was heute dran ist
 
 `steigerung` in `trainingslog.ts`, angezeigt über dem letzten Mal, mit
@@ -774,14 +924,16 @@ Sätzen voll, `staerke`. Sonst sähe ein Training mit je einem Satz für alles
 so kräftig aus wie zwanzig Sätze Rücken. Ein Test prüft, dass jede Übung
 mindestens eine Partie färbt und jede Partie gezeichnet ist.
 
-Die Figur ist für daevo gezeichnet, im Stil einer anatomischen
-Strichzeichnung, den der Nutzer per Beispiel vorgegeben hat: vorn ein Arm
-mit angespanntem Bizeps, Fäuste, die Beine leicht geöffnet, heller Umriss
-mit Händen und Füssen, die Muskeln als halbdurchsichtige Flächen mit feinen
-Linien, einzelne Bauchmuskeln, drei Köpfe am Oberschenkel, zwei an der
-Beinrückseite. Die erste Fassung aus Flächen wie Bauklötzen hat er
-abgelehnt. Die Zeichnung des Beispiels ist nicht übernommen, sie gehört
-einer anderen App. Die rechte Hälfte entsteht gespiegelt. Die Karte nimmt echte Farbwerte
+Die Figur stammt aus einer Körpervorlage, die der Nutzer vorgegeben hat:
+vorn und hinten, graue Muskelflächen mit dunklen Fugen. Ausgelesen in
+94 Flächen als Pfade, `muskelkarte-pfade.js`, je Fläche die Partien, die
+sie färben. Gezeichnet wird der Umriss in der Farbe der Fugen und darüber
+jede Fläche, so stimmen die Fugen ohne eigene Linien. Eine Fläche kann
+mehrere Partien tragen, der Deltamuskel von vorn ist vordere und seitliche
+Schulter, es gilt die stärkere. Im dunklen Modus liegt ein weicher Schein
+hinter dem Körper, wie im zweiten Bild der Vorlage. Die Pfade sind erzeugt
+und werden nicht von Hand geändert. Die Strichzeichnung davor ist ersetzt.
+Die Karte nimmt echte Farbwerte
 und keine CSS Variablen, `KARTE_DUNKEL` und `KARTE_HELL`: dieselbe
 Zeichenkette geht als Bild auf die Leinwand, und dort gibt es keine
 Variablen.
@@ -859,7 +1011,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1426 Tests
+npm test           # 1555 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -968,6 +1120,40 @@ Antwort. Jede Änderung liegt in `settings.kalenderAenderungen`, die letzten
 zurück. Ohne Kalender oder Termin im Satz greift der Regelpfad nicht,
 sonst nähme "mach das rückgängig" nach einer Mahlzeit einen Termin zurück.
 
+### Der Plan aus dem Profil steht im echten Kalender
+
+`planInDenKalender` in `kalender-schreiben.js`. Im Betrieb stand
+"Krafttraining 14:00" nur in daevo, und im Google Kalender fehlte es: wer
+seinen Tag dort liest, sah nichts davon. Jetzt trägt daevo jede Einheit aus dem
+Profil für die nächsten 14 Tage ein, an der Uhrzeit des Profils, auch über
+einem anderen Termin. Die Einheit ist die Vorgabe des Nutzers, die
+Überschneidung meldet danach die Wache. Steht innerhalb einer Stunde schon ein
+Training dort, von daevo oder selbst, kommt keins daneben. Was der Nutzer
+löscht, legt daevo nicht wieder an: `settings.planKalender` merkt je Tag und
+Einheit, dass sie schon einmal dort stand. Entfällt eine Einheit im Profil,
+gehen ihre Termine wieder raus, sofern sie noch dort stehen, wo daevo sie
+hinlegte. Läuft beim Abgleich, bei jeder Änderung am Plan und sonst alle drei
+Stunden, danach prüft `wachePruefen` sofort auf Überschneidungen. Nur in der
+iPhone App.
+
+### Knöpfe an Mitteilungen
+
+`MitteilungenZentrale` in `MitteilungenPlugin.swift`, `schnellaktion.js`. Jede
+Mitteilung lässt sich lang gedrückt direkt beantworten, wie bei WhatsApp: Text
+tippen oder diktieren, ohne die App zu öffnen. Auf der Apple Watch zeigt
+watchOS dieselben Knöpfe, sie hängen an der Kategorie der Mitteilung. Eigene
+Knöpfe haben das Trinken (+ 0,25, + 0,5, + 1 Liter), Essen und Eiweiss ("Jetzt
+eintippen" mit Textfeld) und die Überschneidung im Kalender: So belassen,
+Training verschieben, Kalender öffnen. Verschieben rechnet die Web Ansicht, wenn
+sie noch im Speicher liegt, mit denselben Regeln wie im Gespräch, und das
+Ergebnis kommt als Mitteilung zurück: ein Knopf ohne Rückmeldung wird zweimal
+getippt. War die App beendet, sagt eine Mitteilung, dass es beim Öffnen
+erledigt wird. Das Wasser zählt am Tag des Tipps, nicht des Öffnens. Kalender
+öffnen springt zu Google Kalender, wenn das Training dort liegt, sonst zum Apple
+Kalender. Was iOS nicht zulässt: die Wache läuft nicht jeden Tag zu einer
+festen Zeit, das entscheidet das System. Offen und ungeprüft auf dem Gerät: der
+ganze Swift Teil.
+
 ### Was in den Kalender kommt
 
 `eintragErlaubt` in `kalender-schreiben.js`. Der Nutzer will einen Kalender,
@@ -1065,6 +1251,225 @@ Was offen ist: die Mitteilung ist so alt wie das letzte Öffnen der App.
 alte Stand. Die `KalenderWache` im Hintergrund prüft nur Überschneidungen
 mit eingetragenen Trainings, nicht den Ausblick.
 
+### Nur Mitteilungen, die Sinn ergeben
+
+Im Betrieb kam um 20 Uhr "Morgen geht es früh los: Morgen beginnt Zoe
+Geburtstag schon um 00:00, vor deiner Aufstehzeit". Ein Geburtstag steht in
+vielen Kalendern als Eintrag um 00:00 ohne Ganztags Kennzeichen.
+`istGanztagsartig` in `tagesablauf.ts` nimmt solche Einträge aus den
+Terminen: um 00:00 beginnend und mindestens 12 Stunden oder gar keine Zeit
+lang, dazu Geburtstag, Feiertag, Jahrestag und Namenstag im Titel. Sie
+belegen keine Zeit, lösen keinen frühen Start und keinen vollen Tag aus und
+stehen unter Ganztägig. Ein echter früher Termin meldet sich weiter.
+
+Dazu gilt für jede Mitteilung ausser einer selbst gesetzten Erinnerung: sie
+kommt nur zwischen Aufstehen und Schlafenszeit ihres Tages,
+`imWachfenster` in `mitteilungsPlan`. Wer um 11 aufsteht, bekommt um 9 keinen
+Eiweiss Impuls. Eine Erinnerung zu einer Uhrzeit, die der Nutzer gesagt hat,
+bleibt davon unberührt.
+
+### Gedenktage und der Kalender, dem daevo glaubt
+
+`packages/core/src/gedenktage.ts`. Geburtstage und Feiertage sind keine
+Termine und keine Aufgaben. `gedenkArt` erkennt sie: der Kalender
+Geburtstage von iOS (Typ 4), abonnierte Kalender mit ganztägigen Einträgen
+(Typ 3), Kalender mit Feiertag im Namen, und ganztägige oder um 00:00
+beginnende Einträge mit Geburtstag oder einem Feiertagsnamen im Titel. Ein
+Termin am Abend mit Geburtstag im Titel bleibt ein Termin. In
+`tagesablauf` fallen Feiertage ganz weg, Geburtstage stehen als Namen in
+`geburtstage`. Das Briefing nennt sie zuletzt, nach Zu tun, Essen und
+Untergrenze, in einem Abschnitt "Nicht vergessen": wem heute noch zu
+gratulieren ist. Auf der Kalenderseite stehen sie in der Liste des Tages.
+`geburtstagsName` macht aus "Zoe Geburtstag" den Namen und kürzt den
+Genitiv nur bei Namen auf oe oder ee: ein falsch gekürztes "Thoma" ist
+schlimmer als "Zoes".
+
+`kalenderWaehlen` entscheidet, welchen Kalender daevo liest. Wer im Google
+Kalender eine Serie gelöscht hat, sah sie in daevo weiter, weil sie im alten
+iCloud Kalender noch stand. Jetzt zählt der Kalender mit den meisten
+Terminen im gelesenen Fenster, `kalenderZaehlen`, und nur er. Von daevo
+Eingetragenes und Gedenktage bleiben immer. Der Schlüssel ist Konto und
+Name, damit zwei Kalender namens Kalender nicht zusammenfallen. Das Plugin
+schickt dafür `kalenderTyp` und `kalenderQuelle` mit. Die Kalenderseite
+nennt, welcher gelesen wird und welche nicht, mit Zahl, und "Alle Kalender
+lesen" schaltet es zurück, `settings.kalenderAlle`. Abos über eine Adresse
+bleiben unberührt, die hat der Nutzer selbst gewählt. Ungeprüft: der Swift
+Teil ist nicht kompiliert.
+
+### Feierabend
+
+`packages/core/src/feierabend.ts`. Das Ziel ist Entlastung. Im Betrieb stand
+im Briefing ein Termin um 23 Uhr, während die Abendroutine um 22 Uhr schon
+"Handy weg" gesagt hatte: zwei Aussagen der App, die sich widersprechen.
+Feierabend ist 13,5 Stunden nach dem Aufstehen, bei 6:30 also 20 Uhr, nie
+vor 19 Uhr und nie weniger als zwei Stunden vor der Schlafenszeit,
+`feierabendZeitpunkt`. Wer später aufsteht, hat später Feierabend. Die 13,5
+Stunden sind eine Regel der App und keine Studie.
+
+Folgen, in `begrenzt` in `tagesbriefing.ts` und `zeitplan` mit
+`spaetestens` und `ausnahme`: der Zeitplan legt nach Feierabend keine
+Aufgabe mehr, ausser `darfNachFeierabend`: höchste Wichtigkeit oder Geld
+(Rechnung, Steuer, Zahlung, Miete, Euro und ähnliche Wörter). Im Briefing
+steht kein Termin, der erst beginnt, wenn die Abendroutine läuft, 90
+Minuten vor der Schlafenszeit, ein Essen um 20:30 bleibt. Feierabend steht
+als Punkt auf der Zeitachse und als letzte Zeile unter Zu tun. Im Kalender
+und für Überschneidungen bleiben alle Termine, nur das Briefing lässt sie weg.
+
+### daevo sortiert den Tag
+
+`packages/core/src/sortierung.ts`, `reihenfolgeBauen` in `tagesbriefing.ts`,
+Darstellung in `apps/pwa/js/sortierung.js`. Das Briefing zeigt nicht mehr eine
+Liste, sondern Stufen: 1 Absolute Priorität (Umsatz, Geld, Frist heute oder
+überfällig, höchste Wichtigkeit), 2 Priorität 2 (wichtig, Frist in den nächsten
+drei Tagen), Dazwischen (Termine, Essen, Training nach Uhrzeit), 3 Kann auf
+morgen warten, und Abends. `aufgabeStufe` rechnet Wichtigkeit mal 10, dazu
+Frist und Umsatzwörter, und nennt den Grund, der unter der Aufgabe steht.
+Die Wortliste und die Punkte sind Regeln der App, keine Studie.
+
+Termine nach Feierabend stehen nicht im Tag und nicht unter Zu tun, sondern
+in einer eigenen Gruppe "Abends, nach Feierabend". Termine ab Beginn der
+Abendroutine bleiben weg, wie vorher.
+
+Beim ersten Zeigen fliegen die Punkte der Reihe nach in ihre Gruppe, wie bei
+"daevo sortiert" auf der Website. Danach steht die Reihe ruhig da: gemerkt
+über die Signatur, `sortiertGezeigt`. Mit weniger Bewegung gibt es keine
+Animation. Dieselbe Ansicht steht auf der Kalenderseite, im Morgen Check-in
+und unter der Antwort im Chat, wenn der Coach `tagesplan_erstellen` oder
+`aufgaben_priorisieren` genutzt hat (Vermerk "Tag sortiert"), nur unter der
+letzten solchen Antwort. Ungeprüft: Durchlauf mit echten Daten auf dem Gerät.
+
+### Was zu kurz kam, rückt vor
+
+`packages/core/src/prioritaetsmuster.ts`, `bereichsLuecken` und
+`bereichNamen` in `assistant.js`. Kam ein Lebensbereich des Balance Boards in
+den letzten sieben Tagen unter 40 Prozent seines Ziels, rückt jede Aufgabe aus
+diesem Bereich eine Stufe vor: Stufe 3 wird 2, Stufe 2 wird nur bei unter 20
+Prozent 1, Stufe 1 bleibt. Der Grund steht unter der Aufgabe ("Familie und
+Beziehung kam diese Woche zu kurz, 5 Prozent vom Ziel"), dazu ein Satz über der
+Übersicht, `musterHinweis`. Karriere nie: Arbeit fällt selten aus. Nur mit
+mindestens vier Tagen mit gemessener Zeit, denn ein Bereich ohne Eintrag ist
+vergessen und kein Bereich ohne Zeit. Die Schwellen sind Regeln der App.
+
+Welcher Bereich eine Aufgabe ist, sagt die Wortliste des Boards, dazu Namen:
+`familienNamenAus` liest sie aus den Notizen ("meine Schwester Lydi"), und
+`settings.bereichNamen` nimmt eigene je Bereich. Ohne das wäre "Lydi
+schreiben" keinem Bereich zugeordnet. Offen: eine Oberfläche, um Namen von
+Hand zu pflegen, und Termine rücken nicht vor, nur Aufgaben.
+
+## Der gefragte Tag gilt
+
+`packages/core/src/tagwahl.ts` und `packages/core/src/tagesfrage.ts`,
+`apps/pwa/js/alltag.test.js`. Im Betrieb fragte der Nutzer um 22:37 am Montag
+nach dem Briefing für morgen und bekam die Daten von heute, mit dem Satz,
+morgen sei eigentlich Dienstag. Die Ursache lag im Werkzeug
+`briefing_erstellen`: `art` "morgen" hiess das Morgenbriefing für heute,
+"abend" den Blick auf morgen, und das Modell nahm das Wort wörtlich. Der
+Regelweg ignorierte den Tag in mehreren Zweigen ganz.
+
+Jetzt entscheidet allein der Tag. `tagAusText` liest heute, morgen,
+übermorgen, gestern, Wochentage (der nächste, nie derselbe Tag nochmal) und
+Daten, nie "Guten Morgen" und nie "heute Morgen". Das Werkzeug trägt `tag`,
+`art` gilt nur ohne Tag, und der Tag wird nie geraten: ist er nicht lesbar,
+fragt die Antwort danach. `tagesfrageAus` erkennt im Regelweg Fragen nach
+einem Tag, nach dem Essen und nach dem Training, Befehle wie "erinnere mich
+morgen" und Einträge wie "heute Morgen hatte ich Eier" nicht. Für jeden Tag
+ausser heute besteht "Zu tun" aus den Aufgaben des Plans für morgen und allen
+offenen mit Frist an diesem Tag, die Stufe rechnet gegen diesen Tag, der
+Kalender kommt über `kalenderEinTag`. Überschrift, Fokus und Fristen nennen
+den Tag mit Wochentag und Datum, `tagWort`. Die Persona verlangt, bei jeder
+Frage nach einem Tag das Werkzeug mit `tag` zu rufen und Wochentag und Datum
+der Antwort zu prüfen. Offen: Fragen zum Wetter, und "morgen früh Training
+um 7" als Eintrag.
+
+## Regeneration je Muskel
+
+`packages/core/src/regeneration.ts` rechnet, `regenerationSvg` in
+`muskelkarte.js` zeichnet, `regeneration-daten.js` liest das Protokoll,
+Ansicht unter Bereitschaft. Je Partie ein Prozentwert aus den Sätzen der
+letzten 28 Tage: jedes Training legt eine Ermüdung an, die über eine
+Erholungszeit linear abklingt, 36 Stunden für kleine Muskeln bis 72 für
+Beine und unteren Rücken, länger nach vielen Sätzen. Mehrere Trainings
+addieren sich. Ab fünf Tagen ohne Reiz steht eine erholte Partie auf
+fällig, gestützt auf zwei Reize je Woche (Schoenfeld und andere 2016). Die
+Figur ist dieselbe wie im Abschluss, Rot belastet über Gelb nach Grün,
+leicht durchsichtig, ohne Training grau. Ein Tipp auf eine Partie setzt für
+heute frisch oder Muskelkater, `settings.regenGefuehl`, das Tempo schnell,
+normal oder langsam steht in `settings.regenTempo`. Ein Modell und keine
+Messung, die Stunden sind Regeln der App, und das steht in der Ansicht.
+`trainingsplan_abrufen` gibt den Stand für heute an den Coach. Trainings ohne
+Übungen, etwa Volleyball aus Health, kennt die Rechnung nicht.
+
+## Schmerz in der Übungsnotiz
+
+`schmerzHinweis` in `training.js`. Steht in der letzten Notiz einer Übung
+Schmerz, Ziehen, reingefahren, zwickt oder ähnliches, kommt beim nächsten
+Mal über den Sätzen ein Hinweis mit der Notiz: den ersten Satz leichter,
+nachspüren, sonst weglassen oder tauschen. Die Wortliste ist eng, "Sitz auf
+4" löst nichts aus. Im Rückblick auf ein altes Training kein Hinweis.
+
+## Schlaf mit Phasen
+
+`packages/core/src/schlafwert.ts`, `renderSchlaf` in `app.js`, Ansicht
+`schlaf`, erreichbar über die Schlafkarte auf Heute und unter Bereitschaft.
+Das Plugin liest je Nacht Kern, Tief, REM und Wach mit Verlauf. Apple Watch,
+Oura, Garmin und Whoop schreiben alle in Apple Health, und je Nacht gilt die
+Quelle mit den meisten Minuten in Phasen: zwei Quellen addiert hiessen
+doppelten Tiefschlaf. Gespeichert unter `gesundheit.nacht`, der Verlauf nur
+für 14 Nächte, `naechteSchreiben` in `healthkit.js`. Der Schlafwert ist
+eine Regel der App: Dauer gegen das Ziel 50, Effizienz 20, Tief 15, REM 15.
+Das Ziel ist der eigene Plan, nie unter sieben Stunden (Watson 2015), die
+Spannen der Phasen Richtwerte nach Ohayon 2004. Wearables messen Phasen
+ungenau (de Zambotti 2019), die Ansicht sagt das. Eigene Anbindungen an
+Garmin, Oura oder Whoop gibt es nicht, deren Schnittstellen brauchen eine
+Registrierung beim Anbieter, siehe `docs/ROADMAP.md`. Ungeprüft: der Swift
+Teil ist nicht kompiliert.
+
+## Körpersignale und Erholung
+
+`packages/core/src/koerpersignale.ts`, `koerperHtml` und `renderSchlaf` in
+`app.js`, die Ansicht heisst Erholung. Das Plugin liest ab `HEALTH_FASSUNG` 7
+dazu Puls über den Tag mit Schnitt, tiefstem und höchstem Wert, Gehpuls,
+Atemfrequenz, Sauerstoff, Hauttemperatur in der Nacht und Achtsamkeit in
+Minuten, je Tag in `gesundheit`. Einen Stresswert gibt es in Apple Health
+nicht, und Garmin, Oura und Whoop geben ihren nicht weiter. daevo leitet
+eine Lage ab: HRV, Ruhepuls, Atmung und Temperatur gegen den eigenen Median
+der 28 Tage davor, ab sieben Werten. HRV und Ruhepuls zählen bis zwei
+Punkte, die anderen einen, ab drei angespannt. Ableitung, keine Messung,
+und so steht es da. Der Coach bekommt Werte und Lage über `koerperText`.
+
+Gestaltung: kein Nachbau von Thalos. Der Nutzer will den Stil von daevo,
+also `wertungsRing` für den Schlafwert, kleine Ringe in der Markenfarbe für
+die Woche, Balkenzeilen `messwert` für die Phasen, die Linie aus dem Bericht
+für die Signale, Zahlen frei ohne Kästen, Farben aus der Familie der
+Bereiche und Makros statt einer Ampel. Die Karten Schlaf, Ruhepuls, HRV,
+Puls und Sauerstoff auf Heute führen in die Ansicht.
+
+## Essenszeiten und Mahlzeiten im Kalender
+
+Der Fragebogen fragt auf eigener Seite, wann die erste Mahlzeit nach dem
+Aufstehen kommt und wann Mittag und Abend, `profile.essenszeiten`, im Profil
+unter den Tagesrändern änderbar. `tagesessen` legt die Fenster darum,
+`essensUhrzeiten` nennt die Uhrzeiten je Tag mit der Aufstehzeit dieses
+Tages. Übernommene Mahlzeiten kommen als "Abendessen: Gericht" in den
+Kalender, `mahlzeitenEinplanen` in `kalender-schreiben.js`: aus dem
+Essensplan mit "Plan übernehmen, in meinen Kalender", aus einem Vorschlag
+im Rezeptblatt mit "Einplanen", im Gespräch über `kalender_termin`, wenn er
+zugesagt hat. Je Tag und Mahlzeit steht höchstens ein Termin von daevo,
+ein neuer Plan ersetzt den alten, ein selbst verschobener bleibt.
+
+## Pläne aus Foto oder PDF
+
+Werkzeuge `plan_uebernehmen` und `ernaehrungsplan_uebernehmen`,
+`planImportieren` und `ernaehrungsplanImportieren` in `assistant.js`. Das
+Modell liest den Plan aus dem Anhang ab, daevo ordnet zu und rechnet. Ein
+Trainingsplan läuft je Einheit durch `einheitAusDiktat`, Unbekanntes bleibt
+mit `eigen-` Kennung, und `gespeicherterPlan` lässt solche Übungen jetzt
+stehen. Ein Ernährungsplan wird je Mahlzeit ein eigenes Rezept, Nährwerte
+aus den Zutaten über `parseMeal`, nie vom Blatt. Danach der Abgleich mit
+dem Tagesziel als ein Faktor auf alle Mengen, damit die Mahlzeiten des
+Coaches erkennbar bleiben. Ohne KI gibt es keinen Import: ein Bild lesen
+kann der Regelweg nicht.
+
 ## Das Tagesbriefing
 
 `packages/core/src/tagesbriefing.ts`, `tagesbriefingFuer` in `assistant.js`.
@@ -1106,6 +1511,59 @@ die App den Kalender frisch, höchstens vier Sekunden, `kalenderFrisch`. Offen
 gleicht sie ihn alle 15 Minuten ab, `ABGLEICH_ABSTAND_MS`. Die Zeilen heissen
 `.mg-zeile`, denn `.mg-punkt` sind die Knöpfe der Skala, und derselbe Name
 gab den Zeilen im ersten Versuch Pillen und feste Höhen.
+
+### Das Briefing als Präsentation
+
+`briefingFolien` in `tagesbriefing.ts` rechnet Karten, `apps/pwa/js/briefing-show.js`
+zeigt sie im Vollbild `#briefingShow`. Der Nutzer wollte keinen Textblock mehr:
+fünf Abschnitte mit Strichen und ganzen Sätzen liest abends niemand. Jede Karte
+trägt einen Gedanken, eine Zahl oder höchstens fünf Zeilen, immer in derselben
+Reihenfolge: Begrüssung, abends wie heute lief, Fokus, der Tag als Zeitleiste,
+Zu tun, was daevo aufgefallen ist, Essen, Untergrenze und Geburtstage,
+Schluss. Eine Karte ohne Inhalt fällt weg. Der Text in `abschnitte` bleibt für
+Chat und Mitteilung.
+
+Wie eine Story: Balken oben, die Karten laufen von selbst weiter, die Dauer
+hängt an der Zahl der Zeilen, `folieDauer`. Tipp rechts weiter, links zurück,
+halten hält an, seitlich wischen blättert, nach unten wischen schliesst. Die
+letzte Karte bleibt stehen. Dunkel in beiden Modi wie das Abo Fenster, je Karte
+eine Akzentfarbe aus den Familien der Makros und Bereiche. Die Klassen der
+Karten heissen `bs-f-<art>`: `.bs-essen` war zuerst Karte und Liste zugleich,
+und die Essenskarte rutschte aus dem Bild.
+
+Für die Karte "daevo ist aufgefallen" tragen die Punkte des Vorausblicks
+`kurz` und `tun`, wenige Wörter statt des ganzen Satzes. Abends ohne einen
+einzigen Eintrag sagt die Karte das, statt 168 g Protein vor dem Schlafen zu
+empfehlen: was nicht eingetragen ist, ist vergessen.
+
+Jede Karte mit Inhalt trägt unten "Anpassen". Fokus und Essen ändern sich
+direkt, die Präsentation hält dabei an und springt danach neu gerechnet auf
+dieselbe Karte, `aktualisieren` an der Steuerung aus `briefingZeigen`. Der
+Fokus kommt aus den offenen Aufgaben oder als eigener Satz, der dann eine
+Aufgabe wird, `settings.briefingFokus` je Tag, `fokusWahl` im Kern. Termine,
+Aufgaben, Standards und Nachtragen öffnen ihre Seite.
+
+Jede Mahlzeit auf der Essenskarte ist ein Knopf "Ändern", das Blatt
+`#bsAendern`: tippen oder sprechen geht über `parseMeal` wie beim Eintragen,
+ein Foto über die Bildauswertung, Scannen und Suchen über den Mahlzeit
+Editor in der Betriebsart Wahl, `wahlEditorOeffnen`. Gespeichert wird nicht
+in den Tag, sondern als geplante Mahlzeit in `settings.essenWahl`,
+`essenWahlSetzen` in `assistant.js`: morgen ist noch nichts gegessen, und als
+Eintrag stünde es heute schon in den Zahlen. `tagesessen` nimmt sie über
+`gewaehlt` wie gegessen für den Rest, die übrigen Mahlzeiten werden um sie
+herum gerechnet, und sie steht mit eigenen Werten und "deine Wahl" im Plan.
+Ist die Mahlzeit dieser Art eingetragen, gilt der Eintrag.
+
+Für heute steht ganz oben im Blatt "So gegessen, jetzt eintragen",
+`geplanteMahlzeitEintragen` in `assistant.js`: die eigene Wahl oder der
+Vorschlag von daevo in der gerechneten Portion, mit allen Posten, zur
+geplanten Uhrzeit, aber nie später als jetzt. Danach fällt die Wahl weg,
+und sechs Sekunden gibt es Rückgängig. Für morgen fehlt der Knopf, morgen
+ist noch nichts gegessen.
+
+Geöffnet wird sie oben auf Dein Tag, ab 17 Uhr steht "Briefing für morgen"
+vorn, auf der Kalenderseite unter dem Briefing, über die Mitteilung am Abend
+und unter einer Antwort mit Briefing im Chat, Vermerk "Briefing erstellt".
 
 Snacks in den Mahlzeiten nach dem Kalender folgen derselben Regel wie im
 Wochenplan: Standard zuerst, Zucker nur ums Training, `snackRegel` in
@@ -1366,6 +1824,37 @@ Offen: die HRV in der Bereitschaft wird noch nicht gegen dieselbe Phase der
 letzten Zyklen verglichen, wie im Entwurf beschrieben. Die Bereitschaft
 liest die HRV bisher gar nicht.
 
+## Die Abendroutine und der Schlaf der Woche
+
+`packages/core/src/schlafplan.ts` rechnet, `apps/pwa/js/abend.js` zeigt,
+das Blatt `#abendBlatt`. 90 Minuten vor der Schlafenszeit des Tages kommt
+die Mitteilung "Dein Abend", `ABEND_VORLAUF_MIN`, mit Wochentag, Ausnahmen
+und SLEEP im Kalender über `randMitKalender`. Vorher kam 45 Minuten vorher
+"Runterfahren" mit zwei Sätzen und führte zu den Mindeststandards, und für
+Lüften und Lesen war es da zu spät. Die Art heisst weiter `runterfahren`,
+damit ein ausgeschalteter Schalter ausgeschaltet bleibt.
+
+Ein Tipp öffnet den Ablauf, so wie ihn die Website zeigt: Mond, die Stunden
+von der Schlafenszeit bis zur Aufstehzeit des nächsten Tages, darunter
+zum Abhaken Handy weg 60 Minuten vorher, Supplements, Zimmer lüften, Licht
+dimmen, Lesen, Journal oder Meditation, Schlafen. Die Abstände sind eine
+Regel von Coach Aaron. "Ich geh jetzt schlafen" merkt die Uhrzeit, je Abend
+in `settings.abend`, die letzten 21. Vor fünf Uhr früh gehört das Blatt
+zum Abend davor. Unter Check-ins steht es als Knopf "Abendroutine".
+
+Unter dem Ergebnis des Morgen Check-ins stehen die letzten sieben Nächte,
+`schlafWocheFuer`: vorgenommen aus Schlafens und Aufstehzeit, tatsächlich
+aus Apple Health am Aufwachtag, sonst vom Zubettgehen bis zum Morgen
+Check-in. Das zweite ist Zeit im Bett und kein gemessener Schlaf, die
+Anzeige sagt "im Bett". Dazu ein Tipp für heute Abend in dieser
+Reihenfolge: ein Plan unter sieben Stunden (Watson und andere, Konsens von
+AASM und SRS, Sleep 2015), im Schnitt 20 Minuten später ins Bett als
+geplant, mehr als 45 Minuten zu wenig Schlaf. Ohne gemessene Nacht gibt es
+keinen Vergleich, nur den Plan.
+
+Ungeprüft: der Tipp auf die Mitteilung am Gerät. Im Browser geprüft sind
+Blatt und Woche in beiden Modi.
+
 ## Der Guten Morgen Check-in
 
 `packages/core/src/morgencheck.ts` rechnet, `apps/pwa/js/morgen.js` zeigt,
@@ -1477,6 +1966,25 @@ ohne dass jemand sie gewählt hat, sieht im Verlauf später aus wie eine Antwort
 Zahlen gegen den letzten gleichen Bogen, mit einer Schwelle: ein Punkt auf einer
 Skala bis 10 ist Rauschen, zehn Prozentpunkte auch. Ein einzelner Bogen ist eine
 Momentaufnahme, erst "Stress von 40 auf 75" ist eine Aussage.
+
+### Das Tagebuch der Bögen
+
+Unter dem Wochenbogen steht "Dein Tagebuch": alle Bögen, Mitte und Woche,
+neueste zuerst, die letzten 40, `renderWcVerlauf` in `app.js`. Ein Tipp
+klappt einen Bogen auf, jede Frage mit der eigenen Antwort und darunter die
+Antwort von daevo. Die steht seit diesem Stand am Bogen,
+`checkinAntwortSetzen` im Speicher. Vorher stand dort nur "17 von 17
+beantwortet", und die Auswertung war nach dem Verlassen der Seite weg.
+Ältere Bögen haben keine gespeicherte Antwort.
+
+Dasselbe für den täglichen Check-in: nach dem Speichern antwortet daevo
+kurz, `tagesCheckinAuswerten` in `assistant.js`, die Antwort hängt über
+Tag und Uhrzeit am Check-in, `checkinTagAntwortSetzen`. Darunter steht
+"Dein Tagebuch" mit allen Check-ins der letzten 30 Tage, auch Morgen und
+Mittag, `renderCheckins` in `app.js`, aufklappbar mit Werten, Notiz und
+Antwort. Ohne KI gibt es keine Antwort und keinen Regelweg: der würde aus
+einer Notiz wie "Pizza mit Freunden" eine Mahlzeit machen. Der Prompt sagt
+dem Coach, dass der Check-in schon gespeichert ist, sonst stünde er doppelt.
 
 ## Sprachausgabe
 
@@ -2693,6 +3201,31 @@ der Testphase erlebt hätte. Jeder dieser Fehler hat jetzt einen Test in
   Posten auf die Einkaufsliste, Fragen nach der letzten Woche, und eine
   Fachfrage bekommt den ehrlichen Satz, dass sie die KI braucht.
 
+### Der dritte Durchlauf, November 2026
+
+34 Sätze im Browser gegen die Fassung für Nutzer, ohne KI. Jeder Fehler hat
+einen Test in `agent.test.ts`:
+
+- "Wie hab ich geschlafen?" und "Wie ist mein Stress laut Uhr?" legten einen
+  Check-in mit der Frage als Notiz an, "wie ist meine Erholung" landete beim
+  Balance Board. Fragen nach Schlaf, Körpersignalen und Regeneration gehen
+  jetzt an `bereitschaft_abrufen` mit `fokus`, und eine Frage legt nie einen
+  Check-in an: "was hilft gegen Stress" ist eine Fachfrage.
+- "Trag morgen um 17 Uhr Training in meinen Kalender ein" setzte das Ende
+  des Tages auf 17 Uhr, weil "ende" in "Kalender" steckt. `schichtAus` sucht
+  auf Wortgrenzen und greift nie bei Kalender, Termin oder Training.
+- "War heute 90 Minuten Volleyball" verstand der Regelweg nicht, eine
+  Sportart mit war oder hatte zählt jetzt als vorbei.
+- "Lösch das Training von gestern" suchte nur heute, `tag` an
+  `eintrag_zuruecknehmen`.
+- "Was hab ich diese Woche trainiert" bekam den Kalender, jetzt die
+  eingetragenen Trainings je Tag, `trainingsverlaufAbrufen`.
+- "Übungen für den Rücken ohne Geräte" zeigte Bankdrücken, denn die Suche
+  nimmt Teilwörter. Partie und "ohne Geräte" sind in `uebungenSuchenText`
+  Filter und keine Suchwörter.
+- "Einen Proteinriegel gegessen" bekam die Bitte um eine Menge, jetzt die
+  um Barcode oder Werte je 100 g.
+
 Bei leerem Kontingent steht die Antwort des Regelwegs vorn, sobald er den
 Satz verstanden hat, auch wenn er nur etwas vorliest. Die Meldung zum Abo
 steht höchstens alle sechs Stunden darunter, sonst stünde nach der
@@ -2742,14 +3275,19 @@ wie Eier ganz. Die Nährwerte werden aus den gerundeten Mengen neu gerechnet:
 was angezeigt wird, ist das, was eingetragen wird. Die Passung ist eine Regel:
 Kalorien und Protein je 35 Prozent, Fett und Kohlenhydrate je 15.
 
-55 Rezepte, davon 24 aus den Guides von Personal Coach Aaron. Deren Kalorien
+69 Rezepte, davon 24 aus den Guides von Personal Coach Aaron. Deren Kalorien
 werden nicht übernommen: sie stehen dort als "ca." und liegen bei mehreren
 Gerichten unter dem, was die Zutaten ergeben. Gerechnet wird wie überall aus
 der Zutatentabelle.
 
 Fotos: `foto: true` am Rezept, Datei unter `apps/pwa/img/rezepte/<id>.jpg`
 (800 x 600), Stil wie bei den Übungen. Ein Test prüft, dass jede Kennzeichnung
-eine Datei hat. Alle 55 Rezepte haben ein Foto. Ohne Foto trägt die Karte ein Zeichen
+eine Datei hat. 14 schnelle Rezepte mit höchstens fünf Zutaten und 25
+Minuten kamen im November 2026 dazu. Fotos nur unter CC0 aus Openverse und
+nur, wenn das Bild das Gericht zeigt, Quelle je Datei in
+`img/rezepte/NACHWEIS.json`. Bisher Bolognese und Garnelen Reispfanne, die
+übrigen zwölf tragen das Zeichen. Openverse antwortete im November oft mit
+504, Wikimedia und Flickr blocken automatische Abrufe. Ohne Foto trägt die Karte ein Zeichen
 auf einem Verlauf. Die Karte steht im Verhältnis 4 zu 3 und ist auf breiten
 Bildschirmen gedeckelt, vorher füllte sie auf dem Laptop den halben
 Bildschirm.
@@ -3902,9 +4440,10 @@ keiner, und die App legt nach der Ablehnung über `kontoStand` ein neues an.
 ### Testphase und Abo
 
 Jedes neue Konto hat sieben Tage Testphase, Stufe `test` mit `bis`. Danach
-fällt es auf `frei`, und `frei` heisst: keine KI, aber alles ohne Modell. Das
-ist eine harte Paywall und eine Entscheidung des Betreibers. Der Regelweg
-bleibt in jeder Stufe frei, denn er kostet nichts. Preise: Plus 11,99 Euro,
+fällt es auf `frei`, und `frei` heisst: gesperrt. Das ist eine harte Paywall
+und eine Entscheidung des Betreibers: ohne Testphase und ohne Abo lässt sich
+die App gar nicht mehr benutzen, auch nicht ohne KI. Der Regelweg ist damit
+kein freies Angebot mehr, sondern Teil des Abos. Preise: Plus 11,99 Euro,
 Pro 19,99 Euro im Monat, oder jährlich 99,99 und 159,99 Euro. Das Jahr
 spart bei Plus 30 und bei Pro 33 Prozent und ist im Abo Fenster vorgewählt.
 Plus kostete vorher 9,99 und 79,99 Euro mit 7 Dollar Budget. Nachgerechnet
@@ -3968,8 +4507,37 @@ eingerichtet sind, sonst kann niemand die Testphase starten. Schritte in
 `docs/ABO-EINRICHTEN.md`.
 
 Das Fenster dazu kommt direkt nach dem Fragebogen, `startAnlass` in
-`apps/pwa/js/kauf.js`, und die Einführung wartet, bis es zu ist. Ein Ausweg
-"Erst ohne KI umsehen" bleibt: alles ohne Modell ist in jeder Stufe frei.
+`apps/pwa/js/kauf.js`, und die Einführung wartet, bis es zu ist. Einen
+Ausweg gibt es nicht mehr, siehe "Die Sperre".
+
+### Die Sperre
+
+`sperreFuer` in `apps/pwa/js/konto.js`, `sperrePruefen` und `sperreSetzen` in
+`app.js`. Ist die Stufe `frei`, also nach der Testphase oder einem
+abgelaufenen Abo, öffnet sich das Abo Fenster als Vollbild ohne Kreuz und ohne
+"Später", ein Tipp daneben tut nichts, und alles dahinter ist `inert`. Der
+Server meldet `gesperrt` an `GET /konto`, und `/chat` antwortet einem
+`frei` Konto mit 402 und der Art `gesperrt`, ohne Anthropic zu fragen.
+
+Geprüft wird beim Start, beim Zurückholen der App und nach einer Nachricht,
+die am Kontingent scheitert. Ohne Netz gilt der letzte Stand aus
+`settings.kontoStufe` und `kontoBis`: war er `frei`, bleibt es zu, eine Stufe
+mit Ende gilt einen Tag darüber hinaus, denn eine Verlängerung kommt manchmal
+Stunden später an. Ein Gerät ohne bekannten Stand wird nicht gesperrt, dort
+gibt es nichts zu schützen, und das Konto entsteht ohnehin erst mit Netz.
+
+Ohne `chatUrl` gibt es keine Sperre: die Entwicklerfassung mit eigenem
+Schlüssel und die Demo ohne Konto haben nichts, was ablaufen könnte. Wer die
+Fassung für Nutzer baut, hat sie immer.
+
+Erreichbar bleibt in der Sperre, was jemand ohne Abo braucht: Kauf, Kauf
+wiederherstellen, die Daten sichern, das Konto löschen (Apple verlangt es in
+der App) und die Rechtstexte. Ein Konto, dessen Testphase mit dem Abo
+beginnt und das noch nie ein Abo hatte, sieht "Starte deine Testphase" statt
+"Testphase vorbei". Die Sperre fällt erst, wenn der Server das Abo kennt, nicht
+schon nach dem Tipp auf Kaufen. Offen: Postfach, Gesundheits Kurzbefehl und
+Aufträge laufen am Gerät vorbei auf dem Worker und prüfen kein Konto, sie
+tragen nur Zahlen oder feste Texte.
 
 App Store: `AboPlugin.swift` mit StoreKit 2. Jede Transaktion geht als JWS
 an `/appstore`, `workers/push/src/apple-jws.ts` prüft die Kette gegen die
@@ -4113,6 +4681,33 @@ Die Leseberechtigung hat eine Fassung, `HEALTH_FASSUNG`. iOS fragt nur nach
 neuen Typen, wenn die App erneut fragt, und wer vorher zugestimmt hatte,
 wäre sonst nie nach der Ernährung gefragt worden.
 
+Auf Heute steht "Bewegung und Erholung", `renderBewegung` in `app.js`, als
+Karten mit Zeichen in der Farbe aus der Familie der Bereiche: Schuh für
+Schritte, Blitz für aktive Kalorien, Zzz für Schlaf, EKG für Ruhepuls, Herz
+für HRV, Stoppuhr für Trainingsminuten. Ein Balken nur, wo es ein Ziel gibt:
+Schritte gegen den Schnitt im Profil, Schlaf gegen acht Stunden, Ringminuten
+gegen 30. Der Nutzer wollte Karten, die man am Zeichen erkennt. Inhalt:
+Schritte, aktive Kalorien, Schlaf, Ruhepuls, HRV und die Trainings mit
+Minuten, Kalorien und Puls. Vorher lag das alles in den Tagen und stand
+nirgends. Nur Gemessenes bekommt eine Kachel, und der Abschnitt nennt den
+letzten Abgleich oder den Weg zur Erlaubnis in den iPhone Einstellungen.
+Offen gleicht die App alle zehn Minuten ab, nicht nur beim Öffnen.
+
+Ein Training aus Health, das schon im Tag steht, etwa aus dem
+Trainingsmodus, fiel vorher ganz weg, mitsamt Kalorien und Puls. Jetzt
+kommen `kcal`, `puls` und `pulsMax` an den vorhandenen Eintrag, über
+`healthId` nur einmal. Das Plugin liest sie je Training über
+`statistics(for:)`, dafür fragt `HEALTH_FASSUNG` 5 nach dem Puls.
+
+Die aktiven Kalorien gehen aufs Tagesziel, aber nicht doppelt:
+`aktivitaetsZuschlag` in `energy.ts`. Der Aktivitätsfaktor rechnet Schritte
+und Training schon ein, eingeplant sind Verbrauch minus Grundumsatz minus
+zehn Prozent Verdauung. Nur was die Uhr darüber misst, kommt dazu, als
+Kohlenhydrate, im Defizit mit demselben Abschlag, höchstens 1500 kcal, nie
+nach unten. Der Satz unter den Kacheln nennt beide Zahlen, und
+`settings.aktivZumZiel` schaltet es ab. Der Coach bekommt dieselben Werte
+über `gesundheitZeilen` im Kontext.
+
 Sobald Schritte aus Health an vier der letzten sieben Tage dastehen, rechnet
 das Kalorienziel mit ihrem Schnitt statt mit der Schätzung aus dem
 Fragebogen, `gemesseneSchritte` in `assistant.js`. Der laufende Tag zählt
@@ -4130,6 +4725,11 @@ dann noch gar nicht. Die App holt die Antworten beim nächsten Öffnen ab.
 Nichts davon ist auf einem Gerät gelaufen, bevor es eingecheckt wurde. In
 diesem Repository gibt es kein Xcode. Die erste Runde auf dem iPhone ist
 deshalb ein Test und kein Betrieb.
+
+`vorbereiten.mjs` kopiert ausserdem die Quellen aus `apps/ios/watch` in die
+Ordner der Uhr Ziele, wenn es sie in Xcode gibt, und nennt neue Dateien. Die
+Ziele liegen nur auf dem Mac des Betreibers, und eine vergessene Kopie hiess:
+iPhone neu, Uhr alt.
 
 `build:demo` ersetzt in `konfig.js` nur das Objekt `KONFIG` und behält den
 Rest der Datei. Vorher schrieb es die Hilfsfunktionen von Hand nach, und
@@ -4219,6 +4819,85 @@ einmal in Xcode an, `docs/WATCH.md`, die Projektdatei wird dafür nicht von
 Hand geändert. Neue Ziele in Xcode 26 stehen auf Default Actor Isolation
 MainActor, die Anleitung stellt sie auf nonisolated und Swift 5.
 
+## Die Uhr bleibt aktuell
+
+Im Betrieb zeigte die Uhr Aufgaben von vorgestern als heute offen, obwohl
+sie abgehakt waren: das Paket kam nur, wenn daevo auf dem iPhone offen war
+und sich dort etwas änderte, und die Aufgaben darin kamen aus dem Stand der
+letzten Planung. Jetzt, in `uhrSenden` in `app.js`:
+
+- vor jedem Paket liest die App Todoist neu, höchstens alle fünf Minuten,
+- offen schickt sie alle fünf Minuten ein Paket, auch ohne Änderung hier,
+- beim Wechsel in den Hintergrund noch einmal den letzten Stand.
+
+Auf der Uhr, `auffrischen` in `Verbindung.swift`, bei jedem Hochnehmen des
+Handgelenks über `scenePhase` und auf Dein Tag: sie bittet das iPhone mit
+`art: "aktualisieren"` um ein neues Paket, `neuSenden` in `UhrPlugin.swift`,
+das wirkt nur, wenn daevo dort vorn ist. Im Hintergrund hält iOS die Web
+Ansicht an, und das Paket rechnet nur die Web App. Deshalb fragt die Uhr
+Todoist selbst, Schnittstelle v1, höchstens alle zwei Minuten, und blendet
+aus, was dort nicht mehr offen ist. Abgehakt auf der Uhr wird eine Todoist
+Aufgabe gleich dort geschlossen. Der Schlüssel kommt als `todoistToken` im
+Paket, leer heisst getrennt, und liegt auf der Uhr im Schlüsselbund,
+`Schluesselbund`, nicht in den UserDefaults mit dem Paket. Eigene Aufgaben
+aus daevo kennt nur das iPhone. Ist das Paket von gestern, sagt Dein Tag
+"Stand vom 12. Nov." mit dem Weg zum neuen und schreibt nicht mehr "später"
+an Aufgaben eines alten Plans. Ungeprüft: der Swift Teil ist hier nicht
+kompiliert.
+
+## Ein Training zwischen iPhone und Uhr
+
+Im Betrieb zeigte die Uhr "Training für heute, 6 Übungen", während am
+iPhone dasselbe Training mit 9 lief: der Entwurf ging nie an die Uhr,
+wenn sich darin etwas änderte. Jetzt, in beide Richtungen:
+
+- Jede Änderung am Entwurf schickt das Paket, gebündelt über `uhrSpaeter`.
+  Das laufende Training steht dort mit `start` und, solange am iPhone eine
+  Pause läuft, `pauseBis` aus `settings.trainingPause`. Das Training für
+  heute und die Einheit des Plans mit demselben Titel stehen dann nicht
+  noch einmal da.
+- Ein Training, das am iPhone beginnt, öffnet daevo auf der Uhr über
+  `startWatchApp`, `trainingStarten` in `UhrPlugin.swift`. Die Uhr bekommt
+  die Einstellung in `UhrDelegate.handle`, setzt `startWunsch` und öffnet
+  das laufende Training, sobald es im Paket steht. Die Sitzung dort zählt
+  für Apple Fitness mit Puls und Kalorien.
+- `TrainingLauf` führt jedes neue Paket ein, `vomIphone`: dort
+  dazugenommene Übungen kommen hinten dazu, dort abgehakte Sätze werden
+  übernommen, eine dort gestartete Pause läuft hier mit.
+- Nach jedem Satz auf der Uhr geht `trainingStand` ans iPhone, und
+  `entwurfMitUhr` in `uhr.js` führt ihn in das laufende Training: auf der
+  Uhr Abgehaktes kommt, hier Abgehaktes bleibt. Beendet die Uhr, schliesst
+  `vonUhrBeendet` das Training am iPhone ohne zweites Speichern.
+- Oben rechts pausiert die Uhr das ganze Training, `pausieren` in
+  `Sitzung.swift`, Apple Fitness zählt die Zeit dann nicht.
+
+## Trainings in Kalender und Apple Health
+
+Läuft in daevo ein Training, wartet eine Aufzeichnung der Uhr, die danach
+beginnt, `workoutsSchreiben` in `healthkit.js`. Beim Beenden geht sie in den
+Eintrag aus daevo, `healthEinfangen`: Dauer und Beginn gelten wie in daevo,
+denn dort steht jeder Satz. Im Betrieb lobte daevo "10 Minuten Krafttraining",
+während alle Übungen einer Stunde abgehakt waren, weil die Uhr zu spät
+gestartet war. Ist die Aufzeichnung kürzer als 60 Prozent, `KURZ_ANTEIL`,
+rechnet `kcalFuerTraining` die Kalorien auf die Dauer hoch und der Eintrag
+trägt `kcalHochgerechnet`. Der Puls bleibt, wie die Uhr ihn maß.
+
+Ein beendetes Training aus daevo steht im Tag mit seinem Beginn und nicht
+mit dem Ende, kommt über `trainingInDenKalender` in den Kalender, mit dem
+Namen der Einheit, und über `trainingSpeichern` im `GesundheitPlugin` als
+Krafttraining in Apple Health. Lief dazu eine Sitzung auf der Uhr, hat die
+Uhr es gespeichert, `uhrTrainingLaeuft`. Dafür fragt `HEALTH_FASSUNG` 6
+nach dem Schreiben von Trainings, sonst schreibt daevo nichts in Health.
+Ein Training von der Uhr kommt ebenfalls in den Kalender.
+
+Ein Training aus Apple Fitness trägt den Namen, den man dort gewählt hat,
+`name` im Plugin: "Training: Volleyball" im Kalender, "Volleyball" in der
+Nachricht und auf Heute. Eingetragen wird, sobald daevo Health liest, also
+beim Öffnen oder nach der Mitteilung der `TrainingWache`. Apple legt ein
+Training erst beim Beenden in Health ab, früher geht es nicht.
+
+Ungeprüft: der Swift Teil ist nur auf Syntax geprüft.
+
 ## Die Uhr ohne iPhone
 
 Vier Seiten: das d, Dein Tag, Heute, Training. Dein Tag zeigt Termine und
@@ -4299,6 +4978,25 @@ Das Blatt hat nur "Weiter". Apple lehnt Vorabseiten mit eigenem Nein ab,
 abgelehnt wird in der Frage von iOS. Einführung, Abo Fenster, Health
 Abgleich und Mitteilungen warten, bis alles beantwortet ist. Was fehlt,
 nennt danach eine Meldung mit dem Weg in die Einstellungen.
+
+## Eine Mitteilung öffnet ihre Seite
+
+`MITTEILUNG_ZIEL` in `mitteilungen.js`, angewendet in `impulsOeffnen`. Vorher
+landete fast jede Mitteilung als Nachricht im Chat auf der Startseite, auch
+der Wochenrückblick und das Trinken. Jetzt: Trinken auf Heute beim Wasser,
+Eiweiss und Nachlegen auf Heute mit offenem Erfassen, der Rückblick im
+Bericht, wo er oben als `#berichtRueckblick` steht, der Blick auf morgen im
+Kalender auf dem Reiter Morgen, der Wochenbogen im Bogen, Runterfahren bei
+den Mindeststandards, das Ende einer Satzpause im Training. Fragen, die man
+mit einer Zahl beantwortet, Energie, Stress und die fünf Minuten, bleiben im
+Chat. In der iPhone App wird die Mitteilung vor dem Abgleich mit Health
+gelesen, der dauerte Sekunden, und so lange stand die Startseite da.
+
+Die Pause im Training hiess `pause`, wie die Frage nach den fünf Minuten um
+21 Uhr, und ein Tipp darauf öffnete diese Frage. Sie heisst jetzt
+`satzpause`. Der Wochenbogen kommt jetzt auch in der iPhone App, Mittwoch
+und Sonntag zu seiner Uhrzeit, nicht wenn er schon abgeschickt ist,
+abschaltbar über `mitteilungenAus.wochencheck`.
 
 ## Eigene Erinnerungen
 

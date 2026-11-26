@@ -1,4 +1,5 @@
 import { bereichVon } from "./balance.js";
+import { gedenkArt, geburtstagsName, istGanztagsartig } from "./gedenktage.js";
 import type { Termin } from "./ical.js";
 import { uhrzeit } from "./ical.js";
 import type { MacroTargets, UserProfile } from "./types.js";
@@ -41,7 +42,10 @@ export interface Tagesablauf {
   tag: string;
   /** Termine des Tages, ohne ganztägige. */
   termine: Termin[];
+  /** Ganztägige Einträge ohne Geburtstage und Feiertage. */
   ganztags: Termin[];
+  /** Namen derer, die an diesem Tag Geburtstag haben. Feiertage stehen nirgends. */
+  geburtstage: string[];
   /** Wach von, wach bis, aus dem Profil. */
   wachVon: number;
   wachBis: number;
@@ -114,8 +118,13 @@ export function tagesablauf(params: {
       return true;
     })
     .sort((a, b) => a.von - b.von);
-  const ganztags = alle.filter((t) => t.ganztags);
-  const termine = alle.filter((t) => !t.ganztags);
+  // Geburtstage und Feiertage sind keine Termine und keine Aufgaben. Feiertage
+  // fallen ganz weg, Geburtstage stehen als Namen am Ende des Briefings.
+  const art = (t: Termin) => t.art ?? gedenkArt(t);
+  const geburtstage = [...new Set(alle.filter((t) => art(t) === "geburtstag").map((t) => geburtstagsName(t.titel)).filter(Boolean))];
+  const ohneGedenk = alle.filter((t) => !art(t));
+  const ganztags = ohneGedenk.filter((t) => istGanztagsartig(t)).map((t) => ({ ...t, ganztags: true }));
+  const termine = ohneGedenk.filter((t) => !istGanztagsartig(t));
 
   const belegt = verschmelze(termine.map((t) => ({ von: t.von, bis: t.bis })));
   const belegtImWachfenster = belegt
@@ -142,6 +151,7 @@ export function tagesablauf(params: {
     tag,
     termine,
     ganztags,
+    geburtstage,
     wachVon,
     wachBis,
     auslastung: Math.min(1, belegtMinuten / wachMinuten),
@@ -485,6 +495,7 @@ export function tagesablaufText(a: Tagesablauf, essen?: string): string {
   if (a.ganztags.length) {
     zeilen.push(`Ganztägig: ${a.ganztags.map((t) => t.titel).join(", ")}.`);
   }
+  if (a.geburtstage.length) zeilen.push(`Geburtstag: ${a.geburtstage.join(", ")}. Gratulieren nicht vergessen, ganz am Ende des Tages erwähnen.`);
 
   if (a.termine.length === 0) {
     zeilen.push("Keine Termine mit Uhrzeit.");

@@ -80,6 +80,10 @@ struct TrainingVorlage: Codable, Equatable, Identifiable, Hashable {
     var schluessel: String
     var quelle: String
     var titel: String
+    /// Beginn eines Trainings, das am iPhone läuft, als ISO Zeit.
+    var start: String?
+    /// Ende einer Pause, die am iPhone läuft, in Millisekunden.
+    var pauseBis: Double?
     var entwurf: Entwurf
     var id: String { schluessel }
 }
@@ -111,6 +115,14 @@ func heuteText(_ datum: Date = Date()) -> String {
     f.calendar = Calendar(identifier: .gregorian)
     f.locale = Locale(identifier: "en_US_POSIX")
     f.dateFormat = "yyyy-MM-dd"
+    return f.string(from: datum)
+}
+
+/// Ein Datum zum Lesen, etwa "12. Nov.".
+func datumKurzText(_ datum: Date) -> String {
+    let f = DateFormatter()
+    f.locale = Locale(identifier: "de_DE")
+    f.dateFormat = "d. MMM"
     return f.string(from: datum)
 }
 

@@ -20,6 +20,7 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "verfuegbar", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "berechtigen", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "lesen", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "trainingSpeichern", returnType: CAPPluginReturnPromise),
     ]
 
     private let store = HKHealthStore()
@@ -29,10 +30,19 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
         let mengen: [HKQuantityTypeIdentifier] = [
             .stepCount, .activeEnergyBurned, .restingHeartRate, .heartRateVariabilitySDNN, .bodyMass,
             .bodyFatPercentage, .vo2Max, .appleExerciseTime,
+            // Der Puls, für Schnitt und Höchstwert eines Trainings und des Tages.
+            .heartRate,
+            // Körpersignale: Gehpuls, Atemfrequenz und Sauerstoff. Apple
+            // Watch, Oura, Garmin und Whoop schreiben sie, wenn das Teilen
+            // mit Health in deren App an ist.
+            .walkingHeartRateAverage, .respiratoryRate, .oxygenSaturation,
         ]
         for id in mengen {
             if let t = HKObjectType.quantityType(forIdentifier: id) { typen.insert(t) }
         }
+        if #available(iOS 16.0, *), let t = HKObjectType.quantityType(forIdentifier: .appleSleepingWristTemperature) { typen.insert(t) }
+        // Achtsamkeit: Atemübungen der Uhr und Meditations Apps.
+        if let achtsam = HKObjectType.categoryType(forIdentifier: .mindfulSession) { typen.insert(achtsam) }
         if let schlaf = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) { typen.insert(schlaf) }
         // Die Periode, wenn die Nutzerin sie in Health oder einer Zyklus App
         // führt. Nur lesen, daevo schreibt nichts nach Health.
@@ -62,7 +72,9 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
         // Apple verrät aus Datenschutzgründen nicht, ob Lesen erlaubt wurde.
         // Ein Erfolg hier heisst nur, dass die Frage gestellt wurde. Ob Daten
         // kommen, zeigt erst das Lesen.
-        store.requestAuthorization(toShare: nil, read: leseTypen) { ok, fehler in
+        // Schreiben nur Trainings: ein Training aus daevo soll in Apple
+        // Fitness stehen wie eines von der Uhr. Sonst nichts.
+        store.requestAuthorization(toShare: [HKObjectType.workoutType()], read: leseTypen) { ok, fehler in
             if let fehler = fehler {
                 call.reject("Health hat die Anfrage abgelehnt: \(fehler.localizedDescription)")
             } else {
@@ -84,6 +96,7 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
 
         var ergebnis: [String: [String: Any]] = [:]
         var workouts: [[String: Any]] = []
+        var naechte: [[String: Any]] = []
         let gruppe = DispatchGroup()
         let sperre = NSLock()
 
@@ -98,7 +111,8 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
         // Je Tag eine Statistik: Summe für Schritte und Kalorien, Schnitt für
         // Puls und HRV, der letzte Wert für das Gewicht. Gerundet wird hier,
         // weil niemand 8432,7 Schritte gemacht hat.
-        let statistiken: [(HKQuantityTypeIdentifier, String, HKStatisticsOptions, HKUnit, Int)] = [
+        let bpm = HKUnit.count().unitDivided(by: .minute())
+        var statistiken: [(HKQuantityTypeIdentifier, String, HKStatisticsOptions, HKUnit, Int)] = [
             (.stepCount, "schritte", .cumulativeSum, .count(), 0),
             (.activeEnergyBurned, "aktivKcal", .cumulativeSum, .kilocalorie(), 0),
             (.restingHeartRate, "ruhepuls", .discreteAverage, HKUnit.count().unitDivided(by: .minute()), 0),
@@ -108,7 +122,18 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
             (.bodyFatPercentage, "koerperfett", .mostRecent, .percent(), 3),
             (.vo2Max, "vo2max", .mostRecent, HKUnit(from: "ml/kg*min"), 1),
             (.appleExerciseTime, "trainingsMinuten", .cumulativeSum, .minute(), 0),
+            // Puls über den ganzen Tag: Schnitt, tiefster und höchster Wert.
+            (.heartRate, "pulsSchnitt", .discreteAverage, bpm, 0),
+            (.heartRate, "pulsMin", .discreteMin, bpm, 0),
+            (.heartRate, "pulsMax", .discreteMax, bpm, 0),
+            (.walkingHeartRateAverage, "gehpuls", .discreteAverage, bpm, 0),
+            (.respiratoryRate, "atemfrequenz", .discreteAverage, bpm, 1),
+            // Sauerstoff kommt als Anteil von 0 bis 1.
+            (.oxygenSaturation, "sauerstoff", .discreteAverage, .percent(), 3),
         ]
+        if #available(iOS 16.0, *) {
+            statistiken.append((.appleSleepingWristTemperature, "handgelenkTemp", .discreteAverage, .degreeCelsius(), 2))
+        }
 
         for (id, feld, option, einheit, stellen) in statistiken {
             guard let typ = HKQuantityType.quantityType(forIdentifier: id) else { continue }
@@ -126,6 +151,8 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
                     switch option {
                     case .cumulativeSum: menge = stat.sumQuantity()
                     case .discreteAverage: menge = stat.averageQuantity()
+                    case .discreteMin: menge = stat.minimumQuantity()
+                    case .discreteMax: menge = stat.maximumQuantity()
                     default: menge = stat.mostRecentQuantity()
                     }
                     guard let m = menge else { return }
@@ -133,6 +160,32 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
                     let wert = (m.doubleValue(for: einheit) * faktor).rounded() / faktor
                     setzen(GesundheitPlugin.tagText(stat.startDate), feld, wert)
                 }
+                gruppe.leave()
+            }
+            store.execute(abfrage)
+        }
+
+        // Achtsamkeit in Minuten je Tag. Überlappende Einträge aus zwei Apps
+        // werden zusammengelegt, wie beim Schlaf.
+        if let achtsamTyp = HKObjectType.categoryType(forIdentifier: .mindfulSession) {
+            gruppe.enter()
+            let abfrage = HKSampleQuery(
+                sampleType: achtsamTyp,
+                predicate: HKQuery.predicateForSamples(withStart: anfang, end: ende),
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
+            ) { _, proben, _ in
+                var zusammen: [(Date, Date)] = []
+                for p in proben ?? [] {
+                    if let letzter = zusammen.last, p.startDate <= letzter.1 {
+                        zusammen[zusammen.count - 1].1 = max(letzter.1, p.endDate)
+                    } else {
+                        zusammen.append((p.startDate, p.endDate))
+                    }
+                }
+                var jeTag: [String: Double] = [:]
+                for (von, bis) in zusammen { jeTag[GesundheitPlugin.tagText(von), default: 0] += bis.timeIntervalSince(von) / 60 }
+                for (tag, minuten) in jeTag { setzen(tag, "achtsamMinuten", minuten.rounded()) }
                 gruppe.leave()
             }
             store.execute(abfrage)
@@ -164,20 +217,54 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
                         zusammen.append((von, bis))
                     }
                 }
-                // Tief und REM getrennt, nur ab iOS 16, davor schreibt die Uhr
-                // keine Phasen. Phasen überlappen sich nicht, Doppeltes aus
-                // Uhr und iPhone gibt es hier nicht, denn nur die Uhr misst sie.
+                // Phasen je Nacht, ab iOS 16. Apple Watch, Oura, Garmin und
+                // Whoop schreiben sie alle in Health, jede App unter ihrer
+                // eigenen Quelle. Zwei Quellen für dieselbe Nacht zu addieren
+                // hiesse doppelten Tiefschlaf, also gilt je Nacht die Quelle
+                // mit den meisten Minuten in Phasen. Die Nacht gehört zum Tag
+                // des Aufwachens.
                 if #available(iOS 16.0, *) {
-                    var tief: [String: Double] = [:]
-                    var rem: [String: Double] = [:]
-                    for p in (proben as? [HKCategorySample] ?? []) where p.sourceRevision.source.bundleIdentifier.hasPrefix("com.apple.health") {
+                    let alle = proben as? [HKCategorySample] ?? []
+                    let phasenWerte: [Int: String] = [
+                        HKCategoryValueSleepAnalysis.asleepDeep.rawValue: "d",
+                        HKCategoryValueSleepAnalysis.asleepREM.rawValue: "r",
+                        HKCategoryValueSleepAnalysis.asleepCore.rawValue: "c",
+                        HKCategoryValueSleepAnalysis.awake.rawValue: "w",
+                    ]
+                    var jeQuelle: [String: [String: Double]] = [:]
+                    for p in alle where phasenWerte[p.value] != nil && phasenWerte[p.value] != "w" {
                         let tag = GesundheitPlugin.tagText(p.endDate)
-                        let minuten = p.endDate.timeIntervalSince(p.startDate) / 60
-                        if p.value == HKCategoryValueSleepAnalysis.asleepDeep.rawValue { tief[tag, default: 0] += minuten }
-                        if p.value == HKCategoryValueSleepAnalysis.asleepREM.rawValue { rem[tag, default: 0] += minuten }
+                        jeQuelle[tag, default: [:]][p.sourceRevision.source.bundleIdentifier, default: 0] += p.endDate.timeIntervalSince(p.startDate) / 60
                     }
-                    for (tag, m) in tief where tag >= GesundheitPlugin.tagText(anfang) { setzen(tag, "tiefschlafMinuten", m.rounded()) }
-                    for (tag, m) in rem where tag >= GesundheitPlugin.tagText(anfang) { setzen(tag, "remMinuten", m.rounded()) }
+                    for (tag, quellen) in jeQuelle where tag >= GesundheitPlugin.tagText(anfang) {
+                        guard let quelle = quellen.max(by: { $0.value < $1.value })?.key else { continue }
+                        let teile = alle
+                            .filter { GesundheitPlugin.tagText($0.endDate) == tag && $0.sourceRevision.source.bundleIdentifier == quelle && phasenWerte[$0.value] != nil }
+                            .sorted { $0.startDate < $1.startDate }
+                        guard let beginn = teile.first?.startDate, let ende = teile.map({ $0.endDate }).max() else { continue }
+                        var summe: [String: Double] = ["d": 0, "r": 0, "c": 0, "w": 0]
+                        var phasen: [[Any]] = []
+                        var wachPhasen = 0
+                        for (i, t) in teile.enumerated() {
+                            let art = phasenWerte[t.value] ?? "c"
+                            let dauer = t.endDate.timeIntervalSince(t.startDate) / 60
+                            summe[art, default: 0] += dauer
+                            // Wach am Anfang und am Ende ist kein Aufwachen in der Nacht.
+                            if art == "w" && i > 0 && i < teile.count - 1 { wachPhasen += 1 }
+                            phasen.append([Int((t.startDate.timeIntervalSince(beginn) / 60).rounded()), Int(dauer.rounded()), art])
+                        }
+                        let name = teile.first?.sourceRevision.source.name ?? ""
+                        sperre.lock()
+                        naechte.append([
+                            "tag": tag, "beginn": beginn.timeIntervalSince1970 * 1000, "ende": ende.timeIntervalSince1970 * 1000,
+                            "tiefMin": summe["d"]!.rounded(), "remMin": summe["r"]!.rounded(), "kernMin": summe["c"]!.rounded(),
+                            "wachMin": summe["w"]!.rounded(), "wachPhasen": wachPhasen, "quelle": name,
+                            "phasen": phasen.count <= 400 ? phasen : [],
+                        ])
+                        sperre.unlock()
+                        setzen(tag, "tiefschlafMinuten", summe["d"]!.rounded())
+                        setzen(tag, "remMinuten", summe["r"]!.rounded())
+                    }
                 }
                 var jeTag: [String: Double] = [:]
                 for (von, bis) in zusammen {
@@ -201,14 +288,34 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
             sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
         ) { _, proben, _ in
             let liste = (proben as? [HKWorkout] ?? []).map { w -> [String: Any] in
-                [
+                var d: [String: Any] = [
                     "id": w.uuid.uuidString,
                     "start": ISO8601DateFormatter().string(from: w.startDate),
                     "tag": GesundheitPlugin.tagText(w.startDate),
                     "uhrzeit": GesundheitPlugin.uhrzeitText(w.startDate),
                     "minuten": (w.duration / 60).rounded(),
                     "art": GesundheitPlugin.art(w.workoutActivityType),
+                    // Was in Apple Fitness gewählt wurde, etwa Volleyball oder
+                    // Laufen. Mit diesem Namen steht es danach im Kalender.
+                    "name": GesundheitPlugin.name(w.workoutActivityType),
                 ]
+                // Aktive Kalorien und Puls des Trainings. Ohne sie stand eine
+                // Stunde Pull im Tag, aber nicht, was sie verbraucht hat.
+                if #available(iOS 16.0, *) {
+                    if let typ = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned),
+                       let summe = w.statistics(for: typ)?.sumQuantity() {
+                        d["kcal"] = summe.doubleValue(for: .kilocalorie()).rounded()
+                    }
+                    let proMinute = HKUnit.count().unitDivided(by: .minute())
+                    if let typ = HKQuantityType.quantityType(forIdentifier: .heartRate), let stat = w.statistics(for: typ) {
+                        if let schnitt = stat.averageQuantity() { d["puls"] = schnitt.doubleValue(for: proMinute).rounded() }
+                        if let hoch = stat.maximumQuantity() { d["pulsMax"] = hoch.doubleValue(for: proMinute).rounded() }
+                    }
+                }
+                if d["kcal"] == nil, let gesamt = w.totalEnergyBurned {
+                    d["kcal"] = gesamt.doubleValue(for: .kilocalorie()).rounded()
+                }
+                return d
             }
             sperre.lock()
             workouts = liste
@@ -253,7 +360,7 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
 
         gruppe.notify(queue: .main) {
             let liste = ergebnis.values.sorted { ($0["tag"] as? String ?? "") < ($1["tag"] as? String ?? "") }
-            call.resolve(["tage": liste, "workouts": workouts, "nahrung": nahrung, "periode": periode, "von": GesundheitPlugin.tagText(anfang)])
+            call.resolve(["tage": liste, "workouts": workouts, "nahrung": nahrung, "periode": periode, "naechte": naechte, "von": GesundheitPlugin.tagText(anfang)])
         }
     }
 
@@ -355,6 +462,75 @@ public class GesundheitPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     /// Dieselben vier Arten wie in der App, `TrainingType` in packages/core.
+    /// Ein Training aus daevo als Krafttraining in Apple Health, mit Beginn
+    /// und Ende. Ohne Erlaubnis zum Schreiben bleibt es still beim Eintrag in
+    /// daevo. Der Abgleich legt es nicht doppelt an, siehe `healthkit.js`,
+    /// und die `TrainingWache` meldet Trainings der eigenen App nicht.
+    @objc func trainingSpeichern(_ call: CAPPluginCall) {
+        guard HKHealthStore.isHealthDataAvailable(),
+              let startMs = call.getDouble("start"), let endeMs = call.getDouble("ende"), endeMs > startMs else {
+            call.resolve(["gespeichert": false])
+            return
+        }
+        guard store.authorizationStatus(for: HKObjectType.workoutType()) == .sharingAuthorized else {
+            call.resolve(["gespeichert": false, "grund": "keine Erlaubnis"])
+            return
+        }
+        let start = Date(timeIntervalSince1970: startMs / 1000)
+        let ende = Date(timeIntervalSince1970: endeMs / 1000)
+        let titel = call.getString("titel") ?? "Training"
+        let einstellung = HKWorkoutConfiguration()
+        einstellung.activityType = .traditionalStrengthTraining
+        einstellung.locationType = .indoor
+        let bauer = HKWorkoutBuilder(healthStore: store, configuration: einstellung, device: .local())
+        bauer.beginCollection(withStart: start) { ok, _ in
+            guard ok else { call.resolve(["gespeichert": false]); return }
+            bauer.addMetadata([HKMetadataKeyWorkoutBrandName: "daevo", "daevoTitel": titel]) { _, _ in
+                bauer.endCollection(withEnd: ende) { _, _ in
+                    bauer.finishWorkout { training, _ in
+                        call.resolve(["gespeichert": training != nil, "id": training?.uuid.uuidString ?? ""])
+                    }
+                }
+            }
+        }
+    }
+
+    /// Der Name der Trainingsart, wie Apple Fitness sie zeigt, auf Deutsch.
+    static func name(_ typ: HKWorkoutActivityType) -> String {
+        switch typ {
+        case .traditionalStrengthTraining: return "Krafttraining"
+        case .functionalStrengthTraining: return "Funktionelles Krafttraining"
+        case .coreTraining: return "Core Training"
+        case .crossTraining: return "Cross Training"
+        case .highIntensityIntervalTraining: return "HIIT"
+        case .volleyball: return "Volleyball"
+        case .soccer: return "Fussball"
+        case .basketball: return "Basketball"
+        case .handball: return "Handball"
+        case .tennis: return "Tennis"
+        case .badminton: return "Badminton"
+        case .tableTennis: return "Tischtennis"
+        case .squash: return "Squash"
+        case .running: return "Laufen"
+        case .walking: return "Gehen"
+        case .hiking: return "Wandern"
+        case .cycling: return "Radfahren"
+        case .swimming: return "Schwimmen"
+        case .rowing: return "Rudern"
+        case .elliptical: return "Crosstrainer"
+        case .stairClimbing, .stairs: return "Treppensteigen"
+        case .yoga: return "Yoga"
+        case .pilates: return "Pilates"
+        case .flexibility: return "Beweglichkeit"
+        case .cooldown: return "Cool-down"
+        case .mixedCardio: return "Cardio"
+        case .boxing: return "Boxen"
+        case .martialArts: return "Kampfsport"
+        case .dance, .cardioDance, .socialDance: return "Tanzen"
+        default: return ""
+        }
+    }
+
     static func art(_ typ: HKWorkoutActivityType) -> String {
         switch typ {
         case .traditionalStrengthTraining, .functionalStrengthTraining, .coreTraining, .crossTraining:

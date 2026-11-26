@@ -30,6 +30,16 @@ export interface Termin {
   ganztags: boolean;
   /** Name des Kalenders, aus dem der Termin stammt. */
   quelle?: string;
+  /** Geburtstag oder Feiertag, gesetzt beim Einlesen, siehe `gedenktage.ts`. */
+  art?: "geburtstag" | "feiertag";
+  /** Zum Schreiben, aus der iPhone App: Kennung, Herkunft und ob daevo ihn angelegt hat. */
+  eid?: string;
+  daevo?: boolean;
+  schreibbar?: boolean;
+  /** Aus der iPhone App: Name, Typ (3 abonniert, 4 Geburtstage) und Konto des Kalenders. */
+  kalender?: string;
+  kalenderTyp?: number;
+  kalenderQuelle?: string;
 }
 
 export interface IcsErgebnis {
@@ -347,7 +357,8 @@ export function termineAmTag(termine: Termin[], tagIso: string): Termin[] {
   const von = new Date(`${tagIso}T00:00:00`).getTime();
   const bis = von + 86400_000;
   return termine
-    .filter((t) => t.bis > von && t.von < bis)
+    // Ein Eintrag ohne Dauer um 00:00, etwa ein Geburtstag, gehört zu diesem Tag.
+    .filter((t) => (t.bis > von && t.von < bis) || (t.von === t.bis && t.von >= von && t.von < bis))
     .sort((a, b) => a.von - b.von);
 }
 

@@ -59,7 +59,8 @@ export function trainingErkannt({ neue = [], heute, profil = {}, termine = [], g
   const letztes = frisch.reduce((a, b) => ((minutenVon(b.uhrzeit) ?? 0) >= (minutenVon(a.uhrzeit) ?? 0) ? b : a));
   const start = minutenVon(letztes.uhrzeit) ?? 0;
   const ende = start + Math.round(Number(letztes.minuten) || 0);
-  const name = ART_NAME[letztes.art] || "Training";
+  // Der Name aus Apple Fitness, etwa Volleyball, schlägt die grobe Art.
+  const name = letztes.name || ART_NAME[letztes.art] || "Training";
   const teile = [
     `Mega stark, dass du heute schon trainiert hast: ${Math.round(letztes.minuten)} Minuten ${name}${letztes.uhrzeit ? ` um ${letztes.uhrzeit}` : ""}. Ich hab es eingetragen.`,
   ];

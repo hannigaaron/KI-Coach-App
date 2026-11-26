@@ -2,6 +2,7 @@ import Foundation
 import Capacitor
 import WatchConnectivity
 import UIKit
+import HealthKit
 
 /// Die Verbindung zur Apple Watch, auf der Seite des iPhones.
 ///
@@ -90,6 +91,22 @@ final class UhrZentrale: NSObject, WCSessionDelegate {
     /// Antwort käme erst nach dem Zeitlimit der Uhr. Dann sagt das iPhone
     /// sofort ab, und die Uhr fragt selbst über den Server.
     func session(_ session: WCSession, didReceiveMessage message: [String: Any], replyHandler: @escaping ([String: Any]) -> Void) {
+        // Die Uhr ist gerade aufgegangen und will den neuesten Stand. Ist
+        // daevo hier vorn, rechnet die Web App das Paket neu und schickt es
+        // als Application Context. Im Hintergrund läuft die Web Ansicht
+        // nicht, dann sagt das iPhone ab, und die Uhr bleibt beim letzten
+        // Stand und fragt Todoist selbst.
+        if message["art"] as? String == "aktualisieren" {
+            DispatchQueue.main.async {
+                guard UIApplication.shared.applicationState == .active, let plugin = self.plugin else {
+                    replyHandler(["fehler": "iphone"])
+                    return
+                }
+                plugin.neuSenden()
+                replyHandler(["ok": true])
+            }
+            return
+        }
         guard message["art"] as? String == "frage", let text = message["text"] as? String else {
             replyHandler(["fehler": "unbekannt"])
             return
@@ -134,6 +151,7 @@ public class UhrPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "senden", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "abholen", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "antworten", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "trainingStarten", returnType: CAPPluginReturnPromise),
     ]
 
     override public func load() {
@@ -152,6 +170,11 @@ public class UhrPlugin: CAPPlugin, CAPBridgedPlugin {
             guard UIApplication.shared.applicationState == .active, let webView = self?.bridge?.webView else { return }
             webView.evaluateJavaScript("typeof window.daevoUhrEingang === 'function' && window.daevoUhrEingang(); 0", completionHandler: nil)
         }
+    }
+
+    /// Lässt die Web App das Paket für die Uhr neu rechnen und senden.
+    func neuSenden() {
+        bridge?.webView?.evaluateJavaScript("typeof window.daevoUhrEingang === 'function' && window.daevoUhrEingang(); 0", completionHandler: nil)
     }
 
     /// Reicht die Frage an `daevoUhrFrage` in `app.js` weiter. Die Argumente
@@ -193,6 +216,24 @@ public class UhrPlugin: CAPPlugin, CAPBridgedPlugin {
             call.resolve(["gesendet": UhrZentrale.shared.bereit])
         } catch {
             call.reject("Senden an die Uhr ging nicht: \(error.localizedDescription)")
+        }
+    }
+
+    /// Startet beim Training am iPhone die daevo App auf der Uhr, mit einer
+    /// Krafttraining Sitzung. Der von Apple vorgesehene Weg dafür ist
+    /// `startWatchApp`: die Uhr bekommt die Einstellung, öffnet daevo und
+    /// zeigt das laufende Training. So zählt es in Apple Fitness mit Puls und
+    /// Kalorien, wie ein Training, das auf der Uhr begonnen wurde.
+    @objc func trainingStarten(_ call: CAPPluginCall) {
+        guard HKHealthStore.isHealthDataAvailable(), UhrZentrale.shared.bereit else {
+            call.resolve(["gestartet": false])
+            return
+        }
+        let einstellung = HKWorkoutConfiguration()
+        einstellung.activityType = .traditionalStrengthTraining
+        einstellung.locationType = .indoor
+        HKHealthStore().startWatchApp(with: einstellung) { ok, _ in
+            call.resolve(["gestartet": ok])
         }
     }
 

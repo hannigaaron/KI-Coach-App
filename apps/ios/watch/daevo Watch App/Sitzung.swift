@@ -19,6 +19,12 @@ final class Sitzung: NSObject, ObservableObject {
     private var bauer: HKLiveWorkoutBuilder?
     @Published private(set) var puls: Int?
     @Published private(set) var laeuft = false
+    @Published private(set) var pausiert = false
+
+    /// Das ganze Training anhalten, etwa für ein Telefonat. Apple Fitness
+    /// zählt die Zeit dann nicht mit.
+    func pausieren() { sitzung?.pause(); pausiert = true }
+    func fortsetzen() { sitzung?.resume(); pausiert = false }
 
     func starten() async {
         guard HKHealthStore.isHealthDataAvailable(), sitzung == nil else { return }
@@ -57,6 +63,7 @@ final class Sitzung: NSObject, ObservableObject {
         sitzung = nil
         bauer = nil
         laeuft = false
+        pausiert = false
         puls = nil
     }
 }

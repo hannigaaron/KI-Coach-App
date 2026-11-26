@@ -15,6 +15,7 @@
  *
  * Bis `morgenStarten` fasst das Modul weder `document` noch `window` an.
  */
+import { sortiertHtml, sortiertGezeigt } from "./sortierung.js";
 import {
   bereichVon, MORGEN_FRAGEN, BELASTBARKEIT_NAME, PHASE_NAME, SYMPTOM_NAME, zyklusEmpfehlung, zyklusStand, NACHFRAGE_UHRZEIT, morgenAuswerten, morgenUhrzeit, morgenVollstaendig, nachfrageAuswerten, nachfrageNoetig, tagesrandFuer,
 } from "@daevo/core";
@@ -236,7 +237,7 @@ export function ergebnisHtml(r) {
  * in dem jemand ohnehin auf den Tag schaut, und eine zweite Mitteilung zur
  * selben Zeit wäre Lärm. Ohne Briefing bleibt der Teil leer.
  */
-const ART_WORT = { termin: "Termin", aufgabe: "Aufgabe", essen: "Essen", training: "Training" };
+const ART_WORT = { termin: "Termin", aufgabe: "Aufgabe", essen: "Essen", training: "Training", feierabend: "Schluss für heute" };
 
 /**
  * Das Briefing unter dem Morgen Check-in.
@@ -249,10 +250,13 @@ const ART_WORT = { termin: "Termin", aufgabe: "Aufgabe", essen: "Essen", trainin
  */
 export function briefingHtml(b) {
   if (!b?.abschnitte?.length) return "";
-  const punkte = (b.punkte || []).slice(0, 12);
+  // Mit Reihenfolge sortiert daevo sichtbar, statt eine Zeitleiste zu zeigen.
+  const sortiert = b.reihenfolge?.length ? sortiertHtml(b.reihenfolge, { schluessel: "morgen", hinweis: b.musterHinweis }) : "";
+  const punkte = sortiert ? [] : (b.punkte || []).slice(0, 12);
   const fokus = b.abschnitte.find((a) => a.titel === "Fokus");
   const rest = b.abschnitte.filter((a) => a.titel !== "Deine Untergrenze" && a.titel !== "Fokus"
-    && !(punkte.length && (a.titel === "Dein Tag" || a.titel === "Zu tun" || a.titel === "Essen")));
+    && !((punkte.length || sortiert) && (a.titel === "Dein Tag" || a.titel === "Zu tun" || a.titel === "Essen"
+      || a.titel === "Kann bis morgen warten" || a.titel === "Abends, nach Feierabend")));
   const zeit = (ms) => (ms === null || ms === undefined ? "" : new Date(ms).toTimeString().slice(0, 5));
   const leiste = punkte.length
     ? `<h3 class="mg-titel">Dein Tag</h3><ol class="mg-zeitleiste">${punkte.map((p) => `<li class="mg-zeile" data-art="${esc(p.art)}">`
@@ -263,12 +267,12 @@ export function briefingHtml(b) {
     + (a.zeilen.length > 1 ? `<ul class="mg-liste">${a.zeilen.map((z) => `<li>${esc(z)}</li>`).join("")}</ul>` : `<p class="mg-warum">${esc(a.zeilen[0] || "")}</p>`);
   return `<div class="mg-ergebnis mg-tag">`
     + (fokus ? `<div class="mg-fokus"><span>Fokus heute</span><p>${esc(fokus.zeilen.join(" "))}</p></div>` : "")
-    + leiste + rest.map(abschnitt).join("") + `</div>`;
+    + sortiert + leiste + rest.map(abschnitt).join("") + `</div>`;
 }
 
 /* ---------- Oberfläche ---------- */
 
-export function morgenStarten({ store, heute, melde, gespeichert, tagesbriefing, kalenderFrisch }) {
+export function morgenStarten({ store, heute, melde, gespeichert, tagesbriefing, kalenderFrisch, schlafWoche }) {
   const blatt = document.getElementById("morgenBlatt");
   const inhalt = document.getElementById("morgenInhalt");
   const knopf = document.getElementById("morgenAuswerten");
@@ -329,7 +333,10 @@ export function morgenStarten({ store, heute, melde, gespeichert, tagesbriefing,
       knopf.textContent = "Kalender wird gelesen";
       await Promise.race([kalenderFrisch().catch(() => {}), new Promise((ok) => setTimeout(ok, 4000))]);
     }
-    inhalt.innerHTML = ergebnisHtml(r) + zyklusZeileHtml(store.getSettings?.().zyklus, heute()) + briefingHtml(modus === "morgen" ? tagesbriefing?.() : null);
+    // Der Schlaf der letzten Nächte steht morgens direkt unter dem Ergebnis:
+    // wer gerade sagt, wie er geschlafen hat, sieht daneben, wie es die Woche war.
+    inhalt.innerHTML = ergebnisHtml(r) + (modus === "morgen" ? (schlafWoche?.() || "") : "") + zyklusZeileHtml(store.getSettings?.().zyklus, heute()) + briefingHtml(modus === "morgen" ? tagesbriefing?.() : null);
+    sortiertGezeigt(inhalt);
     inhalt.scrollTop = 0;
     knopf.textContent = "Fertig";
     knopf.disabled = false;

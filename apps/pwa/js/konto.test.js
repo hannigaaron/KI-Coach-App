@@ -171,3 +171,25 @@ test("scheitert das Löschen auf dem Server, bleibt der Schlüssel", async () =>
   assert.equal(ergebnis.ok, false);
   assert.equal(kontoToken(), "T".repeat(40));
 });
+
+const { sperreFuer } = await import("./konto.js");
+
+test("Ohne Server gibt es keine Sperre", () => {
+  assert.equal(sperreFuer({ stufe: "frei" }, {}, "2026-11-20", ""), null);
+});
+
+test("Ohne Abo und ohne Testphase ist die App gesperrt", () => {
+  assert.equal(sperreFuer({ stufe: "frei" }, {}, "2026-11-20", "https://w").grund, "frei");
+  assert.equal(sperreFuer({ stufe: "frei", quelle: "appstore" }, {}, "2026-11-20", "https://w").grund, "abgelaufen");
+  assert.equal(sperreFuer({ stufe: "frei", testphaseMitAbo: true, quelle: null }, {}, "2026-11-20", "https://w").grund, "start");
+  assert.equal(sperreFuer({ stufe: "test", bis: "2026-11-25" }, {}, "2026-11-20", "https://w"), null);
+  assert.equal(sperreFuer({ stufe: "pro" }, {}, "2026-11-20", "https://w"), null);
+});
+
+test("Ohne Netz entscheidet der letzte Stand, mit einem Tag Luft", () => {
+  const offline = { fehler: "weg" };
+  assert.equal(sperreFuer(offline, { kontoStufe: "frei" }, "2026-11-20", "https://w").grund, "frei");
+  assert.equal(sperreFuer(offline, { kontoStufe: "test", kontoBis: "2026-11-19" }, "2026-11-20", "https://w"), null);
+  assert.equal(sperreFuer(offline, { kontoStufe: "test", kontoBis: "2026-11-18" }, "2026-11-20", "https://w").grund, "abgelaufen");
+  assert.equal(sperreFuer(offline, {}, "2026-11-20", "https://w"), null);
+});

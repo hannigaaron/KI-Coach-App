@@ -59,6 +59,12 @@ export interface ZeitplanEingabe {
   ab: number;
   /** Abweichende Luft zwischen Aufgaben. */
   pufferMinuten?: number;
+  /**
+   * Feierabend. Nach diesem Zeitpunkt wird nichts gelegt, ausser `ausnahme`
+   * sagt, dass die Aufgabe nicht warten darf.
+   */
+  spaetestens?: number;
+  ausnahme?: (a: Aufgabe) => boolean;
 }
 
 /** Legt die Aufgaben in die freien Blöcke. */
@@ -79,7 +85,8 @@ export function zeitplan(e: ZeitplanEingabe): Zeitplan {
 
   for (const aufgabe of e.aufgaben) {
     const dauer = Math.max(TAKT_MINUTEN, aufgabe.minuten) * 60000;
-    const block = bloecke.find((b) => b.bis - b.zeiger >= dauer);
+    const grenze = e.spaetestens !== undefined && !e.ausnahme?.(aufgabe) ? e.spaetestens : Infinity;
+    const block = bloecke.find((b) => Math.min(b.bis, grenze) - b.zeiger >= dauer);
     if (!block) {
       passtNicht.push(aufgabe);
       continue;

@@ -71,8 +71,9 @@ export async function kontoStand(holen = fetch) {
     const stand = await antwort.json();
     // Die Stufe bleibt auf dem Gerät, damit Grenzen ohne Netz gelten, etwa
     // die Zahl der eigenen Rezepte. Der Server bleibt die Quelle.
-    if (stand?.stufe && stand.stufe !== store.getSettings().kontoStufe) {
-      store.setSettings({ ...store.getSettings(), kontoStufe: stand.stufe });
+    // Auch das Ende, denn ohne Netz entscheidet die Sperre allein daran.
+    if (stand?.stufe && (stand.stufe !== store.getSettings().kontoStufe || (stand.bis ?? null) !== (store.getSettings().kontoBis ?? null))) {
+      store.setSettings({ ...store.getSettings(), kontoStufe: stand.stufe, kontoBis: stand.bis ?? null });
     }
     return stand;
   } catch {
@@ -92,6 +93,45 @@ export function kontoText(stand) {
   // wird: Abo freischalten, Auskunft, Löschen über die Adresse im Impressum.
   const kennung = stand.id ? ` Kontokennung ${stand.id}.` : "";
   return `Stufe ${stand.name}${bis}. Diesen Monat ${n} von ${g} Nachrichten an die KI, ${anteil} Prozent des Budgets.${kennung}`;
+}
+
+/* ---------- Die Sperre ---------- */
+
+/**
+ * Ist die App gesperrt? Ohne Testphase oder Abo ist sie es ganz: daevo ist ein
+ * Abo und kein Gratisdienst mit bezahlter KI. Eine Entscheidung des Betreibers.
+ *
+ * Gesperrt wird nur über den eigenen Server. Ohne `chatUrl`, also in der
+ * Entwicklerfassung mit eigenem Schlüssel und in der Demo ohne Konto, gibt es
+ * kein Konto und damit nichts, was ablaufen könnte.
+ *
+ * Der Server entscheidet. Ohne Netz gilt der letzte bekannte Stand vom Gerät:
+ * war er frei, bleibt es gesperrt, und eine Stufe mit Ende gilt einen Tag
+ * darüber hinaus weiter, denn eine Verlängerung kommt manchmal Stunden später
+ * an. Ein Gerät, das noch nie einen Stand hatte, wird nicht gesperrt: dort
+ * gibt es noch nichts zu schützen, und das Konto entsteht ohnehin erst mit
+ * Netz. `bis` ist ein Tag, der Vergleich läuft deshalb über Zeichenketten.
+ */
+export function sperreFuer(stand, einstellungen = {}, heute, chatUrl = KONFIG.chatUrl) {
+  if (!chatUrl) return null;
+  const online = Boolean(stand && !stand.fehler);
+  const stufe = online ? stand.stufe : einstellungen.kontoStufe;
+  const bis = online ? stand.bis : einstellungen.kontoBis;
+  if (!stufe) return null;
+  if (stufe === "frei") {
+    // Wer noch nie ein Abo hatte und dessen Testphase mit dem Abo beginnt,
+    // bekommt das Angebot und keine Mitteilung, sie sei vorbei.
+    if (online && stand.testphaseMitAbo && !stand.quelle) return { grund: "start" };
+    return { grund: online && stand.quelle ? "abgelaufen" : "frei" };
+  }
+  // Auf dem Server gilt eine abgelaufene Stufe schon als frei. Ohne Netz
+  // rechnet das Gerät es nach, mit einem Tag Luft.
+  if (bis && !online) {
+    const gestern = new Date(`${heute}T12:00:00Z`);
+    gestern.setUTCDate(gestern.getUTCDate() - 1);
+    if (bis < gestern.toISOString().slice(0, 10)) return { grund: "abgelaufen" };
+  }
+  return null;
 }
 
 /* ---------- Abo anbieten ---------- */
@@ -185,7 +225,7 @@ export function aboAnlass(stand, gezeigt = {}, heute) {
       art: "testende",
       marke: tage <= 1 ? "Letzter Tag" : "Noch 2 Tage",
       titel: tage <= 1 ? "Heute endet deine Testphase" : "Behalt deinen Coach",
-      text: "Danach gibt es die KI mit Plus oder Pro. Essen eintragen, Pläne und Erinnerungen bleiben auch ohne Abo.",
+      text: "Danach ist daevo gesperrt, bis du Plus oder Pro hast. Deine Daten bleiben dir erhalten.",
       merken: { tag: heute },
     };
   }
@@ -194,8 +234,8 @@ export function aboAnlass(stand, gezeigt = {}, heute) {
     return {
       art: "vorbei",
       marke: "Testphase vorbei",
-      titel: "Deinen Coach freischalten",
-      text: "Mit Plus denkt daevo weiter mit: Fotos auswerten, deinen Tag planen, mit dir reden. Ohne Abo läuft alles, was keine KI braucht.",
+      titel: "Mach mit daevo weiter",
+      text: "Deine Testphase ist zu Ende. Mit Plus oder Pro geht es genau dort weiter, wo du aufgehört hast. Deine Daten bleiben erhalten.",
       merken: { vorbei: true, tag: heute },
     };
   }
@@ -230,7 +270,7 @@ export function aboAnlassLeer(gezeigt = {}, jetzt = Date.now(), modus = "") {
     art: "leer",
     marke: "KI pausiert",
     titel: "Deinen Coach freischalten",
-    text: "Deine Testphase oder dein Kontingent ist aufgebraucht. Alles ohne KI funktioniert weiter.",
+    text: "Dein Kontingent für diesen Monat ist aufgebraucht. Mit Pro hast du deutlich mehr, sonst geht es zum nächsten Monat weiter.",
     merken: { leerUm: jetzt },
   };
 }
@@ -277,7 +317,7 @@ export function aboLeiste(stand, heute) {
     if (tage === null) return null;
     return { text: tage <= 1 ? "Testphase endet heute." : `Testphase, noch ${tage} Tage.`, knopf: "Plus ansehen" };
   }
-  if (stand.stufe === "frei") return { text: "Die KI pausiert ohne Abo.", knopf: "Plus ansehen" };
+  if (stand.stufe === "frei") return { text: "daevo ist ohne Abo gesperrt.", knopf: "Plus ansehen" };
   if (stand.stufe === "plus") {
     const n = stand.verbrauch?.nachrichten ?? 0;
     const g = stand.grenze?.nachrichten ?? 0;

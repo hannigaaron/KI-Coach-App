@@ -25,6 +25,10 @@ export type VorausArt = "vorkochen" | "training" | "frueh" | "voll";
 export interface VorausPunkt {
   art: VorausArt;
   text: string;
+  /** Wenige Wörter für die Karte im Briefing, was los ist. */
+  kurz?: string;
+  /** Wenige Wörter, was zu tun ist. Der ganze Satz steht in `text`. */
+  tun?: string;
 }
 
 export interface Vorausblick {
@@ -105,6 +109,8 @@ export function vorausblick(p: {
         ? "Heute hast du weder mittags noch abends eine Lücke zum Essen. Pack dir zwei Mahlzeiten ein, bevor du losgehst."
         : "Morgen hast du weder mittags noch abends eine Lücke zum Essen. Koch heute Abend doppelt und pack "
           + "zwei Portionen ein, sonst fallen beide Mahlzeiten aus und der späte Abend wird zu groß.",
+      kurz: "Keine Lücke zum Essen",
+      tun: heute ? "Zwei Mahlzeiten einpacken" : "Heute Abend doppelt kochen",
     });
   } else if (ohneMittag) {
     punkte.push({
@@ -113,6 +119,8 @@ export function vorausblick(p: {
         ? "Heute hast du zwischen 11 und 15 Uhr keine 20 Minuten frei. Nimm dir etwas mit oder iss vor 11 Uhr."
         : "Morgen hast du zwischen 11 und 15 Uhr keine 20 Minuten frei. Koch heute Abend eine Portion mehr "
           + "und nimm sie mit.",
+      kurz: "Mittags keine Lücke",
+      tun: heute ? "Etwas mitnehmen" : "Eine Portion mehr kochen",
     });
   } else if (ohneAbend) {
     punkte.push({
@@ -121,6 +129,8 @@ export function vorausblick(p: {
         ? "Heute hast du zwischen 17 und 21 Uhr keine halbe Stunde frei. Iss vorher etwas Richtiges oder nimm dir etwas mit."
         : "Morgen hast du zwischen 17 und 21 Uhr keine halbe Stunde frei. Bereite das Abendessen heute vor, "
           + "dann steht es morgen in fünf Minuten auf dem Tisch.",
+      kurz: "Abends keine Lücke",
+      tun: heute ? "Vorher richtig essen" : "Abendessen heute vorbereiten",
     });
   }
 
@@ -146,6 +156,8 @@ export function vorausblick(p: {
           art: "training",
           text: `Dein ${art} um ${s.startsAt} liegt ${tag} auf „${stoerer.titel}“. Frei wäre ${uhrzeit(platz.von)} `
             + `bis ${uhrzeit(platz.bis)}. Sag Bescheid, dann trage ich es dort ein.`,
+          kurz: `${art} liegt auf „${stoerer.titel}“`,
+          tun: `Frei wäre ${uhrzeit(platz.von)} bis ${uhrzeit(platz.bis)}`,
         });
         continue;
       }
@@ -160,6 +172,8 @@ export function vorausblick(p: {
             + `Für ${kurz} Minuten wäre ${uhrzeit(kurzPlatz.von)} frei, nur Grundübungen, unter Training für heute.`
           : `Für dein ${art} ist ${tag} kein Platz, auch keine halbe Stunde. Plan es lieber bewusst auf einen anderen `
             + `Tag, statt es ${tag} ausfallen zu lassen.`,
+        kurz: `Kein Platz für ${art}`,
+        tun: kurzPlatz ? `${kurz} Minuten ab ${uhrzeit(kurzPlatz.von)}` : "Bewusst auf einen anderen Tag legen",
       });
     }
   }
@@ -167,8 +181,10 @@ export function vorausblick(p: {
   // Früher Start: der erste Termin liegt in der ersten Stunde nach dem
   // Aufstehen oder davor. Dann gehört das Frühstück auf den Abend vorher.
   const rand = tagesrandFuer(profile, morgen.tag);
-  const erster = morgen.termine[0]!;
   const aufstehen = zeitAmTag(morgen.tag, rand.wakeTime);
+  // Gedenktage um 00:00 sind schon in `tagesablauf` aus den Terminen
+  // genommen, hier steht nur, was wirklich Zeit braucht.
+  const erster = morgen.termine[0]!;
   if (erster.von < aufstehen + 60 * 60000) {
     punkte.push({
       art: "frueh",
@@ -177,6 +193,10 @@ export function vorausblick(p: {
           + (heute ? "Iss unterwegs etwas mit Protein." : "Stell den Wecker früher und geh heute entsprechend früher ins Bett.")
         : `${Tag} beginnt „${erster.titel}“ um ${uhrzeit(erster.von)}, eine Stunde nach dem Aufstehen. `
           + (heute ? "Frühstück zuerst, bevor das Handy dich hat." : "Leg Frühstück und Tasche heute Abend bereit."),
+      kurz: `Start um ${uhrzeit(erster.von)}`,
+      tun: erster.von < aufstehen
+        ? (heute ? "Unterwegs etwas mit Protein" : "Wecker früher, früher ins Bett")
+        : (heute ? "Frühstück vor dem Handy" : "Frühstück und Tasche bereitlegen"),
     });
   }
 
@@ -188,6 +208,8 @@ export function vorausblick(p: {
     punkte.unshift({
       art: "voll",
       text: `${Tag} ist voll: ${dauerText(morgen.belegtMinuten)} von ${dauerText(wach)} Wachzeit sind verplant.`,
+      kurz: `${Tag} ist voll`,
+      tun: `${dauerText(morgen.belegtMinuten)} von ${dauerText(wach)} verplant`,
     });
   }
 

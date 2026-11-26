@@ -14,11 +14,32 @@
 import { zyklusAusHealth } from "@daevo/core";
 import { healthSchreiben } from "./gesundheit.js";
 
-/** Welche Fassung der Leseberechtigung zuletzt erfragt wurde. 2 brachte die Ernährung, 3 Körperfett, VO2max und Trainingsminuten. */
-export const HEALTH_FASSUNG = 4;
+/** Welche Fassung der Leseberechtigung zuletzt erfragt wurde. 2 brachte die Ernährung, 3 Körperfett, VO2max und Trainingsminuten, 4 die Periode, 5 den Puls im Training, 6 das Schreiben von Trainings, 7 Puls über den Tag, Atmung, Sauerstoff, Temperatur und Achtsamkeit. */
+export const HEALTH_FASSUNG = 7;
 
 /** Trainings innerhalb dieses Abstands zu einem eigenen Eintrag gleicher Art gelten als derselbe. */
 const GLEICH_MINUTEN = 90;
+
+/**
+ * Eine Aufzeichnung der Uhr, die weniger als diesen Anteil des Trainings in
+ * daevo dauert, gilt als zu spät gestartet oder zu früh beendet. Wer 55
+ * Minuten Sätze abhakt, hat nicht 10 Minuten trainiert, und kein Mensch
+ * macht 10 Minuten Krafttraining mit neun Übungen. Eine Regel der App.
+ */
+export const KURZ_ANTEIL = 0.6;
+
+/**
+ * Kalorien der Uhr für das Training in daevo. War die Aufzeichnung viel
+ * kürzer als das Training, rechnet sie auf dessen Dauer hoch, und der Eintrag
+ * sagt es: `kcalHochgerechnet`. Der Puls bleibt, wie die Uhr ihn gemessen hat.
+ */
+export function kcalFuerTraining(kcal, uhrMin, daevoMin) {
+  if (!(kcal > 0)) return {};
+  if (uhrMin > 0 && daevoMin > 0 && uhrMin < daevoMin * KURZ_ANTEIL) {
+    return { kcal: Math.round((kcal / uhrMin) * daevoMin), kcalHochgerechnet: true };
+  }
+  return { kcal: Math.round(kcal) };
+}
 
 function minutenVon(uhrzeit) {
   const m = /^(\d{1,2}):(\d{2})/.exec(String(uhrzeit || ""));
@@ -45,18 +66,76 @@ export function workoutsSchreiben(workouts, { store, heute, neueListe = [] }) {
     const id = `hk-${w.id}`;
     const day = store.getDay(w.tag);
     const vorhanden = day.trainings || [];
-    if (vorhanden.some((t) => t.id === id)) continue;
+    if (vorhanden.some((t) => t.id === id || t.healthId === id)) continue;
     const start = minutenVon(w.uhrzeit);
-    const doppelt = vorhanden.some((t) => {
+    // Läuft in daevo gerade ein Training, das vor dieser Aufzeichnung begann,
+    // gehört sie dazu. Sie wird beim Beenden eingefangen, `healthEinfangen`.
+    // Vorher stand sie als eigenes Training von 10 Minuten im Tag, und daevo
+    // lobte "10 Minuten Krafttraining" neben einem abgehakten Training von
+    // einer Stunde.
+    const entwurf = store.getSettings?.().trainingEntwurf;
+    if (w.art === "strength" && entwurf && !entwurf.rueckblick && entwurf.datum === w.tag && Date.parse(entwurf.start)) {
+      const b = new Date(entwurf.start);
+      const entwurfStart = b.getHours() * 60 + b.getMinutes();
+      if (start === null || start >= entwurfStart - 15) continue;
+    }
+    const kcal = Number(w.kcal) > 0 ? Math.round(Number(w.kcal)) : undefined;
+    const puls = Number(w.puls) > 0 ? Math.round(Number(w.puls)) : undefined;
+    const pulsMax = Number(w.pulsMax) > 0 ? Math.round(Number(w.pulsMax)) : undefined;
+    const doppelt = vorhanden.find((t) => {
       if (t.type !== w.art) return false;
       const andere = minutenVon(t.at);
       return start === null || andere === null || Math.abs(andere - start) <= GLEICH_MINUTEN;
     });
-    if (doppelt) continue;
-    store.addTraining(w.tag, { id, type: w.art, minutes: minuten, at: w.uhrzeit || "", note: "aus Apple Health", quelle: "health" });
-    neueListe.push({ id: w.id, tag: w.tag, uhrzeit: w.uhrzeit || "", minuten, art: w.art });
+    if (doppelt) {
+      // Dasselbe Training, schon eingetragen, etwa aus dem Trainingsmodus.
+      // Vorher fiel das aus Health dann ganz weg, mitsamt den Kalorien und
+      // dem Puls, die nur die Uhr kennt. Jetzt kommen sie an den Eintrag.
+      if (!doppelt.healthId && (kcal || puls)) {
+        const tag = store.getDay(w.tag);
+        const passend = kcalFuerTraining(kcal, minuten, Number(doppelt.minutes));
+        tag.trainings = (tag.trainings || []).map((t) => (t === doppelt || t.id === doppelt.id
+          ? { ...t, healthId: id, ...passend, ...(puls ? { puls } : {}), ...(pulsMax ? { pulsMax } : {}) }
+          : t));
+        store.setDay(w.tag, tag);
+      }
+      continue;
+    }
+    store.addTraining(w.tag, {
+      id, type: w.art, minutes: minuten, at: w.uhrzeit || "", note: w.name ? `${w.name}, aus Apple Health` : "aus Apple Health", quelle: "health",
+      ...(w.name ? { name: w.name } : {}),
+      ...(kcal ? { kcal } : {}), ...(puls ? { puls } : {}), ...(pulsMax ? { pulsMax } : {}),
+    });
+    neueListe.push({ id: w.id, tag: w.tag, uhrzeit: w.uhrzeit || "", minuten, art: w.art, ...(w.name ? { name: w.name } : {}) });
     neu++;
   }
+  return neu;
+}
+
+/**
+ * Wenn ein Training in daevo endet: was die Uhr dazu aufgezeichnet hat, geht
+ * in den Eintrag und steht nicht daneben. Gesucht wird ein Krafttraining aus
+ * Health am selben Tag, dessen Beginn nah am Beginn des Trainings liegt. Das
+ * Training in daevo gilt, denn dort steht jeder Satz: Dauer und Beginn
+ * bleiben, Kalorien kommen von der Uhr und werden bei einer zu kurzen
+ * Aufzeichnung hochgerechnet. Die Kennung aus Health bleibt am Eintrag, damit
+ * der nächste Abgleich es nicht noch einmal anlegt.
+ */
+export function healthEinfangen(store, tag, eintrag) {
+  const start = minutenVon(eintrag.at);
+  const daevoMin = Number(eintrag.minutes);
+  const data = store.getDay(tag);
+  const trainings = data.trainings || [];
+  const uhr = trainings.find((t) => t.quelle === "health" && t.type === eintrag.type && t.id !== eintrag.id
+    && (start === null || minutenVon(t.at) === null || Math.abs(minutenVon(t.at) - start) <= GLEICH_MINUTEN));
+  if (!uhr) return null;
+  const passend = kcalFuerTraining(Number(uhr.kcal), Number(uhr.minutes), daevoMin);
+  const neu = {
+    ...eintrag, healthId: uhr.id, ...passend,
+    ...(uhr.puls ? { puls: uhr.puls } : {}), ...(uhr.pulsMax ? { pulsMax: uhr.pulsMax } : {}),
+  };
+  data.trainings = trainings.filter((t) => t !== uhr && t.id !== uhr.id).map((t) => (t.id === eintrag.id ? neu : t));
+  store.setDay(tag, data);
   return neu;
 }
 
@@ -202,9 +281,42 @@ export function healthkitSchreiben(antwort, { store, heute }) {
     perioden = (zyklus.perioden || []).length - vorher;
     store.setSettings({ ...store.getSettings(), zyklus });
   }
+  const naechte = naechteSchreiben(antwort?.naechte, { store, heute });
   const neueTrainings = [];
   const trainings = workoutsSchreiben(antwort?.workouts, { store, heute, neueListe: neueTrainings });
-  return { ...bericht, trainings, neueTrainings, ...essen, perioden };
+  return { ...bericht, trainings, neueTrainings, ...essen, perioden, naechte };
+}
+
+/**
+ * Die Nächte mit Phasen aus Health, je Tag des Aufwachens unter
+ * `gesundheit.nacht`. Der Verlauf der Phasen braucht Platz, deshalb bleibt er
+ * nur für die letzten 14 Nächte, ältere behalten die Summen.
+ */
+export function naechteSchreiben(naechte, { store, heute }) {
+  if (!Array.isArray(naechte)) return 0;
+  const grenze = new Date(Date.parse(`${heute}T00:00:00Z`) - 14 * 86400000).toISOString().slice(0, 10);
+  let n = 0;
+  for (const x of naechte) {
+    if (!x || !/^\d{4}-\d{2}-\d{2}$/.test(String(x.tag)) || x.tag > heute) continue;
+    if (!(Number(x.ende) > Number(x.beginn))) continue;
+    const day = store.getDay(x.tag);
+    const zahl = (v) => (Number.isFinite(Number(v)) ? Math.max(0, Math.round(Number(v))) : 0);
+    const phasen = x.tag >= grenze && Array.isArray(x.phasen)
+      ? x.phasen.filter((p) => Array.isArray(p) && ["d", "r", "c", "w"].includes(p[2])).map((p) => [zahl(p[0]), zahl(p[1]), p[2]])
+      : undefined;
+    day.gesundheit = {
+      ...(day.gesundheit || {}),
+      nacht: {
+        beginn: Number(x.beginn), ende: Number(x.ende),
+        tiefMin: zahl(x.tiefMin), remMin: zahl(x.remMin), kernMin: zahl(x.kernMin), wachMin: zahl(x.wachMin),
+        wachPhasen: zahl(x.wachPhasen), quelle: String(x.quelle || "").slice(0, 60),
+        ...(phasen?.length ? { phasen } : {}),
+      },
+    };
+    store.setDay(x.tag, day);
+    n++;
+  }
+  return n;
 }
 
 /**

@@ -844,7 +844,12 @@ export const UEBUNGEN = [
    "titel": "Brustpresse - Einstellung und Ausführung",
    "kanal": "Crimefood",
    "dauer": "0:58"
-  }
+  },
+  "alias": [
+   "Bankdrücken Maschine",
+   "Brustpresse Maschine",
+   "Chest Press"
+  ]
  },
  {
   "id": "liegestuetz",
@@ -1172,7 +1177,11 @@ export const UEBUNGEN = [
    "titel": "Butterfly Reverse (Technik Tutorial) | Hintere Schulter trainieren | Richtige Ausführung",
    "kanal": "Coach Stef",
    "dauer": "3:25"
-  }
+  },
+  "alias": [
+   "Hintere Schulter",
+   "Rear Delt Fly"
+  ]
  },
  {
   "id": "face-pull",
@@ -1202,7 +1211,11 @@ export const UEBUNGEN = [
    "titel": "How-To: Face Pulls am Kabelzug  I #6",
    "kanal": "Fitness First Germany",
    "dauer": "1:35"
-  }
+  },
+  "alias": [
+   "Face Pulls",
+   "Hintere Schulter Kabel"
+  ]
  },
  {
   "id": "klimmzug",
@@ -1586,7 +1599,11 @@ export const UEBUNGEN = [
    "titel": "Einarmiges Kurzhantel Rudern (Technik Tutorial) | Richtige Ausführung und häufige Fehler",
    "kanal": "Coach Stef",
    "dauer": "3:11"
-  }
+  },
+  "alias": [
+   "Kurzhantelrudern abgestützt",
+   "Einarmiges Rudern Bank"
+  ]
  },
  {
   "id": "rudern-kabel",
@@ -2011,7 +2028,9 @@ export const UEBUNGEN = [
    "Trizeps Extension",
    "Overhead Extension",
    "Overhead Extensions Kabel",
-   "Trizeps über Kopf Kabel"
+   "Trizeps über Kopf Kabel",
+   "Trizeps Extension am Kabel über Kopf",
+   "Overhead Extension Kabel"
   ]
  },
  {
@@ -2222,6 +2241,176 @@ export const UEBUNGEN = [
   }
  },
  {
+  "id": "crunch",
+  "name": "Crunch",
+  "nameEn": "Crunch",
+  "pattern": "core_flexion",
+  "primaryMuscles": [
+   "Bauch"
+  ],
+  "secondaryMuscles": [],
+  "equipment": "bodyweight",
+  "level": "beginner",
+  "mechanics": "isolation",
+  "repRange": "12-20",
+  "steps": [
+   "Rücklings auf die Matte, Knie gebeugt, Füße flach am Boden",
+   "Hände an die Schläfen, Ellbogen bleiben offen",
+   "Brustkorb zum Becken einrollen, bis die Schulterblätter vom Boden kommen",
+   "Kurz halten und langsam ablegen, ohne am Kopf zu ziehen"
+  ],
+  "gruppe": "rumpf",
+  "video": {
+   "id": "McwAT4O3DDk",
+   "titel": "Tutorial: So gehen Crunches richtig | InForm by SWR Sport",
+   "kanal": "SWR Sport",
+   "dauer": "0:59"
+  },
+  "alias": [
+   "Crunches",
+   "Bauchpresse"
+  ]
+ },
+ {
+  "id": "sit-up",
+  "name": "Sit-up",
+  "nameEn": "Sit-up",
+  "pattern": "core_flexion",
+  "primaryMuscles": [
+   "Bauch"
+  ],
+  "secondaryMuscles": [
+   "Hüftbeuger"
+  ],
+  "equipment": "bodyweight",
+  "level": "beginner",
+  "mechanics": "isolation",
+  "repRange": "10-20",
+  "steps": [
+   "Rücklings auf die Matte, Knie gebeugt, Füße am Boden, bei Bedarf unter etwas eingehakt",
+   "Hände an die Schläfen oder vor der Brust gekreuzt",
+   "Wirbel für Wirbel aufrollen, bis der Oberkörper aufrecht sitzt",
+   "Langsam abrollen, nicht fallen lassen"
+  ],
+  "gruppe": "rumpf",
+  "video": {
+   "id": "czKvGbo5zAo",
+   "titel": "Freeletics: Sit Ups richtig machen",
+   "kanal": "AOK - Der Gesundheitskanal",
+   "dauer": "1:02"
+  },
+  "alias": [
+   "Sit-ups",
+   "Situps",
+   "Sit ups",
+   "Aufrichter"
+  ]
+ },
+ {
+  "id": "russian-twist",
+  "name": "Russian Twist",
+  "nameEn": "Russian Twist",
+  "pattern": "core_rotation",
+  "primaryMuscles": [
+   "Seitliche Bauchmuskeln"
+  ],
+  "secondaryMuscles": [
+   "Bauch"
+  ],
+  "equipment": "bodyweight",
+  "level": "beginner",
+  "mechanics": "isolation",
+  "repRange": "10-15 je Seite",
+  "steps": [
+   "Auf die Matte setzen, Knie gebeugt, Oberkörper leicht nach hinten gelehnt",
+   "Rücken gerade, Hände vor der Brust, wer mag mit einer Scheibe oder Kurzhantel",
+   "Oberkörper langsam nach rechts drehen, dann nach links, die Hände folgen",
+   "Schwerer wird es mit den Füßen in der Luft"
+  ],
+  "gruppe": "rumpf",
+  "video": {
+   "id": "E7AYxBYOkL0",
+   "titel": "How to: Russian Twist | Russian Twists richtig ausführen",
+   "kanal": "Akademie für Sport und Gesundheit",
+   "dauer": "2:30"
+  },
+  "alias": [
+   "Russian Twists",
+   "Twist",
+   "Rumpfdrehen"
+  ]
+ },
+ {
+  "id": "bicycle-crunch",
+  "name": "Bicycle Crunch",
+  "nameEn": "Bicycle Crunch",
+  "pattern": "core_rotation",
+  "primaryMuscles": [
+   "Bauch",
+   "Seitliche Bauchmuskeln"
+  ],
+  "secondaryMuscles": [
+   "Hüftbeuger"
+  ],
+  "equipment": "bodyweight",
+  "level": "beginner",
+  "mechanics": "isolation",
+  "repRange": "10-20 je Seite",
+  "steps": [
+   "Rücklings auf die Matte, Hände an die Schläfen, Schulterblätter leicht angehoben",
+   "Rechtes Knie zur Brust, das linke Bein gestreckt über dem Boden",
+   "Linken Ellbogen zum rechten Knie drehen, dann die Seite wechseln",
+   "Langsam und kontrolliert, der untere Rücken bleibt am Boden"
+  ],
+  "gruppe": "rumpf",
+  "video": {
+   "id": "HTbvCKgV1qI",
+   "titel": "BICYCLE CRUNCH richtig ausführen - inklusive der drei größten Fehlerquellen | in 3MIN erklärt",
+   "kanal": "Cynthia Noack",
+   "dauer": "3:12"
+  },
+  "alias": [
+   "Bicycles",
+   "Bicycle Crunches",
+   "Crunch mit Rotation"
+  ]
+ },
+ {
+  "id": "reverse-crunch-boden",
+  "name": "Hüftheben am Boden",
+  "nameEn": "Reverse Crunch",
+  "pattern": "core_flexion",
+  "primaryMuscles": [
+   "Bauch"
+  ],
+  "secondaryMuscles": [
+   "Hüftbeuger"
+  ],
+  "equipment": "bodyweight",
+  "level": "beginner",
+  "mechanics": "isolation",
+  "repRange": "10-15",
+  "steps": [
+   "Rücklings auf die Matte, Arme neben dem Körper, Beine angewinkelt angehoben",
+   "Becken einrollen und vom Boden lösen, Knie Richtung Brust",
+   "Oben kurz halten, ohne Schwung aus den Beinen",
+   "Wirbel für Wirbel langsam abrollen, bis das Becken wieder liegt"
+  ],
+  "gruppe": "rumpf",
+  "video": {
+   "id": "YAfhsVJhgyM",
+   "titel": "REVERSE CRUNCHES - Ausführung und Anatomie",
+   "kanal": "Fitness Einfach Erklärt",
+   "dauer": "2:57"
+  },
+  "alias": [
+   "Reverse Crunch",
+   "Reverse Crunches",
+   "Hip Raise",
+   "Beckenheben Bauch"
+  ]
+ },
+ {
   "id": "cable-crunch",
   "name": "Cable Crunch",
   "nameEn": "Cable Crunch",
@@ -2337,7 +2526,10 @@ export const UEBUNGEN = [
    "titel": "Kettlebell Swing Tutorial | Richtige Ausführung, Technik und Fehlerquellen (deutsch)",
    "kanal": "Coach Stef",
    "dauer": "4:53"
-  }
+  },
+  "alias": [
+   "Swings"
+  ]
  },
  {
   "id": "box-jump",
@@ -2584,7 +2776,8 @@ export const UEBUNGEN = [
   },
   "alias": [
    "Smith Machine",
-   "Overhead Press"
+   "Overhead Press",
+   "Schulterdrücken Smith Machine"
   ]
  },
  {
@@ -3414,6 +3607,791 @@ export const UEBUNGEN = [
    "Reverse Fly Maschine",
    "Rear Delt Maschine",
    "Reverse Pec Deck"
+  ]
+ },
+ {
+  "id": "schraegbank-brustpresse-maschine",
+  "name": "Schrägbank Brustpresse (Maschine)",
+  "nameEn": "Incline Chest Press Machine",
+  "pattern": "incline_push",
+  "primaryMuscles": [
+   "obere Brust"
+  ],
+  "secondaryMuscles": [
+   "vordere Schulter",
+   "Trizeps"
+  ],
+  "equipment": "machine",
+  "level": "beginner",
+  "mechanics": "compound",
+  "repRange": "8-12",
+  "steps": [
+   "Sitz so einstellen, dass die Griffe auf Höhe der oberen Brust liegen",
+   "Rücken ganz an die schräge Lehne, Füße fest am Boden",
+   "Griffe schräg nach oben vorn drücken, ohne die Ellbogen ganz durchzustrecken",
+   "Kontrolliert zurück, bis die Brust gedehnt ist"
+  ],
+  "gruppe": "brust",
+  "video": {
+   "id": "QQ-U91Nb8FY",
+   "titel": "Schrägbankdrücken an der Maschine - Einstellung und Ausführung",
+   "kanal": "Crimefood",
+   "dauer": "0:43"
+  },
+  "alias": [
+   "Schrägbankdrücken Maschine",
+   "Incline Chest Press",
+   "Schräge Brustpresse",
+   "Schrägbank Brustpresse"
+  ]
+ },
+ {
+  "id": "bayesian-curl-kabel",
+  "name": "Bayesian Curl am Kabel",
+  "nameEn": "Bayesian Cable Curl",
+  "pattern": "elbow_flexion",
+  "primaryMuscles": [
+   "Bizeps"
+  ],
+  "secondaryMuscles": [
+   "Brachialis",
+   "Unterarme"
+  ],
+  "equipment": "cable",
+  "level": "intermediate",
+  "mechanics": "isolation",
+  "repRange": "10-15",
+  "steps": [
+   "Rolle ganz unten, mit dem Rücken zum Turm in Schrittstellung",
+   "Griff im Untergriff, der Arm hängt leicht hinter dem Körper",
+   "Beugen, der Ellbogen bleibt hinter dem Oberkörper",
+   "Langsam zurück bis in die volle Dehnung"
+  ],
+  "gruppe": "arme",
+  "video": {
+   "id": "8PXe7YNOfb4",
+   "titel": "Bayesian Curls: Anleitung in 3 MINUTEN",
+   "kanal": "Leo Fanner",
+   "dauer": "3:12"
+  },
+  "alias": [
+   "Bizeps Curl von hinten am Kabel",
+   "Curl hinter dem Körper",
+   "Bayesian Curls",
+   "Bizeps Curl von hinten"
+  ]
+ },
+ {
+  "id": "pendulum-squat",
+  "name": "Pendulum Squat",
+  "nameEn": "Pendulum Squat",
+  "pattern": "knee_dominant",
+  "primaryMuscles": [
+   "Quadrizeps"
+  ],
+  "secondaryMuscles": [
+   "Gluteus",
+   "Adduktoren"
+  ],
+  "equipment": "machine",
+  "level": "beginner",
+  "mechanics": "compound",
+  "repRange": "8-12",
+  "steps": [
+   "Schultern unter die Polster, Rücken an das Polster",
+   "Füße hüftbreit auf die Plattform, ganze Sohle belastet",
+   "Tief beugen, die Knie wandern über die Zehen",
+   "Über die ganze Sohle nach oben drücken, ohne die Knie durchzustrecken"
+  ],
+  "gruppe": "beine",
+  "video": {
+   "id": "euiPRpCs_QM",
+   "titel": "Pendulum Squat - Wieso sie so gut ist! | Tutorial",
+   "kanal": "Kern-Fit",
+   "dauer": "9:18"
+  },
+  "alias": [
+   "Pendelkniebeuge",
+   "Pendulum Kniebeuge"
+  ]
+ },
+ {
+  "id": "box-squat-langhantel",
+  "name": "Box Squat (Langhantel)",
+  "nameEn": "Barbell Box Squat",
+  "pattern": "knee_dominant",
+  "primaryMuscles": [
+   "Quadrizeps",
+   "Gluteus"
+  ],
+  "secondaryMuscles": [
+   "Beinbeuger",
+   "Adduktoren",
+   "Rückenstrecker"
+  ],
+  "equipment": "barbell",
+  "level": "intermediate",
+  "mechanics": "compound",
+  "repRange": "4-8",
+  "steps": [
+   "Box hinter dir auf Kniehöhe, Stange auf dem oberen Rücken",
+   "Hüfte nach hinten schieben und kontrolliert auf die Box setzen",
+   "Kurz sitzen, Spannung im Rumpf halten, nicht zusammensacken",
+   "Aus den Fersen explosiv aufstehen"
+  ],
+  "gruppe": "beine",
+  "video": {
+   "id": "4J293U4dVxI",
+   "titel": "Box Squats - Anleitung durch Personal Trainer",
+   "kanal": "Elite Body",
+   "dauer": "1:36"
+  },
+  "alias": [
+   "Box Squats",
+   "Box Kniebeuge",
+   "Kniebeuge auf die Box"
+  ]
+ },
+ {
+  "id": "einbeiniges-kreuzheben-kurzhanteln",
+  "name": "Einbeiniges Kreuzheben (zwei Kurzhanteln)",
+  "nameEn": "Single Leg Romanian Deadlift (Two Dumbbells)",
+  "pattern": "hip_dominant",
+  "primaryMuscles": [
+   "Beinbeuger",
+   "Gluteus"
+  ],
+  "secondaryMuscles": [
+   "Rückenstrecker",
+   "Gluteus medius",
+   "Rumpf"
+  ],
+  "equipment": "dumbbell",
+  "level": "intermediate",
+  "mechanics": "compound",
+  "repRange": "8-12",
+  "steps": [
+   "Je eine Hantel in der Hand, auf einem Bein mit leicht gebeugtem Knie",
+   "Hüfte nach hinten schieben, das freie Bein gestreckt nach hinten",
+   "Oberkörper fast waagerecht, Rücken gerade, Hüfte parallel zum Boden",
+   "Über das Gesäß aufrichten"
+  ],
+  "gruppe": "beine",
+  "video": {
+   "id": "VRF34kJgkdA",
+   "titel": "Einbeiniges Kreuzheben lernen mit Erik Jäger",
+   "kanal": "FITBOOK",
+   "dauer": "1:30"
+  },
+  "alias": [
+   "Single Leg Deadlift",
+   "Einbeiniges Kreuzheben",
+   "Einbeiniges rumänisches Kreuzheben"
+  ]
+ },
+ {
+  "id": "landmine-rudern-eng",
+  "name": "Landmine Rudern eng",
+  "nameEn": "Landmine Row Close Grip",
+  "pattern": "horizontal_pull",
+  "primaryMuscles": [
+   "Latissimus"
+  ],
+  "secondaryMuscles": [
+   "Rhomboiden",
+   "Trapez",
+   "Bizeps"
+  ],
+  "equipment": "barbell",
+  "level": "intermediate",
+  "mechanics": "compound",
+  "repRange": "8-12",
+  "steps": [
+   "Stange in der Landmine, V-Griff unter dem freien Ende einhaken",
+   "Über die Stange stellen, Hüfte gebeugt, Rücken gerade",
+   "Griff zum Bauch ziehen, Ellbogen dicht am Körper",
+   "Kontrolliert absenken, bis die Arme lang sind"
+  ],
+  "gruppe": "ruecken",
+  "video": {
+   "id": "WUgZYPlDdtk",
+   "titel": "T-Bar Rudern mit V-Griff an der Landmine",
+   "kanal": "clever fit Oberfranken",
+   "dauer": "0:22"
+  },
+  "alias": [
+   "Landmine Row",
+   "T-Bar Rudern Landmine",
+   "Landmine Rudern"
+  ]
+ },
+ {
+  "id": "seagull-row-kurzhantel",
+  "name": "Seagull Row (Kurzhantel)",
+  "nameEn": "Dumbbell Seagull Row",
+  "pattern": "horizontal_pull",
+  "primaryMuscles": [
+   "hintere Schulter",
+   "oberer Rücken"
+  ],
+  "secondaryMuscles": [
+   "Rhomboiden",
+   "Trapez"
+  ],
+  "equipment": "dumbbell",
+  "level": "intermediate",
+  "mechanics": "compound",
+  "repRange": "10-15",
+  "steps": [
+   "Bauch auf die Schrägbank, etwa 30 bis 45 Grad",
+   "Hanteln im Obergriff, Arme hängen gerade nach unten",
+   "Ellbogen weit nach außen und oben ziehen, wie Flügel",
+   "Langsam absenken, Schultern bleiben unten"
+  ],
+  "gruppe": "ruecken",
+  "video": {
+   "id": "N-A43HjF3wM",
+   "titel": "Kurzhantel Rudern liegend - Anleitung durch Personal Trainer",
+   "kanal": "Elite Body",
+   "dauer": "1:20"
+  },
+  "alias": [
+   "Seagull Rows",
+   "Möwenrudern",
+   "Rudern breit hintere Schulter"
+  ]
+ },
+ {
+  "id": "toes-to-bar",
+  "name": "Toes to Bar",
+  "nameEn": "Toes to Bar",
+  "pattern": "core_flexion",
+  "primaryMuscles": [
+   "Bauch"
+  ],
+  "secondaryMuscles": [
+   "Hüftbeuger",
+   "Latissimus",
+   "Unterarme"
+  ],
+  "equipment": "bodyweight",
+  "level": "advanced",
+  "mechanics": "compound",
+  "repRange": "5-12",
+  "steps": [
+   "Schulterbreit an die Stange hängen, Arme gestreckt",
+   "Schultern aktiv nach unten ziehen, Rumpf fest",
+   "Gestreckte Beine anheben, bis die Zehen die Stange berühren",
+   "Kontrolliert absenken, ohne zu schwingen"
+  ],
+  "gruppe": "rumpf",
+  "video": {
+   "id": "UupVp64BMZk",
+   "titel": "Toes to Bar lernen: Schritt für Schritt zur sauberen Technik",
+   "kanal": "7 ZORAS",
+   "dauer": "5:23"
+  },
+  "alias": [
+   "T2B",
+   "TTB",
+   "Anristen",
+   "Zehen zur Stange"
+  ]
+ },
+ {
+  "id": "slam-ball",
+  "name": "Slam Ball",
+  "nameEn": "Medicine Ball Slam",
+  "pattern": "plyometric",
+  "primaryMuscles": [
+   "Ganzkörper"
+  ],
+  "secondaryMuscles": [
+   "Bauch",
+   "Latissimus",
+   "Schulter"
+  ],
+  "equipment": "medicine_ball",
+  "level": "beginner",
+  "mechanics": "compound",
+  "repRange": "8-15",
+  "steps": [
+   "Hüftbreit stehen, den Ball mit beiden Händen über den Kopf",
+   "Kurz strecken, Rumpf anspannen",
+   "Ball mit ganzer Kraft vor die Füße auf den Boden schleudern",
+   "In die Hocke gehen, Ball aufnehmen, Rücken gerade"
+  ],
+  "gruppe": "ganzkoerper",
+  "video": {
+   "id": "RWNWchtEli4",
+   "titel": "SLAM BALL Übungen (Für ANFÄNGER und PROFIS!)",
+   "kanal": "Lebe Stark",
+   "dauer": "4:05"
+  },
+  "alias": [
+   "Slam Balls",
+   "Medizinball Slam",
+   "Ball Slams"
+  ]
+ },
+ {
+  "id": "preacher-curl-einarmig",
+  "name": "Preacher Curl einarmig (Kurzhantel)",
+  "nameEn": "Single Arm Dumbbell Preacher Curl",
+  "pattern": "elbow_flexion",
+  "primaryMuscles": [
+   "Bizeps"
+  ],
+  "secondaryMuscles": [
+   "Brachialis"
+  ],
+  "equipment": "dumbbell",
+  "level": "beginner",
+  "mechanics": "isolation",
+  "repRange": "10-12 je Arm",
+  "steps": [
+   "Oberarm flach aufs schräge Polster, die Achsel an der Oberkante",
+   "Kurzhantel im Untergriff, die freie Hand stützt am Polster",
+   "Hochcurlen, der Ellbogen bleibt auf dem Polster liegen",
+   "Langsam ablassen, bis der Arm fast gestreckt ist"
+  ],
+  "gruppe": "arme",
+  "video": {
+   "id": "Cg3DxtjzFx0",
+   "titel": "Preacher Curls einarmig - Anleitung durch Personal Trainer",
+   "kanal": "Elite Body",
+   "dauer": "0:55"
+  },
+  "alias": [
+   "Scott Curl einarmig",
+   "Einarmige Scott Curls",
+   "Preacher Curls einarmig",
+   "Konzentrationscurl am Polster"
+  ]
+ },
+ {
+  "id": "superman",
+  "name": "Superman",
+  "nameEn": "Superman",
+  "pattern": "core_anti_extension",
+  "primaryMuscles": [
+   "Rückenstrecker"
+  ],
+  "secondaryMuscles": [
+   "Gluteus",
+   "hintere Schulter"
+  ],
+  "equipment": "bodyweight",
+  "level": "beginner",
+  "mechanics": "isolation",
+  "repRange": "10-15 oder 20-30 s halten",
+  "steps": [
+   "Bäuchlings auf die Matte, Arme lang nach vorn",
+   "Arme, Brust und Beine gleichzeitig ein Stück anheben",
+   "Blick zur Matte, der Nacken bleibt lang",
+   "Kurz halten und kontrolliert ablegen"
+  ],
+  "gruppe": "rumpf",
+  "video": {
+   "id": "82hvbyaVdMk",
+   "titel": "Rückenübung Superman",
+   "kanal": "Bandagenshop",
+   "dauer": "0:50"
+  },
+  "alias": [
+   "Supermans",
+   "Superman liegend",
+   "Rückenstrecken am Boden"
+  ]
+ },
+ {
+  "id": "shoulder-taps",
+  "name": "Shoulder Taps",
+  "nameEn": "Plank Shoulder Taps",
+  "pattern": "core_anti_rotation",
+  "primaryMuscles": [
+   "Rumpf"
+  ],
+  "secondaryMuscles": [
+   "Schulter",
+   "Trizeps"
+  ],
+  "equipment": "bodyweight",
+  "level": "beginner",
+  "mechanics": "compound",
+  "repRange": "10-20 je Seite",
+  "steps": [
+   "Hoher Stütz, Hände unter den Schultern, Füße etwas breiter",
+   "Eine Hand löst sich und tippt auf die Gegenschulter",
+   "Die Hüfte bleibt gerade und dreht nicht mit",
+   "Hand absetzen und Seite wechseln"
+  ],
+  "gruppe": "rumpf",
+  "video": {
+   "id": "gKA5LBy7WAI",
+   "titel": "So führen Sie eine Plank mit Schulterklopfen richtig aus",
+   "kanal": "Wellen",
+   "dauer": "1:58"
+  },
+  "alias": [
+   "Plank Shoulder Taps",
+   "Schulterklopfen",
+   "Schultertippen im Stütz"
+  ]
+ },
+ {
+  "id": "trizepsdruecken-kniend",
+  "name": "Trizepsdrücken kniend (Stange)",
+  "nameEn": "Kneeling Straight Bar Pushdown",
+  "pattern": "elbow_extension",
+  "primaryMuscles": [
+   "Trizeps"
+  ],
+  "secondaryMuscles": [],
+  "equipment": "cable",
+  "level": "beginner",
+  "mechanics": "isolation",
+  "repRange": "10-15",
+  "steps": [
+   "Rolle ganz oben, kniend nah vor dem Turm",
+   "Gerade Stange im Obergriff, schulterbreit",
+   "Ellbogen am Körper, die Stange bis vor die Oberschenkel drücken",
+   "Langsam zurück, bis die Unterarme etwa waagerecht sind"
+  ],
+  "gruppe": "arme",
+  "video": {
+   "id": "cr_rr0Z9S1U",
+   "titel": "Kneeling Straight Bar Tricep Extensions",
+   "kanal": "Prestige-Fit",
+   "dauer": "0:29"
+  },
+  "alias": [
+   "Trizeps Pushdown kniend",
+   "Pushdown kniend",
+   "Kneeling Pushdown"
+  ]
+ },
+ {
+  "id": "einbeiniges-kreuzheben-kurzhantel",
+  "name": "Einbeiniges Kreuzheben (eine Kurzhantel)",
+  "nameEn": "Single Leg Romanian Deadlift One Dumbbell",
+  "pattern": "hip_dominant",
+  "primaryMuscles": [
+   "Beinbeuger",
+   "Gluteus"
+  ],
+  "secondaryMuscles": [
+   "Rückenstrecker",
+   "Gluteus medius"
+  ],
+  "equipment": "dumbbell",
+  "level": "intermediate",
+  "mechanics": "compound",
+  "repRange": "8-12 je Bein",
+  "steps": [
+   "Auf einem Bein stehen, die Hantel in der Hand der Gegenseite",
+   "Aus der Hüfte nach vorn kippen, das freie Bein geht gerade nach hinten",
+   "Rücken gerade, die Hüfte bleibt waagerecht",
+   "Über das Standbein zurück in den Stand"
+  ],
+  "gruppe": "beine",
+  "video": {
+   "id": "w3j7LBeILkU",
+   "titel": "Einbeiniges Kreuzheben mit Kurzhantel",
+   "kanal": "Koerperarchitekten",
+   "dauer": "1:00"
+  },
+  "alias": [
+   "Single Leg RDL",
+   "Einbeiniges rumänisches Kreuzheben",
+   "Einbeiniges Kreuzheben einarmig"
+  ]
+ },
+ {
+  "id": "pallof-rotation",
+  "name": "Pallof Rotation am Kabel",
+  "nameEn": "Cable Pallof Rotation",
+  "pattern": "core_rotation",
+  "primaryMuscles": [
+   "Seitliche Bauchmuskeln"
+  ],
+  "secondaryMuscles": [
+   "Rumpf"
+  ],
+  "equipment": "cable",
+  "level": "intermediate",
+  "mechanics": "isolation",
+  "repRange": "8-12 je Seite",
+  "steps": [
+   "Rolle auf Brusthöhe, seitlich zum Turm stehen",
+   "Griff mit beiden Händen, Arme lang vor der Brust",
+   "Schultern und Arme langsam vom Turm wegdrehen, die Hüfte bleibt frontal",
+   "Kontrolliert zurück zur Mitte"
+  ],
+  "gruppe": "rumpf",
+  "video": {
+   "id": "dYgfXLB-Tdo",
+   "titel": "Cable Pallof Rotations",
+   "kanal": "Depth Training and Physiotherapy Waterloo",
+   "dauer": "0:18"
+  },
+  "alias": [
+   "Pallof Rotations",
+   "Pallof Press Rotation",
+   "Kabelrotation"
+  ]
+ },
+ {
+  "id": "landmine-rudern-breit",
+  "name": "Landmine Rudern breit",
+  "nameEn": "Wide Grip Landmine Row",
+  "pattern": "horizontal_pull",
+  "primaryMuscles": [
+   "oberer Rücken",
+   "hintere Schulter"
+  ],
+  "secondaryMuscles": [
+   "Latissimus",
+   "Bizeps",
+   "Rückenstrecker"
+  ],
+  "equipment": "barbell",
+  "level": "intermediate",
+  "mechanics": "compound",
+  "repRange": "8-12",
+  "steps": [
+   "Über die Stange stellen, breiten Griff unter die Hülse hängen",
+   "Aus der Hüfte vorbeugen, Rücken gerade",
+   "Griff im Obergriff zur Brust ziehen, Ellbogen nach außen",
+   "Langsam absenken, bis die Arme lang sind"
+  ],
+  "gruppe": "ruecken",
+  "video": {
+   "id": "193zexOiIY4",
+   "titel": "wide grip landmine row",
+   "kanal": "Empower Fitness",
+   "dauer": "0:24"
+  },
+  "alias": [
+   "T-Bar Rudern breit",
+   "Landmine Row breit",
+   "Wide Grip T-Bar Row"
+  ]
+ },
+ {
+  "id": "negativ-sit-up",
+  "name": "Negativ Sit-up auf der Schrägbank",
+  "nameEn": "Negative Decline Sit-up",
+  "pattern": "core_flexion",
+  "primaryMuscles": [
+   "Bauch"
+  ],
+  "secondaryMuscles": [
+   "Hüftbeuger"
+  ],
+  "equipment": "bodyweight",
+  "level": "intermediate",
+  "mechanics": "isolation",
+  "repRange": "6-10",
+  "steps": [
+   "Auf die abfallende Bank setzen, Beine unter den Rollen einhaken",
+   "Arme vor der Brust kreuzen, oben aufrecht starten",
+   "Wirbel für Wirbel in 3 bis 5 Sekunden nach hinten absenken",
+   "Mit Schwung oder Händen wieder hoch und neu beginnen"
+  ],
+  "gruppe": "rumpf",
+  "video": {
+   "id": "QRb3X4bsb8k",
+   "titel": "Situps auf der Schrägbank - Bauchmuskelübungen",
+   "kanal": "Flash Mavi Deutsch",
+   "dauer": "2:01"
+  },
+  "alias": [
+   "Negative Sit-ups",
+   "Negative Situps",
+   "Sit-ups Schrägbank",
+   "Decline Sit-up"
+  ]
+ },
+ {
+  "id": "power-clean",
+  "name": "Power Clean (Umsetzen)",
+  "nameEn": "Barbell Power Clean",
+  "pattern": "plyometric",
+  "primaryMuscles": [
+   "Ganzkörper"
+  ],
+  "secondaryMuscles": [
+   "Gluteus",
+   "Quadrizeps",
+   "Trapez",
+   "Beinbeuger"
+  ],
+  "equipment": "barbell",
+  "level": "advanced",
+  "mechanics": "compound",
+  "repRange": "3-5",
+  "steps": [
+   "Stange über der Fußmitte, schulterbreiter Griff, Rücken gerade",
+   "Explosiv aus Beinen und Hüfte strecken, die Stange bleibt nah am Körper",
+   "Unter die Stange ziehen, Ellbogen schnell nach vorn und hoch",
+   "In der Viertelhocke auf den Schultern fangen und aufrichten"
+  ],
+  "gruppe": "ganzkoerper",
+  "video": {
+   "id": "MY3Jym1cnfk",
+   "titel": "Clean (Umsetzen) | Richtige Technik mit der Langhantel (Tutorial)",
+   "kanal": "Johannes Kwella",
+   "dauer": "8:18"
+  },
+  "alias": [
+   "Clean",
+   "Cleans",
+   "Umsetzen",
+   "Power Cleans"
+  ]
+ },
+ {
+  "id": "landmine-russian-twist",
+  "name": "Russian Twist an der Landmine",
+  "nameEn": "Landmine Rotation",
+  "pattern": "core_rotation",
+  "primaryMuscles": [
+   "Seitliche Bauchmuskeln"
+  ],
+  "secondaryMuscles": [
+   "Rumpf",
+   "Schulter"
+  ],
+  "equipment": "barbell",
+  "level": "intermediate",
+  "mechanics": "compound",
+  "repRange": "6-10 je Seite",
+  "steps": [
+   "Stange in der Landmine, das freie Ende mit beiden Händen vor der Brust",
+   "Arme lang, das Ende langsam im Bogen zur Hüfte einer Seite führen",
+   "Der Oberkörper dreht mit, die hintere Ferse darf sich lösen",
+   "Langsam über die Mitte zur anderen Seite"
+  ],
+  "gruppe": "rumpf",
+  "video": {
+   "id": "MswsBPLGhE8",
+   "titel": "Landmine Rotation",
+   "kanal": "O.B. Training & Sports Performance",
+   "dauer": "0:26"
+  },
+  "alias": [
+   "Landmine Rotation",
+   "Landmine Twist",
+   "Russian Twist Landmine",
+   "Rainbow"
+  ]
+ },
+ {
+  "id": "seagull-row-langhantel",
+  "name": "Seagull Row (Langhantel)",
+  "nameEn": "Barbell Seagull Row",
+  "pattern": "horizontal_pull",
+  "primaryMuscles": [
+   "hintere Schulter",
+   "oberer Rücken"
+  ],
+  "secondaryMuscles": [
+   "Rhomboiden",
+   "Trapez",
+   "Bizeps"
+  ],
+  "equipment": "barbell",
+  "level": "intermediate",
+  "mechanics": "compound",
+  "repRange": "10-15",
+  "steps": [
+   "Bauch auf die Schrägbank, etwa 30 bis 45 Grad",
+   "Langhantel im breiten Obergriff, Arme hängen gerade nach unten",
+   "Ellbogen weit nach außen und oben ziehen, wie Flügel",
+   "Langsam absenken, Schultern bleiben unten"
+  ],
+  "gruppe": "ruecken",
+  "video": {
+   "id": "5Awx7VWPqm8",
+   "titel": "Langhantel-Rudern auf der Schrägbank",
+   "kanal": "MTNTOUGH Fitness",
+   "dauer": "0:46"
+  },
+  "alias": [
+   "Seagull Rows Langhantel",
+   "Langhantelrudern auf der Schrägbank",
+   "Chest Supported Barbell Row",
+   "Seal Row"
+  ]
+ },
+ {
+  "id": "latziehen-einarmig-kniend",
+  "name": "Einarmiges Latziehen im Halbkniestand",
+  "nameEn": "Half Kneeling Single Arm Cable Pulldown",
+  "pattern": "vertical_pull",
+  "primaryMuscles": [
+   "Latissimus"
+  ],
+  "secondaryMuscles": [
+   "Bizeps",
+   "mittlerer Rücken"
+  ],
+  "equipment": "cable",
+  "level": "intermediate",
+  "mechanics": "compound",
+  "repRange": "10-12 je Arm",
+  "steps": [
+   "Rolle oben, im Halbkniestand etwa einen Meter vor dem Turm",
+   "Das Knie der Zugseite liegt am Boden, das andere Bein steht",
+   "Griff mit der Hand der Kniebeinseite, Ellbogen Richtung Becken ziehen",
+   "Langsam lang werden lassen, bis der Arm gestreckt ist"
+  ],
+  "gruppe": "ruecken",
+  "video": {
+   "id": "XbZgoSNJXm4",
+   "titel": "Einarmiges Latzug-Ziehen im halben Kniestand",
+   "kanal": "The Fitness Life - Strength & Lifestyle Coaching",
+   "dauer": "0:31"
+  },
+  "alias": [
+   "Einarmiger Latzug kniend",
+   "Einarmiges Latrudern Kabel",
+   "Single Arm Lat Pulldown",
+   "Latziehen einarmig"
+  ]
+ },
+ {
+  "id": "trizeps-kabel-ueberkreuz",
+  "name": "Trizepsstrecken am Kabel über Kreuz",
+  "nameEn": "Cross Body Dual Cable Triceps Extension",
+  "pattern": "elbow_extension",
+  "primaryMuscles": [
+   "Trizeps"
+  ],
+  "secondaryMuscles": [],
+  "equipment": "cable",
+  "level": "intermediate",
+  "mechanics": "isolation",
+  "repRange": "10-15",
+  "steps": [
+   "Beide oberen Rollen einhängen, zur Station drehen und nah davor stehen",
+   "Über Kreuz greifen: rechte Hand zur linken Rolle, linke Hand zur rechten",
+   "Ellbogen auf Kopfhöhe, Arme schräg nach unten außen strecken",
+   "Kontrolliert zurück, bis die Hände wieder vor dem Gesicht sind"
+  ],
+  "gruppe": "arme",
+  "video": {
+   "id": "TctfJadtxq0",
+   "titel": "Exercise Tutorial - Cross Body Dual Cable Triceps Extension",
+   "kanal": "The Muscle Mentors",
+   "dauer": "1:32"
+  },
+  "alias": [
+   "Cross Body Triceps",
+   "Trizeps über Kreuz",
+   "Überkreuztes Trizepsstrecken",
+   "Trizeps Extension Kabel"
   ]
  }
 ];

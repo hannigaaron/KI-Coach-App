@@ -33,9 +33,9 @@ export interface Stufe {
 }
 
 /**
- * Jedes neue Konto startet mit sieben Tagen Testphase. Danach gibt es die KI
- * nur mit Abo, der Regelpfad läuft in jeder Stufe weiter und taucht hier nicht
- * auf. "frei" heisst damit: alles ohne Modell, nichts mit.
+ * Jedes neue Konto startet mit sieben Tagen Testphase. Danach gibt es daevo
+ * nur mit Abo. "frei" heisst: gesperrt. Die App sperrt sich selbst ganz, sobald sie
+ * diese Stufe sieht, und der Server antwortet keinem Modellaufruf.
  *
  * Preise: Plus 11,99 Euro, Pro 19,99 Euro im Monat, jährlich 99,99 und 159,99. Gemessen am 21. Oktober
  * 2026 über den Worker kostet eine Nachricht im Schnitt rund 2 Cent: Essen
@@ -213,7 +213,7 @@ export async function kontoLoeschen(kv: KVNamespace, h: string, konto: Konto, je
 /** Ist noch etwas übrig? Gibt den Grund zurück, wenn nicht. */
 export function kontingentPruefen(stufe: string, v: Monatsverbrauch): string | null {
   const s = STUFEN[stufe] ?? STUFEN.frei!;
-  if (s.nachrichten === 0) return "Die Testphase ist vorbei. Die KI gibt es mit Plus oder Pro.";
+  if (s.nachrichten === 0) return "Ohne Abo ist daevo gesperrt. Mit Plus oder Pro geht es weiter.";
   if (v.nachrichten >= s.nachrichten) {
     return `Kontingent aufgebraucht: ${s.nachrichten} Nachrichten im Monat in der Stufe ${s.name}.`;
   }

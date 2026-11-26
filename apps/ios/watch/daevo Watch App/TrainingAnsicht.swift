@@ -29,12 +29,11 @@ struct TrainingAnsicht: View {
             }
         }
         .navigationTitle("Training")
-        .navigationDestination(for: TrainingVorlage.self) { t in TrainingLauf(vorlage: t) }
     }
 
     private func untertitel(_ t: TrainingVorlage) -> String {
         let n = t.entwurf.uebungen.count
-        let art = t.quelle == "offen" ? "fortsetzen" : t.quelle == "heute" ? "aus dem Gespräch" : "aus deinem Plan"
+        let art = t.quelle == "offen" ? "läuft am iPhone" : t.quelle == "heute" ? "aus dem Gespräch" : "aus deinem Plan"
         return "\(n) \(n == 1 ? "Übung" : "Übungen"), \(art)"
     }
 }
@@ -63,6 +62,8 @@ struct TrainingLauf: View {
         Group {
             if uebungen.isEmpty {
                 ProgressView()
+            } else if sitzung.pausiert {
+                pausiertAnsicht
             } else if let bis = pauseBis {
                 pauseAnsicht(bis)
             } else {
@@ -75,6 +76,12 @@ struct TrainingLauf: View {
             ToolbarItem(placement: .topBarLeading) {
                 Button { beendenFragen = true } label: { Image(systemName: "xmark") }
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    if sitzung.pausiert { sitzung.fortsetzen() } else { sitzung.pausieren() }
+                } label: { Image(systemName: sitzung.pausiert ? "play.fill" : "pause.fill") }
+                .accessibilityLabel(sitzung.pausiert ? "Training fortsetzen" : "Training pausieren")
+            }
         }
         .confirmationDialog("Training beenden?", isPresented: $beendenFragen) {
             Button("Speichern und beenden") { beenden(speichern: true) }
@@ -85,14 +92,52 @@ struct TrainingLauf: View {
             if uebungen.isEmpty {
                 // Eine Übung ohne Satz hätte beim Anzeigen den Index verfehlt.
                 uebungen = vorlage.entwurf.uebungen.filter { !$0.saetze.isEmpty }
-                start = Date()
+                // Läuft das Training schon am iPhone, zählt dessen Beginn.
+                start = vorlage.start.flatMap { ISO8601DateFormatter.mitBruchteil.date(from: $0) ?? ISO8601DateFormatter().date(from: $0) } ?? Date()
                 springeZumOffenen()
+                vomIphone(verbindung.paket)
                 await sitzung.starten()
             }
         }
+        // Am iPhone dazugenommene Übungen, dort abgehakte Sätze und eine dort
+        // gestartete Pause kommen mit jedem neuen Paket hierher.
+        .onChange(of: verbindung.paket) { _, neu in vomIphone(neu) }
     }
 
     private var aktuell: Uebung { uebungen[ui] }
+
+    private var pausiertAnsicht: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "pause.circle").font(.system(size: 40)).foregroundStyle(Farben.marke)
+            Text("Training pausiert").font(.headline)
+            Text("Apple Fitness zählt die Zeit nicht mit.").font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
+            Button("Fortsetzen") { sitzung.fortsetzen() }.tint(Farben.marke)
+        }
+    }
+
+    /// Führt den Stand des iPhones in dieses Training. Was hier schon
+    /// abgehakt ist, bleibt. Neue Übungen kommen hinten dazu.
+    private func vomIphone(_ paket: Paket?) {
+        guard !uebungen.isEmpty,
+              let t = paket?.trainings.first(where: { $0.quelle == "offen" && $0.titel == vorlage.titel }) else { return }
+        for neu in t.entwurf.uebungen where !neu.saetze.isEmpty {
+            if let i = uebungen.firstIndex(where: { $0.id == neu.id }) {
+                for (k, satz) in neu.saetze.enumerated() {
+                    if k < uebungen[i].saetze.count {
+                        if satz.fertig && !uebungen[i].saetze[k].fertig { uebungen[i].saetze[k] = satz }
+                    } else {
+                        uebungen[i].saetze.append(satz)
+                    }
+                }
+            } else {
+                uebungen.append(neu)
+            }
+        }
+        if let bis = t.pauseBis {
+            let ende = Date(timeIntervalSince1970: bis / 1000)
+            if ende > Date(), pauseBis == nil { pauseBis = ende }
+        }
+    }
 
     private var satzAnsicht: some View {
         let satz = aktuell.saetze[si]
@@ -188,6 +233,7 @@ struct TrainingLauf: View {
         }
         let pause = aktuell.pauseSek
         let letzterSatz = ui == uebungen.count - 1 && si == aktuell.saetze.count - 1
+        verbindung.trainingStand(titel: vorlage.titel, start: start, uebungen: uebungen)
         weiter()
         if !letzterSatz { pauseBis = Date().addingTimeInterval(TimeInterval(pause)) }
     }
@@ -219,4 +265,13 @@ struct TrainingLauf: View {
             schliessen()
         }
     }
+}
+
+extension ISO8601DateFormatter {
+    /// Die Web App schreibt Zeiten mit Millisekunden, etwa 2026-11-15T14:04:12.345Z.
+    static let mitBruchteil: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
 }

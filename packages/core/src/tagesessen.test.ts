@@ -100,3 +100,28 @@ test("abends mit viel Rest: Abendessen und ein später Snack statt eines Riesent
   assert.ok(p.mahlzeiten.every((m) => m.kcal < 1000), p.mahlzeiten.map((m) => m.kcal).join(", "));
   assert.ok(p.mahlzeiten[1]!.um <= new Date(`${TAG}T22:30:00`).getTime());
 });
+
+import { essensUhrzeiten } from "./tagesessen.js";
+
+test("eigene Essenszeiten: erste Mahlzeit nach dem Aufstehen, Mittag und Abend", () => {
+  assert.deepEqual(essensUhrzeiten("06:30", { ersteNachMin: 60, mittag: "13:00", abend: "19:30" }), { fruehstueck: "07:30", mittagessen: "13:00", abendessen: "19:30" });
+  assert.deepEqual(essensUhrzeiten("07:00"), { fruehstueck: "07:45", mittagessen: "12:30", abendessen: "19:00" });
+});
+
+test("eine gewählte Mahlzeit steht mit ihren Werten im Plan, der Rest wird um sie herum gerechnet", () => {
+  const ohne = plan([]);
+  const brot = { name: "Brot mit Hüttenkäse", quantity: "1 Portion", kcal: 300, proteinG: 25, fatG: 8, carbsG: 30 };
+  const mit = plan([], { gewaehlt: [{ art: "abendessen", name: "Brot mit Hüttenkäse", posten: [brot] }] });
+  const abend = mit.mahlzeiten.find((m) => m.art === "abendessen")!;
+  assert.equal(abend.gewaehlt?.name, "Brot mit Hüttenkäse");
+  assert.equal(abend.kcal, 300);
+  assert.equal(abend.rezept, null);
+  assert.equal(mit.mahlzeiten.filter((m) => m.art === "abendessen").length, 1);
+  // Der Tag geht weiter auf das Ziel, die anderen Mahlzeiten werden grösser.
+  const rest = (x: typeof ohne) => x.mahlzeiten.filter((m) => m.art !== "abendessen").reduce((s, m) => s + m.kcal, 0);
+  assert.ok(rest(mit) > rest(ohne), `${rest(mit)} > ${rest(ohne)}`);
+  assert.match(tagesessenText(mit), /Brot mit Hüttenkäse, 300 kcal, 25 g Protein, deine Wahl/);
+  // Ist das Abendessen schon gegessen, gilt der Eintrag und nicht die Wahl.
+  const gegessen = plan([], { gegessen: [{ at: "19:10", kcal: 800, proteinG: 50, fatG: 20, carbsG: 100 }], gewaehlt: [{ art: "abendessen", name: "Brot", posten: [brot] }] });
+  assert.ok(!gegessen.mahlzeiten.some((m) => m.gewaehlt));
+});

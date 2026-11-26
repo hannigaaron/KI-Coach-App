@@ -587,6 +587,28 @@ export const SCHRITTE = [
       { art: "zeit", id: "handyMorgens", label: "Morgens das erste Mal am Handy", standard: "07:15" },
     ],
   },
+  {
+    id: "essenszeiten",
+    abschnitt: "Dein Rhythmus",
+    titel: "Wann isst du normalerweise?",
+    text: "Danach lege ich deine Mahlzeiten in den Tag und, wenn du einen Plan übernimmst, in deinen Kalender.",
+    felder: [
+      {
+        art: "auswahl",
+        id: "ersteMahlzeit",
+        label: "Deine erste Mahlzeit nach dem Aufstehen",
+        standard: "45",
+        optionen: [
+          { id: "15", titel: "Gleich nach dem Aufstehen", text: "In der ersten Viertelstunde." },
+          { id: "45", titel: "Nach etwa einer halben bis einer Stunde" },
+          { id: "90", titel: "Nach etwa eineinhalb Stunden" },
+          { id: "180", titel: "Erst nach zwei bis vier Stunden", text: "Etwa, wenn du morgens nichts isst." },
+        ],
+      },
+      { art: "zeit", id: "mittagZeit", label: "Mittagessen, meistens um", standard: "12:30" },
+      { art: "zeit", id: "abendZeit", label: "Abendessen, meistens um", standard: "19:00" },
+    ],
+  },
 ];
 
 /* ---------- Bewertung der Antworten ---------- */
@@ -633,6 +655,11 @@ export function auswerten(antworten) {
     sleepTime: antworten.sleepTime || "23:00",
     handyAus: antworten.handyAus || undefined,
     handyMorgens: antworten.handyMorgens || undefined,
+    essenszeiten: {
+      ersteNachMin: Number(antworten.ersteMahlzeit) >= 0 && antworten.ersteMahlzeit !== undefined && antworten.ersteMahlzeit !== "" ? Number(antworten.ersteMahlzeit) : 45,
+      mittag: antworten.mittagZeit || "12:30",
+      abend: antworten.abendZeit || "19:00",
+    },
     // "wechselnd" wird als "gleich" gespeichert: es gibt keine Wochenzeiten,
     // die Standardwerte gelten als Schätzung, und jeder einzelne Tag lässt sich
     // überschreiben. Der Unterschied liegt nur darin, dass der Coach bei

@@ -5,6 +5,28 @@ App lädt dieselben Dateien wie die Web App, nur aus dem App Bundle statt aus
 dem Netz. Fotos, Rezepte, Übungen und Schrift liegen damit auf dem Gerät und
 laufen ohne Netz.
 
+## Aktualisieren, kurz
+
+Im Ordner `KI-Coach-App` auf dem Mac:
+
+```bash
+git pull origin claude/ai-coaching-nutrition-fitness-ur9o1d
+npm run ios
+```
+
+Das baut die Web App, kopiert sie ins Xcode Projekt, kopiert die Dateien der
+Uhr in ihre Ordner, wenn die Uhr in Xcode eingerichtet ist, und öffnet Xcode.
+Dort oben das Schema **App** und dein iPhone wählen, dann Play. Die Uhr App
+kommt mit.
+
+Steht in der Ausgabe eine Zeile "neu, in Xcode über Add Files hinzufügen",
+liegt die Datei schon im Ordner, Xcode baut sie aber erst mit, wenn du sie
+dort über Rechtsklick, Add Files, mit dem genannten Ziel hinzufügst.
+
+Meldet `git pull` einen Konflikt in `project.pbxproj`, hat Xcode beim
+Einrichten der Uhr deine Fassung geändert. Dann `git stash`, `git pull`,
+`git stash pop`, und bei einem Konflikt deine Fassung behalten.
+
 ## Was du brauchst
 
 - Einen Mac mit Xcode 26 oder neuer. Capacitor 8 verlangt mindestens Xcode 26.

@@ -45,7 +45,8 @@ test("ein Training von der Uhr landet im Protokoll und im Tag, doppelt zugestell
     ],
   };
   const e = uhrEreignisseAnwenden([training, { id: "w1", art: "wasser", ml: 250 }, training], { store: st, heute: HEUTE, neueId: () => "t1" });
-  assert.deepEqual(e.trainings, [{ titel: "Ganzkörper A", saetze: 2, minuten: 52 }]);
+  assert.deepEqual(e.trainings.map(({ titel, saetze, minuten }) => ({ titel, saetze, minuten })), [{ titel: "Ganzkörper A", saetze: 2, minuten: 52 }]);
+  assert.equal(e.trainings[0].datum, "2026-11-02");
   assert.equal(e.wasserMl, 250);
   const log = st.getSettings().trainingslog;
   assert.equal(log.length, 1);
@@ -137,4 +138,34 @@ test("auf der Uhr abgehakte Aufgaben kommen als Kennungen zurück, doppelt zuges
   const e = { id: "u1", art: "aufgabe", aufgabeId: "a1" };
   const r = uhrEreignisseAnwenden([e, e, { id: "u2", art: "aufgabe", aufgabeId: "a1" }], { store, heute: HEUTE, neueId: () => "x" });
   assert.deepEqual(r.erledigt, ["a1"]);
+});
+
+import { entwurfMitUhr, uhrPaket as paketFuer } from "./uhr.js";
+
+test("ein Training auf der Uhr läuft am iPhone mit, neue Übungen kommen dazu", () => {
+  const am = { ei: -1, frei: true, titel: "Pull", datum: "2026-11-15", start: "2026-11-15T13:00:00Z", aktiv: 0, uebungen: [
+    { id: "a", name: "A", ziel: { saetze: 2, wdh: "8-12", reserve: 2, pauseSek: 90 }, saetze: [{ kg: 50, wdh: 10, rir: 2, fertig: true }, { kg: 50, wdh: 10, rir: 2, fertig: false }] },
+  ] };
+  const stand = { titel: "Pull", datum: "2026-11-15", start: null, uebungen: [
+    { id: "a", name: "A", saetze: [{ kg: 40, wdh: 8, rir: 2, fertig: true }, { kg: 52.5, wdh: 9, rir: 1, fertig: true }] },
+    { id: "b", name: "B", saetze: [{ kg: 20, wdh: 12, rir: 2, fertig: false }] },
+  ] };
+  const neu = entwurfMitUhr(am, stand);
+  assert.equal(neu.uebungen[0].saetze[0].kg, 50, "hier Abgehaktes bleibt");
+  assert.equal(neu.uebungen[0].saetze[1].kg, 52.5, "auf der Uhr Abgehaktes kommt");
+  assert.equal(neu.uebungen[1].id, "b");
+  assert.equal(neu.aktiv, 1);
+  assert.equal(entwurfMitUhr(null, stand).titel, "Pull", "ohne Training am iPhone wird der Stand der Uhr eins");
+});
+
+test("ein laufendes Training für heute steht auf der Uhr nur einmal, mit Pause", () => {
+  const settings = { trainingslog: [], trainingEntwurf: { titel: "Training für heute", datum: "2026-11-15", start: "2026-11-15T13:00:00Z", aktiv: 0, uebungen: [
+    { id: "x", name: "X", ziel: { wdh: "8-12", pauseSek: 90 }, saetze: [{ kg: 10, wdh: 10, fertig: false }] },
+  ] }, trainingPause: { bis: Date.now() + 60000 } };
+  const p = paketFuer({ settings, zahlen: {}, heute: "2026-11-15" });
+  const offen = p.trainings.filter((t) => t.titel === "Training für heute");
+  assert.equal(offen.length, 1);
+  assert.equal(offen[0].quelle, "offen");
+  assert.ok(offen[0].pauseBis > Date.now());
+  assert.ok(alsPropertyList(p));
 });

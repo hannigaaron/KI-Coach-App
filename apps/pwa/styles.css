@@ -1013,6 +1013,8 @@ button.messwert:active { opacity: 0.65; }
 .toast-aktion {
   background: none; border: 0; padding: 0; min-height: 0; box-shadow: none;
   color: var(--accent); font: inherit; font-weight: 700; cursor: pointer;
+  /* Der Knopf bricht nie mitten im Wort: "Rüc kgä ngig" stand im Betrieb da. */
+  white-space: nowrap; flex-shrink: 0;
 }
 body:has([data-view="assistant"]:not([hidden])) .toast {
   bottom: calc(var(--composer) + env(safe-area-inset-bottom) + 18px);
@@ -2694,13 +2696,21 @@ h1,
   transition: border-color 0.2s ease;
 }
 .composer-bar:focus-within { border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
-.composer-bar input {
+.composer-bar input, .composer-bar textarea {
   flex: 1; min-width: 0; margin: 0;
   border: none; background: none; border-radius: 0; box-shadow: none;
   padding: 12px 6px; font-size: 16px; color: var(--text);
 }
-.composer-bar input:focus { outline: none; box-shadow: none; }
-.composer-bar input::placeholder { color: var(--muted); opacity: 0.9; }
+/* Das Feld wächst mit dem Text, bis zu sieben Zeilen, danach scrollt es.
+   Wer diktiert oder tippt, will sehen, was im Feld steht, und nicht nur das
+   Ende einer langen Zeile. Die Knöpfe bleiben unten, wie bei Claude. */
+.composer-bar textarea {
+  resize: none; display: block; min-height: 0; max-height: 11.5em; overflow-y: auto;
+  line-height: 1.4; padding: 10px 6px; font-family: inherit; -webkit-appearance: none; appearance: none;
+}
+.composer-bar:has(textarea) { align-items: flex-end; }
+.composer-bar input:focus, .composer-bar textarea:focus { outline: none; box-shadow: none; }
+.composer-bar input::placeholder, .composer-bar textarea::placeholder { color: var(--muted); opacity: 0.9; }
 
 .co-btn {
   position: relative; flex: none; display: grid; place-items: center; width: 42px; height: 42px; padding: 0;
@@ -2896,7 +2906,7 @@ h1,
 .pl-aktionen { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 30px; }
 .pl-knopf {
   min-height: 50px; border-radius: var(--r-pill); border: 1px solid var(--linie); background: none; color: var(--text);
-  font-family: var(--schrift-display); font-size: 15px; font-weight: 600; transition: transform 0.15s ease;
+  font-size: 15px; font-weight: 400; transition: transform 0.15s ease;
 }
 .pl-knopf:active { transform: scale(0.98); }
 .pl-knopf.haupt { grid-column: 1 / -1; min-height: 56px; background: var(--stark); border-color: transparent; color: var(--auf-stark); font-size: 16px; }
@@ -3429,6 +3439,11 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 }
 .abo-knopf:active { transform: scale(.98); }
 .abo-klein { margin: 0; text-align: center; color: rgba(255, 255, 255, .6); font-size: 14px; line-height: 1.45; }
+.abo-blatt.gesperrt { z-index: 94; }
+.abo-blatt.gesperrt .abo-x, .abo-blatt.gesperrt .abo-spaeter { display: none; }
+.abo-sperrlinks { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 6px; margin-top: 4px; }
+.abo-sperrlinks button { border: 0; background: none; color: rgba(255, 255, 255, .6); font-size: 14px; padding: 8px 10px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.abo-sperrlinks span { flex-basis: 100%; display: flex; justify-content: center; flex-wrap: wrap; }
 .abo-spaeter { align-self: center; border: 0; background: none; color: rgba(255, 255, 255, .6); font-size: 15px; padding: 8px 16px; cursor: pointer; }
 
 /* Die Leiste auf dem Start. Eine Textzeile ohne Kasten und ohne Fläche:
@@ -3587,6 +3602,27 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 .tr-vorher-kopf, .tr-vorher-zeile { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); text-align: center; font-variant-numeric: tabular-nums; }
 .tr-vorher-kopf { font-size: var(--t-xs); color: var(--muted); padding-bottom: var(--s-1); }
 .tr-vorher-zeile { font-size: var(--t-sm); color: var(--muted); padding: 3px 0; }
+.tr-vorher-zeile.tr-vorher-text { grid-template-columns: 2.5em minmax(0, 1fr); text-align: left; }
+/* Der Kopf einer Spalte ist ein Knopf: ein Tipp wechselt die Einheit, etwa
+   von Wiederholungen auf Sekunden. Klein und in der Farbe des Kopfs, mit
+   einem Winkel, damit man sieht, dass dort etwas aufgeht. */
+.tr-einheit {
+  display: inline-flex; align-items: center; justify-content: center; gap: 3px; min-height: 32px; padding: 0 var(--s-2);
+  border: 0; border-radius: var(--r-pill); background: none; color: inherit; font: inherit; letter-spacing: inherit;
+  cursor: pointer;
+}
+.tr-einheit svg { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: transform var(--dauer-kurz, 160ms) var(--kurve, ease); }
+.tr-einheit[aria-expanded="true"] { background: var(--flaeche); color: var(--text); }
+.tr-einheit[aria-expanded="true"] svg { transform: rotate(180deg); }
+.tr-einheiten { display: flex; flex-wrap: wrap; gap: var(--s-2); padding: 0 0 var(--s-3); }
+/* Eine Wahl wie ein Reiter, deshalb Satoshi und klein: in der Serife der
+   Knöpfe brachen "Wiederholungen" und "Ohne Gewicht" mitten im Wort um. */
+.tr-einheiten .chip {
+  flex: none; min-height: 36px; padding: 0 var(--s-3); white-space: nowrap; border: 0;
+  background: var(--flaeche); box-shadow: var(--haarlinie); font-size: var(--t-sm); font-weight: 600;
+}
+.tr-einheiten .chip.an { background: var(--text); color: var(--bg); box-shadow: none; }
+.tr-ohne { text-align: center; color: var(--muted); font-size: var(--t-md); }
 .tr-erstes, .tr-rir-hilfe { font-size: var(--t-xs); color: var(--muted); margin: var(--s-3) 0 0; }
 .tr-fuss {
   flex: none; display: flex; gap: var(--s-3); align-items: center;
@@ -3646,6 +3682,47 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 .mg-titel { margin: var(--s-5) 0 var(--s-2); font-size: var(--t-sm); font-weight: 600; }
 .mg-liste { margin: 0; padding-left: 1.1em; }
 .mg-liste li { margin-bottom: var(--s-2); line-height: 1.45; }
+/* Die Abendroutine, abend.js. Aufbau wie auf der Website: Mond, die Stunden
+   bis zum Wecker, darunter der Ablauf als Zeilen mit Uhrzeit. */
+#abendInhalt { padding: 0 var(--s-4) var(--s-4); }
+.ab-start { font-size: var(--t-sm); font-weight: 400; color: var(--muted); margin-left: var(--s-2); }
+.ab-kopf { display: grid; justify-items: center; text-align: center; padding: var(--s-4) 0 var(--s-5); }
+.ab-mond { width: 104px; height: 104px; fill: var(--accent); filter: drop-shadow(0 0 22px color-mix(in srgb, var(--accent) 55%, transparent)); animation: abMond 6s ease-in-out infinite alternate; }
+@keyframes abMond { from { transform: rotate(-6deg); } to { transform: rotate(4deg) translateY(-3px); } }
+.ab-stunden { margin-top: var(--s-3); font-size: 40px; line-height: 1; font-weight: 600; letter-spacing: -0.02em; }
+.ab-unter { margin-top: var(--s-2); color: var(--muted); font-size: var(--t-sm); }
+.ab-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-2); }
+.ab-schritt { width: 100%; display: grid; grid-template-columns: 1fr auto 32px; align-items: center; gap: var(--s-3); padding: var(--s-3) var(--s-3) var(--s-3) var(--s-4); min-height: 56px; border: 0; border-radius: var(--r-md); background: var(--flaeche); box-shadow: var(--haarlinie); color: var(--text); text-align: left; font: inherit; cursor: pointer; transition: opacity .3s var(--kurve); }
+.ab-text b { display: block; font-weight: 600; font-size: var(--t-md); }
+.ab-text small { display: block; margin-top: 2px; color: var(--muted); font-size: var(--t-xs); line-height: 1.35; }
+.ab-zeit { color: var(--accent-text); font-size: var(--t-sm); font-variant-numeric: tabular-nums; }
+.ab-haken { width: 30px; height: 30px; border-radius: 50%; box-shadow: inset 0 0 0 2px var(--border, rgba(255,255,255,.2)); display: grid; place-items: center; color: transparent; transition: background .25s var(--kurve), color .25s var(--kurve); }
+.ab-haken svg { width: 16px; height: 16px; }
+.ab-schritt.an { opacity: .62; }
+.ab-schritt.an .ab-text b { text-decoration: line-through; }
+.ab-schritt.an .ab-haken { background: var(--accent); color: var(--on-accent); box-shadow: none; }
+.ab-bett, .ab-leer { margin: var(--s-4) 0 0; color: var(--muted); font-size: var(--t-sm); text-align: center; }
+.ab-start-knopf { margin-top: 0; }
+@media (prefers-reduced-motion: reduce) { .ab-mond { animation: none; } }
+/* Der Schlaf der letzten sieben Nächte unter dem Morgen Check-in. */
+.sw { margin-top: var(--s-5); padding: var(--s-4); border-radius: var(--r-md); background: var(--flaeche); box-shadow: var(--haarlinie); }
+.sw .mg-titel { margin-top: 0; }
+.sw-zahlen { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); }
+.sw-zahlen b { display: block; font-size: var(--t-xl); font-weight: 600; letter-spacing: -0.01em; }
+.sw-zahlen span { display: block; color: var(--muted); font-size: var(--t-xs); line-height: 1.35; }
+.sw-diff { margin: var(--s-3) 0 0; font-size: var(--t-sm); color: var(--good); }
+.sw-diff.minus { color: var(--warn); }
+.sw-balken { display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--s-2); height: 96px; margin-top: var(--s-4); }
+.sw-nacht { display: grid; grid-template-rows: 1fr auto; gap: 4px; text-align: center; }
+.sw-nacht small { font-size: var(--t-2xs); color: var(--muted); }
+.sw-saeule { position: relative; display: flex; justify-content: center; align-items: flex-end; gap: 3px; }
+.sw-saeule i { width: 9px; border-radius: 5px; }
+i.sw-plan { background: color-mix(in srgb, var(--accent) 28%, transparent); }
+i.sw-ist { background: var(--accent); }
+.sw-legende { display: flex; align-items: center; gap: var(--s-2); margin: var(--s-2) 0 0; font-size: var(--t-2xs); color: var(--muted); }
+.sw-legende i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-left: var(--s-2); }
+.sw-legende i:first-child { margin-left: 0; }
+.sw-tipp { margin: var(--s-3) 0 0; font-size: var(--t-sm); line-height: 1.45; }
 /* Das Briefing: Fokus als Fläche, der Tag als Zeitleiste. */
 .mg-fokus { margin: var(--s-5) 0 var(--s-2); padding: var(--s-4); border-radius: var(--r-md); background: var(--flaeche); box-shadow: var(--haarlinie); }
 .mg-fokus span { display: block; font-size: var(--t-2xs); letter-spacing: .06em; text-transform: uppercase; color: var(--brand-text); font-weight: 600; margin-bottom: var(--s-1); }
@@ -3682,10 +3759,15 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 .tr-wahl span { display: flex; flex-direction: column; min-width: 0; }
 .tr-wahl small { color: var(--muted); font-size: var(--t-xs); }
 .pl-verlauf { margin-top: var(--s-4); }
-.pl-verlauf-tag { border-bottom: 1px solid var(--linie); padding: var(--s-3) 0; }
-.pl-verlauf-tag summary { display: flex; justify-content: space-between; gap: var(--s-3); cursor: pointer; list-style: none; }
-.pl-verlauf-tag summary::-webkit-details-marker { display: none; }
-.pl-verlauf-tag summary span { color: var(--muted); font-size: var(--t-sm); text-align: right; }
+.pl-verlauf-tag { border-bottom: 1px solid var(--linie); padding: var(--s-2) 0 var(--s-3); }
+.pl-verlauf-knopf {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: var(--s-3); width: 100%;
+  padding: var(--s-2) 0; border: 0; background: none; color: var(--text); text-align: left; cursor: pointer;
+  font: inherit; font-family: inherit; font-size: var(--t-md);
+}
+.pl-verlauf-knopf span { color: var(--muted); font-size: var(--t-sm); text-align: right; }
+.pl-verlauf-knopf i { font-style: normal; color: var(--muted); font-size: var(--t-lg); line-height: 1; }
+.pl-verlauf-tag .pl-abschluss { font-size: var(--t-xs); padding: 0; }
 .pl-verlauf-tag ul { list-style: none; margin: var(--s-2) 0 0; padding: 0; }
 .pl-verlauf-tag li { display: flex; flex-direction: column; padding: var(--s-1) 0; font-size: var(--t-sm); }
 .pl-verlauf-tag li span { color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -3957,9 +4039,9 @@ button, .chip, .pill {
   font-family: var(--schrift-akzent); font-weight: 400; letter-spacing: 0.005em;
   font-synthesis: none;
 }
-button:not(.seg-btn):not([role="tab"]):not(.bib-knopf):not(.balken-zeile):not(.icon-btn) { font-size: 1.15em; }
+button:not(.seg-btn):not([role="tab"]):not(.bib-knopf):not(.balken-zeile):not(.icon-btn):not(.tr-masse):not(.pl-verlauf-knopf) { font-size: 1.15em; }
 .menu-zeile b, .menu-kachel b, .erfassen-titel, .weg-titel { font-family: var(--schrift-akzent); font-weight: 400; font-size: 1.1em; }
-.seg-btn, [role="tab"], .bib-knopf, .bib-knopf *, .pl-tausch .ue-tab, .tr-ersatz b, .balken-zeile, .balken-zeile *,
+.seg-btn, [role="tab"], .bib-knopf, .bib-knopf *, .pl-verlauf-knopf, .pl-verlauf-knopf *, .pl-tausch .ue-tab, .tr-ersatz b, .balken-zeile, .balken-zeile *, .tr-masse,
 button small, button .erfassen-sub, button .me-werte, button .me-werte *,
 .menu-zeile small, .menu-kachel small, .held, .held * {
   font-family: var(--schrift-text); letter-spacing: normal;
@@ -3995,6 +4077,9 @@ button small, button .erfassen-sub, button .me-werte, button .me-werte *,
 .tr-held .tr-mehr { background: rgba(255,255,255,.16); box-shadow: none; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
 .tr-held .tr-mehr i { background: #fff; }
 .tr-held .tr-ziel { color: rgba(255,255,255,.82); margin: var(--s-1) 0 0; }
+/* Der Partner im Supersatz, in der Akzentfarbe: er sagt, wohin es nach dem Haken geht. */
+.tr-supersatz { margin: calc(-1 * var(--s-2)) 0 var(--s-4); color: var(--accent-text); font-size: var(--t-sm); font-weight: 600; }
+.tr-held .tr-supersatz { color: var(--brand); margin: var(--s-1) 0 0; }
 .tr-kopf { padding-bottom: 0; }
 .tr-satz { margin: 0; padding: 6px 0; border-bottom: 1px solid var(--linie); }
 /* Über die Kennung, sonst gewinnt die allgemeine Regel für Felder. */
@@ -4062,7 +4147,7 @@ button small, button .erfassen-sub, button .me-werte, button .me-werte *,
    keine an. Das Nächste trägt Fläche, Markenfarbe und den grossen Haken,
    alles danach steht leiser auf einer Zeitachse ohne Kästen. */
 .kb { display: flex; flex-direction: column; gap: var(--s-4); margin: 0 0 var(--s-6); }
-.kb-stand, .kb-ganz, .kb-vorbei { margin: 0; font-size: var(--t-xs, 13px); color: var(--muted); line-height: 1.45; }
+.kb-stand, .kb-ganz, .kb-vorbei, .kb-gratulieren { margin: 0; font-size: var(--t-xs, 13px); color: var(--muted); line-height: 1.45; }
 .kb-jetzt {
   padding: var(--s-5); border-radius: var(--r-lg, 22px);
   background: color-mix(in srgb, var(--brand-text, var(--accent)) 12%, var(--flaeche, var(--panel)));
@@ -4392,3 +4477,405 @@ button { overflow-wrap: anywhere; text-wrap: balance; }
 .tr-entwicklung summary { cursor: pointer; color: var(--accent-text, var(--accent)); font-weight: 600; font-size: var(--t-sm); list-style: none; padding: 8px 0; }
 .tr-entwicklung summary::-webkit-details-marker { display: none; }
 .tr-entwicklung[open] summary { margin-bottom: var(--s-2); }
+
+/* Bewegung und Erholung auf Heute. Je Wert eine Karte mit Zeichen in einem
+   getönten Kreis, die Zahl gross, Name und Quelle klein. Die Farbe kommt je
+   Karte über --ton aus der Familie der Bereiche und Makros, die Karte selbst
+   bleibt eine Tonfläche ohne Rahmen. */
+.bw-raster { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-3); margin: var(--s-3) 0 var(--s-4); }
+@media (min-width: 520px) { .bw-raster { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.bw-karte {
+  position: relative; display: flex; flex-direction: column; gap: var(--s-2); padding: var(--s-4) var(--s-4) var(--s-3);
+  border-radius: 22px; min-width: 0; overflow: hidden;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--ton) 14%, var(--flaeche)) 0%, var(--flaeche) 62%);
+  box-shadow: var(--haarlinie), var(--glanz, 0 0 0 transparent);
+}
+.bw-kopf { display: flex; align-items: center; gap: var(--s-2); min-width: 0; }
+.bw-sym {
+  flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%;
+  color: var(--ton, var(--brand-text)); background: color-mix(in srgb, var(--ton, var(--brand-text)) 18%, transparent);
+}
+.bw-name { font-size: var(--t-xs); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bw-wert { margin: var(--s-1) 0 0; display: flex; align-items: baseline; gap: 4px; line-height: 1; }
+.bw-wert b { font-size: var(--t-2xl); font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.bw-wert i { font-style: normal; font-size: var(--t-sm); color: var(--muted); font-weight: 500; }
+.bw-spur { display: block; height: 5px; border-radius: 99px; background: color-mix(in srgb, var(--ton) 16%, transparent); overflow: hidden; }
+.bw-spur > span { display: block; height: 100%; border-radius: inherit; background: var(--ton); }
+.bw-karte small { font-size: var(--t-2xs, 11px); color: var(--muted); }
+.bw-trainings { list-style: none; margin: 0 0 var(--s-2); padding: 0; display: grid; gap: var(--s-2); }
+.bw-trainings li {
+  display: flex; align-items: center; gap: var(--s-3); padding: var(--s-3); border-radius: 18px;
+  background: var(--flaeche); box-shadow: var(--haarlinie); font-size: var(--t-sm); --ton: var(--bereich-fitness);
+}
+.bw-tr-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.bw-tr-name small { font-variant-numeric: tabular-nums; }
+.bw-tr-name b small { font-weight: 400; }
+.bw-trainings small { color: var(--muted); }
+
+/* Notiz je Übung im Training: eine Zeile auf einer Tonfläche, wächst mit
+   dem Text. Sitzhöhe und Griff sind die häufigsten Notizen, und die gehören
+   neben die Sätze und nicht in ein eigenes Blatt. */
+.tr-notiz { display: flex; flex-direction: column; gap: var(--s-1); margin: var(--s-4) 0 var(--s-3); }
+.tr-notiz > span { font-size: var(--t-2xs, 11px); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.tr-notiz textarea {
+  width: 100%; min-height: 44px; resize: none; field-sizing: content; padding: var(--s-3) var(--s-4);
+  border: 0; border-radius: var(--r-md); background: var(--flaeche); box-shadow: var(--haarlinie);
+  font: inherit; font-size: var(--t-sm); color: var(--text); line-height: 1.4;
+}
+.tr-notiz textarea:focus { outline: none; box-shadow: var(--haarlinie), 0 0 0 2px color-mix(in srgb, var(--brand-text) 45%, transparent); }
+
+/* Wochenrückblick oben im Bericht, aufklappbar. Offen, wenn er aus der
+   Mitteilung kommt. */
+.bericht-rueckblick { margin: var(--s-3) 0 var(--s-4); padding: var(--s-4); border-radius: 22px; background: var(--flaeche); box-shadow: var(--haarlinie); }
+.bericht-rueckblick summary { cursor: pointer; font-weight: 650; list-style: none; }
+.bericht-rueckblick summary::-webkit-details-marker { display: none; }
+.bericht-rueckblick[open] summary { margin-bottom: var(--s-3); }
+
+/* Die bisherigen Wochenbögen als Tagebuch. Zu sind sie eine Zeile mit Tag
+   und Bogen, offen jede Frage mit Antwort und darunter daevo. Ohne Rahmen um
+   jede Antwort: es ist Text zum Lesen, keine Liste von Feldern. */
+#wcVerlauf, #checkinList { list-style: none; padding: 0; margin: 0; }
+.wc-tb { padding: 0; margin: 0 0 var(--s-3); border-radius: 22px; background: var(--flaeche); box-shadow: var(--haarlinie); }
+.wc-tb details { padding: var(--s-4); }
+.wc-tb summary { display: flex; justify-content: space-between; align-items: center; gap: var(--s-3); cursor: pointer; list-style: none; }
+.wc-tb summary::-webkit-details-marker { display: none; }
+.wc-tb summary > span:first-child { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.wc-tb summary small { color: var(--muted); font-size: var(--t-xs); }
+.wc-tb summary .meta { color: var(--muted); font-size: var(--t-xs); text-align: right; }
+.wc-tb dl { margin: var(--s-4) 0 0; display: grid; gap: var(--s-3); }
+.wc-tb-paar dt { font-size: var(--t-xs); color: var(--muted); margin-bottom: 2px; }
+.wc-tb-paar dd { margin: 0; font-size: var(--t-sm); line-height: 1.5; white-space: pre-line; }
+.wc-tb-daevo { margin-top: var(--s-4); padding-top: var(--s-4); border-top: 1px solid var(--linie); }
+.wc-tb-von { margin: 0 0 var(--s-2); font-size: var(--t-xs); letter-spacing: 0.06em; text-transform: uppercase; color: var(--brand-text); }
+
+/* Der Geburtstag ganz unten im Briefing, nach allem, was zu tun ist. */
+.kb-gratulieren { margin-top: var(--s-6, 24px); padding-top: var(--s-3, 12px); border-top: 1px dashed var(--line, currentColor); }
+
+/* ---------- Sortierte Übersicht: daevo legt jeden Punkt in seine Stufe ---------- */
+.so { --so-ton: var(--brand); --so-auf: #0b0d10; }
+:root[data-theme="light"] .so { --so-ton: #1e7fa8; --so-auf: #fff; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .so { --so-ton: #1e7fa8; --so-auf: #fff; } }
+.so { display: flex; flex-direction: column; gap: var(--s-5); margin: var(--s-4) 0; }
+.so-titel { display: flex; align-items: center; gap: var(--s-2); margin: 0; font-size: var(--t-xs); letter-spacing: var(--lauf-weit, .04em); text-transform: uppercase; color: var(--muted); }
+.so-puls { width: 8px; height: 8px; border-radius: 50%; background: var(--so-ton); box-shadow: 0 0 0 4px color-mix(in srgb, var(--so-ton) 22%, transparent); }
+.so-gruppe { display: flex; flex-direction: column; gap: var(--s-2); }
+.so-kopf { display: flex; align-items: center; gap: var(--s-3); padding-bottom: var(--s-2); border-bottom: 1px dashed var(--line, var(--haarlinie, rgba(128,128,128,.3))); }
+.so-kopf h3 { margin: 0; font-size: var(--t-md); line-height: 1.2; }
+.so-kopf p { margin: 2px 0 0; font-size: var(--t-xs); color: var(--muted); }
+.so-nr { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: var(--t-sm); background: var(--so-ton); color: var(--so-auf); }
+.so-g-danach .so-nr { background: color-mix(in srgb, var(--so-ton) 60%, transparent); }
+.so-g-warten .so-nr { background: var(--flaeche, rgba(128,128,128,.25)); color: var(--muted); }
+.so-ohne { background: transparent; border: 2px solid var(--so-ton); width: 12px; height: 12px; margin: 8px; }
+.so-g-abends .so-ohne { border-color: var(--muted); }
+.so-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-2); }
+.so-punkt { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-3) var(--s-4); border-radius: var(--r-md, 14px); background: var(--flaeche, rgba(128,128,128,.12)); }
+.so-g-zuerst .so-punkt { background: color-mix(in srgb, var(--so-ton) 16%, transparent); }
+.so-g-zuerst .so-erster { background: var(--so-ton); color: var(--so-auf); box-shadow: 0 12px 34px -16px var(--so-ton); }
+.so-g-zuerst .so-erster small { color: inherit; opacity: .8; }
+.so-g-warten .so-punkt, .so-g-abends .so-punkt { opacity: .78; }
+.so-zeit { flex: none; min-width: 42px; font-size: var(--t-xs); font-variant-numeric: tabular-nums; color: var(--muted); }
+.so-erster .so-zeit { color: inherit; opacity: .8; }
+.so-was { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.so-was b { font-weight: 600; overflow-wrap: anywhere; }
+.so-was small { font-size: var(--t-xs); color: var(--muted); }
+.so-haken { flex: none; width: 32px; height: 32px; border-radius: 50%; border: 1.5px solid currentColor; background: transparent; color: inherit; display: grid; place-items: center; opacity: .7; }
+.so-haken.an { background: var(--so-ton); color: var(--so-auf); opacity: 1; }
+.so-punkt[data-rezept] { cursor: pointer; }
+/* Der Flug: nur beim ersten Zeigen, jeder Punkt der Reihe nach. */
+.so-neu .so-punkt { animation: soFlug .62s var(--kurve, cubic-bezier(.2,.8,.2,1)) both; animation-delay: var(--d); }
+.so-neu .so-kopf { animation: soKopf .5s var(--kurve, ease-out) both; animation-delay: calc(var(--gi) * .08s); }
+.so-neu .so-puls { animation: soPuls 1.4s ease-in-out 2; }
+@keyframes soFlug { 0% { opacity: 0; transform: translate3d(calc(var(--dx) - 26px), -34px, 0) scale(.88); } 60% { opacity: 1; transform: translate3d(0, 3px, 0) scale(1.01); } 100% { opacity: 1; transform: none; } }
+@keyframes soKopf { from { opacity: 0; transform: translate3d(-8px, 0, 0); } to { opacity: 1; transform: none; } }
+@keyframes soPuls { 50% { box-shadow: 0 0 0 9px color-mix(in srgb, var(--so-ton) 0%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .so-neu .so-punkt, .so-neu .so-kopf, .so-neu .so-puls { animation: none; } }
+.msg .so { margin: var(--s-4) 0 0; }
+.so-muster { margin: 0; padding: var(--s-3) var(--s-4); border-radius: var(--r-md, 14px); font-size: var(--t-sm); line-height: 1.45; background: color-mix(in srgb, var(--so-ton) 14%, transparent); color: var(--text); }
+
+/* Regeneration je Muskel, Ansicht Bereitschaft. Die Farben kommen als
+   Farbton aus dem Kern, Rot belastet, Grün frisch. */
+.regen-karte { margin: var(--s-4) auto var(--s-2); max-width: 380px; }
+.regen-karte svg { display: block; width: 100%; height: auto; }
+.regen-legende { display: flex; align-items: center; gap: var(--s-2); max-width: 280px; margin: 0 auto var(--s-4); font-size: var(--t-xs); color: var(--muted); }
+.regen-legende i { flex: 1; height: 6px; border-radius: 3px; background: linear-gradient(90deg, hsl(0 72% 50%), hsl(45 72% 50%), hsl(140 72% 50%)); opacity: 0.85; }
+.regen-liste { display: flex; flex-direction: column; }
+.regen-zeile { display: flex; align-items: center; gap: var(--s-3); width: 100%; padding: var(--s-3) 0; background: none; border: 0; border-bottom: 1px solid var(--line); color: var(--text); text-align: left; font: inherit; cursor: pointer; }
+.regen-punkt { flex: none; width: 12px; height: 12px; border-radius: 50%; }
+.regen-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.regen-text b { font-weight: 600; font-size: var(--t-sm); }
+.regen-text small { color: var(--muted); font-size: var(--t-xs); line-height: 1.35; }
+.regen-wert { flex: none; display: flex; flex-direction: column; align-items: flex-end; font-weight: 600; font-variant-numeric: tabular-nums; }
+.regen-wert small { font-weight: 400; font-size: var(--t-2xs, 11px); color: var(--muted); }
+.regen-tempo { display: flex; flex-direction: column; gap: var(--s-2); margin: var(--s-4) 0; font-size: var(--t-sm); color: var(--muted); }
+
+/* Hinweis aus einer Notiz mit Schmerz, über den Sätzen. Warnfarbe nur als
+   Kante und Wort, der Text bleibt in Textfarbe und lesbar. */
+.tr-warnung { margin: var(--s-3) 0; padding: var(--s-3) var(--s-4); border-radius: var(--r-md, 14px); background: color-mix(in srgb, var(--warn) 14%, transparent); box-shadow: inset 3px 0 0 var(--warn); font-size: var(--t-sm); line-height: 1.45; color: var(--text); }
+.tr-warnung b { display: block; margin-bottom: 2px; color: var(--warn); font-size: var(--t-xs); letter-spacing: 0.04em; text-transform: uppercase; }
+
+/* ---------- Schlaf und Körpersignale ----------
+   Dieselben Teile wie überall in daevo: Ringe in der Markenfarbe, Balkenzeilen,
+   die Linie aus dem Bericht. Zahlen stehen frei, ohne Kästen. */
+.schlaf-woche { display: flex; justify-content: space-between; gap: 2px; margin: var(--s-3) 0 var(--s-2); }
+.schlaf-tag { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 0 8px; border: 0; border-radius: var(--r-pill, 999px); background: none; color: var(--muted); font: inherit; font-size: var(--t-xs); cursor: pointer; transition: background var(--dauer-kurz, 160ms) var(--kurve, ease), color var(--dauer-kurz, 160ms) var(--kurve, ease); }
+.schlaf-tag svg { color: var(--text); }
+.schlaf-tag.an { background: var(--flaeche, var(--panel)); color: var(--text); }
+.schlaf-satz { margin: 0 0 var(--s-4); text-align: center; color: var(--muted); font-size: var(--t-sm); }
+.schlaf-satz b { color: var(--text); font-weight: 650; }
+.schlaf-balken { display: flex; height: 8px; border-radius: 4px; overflow: hidden; gap: 2px; margin: var(--s-3) 0 var(--s-2); }
+.schlaf-verlauf { display: block; width: 100%; height: auto; margin: var(--s-2) 0 var(--s-4); color: var(--text); }
+.ks-zahlen { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-4) var(--s-3); margin: var(--s-3) 0 var(--s-5); }
+.ks-zahlen div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ks-zahlen small { color: var(--muted); font-size: var(--t-xs); }
+.ks-zahlen b { font-size: var(--t-xl, 24px); font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.ks-zahlen span { color: var(--muted); font-size: var(--t-xs); }
+.ks-lage { margin: 0 0 var(--s-4); font-size: var(--t-sm); line-height: 1.5; color: var(--muted); }
+.ks-lage b { display: block; margin-bottom: 2px; font-size: var(--t-md, 17px); color: var(--text); }
+.ks-angespannt b { color: var(--warn); }
+.ks-entspannt b { color: var(--accent-text, var(--brand)); }
+.ks-liste { display: flex; flex-direction: column; gap: var(--s-4); margin-bottom: var(--s-5); }
+.ks-kopf { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s-3); }
+.ks-name { font-size: var(--t-sm); font-weight: 600; }
+.ks-wert { font-size: var(--t-sm); color: var(--muted); font-variant-numeric: tabular-nums; }
+.ks-wert b { color: var(--text); font-weight: 650; }
+.ks-zeile .funke { display: block; width: 100%; height: 30px; margin: 6px 0 2px; }
+.ks-zeile .funke path { stroke: var(--ton, var(--brand)); }
+.ks-zeile .funke circle { fill: var(--ton, var(--brand)); }
+.ks-unter { margin: 0; color: var(--muted); font-size: var(--t-xs); }
+.bw-knopf { font: inherit; color: inherit; text-align: left; cursor: pointer; border: 0; }
+
+/* Das Briefing als Präsentation, js/briefing-show.js. Dunkel in beiden
+   Modi wie das Abo Fenster, damit es sich wie ein eigener Moment anfühlt
+   und nicht wie eine weitere Seite. Je Karte eine Akzentfarbe aus den
+   Familien von Makros und Bereichen, `--ton`, als Schein oben und für
+   Zeichen und Zahlen. Text bleibt weiss oder grau, nie farbig. */
+.bs {
+  position: fixed; inset: 0; z-index: 96; overflow: hidden;
+  background: #0b0d10; color: #fff; font-family: var(--schrift-text);
+  -webkit-user-select: none; user-select: none; touch-action: pan-x;
+  padding: calc(env(safe-area-inset-top, 0px) + 14px) 0 calc(env(safe-area-inset-bottom, 0px) + 10px);
+  display: flex; flex-direction: column;
+}
+.bs[hidden] { display: none; }
+.bs-leisten { display: flex; gap: 4px; padding: 0 16px; flex: none; }
+.bs-leisten span { flex: 1; height: 3px; border-radius: 3px; background: rgba(255,255,255,.18); overflow: hidden; }
+.bs-leisten i { display: block; height: 100%; background: #fff; transform-origin: left center; transform: scaleX(0); }
+.bs-x {
+  position: absolute; top: calc(env(safe-area-inset-top, 0px) + 26px); right: 10px; z-index: 2;
+  width: 40px; height: 40px; padding: 8px; border: 0; border-radius: 50%; background: transparent; color: rgba(255,255,255,.8); box-shadow: none;
+}
+.bs-x svg { width: 22px; height: 22px; }
+.bs-buehne { position: relative; flex: 1; min-height: 0; }
+.bs-hilfe { margin: 0; text-align: center; font-size: 12px; color: rgba(255,255,255,.38); flex: none; }
+.bs-folie {
+  position: absolute; inset: 0; overflow: hidden;
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 56px 26px 24px; max-width: 560px; margin: 0 auto;
+}
+.bs-folie::before {
+  content: ""; position: absolute; left: 50%; top: -18%; width: 150%; aspect-ratio: 1; transform: translateX(-50%);
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--ton) 26%, transparent), transparent 72%);
+  pointer-events: none; z-index: -1;
+}
+.bs-rein { opacity: 0; transform: translateY(14px); }
+.bs-folie.an .bs-rein { animation: bs-rein .62s var(--kurve, cubic-bezier(.2,.8,.2,1)) both; animation-delay: calc(var(--i, 0) * 110ms + 60ms); }
+@keyframes bs-rein { from { opacity: 0; transform: translateY(14px); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+.bs.ruhig .bs-rein, .bs.ruhig .bs-folie.an .bs-rein { animation: none; opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) { .bs-rein, .bs-folie.an .bs-rein { animation: none; opacity: 1; transform: none; } }
+
+.bs-etikett {
+  display: flex; align-items: center; gap: 8px; margin: 0 0 14px;
+  font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ton);
+}
+.bs-zeichen { width: 18px; height: 18px; flex: none; }
+.bs-gross-zeichen { width: 54px; height: 54px; color: var(--ton); margin-bottom: 18px; }
+.bs-gruss { margin: 0; font-family: var(--schrift-akzent); font-weight: 400; font-size: 52px; line-height: 1.02; letter-spacing: -.01em; }
+.bs-datum { margin: 10px 0 0; font-size: 17px; color: rgba(255,255,255,.72); }
+.bs-zeile { margin: 26px 0 0; font-size: 19px; line-height: 1.45; color: rgba(255,255,255,.9); max-width: 30ch; }
+.bs-satz { margin: 18px 0 0; font-size: 17px; line-height: 1.5; color: rgba(255,255,255,.72); }
+.bs-titel { margin: 0 0 18px; font-family: var(--schrift-akzent); font-weight: 400; font-size: 36px; line-height: 1.08; }
+.bs-unter { margin: -6px 0 18px; font-size: 15px; color: rgba(255,255,255,.6); }
+.bs-mehr { margin: 10px 0 0; font-size: 14px; color: rgba(255,255,255,.5); }
+
+.bs-fokus { margin: 0; font-family: var(--schrift-akzent); font-weight: 400; font-size: 40px; line-height: 1.1; overflow-wrap: anywhere; }
+.bs-fokus.lang { font-size: 31px; }
+.bs-pille {
+  display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; margin: 18px 0 0; padding: 7px 14px;
+  border-radius: 999px; background: color-mix(in srgb, var(--ton) 18%, transparent); color: var(--ton); font-weight: 600; font-size: 16px;
+}
+
+.bs-ringe { display: flex; justify-content: center; gap: 22px; margin: 6px 0 4px; }
+.bs-ring { position: relative; margin: 0; width: 140px; text-align: center; }
+.bs-ring svg { width: 140px; height: 140px; display: block; }
+.bs-ring circle { fill: none; stroke-width: 7; }
+.bs-ring-spur { stroke: rgba(255,255,255,.1); }
+.bs-ring-wert { stroke: var(--ton); stroke-linecap: round; stroke-dasharray: var(--voll); stroke-dashoffset: var(--voll); }
+.bs-folie.an .bs-ring-wert { transition: stroke-dashoffset 1.2s var(--kurve, ease-out) .35s; stroke-dashoffset: var(--rest); }
+.bs.ruhig .bs-ring-wert { transition: none; stroke-dashoffset: var(--rest); }
+.bs-ring-zahl { position: absolute; top: 0; left: 0; width: 140px; height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.bs-ring-zahl b { font-size: 30px; font-weight: 600; line-height: 1; }
+.bs-ring-zahl span { font-size: 12px; color: rgba(255,255,255,.55); margin-top: 4px; }
+.bs-ring figcaption { margin-top: 8px; font-size: 14px; color: rgba(255,255,255,.75); }
+.bs-zahlzeile { margin: 18px 0 0; text-align: center; font-size: 17px; color: rgba(255,255,255,.75); }
+.bs-zahlzeile b { color: var(--ton); font-size: 22px; }
+.bs-f-rueckblick .bs-satz { text-align: center; }
+
+.bs-zeitleiste { list-style: none; margin: 0; padding: 0; position: relative; }
+.bs-zeitleiste::before { content: ""; position: absolute; left: 63px; top: 10px; bottom: 10px; width: 2px; background: rgba(255,255,255,.12); border-radius: 2px; }
+.bs-zeitleiste li { display: grid; grid-template-columns: 52px 22px 1fr; align-items: center; gap: 0 4px; padding: 9px 0; }
+.bs-zeitleiste time { font-size: 15px; font-weight: 600; color: rgba(255,255,255,.75); font-variant-numeric: tabular-nums; }
+.bs-punkt { width: 10px; height: 10px; border-radius: 50%; background: var(--ton); justify-self: center; box-shadow: 0 0 0 4px #0b0d10; position: relative; }
+.bs-termin { font-size: 17px; line-height: 1.3; overflow-wrap: anywhere; }
+.bs-frei {
+  margin-top: 16px; padding: 14px 16px; border-radius: 18px;
+  background: color-mix(in srgb, var(--ton) 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ton) 30%, transparent);
+  display: flex; flex-direction: column; gap: 3px;
+}
+.bs-frei b { color: var(--ton); font-size: 17px; }
+.bs-frei span { font-size: 14px; color: rgba(255,255,255,.7); }
+
+.bs-liste, .bs-hinweise, .bs-essen, .bs-standards { list-style: none; margin: 0; padding: 0; }
+.bs-liste li { display: flex; gap: 14px; align-items: flex-start; padding: 11px 0; }
+.bs-kreis {
+  flex: none; width: 26px; height: 26px; margin-top: 1px; border-radius: 50%;
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.35); display: grid; place-items: center; color: var(--ton);
+}
+.bs-kreis .bs-zeichen { width: 15px; height: 15px; }
+.bs-liste li.zuerst .bs-kreis { box-shadow: inset 0 0 0 2px var(--ton); }
+.bs-liste li.training .bs-kreis { box-shadow: none; background: color-mix(in srgb, var(--ton) 20%, transparent); }
+.bs-liste b { display: block; font-size: 17px; font-weight: 500; line-height: 1.32; overflow-wrap: anywhere; }
+.bs-liste small { display: block; margin-top: 3px; font-size: 13.5px; color: rgba(255,255,255,.55); }
+.bs-liste li.zuerst small { color: var(--ton); }
+.bs-feierabend { margin: 16px 0 0; font-size: 15px; color: rgba(255,255,255,.6); }
+.bs-feierabend b { color: #fff; }
+
+.bs-hinweise li { display: flex; gap: 14px; align-items: flex-start; padding: 12px 0; }
+.bs-zeichen-rund {
+  flex: none; width: 40px; height: 40px; padding: 9px; border-radius: 50%;
+  background: color-mix(in srgb, var(--ton) 16%, transparent); color: var(--ton);
+}
+.bs-hinweise b { display: block; font-size: 17px; font-weight: 600; line-height: 1.3; }
+.bs-hinweise span { display: block; margin-top: 3px; font-size: 15px; line-height: 1.4; color: rgba(255,255,255,.7); }
+
+.bs-ziel { margin: -4px 0 16px; font-size: 15px; color: rgba(255,255,255,.6); }
+.bs-ziel b { color: #fff; font-size: 17px; }
+.bs-essen li { border-top: 1px solid rgba(255,255,255,.08); }
+/* Die Zeile ist ein Knopf, sieht aber aus wie eine Zeile: Text links, Zahl rechts, darunter klein "Ändern". */
+.bs-mahlzeit {
+  display: grid; grid-template-columns: 52px 1fr auto; grid-template-rows: auto auto; gap: 4px 10px; align-items: center;
+  width: 100%; min-height: 0; padding: 12px 0; margin: 0; border: 0; border-radius: 0; background: none; box-shadow: none;
+  color: #fff; text-align: left; font-family: var(--schrift-text); font-size: 16px; letter-spacing: normal;
+}
+.bs-mahlzeit time { grid-row: 1 / span 2; }
+.bs-mahlzeit .bs-aendern { grid-column: 3; display: inline-flex; align-items: center; justify-content: flex-end; gap: 4px; font-size: 12.5px; font-weight: 600; color: var(--ton); }
+.bs-mahlzeit .bs-aendern .bs-zeichen { width: 13px; height: 13px; }
+.bs-mahlzeit > div { grid-row: 1 / span 2; }
+.bs-mahlzeit.gewaehlt small { color: var(--ton); }
+.bs-mahlzeit:active { opacity: .7; }
+.bs-essen li:first-child { border-top: 0; }
+.bs-essen time { font-size: 15px; font-weight: 600; color: var(--ton); font-variant-numeric: tabular-nums; }
+.bs-essen b { display: block; font-size: 16.5px; font-weight: 500; line-height: 1.3; overflow-wrap: anywhere; }
+.bs-essen small { display: block; margin-top: 2px; font-size: 13px; color: rgba(255,255,255,.55); }
+.bs-kcal { text-align: right; font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.bs-kcal small { display: block; font-size: 11px; font-weight: 400; color: rgba(255,255,255,.5); }
+
+.bs-standards li { padding: 12px 0; border-top: 1px solid rgba(255,255,255,.08); }
+.bs-standards li:first-child { border-top: 0; }
+.bs-standards b { display: block; font-size: 16.5px; font-weight: 500; line-height: 1.35; }
+.bs-standards span { display: inline-block; margin-top: 5px; font-size: 14px; font-weight: 600; color: var(--ton); }
+.bs-geburtstag { display: flex; gap: 12px; align-items: center; margin-top: 18px; padding: 14px 16px; border-radius: 18px; background: rgba(255,255,255,.06); font-size: 16px; }
+.bs-geburtstag .bs-zeichen { width: 24px; height: 24px; color: #e591c9; }
+
+.bs-f-ende { align-items: center; text-align: center; }
+.bs-f-ende .bs-zeile { margin-left: auto; margin-right: auto; }
+.bs-f-start .bs-zeile { max-width: 26ch; }
+.bs-knoepfe { display: flex; gap: 10px; margin-top: 34px; width: 100%; max-width: 360px; }
+.bs-knopf {
+  flex: 1; min-height: 52px; border: 0; border-radius: 999px; background: var(--brand, #96d8f0); color: #0b0d10;
+  font-family: var(--schrift-akzent); font-size: 19px; box-shadow: none;
+}
+.bs-knopf.zweit { background: rgba(255,255,255,.1); color: #fff; }
+
+/* Die Knöpfe auf Dein Tag, die das Briefing öffnen. */
+.bs-wahl { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); margin-top: var(--s-3); }
+.bs-start-knopf {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 10px; text-align: left;
+  min-height: 112px; padding: 16px; border: 0; border-radius: 22px;
+  background: var(--flaeche); box-shadow: var(--haarlinie); color: var(--text);
+}
+.bs-start-knopf svg { width: 28px; height: 28px; color: var(--accent-text, var(--brand)); }
+.bs-start-knopf b { display: block; font-family: var(--schrift-akzent); font-weight: 400; font-size: 20px; line-height: 1.15; }
+.bs-start-knopf small { display: block; margin-top: 3px; font-family: var(--schrift-text); font-size: var(--t-sm); color: var(--muted); }
+.bs-als-show { width: 100%; margin-top: var(--s-3); }
+.bs-wahl.abends #btnBriefingAbend { order: -1; }
+.bs-wahl .bs-start-knopf:first-child { box-shadow: var(--haarlinie), inset 0 0 0 1.5px color-mix(in srgb, var(--accent-text, #1e7fa8) 45%, transparent); }
+.bs-wahl.abends .bs-start-knopf:first-child { box-shadow: var(--haarlinie); }
+.bs-wahl.abends #btnBriefingAbend { box-shadow: var(--haarlinie), inset 0 0 0 1.5px color-mix(in srgb, var(--accent-text, #1e7fa8) 45%, transparent); }
+
+/* "Anpassen" unten auf einer Karte: klein und ruhig, die Karte wird gelesen. */
+.bs-anpassen {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; margin-top: 26px; min-height: 40px; padding: 8px 16px;
+  border: 0; border-radius: 999px; background: rgba(255,255,255,.08); box-shadow: inset 0 0 0 1px rgba(255,255,255,.12);
+  color: #fff; font-family: var(--schrift-text); font-size: 14.5px; font-weight: 500; letter-spacing: normal;
+}
+.bs-anpassen .bs-zeichen { width: 15px; height: 15px; color: var(--ton); }
+.bs-anpassen:active { transform: scale(.97); }
+.bs-folie.fest .bs-rein { animation: none; opacity: 1; transform: none; }
+
+/* Das Blatt zum Ändern, über der Präsentation. Dunkel wie sie. */
+.bsa {
+  position: fixed; inset: 0; z-index: 97; display: flex; align-items: flex-end; justify-content: center;
+  background: rgba(0,0,0,.55); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+}
+.bsa[hidden] { display: none; }
+.bsa-innen {
+  width: 100%; max-width: 560px; max-height: 88vh; overflow: auto; color: #fff; background: #161a21;
+  border-radius: 26px 26px 0 0; padding: 18px 20px calc(env(safe-area-inset-bottom, 0px) + 22px);
+  box-shadow: 0 -12px 40px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.08);
+  animation: bsa-hoch .28s var(--kurve, ease-out) both;
+}
+@keyframes bsa-hoch { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .bsa-innen { animation: none; } }
+.bsa-kopf { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.bsa-kopf h2 { margin: 0; font-family: var(--schrift-akzent); font-weight: 400; font-size: 28px; line-height: 1.1; }
+.bsa-x { width: 40px; height: 40px; padding: 9px; border: 0; border-radius: 50%; background: rgba(255,255,255,.08); color: #fff; box-shadow: none; flex: none; }
+.bsa-x svg { width: 20px; height: 20px; }
+.bsa-vorschlag { margin: 8px 0 16px; font-size: 14.5px; line-height: 1.45; color: rgba(255,255,255,.62); }
+.bsa-label { display: block; margin: 0 0 8px; font-size: 13px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #96d8f0; }
+#bsaText, #bsfText {
+  width: 100%; box-sizing: border-box; border: 0; border-radius: 16px; padding: 12px 14px; resize: none;
+  background: rgba(255,255,255,.07); box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); color: #fff;
+  font-family: var(--schrift-text); font-size: 16px; line-height: 1.4;
+}
+#bsaText::placeholder, #bsfText::placeholder { color: rgba(255,255,255,.38); }
+.bsa-reihe { display: flex; gap: 10px; margin-top: 10px; align-items: stretch; }
+.bsa-reihe #bsfText { flex: 1; min-width: 0; }
+.bsa-mikro, .bsa-los {
+  min-height: 48px; padding: 0 18px; border: 0; border-radius: 999px; box-shadow: none; font-size: 17px;
+}
+.bsa-mikro { flex: 1; background: rgba(255,255,255,.1); color: #fff; }
+.bsa-mikro.hoert { background: #e694ad; color: #0b0d10; }
+.bsa-los { flex: 1.4; background: #96d8f0; color: #0b0d10; }
+#bsfSetzen { flex: none; }
+.bsa-wege { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px; }
+.bsa-weg {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; min-height: 76px; padding: 12px 6px;
+  border: 0; border-radius: 18px; background: rgba(255,255,255,.06); box-shadow: inset 0 0 0 1px rgba(255,255,255,.1); color: #fff; font-size: 16px;
+}
+.bsa-weg svg { width: 24px; height: 24px; color: #96d8f0; }
+.bsa-innen button:disabled { opacity: .5; }
+.bsa-hinweis { min-height: 1em; margin: 14px 0 0; font-size: 14px; line-height: 1.45; color: rgba(255,255,255,.75); }
+.bsa .text-knopf { color: rgba(255,255,255,.6); margin-top: 6px; }
+.bsf-liste { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+.bsf-wahl {
+  width: 100%; min-height: 48px; padding: 12px 14px; border: 0; border-radius: 16px; text-align: left;
+  background: rgba(255,255,255,.06); box-shadow: inset 0 0 0 1px rgba(255,255,255,.1); color: #fff;
+  font-family: var(--schrift-text); font-size: 16px; line-height: 1.35; letter-spacing: normal;
+}
+.bsf-wahl.an { box-shadow: inset 0 0 0 2px #96d8f0; }
+
+/* Eine geplante Mahlzeit mit einem Tipp als gegessen eintragen. Der
+   wichtigste Weg im Blatt, deshalb voll in der Markenfarbe und ganz oben. */
+.bsa-gegessen { display: block; width: 100%; min-height: 48px; margin: 4px 0 14px; padding: 10px 16px; border: 0; border-radius: 999px; background: #96d8f0; color: #0b0d10; font: inherit; font-size: 16px; font-weight: 600; cursor: pointer; }
+.bsa-gegessen:active { transform: scale(0.98); }
+.bsa-gegessen[hidden] { display: none; }

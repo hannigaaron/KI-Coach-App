@@ -35,6 +35,11 @@ export interface GeplanteMahlzeit {
   mitnehmen: boolean;
   /** Rolle zum Training, falls es eine gibt. */
   training?: "davor" | "danach";
+  /**
+   * Selbst gewählt statt des Vorschlags, aus dem Briefing über "Ändern".
+   * Die Werte sind die der Wahl, der Rest des Tages ist um sie herum gerechnet.
+   */
+  gewaehlt?: { name: string; posten: GewaehltPosten[] };
   rezept: null | {
     id: string;
     name: string;
@@ -48,6 +53,43 @@ export interface GeplanteMahlzeit {
     /** Die Zubereitung des Rezepts. */
     schritte: string[];
   };
+}
+
+/** Ein Posten einer selbst gewählten Mahlzeit, wie ein Eintrag im Tag. */
+export interface GewaehltPosten { name: string; quantity: string; kcal: number; proteinG: number; fatG: number; carbsG: number }
+
+/** Eine Mahlzeit, die jemand für einen Tag gewählt hat, bevor sie gegessen ist. */
+export interface GewaehlteMahlzeit {
+  art: MahlzeitArt;
+  name: string;
+  /** HH:MM, ohne Angabe die Zeit des Vorschlags. */
+  um?: string;
+  posten: GewaehltPosten[];
+}
+
+/** Die eigenen Essenszeiten aus dem Fragebogen. */
+export interface Essenszeiten {
+  /** Minuten vom Aufstehen bis zur ersten Mahlzeit. */
+  ersteNachMin?: number;
+  /** Mittagessen als HH:MM. */
+  mittag?: string;
+  /** Abendessen als HH:MM. */
+  abend?: string;
+}
+
+/**
+ * Die Uhrzeit je Hauptmahlzeit an einem Tag, aus Aufstehzeit und Fragebogen,
+ * als HH:MM. Für den Kalender, wenn ein Plan übernommen wird. Ohne Angabe
+ * gelten 45 Minuten nach dem Aufstehen, 12:30 und 19:00, dieselben Wünsche
+ * wie in den Fenstern oben.
+ */
+export function essensUhrzeiten(aufstehen: string, ez: Essenszeiten = {}): Record<"fruehstueck" | "mittagessen" | "abendessen", string> {
+  const [h = 7, m = 0] = (aufstehen || "07:00").split(":").map(Number);
+  const erste = (h * 60 + m) + (Number.isFinite(ez.ersteNachMin) ? Number(ez.ersteNachMin) : 45);
+  const viertel = Math.round(erste / 15) * 15;
+  const fruehstueck = `${String(Math.floor(viertel / 60) % 24).padStart(2, "0")}:${String(viertel % 60).padStart(2, "0")}`;
+  const gueltig = (x?: string) => (x && /^\d{1,2}:\d{2}$/.test(x) ? x.padStart(5, "0") : null);
+  return { fruehstueck, mittagessen: gueltig(ez.mittag) ?? "12:30", abendessen: gueltig(ez.abend) ?? "19:00" };
 }
 
 export interface Tagesessen {
@@ -112,12 +154,30 @@ export function tagesessen(p: {
   ernaehrung?: Ernaehrung;
   vorrat?: string[];
   rezepte?: Rezept[];
+  /**
+   * Die eigenen Essenszeiten aus dem Fragebogen: Minuten vom Aufstehen bis
+   * zur ersten Mahlzeit, Mittag und Abend als HH:MM. Sie werden der Wunsch im
+   * Fenster, der Kalender und das Training gehen weiter vor.
+   */
+  essenszeiten?: Essenszeiten;
+  /**
+   * Selbst gewählte Mahlzeiten statt des Vorschlags. Sie zählen beim Rest
+   * wie gegessen, damit die übrigen Mahlzeiten um sie herum kleiner oder
+   * grösser werden, und stehen mit ihren eigenen Werten im Plan. Ist die
+   * Mahlzeit dieser Art schon gegessen, gilt das Gegessene.
+   */
+  gewaehlt?: GewaehlteMahlzeit[];
 }): Tagesessen {
   const { ablauf: a, ziele } = p;
   const hinweise: string[] = [];
   const gegessen = p.gegessen ?? [];
   const gegesseneArten = new Set(gegessen.map((m) => artAus(m.at)).filter(Boolean) as MahlzeitArt[]);
-  const summe = gegessen.reduce((s, m) => ({
+  const gewaehlt = (p.gewaehlt ?? []).filter((w) => !gegesseneArten.has(w.art) && w.posten.length);
+  const gewaehltSumme = (w: GewaehlteMahlzeit) => w.posten.reduce((s, x) => ({
+    kcal: s.kcal + (Number(x.kcal) || 0), proteinG: s.proteinG + (Number(x.proteinG) || 0),
+    fatG: s.fatG + (Number(x.fatG) || 0), carbsG: s.carbsG + (Number(x.carbsG) || 0),
+  }), { kcal: 0, proteinG: 0, fatG: 0, carbsG: 0 });
+  const summe = [...gegessen, ...gewaehlt.map(gewaehltSumme)].reduce((s, m) => ({
     kcal: s.kcal + m.kcal, proteinG: s.proteinG + m.proteinG, fatG: s.fatG + m.fatG, carbsG: s.carbsG + m.carbsG,
   }), { kcal: 0, proteinG: 0, fatG: 0, carbsG: 0 });
 
@@ -147,6 +207,25 @@ export function tagesessen(p: {
     fruehstueck: { von: aufstehen + 0.25, bis: Math.max(aufstehen + 2.5, 10.5), wunsch: aufstehen + 0.75 },
   };
   const schlafen = stundeVon(a.wachBis) < aufstehen ? stundeVon(a.wachBis) + 24 : stundeVon(a.wachBis);
+  const ez = p.essenszeiten;
+  if (ez) {
+    // Wer erst zwei Stunden nach dem Aufstehen isst, bekommt kein Frühstück
+    // um viertel nach sieben vorgeschlagen. Das Fenster wandert mit, eine
+    // Stunde Spielraum nach beiden Seiten für den Kalender.
+    if (Number.isFinite(ez.ersteNachMin)) {
+      const w = aufstehen + Math.max(0, Math.min(300, Number(ez.ersteNachMin))) / 60;
+      fenster.fruehstueck = { von: Math.max(aufstehen, w - 1), bis: Math.max(w + 1.5, fenster.fruehstueck.bis), wunsch: w };
+    }
+    const um = (hhmm?: string) => (hhmm && /^\d{1,2}:\d{2}$/.test(hhmm) ? Number(hhmm.split(":")[0]) + Number(hhmm.split(":")[1]) / 60 : null);
+    const mittag = um(ez.mittag);
+    if (mittag !== null) fenster.mittagessen = { von: mittag - 1, bis: mittag + 1.5, wunsch: mittag };
+    const abend = um(ez.abend);
+    if (abend !== null) fenster.abendessen = { von: abend - 1, bis: abend + 1.5, wunsch: abend };
+    // Der Snack liegt zwischen Mittag und Abend, nie darüber.
+    if (mittag !== null && abend !== null && abend - mittag >= 3) {
+      fenster.snack = { von: mittag + 2, bis: abend - 1, wunsch: (mittag + abend) / 2 };
+    }
+  }
   fenster.abendessen = { ...fenster.abendessen, bis: Math.min(fenster.abendessen.bis + 1, schlafen - 1.5) };
 
   const rollen: Partial<Record<MahlzeitArt, { training: "davor" | "danach"; grund: string; wunsch?: number }>> = {};
@@ -172,7 +251,7 @@ export function tagesessen(p: {
   // Welche Mahlzeiten noch offen sind: nicht gegessen und nicht vorbei.
   const reihenfolge: MahlzeitArt[] = ["fruehstueck", "mittagessen", "snack", "abendessen"];
   const offen = reihenfolge.filter((art) => {
-    if (gegesseneArten.has(art)) return false;
+    if (gegesseneArten.has(art) || gewaehlt.some((w) => w.art === art)) return false;
     if (p.jetzt && amTag(a.tag, fenster[art].bis) < p.jetzt) return false;
     return true;
   });
@@ -180,6 +259,21 @@ export function tagesessen(p: {
   // Ein Snack ohne Training ist kein Muss. Er bleibt, wenn der Tag lang ist
   // oder viel Energie braucht, sonst würden drei Mahlzeiten zu gross.
   const mitSnack = offen.filter((art) => art !== "snack" || rollen.snack || ziele.kcal >= 2400);
+
+  // Die gewählten Mahlzeiten stehen zu ihrer Zeit, sonst zur Wunschzeit ihres Fensters.
+  const gewaehltePlanen = (): GeplanteMahlzeit[] => gewaehlt.map((w) => {
+    const f = fenster[w.art];
+    const um = w.um && /^\d{1,2}:\d{2}$/.test(w.um)
+      ? new Date(`${a.tag}T00:00:00`).getTime() + (Number(w.um.split(":")[0]) * 60 + Number(w.um.split(":")[1])) * 60000
+      : (platzImFenster(frei, amTag(a.tag, f.von), amTag(a.tag, f.bis), amTag(a.tag, f.wunsch), w.art === "snack" ? MIN_SNACK : MIN_ESSEN) ?? amTag(a.tag, f.wunsch));
+    const z = gewaehltSumme(w);
+    const rolle = rollen[w.art];
+    return {
+      art: w.art, name: mahlzeitInfo(w.art).name, um, kcal: Math.round(z.kcal), proteinG: Math.round(z.proteinG),
+      grund: "deine Wahl", mitnehmen: false, ...(rolle ? { training: rolle.training } : {}),
+      gewaehlt: { name: w.name, posten: w.posten }, rezept: null,
+    };
+  });
 
   const rest = {
     kcal: Math.max(0, ziele.kcal - summe.kcal), proteinG: Math.max(0, ziele.proteinG - summe.proteinG),
@@ -202,7 +296,7 @@ export function tagesessen(p: {
     }
   }
   if (rest.kcal < 150) {
-    return { mahlzeiten: [], gegessenKcal: Math.round(summe.kcal), hinweise: ["Dein Ziel für heute ist erreicht. Für heute ist nichts mehr zu planen."] };
+    return { mahlzeiten: gewaehltePlanen(), gegessenKcal: Math.round(summe.kcal), hinweise: ["Dein Ziel für heute ist erreicht. Für heute ist nichts mehr zu planen."] };
   }
   const verteilung = verteileRest(rest, mitSnack);
   hinweise.push(...verteilung.hinweise);
@@ -284,7 +378,7 @@ export function tagesessen(p: {
     });
   }
 
-  return { mahlzeiten: mahlzeiten.sort((x, y) => x.um - y.um), gegessenKcal: Math.round(summe.kcal), hinweise };
+  return { mahlzeiten: [...mahlzeiten, ...gewaehltePlanen()].sort((x, y) => x.um - y.um), gegessenKcal: Math.round(summe.kcal - gewaehlt.reduce((x, w) => x + gewaehltSumme(w).kcal, 0)), hinweise };
 }
 
 function artAus(at?: string): MahlzeitArt | null {
@@ -300,7 +394,9 @@ function artAus(at?: string): MahlzeitArt | null {
 export function tagesessenText(t: Tagesessen): string {
   if (!t.mahlzeiten.length) return t.hinweise[0] ?? "";
   return t.mahlzeiten.map((m) => {
-    const was = m.rezept ? `${m.rezept.name}, ${m.rezept.kcal} kcal, ${m.rezept.proteinG} g Protein` : `etwa ${m.kcal} kcal, ${m.proteinG} g Protein`;
+    const was = m.rezept ? `${m.rezept.name}, ${m.rezept.kcal} kcal, ${m.rezept.proteinG} g Protein`
+      : m.gewaehlt ? `${m.gewaehlt.name}, ${m.kcal} kcal, ${m.proteinG} g Protein, deine Wahl`
+      : `etwa ${m.kcal} kcal, ${m.proteinG} g Protein`;
     return `${uhrzeit(m.um)} ${m.name}: ${was}${m.mitnehmen ? ", zum Mitnehmen" : ""}.`;
   }).join("\n");
 }

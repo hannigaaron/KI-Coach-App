@@ -49,7 +49,8 @@ export function naechsteFrage(erkannt: number, offen: string[]): string {
   // nur nicht aus der Tabelle. "Trag mir 1 Big Mac ein" bekam sonst die
   // Bitte, es mit Menge zu sagen, obwohl die Menge dastand.
   if (erkannt === 0 && offen.length > 0 && offen.length <= 3
-    && offen.every((o) => /\d/.test(o) && o.trim().split(/\s+/).length <= 5)) {
+    // "Einen Proteinriegel" trägt die Menge als Wort.
+    && offen.every((o) => /\d|\b(ein|eine|einen|zwei|drei|vier)\b/i.test(o) && o.trim().split(/\s+/).length <= 5)) {
     return `Nicht eingetragen, weil ich die Nährwerte nicht kenne: ${offen.join(", ")}. `
       + "Scann den Barcode oder nenn mir Kalorien und Protein je 100 Gramm, dann trage ich es nach.";
   }

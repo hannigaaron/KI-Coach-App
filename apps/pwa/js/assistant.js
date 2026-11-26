@@ -4,7 +4,10 @@ import {
   mahlzeitAusFoto, modellFuerBilder, naehrwerteImNetz, produktPerBarcode, produkteSuchen, summiere, vorratAusFoto,
   todoistAbhaken, todoistAufgaben, todoistIdVon, todoistWiederOeffnen, PERSONA_TEILE,
 } from "@daevo/coach";
-import { essenszeitAus, foldUmlauts, wochenrueckblick, wochenbeginn, wochenschnitt, wochenschnittText, tagKurz, tagStand, rueckblickArt, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, einzeltrainingBauen, FOKUS_NAME, alternativen, planNachrechnen } from "@daevo/core";
+import { essenszeitAus, foldUmlauts, wochenrueckblick, wochenbeginn, wochenschnitt, wochenschnittText, tagKurz, tagStand, rueckblickArt, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, freienPlatzFinden, platzText, tagLang, tagWort, tagAufloesen, tagVerschieben, tagAusText, aufgabeStufe, vernachlaessigteBereiche, bereichDerAufgabe, familienNamenAus, anheben, einzeltrainingBauen, abdeckungsLuecken, FOKUS_NAME, alternativen, planNachrechnen, positionFuer, regeneration, regenText, koerperlage, koerperlageText,
+} from "@daevo/core";
+import { REGIONEN } from "./muskelkarte.js";
+import { regenTrainings, regenGefuehlHeute } from "./regeneration-daten.js";
 import { trainingsTageAusQuellen } from "./luecke.js";
 import { UEBUNGEN } from "./uebungen-daten.js";
 import { GERAETE, uebungenFiltern } from "./uebungen.js";
@@ -58,7 +61,7 @@ import {
   wochenText,
   currentStreak,
   energyBreakdown,
-  macroTargets,
+  macroTargets, aktivitaetsZuschlag,
   remainingBudget,
   scoreDay,
   estimateTdee,
@@ -92,6 +95,8 @@ import {
   bericht,
   berichtText,
   zeitplan,
+  feierabendZeitpunkt,
+  darfNachFeierabend,
   zeitplanText,
   lueckenOhne,
   wochenplan,
@@ -109,7 +114,7 @@ import { KONFIG, istNativ } from "./konfig.js";
 import { kontoSicherstellen, kontoToken } from "./konto.js";
 import { kiErlaubt } from "./einwilligung.js";
 import { NACHTRAG_TAGE, tageZurueck } from "./exif.js";
-import { eigeneLebensmittel, eigenerPosten, eigenesIn, lebensmittelSpeichern } from "./bibliothek.js";
+import { eigeneLebensmittel, eigenerPosten, eigenesIn, lebensmittelSpeichern, rezeptGrenze, rezeptSpeichern } from "./bibliothek.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
 import { aktiverPlan, bestellteEinheit, planEinheitFuer } from "./vorhaben.js";
 
@@ -150,6 +155,12 @@ function provider({ ohneZaehlung = false } = {}) {
  * direkt über iOS, `nativHolen`, im Browser über den eigenen Worker, siehe
  * workers/push/src/produkt.ts. Ohne beides bleiben die Wege mit CORS Kopf.
  */
+/** Die Regeneration je Muskel jetzt, als Text für den Coach. */
+export function regenAktuell() {
+  const st = store.getSettings();
+  return regenText(regeneration(regenTrainings(store), Date.now(), { tempo: st.regenTempo || "normal", gefuehl: regenGefuehlHeute(st, todayIso()) }), REGIONEN);
+}
+
 export function offOptionen() {
   if (istNativ()) return { fetchImpl: (url) => nativHolen(url).catch(() => fetch(url)) };
   const proxy = (KONFIG.chatUrl || "").replace(/\/+$/, "");
@@ -345,6 +356,15 @@ export function dayNumbers(day = todayIso()) {
   const targets = { ...macroTargets(profile), waterMl: waterTargetMl(profile, trainingMinutes) };
 
   const data = store.getDay(day);
+  // Was die Uhr über dem eingeplanten Verbrauch misst, kommt aufs Ziel, als
+  // Kohlenhydrate: Protein und Fett hängen am Gewicht und nicht am Tag.
+  // Ausschalten über `settings.aktivZumZiel`, siehe aktivitaetsZuschlag.
+  const aktivKcal = Number(data.gesundheit?.aktivKcal);
+  const aktivitaet = Number.isFinite(aktivKcal) && aktivKcal > 0 ? aktivitaetsZuschlag(profile, aktivKcal) : null;
+  if (aktivitaet?.zuschlagKcal > 0 && store.getSettings().aktivZumZiel !== false) {
+    targets.kcal += aktivitaet.zuschlagKcal;
+    targets.carbsG += Math.round(aktivitaet.zuschlagKcal / 4);
+  } else if (aktivitaet) aktivitaet.zuschlagKcal = 0;
   const totals = { kcal: 0, proteinG: 0, fatG: 0, carbsG: 0, waterMl: data.waterMl || 0 };
   for (const meal of data.meals) {
     for (const entry of meal.entries) {
@@ -362,6 +382,7 @@ export function dayNumbers(day = todayIso()) {
     trainingMinutes,
     profile,
     targets,
+    aktivitaet,
     totals,
     data,
     rest: remainingBudget(totals, targets),
@@ -371,6 +392,27 @@ export function dayNumbers(day = todayIso()) {
       today: day,
     }),
   };
+}
+
+/**
+ * Was Apple Health für den Tag weiss, als Sätze für den Coach. Ohne das
+ * antwortete er auf "wie viel hab ich verbrannt" mit einer Schätzung aus dem
+ * Profil, obwohl die Uhr gemessen hatte.
+ */
+function gesundheitZeilen(n) {
+  const g = n.data.gesundheit || {};
+  const z = [];
+  if (Number.isFinite(n.data.steps)) z.push(`Schritte laut Apple Health: ${n.data.steps}.`);
+  if (n.aktivitaet) {
+    z.push(`Aktive Kalorien laut Apple Health: ${n.aktivitaet.gemessenKcal}, eingeplant im Ziel sind ${n.aktivitaet.geplantKcal}`
+      + (n.aktivitaet.zuschlagKcal > 0 ? `, ${n.aktivitaet.zuschlagKcal} kcal sind deshalb aufs Ziel gekommen.` : ", das Ziel bleibt."));
+  }
+  const tr = (n.data.trainings || []).filter((t) => Number(t.kcal) > 0 || Number(t.puls) > 0);
+  for (const t of tr) z.push(`Training ${t.at || ""} ${t.minutes} Minuten${t.kcal ? `, ${t.kcal} kcal aktiv` : ""}${t.puls ? `, Puls im Schnitt ${t.puls}` : ""}.`);
+  if (Number.isFinite(g.schlafMinuten)) z.push(`Schlaf letzte Nacht: ${Math.floor(g.schlafMinuten / 60)} h ${g.schlafMinuten % 60} min.`);
+  if (Number.isFinite(g.ruhepuls)) z.push(`Ruhepuls ${Math.round(g.ruhepuls)}.`);
+  if (Number.isFinite(g.hrv)) z.push(`HRV ${Math.round(g.hrv)} ms.`);
+  return z;
 }
 
 function daySummaryText(n) {
@@ -390,6 +432,7 @@ function daySummaryText(n) {
     `Fett ${n.totals.fatG} von ${n.targets.fatG} g, Kohlenhydrate ${n.totals.carbsG} von ${n.targets.carbsG} g.`,
     `Wasser ${n.totals.waterMl} von ${n.targets.waterMl} ml.`,
     `Mahlzeiten heute: ${n.data.meals.length}. Serie: ${n.streak} ${n.streak === 1 ? "Tag" : "Tage"}. Heute ${training}.`,
+    ...gesundheitZeilen(n),
   ].join(" ");
 }
 
@@ -484,7 +527,24 @@ export function koerperText(heute = todayIso()) {
     const t = tage.find((x) => zahl(x.g[feld]));
     if (t) teile.push(`${name} ${String(t.g[feld]).replace(".", ",")} ${einheit} (${t.tag})`);
   }
-  return teile.length ? `Apple Health: ${teile.join(". ")}.` : "";
+  const g0 = zahl(tage[0].g.pulsSchnitt) ? tage[0].g : zahl(tage[1].g.pulsSchnitt) ? tage[1].g : null;
+  if (g0) teile.push(`Puls über den Tag Schnitt ${Math.round(g0.pulsSchnitt)}${zahl(g0.pulsMin) ? `, tiefster ${Math.round(g0.pulsMin)}` : ""}${zahl(g0.pulsMax) ? `, höchster ${Math.round(g0.pulsMax)}` : ""} bpm`);
+  const o2 = tage.slice(0, 2).find((t) => zahl(t.g.sauerstoff));
+  if (o2) teile.push(`Sauerstoff im Blut ${Math.round(o2.g.sauerstoff <= 1 ? o2.g.sauerstoff * 100 : o2.g.sauerstoff)} %`);
+  const achtsam = tage.slice(0, 7).reduce((s, t) => s + (zahl(t.g.achtsamMinuten) ? Number(t.g.achtsamMinuten) : 0), 0);
+  if (achtsam) teile.push(`Achtsamkeit in den letzten sieben Tagen ${Math.round(achtsam)} Minuten`);
+  const lage = koerperlage(signalTage(heute), heute);
+  const lageText = lage.stufe === "offen" ? "" : `\n${koerperlageText(lage)}`;
+  return teile.length ? `Apple Health: ${teile.join(". ")}.${lageText}` : "";
+}
+
+/** Die Tage mit Körpersignalen für den Kern, 42 Tage zurück, damit 28 Tage Schnitt vor gestern reichen. */
+export function signalTage(heute = todayIso()) {
+  return Array.from({ length: 42 }, (_, i) => {
+    const tag = new Date(Date.parse(`${heute}T00:00:00Z`) - i * 86400000).toISOString().slice(0, 10);
+    const g = store.getDay(tag).gesundheit || {};
+    return { tag, hrv: g.hrv ?? null, ruhepuls: g.ruhepuls ?? null, atemfrequenz: g.atemfrequenz ?? null, handgelenkTemp: g.handgelenkTemp ?? null };
+  });
 }
 
 function lageText() {
@@ -1195,6 +1255,55 @@ export function tagesablaufUebersicht(tagIso = todayIso()) {
   return tagesablaufText(ablaufFuer(tagIso), tagesessenText(tagesessenFuer(tagIso)) || undefined);
 }
 
+/**
+ * Ein einzelner Tag aus dem Kalender: Wochentag, Datum und jeder Termin mit
+ * Uhrzeit. "Was steht morgen im Kalender" bekam vorher sieben Tage, und der
+ * eine gefragte ging darin unter.
+ */
+export function kalenderEinTag(tagIso) {
+  if ((store.getKalender().termine || []).length === 0) {
+    return "Kein Kalender verbunden. Im Menü unter Alltag, Kalender lässt sich einer hinzufügen.";
+  }
+  const a = ablaufFuer(tagIso);
+  const kopf = `${tagLang(tagIso)} (${tagWort(tagIso, todayIso())}):`;
+  const uhr = (ms) => new Date(ms).toTimeString().slice(0, 5);
+  const zeilen = a.termine.map((t) => `- ${uhr(t.von)} bis ${uhr(t.bis)}: ${t.titel}`);
+  const ganz = (a.ganztags || []).map((t) => `- ganztägig: ${t.titel}`);
+  const geb = (a.geburtstage || []).map((n) => `- Geburtstag: ${n}`);
+  if (!zeilen.length && !ganz.length && !geb.length) return `${kopf} nichts im Kalender.`;
+  const frei = a.fokusblock ? `\nLängster freier Block: ${uhr(a.fokusblock.von)} bis ${uhr(a.fokusblock.bis)}.` : "";
+  return [kopf, ...zeilen, ...ganz, ...geb].join("\n") + frei;
+}
+
+/**
+ * Wann am gegebenen Tag trainiert wird: die Einheit mit Uhrzeit aus Kalender,
+ * Bestellung oder Profil. Steht dort nichts, kommt der erste freie Platz, den
+ * der Kern rechnet, nie eine Uhrzeit aus dem Modell.
+ */
+export function trainingZeitText(tagIso) {
+  const wort = tagWort(tagIso, todayIso());
+  const t = trainingFuerBriefing(tagIso);
+  const termine = store.getKalender().termine || [];
+  const profile = store.getProfile() || PROFIL_NOTFALL;
+  if (t?.gestrichen) return `Das Training ist ${wort} gestrichen, der Tag gehört der Erholung.`;
+  if (t?.um) {
+    const dauer = t.minuten || 60;
+    const von = new Date(`${tagIso}T${t.um}:00`).getTime();
+    const bis = von + dauer * 60000;
+    const stoerer = termineFuer(tagIso).find((x) => !x.ganztags && x.von < bis && x.bis > von
+      && !/training|gym|sport|workout/i.test(x.titel || ""));
+    const basis = `${t.titel} ${wort === "heute" || wort === "morgen" || wort === "übermorgen" ? wort : `am ${tagLang(tagIso)}`} um ${t.um}, rund ${dauer} Minuten.`;
+    if (!stoerer) return basis;
+    const platz = freienPlatzFinden({ termine, profile, wunsch: { minuten: dauer, ab: new Date(`${tagIso}T00:00:00`).getTime(), tage: 1, uhrzeit: t.um } });
+    return `${basis} Dort liegt aber „${stoerer.titel}“. ${platz ? `Frei wäre ${platzText(platz)}.` : "An dem Tag finde ich keinen freien Platz dafür."}`;
+  }
+  // Für heute zählt der Rest des Tages, nicht der Morgen, der schon vorbei ist.
+  const ab = Math.max(Date.now(), new Date(`${tagIso}T00:00:00`).getTime());
+  const platz = freienPlatzFinden({ termine, profile, wunsch: { minuten: 60, ab, tage: tagIso === todayIso() ? 3 : 1 } });
+  const fuer = wort === "heute" || wort === "morgen" || wort === "übermorgen" ? wort : tagLang(tagIso);
+  return `Für ${fuer} steht kein Training in deinem Plan. ${platz ? `Wenn du trainieren willst, ist ${platzText(platz)} frei.` : "Ein freier Platz für eine Stunde ist an dem Tag nicht da."}`;
+}
+
 /** Die nächsten Tage in je einer Zeile. */
 export function kalenderUebersicht(tage = 7) {
   if ((store.getKalender().termine || []).length === 0) {
@@ -1334,8 +1443,10 @@ export function tagesplan(jetzt = Date.now()) {
   for (const k of (Array.isArray(store.getSettings().kalenderAenderungen) ? store.getSettings().kalenderAenderungen : [])) {
     if (k.art === "angelegt" && k.aufgabeId && k.nachher && ortsTag(k.nachher.von) === tag) fest.set(k.aufgabeId, k.nachher);
   }
-  if (!fest.size) return { plan, zeiten: zeitplan({ aufgaben: plan.heute, luecken, ab: jetzt }) };
-  const z = zeitplan({ aufgaben: plan.heute.filter((a) => !fest.has(a.id)), luecken, ab: jetzt });
+  // Nach Feierabend kommt nichts mehr auf den Plan, ausser es darf nicht warten.
+  const grenze = { spaetestens: feierabendZeitpunkt(ablauf.wachVon, ablauf.wachBis), ausnahme: darfNachFeierabend };
+  if (!fest.size) return { plan, zeiten: zeitplan({ aufgaben: plan.heute, luecken, ab: jetzt, ...grenze }) };
+  const z = zeitplan({ aufgaben: plan.heute.filter((a) => !fest.has(a.id)), luecken, ab: jetzt, ...grenze });
   const gesetzt = plan.heute.filter((a) => fest.has(a.id)).map((a) => ({ aufgabe: a, von: fest.get(a.id).von, bis: fest.get(a.id).bis }));
   return { plan, zeiten: { ...z, bloecke: [...z.bloecke, ...gesetzt].sort((x, y) => x.von - y.von) } };
 }
@@ -1827,6 +1938,97 @@ export function herausforderungSpeichern(text) {
  * gegessen ist, zählt ab, das Training verschiebt Zeit und Grösse, und jede
  * Mahlzeit bekommt ein Gericht, das zu Ausschlüssen und Vorrat passt.
  */
+/**
+ * Selbst gewählte Mahlzeiten statt des Vorschlags, aus dem Briefing über
+ * "Ändern". Sie liegen getrennt vom Tag in `settings.essenWahl`: eine
+ * Mahlzeit für morgen ist geplant und nicht gegessen. Als Eintrag stünde sie
+ * heute schon in den Zahlen, und was nicht eingetragen ist, gilt als
+ * vergessen, nicht umgekehrt. Ist sie gegessen und eingetragen, gilt der
+ * Eintrag. Gehalten werden 14 Tage.
+ */
+export function essenWahlFuer(tagIso) {
+  return (store.getSettings().essenWahl || []).filter((w) => w.tag === tagIso);
+}
+
+export function essenWahlSetzen(tagIso, art, wahl) {
+  const st = store.getSettings();
+  const grenze = isoMinus(todayIso(), 14);
+  const liste = (st.essenWahl || []).filter((w) => !(w.tag === tagIso && w.art === art) && w.tag >= grenze);
+  if (wahl?.posten?.length) {
+    liste.push({ tag: tagIso, art, name: String(wahl.name || "").trim().slice(0, 80) || wahl.posten.map((x) => x.name).join(", ").slice(0, 80),
+      ...(wahl.um ? { um: wahl.um } : {}),
+      posten: wahl.posten.map((x) => ({ name: x.name, quantity: x.quantity, kcal: Number(x.kcal) || 0, proteinG: Number(x.proteinG) || 0, fatG: Number(x.fatG) || 0, carbsG: Number(x.carbsG) || 0 })) });
+  }
+  store.setSettings({ ...store.getSettings(), essenWahl: liste });
+}
+
+/**
+ * Eine geplante Mahlzeit von heute mit einem Tipp als gegessen eintragen,
+ * die eigene Wahl oder den Vorschlag von daevo in der gerechneten Portion.
+ * Die Uhrzeit ist die geplante, aber nie später als jetzt: gegessen ist, was
+ * schon passiert ist. Danach fällt die Wahl weg, denn ab jetzt gilt der
+ * Eintrag. Gibt die Kennung der Mahlzeit zurück, oder null, wenn es für
+ * diese Art heute nichts zum Eintragen gibt.
+ */
+export function geplanteMahlzeitEintragen(art, jetzt = Date.now()) {
+  const tag = todayIso();
+  const m = tagesessenFuer(tag, jetzt).mahlzeiten.find((x) => x.art === art);
+  if (!m) return null;
+  const quelle = m.gewaehlt?.posten?.length ? m.gewaehlt.posten
+    : (m.rezept?.posten || []).map((p) => ({ name: p.name, quantity: p.menge || `${p.gramm} g`, kcal: p.kcal, proteinG: p.proteinG, fatG: p.fatG, carbsG: p.carbsG }));
+  const entries = quelle.map((p) => ({ name: p.name, quantity: p.quantity, kcal: Number(p.kcal) || 0, proteinG: Number(p.proteinG) || 0, fatG: Number(p.fatG) || 0, carbsG: Number(p.carbsG) || 0 }));
+  if (!entries.length) return null;
+  const d = new Date(m.um);
+  const geplant = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  const { at } = nachtragZeit(tag, geplant, new Date(jetzt));
+  const id = newId();
+  store.addMeal(tag, { id, text: m.gewaehlt?.name || m.rezept?.name || m.name, at, source: m.gewaehlt ? "wahl" : "rezept", entries, feeling: null });
+  const daten = store.getDay(tag);
+  daten.meals.sort((a, b) => String(a.at).localeCompare(String(b.at)));
+  store.setDay(tag, daten);
+  essenWahlSetzen(tag, art, null);
+  return { id, tag, at, kcal: Math.round(entries.reduce((s, e) => s + e.kcal, 0)) };
+}
+
+/** Text oder Diktat zu Posten, über denselben Weg wie beim Eintragen, ohne etwas einzutragen. */
+export async function essenWahlAusText(tagIso, art, text) {
+  const coach = new Coach(provider({ ohneZaehlung: true }));
+  const parsed = mitEigenenLebensmitteln(await coach.parseMeal(text), store.getSettings());
+  if (!parsed.entries.length) return { ok: false, text: parsed.followUpQuestion || "Daraus konnte ich kein Essen lesen. Sag es mit Menge, etwa 200 g Reis mit Hähnchen." };
+  essenWahlSetzen(tagIso, art, { name: text, posten: parsed.entries });
+  return { ok: true, text: parsed.followUpQuestion || "" };
+}
+
+/** Ein Foto des geplanten Essens oder der Packung, über die Bildauswertung. */
+export async function essenWahlAusFoto(tagIso, art, bild) {
+  try {
+    const modell = modellFuerBilder(store.getSettings().modellWahl || "auto");
+    const ergebnis = await mahlzeitAusFoto(provider(), [bild], "Das ist ein geplantes Essen, nicht schon gegessen.", modell.id);
+    if (!ergebnis.entries.length) return { ok: false, text: `Auf dem Bild sehe ich kein Essen. ${ergebnis.beschreibung || ""}`.trim() };
+    essenWahlSetzen(tagIso, art, { name: ergebnis.beschreibung || "Foto", posten: ergebnis.entries });
+    return { ok: true, text: "" };
+  } catch (e) {
+    const d = fehlerErklaerung(e);
+    return { ok: false, text: `Das Foto liess sich nicht auswerten. ${d?.text || ""}`.trim() };
+  }
+}
+
+/** Den Fokus im Briefing selbst setzen, null nimmt wieder den gerechneten. */
+export function fokusWaehlen(tagIso, text) {
+  const st = store.getSettings();
+  store.setSettings({ ...st, briefingFokus: text ? { tag: tagIso, text } : null });
+}
+
+/** Offene Aufgaben, aus denen der Fokus gewählt werden kann, wichtigste zuerst. */
+export function fokusKandidaten() {
+  return alleAufgaben().filter((a) => !a.erledigt).sort((x, y) => (y.wichtigkeit || 0) - (x.wichtigkeit || 0)).map((a) => a.text);
+}
+
+/** Der Tag, um den es im Briefing geht: morgens heute, abends morgen. */
+export function briefingTag(art) {
+  return art === "abend" ? tagPlusIso(todayIso(), 1) : todayIso();
+}
+
 export function tagesessenFuer(tagIso = todayIso(), jetzt = Date.now()) {
   const n = dayNumbers(tagIso);
   const profile = n.profile || PROFIL_NOTFALL;
@@ -1844,6 +2046,8 @@ export function tagesessenFuer(tagIso = todayIso(), jetzt = Date.now()) {
     trainings: trainingAusProfil(profile.sessions, tagIso),
     ernaehrung: ernaehrungMitNotizen(profile),
     vorrat: store.getFridge(),
+    essenszeiten: profile.essenszeiten,
+    gewaehlt: essenWahlFuer(tagIso),
   });
 }
 
@@ -1898,24 +2102,57 @@ function trainingFuerBriefing(tagIso) {
  * Das Briefing als Struktur, morgens für heute, abends für morgen.
  * Abschnitte für die Ansicht, `kurz` für die Mitteilung, `text` für den Chat.
  */
-export function tagesbriefingFuer(art = "morgen", jetzt = Date.now(), fuerTag) {
+export function tagesbriefingFuer(artVorgabe = "morgen", jetzt = Date.now(), fuerTag, opt = {}) {
   const heute = todayIso();
   const morgenIso = tagPlusIso(heute, 1);
-  const tag = fuerTag || (art === "abend" ? morgenIso : heute);
+  const tag = fuerTag || (artVorgabe === "abend" ? morgenIso : heute);
+  // "art" heisst nur noch, ob der Text ein Morgenbriefing für heute ist oder der
+  // Blick auf einen späteren Tag. Welcher Tag es ist, bestimmt allein `tag`:
+  // "Briefing für morgen" lieferte vorher den heutigen Tag, weil art "morgen"
+  // das Morgenbriefing hiess.
+  const art = tag === heute ? "morgen" : "abend";
   const hatKalender = (store.getKalender().termine || []).length > 0;
   const n = dayNumbers(tag);
   const profile = profilFuerTag(tag) || store.getProfile();
 
   let aufgaben = [];
-  if (art === "morgen") {
+  let warten = [];
+  // Einstufung nach Umsatz, Geld, Frist und Wichtigkeit: daevo sortiert, der Nutzer sieht warum.
+  // Kam ein Lebensbereich in den letzten sieben Tagen zu kurz, rückt eine
+  // Aufgabe daraus eine Stufe nach vorn: das Muster entscheidet, nicht die Frist.
+  const luecken = bereichsLuecken();
+  const namen = bereichNamen();
+  const eingestuft = (a) => {
+    // Gerechnet wird gegen den Tag, um den es geht: eine Aufgabe von heute ist morgen überfällig.
+    const e = aufgabeStufe({ text: a.text, wichtigkeit: a.wichtigkeit, faellig: a.faellig || undefined }, tag);
+    const hoch = anheben(e.stufe, bereichDerAufgabe(a.text, namen), luecken);
+    // "Frist heute" hiesse im Blick auf morgen den falschen Tag. Gemeint ist
+    // der Tag des Briefings, also steht er da.
+    const grund = tag !== heute && e.grund === "Frist heute" ? `Frist ${tagWort(tag, heute)}` : e.grund;
+    return hoch ? { stufe: hoch.stufe, grund: hoch.grund } : { stufe: e.stufe, grund };
+  };
+  if (tag === heute) {
     const { plan, zeiten } = tagesplan(jetzt);
     const um = new Map(zeiten.bloecke.map((b) => [b.aufgabe.id ?? b.aufgabe.text, uhrzeitVon(b.von)]));
-    aufgaben = plan.heute.map((a) => ({ id: a.id, text: a.text, um: um.get(a.id ?? a.text), wichtig: a.wichtigkeit >= 3 }));
-  } else if (tag === morgenIso) {
-    // Für übermorgen kennt die Priorisierung keine Reihenfolge, dann lieber
-    // keine Aufgabe als die falsche.
-    const plan = aufgabenPlan(jetzt);
-    aufgaben = plan.morgen.map((a) => ({ id: a.id, text: a.text, wichtig: a.wichtigkeit >= 3 }));
+    aufgaben = plan.heute.map((a) => ({ id: a.id, text: a.text, um: um.get(a.id ?? a.text), wichtig: a.wichtigkeit >= 3, ...eingestuft(a) }));
+    warten = [...(plan.morgen || []), ...(plan.spaeter || [])].map((a) => ({ id: a.id, text: a.text, grund: a.faellig ? `fällig ${datumKurz(a.faellig)}` : "" }));
+  } else {
+    // Ein anderer Tag: was dort fällig ist, dazu bei morgen, was die
+    // Priorisierung von heute auf morgen schiebt. Beides zusammen, sonst fehlt
+    // eine Aufgabe, die für morgen fällig ist, aber heute noch Platz hätte.
+    const plan = tag === morgenIso ? aufgabenPlan(jetzt) : null;
+    const offen = alleAufgaben().filter((a) => !a.erledigt);
+    const ids = new Set();
+    const gewaehlt = [];
+    for (const a of [...(plan?.morgen || []), ...offen.filter((x) => x.faellig === tag)]) {
+      const k = a.id ?? a.text;
+      if (ids.has(k)) continue;
+      ids.add(k);
+      gewaehlt.push(a);
+    }
+    aufgaben = gewaehlt.map((a) => ({ id: a.id, text: a.text, wichtig: a.wichtigkeit >= 3, ...eingestuft(a) }));
+    warten = (plan?.spaeter || []).filter((a) => !ids.has(a.id ?? a.text))
+      .map((a) => ({ id: a.id, text: a.text, grund: a.faellig ? `fällig ${datumKurz(a.faellig)}` : "" }));
   }
 
   const status = standardsUebersicht();
@@ -1925,23 +2162,36 @@ export function tagesbriefingFuer(art = "morgen", jetzt = Date.now(), fuerTag) {
   return tagesbriefing({
     art,
     datum: datumLang(tag),
+    tagWort: tagWort(tag, heute),
+    stunde: new Date(jetzt).getHours(),
     ablauf: hatKalender ? ablaufFuer(tag) : null,
     essen: tagesessenFuer(tag, jetzt),
     vorausblick: hatKalender && profile
-      ? vorausblick({ morgen: ablaufFuer(tag), termine: store.getKalender().termine, profile, fuer: art === "abend" ? "morgen" : "heute" })
+      ? vorausblick({ morgen: ablaufFuer(tag), termine: store.getKalender().termine, profile, fuer: tag === heute ? "heute" : "morgen" })
       : null,
     training: trainingFuerBriefing(tag),
     aufgaben,
+    warten,
+    musterHinweis: luecken.length
+      ? `${luecken.map((l) => l.name).join(" und ")} ${luecken.length > 1 ? "kamen" : "kam"} in den letzten sieben Tagen zu kurz. Passende Aufgaben stehen deshalb weiter vorn.`
+      : null,
     ziele: { kcal: n.targets.kcal, proteinG: n.targets.proteinG },
-    heute: art === "abend"
+    heute: art === "abend" && !opt.ohneRueckblick
       ? { kcal: h.totals.kcal, zielKcal: h.targets.kcal, proteinG: h.totals.proteinG, zielProteinG: h.targets.proteinG, erledigt }
       : undefined,
     standards: status.filter((s) => !s.aktuell).map((s) => s.satz),
+    // Ein gewählter Fokus gilt nur für seinen Tag und nur, solange die Aufgabe offen ist.
+    fokusWahl: (() => {
+      const f = store.getSettings().briefingFokus;
+      return f?.tag === tag && fokusKandidaten().includes(f.text) ? f.text : undefined;
+    })(),
   });
 }
 
 /** Morgenbriefing und Tagesabschluss als Text. Ohne Modellaufruf. */
-export function briefing(art = "morgen") {
+export function briefing(art = "morgen", tag) {
+  // Mit Tag ist es eine Frage nach genau diesem Tag, ohne den Rückblick auf heute.
+  if (tag) return tagesbriefingFuer(art === "abend" ? "abend" : "morgen", Date.now(), tag, { ohneRueckblick: true }).text;
   return tagesbriefingFuer(art === "abend" ? "abend" : "morgen").text;
 }
 
@@ -2384,6 +2634,33 @@ export function balanceFuer(tage = 1, bisIso = todayIso()) {
   });
 }
 
+
+/**
+ * Welche Lebensbereiche in den letzten sieben Tagen zu kurz kamen.
+ * Nur mit genug gemessenen Tagen: ein leerer Bereich kann auch ein
+ * Bereich sein, den niemand eingetragen hat.
+ */
+export function bereichsLuecken() {
+  try {
+    let tageMitZeit = 0;
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(`${todayIso()}T12:00:00`);
+      d.setDate(d.getDate() - i);
+      const iso = d.toISOString().slice(0, 10);
+      const zeiten = store.getZeiten().some((z) => z.tag === iso);
+      if (zeiten || termineFuer(iso).length || (store.getDay(iso).trainings || []).length) tageMitZeit++;
+    }
+    return vernachlaessigteBereiche(balanceFuer(7).bereiche, tageMitZeit);
+  } catch { return []; }
+}
+
+/** Namen, die ein Bereich trägt: eigene Wahl in den Einstellungen plus Familie aus den Notizen. */
+export function bereichNamen() {
+  const eigene = store.getSettings().bereichNamen || {};
+  const aus = familienNamenAus(store.getMemories().map((m) => String(m.text || "")));
+  return { ...eigene, beziehung: [...(eigene.beziehung || []), ...aus] };
+}
+
 /**
  * Die Empfehlung aus den letzten Tagen.
  *
@@ -2669,8 +2946,12 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
         // Mahlzeit. Eine Rückfrage nach Mengen wirkt dann, als hätte die App
         // nicht zugehört, und genau das ist im Betrieb passiert, als ein
         // Tagesplan mit "zwei gute Mahlzeiten essen" als Eintrag gelesen wurde.
-        return [ohneModell, "Daraus konnte ich keine Mahlzeit lesen. Wenn du etwas eintragen willst, "
-          + "sag es mir mit Menge, etwa 200 Gramm Magerquark."].filter(Boolean).join(" ");
+        // Die Rückfrage aus dem Kern unterscheidet beides: "einen Proteinriegel"
+        // ist eine Mahlzeit ohne Tabellenwert und bekommt die Bitte um den
+        // Barcode, nicht die um eine Menge, die schon dasteht.
+        const frage = parsed.followUpQuestion || "Daraus konnte ich keine Mahlzeit lesen. Wenn du etwas eintragen willst, "
+          + "sag es mir mit Menge, etwa 200 Gramm Magerquark.";
+        return [ohneModell, frage].filter(Boolean).join(" ");
       }
       // Der Riegel gegen doppeltes Zählen. Das Modell sieht die Zahlen des
       // Tages im Kontext und schickt beim nächsten Eintrag die ganze bisherige
@@ -2757,6 +3038,24 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
      * Der Vergleich mit der Vorwoche geht mit, weil ein einzelner Bogen eine
      * Momentaufnahme ist. Erst "Stress von 40 auf 75" ist eine Aussage.
      */
+    /**
+     * Eine kurze Antwort auf den täglichen Check-in, für das Tagebuch. Ohne
+     * KI gibt es keine Antwort: der Regelweg würde aus der Notiz sonst einen
+     * Eintrag machen, etwa eine Mahlzeit aus "Pizza mit Freunden".
+     */
+    async tagesCheckinAuswerten({ tag = todayIso(), at } = {}) {
+      if (!provider().available) return "";
+      const c = (store.getDay(tag).checkins || []).find((x) => x.at === at && x.kind !== "herausforderung");
+      if (!c) return "";
+      const werte = [["Energie", c.energy], ["Schlaf", c.sleepQuality], ["Stimmung", c.mood], ["Konzentration", c.concentration], ["Sättigung", c.satiety]]
+        .filter(([, w]) => w !== null && w !== undefined).map(([n, w]) => `${n} ${w} von 10`);
+      const notiz = c.note && c.note !== "Check-in ohne Notiz" ? `Notiz: "${c.note}"` : "Ohne Notiz.";
+      const antwort = await ask(`Das ist mein Check-in von heute, ${c.at} Uhr. ${werte.join(", ")}. ${notiz}\n\n`
+        + "Er ist schon gespeichert, speichere und trage nichts ein. Antworte kurz, wie ein Coach in einem Tagebuch: "
+        + "was du darin siehst, ehrlich und ohne es schönzureden, und genau eine Sache für den Rest des Tages.");
+      return antwort.text;
+    },
+
     async checkinAuswerten({ bogen } = {}) {
       const alle = store.getCheckinBoegen().filter((b) => b.bogen === bogen);
       const jetzt = alle[alle.length - 1];
@@ -2965,8 +3264,10 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
      * Richtung. Was weg ist, steht in der Antwort mit seinen Zahlen, damit es
      * sich in einem Satz wieder eintragen lässt.
      */
-    async eintragZuruecknehmen({ art, suche } = {}) {
-      const day = todayIso();
+    async eintragZuruecknehmen({ art, suche, tag } = {}) {
+      const day = tagAufloesen(tag, todayIso()) || todayIso();
+      // "Für heute", "Für gestern" oder "Am Montag, 23. November".
+      const fuer = (() => { const w = tagWort(day, todayIso()); return /^(heute|gestern|vorgestern)$/.test(w) ? `Für ${w}` : `Am ${w}`; })();
       const gesucht = String(suche || "").toLowerCase().trim();
 
       if (art === "wasser") {
@@ -2986,11 +3287,11 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
         const data = store.getDay(day);
         const trainings = data.trainings || [];
         const weg = trainings[trainings.length - 1];
-        if (!weg) return "Für heute steht kein Training drin.";
+        if (!weg) return `${fuer} steht kein Training drin.`;
         data.trainings = trainings.slice(0, -1);
         store.setDay(day, data);
         changed();
-        return `Zurückgenommen: ${TYP_LABEL[weg.type] || weg.type}, ${weg.minutes} Minuten.`;
+        return `Zurückgenommen${day === todayIso() ? "" : ` für ${tagWort(day, todayIso())}`}: ${weg.name || TYP_LABEL[weg.type] || weg.type}, ${weg.minutes} Minuten.`;
       }
 
       if (art === "aufgabe") {
@@ -3016,8 +3317,8 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
           : meals[meals.length - 1];
       if (!treffer) {
         return gesucht
-          ? (gesucht.split(/\s+/).length > 3 ? "Dazu finde ich heute keinen passenden Eintrag." : `Dazu finde ich heute keinen Eintrag mit ${suche}.`)
-          : "Für heute steht noch keine Mahlzeit drin.";
+          ? (gesucht.split(/\s+/).length > 3 ? `Dazu finde ich ${tagWort(day, todayIso())} keinen passenden Eintrag.` : `Dazu finde ich ${tagWort(day, todayIso())} keinen Eintrag mit ${suche}.`)
+          : `${fuer} steht noch keine Mahlzeit drin.`;
       }
       const posten = (treffer.entries || []).map((e) => `${e.quantity} ${e.name}`).join(", ");
       const kcal = Math.round((treffer.entries || []).reduce((sum, e) => sum + e.kcal, 0));
@@ -3253,9 +3554,23 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
     async aufgabeAnlegen({ text, minuten, faellig, wichtigkeit } = {}) {
       // Kommen Werte vom Modell, gelten sie. Fehlen sie, wird eingestuft,
       // statt still auf normal und dreissig Minuten zu fallen.
-      const a = Number.isFinite(Number(wichtigkeit)) && Number.isFinite(Number(minuten))
+      // Was das Modell mitgibt, gilt auch dann, wenn ein anderer Wert fehlt:
+      // vorher fiel eine Frist ohne Wichtigkeit still weg, und "Rechnung bis
+      // morgen" stand im Briefing für morgen nicht da.
+      let a = Number.isFinite(Number(wichtigkeit)) && Number.isFinite(Number(minuten))
         ? aufgabeAnlegen({ text, minuten, faellig, wichtigkeit, warum: "vom Coach gesetzt", quelle: "coach" })
         : (await aufgabeAnlegenEingestuft(text, "coach"))?.aufgabe;
+      if (a) {
+        const gesetzt = {
+          ...(faellig && /^\d{4}-\d{2}-\d{2}$/.test(String(faellig)) ? { faellig } : {}),
+          ...(Number.isFinite(Number(minuten)) && Number(minuten) > 0 ? { minuten: Math.max(5, Math.min(480, Number(minuten))) } : {}),
+          ...(Number.isFinite(Number(wichtigkeit)) ? { wichtigkeit: Math.max(1, Math.min(3, Number(wichtigkeit))) } : {}),
+        };
+        if (Object.keys(gesetzt).length) {
+          store.setAufgaben(store.getAufgaben().map((x) => (x.id === a.id ? { ...x, ...gesetzt } : x)));
+          a = { ...a, ...gesetzt };
+        }
+      }
       if (!a) return "Das war zu kurz für eine Aufgabe.";
       changed();
       return `Steht auf der Liste: ${a.text}, ${a.minuten} Minuten, ` +
@@ -3410,8 +3725,11 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
      * fällt raus, statt mit null zu zählen: sonst misst die Zahl, wie fleissig
      * jemand Check-ins ausfüllt.
      */
-    async bereitschaftAbrufen() {
-      return bereitschaftText(bereitschaft(bereitschaftsEingabe()));
+    async bereitschaftAbrufen({ fokus } = {}) {
+      const ohneHealth = "In Apple Health steht dafür nichts aus den letzten zwei Tagen. In der iPhone App liest daevo Schlaf, HRV und Puls von selbst, sobald Health freigegeben ist.";
+      if (fokus === "regeneration") return regenAktuell();
+      if (fokus === "schlaf" || fokus === "koerper") return koerperText() || ohneHealth;
+      return [bereitschaftText(bereitschaft(bereitschaftsEingabe())), koerperText()].filter(Boolean).join("\n\n");
     },
 
     async tagesplanErstellen() {
@@ -3451,12 +3769,24 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       return mittagscheckText(befund);
     },
 
-    async briefingErstellen({ art } = {}) {
+    async briefingErstellen({ art, tag } = {}) {
       const hinweis = await todoistAktualisieren();
-      return [briefing(art === "abend" ? "abend" : "morgen"), hinweis].filter(Boolean).join("\n");
+      // Ein genannter Tag schlägt art. Lässt er sich nicht lesen, wird gefragt
+      // und nicht stillschweigend heute genommen.
+      const iso = tag ? tagAufloesen(tag, todayIso()) : null;
+      if (tag && !iso) return `Welchen Tag meinst du? "${tag}" konnte ich nicht als Tag lesen.`;
+      return [briefing(art === "abend" ? "abend" : "morgen", iso || undefined), hinweis].filter(Boolean).join("\n");
     },
 
-    async kalenderAbrufen({ tage, stand } = {}) {
+    async trainingZeit({ tag } = {}) {
+      const iso = tag ? tagAufloesen(tag, todayIso()) : todayIso();
+      if (!iso) return `Welchen Tag meinst du? "${tag}" konnte ich nicht als Tag lesen.`;
+      return trainingZeitText(iso);
+    },
+
+    async kalenderAbrufen({ tage, stand, tag } = {}) {
+      const einTag = tag ? tagAufloesen(tag, todayIso()) : null;
+      if (tag && !einTag) return `Welchen Tag meinst du? "${tag}" konnte ich nicht als Tag lesen.`;
       // In der iPhone App verbindet daevo den Kalender gleich selbst, statt
       // auf das Menü zu verweisen. Wer im Gespräch nach seinem Kalender
       // fragt, will ihn verbunden haben, und die Frage von iOS nach dem
@@ -3469,16 +3799,19 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
           if (r?.fehler) return r.fehler;
           const apple = (r?.ergebnisse || []).find((e) => e.name === "Apple Kalender");
           if (apple?.fehler) return `Der Zugriff ist erlaubt, das Lesen ging aber nicht: ${apple.fehler}`;
-          return `Kalender verbunden, ${apple?.anzahl ?? 0} Termine gelesen. ${stand ? "" : kalenderUebersicht(tage || 7)}`.trim();
+          return `Kalender verbunden, ${apple?.anzahl ?? 0} Termine gelesen. ${stand ? "" : (einTag ? kalenderEinTag(einTag) : kalenderUebersicht(tage || 7))}`.trim();
         } catch (e) {
           return `Den Kalender konnte ich nicht verbinden: ${e?.message || e}`;
         }
       }
+      if (einTag) return kalenderEinTag(einTag);
       return stand ? kalenderStandText() : kalenderUebersicht(tage || 7);
     },
 
     async tagesablaufPlanen({ tag } = {}) {
-      return tagesablaufUebersicht(tag || todayIso());
+      const iso = tag ? tagAufloesen(tag, todayIso()) : todayIso();
+      if (!iso) return `Welchen Tag meinst du? "${tag}" konnte ich nicht als Tag lesen.`;
+      return tagesablaufUebersicht(iso);
     },
 
     async fotoAlsMahlzeit({ hinweis, tag, uhrzeit } = {}) {
@@ -3605,6 +3938,50 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
     async uebungenSuchen({ suche, ersatzFuer } = {}) {
       return uebungenSuchenText({ suche, ersatzFuer });
     },
+
+    async planUebernehmen({ einheiten }) {
+      const text = planImportieren(einheiten);
+      changed();
+      return text;
+    },
+
+    async ernaehrungsplanUebernehmen({ mahlzeiten }) {
+      // Die Nährwerte rechnet daevo aus den Zutaten, über denselben Weg wie
+      // beim Eintragen, mit Tabelle und eigenen Lebensmitteln. Eine Zahl, die
+      // auf dem Plan steht, wäre die Zahl eines anderen Rechners.
+      const gelesen = [];
+      for (const m of mahlzeiten.slice(0, 12)) {
+        const parsed = mitEigenenLebensmitteln(await coach.parseMeal(m.zutaten), store.getSettings());
+        gelesen.push({ ...m, posten: parsed.entries, offen: parsed.unresolved ?? [] });
+      }
+      const text = ernaehrungsplanImportieren(gelesen);
+      changed();
+      return text;
+    },
+    /**
+     * Die eingetragenen Trainings der letzten Tage, je Tag. "Was hab ich diese
+     * Woche trainiert" bekam vorher die Termine aus dem Kalender, und das sind
+     * bei diesem Nutzer fast nur Kundenstunden.
+     */
+    async trainingsverlaufAbrufen({ tage } = {}) {
+      const n = Math.max(1, Math.min(31, tage || 7));
+      const heute = todayIso();
+      const zeilen = [];
+      let summe = 0;
+      let zahl = 0;
+      for (let i = n - 1; i >= 0; i--) {
+        const tag = tagVerschieben(heute, -i);
+        const t = store.getDay(tag).trainings || [];
+        if (!t.length) continue;
+        zahl += t.length;
+        summe += t.reduce((a, x) => a + (Number(x.minutes) || 0), 0);
+        const teile = t.map((x) => `${x.name || TYP_LABEL[x.type] || x.type}${x.minutes ? ` ${x.minutes} min` : ""}`);
+        zeilen.push(`${tagKurz(tag)}: ${teile.join(", ")}`);
+      }
+      if (!zahl) return `In den letzten ${n} Tagen steht kein Training drin. Was nicht eingetragen ist, kennt daevo nicht.`;
+      return `${zahl} ${zahl === 1 ? "Training" : "Trainings"} in den letzten ${n} Tagen, zusammen ${summe} Minuten:\n${zeilen.join("\n")}`;
+    },
+
     async wochenrueckblick() {
       return wochenrueckblickFuer().text;
     },
@@ -3629,7 +4006,7 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       return essensplanTagText(tag) + (plan.hinweise.length ? `\n${plan.hinweise.join(" ")}` : "");
     },
 
-    async trainingHeute({ gruppen = [], minuten, neu = false, tag: wunschTag, uhrzeit, weglassen = [], tauschen = [] } = {}) {
+    async trainingHeute({ gruppen = [], minuten, neu = false, tag: wunschTag, uhrzeit, weglassen = [], tauschen = [], uebungen = [], hinzufuegen = [], cardio = [] } = {}) {
       const heuteIso = todayIso();
       // Ein Tag in der Vergangenheit ist keine Bestellung. Weiter als eine
       // Woche voraus auch nicht: bis dahin hat sich der Plan geändert.
@@ -3643,6 +4020,18 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       }
       const s = store.getSettings();
       const jetzt = bestellteEinheit(s, tag);
+      // Die eigene Einheit des Nutzers geht vor jeder Rechnung. Wer seine
+      // Übungen und Sätze diktiert, will genau die, und keine Einheit, die
+      // daevo aus den Partien baut.
+      const liste = (x) => (Array.isArray(x) ? x.filter((p) => p && typeof p === "object" && String(p.name ?? "").trim()) : []);
+      const cardioListe = (Array.isArray(cardio) ? cardio : []).map((c) => ({
+        art: String(c?.art ?? "").trim().slice(0, 40),
+        ...(Number(c?.minuten) > 0 ? { minuten: Math.min(300, Math.round(Number(c.minuten))) } : {}),
+        ...(Number(c?.km) > 0 ? { km: Math.min(300, Math.round(Number(c.km) * 10) / 10) } : {}),
+      })).filter((c) => c.art);
+      if (liste(uebungen).length || liste(hinzufuegen).length || cardioListe.length) {
+        return eigeneEinheitSpeichern({ tag, zukunft, um, jetzt, uebungen: liste(uebungen), hinzufuegen: liste(hinzufuegen), cardio: cardioListe, minuten }, changed);
+      }
       // "Neue Übungen" ohne Partien meint die Einheit von heute.
       const SPLIT = { arme: ["bizeps", "trizeps"], push: ["brust", "schultern", "trizeps"], pull: ["ruecken", "bizeps"], beine: ["beine", "po"] };
       let partien = [...new Set(gruppen.map(String).flatMap((g) => SPLIT[g] ?? [g]))].filter((g) => FOKUS_NAME[g]);
@@ -3756,12 +4145,13 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       const wochentag = d.getDay();
       const tag = new Date(Date.parse(`${todayIso()}T12:00:00Z`) + inTagen * 86_400_000).toISOString().slice(0, 10);
       const wann = inTagen === 0 ? "Heute" : inTagen === 1 ? "Morgen" : `Am ${WEEKDAYS[wochentag]}`;
+      const wannWochentag = inTagen <= 1 ? `${wann}, ${WEEKDAYS[wochentag]}` : wann;
       const sessions = store.getProfile()?.sessions || [];
       const heute = sessions.filter((s) => s.weekday === wochentag).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
       if (heute.length === 0) {
-        return `${wann}, ${WEEKDAYS[wochentag]}, steht kein Training in deinem Wochenplan. Ein Ruhetag gehört zum Plan.`;
+        return `${wannWochentag} steht kein Training in deinem Wochenplan. Ein Ruhetag gehört zum Plan.`;
       }
-      const zeilen = [`${wann}, ${WEEKDAYS[wochentag]}: ` + heute.map((s) => `${TYP_LABEL[s.type] || s.type} um ${s.startsAt}, ${s.minutes} Minuten`).join(", ") + "."];
+      const zeilen = [`${wannWochentag}: ` + heute.map((s) => `${TYP_LABEL[s.type] || s.type} um ${s.startsAt}, ${s.minutes} Minuten`).join(", ") + "."];
       // Nach der Nachfrage am Mittag mit Fitheit 1 oder 2 ist das Training gestrichen.
       const morgens = inTagen === 0 ? (store.getDay(todayIso()).checkins || []).filter((c) => c.kind === "morning" && c.morgen).pop() : null;
       if (morgens?.trainingGestrichen) {
@@ -3785,6 +4175,9 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       } else if (heute.some((s) => s.type === "strength")) {
         zeilen.push("Einen Plan mit Übungen hast du noch nicht gespeichert. Den rechnet dir die App unter Training, Anpassen.");
       }
+      // Wie erholt jeder Muskel ist, damit der Coach nicht Beine empfiehlt,
+      // die gestern zehn Sätze hatten.
+      if (inTagen === 0 && heute.some((s) => s.type === "strength")) zeilen.push(regenAktuell());
       return zeilen.join("\n");
     },
 
@@ -4397,6 +4790,323 @@ export function wochenschnittFuer(tagIso = todayIso(), gemessen = gemessenerVerb
   return wochenschnitt(tage, { verbrauchQuelle: gemessen ? "gemessen" : "formel" });
 }
 
+/**
+ * Findet zu einem gesagten Namen die Übung in der Datenbank. Im Studio heisst
+ * es "Seitheben am Kabelzug" oder "Pushdowns", in der Datenbank "Einarmiges
+ * Seitheben am Kabel" oder "Trizepsdrücken am Kabel". Zuerst zählt ein
+ * gleicher Name oder Alias, dann die Suche wie unter Übungen, und unter den
+ * Treffern gewinnt, wer die meisten gesagten Wörter im Namen trägt. Was am
+ * Trainingsort und mit den Beschwerden geht, liegt vorn. Ohne Treffer null:
+ * eine geratene Übung im Training ist schlimmer als eine ohne Foto.
+ */
+const ART_NAME = { fruehstueck: "Frühstück", mittagessen: "Mittagessen", snack: "Snack", abendessen: "Abendessen" };
+
+/**
+ * Ein Trainingsplan von einem Foto oder PDF, wie das Modell ihn abgelesen
+ * hat, als gespeicherter Plan. Jede Einheit läuft durch dieselbe Zuordnung
+ * wie eine diktierte Einheit: Studionamen gegen die Datenbank, was sie nicht
+ * kennt, bleibt unter dem gelesenen Namen mit `eigen-` Kennung. Der Plan
+ * beginnt heute, seine zwölf Wochen zählen ab jetzt.
+ */
+export function planImportieren(einheiten, heute = todayIso()) {
+  const alt = store.getSettings().plan;
+  const wunsch = {
+    ...(alt?.wunsch ?? { minuten: 60, niveau: "intermediate", ziel: "muskel", ort: "studio", beschwerden: [], meiden: [], fokus: [] }),
+    tage: Math.max(1, Math.min(5, einheiten.length)),
+    variante: 0,
+  };
+  const unbekannt = [];
+  const gebaut = [];
+  for (const e of einheiten.slice(0, 7)) {
+    const { positionen, unbekannt: u } = einheitAusDiktat(e.uebungen, wunsch);
+    if (!positionen.length) continue;
+    unbekannt.push(...u);
+    gebaut.push({ titel: String(e.titel).slice(0, 40), fokus: "aus deinem Plan", positionen, dauerMin: 0 });
+  }
+  if (!gebaut.length) return `${NICHT_GESPEICHERT} Ich konnte keiner Einheit eine Übung zuordnen.`;
+  const plan = planNachrechnen({
+    wunsch, einheiten: gebaut, wochensaetze: {},
+    hinweise: ["Übernommen aus deinem eigenen Plan. Übungen, Sätze und Wiederholungen stehen so da, wie sie im Plan standen."],
+    quellen: [],
+  }, UEBUNGEN);
+  store.setSettings({ ...store.getSettings(), plan: { ...plan, beginn: heute, bearbeitet: true, importiert: true } });
+  const zeilen = [`Dein Plan ist übernommen, ${gebaut.length} ${gebaut.length === 1 ? "Einheit" : "Einheiten"}, ab heute Woche 1:`];
+  for (const e of plan.einheiten) zeilen.push(`- ${e.titel}: ${e.positionen.length} Übungen, etwa ${e.dauerMin} Minuten`);
+  if (unbekannt.length) {
+    zeilen.push(`Nicht in der Datenbank, deshalb ohne Foto und Anleitung, aber mit allen Sätzen im Plan: ${[...new Set(unbekannt)].join(", ")}.`);
+  }
+  if (gebaut.length > 5) zeilen.push("Mehr als fünf Einheiten rechnet der Planer nicht, die übrigen stehen trotzdem im Plan.");
+  zeilen.push("Du findest ihn unter Training, Mein Plan. Dort lässt sich jede Übung tauschen, verschieben oder ändern.");
+  return zeilen.join("\n");
+}
+
+/**
+ * Ein Ernährungsplan als eigene Rezepte, je Mahlzeit eines, und der Abgleich
+ * mit dem eigenen Tagesziel. Angepasst wird über einen Faktor auf alle
+ * Mengen, denn das hält die Verhältnisse des Plans: wer einen Plan von seinem
+ * Coach hat, soll dessen Mahlzeiten wiedererkennen. Die Grenze der eigenen
+ * Rezepte gilt auch hier, Mahlzeiten darüber werden genannt und nicht still
+ * verworfen.
+ */
+export function ernaehrungsplanImportieren(mahlzeiten) {
+  let s = store.getSettings();
+  const grenze = rezeptGrenze(s, KONFIG);
+  const gespeichert = [];
+  const nichtGespeichert = [];
+  const offen = [];
+  const tag = { kcal: 0, proteinG: 0, fatG: 0, carbsG: 0 };
+  for (const m of mahlzeiten) {
+    if (!m.posten.length) { nichtGespeichert.push(`${m.name} (keine Zutat erkannt)`); continue; }
+    const name = `${ART_NAME[m.art] ?? "Mahlzeit"}: ${m.name}`.slice(0, 60);
+    const ergebnis = rezeptSpeichern(s, name, m.posten, { grenze, id: newId });
+    if (ergebnis.fehler) { nichtGespeichert.push(m.name); continue; }
+    s = ergebnis.settings;
+    const sum = m.posten.reduce((a, p) => ({ kcal: a.kcal + p.kcal, proteinG: a.proteinG + p.proteinG, fatG: a.fatG + p.fatG, carbsG: a.carbsG + p.carbsG }), { kcal: 0, proteinG: 0, fatG: 0, carbsG: 0 });
+    for (const k of Object.keys(tag)) tag[k] += sum[k];
+    gespeichert.push(`- ${name}, ${Math.round(sum.kcal)} kcal, ${Math.round(sum.proteinG)} g Protein`);
+    offen.push(...m.offen);
+  }
+  store.setSettings(s);
+  if (!gespeichert.length) return `${NICHT_GESPEICHERT} Keine Mahlzeit liess sich speichern${nichtGespeichert.length ? `: ${nichtGespeichert.join(", ")}` : ""}.`;
+  const ziel = dayNumbers(todayIso()).targets;
+  const zeilen = [`Übernommen als eigene Rezepte, im Mahlzeit Editor unter Eigene:`, ...gespeichert];
+  zeilen.push(`Der Plan ergibt am Tag ${Math.round(tag.kcal)} kcal und ${Math.round(tag.proteinG)} g Protein. Dein Ziel liegt bei ${ziel.kcal} kcal und ${ziel.proteinG} g Protein.`);
+  const faktor = tag.kcal > 0 ? ziel.kcal / tag.kcal : 1;
+  if (Math.abs(faktor - 1) > 0.08) {
+    zeilen.push(`Angepasst auf dein Ziel heisst das: jede Menge mal ${faktor.toFixed(2).replace(".", ",")}, also ${faktor > 1 ? "etwa" : "nur"} ${Math.round(faktor * 100)} Prozent der Mengen im Plan. Beim Eintragen stellst du die Menge im Editor so ein.`);
+  } else {
+    zeilen.push("Das passt zu deinem Ziel, die Mengen können bleiben.");
+  }
+  const proteinNach = tag.proteinG * faktor;
+  if (proteinNach < ziel.proteinG * 0.9) zeilen.push(`Auch angepasst fehlen dann rund ${Math.round(ziel.proteinG - proteinNach)} g Protein, etwa ein Skyr oder ein Shake dazu.`);
+  if (offen.length) zeilen.push(`Nicht erkannt und nicht mitgerechnet: ${[...new Set(offen)].join(", ")}. Sag mir die Werte, dann lege ich sie als eigenes Lebensmittel an.`);
+  if (nichtGespeichert.length) zeilen.push(`Nicht gespeichert, weil die Grenze deiner Stufe erreicht ist: ${nichtGespeichert.join(", ")}.`);
+  return zeilen.join("\n");
+}
+
+export function uebungZuName(name, wunsch = {}) {
+  // Umlaute fallen ganz auf den Vokal, nicht auf ae, oe, ue: sonst ist
+  // "Klimmzüge" ("klimmzuege") kein Plural von "Klimmzug" mehr.
+  const f = (t) => foldUmlauts(String(t ?? "").toLowerCase()).replace(/ae/g, "a").replace(/oe/g, "o").replace(/ue/g, "u")
+    .replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+  const q = f(name);
+  if (q.length < 3) return null;
+  const erlaubt = (u) => uebungErlaubt(u, { ort: wunsch.ort, beschwerden: wunsch.beschwerden, meiden: wunsch.meiden });
+  const namen = (u) => [u.name, u.nameEn, ...(u.alias ?? [])].map(f);
+  const ohneLeer = (t) => t.replace(/ /g, "");
+  const gleich = UEBUNGEN.filter((u) => namen(u).some((n) => n === q || ohneLeer(n) === ohneLeer(q)));
+  if (gleich.length) return gleich.find(erlaubt) ?? gleich[0];
+  // Das Gerät steht im Satz, aber oft nicht im Namen: "Seitheben am
+  // Kabelzug" heisst in der Datenbank "Einarmiges Seitheben am Kabel".
+  const GERAET_WORT = { kabel: "cable", kabelzug: "cable", seilzug: "cable", cable: "cable", kurzhantel: "dumbbell", kurzhanteln: "dumbbell", kh: "dumbbell",
+    dumbbell: "dumbbell", langhantel: "barbell", lh: "barbell", barbell: "barbell", maschine: "machine", gerat: "machine", machine: "machine",
+    multipresse: "smith_machine", smith: "smith_machine", korpergewicht: "bodyweight" };
+  const ABART = new Set(["hammer", "einarmig", "einarmiges", "einarmiger", "einbeinig", "liegend", "sitzend", "stehend", "reverse", "eng", "enger", "breit", "breiter", "schragbank", "negativ", "front", "sumo", "kniend"]);
+  // Eigennamen einer Übung: wer sie nicht sagt, meint sie nicht. "Curls am
+  // Kabel" ist nicht der Bayesian Curl, auch wenn Curl und Kabel passen.
+  const EIGENNAME = new Set(["bayesian", "seagull", "pallof", "pendulum", "landmine", "preacher", "scott"]);
+  const FUELL = new Set(["am", "an", "der", "die", "das", "mit", "im", "auf", "dem", "den", "und", "fuer", "von", "zum", "zur", "ein", "eine", "the", "fur"]);
+  // Was im Studio anders heisst als in der Datenbank.
+  const GLEICH = { latziehen: "latzug", latzugmaschine: "latzug", pecdeck: "butterfly", flys: "fly", flyes: "fly" };
+  const woerter = q.split(" ").filter((w) => !FUELL.has(w)).map((w) => GLEICH[w] ?? w);
+  const geraet = woerter.map((w) => GERAET_WORT[w]).find(Boolean);
+  const kern = woerter.filter((w) => !GERAET_WORT[w] && w.length >= 3);
+  if (!kern.length) return null;
+  // Gleich heisst: dasselbe Wort bis auf die Endung, "Kniebeugen" und
+  // "Kniebeuge", "Curls" und "Curl", oder ein Teil eines zusammengesetzten
+  // Worts, "Pushdown" in "Trizepspushdown".
+  const passt = (w, n) => n === w || (Math.min(w.length, n.length) >= 3 && (n.startsWith(w) || w.startsWith(n)) && Math.abs(n.length - w.length) <= (Math.min(w.length, n.length) >= 5 ? 3 : 2))
+    || (w.length >= 5 && n.includes(w));
+  let beste = null;
+  let besterWert = -Infinity;
+  for (const u of UEBUNGEN) {
+    const nameW = f(u.name).split(" ").filter((w) => !FUELL.has(w));
+    const weitere = namen(u).slice(1).join(" ").split(" ");
+    const muskeln = f([...u.primaryMuscles, ...u.secondaryMuscles].join(" ")).split(" ");
+    // Je gesagtem Wort zählt der beste Ort: im Namen viel, in Alias oder
+    // englischem Namen weniger, bei den Muskeln am wenigsten.
+    let treffer = 0;
+    let wert = 0;
+    for (const w of kern) {
+      const p = nameW.some((n) => passt(w, n)) ? 10 : weitere.some((n) => passt(w, n)) ? 6 : muskeln.some((n) => passt(w, n)) ? 4 : 0;
+      if (p >= 6) treffer++;
+      wert += p;
+    }
+    if (!treffer) continue;
+    if (geraet) wert += u.equipment === geraet ? 8 : -4;
+    // Jedes Wort im Namen, das niemand gesagt hat, kostet etwas: "Hammer
+    // Curls" ist der Hammer-Curl und nicht der einarmige am Kabel.
+    // Ein Wort, das eine Abart beschreibt, kostet mehr: wer "Curls am Kabel"
+    // sagt, meint nicht den Hammer Curl, und "Pushdowns" sind nicht die
+    // liegenden. "beidarmig" ist die Grundform und kostet nichts.
+    for (const n of nameW) {
+      if (kern.some((w) => passt(w, n)) || GERAET_WORT[n] || n === "beidarmig") continue;
+      wert -= EIGENNAME.has(n) ? 8 : ABART.has(n) ? 5 : 3;
+    }
+    if (erlaubt(u)) wert += 3;
+    if (wert > besterWert || (wert === besterWert && beste && u.name.length < beste.name.length)) { beste = u; besterWert = wert; }
+  }
+  return beste;
+}
+
+/** Zahl aus Ziffer oder Zahlwort, für Sätze und Wiederholungen. */
+const ZAHLWORT = { ein: 1, eins: 1, einen: 1, eine: 1, zwei: 2, drei: 3, vier: 4, fuenf: 5, sechs: 6, sieben: 7, acht: 8 };
+
+/**
+ * Baut eine Einheit genau aus dem, was der Nutzer diktiert hat: seine
+ * Übungen, seine Sätze, seine Wiederholungen, seine Supersätze. Vorher
+ * rechnete daevo aus den Partien eine eigene Einheit und konnte danach nur
+ * tauschen und streichen, und wer seine Einheit kennt, musste sie in der App
+ * von Hand nachbauen. Was der Nutzer nicht sagt, kommt aus `positionFuer`,
+ * derselben Regel wie beim Plan. Eine Übung, die die Datenbank nicht kennt,
+ * steht unter dem gesagten Namen in der Einheit, ohne Foto: sie fehlen zu
+ * lassen hiesse, die Einheit des Nutzers zu ändern.
+ */
+export function einheitAusDiktat(posten, wunsch = {}, basis = []) {
+  const w = {
+    tage: 1, minuten: 60, niveau: ["beginner", "intermediate", "advanced"].includes(wunsch.niveau) ? wunsch.niveau : "intermediate",
+    ziel: typeof wunsch.ziel === "string" ? wunsch.ziel : "muskel", ort: wunsch.ort, beschwerden: wunsch.beschwerden ?? [], meiden: wunsch.meiden ?? [],
+  };
+  const zahl = (x, min, max) => {
+    const n = Number.isFinite(Number(x)) ? Number(x) : ZAHLWORT[foldUmlauts(String(x ?? "").toLowerCase())];
+    return Number.isFinite(n) && n >= min ? Math.min(max, Math.round(n)) : null;
+  };
+  const wdhText = (x) => {
+    const t = String(x ?? "").replace(/\s+/g, "").replace(/bis|–|—/g, "-");
+    return /^\d{1,2}(-\d{1,2})?$/.test(t) ? t : null;
+  };
+  const f = (t) => foldUmlauts(String(t ?? "").toLowerCase()).trim();
+  const positionen = basis.map((p) => ({ ...p }));
+  const unbekannt = [];
+  const geaendert = [];
+  for (const roh of posten) {
+    const gesagt = String(roh?.name ?? "").trim();
+    if (!gesagt) continue;
+    const u = uebungZuName(gesagt, w);
+    const id = u ? u.id : `eigen-${f(gesagt).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
+    const vorhanden = positionen.find((p) => p.id === id
+      || (!u && f(p.name) === f(gesagt)));
+    const p = vorhanden ?? (u ? positionFuer(u, w) : { id, name: gesagt, saetze: 3, wdh: "8-12", pauseSek: 90, reserve: 2 });
+    const saetze = zahl(roh.saetze, 1, 10);
+    const wdh = wdhText(roh.wdh);
+    const reserve = zahl(roh.reserve, 0, 5) ?? (Number(roh.reserve) === 0 ? 0 : null);
+    if (saetze) p.saetze = saetze;
+    if (wdh) p.wdh = wdh;
+    if (reserve !== null) p.reserve = reserve;
+    if (roh.superset) p.superset = String(roh.superset).slice(0, 40);
+    if (vorhanden) geaendert.push(p.name);
+    else positionen.push(p);
+    if (!u) unbekannt.push(gesagt);
+  }
+  // Ein Supersatz kann als Name des Partners kommen ("mit Cable Crunches")
+  // oder als Buchstabe. Ein Name wird auf die Gruppe beider gelegt, damit
+  // der Trainingsmodus den Partner findet.
+  for (const p of positionen) {
+    if (!p.superset || p.superset.length <= 2) continue;
+    const partner = positionen.find((x) => x !== p && (f(x.name).includes(f(p.superset)) || f(p.superset).includes(f(x.name))
+      || uebungZuName(p.superset, w)?.id === x.id));
+    if (!partner) { delete p.superset; continue; }
+    const marke = partner.superset && partner.superset.length <= 2 ? partner.superset
+      : String.fromCharCode(65 + new Set(positionen.map((x) => x.superset).filter((x) => x && x.length <= 2)).size);
+    p.superset = marke;
+    partner.superset = marke;
+  }
+  for (const p of positionen) if (p.superset && positionen.filter((x) => x.superset === p.superset).length < 2) delete p.superset;
+  // Partner stehen direkt hintereinander, sonst springt der Trainingsmodus
+  // quer durch die Einheit.
+  const sortiert = [];
+  for (const p of positionen) {
+    if (sortiert.includes(p)) continue;
+    sortiert.push(p);
+    if (p.superset) for (const x of positionen) if (x !== p && x.superset === p.superset && !sortiert.includes(x)) sortiert.push(x);
+  }
+  return { positionen: sortiert, unbekannt, geaendert };
+}
+
+/** Ausdauer, die zur Einheit gehört, als Zeile: "Fahrrad, 30 Minuten, 15 km". */
+export function cardioText(c) {
+  return [c.art, c.minuten ? `${c.minuten} Minuten` : "", c.km ? `${String(c.km).replace(".", ",")} km` : ""].filter(Boolean).join(", ");
+}
+
+/** Der Partner im Supersatz, als Zusatz in der Übungszeile. */
+function supersatzZusatz(p, positionen) {
+  if (!p.superset) return "";
+  const partner = positionen.filter((x) => x !== p && x.superset === p.superset).map((x) => x.name);
+  return partner.length ? `, im Supersatz mit ${partner.join(" und ")}` : "";
+}
+
+/**
+ * Speichert die diktierte Einheit als Training des Tages. Mit `uebungen`
+ * ist es die ganze Einheit, mit `hinzufuegen` kommen Übungen dazu oder
+ * bekommen andere Sätze, die übrigen bleiben. Cardio steht mit in der
+ * Einheit und zählt zur Dauer.
+ */
+async function eigeneEinheitSpeichern({ tag, zukunft, um, jetzt, uebungen, hinzufuegen, cardio, minuten }, changed = () => {}) {
+  const s = store.getSettings();
+  const w = s.plan?.wunsch || {};
+  const ganz = uebungen.length > 0;
+  const basis = ganz ? [] : (jetzt?.einheit?.positionen ?? []);
+  const r = einheitAusDiktat([...uebungen, ...hinzufuegen], w, basis);
+  const cardioAlt = ganz ? [] : (jetzt?.cardio ?? []);
+  const cardioNeu = [...cardioAlt.filter((a) => !cardio.some((c) => foldUmlauts(c.art.toLowerCase()) === foldUmlauts(a.art.toLowerCase()))), ...cardio];
+  if (!r.positionen.length && !cardioNeu.length) return `${NICHT_GESPEICHERT} Ich habe keine Übung erkannt. Sag mir die Übungen mit Sätzen, etwa "3 Sätze Bankdrücken, 3 Sätze Seitheben am Kabel".`;
+  const nachId = new Map(UEBUNGEN.map((u) => [u.id, u]));
+  const gruppenNamen = { beine: "Beine", brust: "Brust", ruecken: "Rücken", schultern: "Schultern", arme: "Arme", rumpf: "Rumpf", ganzkoerper: "Ganzkörper" };
+  const fokus = [...new Set(r.positionen.map((p) => gruppenNamen[nachId.get(p.id)?.gruppe]).filter(Boolean))].join(", ")
+    || (cardioNeu.length ? "Cardio" : "Eigene Einheit");
+  const gerechnet = planNachrechnen({ wunsch: { tage: 1, minuten: 60, niveau: "intermediate", ziel: "muskel" }, einheiten: [{ titel: EINZEL_TITEL_EIGEN, fokus, positionen: r.positionen, dauerMin: 0 }] }, UEBUNGEN).einheiten[0];
+  // Im Supersatz gibt es eine Pause für beide Übungen, nicht zwei.
+  const ersparnis = r.positionen.filter((p, i) => p.superset && r.positionen.findIndex((x) => x.superset === p.superset) !== i)
+    .reduce((sum, p) => sum + p.saetze * p.pauseSek, 0) / 60;
+  const cardioMin = cardioNeu.reduce((sum, c) => sum + (c.minuten ?? 0), 0);
+  const einheit = { ...gerechnet, dauerMin: Math.max(cardioMin, Math.round(gerechnet.dauerMin - ersparnis + cardioMin)), ...(cardioNeu.length ? { cardio: cardioNeu } : {}) };
+  const schluessel = !ganz && jetzt?.schluessel ? jetzt.schluessel : `eigen-${tag}`;
+  const eintrag = {
+    tag, schluessel, gruppen: !ganz && jetzt?.gruppen ? jetzt.gruppen : [], minuten: einheit.dauerMin, variante: 0, ersetzt: {}, eigen: true,
+    einheit, ...(cardioNeu.length ? { cardio: cardioNeu } : {}), erstellt: new Date().toISOString(),
+    ...(um ? { uhrzeit: um } : !ganz && jetzt?.uhrzeit ? { uhrzeit: jetzt.uhrzeit } : {}), ...(zukunft ? { geplant: true } : {}),
+  };
+  const verlauf = Array.isArray(s.heuteVerlauf) ? s.heuteVerlauf : [];
+  const ohne = verlauf.filter((v) => !(v.tag === tag && (v.schluessel === schluessel || v.schluessel === jetzt?.schluessel || (zukunft && v.geplant))));
+  store.setSettings({ ...store.getSettings(), ...(zukunft ? {} : { heuteTraining: eintrag }), heuteVerlauf: [...ohne, eintrag].slice(-20) });
+  changed();
+  const wann = zukunft ? new Date(`${tag}T12:00:00`).toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" }) : "heute";
+  const zeilen = [ganz
+    ? `Deine Einheit für ${wann}${eintrag.uhrzeit ? ` um ${eintrag.uhrzeit}` : ""} steht, so wie du sie gesagt hast, etwa ${einheit.dauerMin} Minuten.${zukunft ? "" : ' Tipp auf "Training starten", dann läuft sie im Trainingsmodus.'}`
+    : `Einheit angepasst${r.geaendert.length ? `, geändert: ${r.geaendert.join(", ")}` : ""}. Sie dauert jetzt etwa ${einheit.dauerMin} Minuten.`];
+  const log = Array.isArray(s.trainingslog) ? s.trainingslog : [];
+  for (const p of einheit.positionen) {
+    const st = nachId.has(p.id) ? steigerung(letzteEinheit(log, p.id, tag), p.wdh, p.reserve) : null;
+    zeilen.push(`- ${p.name}: ${p.saetze} x ${p.wdh}, ${p.reserve} in Reserve${supersatzZusatz(p, einheit.positionen)}${st ? `. ${st.text}` : ""}`);
+  }
+  for (const c of cardioNeu) zeilen.push(`- ${cardioText(c)}`);
+  // Die Einheit bleibt, wie er sie gesagt hat. Fehlt ein Teil des Muskels,
+  // etwa der Latissimus bei nur Rudern oder der Brachialis bei Curls ohne
+  // Hammergriff, sagt die App es in einem Satz und baut es nicht heimlich ein.
+  const luecken = abdeckungsLuecken(einheit.positionen.map((p) => p.id), UEBUNGEN);
+  if (luecken.length) zeilen.push(`In dieser Einheit fehlt noch: ${luecken.join(", ")}. Soll ich dafür eine Übung dazunehmen?`);
+  if (r.unbekannt.length) zeilen.push(`${r.unbekannt.join(", ")} kenne ich nicht aus der Übungsdatenbank. ${r.unbekannt.length > 1 ? "Sie stehen" : "Sie steht"} trotzdem unter deinem Namen drin, nur ohne Foto und Anleitung.`);
+  const gesagt = Number(minuten);
+  if (ganz && Number.isFinite(gesagt) && gesagt > 0 && Math.abs(gesagt - einheit.dauerMin) > 15) {
+    zeilen.push(`Du hast ${gesagt} Minuten gesagt. Mit diesen Sätzen und Pausen rechne ich mit etwa ${einheit.dauerMin}.`);
+  }
+  if (r.positionen.some((p) => p.superset)) zeilen.push("Im Supersatz springt der Trainingsmodus nach jedem Satz zur Partnerübung, die Pause kommt nach beiden.");
+  if (um) {
+    const { kalenderTermin, terminFinden, kannSchreiben } = await import("./kalender-schreiben.js");
+    if (kannSchreiben()) {
+      const alt = terminFinden(store.getKalender().termine || [], { suche: "training", tag });
+      const k = alt?.daevo
+        ? await kalenderTermin({ aktion: "verschieben", suche: alt.titel, tag, zielTag: tag, zielUhrzeit: um })
+        : await kalenderTermin({ aktion: "eintragen", titel: `Training: ${fokus}`, tag, uhrzeit: um, minuten: einheit.dauerMin, erbeten: true });
+      zeilen.push(k.replace(NICHT_GESPEICHERT, "Nicht im Kalender:").trim());
+    }
+  }
+  return zeilen.join("\n");
+}
+
+/** Titel der diktierten Einheit, im Protokoll wie jede andere Einheit für heute. */
+const EINZEL_TITEL_EIGEN = "Training für heute";
+
 /** Was an einem Tag gegessen wurde, als Text für Coach und Regelweg. */
 export function tagesverlaufText(tagIso) {
   const t = verlaufTag(tagIso);
@@ -4472,7 +5182,19 @@ export function uebungenSuchenText({ suche, ersatzFuer } = {}) {
     if (!andere.length) return `Für ${quelle.name} kenne ich keine Übung mit derselben Bewegung, die zu deinem Ort und deinen Beschwerden passt.`;
     return `Statt ${quelle.name}, dieselbe Bewegung:\n${andere.map(zeile).join("\n")}\nIm Trainingsmodus tauschst du sie über die drei Punkte neben dem Namen.`;
   }
-  const treffer = uebungenFiltern({ text: suche || "" });
+  // Partie und "ohne Geräte" werden Filter und nicht Suchwörter. Als Wort
+  // traf "Rücken" das Bankdrücken, denn die Suche nimmt Teilwörter, und
+  // "ohne Geräte" fand gar nichts.
+  let text = foldUmlauts(String(suche || "").toLowerCase());
+  let gruppe = "alle";
+  let geraet = "alle";
+  const PARTIE = [["beine", /\b(beine?|po|gesaess|unterkoerper)\b/], ["brust", /\bbrust\b/], ["ruecken", /\bruecken\b/],
+    ["schultern", /\bschultern?\b/], ["arme", /\barme?\b/], ["rumpf", /\b(bauch|rumpf|core)\b/]];
+  for (const [id, re] of PARTIE) if (re.test(text)) { gruppe = id; text = text.replace(re, " "); break; }
+  const OHNE = /\b(ohne (geraete?|equipment|gewichte?|hanteln?)|zu ?hause|koerpergewicht|eigengewicht)\b/;
+  if (OHNE.test(text)) { geraet = "bodyweight"; text = text.replace(OHNE, " "); }
+  text = text.replace(/\b(fuer|den|die|das|ohne|nur|uebungen?|training)\b/g, " ").replace(/\s+/g, " ").trim();
+  const treffer = uebungenFiltern({ text, gruppe, geraet });
   if (!treffer.length) return `Zu "${suche}" finde ich keine Übung. Unter Training, Übungen kannst du nach Muskel und Gerät filtern.`;
   const gezeigt = treffer.slice(0, 12);
   const rest = treffer.length - gezeigt.length;

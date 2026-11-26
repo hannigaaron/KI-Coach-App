@@ -94,7 +94,7 @@ test("das Kontingent greift an Nachrichten und an Kosten", () => {
   // Wenige teure Nachrichten mit Fotos auf Opus erreichen das Budget vor der Zahl.
   assert.match(kontingentPruefen("test", { nachrichten: 3, mikro: test.budgetMikro })!, /Monatsbudget/);
   // Ohne Abo gibt es nach der Testphase gar keine KI, auch nicht die erste Nachricht.
-  assert.match(kontingentPruefen("frei", { nachrichten: 0, mikro: 0 })!, /Testphase ist vorbei/);
+  assert.match(kontingentPruefen("frei", { nachrichten: 0, mikro: 0 })!, /Ohne Abo ist daevo gesperrt/);
 });
 
 test("der Verbrauch wird aus dem Strom gelesen, Ausgabe aus dem letzten Ereignis", () => {
@@ -161,6 +161,20 @@ test("ein aufgebrauchtes Kontingent antwortet mit 402 und fragt Anthropic gar ni
   assert.equal(gefragt, false);
   const koerper = (await antwort.json()) as { error: { type: string } };
   assert.equal(koerper.error.type, "kontingent");
+});
+
+test("ein Konto ohne Testphase und Abo ist gesperrt und fragt Anthropic nicht", async () => {
+  const env = umgebung();
+  const { token } = await kontoAnlegen(env.ABOS, new Date(), { testphase: false });
+  let gefragt = false;
+  const antwort = await chatWeiterreichen(chatAnfrage(token), env, async () => {
+    gefragt = true;
+    return new Response("{}");
+  });
+  assert.equal(antwort.status, 402);
+  assert.equal(gefragt, false);
+  const koerper = (await antwort.json()) as { error: { type: string } };
+  assert.equal(koerper.error.type, "gesperrt");
 });
 
 test("ein Konto hat eine eigene Stundengrenze statt der Grenze je Gerät", async () => {

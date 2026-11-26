@@ -1,5 +1,6 @@
 import "./nativ.js";
 import { chatHtml, chatSprechbar } from "./chat-format.js";
+import { briefingZeigen } from "./briefing-show.js";
 import {
   BEREICHE, BEREICH_NAME, CHECKIN_BOEGEN, CHECKIN_MITTE, STANDARD_ZIELE, WOCHENTAGE,
   MAHLZEITEN, bogenAmTag, bogenFuer, eintragAus100g, energyBreakdown, hatAngebot, mengeLesen,
@@ -7,6 +8,7 @@ import {
   impulseFuerTag, naechsterPunkt, planFuer, saubereUrl, uhrzeit, undListe, weckwortGehoert, weightTrend,
   belastung,
   belastungText,
+  regeneration, regenFarbton, regenSatz, schlafwert, schlafZiel, PHASEN_SPANNE, koerperlage, essensUhrzeiten, tagesrandFuer,
   bereitschaft,
   bereitschaftText,
   berichtText,
@@ -16,7 +18,6 @@ import {
   MAX_EIGENE,
   erinnerungZeile,
   istEinmalig,
-  vorausblickText,
   bilanzSatz, tageListe, tagStand, zeitraumText,
 } from "@daevo/core";
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, PREISE_STAND, aktuellesModell, produktPerBarcode, produkteSuchen } from "@daevo/coach";
@@ -26,6 +27,7 @@ import { uebungenStarten } from "./uebungen.js";
 import { planFuer as uebungsplanFuer, plaeneStarten } from "./plaene.js";
 import { trainingStarten } from "./training.js";
 import { morgenStarten, morgenVonHeute, trainingGestrichen } from "./morgen.js";
+import { abendStarten, schlafWocheFuer, schlafWocheHtml } from "./abend.js";
 import {
   antwortVerarbeiten, antwortenAbholen, lueckeAusSpeicher, lueckeMelden,
   schieflageAusSpeicher, schieflageMelden,
@@ -41,24 +43,25 @@ import {
   schluesselPruefen, tagesnutzungFuer,
   trainingsplanUebernehmen, trainingsplanVorschlag, widerspruchListe,
   kalenderEntfernen, kalenderImportieren, kalenderStand, tagesbriefingFuer, wochenrueckblickFuer, tagesessenFuer,
+  briefingTag, essenWahlAusFoto, essenWahlAusText, essenWahlFuer, essenWahlSetzen, geplanteMahlzeitEintragen, fokusKandidaten, fokusWaehlen,
   kostenUebersicht, recommendations, standardsUebersicht, tagesErinnerungen, verlaufPunkte,
   berichtFuer,
   berichtZeitraeume,
   aufgabeErledigen, aufgabeWiederOeffnen, todoistAktualisieren, todoistVerbunden,
   erinnerungenAufgeraeumt, heuteGetauscht, heuteVerschoben,
   vorausblickePlan,
-  vorausblickFuer,
   offOptionen, uhrKiZugang, tagesplan,
   verlaufTag, wochenschnittFuer, gemessenerVerbrauch,
+  signalTage,
 } from "./assistant.js";
 import { zyklusAnsicht, zyklusSichtbar } from "./zyklus-ui.js";
-import { uhrAufgaben, uhrEreignisseAnwenden, uhrMeldung, uhrPaket, uhrTermine } from "./uhr.js";
+import { entwurfMitUhr, uhrAufgaben, uhrEreignisseAnwenden, uhrMeldung, uhrPaket, uhrTermine } from "./uhr.js";
 import { brain } from "./brain.js";
 import { Orb } from "./orb.js";
 import { anhangAusDatei, grossInKb } from "./media.js";
 import { EXIF_LESEN_BYTES, aufnahmezeit, tagVor, tageZurueck, zeitVorschlag } from "./exif.js";
 import { gewichtsKurve, gewichtsSpanne } from "./gewichtkurve.js";
-import { bereichFarbe, anteilsRing, kurzDauer, netzDiagramm, wertungsRing } from "./rings.js";
+import { bereichFarbe, anteilsRing, kurzDauer, netzDiagramm, ringMitZahl, wertungsRing } from "./rings.js";
 import {
   Listener, alleStimmen, istDeutsch, istMaennlich, speak, stimmQualitaet, stimmSchluessel, stimmenBereit, stopSpeaking,
   voiceSupport, waehlbareStimmen,
@@ -70,21 +73,25 @@ import { symbol } from "./symbole.js";
 import { NATIV_PUSH, gesundheitHolen, postfachHolen, pushAbmelden, pushAbo, pushAnmelden, pushLage, pushProbe } from "./push.js";
 import { kodierungReparieren, newId, nowTime, store, todayIso } from "./storage.js";
 import { bestellteEinheit } from "./vorhaben.js";
-import { healthkitAbgleichen } from "./healthkit.js";
+import { REGIONEN, KARTE_DUNKEL, KARTE_HELL, regenerationSvg } from "./muskelkarte.js";
+import { regenTrainings, regenGefuehlHeute } from "./regeneration-daten.js";
+import { healthEinfangen, healthkitAbgleichen } from "./healthkit.js";
+import { wasserAusAktion } from "./schnellaktion.js";
 import { antwortAufFrage, trainingErkannt } from "./training-erkannt.js";
 import { abosAbgleichen, kaufenNativ, startAnlass } from "./kauf.js";
 import { anmeldeWege, anmeldenApple, anmeldenGoogleNativ, anmeldungSenden, anmeldungText } from "./anmeldung.js";
 import { aboEntfernen, aboHinzufuegen, APPLE_QUELLE, appleKalenderTrennen, appleKalenderVerbinden, kalenderAbgleichen, kalenderAbos } from "./kalender-sync.js";
-import { mitteilungenPlanen } from "./mitteilungen.js";
+import { MITTEILUNG_ZIEL, mitteilungenPlanen } from "./mitteilungen.js";
 import { berechtigungenFragen, berechtigungenOffen, berechtigungenText, kontenText } from "./berechtigungen.js";
 import { nativAufruf } from "./nativ.js";
 import { spueren } from "./haptik.js";
 import { eanAusBild } from "./ean.js";
 import { anteilAmZiel, eigeneLebensmittel, eigeneSuche, eigenerPosten, lebensmittelLoeschen, lebensmittelSpeichern, eigeneRezepte, essensplanFrei, proFrei, hauptMakro, rezeptGrenze, rezeptLoeschen, rezeptSpeichern, summe as postenSumme, tabellenBild, tabellenPosten, tabellenSuche, zuletztGegessen, vorschlaege, produktGemerkt, produktPosten } from "./bibliothek.js";
 import { abschlussDaten, abschlussHtml, storyTeilen } from "./abschluss.js";
+import { sortiertHtml, sortiertGezeigt } from "./sortierung.js";
 import { bewegungStarten, wischenZumLoeschen, zahlenZaehlen, zeileRaus } from "./bewegung.js";
 import { einwilligungOffen, einwilligungSetzen, einwilligungText, kiErlaubt } from "./einwilligung.js";
-import { ABO_STUFEN, ABO_TAKTE, aboPreis, ersparnisProzent, aboAnlass, aboAnlassLeer, aboLeiste, aboLink, kontoLoeschen, kontoSicherstellen, kontoStand, kontoText } from "./konto.js";
+import { ABO_STUFEN, ABO_TAKTE, aboPreis, ersparnisProzent, aboAnlass, aboAnlassLeer, aboLeiste, aboLink, kontoLoeschen, kontoSicherstellen, kontoStand, kontoText, sperreFuer } from "./konto.js";
 
 const $ = (id) => document.getElementById(id);
 const WEEKDAYS = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
@@ -248,6 +255,37 @@ document.addEventListener("click", (event) => {
   $("anhangMenue").hidden = true;
 });
 $("chatInput").addEventListener("focus", () => { $("anhangMenue").hidden = true; });
+
+/**
+ * Das Nachrichtenfeld wächst mit dem Text. Gesetzt wird `value` an vielen
+ * Stellen, auch von der Spracherkennung, und kein Ereignis meldet das. Deshalb
+ * läuft die Anpassung über den Setter des Feldes und nicht über `input` allein.
+ * Return sendet, Umschalt Return macht eine neue Zeile.
+ */
+(() => {
+  const feld = $("chatInput");
+  const anpassen = () => {
+    feld.style.height = "auto";
+    // Versteckt, etwa beim Diktieren, ist scrollHeight 0. Dann bleibt es bei
+    // der Höhe aus dem Stylesheet, sonst käme das Feld mit null Pixeln zurück.
+    if (feld.scrollHeight > 0) feld.style.height = `${feld.scrollHeight}px`;
+  };
+  const roh = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value");
+  Object.defineProperty(feld, "value", {
+    configurable: true,
+    get() { return roh.get.call(this); },
+    set(v) { roh.set.call(this, v); anpassen(); },
+  });
+  feld.addEventListener("input", anpassen);
+  feld.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+    event.preventDefault();
+    $("composer").requestSubmit();
+  });
+  // Nach dem Diktat wieder sichtbar: die Höhe neu messen.
+  new MutationObserver(anpassen).observe($("composer"), { attributes: true, attributeFilter: ["class"] });
+  anpassen();
+})();
 $("anhangMenue").addEventListener("click", (event) => {
   const button = event.target.closest("[data-anhang]");
   if (!button) return;
@@ -297,9 +335,18 @@ function markeSvg() {
 function renderTranscript() {
   const chat = store.getChat();
   const el = $("transcript");
+  // Die sortierte Übersicht steht nur unter der letzten Antwort dieser Art:
+  // eine ältere wäre mit dem Stand von gestern gerechnet.
+  const letzteSortierung = chat.slice(-40).map((m) => Boolean(m.ausgeführt?.includes("Tag sortiert"))).lastIndexOf(true);
+  const istBriefing = (m) => m.role !== "user" && (m.ausgeführt?.includes("Briefing erstellt") || /^(Guten Morgen\.|Dein Tag, |Dein Blick auf )/.test(m.text || ""));
+  const letztesBriefing = chat.slice(-40).map(istBriefing).lastIndexOf(true);
+  let sortierung = "";
+  if (letzteSortierung >= 0) {
+    try { sortierung = (() => { const bb = tagesbriefingFuer("morgen"); return sortiertHtml(bb.reihenfolge, { schluessel: "chat", mitHaken: false, hinweis: bb.musterHinweis }); })(); } catch (e) { console.error(e); }
+  }
   el.innerHTML = chat
     .slice(-40)
-    .map((m) => {
+    .map((m, idx) => {
       const done = m.ausgeführt?.length ? `<span class="msg-done">${escapeHtml(m.ausgeführt.join(" und "))}</span>` : "";
       const bilder = m.bilder?.length
         ? `<div class="msg-bilder">${m.bilder.map((b) => `<img src="${b}" alt="Mitgeschicktes Bild">`).join("")}</div>`
@@ -313,14 +360,23 @@ function renderTranscript() {
       // Eine Einheit, die der Coach für heute gerechnet hat, startet direkt
       // aus dem Gespräch. Nur heute: gestern gerechnet ist heute Geschichte.
       const startbar = m.ausgeführt?.includes("Training für heute bereit") && Boolean(bestellteEinheit(store.getSettings(), todayIso()));
+      // Ein Briefing im Chat bekommt den Weg zur Präsentation. Der Text dort
+      // ist der aus dem Kern, er beginnt immer gleich, oder der Coach hat das
+      // Werkzeug benutzt.
+      const briefingArt = idx === letztesBriefing
+        ? (/^Dein Blick auf|\bmorgen\b/i.test(m.text.replace(/^Guten Morgen/, "")) ? "abend" : "morgen")
+        : null;
       const knopf = startbar
         ? `<div class="msg-aktionen"><button type="button" class="primary" data-heute-starten>Training starten</button>` +
           `<button type="button" class="ghost" data-heute-neu>Neue Übungen</button></div>`
-        : "";
+        : briefingArt
+          ? `<div class="msg-aktionen"><button type="button" class="primary" data-briefing-zeigen="${briefingArt}">Als Präsentation ansehen</button></div>`
+          : "";
       return `<div class="msg assistant">${markeSvg()}` +
-        `<div class="msg-text">${bilder}${dateien}${chatHtml(m.text)}${done}${knopf}</div></div>`;
+        `<div class="msg-text">${bilder}${dateien}${chatHtml(m.text)}${done}${idx === letzteSortierung ? sortierung : ""}${knopf}</div></div>`;
     })
     .join("");
+  sortiertGezeigt(el);
   // Erst wenn der Nutzer selbst etwas gesagt hat, schrumpft der Kreis. Die
   // Begrüssung allein zählt nicht, sonst sieht man den großen Kreis nie.
   $("assistant").classList.toggle("has-chat", chat.some((m) => m.role === "user"));
@@ -505,6 +561,8 @@ async function send(text, { vonUhr = false } = {}) {
       mitteilungenNativ();
     }
     if (reply.fehlerArt === "kontingent") {
+      // Ein Kontingent von null heisst: gesperrt. Der Server sagt es.
+      sperrePruefen().catch(() => {});
       const anlass = aboAnlassLeer(store.getSettings().aboHinweise, Date.now(), reply.modus);
       if (anlass) setTimeout(() => aboOeffnen(anlass), 700);
     }
@@ -965,7 +1023,7 @@ document.addEventListener("visibilitychange", () => {
  * jemand später hinzufügt, bekommt damit einen vernünftigen Übergang, ohne
  * dass er daran denken muss.
  */
-const ANSICHT_TIEFE = ["assistant", "gespraeche", "heute", "essen", "rezepte", "tag", "balance", "bereitschaft", "zyklus", "checkin", "wochencheck", "bericht", "profil", "reflexion"];
+const ANSICHT_TIEFE = ["assistant", "gespraeche", "heute", "essen", "rezepte", "tag", "balance", "bereitschaft", "schlaf", "zyklus", "checkin", "wochencheck", "bericht", "profil", "reflexion"];
 
 let letzteAnsicht = "assistant";
 
@@ -1023,6 +1081,7 @@ function showView(name) {
   }
   if (name === "balance") renderBalance();
   if (name === "bereitschaft") renderBereitschaft();
+  if (name === "schlaf") renderSchlaf();
   if (name === "zyklus") zyklus.zeichnen();
   if (name === "bericht") { berichtZeitraumFuellen(); renderBericht(); }
   if (name === "standards") { renderStandards(); zeigeAngebot("standardsAngebot"); }
@@ -1049,6 +1108,12 @@ function feldWachsen(el) {
 document.addEventListener("input", (event) => {
   if (event.target instanceof HTMLTextAreaElement) feldWachsen(event.target);
 });
+document.addEventListener("click", (event) => {
+  if (!event.target.closest?.("#bwZielSchalter")) return;
+  const s = store.getSettings();
+  store.setSettings({ ...s, aktivZumZiel: s.aktivZumZiel === false });
+  refreshAll();
+});
 
 function refreshAll() {
   uhrSpaeter();
@@ -1064,7 +1129,11 @@ function refreshAll() {
   if (name === "reflexion") renderMemories();
   if (name === "einkauf") renderEinkauf();
   if (name === "kalender") renderKalender();
-  if (name === "tag") renderTag();
+  if (name === "tag") {
+    renderTag();
+    // Ab 17 Uhr steht der Blick auf morgen vorn, morgens das Briefing für heute.
+    document.querySelector(".bs-wahl")?.classList.toggle("abends", new Date().getHours() >= 17);
+  }
   if (name === "balance") renderBalance();
   if (name === "standards") { renderStandards(); zeigeAngebot("standardsAngebot"); }
 }
@@ -1294,6 +1363,13 @@ function berichtZeitraumFuellen() {
 }
 
 function renderBericht() {
+  // Der Rückblick der laufenden Woche. Rechnet er nicht, etwa ohne Profil,
+  // fehlt nur der Abschnitt.
+  try {
+    const text = wochenrueckblickFuer().text;
+    $("berichtRueckblickText").innerHTML = chatHtml(text);
+    $("berichtRueckblick").hidden = !text;
+  } catch { $("berichtRueckblick").hidden = true; }
   const b = berichtFuer($("berichtZeitraum").value || "7");
   $("berichtKopf").textContent =
     `${spanneKurz(b.von, b.bis)}, ${b.tageMitDaten} von ${b.tageGesamt} Tagen mit Eintrag.`;
@@ -1359,6 +1435,10 @@ $("berichtWerte").addEventListener("keydown", (event) => {
 });
 
 $("berichtZeitraum").addEventListener("change", renderBericht);
+$("regenTempo").addEventListener("change", (e) => {
+  store.setSettings({ ...store.getSettings(), regenTempo: e.target.value });
+  renderRegeneration();
+});
 
 /*
  * Teilen, wo es das gibt, sonst in die Zwischenablage.
@@ -1527,7 +1607,240 @@ function letzterStress() {
   return { stress: Number(letzter.werte.stress), stressAlterTage: Number.isFinite(tage) ? tage : null };
 }
 
+/* ---------- Schlaf und Körpersignale ----------
+ *
+ * Gebaut aus den Teilen, die daevo schon hat: der Wertungsring wie bei der
+ * Bereitschaft, Balkenzeilen wie bei Makros und Balance, die Linie aus dem
+ * Bericht. Die Phasen tragen Farben aus der Familie der Bereiche, alle mit
+ * demselben Kontrast, keine Ampel. Kästen nur, wo eine Fläche etwas
+ * zusammenhält.
+ */
+
+let schlafTag = null;
+
+/** Phase, Name und Farbe aus der Familie der Bereiche, von wach nach tief. */
+const PHASEN = [
+  ["w", "Wach", "var(--makro-fett)"],
+  ["r", "REM", "var(--bereich-me_time)"],
+  ["c", "Kern", "var(--bereich-karriere)"],
+  ["d", "Tief", "var(--bereich-wellbeing)"],
+];
+const PHASE_FARBE = Object.fromEntries(PHASEN.map(([k, , f]) => [k, f]));
+
+/** Der Verlauf der Nacht als Treppe: oben wach, unten tief, wie man es von Schlaf Apps kennt, in daevo Farben. */
+function hypnogramm(nacht) {
+  const B = 320, H = 118, L = 34;
+  const ebene = { w: 0, r: 1, c: 2, d: 3 };
+  const gesamt = Math.max(1, (nacht.ende - nacht.beginn) / 60000);
+  const x = (m) => L + (m / gesamt) * (B - L);
+  const y = (p) => 10 + ebene[p] * 24;
+  const flaechen = nacht.phasen.map(([von, dauer, p]) =>
+    `<rect x="${x(von).toFixed(1)}" y="${y(p) - 7}" width="${Math.max(1, x(von + dauer) - x(von)).toFixed(1)}" height="14" rx="4" fill="${PHASE_FARBE[p]}"/>`).join("");
+  const namen = PHASEN.map(([k, n]) => `<text x="0" y="${y(k) + 4}" font-size="10" fill="currentColor" fill-opacity="0.5">${n}</text>`).join("");
+  const start = new Date(nacht.beginn);
+  const erste = new Date(start); erste.setMinutes(60, 0, 0);
+  let achse = "";
+  for (let t = erste.getTime(); t < nacht.ende; t += 3600000) {
+    const m = (t - nacht.beginn) / 60000;
+    achse += `<text x="${x(m)}" y="${H - 4}" font-size="10" text-anchor="middle" fill="currentColor" fill-opacity="0.45">${String(new Date(t).getHours()).padStart(2, "0")}</text>`;
+  }
+  return `<svg class="schlaf-verlauf" viewBox="0 0 ${B} ${H}" role="img" aria-label="Schlafphasen im Verlauf der Nacht">${namen}${flaechen}${achse}</svg>`;
+}
+
+const SIGNAL = {
+  hrv: { name: "HRV", einheit: "ms", ton: "var(--bereich-me_time)", hoch: "gut" },
+  ruhepuls: { name: "Ruhepuls", einheit: "bpm", ton: "var(--bereich-beziehung)", hoch: "schlecht" },
+  atemfrequenz: { name: "Atemfrequenz", einheit: "je min", ton: "var(--makro-wasser)", hoch: "schlecht" },
+  handgelenkTemp: { name: "Hauttemperatur nachts", einheit: "°C", ton: "var(--makro-fett)", hoch: "schlecht" },
+};
+
+function kommaZahl(x, stellen = 0) {
+  return (Math.round(x * 10 ** stellen) / 10 ** stellen).toLocaleString("de-DE", { maximumFractionDigits: stellen });
+}
+
+/** Die Körpersignale gegen den eigenen Schnitt, als Zeilen mit Linie über 14 Tage. */
+function koerperHtml() {
+  const heute = todayIso();
+  const lage = koerperlage(signalTage(heute), heute);
+  const g = store.getDay(heute).gesundheit || {};
+  const gestern = store.getDay(tagVor(heute, 1)).gesundheit || {};
+  const tag = Number.isFinite(g.pulsSchnitt) ? g : gestern;
+  const zeilen = lage.signale.map((sig) => {
+    const d = SIGNAL[sig.art];
+    const stellen = sig.art === "handgelenkTemp" || sig.art === "atemfrequenz" ? 1 : 0;
+    const wert = sig.art === "handgelenkTemp" && sig.abweichung !== null
+      ? `${sig.abweichung > 0 ? "+" : ""}${kommaZahl(sig.abweichung, 1)} °C`
+      : `${kommaZahl(sig.wert, stellen)} ${d.einheit}`;
+    const gegen = sig.basis === null ? "eigener Schnitt ab sieben Tagen"
+      : sig.art === "handgelenkTemp" ? "gegen deinen Schnitt"
+      // Schnitt und Abstand mit einer Stelle: ein Median von 49,5 und ein Abstand
+      // von 2,5 hiessen gerundet "+3 · im Rahmen", obwohl 3 die Grenze ist.
+      : `Schnitt ${kommaZahl(sig.basis, 1)}, ${sig.abweichung > 0 ? "+" : ""}${kommaZahl(sig.abweichung, 1)}`;
+    const wort = { belastet: "spricht für Belastung", erholt: "spricht für Erholung", im_rahmen: "im Rahmen", offen: "" }[sig.richtung];
+    return `<div class="ks-zeile" style="--ton:${d.ton}">
+      <div class="ks-kopf"><span class="ks-name">${d.name}</span><span class="ks-wert"><b>${escapeHtml(wert)}</b></span></div>
+      ${sparkline(sig.verlauf, 320, 30)}
+      <p class="ks-unter">${escapeHtml(gegen)}${wort ? ` · ${wort}` : ""}</p>
+    </div>`;
+  }).join("");
+  const extra = [];
+  if (Number.isFinite(tag.pulsSchnitt)) extra.push(["Puls über den Tag", `${Math.round(tag.pulsSchnitt)} bpm`, `${Number.isFinite(tag.pulsMin) ? `tiefster ${Math.round(tag.pulsMin)}` : ""}${Number.isFinite(tag.pulsMax) ? `, höchster ${Math.round(tag.pulsMax)}` : ""}`]);
+  if (Number.isFinite(tag.gehpuls)) extra.push(["Gehpuls", `${Math.round(tag.gehpuls)} bpm`, "Schnitt beim Gehen"]);
+  const o2 = Number.isFinite(g.sauerstoff) ? g.sauerstoff : gestern.sauerstoff;
+  if (Number.isFinite(o2)) extra.push(["Sauerstoff im Blut", `${Math.round(o2 <= 1 ? o2 * 100 : o2)} %`, "Schnitt der Messungen"]);
+  let achtsam = 0;
+  for (let i = 0; i < 7; i++) achtsam += Number(store.getDay(tagVor(heute, i)).gesundheit?.achtsamMinuten) || 0;
+  if (achtsam) extra.push(["Achtsamkeit", `${Math.round(achtsam)} min`, "in den letzten sieben Tagen"]);
+  if (!zeilen && !extra.length) {
+    return `<h2 class="abschnitt">Körpersignale</h2><p class="sub">Noch keine Werte. HRV, Ruhepuls, Puls, Atmung, Sauerstoff und
+      Temperatur kommen aus Apple Health, von der Apple Watch und auch von Oura, Garmin oder Whoop, wenn deren App mit Health teilt.</p>`;
+  }
+  const stufe = { entspannt: "Entspannt", im_rahmen: "Im Rahmen", angespannt: "Angespannt", offen: "" }[lage.stufe];
+  return `<h2 class="abschnitt">Körpersignale</h2>
+    ${stufe ? `<p class="ks-lage ks-${lage.stufe}"><b>${stufe}</b> ${escapeHtml(lage.text)}</p>` : `<p class="sub">${escapeHtml(lage.text)}</p>`}
+    <div class="ks-liste">${zeilen}</div>
+    ${extra.length ? `<div class="ks-zahlen">${extra.map(([n, w, u]) => `<div><small>${n}</small><b>${w}</b><span>${escapeHtml(u)}</span></div>`).join("")}</div>` : ""}
+    <p class="fineprint">Einen Stresswert speichert Apple Health nicht, und Garmin, Oura und Whoop geben ihren nicht weiter.
+      daevo leitet die Lage aus HRV, Ruhepuls, Atmung und Temperatur gegen deinen eigenen Schnitt der letzten 28 Tage ab.
+      Eine niedrigere HRV und ein höherer Ruhepuls treten bei Stress, wenig Schlaf, viel Training und beginnenden Infekten
+      auf (Kim und andere 2018, Buchheit 2014). Das ist eine Ableitung und keine Messung.</p>`;
+}
+
+function renderSchlaf() {
+  const profil = store.getProfile();
+  const heute = todayIso();
+  const tage = Array.from({ length: 7 }, (_, i) => tagVor(heute, 6 - i));
+  const nacht = (tag) => store.getDay(tag).gesundheit?.nacht ?? null;
+  if (!schlafTag || !tage.includes(schlafTag)) schlafTag = [...tage].reverse().find((t) => nacht(t)) ?? heute;
+  const werte = Object.fromEntries(tage.map((t) => {
+    const n = nacht(t);
+    return [t, n ? schlafwert({ tag: t, ...n }, schlafZiel(tagesrandFuer(profil, tagVor(t, 1)).sleepTime, tagesrandFuer(profil, t).wakeTime)) : null];
+  }));
+  const kurz = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+  const inhalt = $("schlafInhalt");
+  inhalt.innerHTML = "";
+
+  // Die Woche als kleine Ringe in der Markenfarbe, wie die Kennzahlen auf Heute.
+  const woche = document.createElement("div");
+  woche.className = "schlaf-woche";
+  woche.setAttribute("role", "tablist");
+  for (const t of tage) {
+    const knopf = document.createElement("button");
+    knopf.type = "button";
+    knopf.className = `schlaf-tag${t === schlafTag ? " an" : ""}`;
+    knopf.dataset.schlafTag = t;
+    knopf.setAttribute("role", "tab");
+    knopf.setAttribute("aria-selected", String(t === schlafTag));
+    const d = new Date(`${t}T12:00:00`);
+    const name = document.createElement("span");
+    name.textContent = kurz[d.getDay()];
+    knopf.append(name, ringMitZahl({ anteil: (werte[t]?.wert ?? 0) / 100, zahl: d.getDate(), groesse: 38 }));
+    woche.appendChild(knopf);
+  }
+  inhalt.appendChild(woche);
+
+  const n = nacht(schlafTag);
+  const w = werte[schlafTag];
+  const g = store.getDay(schlafTag).gesundheit || {};
+  const rest = document.createElement("div");
+  if (!n || !w) {
+    rest.innerHTML = `${Number.isFinite(g.schlafMinuten)
+      ? `<p class="sub">In dieser Nacht stehen ${kurzDauer(g.schlafMinuten)} Schlaf in Apple Health, aber keine Phasen.</p>` : ""}
+      <p class="sub">Phasen kommen aus Apple Health. Dort schreiben die Apple Watch und auch Oura, Garmin und Whoop,
+        wenn du in deren App das Teilen mit Apple Health einschaltest.</p>${koerperHtml()}`;
+    inhalt.appendChild(rest);
+    return;
+  }
+
+  const held = document.createElement("div");
+  held.className = "wertung";
+  held.appendChild(wertungsRing({ wert: w.wert, etikett: "SCHLAF", urteil: w.wert >= 80 ? "erholsam" : w.wert >= 60 ? "okay" : "zu wenig", groesse: 220 }));
+  inhalt.appendChild(held);
+
+  const uhr = (ms) => { const d = new Date(ms); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
+  const sp = PHASEN_SPANNE;
+  const phase = { w: [n.wachMin, null], r: [n.remMin, sp.rem], c: [n.kernMin, sp.kern], d: [n.tiefMin, sp.tief] };
+  rest.innerHTML = `
+    <p class="schlaf-satz"><b>${kurzDauer(w.schlafMin)}</b> geschlafen, Ziel ${kurzDauer(w.zielMin)}</p>
+    <div class="ks-zahlen">
+      <div><small>Eingeschlafen</small><b>${uhr(n.beginn)}</b></div>
+      <div><small>Aufgewacht</small><b>${uhr(n.ende)}</b></div>
+      <div><small>Effizienz</small><b>${w.effizienz} %</b></div>
+      <div><small>Wach geworden</small><b>${n.wachPhasen}×</b></div>
+    </div>
+    <h2 class="abschnitt">Phasen</h2>
+    <div class="schlaf-balken">${PHASEN.map(([k]) => (phase[k][0] ? `<span style="flex:${phase[k][0]};background:${PHASE_FARBE[k]}"></span>` : "")).join("")}</div>
+    ${n.phasen?.length ? hypnogramm(n) : ""}
+    <div class="messwerte" id="schlafPhasen"></div>
+    ${koerperHtml()}
+    <p class="fineprint">Gemessen von ${escapeHtml(n.quelle || "deiner Uhr")}, gelesen aus Apple Health. Uhren und Ringe erkennen Schlaf und
+      Wachsein recht gut, die Phasen deutlich ungenauer (de Zambotti und andere 2019). Der Schlafwert ist eine Regel
+      von daevo: Dauer gegen dein Ziel 50, Effizienz 20, Tief 15 und REM 15 Punkte. Das Ziel ist dein Plan aus
+      Schlafens und Aufstehzeit, nie unter sieben Stunden (Watson und andere 2015). Die üblichen Spannen sind
+      Richtwerte für junge Erwachsene nach Ohayon und andere 2004, keine Diagnose.</p>`;
+  inhalt.appendChild(rest);
+  // Dieselben Balkenzeilen wie bei Makros und Balance. Der Balken misst den
+  // Anteil gegen das obere Ende der üblichen Spanne.
+  const ziel = rest.querySelector("#schlafPhasen");
+  for (const [k, name, ton] of PHASEN) {
+    const [m, spanne] = phase[k];
+    const anteil = Math.round((m / w.schlafMin) * 100);
+    ziel.appendChild(messwert({
+      name, wert: kurzDauer(m),
+      zusatz: spanne ? `${anteil} %, üblich ${spanne[0]} bis ${spanne[1]}` : "kurzes Aufwachen ist normal",
+      anteil: spanne ? anteil / spanne[1] : Math.min(1, m / 60), ton,
+    }));
+  }
+}
+
+$("schlafInhalt").addEventListener("click", (e) => {
+  const t = e.target.closest("[data-schlaf-tag]");
+  if (!t) return;
+  schlafTag = t.dataset.schlafTag;
+  renderSchlaf();
+});
+
+/** Gefühl je Partie: kein Eintrag, frisch, Muskelkater, wieder von vorn. */
+const REGEN_STUFE = { "": "frisch", frisch: "kater", kater: "" };
+
+function renderRegeneration() {
+  const s = store.getSettings();
+  const tempo = s.regenTempo || "normal";
+  $("regenTempo").value = tempo;
+  const partien = regeneration(regenTrainings(store), Date.now(), { tempo, gefuehl: regenGefuehlHeute(s, todayIso()) });
+  const werte = Object.fromEntries(partien.map((p) => [p.id, p.prozent]));
+  $("regenKarte").innerHTML = regenerationSvg(werte, regenFarbton, { farben: hellerModus() ? KARTE_HELL : KARTE_DUNKEL });
+  const bekannt = partien.filter((p) => p.stand !== "keine");
+  $("regenSub").textContent = bekannt.length
+    ? `${bekannt.filter((p) => p.stand === "erholt" || p.stand === "faellig").length} von ${bekannt.length} trainierten Partien sind wieder frisch.`
+    : "Noch keine Trainings mit Übungen in den letzten vier Wochen. Sobald du eins im Trainingsmodus beendest, steht hier die Regeneration.";
+  // Müde zuerst, dann fällig: das sind die zwei, nach denen man plant.
+  const rang = { muede: 0, faellig: 1, fast: 2, erholt: 3, keine: 4 };
+  const liste = $("regenListe");
+  liste.innerHTML = "";
+  for (const p of [...partien].sort((a, b) => rang[a.stand] - rang[b.stand] || (a.prozent ?? 101) - (b.prozent ?? 101))) {
+    const zeile = document.createElement("button");
+    zeile.type = "button";
+    zeile.className = "regen-zeile";
+    const farbe = p.prozent === null ? "var(--muted)" : `hsl(${regenFarbton(p.prozent)} 72% 50%)`;
+    zeile.innerHTML = `<span class="regen-punkt" style="background:${farbe}"></span>
+      <span class="regen-text"><b>${REGIONEN[p.id] ?? p.id}</b><small>${regenSatz(p)}</small></span>
+      <span class="regen-wert">${p.prozent === null ? "–" : `${p.prozent}%`}${p.gefuehl ? `<small>${p.gefuehl === "frisch" ? "frisch" : "Kater"}</small>` : ""}</span>`;
+    zeile.setAttribute("aria-label", `${REGIONEN[p.id] ?? p.id}, tippen ändert dein Gefühl für heute`);
+    zeile.addEventListener("click", () => {
+      const st = store.getSettings();
+      const heute = regenGefuehlHeute(st, todayIso());
+      const neu = REGEN_STUFE[heute[p.id] ?? ""];
+      if (neu) heute[p.id] = neu; else delete heute[p.id];
+      store.setSettings({ ...st, regenGefuehl: { datum: todayIso(), werte: heute } });
+      renderRegeneration();
+    });
+    liste.appendChild(zeile);
+  }
+}
+
 function renderBereitschaft() {
+  renderRegeneration();
   const last = belastung({ tage: tageFuerBelastung(), heute: todayIso() });
   $("belastungText").textContent = belastungText(last);
 
@@ -1583,6 +1896,78 @@ const TEIL_TON = {
   Belastung: "var(--bereich-fitness)",
   Ruhe: "var(--bereich-me_time)",
 };
+
+/**
+ * Was Apple Health für den gezeigten Tag weiss. Nur was gemessen ist, steht
+ * da: eine Kachel ohne Wert wäre eine Null, die niemand gemessen hat. In der
+ * iPhone App steht der Abschnitt immer, damit sichtbar ist, ob der Abgleich
+ * läuft, im Browser nur mit Daten aus Export oder Kurzbefehl.
+ */
+/** Diese Karten führen in die Ansicht Erholung mit Schlaf und Körpersignalen. */
+const ZUR_ERHOLUNG = new Set(["Schlaf", "Ruhepuls", "HRV", "Puls", "Sauerstoff"]);
+
+function renderBewegung(n, istHeute) {
+  const d = n.data;
+  const g = d.gesundheit || {};
+  const kacheln = [];
+  const zahlText = (x) => Math.round(x).toLocaleString("de-DE");
+  if (Number.isFinite(d.steps)) {
+    const ziel = Number(n.profile.dailySteps) || 0;
+    kacheln.push(["schuh", "fitness", "Schritte", zahlText(d.steps), "", ziel ? `Schnitt ${zahlText(ziel)}` : "", ziel ? d.steps / ziel : null]);
+  }
+  if (Number.isFinite(g.aktivKcal)) kacheln.push(["blitz", "fett", "Aktive Kalorien", zahlText(g.aktivKcal), "kcal", "laut Apple Watch", null]);
+  if (Number.isFinite(g.schlafMinuten)) kacheln.push(["schlaf", "wellbeing", "Schlaf", `${Math.floor(g.schlafMinuten / 60)}:${String(Math.round(g.schlafMinuten % 60)).padStart(2, "0")}`, "h", "Nacht davor", g.schlafMinuten / 480]);
+  if (Number.isFinite(g.ruhepuls)) kacheln.push(["puls", "beziehung", "Ruhepuls", `${Math.round(g.ruhepuls)}`, "bpm", "Schläge je Minute", null]);
+  if (Number.isFinite(g.hrv)) kacheln.push(["herz", "me_time", "HRV", `${Math.round(g.hrv)}`, "ms", "Schnitt des Tages", null]);
+  if (Number.isFinite(g.pulsSchnitt)) kacheln.push(["puls", "beziehung", "Puls", `${Math.round(g.pulsSchnitt)}`, "bpm", Number.isFinite(g.pulsMin) && Number.isFinite(g.pulsMax) ? `${Math.round(g.pulsMin)} bis ${Math.round(g.pulsMax)} heute` : "Schnitt des Tages", null]);
+  if (Number.isFinite(g.sauerstoff)) kacheln.push(["welle", "wasser", "Sauerstoff", `${Math.round(g.sauerstoff <= 1 ? g.sauerstoff * 100 : g.sauerstoff)}`, "%", "im Blut", null]);
+  if (Number.isFinite(g.trainingsMinuten)) kacheln.push(["stoppuhr", "karriere", "Training", `${Math.round(g.trainingsMinuten)}`, "min", "Apple Ring", g.trainingsMinuten / 30]);
+  // Je Wert ein Zeichen in einer Farbe aus der Familie der Bereiche und
+  // Makros: der Nutzer wollte Karten, die man am Zeichen erkennt, ohne das
+  // Wort zu lesen. Der Balken unten nur, wo es ein Ziel gibt, sonst wäre er
+  // eine Zahl ohne Bezug. Schlaf misst gegen acht Stunden, die Ringminuten
+  // gegen die 30 von Apple.
+  const farbe = (t) => ["fett", "protein", "kohlenhydrate", "wasser"].includes(t) ? `var(--makro-${t})` : `var(--bereich-${t})`;
+  $("bwRaster").innerHTML = kacheln.map(([sym, ton, name, wert, einheit, zusatz, anteil]) =>
+    (ZUR_ERHOLUNG.has(name) ? `<button type="button" class="bw-karte bw-knopf" data-go="schlaf" style="--ton:${farbe(ton)}">` : `<div class="bw-karte" style="--ton:${farbe(ton)}">`)
+    + `<div class="bw-kopf"><span class="bw-sym">${symbol(sym, { groesse: 18 })}</span><span class="bw-name">${escapeHtml(name)}</span></div>`
+    + `<p class="bw-wert"><b>${escapeHtml(wert)}</b>${einheit ? `<i>${escapeHtml(einheit)}</i>` : ""}</p>`
+    + (anteil !== null ? `<span class="bw-spur"><span style="width:${Math.round(Math.min(1, Math.max(0, anteil)) * 100)}%"></span></span>` : "")
+    + (zusatz ? `<small>${escapeHtml(zusatz)}</small>` : "")
+    + (ZUR_ERHOLUNG.has(name) ? `</button>` : `</div>`)).join("");
+
+  const trainings = (d.trainings || []).filter((t) => t.minutes > 0);
+  const ART = { strength: "Krafttraining", cardio: "Ausdauer", team_sport: "Mannschaftssport", mobility: "Mobilität" };
+  $("bwTrainings").innerHTML = trainings.length
+    ? `<ul class="bw-trainings">${trainings.map((t) => {
+        const teile = [`${t.minutes} min`, t.kcal ? `${zahlText(t.kcal)} kcal` : "", t.puls ? `Puls ${t.puls}${t.pulsMax ? `, max ${t.pulsMax}` : ""}` : ""].filter(Boolean);
+        const sym = t.type === "strength" ? "hantel" : t.type === "cardio" ? "laufen" : t.type === "mobility" ? "welle" : "puls";
+        return `<li><span class="bw-sym">${symbol(sym, { groesse: 18 })}</span><span class="bw-tr-name"><b>${escapeHtml(t.name || ART[t.type] || "Training")}${t.at ? ` <small>${escapeHtml(t.at)}</small>` : ""}</b><small>${escapeHtml(teile.join(" · "))}</small></span></li>`;
+      }).join("")}</ul>`
+    : "";
+
+  const a = n.aktivitaet;
+  const aus = store.getSettings().aktivZumZiel === false;
+  $("bwZiel").innerHTML = a
+    ? `${aus ? "Die Uhr misst" : "Dein Ziel rechnet schon mit"} ${aus ? `${zahlText(a.gemessenKcal)} kcal Bewegung, aufs Ziel kommt davon nichts, so ist es eingestellt.` : `${zahlText(a.geplantKcal)} kcal Bewegung am Tag. Die Uhr misst ${zahlText(a.gemessenKcal)} kcal${a.zuschlagKcal > 0 ? `, ${zahlText(a.zuschlagKcal)} kcal sind deshalb aufs Ziel gekommen.` : ". Was darüber liegt, kommt aufs Ziel, bisher nichts."}`}`
+      + ` <button type="button" class="link-knopf" id="bwZielSchalter">${aus ? "Wieder aufs Ziel rechnen" : "Nicht aufs Ziel rechnen"}</button>`
+    : "";
+
+  const stand = store.getSettings().healthNativ || store.getSettings().healthKurzbefehl || store.getSettings().healthImport;
+  const nativ = istNativ();
+  if (!kacheln.length && !trainings.length) {
+    $("bwStand").textContent = nativ
+      ? (stand?.at
+        ? `Für ${istHeute ? "heute" : "diesen Tag"} steht noch nichts aus Apple Health da. Fehlt etwas, prüf in den iPhone Einstellungen unter Health, Datenzugriff und Geräte, daevo, ob alles erlaubt ist.`
+        : "Noch kein Abgleich mit Apple Health. Erlaube daevo den Zugriff in den iPhone Einstellungen unter Health, Datenzugriff und Geräte, daevo, und öffne die App neu.")
+      : "";
+  } else {
+    $("bwStand").textContent = stand?.at
+      ? `Aus Apple Health, abgeglichen ${new Date(stand.at).toLocaleString("de-DE", { weekday: "short", hour: "2-digit", minute: "2-digit" })}.`
+      : "Aus Apple Health.";
+  }
+  $("heuteBewegung").hidden = !nativ && !kacheln.length && !trainings.length;
+}
 
 function renderHeuteBalance() {
   const el = $("heuteBalance");
@@ -1655,6 +2040,7 @@ function renderToday() {
         `<div class="li-side"><b>${r.at}</b>${r.at < time ? "vorbei" : "geplant"}</div></li>`).join("")
     : `<li><div class="li-main"><div class="li-sub">Für heute ist alles erledigt.</div></div></li>`;
 
+  renderBewegung(n, istHeute);
   renderTagWertung();
   renderHeuteBalance();
   renderWeight();
@@ -1934,22 +2320,38 @@ function verlaufZeigen(tag) {
   renderVerlauf();
 }
 
+/**
+ * Die täglichen Check-ins der letzten 30 Tage als Tagebuch, wie bei den
+ * Wochenbögen: zu eine Zeile mit Tag, Uhrzeit und Energie, offen die Werte,
+ * die eigene Notiz und die Antwort von daevo.
+ */
 function renderCheckins() {
-  const checkins = store.getDay(day).checkins;
-  $("checkinList").innerHTML = checkins.length
-    ? checkins.slice().reverse().map((c) => {
-        // Der Mittags Check-in fragt andere Zahlen ab als der Morgen. Mit
-        // demselben Text stand dort "Schlaf -, Stimmung -".
-        const teile = c.kind === "midday"
-          ? [["Konzentration", c.concentration], ["Sättigung", c.satiety]]
-          : [["Schlaf", c.sleepQuality], ["Stimmung", c.mood]];
-        const titel = c.note || (c.kind === "midday" ? "Mittags Check-in" : c.kind === "morning" ? "Morgen Check-in" : "Check-in");
-        const zahlen = teile.filter(([, w]) => w != null).map(([n, w]) => `${n} ${w}`).join(", ");
-        return `<li><div class="li-main"><div class="li-title">${escapeHtml(titel)}</div>` +
-          `<div class="li-sub">${c.at} Uhr${zahlen ? `, ${zahlen}` : ""}</div></div>` +
-          (c.energy != null ? `<div class="li-side"><b>${c.energy}</b>Energie</div>` : "") + "</li>";
+  const eintraege = [];
+  for (let i = 0; i < 30; i++) {
+    const d = new Date(`${todayIso()}T12:00:00`);
+    d.setDate(d.getDate() - i);
+    const tag = todayIso(d);
+    for (const c of (store.getDay(tag).checkins || []).slice().reverse()) {
+      if (c.kind === "herausforderung") continue;
+      eintraege.push({ tag, c });
+    }
+  }
+  const art = (c) => (c.kind === "midday" ? "Mittags Check-in" : c.morgen ? "Guten Morgen Check-in" : c.kind === "evening" ? "Abend Check-in" : "Check-in");
+  $("checkinList").innerHTML = eintraege.length
+    ? eintraege.map(({ tag, c }) => {
+        const wann = new Date(`${tag}T12:00:00`).toLocaleDateString("de-DE", { weekday: "short", day: "numeric", month: "long" });
+        const werte = [["Energie", c.energy], ["Schlaf", c.sleepQuality], ["Stimmung", c.mood], ["Konzentration", c.concentration], ["Sättigung", c.satiety], ["Morgenwert", c.morgenWert]]
+          .filter(([, w]) => w !== null && w !== undefined);
+        const notiz = c.note && c.note !== "Check-in ohne Notiz" ? c.note : "";
+        const paare = [
+          ...werte.map(([n, w]) => `<div class="wc-tb-paar"><dt>${escapeHtml(n)}</dt><dd>${escapeHtml(String(w))}${n === "Morgenwert" ? " von 100" : " von 10"}</dd></div>`),
+          ...(notiz ? [`<div class="wc-tb-paar"><dt>Notiz</dt><dd>${escapeHtml(notiz)}</dd></div>`] : []),
+        ].join("");
+        const daevo = c.antwort ? `<div class="wc-tb-daevo"><p class="wc-tb-von">daevo</p><div class="msg-text">${chatHtml(c.antwort)}</div></div>` : "";
+        const seite = c.energy !== null && c.energy !== undefined ? `Energie ${c.energy}` : "";
+        return `<li class="wc-tb"><details><summary><span><b>${escapeHtml(wann)}, ${escapeHtml(c.at || "")}</b><small>${escapeHtml(art(c))}${notiz ? `, ${escapeHtml(notiz.slice(0, 40))}${notiz.length > 40 ? "…" : ""}` : ""}</small></span><span class="meta">${escapeHtml([seite, c.antwort ? "mit Antwort" : ""].filter(Boolean).join(", "))}</span></summary><dl>${paare}</dl>${daevo}</details></li>`;
       }).join("")
-    : `<li><div class="li-main"><div class="li-sub">Heute noch kein Check-in.</div></div></li>`;
+    : `<li class="wc-tb"><p class="sub" style="margin:0;padding:var(--s-4)">Noch kein Check-in. Dein erster steht danach hier, mit der Antwort von daevo.</p></li>`;
 }
 
 function renderMemories() {
@@ -2443,16 +2845,37 @@ function wcFrageHtml(f) {
     placeholder="">${escapeHtml(typeof wert === "string" ? wert : "")}</textarea>`);
 }
 
+/**
+ * Die bisherigen Bögen als Tagebuch, beide Arten, neueste zuerst. Ein Tipp
+ * klappt einen Bogen auf: jede Frage mit der eigenen Antwort und darunter,
+ * was daevo dazu gesagt hat. Vorher stand dort nur "17 von 17 beantwortet",
+ * und was man geschrieben hatte, war nicht mehr zu lesen.
+ */
+function wcWertText(frage, wert) {
+  if (typeof wert === "boolean") return wert ? "Ja" : "Nein";
+  if (Array.isArray(wert)) return wert.join(", ");
+  if (frage.typ === "dauer" && typeof wert === "number") {
+    const h = Math.floor(wert / 60);
+    const m = wert % 60;
+    return m ? `${h} Stunden ${m} Minuten` : `${h} Stunden`;
+  }
+  if (frage.typ === "zahl" && typeof wert === "number" && frage.max !== undefined) return `${wert} von ${frage.max}`;
+  return String(wert);
+}
+
 function renderWcVerlauf() {
-  const liste = store.getCheckinBoegen()
-    .filter((b) => b.bogen === wcBogen.id)
-    .slice(-6)
-    .reverse();
+  const liste = store.getCheckinBoegen().slice(-40).reverse();
   $("wcVerlaufTitel").hidden = liste.length === 0;
   $("wcVerlauf").innerHTML = liste.map((b) => {
-    const wann = new Date(`${b.tag}T12:00:00`).toLocaleDateString("de-DE", { day: "numeric", month: "long" });
-    const anzahl = Object.values(b.werte).filter((v) => v !== "" && v !== undefined).length;
-    return `<li><div><b>${wann}</b><span class="meta">${anzahl} von ${wcBogen.fragen.length} beantwortet</span></div></li>`;
+    const bogen = bogenFuer(b.bogen);
+    if (!bogen) return "";
+    const wann = new Date(`${b.tag}T12:00:00`).toLocaleDateString("de-DE", { weekday: "short", day: "numeric", month: "long" });
+    const fragen = bogen.fragen.filter((f) => { const v = b.werte[f.id]; return v !== undefined && v !== "" && !(Array.isArray(v) && !v.length); });
+    const antworten = fragen.map((f) => `<div class="wc-tb-paar"><dt>${escapeHtml(f.text)}</dt><dd>${escapeHtml(wcWertText(f, b.werte[f.id]))}</dd></div>`).join("");
+    const daevo = b.antwort
+      ? `<div class="wc-tb-daevo"><p class="wc-tb-von">daevo</p><div class="msg-text">${chatHtml(b.antwort)}</div></div>`
+      : "";
+    return `<li class="wc-tb"><details><summary><span><b>${escapeHtml(wann)}</b><small>${escapeHtml(bogen.titel)}</small></span><span class="meta">${fragen.length} von ${bogen.fragen.length}${b.antwort ? ", mit Antwort" : ""}</span></summary><dl>${antworten}</dl>${daevo}</details></li>`;
   }).join("");
 }
 
@@ -2685,6 +3108,11 @@ function renderProfile() {
   $("e-goal").value = profile.goal;
   $("e-wake").value = profile.wakeTime;
   $("e-sleep").value = profile.sleepTime;
+  // Ein Wert, den die Liste nicht kennt, fällt auf den nächsten bekannten.
+  const erste = Number(profile.essenszeiten?.ersteNachMin ?? 45);
+  $("e-ersteMahlzeit").value = String([15, 45, 90, 180].reduce((a, b) => (Math.abs(b - erste) < Math.abs(a - erste) ? b : a)));
+  $("e-mittag").value = profile.essenszeiten?.mittag || "12:30";
+  $("e-abend").value = profile.essenszeiten?.abend || "19:00";
   // Nur ein Wert, den das Feld kennt. Ein fremder Wert liess es leer stehen.
   $("e-randmodus").value = profile.wechselndeZeiten ? "wechselnd" : (profile.randModus === "wochentag" ? "wochentag" : "gleich");
   renderWochenzeiten();
@@ -2960,7 +3388,34 @@ const rezepte = rezepteAnsicht({
   planFrei: () => essensplanFrei(store.getSettings(), KONFIG),
   proOeffnen: () => aboOeffnen({ marke: "Pro", titel: "Dein Essensplan für die Woche", empfohlen: "pro",
     text: "Sieben Tage aus den Rezepten, gerechnet auf deine Kalorien und Makros, mit Abendessen zum Vorkochen und fertiger Einkaufsliste." }),
+  inKalender: (plan) => essensplanInKalender(plan),
 });
+
+/**
+ * Der übernommene Essensplan steht danach im Kalender: Frühstück, Mittag und
+ * Abend zu den eigenen Essenszeiten, je Tag mit der Aufstehzeit dieses Tages.
+ * Snacks nicht, sonst stehen fünf Termine am Tag nur fürs Essen da.
+ */
+async function essensplanInKalender(plan) {
+  if (!istNativ()) {
+    toast("Den Plan trage ich in der iPhone App in deinen Kalender ein. Im Browser komme ich an deinen Kalender nicht heran.");
+    return;
+  }
+  const p = store.getProfile();
+  const liste = [];
+  for (const tag of plan.tage) {
+    const zeiten = essensUhrzeiten(tagesrandFuer(p, tag.datum).wakeTime, p.essenszeiten);
+    for (const m of tag.mahlzeiten) {
+      if (!zeiten[m.art]) continue;
+      liste.push({ tag: tag.datum, art: m.art, name: m.empfehlung.rezept.name, uhrzeit: zeiten[m.art], minuten: m.art === "abendessen" && m.vorkochen === "doppelt" ? 45 : 30,
+        notiz: `${m.empfehlung.summe.kcal} kcal, ${m.empfehlung.summe.proteinG} g Protein. Aus deinem Essensplan in daevo.` });
+    }
+  }
+  const { mahlzeitenEinplanen } = await import("./kalender-schreiben.js");
+  const r = await mahlzeitenEinplanen(liste);
+  if (r.ohneKalender) { toast("Verbinde zuerst deinen Kalender, auf der Kalenderseite unter Apple Kalender."); return; }
+  toast(r.angelegt ? `${r.angelegt} Mahlzeiten stehen jetzt in deinem Kalender${r.ersetzt ? `, ${r.ersetzt} alte ersetzt` : ""}.` : "Alles schon eingetragen oder schon vorbei.");
+}
 
 function einfuehrungGesehen() {
   store.setSettings({ ...store.getSettings(), einfuehrungGesehen: true });
@@ -3180,6 +3635,13 @@ function menuSeite(name) {
 // verlassen hat, sucht beim nächsten Mal sonst den Weg zurück.
 $("btnMenu").addEventListener("click", () => { menuSeite("start"); $("menu").hidden = false; });
 $("btnMenuClose").addEventListener("click", () => { $("menu").hidden = true; });
+// Ausserhalb des Menüs führt `data-go` ebenso in eine Ansicht, etwa die
+// Schlafkarte auf Heute oder der Knopf zum Schlaf unter Bereitschaft.
+document.addEventListener("click", (event) => {
+  const item = event.target.closest("[data-go]");
+  if (!item || item.closest("#menu")) return;
+  showView(item.dataset.go);
+});
 $("menu").addEventListener("click", (event) => {
   const item = event.target.closest("[data-go]");
   // Aus dem Menü heisst Heute wieder heute, auch wenn vorher ein anderer Tag gewählt war.
@@ -3196,20 +3658,68 @@ const planSpeicher = {
   schreiben: (plan) => store.setSettings({ ...store.getSettings(), plan }),
 };
 const trainingslog = () => (Array.isArray(store.getSettings().trainingslog) ? store.getSettings().trainingslog : []);
+/** Ob zum laufenden Training eine Sitzung auf der Uhr gestartet wurde. Dann speichert die Uhr es in Health. */
+// eslint-disable-next-line no-var
+var uhrTrainingLaeuft = false;
+
+/**
+ * Ein beendetes Training in den Kalender, wenn dort zu der Zeit noch keins
+ * steht. Für Trainings aus daevo und von der Uhr, mit dem Namen der Einheit.
+ */
+async function trainingInDenKalender({ titel, datum, start, minuten }) {
+  try {
+    const { kannSchreiben, trainingNachtragen } = await import("./kalender-schreiben.js");
+    if (!kannSchreiben() || !Date.parse(start)) return;
+    const b = new Date(start);
+    const uhrzeit = `${String(b.getHours()).padStart(2, "0")}:${String(b.getMinutes()).padStart(2, "0")}`;
+    const name = !titel || titel === "Freies Training" || titel === "Training für heute" ? "Krafttraining" : titel;
+    await trainingNachtragen({ tag: datum, uhrzeit, minuten, art: "strength", name, notiz: "Training in daevo, eingetragen von daevo." });
+  } catch { /* ohne Kalender bleibt es beim Eintrag im Tag */ }
+}
+
+function plaeneAbschluss(datum, einheit) {
+  const eintraege = trainingslog().filter((e) => e.datum === datum && (e.einheit ?? "") === einheit);
+  if (!eintraege.length) return;
+  const minuten = store.getSettings().trainingDauer?.[`${datum}|${einheit}`] ?? null;
+  abschlussOeffnen(abschlussDaten(eintraege, { titel: einheit || "Training", datum, minuten }));
+}
 const training = trainingStarten({
   plan: planSpeicher,
   log: { lesen: trainingslog, schreiben: (trainingslog) => store.setSettings({ ...store.getSettings(), trainingslog }) },
   entwurfSpeicher: {
     lesen: () => store.getSettings().trainingEntwurf ?? null,
-    schreiben: (trainingEntwurf) => store.setSettings({ ...store.getSettings(), trainingEntwurf }),
+    // Jede Änderung geht auch an die Uhr. Vorher kam ein am iPhone
+    // dazugenommene Übung dort nie an.
+    schreiben: (trainingEntwurf) => { store.setSettings({ ...store.getSettings(), trainingEntwurf }); uhrSpaeter(); },
   },
+  // Ein Training am iPhone öffnet daevo auf der Uhr mit einer Sitzung für
+  // Apple Fitness, und die Uhr bekommt sofort das Paket mit den Übungen.
+  begonnen: () => {
+    if (!istNativ()) return;
+    uhrSenden().catch(() => {});
+    nativAufruf("Uhr", "trainingStarten", {}).then((r) => { uhrTrainingLaeuft = Boolean(r?.gestartet); }).catch(() => {});
+  },
+  pauseGeaendert: (bis) => { store.setSettings({ ...store.getSettings(), trainingPause: bis ? { bis } : null }); uhrSpaeter(); },
   heute: todayIso,
   oeffne: (id, ansicht) => uebungen.oeffne(id, ansicht),
   melde: (text) => toast(text),
   // Eine beendete Einheit steht danach auch im Tag. Sonst fragt die
   // Trainingslücke nach vier Tagen, obwohl jeder Satz eingetragen ist.
-  fertig: ({ titel, datum, minuten, eintraege }) => {
-    store.addTraining(todayIso(), { id: newId(), type: "strength", minutes: minuten, at: nowTime(), note: titel });
+  fertig: ({ titel, datum, start, minuten, eintraege }) => {
+    // Die Uhrzeit ist der Beginn, nicht das Ende. Sonst lag das Training aus
+    // Apple Health eine Stunde daneben und zählte doppelt.
+    const beginn = Date.parse(start) ? new Date(start) : new Date(Date.now() - minuten * 60000);
+    const at = `${String(beginn.getHours()).padStart(2, "0")}:${String(beginn.getMinutes()).padStart(2, "0")}`;
+    store.addTraining(todayIso(), { id: newId(), type: "strength", minutes: minuten, at, note: titel });
+    // Hat die Uhr dazu etwas aufgezeichnet, geht es in diesen Eintrag.
+    healthEinfangen(store, todayIso(), store.getDay(todayIso()).trainings.at(-1));
+    trainingInDenKalender({ titel, datum, start: beginn.toISOString(), minuten });
+    // In Apple Health, damit es in Apple Fitness und den Ringen zählt. Lief
+    // es auf der Uhr mit, hat die Uhr es schon gespeichert.
+    if (istNativ() && !uhrTrainingLaeuft) {
+      nativAufruf("Gesundheit", "trainingSpeichern", { start: beginn.getTime(), ende: beginn.getTime() + minuten * 60000, titel }).catch(() => {});
+    }
+    uhrTrainingLaeuft = false;
     // Die Dauer steht im Protokoll nicht. Gemerkt je Tag und Einheit, damit
     // der Abschluss im Verlauf sie auch später noch nennt.
     const dauer = { ...(store.getSettings().trainingDauer ?? {}), [`${datum}|${titel}`]: minuten };
@@ -3224,9 +3734,22 @@ const training = trainingStarten({
   // Getauscht im Training für heute gilt auch beim nächsten Mal mit denselben Partien.
   getauscht: (titel, altId, neueId) => { if (titel === "Training für heute") heuteGetauscht(altId, neueId); },
   verschoben: (titel, ids) => { if (titel === "Training für heute") heuteVerschoben(ids); },
+  korrigiert: () => { plaene.verlaufNeu(); refreshAll(); },
+  abschluss: (datum, einheit) => plaeneAbschluss(datum, einheit),
 });
 const plaene = plaeneStarten({
   speicher: planSpeicher,
+  // Krafttage und Dauer aus dem Profil. Wer den Fragebogen vor dem Plan
+  // beendet hat, hat Trainingstage, aber keinen gespeicherten Plan.
+  profilWunsch: () => {
+    const kraft = (store.getProfile()?.sessions || []).filter((x) => x.type === "strength");
+    if (!kraft.length) return null;
+    const tage = Math.min(5, new Set(kraft.map((x) => x.weekday)).size);
+    const dauer = kraft.map((x) => Number(x.minutes)).filter((n) => n > 0).sort((p, q) => p - q);
+    const mitte = dauer.length ? dauer[Math.floor(dauer.length / 2)] : 60;
+    const minuten = [30, 45, 60, 75, 90].reduce((b, m) => (Math.abs(m - mitte) < Math.abs(b - mitte) ? m : b), 60);
+    return { wunsch: { tage, minuten }, text: `${tage} Krafttage pro Woche, ${minuten} Minuten, wie in deinem Profil.` };
+  },
   // Der Kurzplan für stressige Wochen und ob er diese Woche gilt. Beides in
   // den Einstellungen und damit in der Sicherung.
   kurz: { lesen: () => store.getSettings().planKurz ?? null, schreiben: (planKurz) => { store.setSettings({ ...store.getSettings(), planKurz }); uhrSpaeter(); } },
@@ -3263,12 +3786,8 @@ const plaene = plaeneStarten({
   log: trainingslog,
   heute: todayIso,
   heuteBestellt: () => bestellteEinheit(store.getSettings(), todayIso()),
-  abschluss: (datum, einheit) => {
-    const eintraege = trainingslog().filter((e) => e.datum === datum && (e.einheit ?? "") === einheit);
-    if (!eintraege.length) return;
-    const minuten = store.getSettings().trainingDauer?.[`${datum}|${einheit}`] ?? null;
-    abschlussOeffnen(abschlussDaten(eintraege, { titel: einheit || "Training", datum, minuten }));
-  },
+  abschluss: (datum, einheit) => plaeneAbschluss(datum, einheit),
+  ansehen: (datum, einheit) => training.ansehen(datum, einheit),
 });
 
 /* Der Abschluss eines Trainings, nach Beenden und aus dem Verlauf. */
@@ -3315,6 +3834,8 @@ $("transcript").addEventListener("click", (ev) => {
   // "Neue Übungen" geht als Satz an den Coach, damit es im Gespräch steht
   // und derselbe Weg rechnet wie beim Tippen.
   if (ev.target.closest("[data-heute-neu]")) { send("Neue Übungen für heute"); return; }
+  const show = ev.target.closest("[data-briefing-zeigen]");
+  if (show) { briefingShowOeffnen(show.dataset.briefingZeigen); return; }
   if (!ev.target.closest("[data-heute-starten]")) return;
   const ht = bestellteEinheit(store.getSettings(), todayIso());
   if (!ht?.einheit) { toast("Diese Einheit war für einen anderen Tag. Sag mir, was du heute trainierst."); return; }
@@ -3908,7 +4429,8 @@ document.addEventListener("click", (event) => {
 stufenZeichnen();
 
 $("btnCheckin").addEventListener("click", async () => {
-  await buildActions({ onChange: refreshAll }).checkinSpeichern({
+  const aktionen = buildActions({ onChange: refreshAll });
+  await aktionen.checkinSpeichern({
     energie: Number($("energy").value) || undefined,
     schlaf: Number($("sleepQ").value) || undefined,
     stimmung: Number($("mood").value) || undefined,
@@ -3916,7 +4438,31 @@ $("btnCheckin").addEventListener("click", async () => {
   });
   $("checkNote").value = "";
   renderCheckins();
-  toast("Check-in gespeichert");
+  // Der eben gespeicherte ist der letzte des Tages. Seine Uhrzeit ist der
+  // Schlüssel, unter dem die Antwort von daevo danach im Tagebuch steht.
+  const tag = todayIso();
+  const at = (store.getDay(tag).checkins || []).filter((c) => c.kind !== "herausforderung").pop()?.at;
+  const knopf = $("btnCheckin");
+  const feld = $("ciAuswertung");
+  knopf.disabled = true;
+  knopf.textContent = "daevo liest";
+  feld.hidden = false;
+  feld.textContent = "Gespeichert. Ich schaue mir das an.";
+  try {
+    const text = await aktionen.tagesCheckinAuswerten({ tag, at });
+    if (text) {
+      feld.textContent = text;
+      store.checkinTagAntwortSetzen(tag, at, text);
+    } else {
+      feld.textContent = "Gespeichert. Eine Antwort von daevo gibt es mit KI, dein Eintrag steht im Tagebuch.";
+    }
+  } catch (error) {
+    feld.textContent = `Gespeichert. Die Antwort hat nicht geklappt: ${error.message}`;
+  } finally {
+    knopf.disabled = false;
+    knopf.textContent = "Check-in speichern";
+    renderCheckins();
+  }
 });
 
 $("gewichtZeitraum").addEventListener("click", (event) => {
@@ -4293,8 +4839,207 @@ $("btnKopf").addEventListener("click", async () => {
 
 diktatKnopf("btnKopfDiktat", "kopfText", "Sprich in Ruhe. Tipp auf Fertig, wenn du durch bist.");
 
-$("btnBriefingMorgen").addEventListener("click", () => { $("briefingText").textContent = briefing("morgen"); });
-$("btnBriefingAbend").addEventListener("click", () => { $("briefingText").textContent = briefing("abend"); });
+/**
+ * Das Briefing als Präsentation, morgens für heute, abends für morgen. Der
+ * Text dazu steht weiter im Chat und in der Mitteilung, hier nur Karten.
+ */
+let bsArt = "morgen";
+let bsSteuerung = null;
+function briefingRechnen() {
+  return tagesbriefingFuer(bsArt === "abend" ? "abend" : "morgen");
+}
+function briefingShowOeffnen(art) {
+  bsArt = art === "abend" ? "abend" : "morgen";
+  let b;
+  try { b = briefingRechnen(); } catch (e) { console.error(e); toast("Das Briefing liess sich nicht rechnen."); return; }
+  bsSteuerung = briefingZeigen(b, $("briefingShow"), {
+    aktion: (was) => { if (was === "tag") showView("tag"); },
+    anpassen: briefingAnpassen,
+  });
+}
+
+/** Nach einer Änderung neu rechnen und auf derselben Karte weiter. */
+function briefingNeu() {
+  try { bsSteuerung?.aktualisieren(briefingRechnen()); } catch (e) { console.error(e); }
+  refreshAll();
+}
+
+/**
+ * "Anpassen" auf einer Karte. Essen und Fokus ändern sich direkt im
+ * Briefing, die Präsentation hält so lange an. Der Rest gehört auf seine
+ * Seite: Termine in den Kalender, Aufgaben auf Dein Tag, Standards zu den
+ * Standards. Dorthin schliesst die Präsentation.
+ */
+function briefingAnpassen(art, zeile, steuerung) {
+  if (art === "essen" && zeile) { steuerung.anhalten(true); bsaOeffnen(zeile); return; }
+  if (art === "fokus") { steuerung.anhalten(true); bsfOeffnen(); return; }
+  const ziel = { tag: "kalender", achtung: "kalender", tun: "tag", untergrenze: "standards", rueckblick: "heute" }[art];
+  if (!ziel) return;
+  if (ziel === "heute") heuteTag = todayIso();
+  showView(ziel);
+  if (art === "rueckblick") setTimeout(() => erfassenOeffnen({ currentTarget: $("btnErfassenHeute") }), 250);
+  return "schliessen";
+}
+
+/* ---------- Eine Mahlzeit im Briefing ändern ---------- */
+
+let bsaZeile = null;
+const MAHLZEIT_NAME = { fruehstueck: "Frühstück", mittagessen: "Mittagessen", snack: "Snack", abendessen: "Abendessen" };
+
+function bsaOeffnen(zeile) {
+  bsaZeile = zeile;
+  const tag = briefingTag(bsArt);
+  const gewaehlt = essenWahlFuer(tag).some((w) => w.art === zeile.art);
+  $("bsaTitel").textContent = `${MAHLZEIT_NAME[zeile.art] || zeile.name} ändern`;
+  $("bsaVorschlag").textContent = `${gewaehlt ? "Gerade" : "Vorschlag"}: ${zeile.gericht}, ${zeile.kcal} kcal um ${zeile.um}`;
+  $("bsaText").value = "";
+  $("bsaHinweis").textContent = "";
+  $("bsaVorschlagZurueck").hidden = !gewaehlt;
+  // Eintragen gibt es nur für heute: morgen ist noch nichts gegessen.
+  $("bsaGegessen").hidden = tag !== todayIso();
+  $("bsaGegessen").textContent = gewaehlt ? "Gegessen, jetzt eintragen" : "So gegessen, jetzt eintragen";
+  bsaBeschaeftigt(false);
+  $("bsAendern").hidden = false;
+}
+
+function bsaSchliessen({ weiter = true } = {}) {
+  $("bsAendern").hidden = true;
+  bsaZeile = null;
+  if (weiter) bsSteuerung?.anhalten(false);
+}
+
+function bsaBeschaeftigt(an, text = "") {
+  for (const id of ["bsaGegessen", "bsaUebernehmen", "bsaFoto", "bsaScan", "bsaSuchen", "bsaMikro"]) $(id).disabled = an;
+  $("bsaUebernehmen").textContent = an ? "daevo rechnet" : "Übernehmen";
+  if (text) $("bsaHinweis").textContent = text;
+}
+
+/** Nach einer gespeicherten Wahl: zu, neu rechnen, kurz sagen, was gilt. */
+function bsaFertig(satz) {
+  bsaSchliessen();
+  briefingNeu();
+  toast(satz || "Geändert. Der Rest des Tages ist neu gerechnet.", 3500);
+}
+
+$("bsaZu").addEventListener("click", () => bsaSchliessen());
+$("bsAendern").addEventListener("click", (ev) => { if (ev.target === $("bsAendern")) bsaSchliessen(); });
+diktatKnopf("bsaMikro", "bsaText", "Sag, was du stattdessen isst, mit Menge. Tipp auf Fertig, dann übernimmt daevo.", {
+  nachFertig: () => $("bsaUebernehmen").click(),
+});
+
+$("bsaUebernehmen").addEventListener("click", async () => {
+  const text = $("bsaText").value.trim();
+  if (!bsaZeile) return;
+  if (!text) { $("bsaHinweis").textContent = "Schreib oder sag, was du isst, etwa 200 g Reis mit Hähnchen."; $("bsaText").focus(); return; }
+  bsaBeschaeftigt(true, "");
+  const r = await essenWahlAusText(briefingTag(bsArt), bsaZeile.art, text);
+  bsaBeschaeftigt(false);
+  if (!r.ok) { $("bsaHinweis").textContent = r.text; return; }
+  bsaFertig(r.text ? `Geändert. ${r.text}` : "");
+});
+
+$("bsaFoto").addEventListener("click", async () => {
+  if (!(await kiFreigabe())) { toast("Fotos auswerten braucht die KI. Du kannst sie im Profil unter Datenschutz erlauben."); return; }
+  $("bsaDatei").value = "";
+  $("bsaDatei").click();
+});
+$("bsaDatei").addEventListener("change", async () => {
+  const datei = $("bsaDatei").files?.[0];
+  if (!datei || !bsaZeile) return;
+  bsaBeschaeftigt(true, "daevo schaut sich das Foto an.");
+  const anhang = await anhangAusDatei(datei);
+  if (anhang.fehler) { bsaBeschaeftigt(false, anhang.fehler); return; }
+  const r = await essenWahlAusFoto(briefingTag(bsArt), bsaZeile.art, anhang);
+  bsaBeschaeftigt(false, r.ok ? "" : r.text);
+  if (r.ok) bsaFertig();
+});
+
+/** Scannen und Suchen laufen über den Editor, dort lässt sich die Menge danach ändern. */
+function bsaImEditor(fokus) {
+  const zeile = bsaZeile;
+  if (!zeile) return;
+  const tag = briefingTag(bsArt);
+  const vorher = essenWahlFuer(tag).find((w) => w.art === zeile.art);
+  bsaSchliessen({ weiter: false });
+  $("briefingShow").hidden = true;
+  wahlEditorOeffnen({
+    tag, art: zeile.art, um: vorher?.um || zeile.um, posten: vorher?.posten || [],
+    titel: `${MAHLZEIT_NAME[zeile.art] || zeile.name} ändern`, fokus,
+    fertig: (gespeichert) => {
+      $("briefingShow").hidden = false;
+      if (gespeichert) briefingNeu();
+      bsSteuerung?.anhalten(false);
+    },
+  });
+}
+$("bsaScan").addEventListener("click", () => bsaImEditor("barcode"));
+$("bsaSuchen").addEventListener("click", () => bsaImEditor("suche"));
+$("bsaGegessen").addEventListener("click", () => {
+  if (!bsaZeile) return;
+  const art = bsaZeile.art;
+  const vorher = essenWahlFuer(todayIso()).find((w) => w.art === art);
+  const r = geplanteMahlzeitEintragen(art);
+  if (!r) { $("bsaHinweis").textContent = "Dazu gibt es nichts zum Eintragen. Sag oder tipp oben, was du gegessen hast."; return; }
+  bsaSchliessen();
+  briefingNeu();
+  refreshAll();
+  toastAktion(`${MAHLZEIT_NAME[art] || "Mahlzeit"} eingetragen, ${r.kcal} kcal um ${r.at}.`, "Rückgängig", () => {
+    store.removeMeal(r.tag, r.id);
+    if (vorher) essenWahlSetzen(r.tag, art, vorher);
+    briefingNeu();
+    refreshAll();
+  });
+});
+$("bsaVorschlagZurueck").addEventListener("click", () => {
+  if (!bsaZeile) return;
+  essenWahlSetzen(briefingTag(bsArt), bsaZeile.art, null);
+  bsaFertig("Wieder der Vorschlag von daevo.");
+});
+
+/* ---------- Den Fokus im Briefing wählen ---------- */
+
+function bsfOeffnen() {
+  const tag = briefingTag(bsArt);
+  const jetzt = store.getSettings().briefingFokus;
+  const liste = fokusKandidaten().slice(0, 8);
+  $("bsfListe").innerHTML = liste.length
+    ? liste.map((t, i) => `<button type="button" class="bsf-wahl${jetzt?.tag === tag && jetzt.text === t ? " an" : ""}" data-bsf="${i}">${escapeHtml(t)}</button>`).join("")
+    : '<p class="bsa-vorschlag">Keine offenen Aufgaben. Schreib unten, worauf es ankommt.</p>';
+  $("bsfListe").dataset.liste = JSON.stringify(liste);
+  $("bsfText").value = "";
+  $("bsfZurueck").hidden = !(jetzt?.tag === tag);
+  $("bsFokus").hidden = false;
+}
+function bsfSchliessen() { $("bsFokus").hidden = true; bsSteuerung?.anhalten(false); }
+function bsfSetzen(text) {
+  fokusWaehlen(briefingTag(bsArt), text);
+  $("bsFokus").hidden = true;
+  briefingNeu();
+  bsSteuerung?.anhalten(false);
+}
+$("bsfZu").addEventListener("click", bsfSchliessen);
+$("bsFokus").addEventListener("click", (ev) => {
+  if (ev.target === $("bsFokus")) return bsfSchliessen();
+  const k = ev.target.closest("[data-bsf]");
+  if (!k) return;
+  const liste = JSON.parse($("bsfListe").dataset.liste || "[]");
+  if (liste[Number(k.dataset.bsf)]) bsfSetzen(liste[Number(k.dataset.bsf)]);
+});
+$("bsfSetzen").addEventListener("click", async () => {
+  const text = $("bsfText").value.trim();
+  if (!text) { $("bsfText").focus(); return; }
+  // Ein eigener Fokus wird eine Aufgabe für diesen Tag: sonst gälte er nur,
+  // solange er in der Liste steht, und dort stünde er nie.
+  if (!fokusKandidaten().includes(text)) {
+    try { await aufgabeAnlegenEingestuft(text); } catch (e) { console.error(e); }
+  }
+  bsfSetzen(text);
+});
+$("bsfZurueck").addEventListener("click", () => bsfSetzen(null));
+for (const k of document.querySelectorAll(".bs-wahl [data-briefing-zeigen]")) {
+  k.addEventListener("click", () => briefingShowOeffnen(k.dataset.briefingZeigen));
+}
+$("kalBriefingShow").addEventListener("click", () => briefingShowOeffnen(briefingArt));
 
 $("btnMittag").addEventListener("click", () => {
   const zahl = (id, min, max) => Math.max(min, Math.min(max, Number($(id).value) || min));
@@ -4373,6 +5118,13 @@ async function zielKalenderZeigen() {
     .join("");
 }
 
+$("btnKalAlle").addEventListener("click", async () => {
+  const s = store.getSettings();
+  store.setSettings({ ...s, kalenderAlle: !s.kalenderAlle });
+  await kalenderAbgleichen({ zwang: true });
+  refreshAll();
+});
+
 function renderKalender() {
   renderTodoist();
   $("kalTag").value = kalenderTag;
@@ -4381,6 +5133,17 @@ function renderKalender() {
   $("btnAppleKalender").hidden = Boolean(sync.appleKalender);
   $("kalKonten").textContent = sync.appleKalender ? kontenText(sync.kalenderKonten) : "";
   zielKalenderZeigen();
+  // Welcher Kalender gelesen wird. Ohne die Zeile wüsste niemand, warum ein
+  // Termin aus dem alten iCloud Kalender nicht mehr im Briefing steht.
+  const ue = sync.kalenderUebersicht;
+  const mehrere = Boolean(sync.appleKalender && (sync.kalenderAlle || ue?.ignoriert?.length));
+  $("kalHaupt").textContent = !sync.appleKalender || !ue ? ""
+    : sync.kalenderAlle ? "daevo liest alle Kalender auf deinem iPhone."
+    : ue.haupt ? `daevo liest ${ue.haupt.name} mit ${ue.haupt.anzahl} Terminen, den Kalender, den du am meisten nutzt. `
+      + `Nicht gelesen: ${ue.ignoriert.map((z) => `${z.name} (${z.anzahl})`).join(", ")}. Geburtstage und Feiertage laufen separat.`
+    : "";
+  $("btnKalAlle").hidden = !mehrere;
+  $("btnKalAlle").textContent = sync.kalenderAlle ? "Nur den meistgenutzten Kalender lesen" : "Alle Kalender lesen";
   $("btnKalAbgleich").hidden = !(sync.appleKalender || kalenderAbos(sync).length);
 
   const stand = kalenderStand();
@@ -4426,11 +5189,12 @@ function renderKalender() {
     ? `${uhrzeit(a.fokusblock.von)} bis ${uhrzeit(a.fokusblock.bis)}, ${kurzDauer(a.fokusblock.minuten)}`
     : "keiner";
 
-  fuelleListe("kalListe", [...a.ganztags, ...a.termine].map((t) => ({
+  const geburtstage = (a.geburtstage || []).map((n) => ({ titel: `${n} hat Geburtstag`, sub: "ganztägig", seite: "" }));
+  fuelleListe("kalListe", [...geburtstage, ...[...a.ganztags, ...a.termine].map((t) => ({
     titel: t.titel,
     sub: t.ganztags ? "ganztägig" : `${uhrzeit(t.von)} bis ${uhrzeit(t.bis)}${t.ort ? `, ${t.ort}` : ""}`,
     seite: t.quelle || "",
-  })), "Keine Termine an diesem Tag.");
+  }))], "Keine Termine an diesem Tag.");
 
   essenZeichnen(kalenderTag);
 
@@ -4491,7 +5255,7 @@ $("kalTag").addEventListener("change", (event) => {
 let briefingArt = "morgen";
 /** Ob die blassen Punkte nach den ersten vier aufgeklappt sind. */
 let briefingAlles = false;
-const PUNKT_ART = { aufgabe: "Aufgabe", termin: "Termin", essen: "Essen", training: "Training" };
+const PUNKT_ART = { aufgabe: "Aufgabe", termin: "Termin", essen: "Essen", training: "Training", feierabend: "Schluss für heute" };
 
 /**
  * Das Briefing als ein Blick: oben gross, was jetzt dran ist, darunter der
@@ -4539,7 +5303,10 @@ function briefingZeichnen() {
   const achtung = abschnitt("Achtung") || abschnitt("Heute Abend vorbereiten");
   if (achtung) html += `<p class="kb-achtung"><b>${escapeHtml(achtung.titel)}:</b> ${escapeHtml(achtung.zeilen[0])}</p>`;
 
-  if (rest.length) {
+  if (b.reihenfolge?.length) {
+    // daevo zeigt, was er sortiert hat: Stufe 1, Stufe 2, dazwischen, warten, abends.
+    html += sortiertHtml(b.reihenfolge, { schluessel: `kal-${briefingArt}`, mitHaken: true, hinweis: b.musterHinweis });
+  } else if (rest.length) {
     const sichtbar = briefingAlles ? rest : rest.slice(0, 4);
     html += `<h3 class="kb-danach">Danach</h3><ol class="kb-liste">${sichtbar.map((p) => `<li class="kb-${p.art}"${p.art === "essen" && p.rezeptId ? ` data-rezept="${escapeHtml(p.rezeptId)}" role="button" tabindex="0"` : ""}>
       <span class="kb-zeit">${zeit(p)}</span><span class="kb-was"><b>${escapeHtml(p.titel)}</b><small>${escapeHtml(PUNKT_ART[p.art])}${p.art === "essen" ? `, ${escapeHtml(p.unter.split(", ").slice(1).join(", "))}` : ""}</small></span>${haken(p, false)}</li>`).join("")}</ol>`;
@@ -4549,11 +5316,15 @@ function briefingZeichnen() {
   }
   if (vorbei > 0) html += `<p class="kb-vorbei">${vorbei} ${vorbei === 1 ? "Punkt ist" : "Punkte sind"} heute schon vorbei.</p>`;
 
+  // Der Geburtstag steht ganz unten, nach allem, was zu tun ist.
+  const gratulieren = abschnitt("Nicht vergessen");
   const grenze = abschnitt("Deine Untergrenze");
   if (grenze) {
     html += `<details class="kb-grenze"><summary>Deine Untergrenze, ${grenze.zeilen.length} offen</summary><ul>${grenze.zeilen.map((z) => `<li>${escapeHtml(z)}</li>`).join("")}</ul></details>`;
   }
+  if (gratulieren) html += `<p class="kb-gratulieren">${escapeHtml(gratulieren.zeilen[0])}</p>`;
   ziel.innerHTML = html;
+  sortiertGezeigt(ziel);
 }
 $("kalBriefing").addEventListener("click", async (event) => {
   if (event.target.closest("[data-mehr]")) { briefingAlles = !briefingAlles; briefingZeichnen(); return; }
@@ -4725,6 +5496,14 @@ async function kalenderStill() {
   if (!s.appleKalender && !kalenderAbos(s).length) return;
   try {
     const r = await kalenderAbgleichen();
+    // Der Plan aus dem Profil gehört auch in den echten Kalender.
+    if (s.appleKalender) {
+      const { planInDenKalender } = await import("./kalender-schreiben.js");
+      const p = await planInDenKalender();
+      if (p.angelegt || p.entfernt) refreshAll();
+      // Überschneidungen sofort melden, nicht erst, wenn iOS die Wache weckt.
+      nativAufruf("Kalender", "wachePruefen").catch(() => {});
+    }
     if (!r.uebersprungen && r.ergebnisse.some((e) => e.anzahl !== undefined)) {
       refreshAll();
       // Ein SLEEP Eintrag im Kalender verschiebt die Erinnerungen vor dem
@@ -4875,6 +5654,11 @@ $("btnSaveProfile").addEventListener("click", () => {
     randModus: $("e-randmodus").value === "wochentag" ? "wochentag" : "gleich",
     wechselndeZeiten: $("e-randmodus").value === "wechselnd",
     wochenraender: $("e-randmodus").value === "wochentag" ? wochenzeitenLesen() : undefined,
+    essenszeiten: {
+      ersteNachMin: Number($("e-ersteMahlzeit").value),
+      mittag: $("e-mittag").value || "12:30",
+      abend: $("e-abend").value || "19:00",
+    },
     // Ausnahmen für einzelne Tage bleiben erhalten. Sie hängen nicht am Modus,
     // und wer sie beim Speichern des Profils verlöre, müsste seine Schicht für
     // morgen jedes Mal neu eintragen.
@@ -4971,6 +5755,7 @@ $("btnWcSpeichern").addEventListener("click", async () => {
   try {
     const text = await buildActions({ onChange: refreshAll }).checkinAuswerten({ bogen: wcBogen.id });
     feld.textContent = text;
+    store.checkinAntwortSetzen(eintrag.tag, eintrag.bogen, text);
   } catch (error) {
     feld.textContent = `Gespeichert. Die Auswertung hat nicht geklappt: ${error.message}`;
   } finally {
@@ -4993,6 +5778,11 @@ $("btnSaveTage").addEventListener("click", () => {
     randModus: $("e-randmodus").value === "wochentag" ? "wochentag" : "gleich",
     wechselndeZeiten: $("e-randmodus").value === "wechselnd",
     wochenraender: $("e-randmodus").value === "wochentag" ? wochenzeitenLesen() : undefined,
+    essenszeiten: {
+      ersteNachMin: Number($("e-ersteMahlzeit").value),
+      mittag: $("e-mittag").value || "12:30",
+      abend: $("e-abend").value || "19:00",
+    },
   };
   store.setProfile(profile);
   refreshAll();
@@ -5081,6 +5871,13 @@ let mePosten = [];
 let meArt = "";
 let meScanLaeuft = false;
 
+/**
+ * Der Editor als Wahl für das Briefing: dieselbe Suche, derselbe Scanner,
+ * dieselben Mengen, nur gespeichert wird nicht in den Tag, sondern als
+ * geplante Mahlzeit in `settings.essenWahl`. Morgen ist noch nichts gegessen.
+ */
+let meWahl = null;
+
 /** Öffnet den Editor für eine Mahlzeit des heutigen Tages. */
 /** Ob die offene Mahlzeit gerade erst für diesen Editor angelegt wurde. */
 let meNeu = false;
@@ -5114,9 +5911,15 @@ function mahlzeitSchliessen() {
   // abbricht, darf keine Zeile mit null Kalorien im Verlauf zurücklassen.
   // Gezählt wird, was gespeichert ist: ein vorbelegtes Rezept hat Posten im
   // Editor, aber noch keine im Tag, und Abbrechen darf es nicht stehen lassen.
-  if (meMahlzeit && meNeu && !store.getDay(meTag).meals.find((m) => m.id === meMahlzeit.id)?.entries?.length) {
+  if (!meWahl && meMahlzeit && meNeu && !store.getDay(meTag).meals.find((m) => m.id === meMahlzeit.id)?.entries?.length) {
     store.removeMeal(meTag, meMahlzeit.id);
   }
+  // Aus dem Briefing geöffnet: zurück in die Präsentation, gespeichert oder nicht.
+  const wahl = meWahl;
+  meWahl = null;
+  $("meTitel").textContent = "Mahlzeit";
+  $("meLoeschen").textContent = "Mahlzeit löschen";
+  if (wahl) setTimeout(() => wahl.fertig?.(wahl.gespeichert), 0);
   meNeu = false;
   $("mahlzeitEditor").hidden = true;
   document.body.classList.remove("blatt-offen");
@@ -5157,6 +5960,31 @@ function mahlzeitLoeschen(tag, id) {
     refreshAll();
     if (!$("herkunftBlatt").hidden) herkunftZeigen();
   });
+}
+
+function wahlEditorOeffnen({ tag, art, um, posten = [], titel, fokus, fertig }) {
+  meWahl = { tag, art, fertig, gespeichert: false };
+  meTag = tag;
+  meMahlzeit = { id: "wahl", at: um || "12:00", entries: [] };
+  meNeu = false;
+  mePosten = posten.map((e) => ({ ...e }));
+  meArt = art;
+  $("meZeit").value = um || "12:00";
+  $("meSuche").value = "";
+  $("meTreffer").hidden = true;
+  $("meSuchHinweis").textContent = "";
+  $("meHandHinweis").textContent = "";
+  $("meRezeptForm").hidden = true;
+  $("meRezeptHinweis").textContent = "";
+  $("meTitel").textContent = titel || "Mahlzeit ändern";
+  $("meLoeschen").textContent = "Wieder den Vorschlag nehmen";
+  meArtenZeichnen();
+  mePostenZeichnen();
+  meBibliothekZeichnen();
+  $("mahlzeitEditor").hidden = false;
+  document.body.classList.add("blatt-offen");
+  if (fokus === "suche") $("meSuche").focus();
+  if (fokus === "barcode") meScanStarten();
 }
 
 function mahlzeitNeu(fokus, tag = day) {
@@ -5246,6 +6074,20 @@ $("rbSchliessen").addEventListener("click", rezeptBlattSchliessen);
 $("rezeptBlatt").addEventListener("click", (ev) => { if (ev.target === $("rezeptBlatt")) rezeptBlattSchliessen(); });
 $("rbHeute").addEventListener("click", () => { const m = rbMahlzeit; rezeptBlattSchliessen(); if (m) rezeptInEditor(m, todayIso()); });
 $("rbMorgen").addEventListener("click", () => { const m = rbMahlzeit; rezeptBlattSchliessen(); if (m) rezeptInEditor(m, folgetag(todayIso())); });
+// Einplanen heisst: daevo hat es vorgeschlagen, du isst es, also steht es im
+// Kalender zu der Zeit, zu der daevo es gerechnet hat.
+$("rbKalender").addEventListener("click", async () => {
+  const m = rbMahlzeit;
+  if (!m?.rezept) return;
+  const d = new Date(m.um);
+  const tag = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const { mahlzeitenEinplanen } = await import("./kalender-schreiben.js");
+  const r = await mahlzeitenEinplanen([{ tag, art: m.art, name: m.rezept.name, uhrzeit: uhrzeit(m.um),
+    notiz: `${m.rezept.kcal} kcal, ${m.rezept.proteinG} g Protein. Von daevo vorgeschlagen.` }]);
+  rezeptBlattSchliessen();
+  toast(r.ohneKalender ? "Verbinde zuerst deinen Kalender, auf der Kalenderseite unter Apple Kalender."
+    : r.angelegt ? `${m.name} um ${uhrzeit(m.um)} steht in deinem Kalender.` : "Die Zeit ist schon vorbei.");
+});
 
 /** Sucht den Vorschlag mit diesem Rezept an diesem Tag. */
 function vorschlagFuer(tag, rezeptId) {
@@ -5824,6 +6666,12 @@ $("meHandAdd").addEventListener("click", () => {
 
 $("meLoeschen").addEventListener("click", () => {
   if (!meMahlzeit) return;
+  if (meWahl) {
+    essenWahlSetzen(meWahl.tag, meWahl.art, null);
+    meWahl.gespeichert = true;
+    mahlzeitSchliessen();
+    return;
+  }
   const { id } = meMahlzeit;
   const tag = meTag;
   // Erst schliessen, dann löschen: mahlzeitSchliessen räumt eine neue, leere
@@ -5835,6 +6683,15 @@ $("meLoeschen").addEventListener("click", () => {
 
 $("meSpeichern").addEventListener("click", () => {
   if (!meMahlzeit) return;
+  if (meWahl) {
+    // Leer heisst: wieder der Vorschlag.
+    essenWahlSetzen(meWahl.tag, meWahl.art, mePosten.length
+      ? { name: mePosten.map((e) => e.name).join(", "), um: $("meZeit").value || undefined, posten: mePosten } : null);
+    meWahl.gespeichert = true;
+    mahlzeitSchliessen();
+    toast(mePosten.length ? "Geändert. Der Rest des Tages ist neu gerechnet." : "Wieder der Vorschlag von daevo.");
+    return;
+  }
   // Eine Mahlzeit ohne Posten ist keine Mahlzeit. Sie stehen zu lassen hiesse,
   // eine Zeile mit null Kalorien im Verlauf zu führen.
   if (mePosten.length === 0) {
@@ -6162,6 +7019,9 @@ function rechteFragen() {
 /* ---------- Apple Health in der iPhone App ---------- */
 
 let healthLaeuft = false;
+// Offen alle zehn Minuten. Vorher nur beim Öffnen, und wer daevo nach dem
+// Training offen hatte, sah die Kalorien der Stunde davor nie.
+setInterval(() => { if (document.visibilityState === "visible") healthNativ(); }, 10 * 60_000);
 
 /**
  * Liest Apple Health beim Start und bei jedem Zurückholen der App. Läuft
@@ -6221,17 +7081,11 @@ async function mitteilungenNativ() {
   try {
     const { antworten = [], geoeffnet = null } = await nativAufruf("Mitteilungen", "abholen");
     for (const eintrag of antworten) {
-      if (eintrag?.aktion === "antworten") { await mitteilungAntworten(eintrag); continue; }
-      if (eintrag?.art === "kalender") {
-        // "Lassen" heisst nichts tun. "Umplanen" rechnet den Platz hier,
-        // denn die Mitteilung kam aus dem Hintergrund ohne Web Ansicht.
-        if (eintrag.aktion !== "umplanen" || !eintrag.eid) continue;
-        const { konfliktUmplanen } = await import("./kalender-schreiben.js");
-        const satz = await konfliktUmplanen({ eid: eintrag.eid, von: eintrag.von });
-        toast(satz.replace(/^Noch nicht gespeichert\. /, ""), 8000);
-        refreshAll();
-        continue;
-      }
+      if (eintrag?.text) { await mitteilungAntworten(eintrag); continue; }
+      // Knöpfe ohne Text: Wasser dazu, Training verschieben. "Lassen" und
+      // "Kalender öffnen" heissen für die App nichts tun.
+      if (await aktionAusMitteilung(eintrag)) continue;
+      if (eintrag?.art === "kalender") continue;
       if (antwortVerarbeiten(eintrag, { store, brain })) toast("Antwort übernommen");
     }
     // Ein Training von der Uhr: Chat öffnen und Health lesen, dort entsteht
@@ -6239,7 +7093,8 @@ async function mitteilungenNativ() {
     if (geoeffnet?.art === "training") { showView("assistant"); healthNativ(); }
     else if (geoeffnet?.art === "antwort") showView("assistant");
     else if (geoeffnet?.art === "luecke") lueckeFrageOeffnen();
-    else if (geoeffnet?.art && geoeffnet.art !== "runterfahren") impulsOeffnen({ art: geoeffnet.art });
+    else if (geoeffnet?.art === "satzpause") training.fortsetzen();
+    else if (geoeffnet?.art) impulsOeffnen({ art: geoeffnet.art });
 
     await mitteilungenNeuPlanen();
   } catch {
@@ -6278,10 +7133,30 @@ window.daevoMitteilungAntworten = async () => {
   if (!istNativ()) return;
   const { antworten = [] } = await nativAufruf("Mitteilungen", "abholen");
   for (const eintrag of antworten) {
-    if (eintrag?.aktion === "antworten") await mitteilungAntworten(eintrag);
+    if (eintrag?.text) await mitteilungAntworten(eintrag);
+    else if (await aktionAusMitteilung(eintrag)) continue;
     else if (antwortVerarbeiten(eintrag, { store, brain })) refreshAll();
   }
 };
+
+/**
+ * Ein Knopf an einer Mitteilung, der etwas tut: Wasser dazu oder das Training
+ * verschieben. Das Ergebnis steht als Meldung in der App, liegt die App nicht
+ * vorn, als Mitteilung: ein Knopf ohne Rückmeldung wird zweimal getippt.
+ */
+async function aktionAusMitteilung(eintrag) {
+  let satz = wasserAusAktion(eintrag, store);
+  if (!satz && eintrag?.art === "kalender" && eintrag.aktion === "umplanen" && eintrag.eid) {
+    // Den freien Platz rechnet die App mit denselben Regeln wie im Gespräch.
+    const { konfliktUmplanen } = await import("./kalender-schreiben.js");
+    satz = (await konfliktUmplanen({ eid: eintrag.eid, von: eintrag.von })).replace(/^Noch nicht gespeichert\. /, "");
+  }
+  if (!satz) return false;
+  refreshAll();
+  if (document.visibilityState === "visible") toast(satz, 8000);
+  else await nativAufruf("Mitteilungen", "sofort", { titel: "daevo", text: satz }).catch(() => {});
+  return true;
+}
 
 async function mitteilungenNeuPlanen() {
   const d = new Date();
@@ -6310,9 +7185,19 @@ function planSpaeter() {
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") {
     kalenderStill();
-    healthNativ().then(() => mitteilungenNativ()).then(morgenVielleicht);
+    // Erst die Mitteilung, dann Health: der Abgleich dauert Sekunden, und
+    // so lange stand nach einem Tipp die Startseite da.
+    mitteilungenNativ().then(() => healthNativ()).then(morgenVielleicht);
   }
 });
+
+/* ---------- Abendroutine ---------- */
+
+const abend = abendStarten({
+  store, heute: todayIso,
+  jetztUhrzeit: () => { const d = new Date(); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; },
+});
+$("btnAbendroutine").addEventListener("click", () => abend.oeffnen());
 
 /* ---------- Guten Morgen Check-in ---------- */
 
@@ -6322,6 +7207,7 @@ const morgen = morgenStarten({
   // nach der Nachfrage fällt sie wieder weg.
   gespeichert: () => { refreshAll(); mitteilungenNativ(); },
   tagesbriefing: () => { try { return tagesbriefingFuer("morgen"); } catch { return null; } },
+  schlafWoche: () => { try { return schlafWocheHtml(schlafWocheFuer(store, todayIso())); } catch { return ""; } },
   kalenderFrisch: async () => {
     const s = store.getSettings();
     if (!s.appleKalender && !kalenderAbos(s).length) return;
@@ -6475,12 +7361,12 @@ function aboStufenZeigen() {
   $("aboKaufen").textContent = aboAnlassJetzt?.testphase ? `${aboAnlassJetzt.knopf}, danach ${p.preis} ${p.zeitraum}` : `${s.name} holen, ${p.preis} ${p.zeitraum}`;
   $("aboKaufen").hidden = !link && !(istNativ() && KONFIG.chatUrl);
   $("aboHinweis").textContent = aboAnlassJetzt?.testphase
-    ? `Die ersten 7 Tage kosten nichts. Ab Tag 8 ${p.preis} ${p.zeitraum}, bis Tag 7 kostenlos kündbar${istNativ() ? " in den Einstellungen deiner Apple ID" : " über den Link in der Bestätigungsmail"}. Ohne Abo läuft alles weiter, was keine KI braucht.`
+    ? `Die ersten 7 Tage kosten nichts. Ab Tag 8 ${p.preis} ${p.zeitraum}, bis Tag 7 kostenlos kündbar${istNativ() ? " in den Einstellungen deiner Apple ID" : " über den Link in der Bestätigungsmail"}.`
     : istNativ()
-    ? "Abgerechnet über deine Apple ID, kündbar in deren Einstellungen. Alles ohne KI bleibt in jeder Stufe frei."
+    ? "Abgerechnet über deine Apple ID, kündbar in deren Einstellungen."
     : aboTakt === "jahr"
-      ? "Einmal im Jahr abgerechnet. Das Kontingent an Nachrichten gilt je Monat. Alles ohne KI bleibt in jeder Stufe frei."
-      : "Monatlich abgerechnet. Alles ohne KI bleibt in jeder Stufe frei: Essen eintragen, Pläne, Erinnerungen, Balance Board.";
+      ? "Einmal im Jahr abgerechnet. Das Kontingent an Nachrichten gilt je Monat."
+      : "Monatlich abgerechnet, jederzeit kündbar.";
 }
 
 let aboAnlassJetzt = null;
@@ -6491,7 +7377,12 @@ function aboOeffnen(anlass = null) {
   aboWahl = anlass?.empfohlen || "plus";
   $("aboMarke").textContent = anlass?.marke || "Plus und Pro";
   $("aboTitel").textContent = anlass?.titel || "Deinen Coach freischalten";
-  $("aboSpaeter").textContent = anlass?.testphase ? "Erst ohne KI umsehen" : "Später";
+  $("aboSpaeter").textContent = "Später";
+  // Gesperrt: kein Kreuz, kein Später, kein Tipp daneben. Weg geht es nur
+  // über ein Abo.
+  $("aboBlatt").classList.toggle("gesperrt", Boolean(anlass?.gesperrt));
+  $("aboSperrLinks").hidden = !anlass?.gesperrt;
+  $("aboWiederherstellen").hidden = !(anlass?.gesperrt && (istNativ() || KONFIG.chatUrl));
   $("aboText").textContent = anlass?.text || "Mit Abo denkt daevo mit: Fotos auswerten, deinen Tag planen, mit dir reden.";
   aboStufenZeigen();
   aboMerken(anlass?.merken);
@@ -6501,6 +7392,7 @@ function aboOeffnen(anlass = null) {
 }
 
 function aboSchliessen() {
+  if (gesperrtJetzt) return;
   $("aboBlatt").hidden = true;
   document.body.classList.remove("blatt-offen");
   aboAnlassJetzt = null;
@@ -6518,6 +7410,60 @@ function aboFensterZu() {
 $("aboSchliessen").addEventListener("click", aboSchliessen);
 $("aboSpaeter").addEventListener("click", aboSchliessen);
 $("aboBlatt").addEventListener("click", (event) => { if (event.target === $("aboBlatt")) aboSchliessen(); });
+
+/* ---------- Die Sperre ---------- */
+
+var gesperrtJetzt = false;
+
+const SPERR_ANLASS = {
+  frei: { marke: "Testphase vorbei", titel: "Mach mit daevo weiter", text: "Deine Testphase ist zu Ende. Mit Plus oder Pro geht es genau dort weiter, wo du aufgehört hast. Deine Daten bleiben erhalten." },
+  start: { marke: "7 Tage kostenlos", titel: "Starte deine Testphase", text: "Du schließt das Abo jetzt ab und zahlst erst ab Tag 8. Kündigst du bis Tag 7, kostet es nichts.", knopf: "7 Tage gratis testen", testphase: true },
+  abgelaufen: { marke: "Abo abgelaufen", titel: "Dein Abo ist abgelaufen", text: "Mit Plus oder Pro geht es genau dort weiter, wo du aufgehört hast. Deine Daten bleiben erhalten." },
+};
+
+function sperreSetzen(sperre) {
+  const aktiv = Boolean(sperre);
+  // Alles ausser dem Abo Fenster wird für Tastatur und Hilfstechnik stillgelegt.
+  for (const kind of $("app").children) if (kind.id !== "aboBlatt") kind.inert = aktiv;
+  if (aktiv) {
+    gesperrtJetzt = false;
+    aboOeffnen({ ...SPERR_ANLASS[sperre.grund], gesperrt: true });
+    gesperrtJetzt = true;
+  } else if (gesperrtJetzt) {
+    gesperrtJetzt = false;
+    aboSchliessen();
+  }
+}
+
+/** Fragt den Server und sperrt oder gibt frei. Ohne Netz gilt der letzte Stand. */
+async function sperrePruefen(stand) {
+  if (!KONFIG.chatUrl) return null;
+  const s = stand ?? await kontoStand();
+  sperreSetzen(sperreFuer(s, store.getSettings(), todayIso()));
+  return s;
+}
+
+$("aboWiederherstellen").addEventListener("click", async () => {
+  const knopf = $("aboWiederherstellen");
+  knopf.disabled = true;
+  if (istNativ()) await abosAbgleichen().catch(() => null);
+  const s = await kontoStand();
+  knopf.disabled = false;
+  if (s?.fehler) { toast(s.fehler, 5000); return; }
+  await sperrePruefen(s);
+  if (gesperrtJetzt) toast("Zu diesem Konto gehört kein aktives Abo.", 5000);
+  else { toast("Abo gefunden. Willkommen zurück."); kontoStand().then(aboLeisteZeigen).catch(() => {}); }
+});
+$("aboDatenSichern").addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(store.exportAll(), null, 2)], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `daevo-sicherung-${todayIso()}.json`;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+$("aboKontoLoeschen").addEventListener("click", () => $("btnReset").click());
 $("btnAboZeigen").addEventListener("click", () => aboOeffnen());
 $("aboKaufen").addEventListener("click", async () => {
   if (istNativ()) {
@@ -6529,7 +7475,9 @@ $("aboKaufen").addEventListener("click", async () => {
     if (r.fehler) { toast(r.fehler, 6000); return; }
     if (r.wartet) toast("Der Kauf wartet auf eine Freigabe, etwa durch die Familienfreigabe.", 6000);
     else toast(aboAnlassJetzt?.testphase ? "Testphase läuft. Viel Spaß mit daevo." : "Abo aktiv.");
-    aboSchliessen();
+    // Gesperrt schliesst das Fenster nur der Server: erst wenn er das Abo
+    // kennt, geht die App auf.
+    if (gesperrtJetzt) await sperrePruefen(); else aboSchliessen();
     kontoStand().then(aboLeisteZeigen).catch(() => {});
     return;
   }
@@ -6562,6 +7510,9 @@ async function aboBeimStart() {
   if (istNativ()) await abosAbgleichen().catch(() => null);
   const stand = await kontoStand();
   aboLeisteZeigen(stand);
+  // Ohne Testphase und ohne Abo ist die App zu. Das geht allem anderen vor.
+  await sperrePruefen(stand);
+  if (gesperrtJetzt) return;
   // Startet die Testphase erst mit dem Abo, kommt das Fenster direkt nach
   // dem Fragebogen und vor der Einführung.
   const start = startAnlass(stand, store.getSettings().aboHinweise);
@@ -6662,18 +7613,28 @@ function impulsOeffnen(daten, { still = false } = {}) {
   const art = daten?.art;
   if (!art) return;
   if (art === "morgen") { morgen.oeffnen(); return; }
+  if (art === "runterfahren") { abend.oeffnen(); return; }
   if (art === "nachfrage") { morgen.nachfrage(); return; }
+  if (art === "luecke") { lueckeFrageOeffnen(); return; }
+  if (art === "satzpause") { training.fortsetzen(); return; }
+  // Seiten statt Chat, wo es eine Seite gibt, siehe MITTEILUNG_ZIEL.
+  const ziel = MITTEILUNG_ZIEL[art];
+  if (ziel && ziel.ansicht !== "assistant") {
+    if (ziel.ansicht === "heute") heuteTag = todayIso();
+    showView(ziel.ansicht);
+    if (ziel.aktion === "erfassen") erfassenOeffnen({ currentTarget: $("btnErfassenHeute") });
+    else if (ziel.aktion === "wasser") setTimeout(() => $("wBar")?.closest(".balken-zeile")?.scrollIntoView({ block: "center", behavior: "smooth" }), 250);
+    else if (ziel.aktion === "rueckblick") { renderBericht(); $("berichtRueckblick").open = true; }
+    else if (ziel.aktion === "morgen") {
+      document.querySelector('#kalBriefingWahl [data-briefing="abend"]')?.click();
+      // Abends kommt der Blick auf morgen als Präsentation, darunter liegt der Kalender.
+      setTimeout(() => briefingShowOeffnen("abend"), 260);
+    }
+    return;
+  }
+  if (!ziel && !impulseFuerTag(todayIso()).some((i) => i.art === art)) return;
   showView("assistant");
-  // Der Blick auf morgen: im Chat steht alles, nicht nur der eine Satz aus
-  // der Mitteilung, und eine Antwort wie "ja, trag es um 19:15 ein" geht
-  // direkt an den Coach.
-  // Das ganze Briefing für morgen, nicht nur der eine Satz aus der Mitteilung.
-  let voraus = "";
-  if (art === "vorausblick") { try { voraus = tagesbriefingFuer("abend").text; } catch { voraus = vorausblickText(vorausblickFuer(tagNach(todayIso()))); } }
-  // Gerechnet beim Antippen, nicht beim Planen: so stehen die Einträge bis
-  // eben drin.
-  if (art === "rueckblick") { try { voraus = wochenrueckblickFuer().text; } catch { return; } }
-  const impuls = voraus ? { text: voraus } : impulseFuerTag(todayIso()).find((i) => i.art === art);
+  const impuls = impulseFuerTag(todayIso()).find((i) => i.art === art);
   if (!impuls) return;
 
   const chat = store.getChat();
@@ -6810,6 +7771,7 @@ $("btnAddSession").addEventListener("click", async () => {
     store.setProfile(profile);
     renderSessions();
     toast("Einheit hinzugefügt");
+    kalenderStill();
     return;
   }
   profile.sessions = profile.sessions.map((s, k) => (k === i ? neu : s));
@@ -6822,6 +7784,7 @@ $("btnAddSession").addEventListener("click", async () => {
   toast(r.anzahl
     ? `Geändert, ${r.anzahl} ${r.anzahl === 1 ? "Termin" : "Termine"} im Kalender mitverschoben`
     : "Geändert", 4000);
+  kalenderStill();
   refreshAll();
 });
 
@@ -6831,6 +7794,7 @@ $("btnDelSession").addEventListener("click", () => {
   store.setProfile(profile);
   sessionFormular(-1);
   toast("Einheit entfernt");
+  kalenderStill();
 });
 
 $("sessionList").addEventListener("click", (event) => {
@@ -7129,6 +8093,8 @@ document.addEventListener("visibilitychange", () => {
   // Nach Mitternacht wandert eine Seite, die auf heute stand, mit.
   if (current !== day) { if (heuteTag === day) heuteTag = current; day = current; }
   refreshAll();
+  // Die Testphase endet auch, während die App im Hintergrund liegt.
+  sperrePruefen().catch(() => {});
 });
 
 applyTheme(store.getSettings().theme || "system");
@@ -7252,6 +8218,13 @@ async function uhrAbgleichen() {
     const { ereignisse = [] } = await nativAufruf("Uhr", "abholen", {});
     if (ereignisse.length) {
       const ergebnis = uhrEreignisseAnwenden(ereignisse, { store, heute: todayIso(), neueId: newId });
+      // Ein Training, das auf der Uhr läuft, läuft am iPhone mit. Eines, das
+      // dort beendet wurde, ist hier gespeichert und nicht mehr offen.
+      if (ergebnis.stand) training.vonAussen((e) => entwurfMitUhr(e, ergebnis.stand));
+      for (const t of ergebnis.trainings) {
+        training.vonUhrBeendet(t.titel, t.datum);
+        trainingInDenKalender(t);
+      }
       const satz = uhrMeldung(ergebnis);
       if (satz) { toast(satz, 4500); plaene.verlaufNeu?.(); }
       // Auf der Uhr abgehakt: hier wirklich abhaken, bei Todoist auch dort.
@@ -7297,11 +8270,16 @@ window.daevoUhrEingang = () => { uhrAbgleichen().then(() => refreshAll()); };
 
 async function uhrSenden() {
   if (!istNativ() || !uhrDa) return;
+  // Todoist zuerst, höchstens alle fünf Minuten. Sonst ging der Stand von
+  // der letzten Planung an die Uhr, und was in Todoist längst abgehakt war,
+  // stand dort noch als offen.
+  await todoistAktualisieren().catch(() => "");
   let aufgaben = [];
   try { aufgaben = uhrAufgaben(tagesplan()); } catch { /* ohne Aufgaben eine leere Liste */ }
   const paket = uhrPaket({
     settings: store.getSettings(), zahlen: dayNumbers(), heute: todayIso(), gestrichen: trainingGestrichen(store, todayIso()), ki: uhrKiZugang(),
     termine: uhrTermine(store.getKalender().termine || []), aufgaben,
+    todoistToken: String(store.getSettings().todoistToken || "").trim(),
   });
   await nativAufruf("Uhr", "senden", { paket });
 }
@@ -7342,7 +8320,13 @@ const nachUhr = () => { if (store.getProfile()) refreshAll(); };
 setTimeout(() => uhrAbgleichen().then(nachUhr), 2500);
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") uhrAbgleichen().then(nachUhr);
+  // Beim Wechsel in den Hintergrund noch einmal der neueste Stand: danach
+  // rechnet hier nichts mehr, bis die App wieder offen ist.
+  else uhrSenden().catch(() => {});
 });
+// Offen alle fünf Minuten, auch ohne Änderung hier: Todoist und der Tag
+// ändern sich nebenher, und die Uhr soll nicht auf den nächsten Tipp warten.
+setInterval(() => { if (document.visibilityState === "visible") uhrSenden().catch(() => {}); }, 5 * 60_000);
 
 // Ringe, Balken und Zahlen laufen auf ihren neuen Stand, siehe bewegung.js.
 bewegungStarten();

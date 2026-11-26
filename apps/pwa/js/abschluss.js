@@ -14,8 +14,9 @@
  * an, die Tests laufen ohne Browser.
  */
 import { UEBUNGEN } from "./uebungen-daten.js";
-import { KARTE_DUNKEL, KARTE_HELL, muskelkarteSvg, partienListe, saetzeJePartie } from "./muskelkarte.js";
+import { KARTE_DUNKEL, KARTE_HELL, KARTE_RAHMEN, muskelkarteSvg, partienListe, saetzeJePartie } from "./muskelkarte.js";
 import { vorschauPfad } from "./uebungen.js";
+import { satzText } from "./masse.js";
 
 const nachId = new Map(UEBUNGEN.map((u) => [u.id, u]));
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -40,7 +41,11 @@ export function abschlussDaten(eintraege, { titel = "Training", datum, minuten =
       id: e.uebung,
       name: nachId.get(e.uebung)?.name ?? e.uebung,
       saetze: e.saetze,
-      bestes: e.saetze.reduce((b, x) => (!b || x.kg > b.kg || (x.kg === b.kg && x.wdh > b.wdh) ? x : b), null),
+      ...(e.masse ? { masse: e.masse } : {}),
+      // Bei Sekunden, Minuten oder Metern ist der beste Satz der längste.
+      bestes: e.masse && e.masse.menge && e.masse.menge !== "wdh"
+        ? e.saetze.reduce((b, x) => (!b || (x.menge ?? 0) > (b.menge ?? 0) ? x : b), null)
+        : e.saetze.reduce((b, x) => (!b || x.kg > b.kg || (x.kg === b.kg && x.wdh > b.wdh) ? x : b), null),
     })),
     saetze, volumenKg, wdh,
     jePartie,
@@ -72,7 +77,7 @@ export function abschlussHtml(d, { hell = false } = {}) {
     const info = nachId.get(u.id);
     const bild = info ? `<img src="${esc(vorschauPfad(info))}" alt="" loading="lazy" decoding="async">` : "<span></span>";
     const b = u.bestes;
-    const best = b ? (b.kg > 0 ? `${zahl(b.kg)} kg × ${b.wdh}` : `${b.wdh} Wdh`) : "";
+    const best = b ? (u.masse ? satzText(b, u.masse) : b.kg > 0 ? `${zahl(b.kg)} kg × ${b.wdh}` : `${b.wdh} Wdh`) : "";
     return `<li>${bild}<div><b>${esc(u.name)}</b><span>${u.saetze.length} ${u.saetze.length === 1 ? "Satz" : "Sätze"}${best ? ` · bester ${esc(best)}` : ""}</span></div></li>`;
   }).join("");
   return `<div class="ab-kopf">
@@ -142,14 +147,15 @@ export async function storyBild(d) {
     g.fillText(t, x, 470);
   });
 
-  const svg = muskelkarteSvg(d.jePartie, { farben: { ...KARTE_DUNKEL, grund: "#121820" }, beschriftung: false });
+  const svg = muskelkarteSvg(d.jePartie, { farben: { ...KARTE_DUNKEL, linie: "#121820" }, beschriftung: false });
   const karte = await bildLaden(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`);
-  const kb = 940, kh = kb * (418 / 420);
-  g.drawImage(karte, (B - kb) / 2, 560, kb, kh);
+  const R = KARTE_RAHMEN;
+  const kb = 940, kh = kb * (R.hoehe / R.breite), kx = (B - kb) / 2;
+  g.drawImage(karte, kx, 560, kb, kh);
   g.fillStyle = "#5f6b7c";
   g.font = schrift(500, 32);
-  g.fillText("Vorn", B / 2 - kb / 4 - 10, 560 + kh + 40);
-  g.fillText("Hinten", B / 2 + kb / 4 + 10, 560 + kh + 40);
+  g.fillText("Vorn", kx + ((R.vorn - R.x) / R.breite) * kb, 560 + kh + 40);
+  g.fillText("Hinten", kx + ((R.hinten - R.x) / R.breite) * kb, 560 + kh + 40);
 
   // Die drei stärksten Partien.
   const top = d.partien.slice(0, 3).map((p) => `${p.name} ${zahl(p.saetze)}`).join("   ·   ");

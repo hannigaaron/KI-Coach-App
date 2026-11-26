@@ -14,7 +14,7 @@
  *
  * Kein `document`, kein `window`: das Modul läuft auch in den Tests.
  */
-import { termineAusIcs } from "@daevo/core";
+import { kalenderWaehlen, termineAusIcs } from "@daevo/core";
 import { istNativ, KONFIG } from "./konfig.js";
 import { store } from "./storage.js";
 import { kalenderFenster, kalenderTermineSetzen } from "./assistant.js";
@@ -76,6 +76,9 @@ export function appleTermine(roh) {
       von: t.von,
       bis: t.bis,
       ganztags: Boolean(t.ganztags),
+      ...(t.kalender ? { kalender: String(t.kalender) } : {}),
+      ...(Number.isFinite(t.kalenderTyp) && t.kalenderTyp ? { kalenderTyp: Number(t.kalenderTyp) } : {}),
+      ...(t.kalenderQuelle ? { kalenderQuelle: String(t.kalenderQuelle) } : {}),
       // Zum Schreiben, `kalender-schreiben.js`. Fehlen sie, ist der Termin
       // nur lesbar, etwa aus einer älteren Hülle.
       ...(t.eid ? { eid: String(t.eid), daevo: t.daevo === true, schreibbar: t.schreibbar === true } : {}),
@@ -100,7 +103,18 @@ export async function kalenderAbgleichen({ zwang = false, holen = fetch, jetzt =
       try {
         const f = kalenderFenster();
         const roh = await nativAufruf("Kalender", "termine", { von: f.von, bis: f.bis });
-        const anzahl = kalenderTermineSetzen(APPLE_QUELLE, appleTermine(roh?.termine), { art: "apple" });
+        // Nur der Kalender, in dem gelebt wird. Eine gelöschte Serie, die in
+        // einem alten iCloud Kalender noch steht, darf nicht im Briefing landen.
+        const wahl = kalenderWaehlen(appleTermine(roh?.termine), { gewaehlt: s.hauptKalender, alle: s.kalenderAlle === true });
+        store.setSettings({
+          ...store.getSettings(),
+          kalenderUebersicht: {
+            haupt: wahl.haupt ? { schluss: wahl.haupt.schluss, name: wahl.haupt.name, anzahl: wahl.haupt.anzahl } : null,
+            ignoriert: wahl.ignoriert.map((z) => ({ schluss: z.schluss, name: z.name, anzahl: z.anzahl })),
+            gedenk: wahl.gedenk,
+          },
+        });
+        const anzahl = kalenderTermineSetzen(APPLE_QUELLE, wahl.termine, { art: "apple" });
         ergebnisse.push({ name: APPLE_QUELLE, anzahl });
         // Die Konten mitlesen: fügt jemand Google in iOS hinzu, steht es beim
         // nächsten Abgleich auf der Kalenderseite, ohne dass er etwas tippt.

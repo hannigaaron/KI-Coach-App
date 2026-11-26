@@ -35,7 +35,7 @@ class SpeicherAttrappe {
 globalThis.localStorage = new SpeicherAttrappe();
 
 const { store, todayIso } = await import("./storage.js");
-const { buildActions, heuteGetauscht, heuteVerschoben, aufgabenAufraeumen, kalenderNotizAufraeumen, erinnerungenAufgeraeumt, dayNumbers, kalenderStandText, koerperText, plausibelHinweis, trifftPosten, nachtragZeit } = await import("./assistant.js");
+const { buildActions, uebungZuName, einheitAusDiktat, heuteGetauscht, heuteVerschoben, aufgabenAufraeumen, kalenderNotizAufraeumen, erinnerungenAufgeraeumt, dayNumbers, kalenderStandText, koerperText, plausibelHinweis, trifftPosten, nachtragZeit } = await import("./assistant.js");
 
 const PROFIL = {
   name: "Aaron", sex: "male", ageYears: 23, heightCm: 184, weightKg: 87,
@@ -963,4 +963,126 @@ test("Abneigungen aus dem Gespräch sperren Rezepte, Frischkäse auch Hüttenkä
   assert.ok(rezeptGesperrt(huette, { meiden }));
   const quark = REZEPTE.find((r) => r.id === "quark-beeren");
   assert.equal(rezeptGesperrt(quark, { meiden }), null);
+});
+
+test("Diktierte Übungen finden die Übung in der Datenbank, so wie sie im Studio heissen", () => {
+  const faelle = {
+    "Seitheben im Kabelzug": "Einarmiges Seitheben am Kabel",
+    Pushdowns: "Trizepsdrücken am Kabel (beidarmig)",
+    "Cable Crunches": "Cable Crunch",
+    Kniebeugen: "Kniebeuge (Langhantel)",
+    Klimmzüge: "Klimmzug",
+    "Hammer Curls": "Hammer-Curl",
+    "Bizeps Curls Kurzhantel": "Kurzhantel-Curl",
+    "Curls am Kabel": "Bizeps Curl am Kabel (Stange)",
+    "Latziehen eng": "Latzug enger Griff",
+    "Kurzhantel Schulterdrücken": "Schulterdrücken (Kurzhantel)",
+  };
+  for (const [gesagt, name] of Object.entries(faelle)) assert.equal(uebungZuName(gesagt, { ort: "studio" })?.name, name, gesagt);
+  // Was keine Übung ist, wird nicht geraten.
+  assert.equal(uebungZuName("Fahrrad"), null);
+});
+
+test("Diktierte Einheit: Sätze wie gesagt, Supersatz als Paar hintereinander, Unbekanntes bleibt drin", () => {
+  const r = einheitAusDiktat([
+    { name: "Pushdowns", saetze: 3, superset: "Cable Crunches" },
+    { name: "Bankdrücken", saetze: 4, wdh: "6 bis 8" },
+    { name: "Cable Crunches", saetze: 3 },
+    { name: "Sandsack Schlagen", saetze: 2 },
+  ], { ort: "studio" });
+  assert.deepEqual(r.positionen.map((p) => p.saetze), [3, 3, 4, 2]);
+  assert.equal(r.positionen[0].superset, "A");
+  assert.equal(r.positionen[1].name, "Cable Crunch");
+  assert.equal(r.positionen[1].superset, "A");
+  assert.equal(r.positionen[2].wdh, "6-8");
+  assert.deepEqual(r.unbekannt, ["Sandsack Schlagen"]);
+  assert.match(r.positionen[3].id, /^eigen-/);
+});
+
+test("Training für heute aus dem Diktat: genau diese Einheit, mit Cardio, danach ergänzbar", async () => {
+  const a = buildActions({});
+  store.setSettings({ ...store.getSettings(), heuteTraining: undefined, heuteVerlauf: [] });
+  const text = await a.trainingHeute({
+    uebungen: [
+      { name: "Bankdrücken", saetze: 3 }, { name: "Seitheben im Kabelzug", saetze: 3 },
+      { name: "Pushdowns", saetze: 3, superset: "Cable Crunches" }, { name: "Cable Crunches", saetze: 3 },
+    ],
+    cardio: [{ art: "Fahrrad", minuten: 30, km: 15 }],
+  });
+  assert.doesNotMatch(text, /NICHT_GESPEICHERT/);
+  assert.match(text, /so wie du sie gesagt hast/);
+  assert.match(text, /im Supersatz mit Cable Crunch/);
+  assert.match(text, /Fahrrad, 30 Minuten, 15 km/);
+  const ht = store.getSettings().heuteTraining;
+  assert.equal(ht.eigen, true);
+  assert.deepEqual(ht.einheit.positionen.map((p) => p.name), ["Bankdrücken", "Einarmiges Seitheben am Kabel", "Trizepsdrücken am Kabel (beidarmig)", "Cable Crunch"]);
+  assert.ok(ht.einheit.dauerMin >= 30 + 10);
+  // Dazu kommt eine Übung, eine andere bekommt mehr Sätze. Der Rest bleibt.
+  await a.trainingHeute({ hinzufuegen: [{ name: "Bankdrücken", saetze: 5 }, { name: "Face Pulls", saetze: 2 }] });
+  const neu = store.getSettings().heuteTraining.einheit.positionen;
+  assert.equal(neu.length, 5);
+  assert.equal(neu[0].saetze, 5);
+  assert.equal(neu[4].name, "Face Pull");
+  assert.equal(store.getSettings().heuteTraining.cardio[0].art, "Fahrrad");
+});
+
+const importe = await import("./assistant.js");
+
+test("ein abfotografierter Trainingsplan wird der eigene Plan, Unbekanntes bleibt mit Namen", () => {
+  frischerTag();
+  const text = importe.planImportieren([
+    { titel: "Push", uebungen: [{ name: "Bankdrücken", saetze: 4, wdh: "6-8" }, { name: "Seitheben", saetze: 3, wdh: "12-15" }] },
+    { titel: "Pull", uebungen: [{ name: "Klimmzüge", saetze: 3, wdh: "6-10" }, { name: "Zirkusnummer Spezial", saetze: 3, wdh: "10" }] },
+  ], "2026-11-24");
+  const plan = store.getSettings().plan;
+  assert.equal(plan.einheiten.length, 2);
+  assert.equal(plan.beginn, "2026-11-24");
+  assert.equal(plan.einheiten[0].positionen[0].saetze, 4);
+  assert.equal(plan.einheiten[0].positionen[0].wdh, "6-8");
+  assert.ok(plan.einheiten[1].positionen.some((p) => p.id.startsWith("eigen-")));
+  assert.match(text, /Zirkusnummer Spezial/);
+});
+
+test("ein Ernährungsplan wird zu eigenen Rezepten mit Abgleich am Ziel", () => {
+  frischerTag();
+  const posten = (kcal, p) => [{ name: "Test", quantity: "100 g", kcal, proteinG: p, fatG: 10, carbsG: 40 }];
+  const text = importe.ernaehrungsplanImportieren([
+    { art: "fruehstueck", name: "Porridge", posten: posten(500, 30), offen: [] },
+    { art: "abendessen", name: "Reis mit Hähnchen", posten: posten(700, 50), offen: ["Geheimsauce"] },
+  ]);
+  assert.equal(store.getSettings().eigeneRezepte.length, 2);
+  assert.match(text, /1200 kcal/);
+  assert.match(text, /jede Menge mal/);
+  assert.match(text, /Geheimsauce/);
+});
+
+test("eine Frist vom Modell bleibt, auch ohne Wichtigkeit", async () => {
+  frischerTag();
+  await buildActions({}).aufgabeAnlegen({ text: "Rechnung Müller verschicken", minuten: 15, faellig: "2026-12-01" });
+  const a = store.getAufgaben().find((x) => x.text.startsWith("Rechnung"));
+  assert.equal(a.faellig, "2026-12-01");
+  assert.equal(a.minuten, 15);
+});
+
+test("eine gewählte Mahlzeit von heute geht mit einem Tipp in den Tag, nie in die Zukunft", () => {
+  const tag = frischerTag();
+  const frueh = new Date(`${tag}T07:00:00`).getTime();
+  importe.essenWahlSetzen(tag, "abendessen", { name: "Reis mit Hähnchen", posten: [{ name: "Reis", quantity: "200 g", kcal: 260, proteinG: 5, fatG: 1, carbsG: 57 }] });
+  const r = importe.geplanteMahlzeitEintragen("abendessen", frueh);
+  assert.ok(r);
+  assert.equal(r.kcal, 260);
+  assert.equal(r.at, "07:00", "eine geplante Uhrzeit nach jetzt wird jetzt");
+  const mahlzeit = store.getDay(tag).meals.find((m) => m.id === r.id);
+  assert.equal(mahlzeit.entries[0].name, "Reis");
+  assert.equal(importe.essenWahlFuer(tag).length, 0, "die Wahl fällt weg, der Eintrag gilt");
+});
+
+test("der Vorschlag von daevo lässt sich ebenso eintragen", () => {
+  const tag = frischerTag();
+  const frueh = new Date(`${tag}T06:30:00`).getTime();
+  const plan = importe.tagesessenFuer(tag, frueh).mahlzeiten.find((m) => m.rezept?.posten?.length);
+  if (!plan) return;
+  const r = importe.geplanteMahlzeitEintragen(plan.art, frueh);
+  assert.ok(r);
+  assert.equal(store.getDay(tag).meals.find((m) => m.id === r.id).entries.length, plan.rezept.posten.length);
 });

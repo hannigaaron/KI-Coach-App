@@ -84,6 +84,10 @@ export const AGENT_TOOLS: ToolDefinition[] = [
           type: "string",
           description: "Teil des Namens, wenn der Nutzer einen bestimmten Eintrag nennt, etwa Magerquark.",
         },
+        tag: {
+          type: "string",
+          description: "Tag des Eintrags, wenn nicht heute: gestern, vorgestern oder YYYY-MM-DD.",
+        },
       },
     },
   },
@@ -220,6 +224,12 @@ export const AGENT_TOOLS: ToolDefinition[] = [
       type: "object",
       properties: {
         tage: { type: "number", description: "Wie viele Tage ab heute, 1 bis 14. Ohne Angabe 7." },
+        tag: {
+          type: "string",
+          description:
+            "Nur ein einzelner Tag: heute, morgen, uebermorgen, ein Wochentag oder JJJJ-MM-TT. Bei \"was steht morgen " +
+            "im Kalender\" immer setzen, sonst kommen die nächsten sieben Tage. Hat Vorrang vor tage.",
+        },
         stand: {
           type: "boolean",
           description:
@@ -240,7 +250,7 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     input_schema: {
       type: "object",
       properties: {
-        tag: { type: "string", description: "Datum als JJJJ-MM-TT. Ohne Angabe heute." },
+        tag: { type: "string", description: "heute, morgen, uebermorgen, ein Wochentag oder JJJJ-MM-TT. Ohne Angabe heute. Bei \"was soll ich morgen essen\" immer morgen." },
       },
     },
   },
@@ -304,18 +314,20 @@ export const AGENT_TOOLS: ToolDefinition[] = [
       "heute noch frei ist, und sagt, was bis morgen warten kann. " +
       "Nehmen, wenn der Nutzer fragt, was er zuerst machen soll, wenn er sich überfordert fühlt, " +
       "wenn er nach seinem Rest des Tages fragt, und immer am Nachmittag. " +
-      "Die Aufteilung aus dieser Antwort übernimmst du, du sortierst nicht selbst um.",
+      "Die Aufteilung aus dieser Antwort übernimmst du, du sortierst nicht selbst um. " +
+      "Die App zeigt unter deiner Antwort die sortierte Übersicht (absolute Priorität, Priorität 2, dazwischen, kann warten), du musst sie nicht abschreiben.",
     input_schema: { type: "object", properties: {} },
   },
   {
     name: "tagesplan_erstellen",
     description:
-      "Plant den heutigen Tag mit Uhrzeiten: die offenen Aufgaben, eigene und die aus Todoist, in die freien " +
+      "Plant nur den HEUTIGEN Tag mit Uhrzeiten (für morgen oder jeden anderen Tag briefing_erstellen mit tag): die offenen Aufgaben, eigene und die aus Todoist, in die freien " +
       "Blöcke des Kalenders, wichtigstes zuerst, mit Luft dazwischen. Training aus dem Profil und Essenszeiten " +
       "sind schon ausgespart. " +
       "Nehmen, wenn der Nutzer fragt, was er heute machen muss, nach einer Reihenfolge oder einer Tagesplanung, " +
       "und morgens. Die Uhrzeiten aus der Antwort übernimmst du unverändert, du verschiebst nichts selbst. " +
-      "Danach darfst du coachen: was am Plan auffällt, wo es eng wird, was er streichen könnte.",
+      "Danach darfst du coachen: was am Plan auffällt, wo es eng wird, was er streichen könnte. " +
+      "Die App zeigt unter deiner Antwort die sortierte Übersicht, du musst sie nicht abschreiben.",
     input_schema: { type: "object", properties: {} },
   },
   {
@@ -367,14 +379,20 @@ export const AGENT_TOOLS: ToolDefinition[] = [
   {
     name: "briefing_erstellen",
     description:
-      "Baut das Morgenbriefing oder den Tagesabschluss aus Kalender, Zielen, Aufgaben und Mindeststandards. " +
-      "Nehmen, wenn der Nutzer morgens fragt, wie sein Tag aussieht, oder abends den Tag abschliessen will.",
+      "Der Tag des Nutzers auf einen Blick: Termine aus dem Kalender, Aufgaben, Training, Mahlzeiten mit Uhrzeit, " +
+      "Fokus und was vorzubereiten ist. Gilt für jeden Tag, nicht nur für heute. " +
+      "IMMER tag setzen, wenn der Nutzer einen Tag nennt: \"Briefing für morgen\", \"was steht morgen an\", " +
+      "\"wie sieht morgen aus\", \"was muss ich morgen machen\", \"was ist am Freitag\" heissen tag morgen " +
+      "beziehungsweise freitag. tag nimmt heute, morgen, uebermorgen, einen Wochentag oder JJJJ-MM-TT. " +
+      "Ohne tag ist es das Briefing von heute. Der Text nennt Wochentag und Datum, prüfe, dass es der Tag ist, " +
+      "nach dem gefragt wurde. art nur setzen, wenn der Nutzer abends den Tag abschliessen will, " +
+      "sonst weglassen: art morgen heisst das Morgenbriefing VON HEUTE, nicht den Tag morgen.",
     input_schema: {
       type: "object",
       properties: {
-        art: { type: "string", enum: ["morgen", "abend"], description: "Welcher der beiden Texte." },
+        tag: { type: "string", description: "heute, morgen, uebermorgen, ein Wochentag oder JJJJ-MM-TT. Der Tag, nach dem gefragt ist." },
+        art: { type: "string", enum: ["morgen", "abend"], description: "Nur ohne tag: morgen ist das Morgenbriefing von heute, abend der Blick auf morgen." },
       },
-      required: ["art"],
     },
   },
   {
@@ -700,8 +718,13 @@ export const AGENT_TOOLS: ToolDefinition[] = [
       "Nehmen, wenn er fragt, ob er heute hart trainieren kann, wie seine Tagesform ist, " +
       "oder bevor du ihm für heute etwas Anstrengendes vorschlägst. " +
       "Das ist ausdrücklich keine Messung, daevo hat keinen Sensor. Es ist zusammengefasst, was er " +
-      "selbst angegeben hat. Gib es genau so weiter und tu nie so, als wäre es Physiologie.",
-    input_schema: { type: "object", properties: {} },
+      "selbst angegeben hat. Gib es genau so weiter und tu nie so, als wäre es Physiologie. " +
+      "Mit fokus nur ein Teil: schlaf für die letzte Nacht aus Apple Health, koerper für HRV, " +
+      "Ruhepuls und die abgeleitete Lage, regeneration für die Erholung je Muskel aus dem Protokoll.",
+    input_schema: {
+      type: "object",
+      properties: { fokus: { type: "string", enum: ["schlaf", "koerper", "regeneration"] } },
+    },
   },
   {
     name: "widersprueche_pruefen",
@@ -824,7 +847,11 @@ export const AGENT_TOOLS: ToolDefinition[] = [
       "einmal, nimmt das Werkzeug dieselben Übungen wie letztes Mal und empfiehlt das. neu nur, wenn der Nutzer " +
       "ausdrücklich neue Übungen will. Eine einzelne Übung ändern: weglassen oder tauschen mit ihrem Namen, ohne " +
       "gruppen. Das gilt auch, wenn du selbst siehst, dass eine Übung nicht passt, etwa ein Drücken an einem " +
-      "Zugtag: dann änderst du sie mit diesem Werkzeug, statt dem Nutzer zu sagen, er soll sie weglassen.",
+      "Zugtag: dann änderst du sie mit diesem Werkzeug, statt dem Nutzer zu sagen, er soll sie weglassen. " +
+      "Nennt der Nutzer selbst Übungen, Sätze, Wiederholungen oder einen Supersatz, baut uebungen genau diese Einheit, in " +
+      "seiner Reihenfolge und mit seinen Zahlen, ohne Partien. Jede genannte Übung einzeln, auch Wiederholungen derselben " +
+      "Übung nicht zusammenfassen, und nichts weglassen oder dazuerfinden. Sagt er nur, dass etwas dazukommt oder sich " +
+      "eine Satzzahl ändert, hinzufuegen statt uebungen. Ausdauer wie Fahrrad oder Laufband gehört in cardio und nie in uebungen.",
     input_schema: {
       type: "object",
       properties: {
@@ -839,6 +866,41 @@ export const AGENT_TOOLS: ToolDefinition[] = [
         neu: { type: "boolean", description: "true, wenn der Nutzer andere Übungen als letztes Mal will. Ohne Partien gilt die Einheit von heute." },
         weglassen: { type: "array", items: { type: "string" }, description: "Namen von Übungen, die aus der Einheit für diesen Tag fallen." },
         tauschen: { type: "array", items: { type: "string" }, description: "Namen von Übungen, die gegen eine andere derselben Bewegung getauscht werden." },
+        uebungen: {
+          type: "array",
+          description: "Die ganze Einheit, wie der Nutzer sie gesagt hat. Ersetzt die Einheit des Tages.",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string", description: "Name der Übung, so wie gesagt, etwa \"Seitheben am Kabelzug\"." },
+              saetze: { type: "number", description: "Sätze, nur wenn genannt." },
+              wdh: { type: "string", description: "Wiederholungen, \"8\" oder \"8-12\", nur wenn genannt." },
+              reserve: { type: "number", description: "Wiederholungen in Reserve, nur wenn genannt." },
+              superset: { type: "string", description: "Name der Partnerübung, wenn beide im Supersatz laufen. An beiden Übungen setzen." },
+            },
+            required: ["name"],
+          },
+        },
+        hinzufuegen: {
+          type: "array",
+          description: "Übungen, die zur Einheit des Tages dazukommen oder deren Sätze sich ändern. Gleiche Felder wie uebungen.",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string" }, saetze: { type: "number" }, wdh: { type: "string" }, reserve: { type: "number" }, superset: { type: "string" },
+            },
+            required: ["name"],
+          },
+        },
+        cardio: {
+          type: "array",
+          description: "Ausdauer in der Einheit, etwa Fahrrad 30 Minuten 15 km.",
+          items: {
+            type: "object",
+            properties: { art: { type: "string" }, minuten: { type: "number" }, km: { type: "number" } },
+            required: ["art"],
+          },
+        },
       },
       required: [],
     },
@@ -1015,6 +1077,73 @@ export const AGENT_TOOLS: ToolDefinition[] = [
         portionG: { type: "number", description: "Übliche Portion in Gramm, wenn genannt." },
       },
       required: ["name", "kcal"],
+    },
+  },
+  {
+    name: "plan_uebernehmen",
+    description:
+      "Übernimmt einen Trainingsplan, den der Nutzer als Foto, Screenshot, PDF oder Text schickt, als seinen Plan in daevo. " +
+      "Lies jede Einheit und jede Übung genau so ab, wie sie dasteht: Name, Sätze, Wiederholungen, Reserve oder RIR, " +
+      "Pause, Supersatz. Nichts ergänzen, nichts weglassen, keine eigenen Übungen dazuschreiben. daevo ordnet die " +
+      "Namen der eigenen Datenbank zu, was es nicht kennt, bleibt unter dem abgelesenen Namen. Danach sagst du, welche " +
+      "Übungen nicht zugeordnet werden konnten. Erst aufrufen, wenn der Nutzer will, dass der Plan übernommen wird.",
+    input_schema: {
+      type: "object",
+      properties: {
+        einheiten: {
+          type: "array",
+          description: "Je Trainingstag eine Einheit, in der Reihenfolge des Plans.",
+          items: {
+            type: "object",
+            properties: {
+              titel: { type: "string", description: "Name der Einheit, etwa \"Push\", \"Tag A\", \"Oberkörper 1\"." },
+              uebungen: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string" },
+                    saetze: { type: "number" },
+                    wdh: { type: "string", description: "Wiederholungen oder Bereich, etwa \"8-12\"." },
+                    reserve: { type: "number", description: "RIR, wenn angegeben." },
+                    pauseSek: { type: "number" },
+                    superset: { type: "string", description: "Buchstabe oder Name des Partners, wenn Supersatz." },
+                  },
+                  required: ["name"],
+                },
+              },
+            },
+            required: ["titel", "uebungen"],
+          },
+        },
+      },
+      required: ["einheiten"],
+    },
+  },
+  {
+    name: "ernaehrungsplan_uebernehmen",
+    description:
+      "Übernimmt einen Ernährungsplan aus Foto, PDF oder Text: jede Mahlzeit wird ein eigenes Rezept in daevo, die " +
+      "Nährwerte rechnet daevo selbst aus den Zutaten. Danach vergleicht daevo den Tag mit dem Ziel des Nutzers und " +
+      "nennt, wie die Mengen angepasst werden. Zutaten mit Menge ablesen, wie sie dastehen, nichts erfinden. Steht " +
+      "keine Menge da, die Zutat ohne Menge nennen. Erst aufrufen, wenn der Nutzer die Übernahme will.",
+    input_schema: {
+      type: "object",
+      properties: {
+        mahlzeiten: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              art: { type: "string", enum: ["fruehstueck", "mittagessen", "snack", "abendessen"] },
+              name: { type: "string", description: "Name der Mahlzeit, wie im Plan, sonst kurz beschrieben." },
+              zutaten: { type: "string", description: "Zutaten mit Mengen als ein Satz, etwa \"80 g Haferflocken, 250 ml Milch, 30 g Whey\"." },
+            },
+            required: ["art", "name", "zutaten"],
+          },
+        },
+      },
+      required: ["mahlzeiten"],
     },
   },
   {

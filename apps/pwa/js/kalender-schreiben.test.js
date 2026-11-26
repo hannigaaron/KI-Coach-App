@@ -13,7 +13,7 @@ class SpeicherAttrappe {
 globalThis.localStorage = new SpeicherAttrappe();
 
 const { store } = await import("./storage.js");
-const { kalenderTermin, kalenderAenderungen, kalenderWahlText, eintragErlaubt } = await import("./kalender-schreiben.js");
+const { kalenderTermin, kalenderAenderungen, kalenderWahlText, eintragErlaubt, planInDenKalender } = await import("./kalender-schreiben.js");
 
 /** Morgen, Ortszeit, um hh:mm. */
 const morgen = (hhmm, plusTage = 1) => {
@@ -187,4 +187,29 @@ test("eigenes Training wird ohne Rückfrage gelöscht und kommt zurück, fremdes
   lage([{ uid: "t2", titel: "Training Verein", von: morgen("20:00"), bis: morgen("22:00"), eid: "e2", daevo: false, schreibbar: true }]);
   const fremd = await kalenderTermin({ aktion: "loeschen", suche: "training" });
   assert.match(fremd, /^Noch nicht gespeichert\..*nicht daevo/);
+});
+
+test("Der Plan aus dem Profil steht im echten Kalender, auch über einem anderen Termin, und nur einmal", async () => {
+  // Der Termin liegt auf dem Training: es wird trotzdem eingetragen, die Überschneidung meldet danach die Wache.
+  lage([{ uid: "k1", titel: "Steffi Call", von: morgen("17:30"), bis: morgen("18:30"), eid: "x" }]);
+  const r = await planInDenKalender({ zwang: true });
+  assert.ok(r.angelegt >= 1);
+  const anlegen = aufrufe.filter((a) => a.methode === "anlegen");
+  assert.ok(anlegen.some((a) => a.daten.titel === "Training: Krafttraining" && a.daten.von === morgen("18:00")));
+  // Zweiter Lauf: nichts doppelt, auch wenn der Kalender den neuen Termin noch nicht kennt.
+  const vorher = aufrufe.filter((a) => a.methode === "anlegen").length;
+  const r2 = await planInDenKalender({ zwang: true });
+  assert.equal(r2.angelegt, 0);
+  assert.equal(aufrufe.filter((a) => a.methode === "anlegen").length, vorher);
+});
+
+test("Steht schon ein Training im Kalender, legt der Plan keins daneben", async () => {
+  lage([{ uid: "t1", titel: "Krafttraining", von: morgen("18:15"), bis: morgen("19:30"), eid: "e1", daevo: true }]);
+  await planInDenKalender({ zwang: true });
+  assert.ok(!aufrufe.some((a) => a.methode === "anlegen" && a.daten.von === morgen("18:00")));
+});
+
+test("Ohne die iPhone App schreibt der Plan nichts", async () => {
+  lage([], { nativ: false });
+  assert.deepEqual(await planInDenKalender({ zwang: true }), { angelegt: 0, entfernt: 0 });
 });

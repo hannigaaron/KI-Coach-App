@@ -35,6 +35,7 @@ public class KalenderPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "loeschen", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "konten", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "schreibKalender", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "wachePruefen", returnType: CAPPluginReturnPromise),
     ]
 
     static let markierung = URL(string: "daevo://termin")!
@@ -106,6 +107,14 @@ public class KalenderPlugin: CAPPlugin, CAPBridgedPlugin {
         call.resolve(["kalender": liste])
     }
 
+    /// Sucht jetzt nach Überschneidungen und meldet sie. Die App ruft es nach
+    /// jedem Eintragen und Abgleich: auf iOS weckt das System die Wache nur
+    /// einige Male am Tag, und wer gerade ein Training in den Kalender
+    /// schreibt, will eine Überschneidung sofort wissen.
+    @objc func wachePruefen(_ call: CAPPluginCall) {
+        KalenderWache.shared.pruefen { call.resolve() }
+    }
+
     @objc func konten(_ call: CAPPluginCall) {
         guard darfLesen() else { call.reject("Kein Zugriff auf den Kalender."); return }
         var zaehler: [String: (name: String, art: String, kalender: Int)] = [:]
@@ -166,6 +175,10 @@ public class KalenderPlugin: CAPPlugin, CAPBridgedPlugin {
                 "bis": e.endDate.timeIntervalSince1970 * 1000,
                 "ganztags": e.isAllDay,
                 "kalender": e.calendar?.title ?? "",
+                // Typ (3 abonniert, 4 Geburtstage) und Konto: daevo liest nur den
+                // Kalender mit den meisten Terminen und erkennt Gedenktage daran.
+                "kalenderTyp": e.calendar?.type.rawValue ?? 0,
+                "kalenderQuelle": e.calendar?.source?.title ?? "",
                 "eid": e.eventIdentifier ?? "",
                 "daevo": e.url?.scheme == "daevo",
                 "schreibbar": e.calendar?.allowsContentModifications ?? false,
@@ -333,10 +346,14 @@ final class KalenderWache {
         zeit.dateFormat = "EEE HH:mm"
         let inhalt = UNMutableNotificationContent()
         inhalt.title = "\(training.title ?? "Training") überschneidet sich"
-        inhalt.body = "\(zeit.string(from: training.startDate)) liegt jetzt auch \u{201E}\(stoerer.title ?? "ein Termin")\u{201C}. Soll ich dein Training umplanen?"
+        inhalt.body = "\(zeit.string(from: training.startDate)) liegt auch \u{201E}\(stoerer.title ?? "ein Termin")\u{201C}. Ist das so gewollt? Ich kann dein Training auf den nächsten freien Platz verschieben."
         inhalt.sound = .default
         inhalt.categoryIdentifier = "kalender"
-        inhalt.userInfo = ["art": "kalender", "eid": eid, "von": training.startDate.timeIntervalSince1970 * 1000]
+        // Welcher Kalender: Google, wenn das Training dort liegt. Danach öffnet
+        // "Kalender öffnen" die passende App.
+        let quelle = (training.calendar?.source?.title ?? "").lowercased()
+        let google = quelle.contains("google") || quelle.contains("gmail")
+        inhalt.userInfo = ["art": "kalender", "eid": eid, "von": training.startDate.timeIntervalSince1970 * 1000, "google": google]
         let anfrage = UNNotificationRequest(identifier: "daevo.kalender.\(eid.hashValue)", content: inhalt, trigger: nil)
         UNUserNotificationCenter.current().add(anfrage)
     }

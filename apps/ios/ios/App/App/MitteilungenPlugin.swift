@@ -29,11 +29,29 @@ final class MitteilungenZentrale: NSObject, UNUserNotificationCenterDelegate {
             UNNotificationAction(identifier: "krank", title: "Krank oder verletzt", options: []),
         ]
         let luecke = UNNotificationCategory(identifier: "luecke", actions: aktionen, intentIdentifiers: [], options: [])
-        // Umplanen öffnet die App, denn den freien Platz rechnet die App.
-        // Lassen bleibt zu: es gibt nichts zu tun.
+        // Drei Wege, ohne die App zu öffnen: so belassen, verschieben, den
+        // Kalender ansehen. Verschieben rechnet die Web Ansicht, wenn sie noch
+        // im Speicher liegt, und meldet das Ergebnis als Mitteilung. War die App
+        // beendet, wartet es bis zum Öffnen, und eine Mitteilung sagt das.
+        // Kalender öffnen ist ein Tipp mit "foreground": nur so darf die App
+        // danach Google Kalender oder den Apple Kalender aufmachen.
         let kalender = UNNotificationCategory(identifier: "kalender", actions: [
-            UNNotificationAction(identifier: "umplanen", title: "Umplanen", options: [.foreground]),
-            UNNotificationAction(identifier: "lassen", title: "Lassen", options: []),
+            UNNotificationAction(identifier: "lassen", title: "So belassen", options: []),
+            UNNotificationAction(identifier: "umplanen", title: "Training verschieben", options: []),
+            UNNotificationAction(identifier: "kalender_oeffnen", title: "Kalender öffnen", options: [.foreground]),
+        ], intentIdentifiers: [], options: [])
+        // Trinken ohne die App: ein Tipp, und das Wasser steht im Tag. Auf der
+        // Uhr zeigt watchOS dieselben Knöpfe.
+        let trinken = UNNotificationCategory(identifier: "trinken", actions: [
+            UNNotificationAction(identifier: "wasser_250", title: "+ 0,25 l", options: []),
+            UNNotificationAction(identifier: "wasser_500", title: "+ 0,5 l", options: []),
+            UNNotificationAction(identifier: "wasser_1000", title: "+ 1 l", options: []),
+        ], intentIdentifiers: [], options: [])
+        // Essen ohne die App: "Jetzt eintippen" öffnet das Textfeld, auf der
+        // Uhr Diktat und Kritzeln, und der Satz geht wie im Chat an daevo.
+        let essen = UNNotificationCategory(identifier: "essen", actions: [
+            UNTextInputNotificationAction(identifier: "eintippen", title: "Jetzt eintippen", options: [],
+                                          textInputButtonTitle: "Eintragen", textInputPlaceholder: "Was hast du gegessen?"),
         ], intentIdentifiers: [], options: [])
         // Eine Frage wie "Wie ist dein Energielevel?" bekommt ein Textfeld.
         // Auf der Apple Watch zeigt watchOS dafür Diktat, Kritzeln und
@@ -42,7 +60,7 @@ final class MitteilungenZentrale: NSObject, UNUserNotificationCenterDelegate {
             UNTextInputNotificationAction(identifier: "antworten", title: "Antworten", options: [],
                                           textInputButtonTitle: "Senden", textInputPlaceholder: "Deine Antwort"),
         ], intentIdentifiers: [], options: [])
-        center.setNotificationCategories([luecke, kalender, frage])
+        center.setNotificationCategories([luecke, kalender, frage, trinken, essen])
     }
 
     // Auch bei offener App zeigen. Sonst geht die Erinnerung ans Runterfahren
@@ -68,6 +86,23 @@ final class MitteilungenZentrale: NSObject, UNUserNotificationCenterDelegate {
             defaults.set(["art": art, "at": Date().timeIntervalSince1970 * 1000], forKey: Self.geoeffnetSchluessel)
         case UNNotificationDismissActionIdentifier:
             break
+        case "kalender_oeffnen":
+            // Dorthin, wo der Nutzer seinen Tag liest: Google Kalender, sonst
+            // der Apple Kalender, jeweils beim Tag des Trainings.
+            let von = (info["von"] as? Double ?? 0) / 1000
+            let google = info["google"] as? Bool ?? false
+            // Ein wenig warten: wurde die App erst durch den Tipp gestartet, ist
+            // sie im ersten Moment noch nicht aktiv, und iOS lehnt das Öffnen ab.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                let apple = URL(string: "calshow:\(von - 978_307_200)")
+                if google, let g = URL(string: "googlecalendar://") {
+                    UIApplication.shared.open(g, options: [:]) { ok in
+                        if !ok, let a = apple { UIApplication.shared.open(a) }
+                    }
+                } else if let a = apple {
+                    UIApplication.shared.open(a)
+                }
+            }
         default:
             var eintrag: [String: Any] = [
                 "aktion": response.actionIdentifier,
@@ -90,9 +125,20 @@ final class MitteilungenZentrale: NSObject, UNUserNotificationCenterDelegate {
             // jetzt durch die App, und die Antwort kommt als Mitteilung
             // zurück, auf der Uhr wie am iPhone. War die App beendet, gibt
             // es keine Web Ansicht, dann wartet sie bis zum Öffnen.
-            if eintrag["text"] != nil {
+            // Auch Knöpfe ohne Text (Wasser, Verschieben) laufen sofort durch
+            // die App, wenn sie noch im Speicher liegt.
+            if eintrag["text"] != nil || response.actionIdentifier.hasPrefix("wasser_") || response.actionIdentifier == "umplanen" {
                 DispatchQueue.main.async {
-                    guard let plugin = self.plugin else { completionHandler(); return }
+                    guard let plugin = self.plugin else {
+                        // War daevo beendet, gibt es keine Web Ansicht. Die Eingabe
+                        // wartet bis zum Öffnen, und eine Mitteilung sagt das.
+                        let n = UNMutableNotificationContent()
+                        n.title = "daevo"
+                        n.body = "Notiert. Ich erledige das, sobald du daevo öffnest."
+                        center.add(UNNotificationRequest(identifier: "daevo.notiert.\(Int(Date().timeIntervalSince1970))", content: n, trigger: nil))
+                        completionHandler()
+                        return
+                    }
                     plugin.antwortenJetzt { completionHandler() }
                 }
                 return
@@ -172,7 +218,7 @@ public class MitteilungenPlugin: CAPPlugin, CAPBridgedPlugin {
         inhalt.title = "Pause vorbei"
         inhalt.body = uebung.isEmpty ? "Nächster Satz." : "Nächster Satz: \(uebung)."
         inhalt.sound = .default
-        inhalt.userInfo = ["art": "pause"]
+        inhalt.userInfo = ["art": "satzpause"]
         let ausloeser = UNTimeIntervalNotificationTrigger(timeInterval: sekunden, repeats: false)
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: [Self.pauseKennung])
@@ -214,7 +260,11 @@ public class MitteilungenPlugin: CAPPlugin, CAPBridgedPlugin {
                 inhalt.body = text
                 inhalt.sound = .default
                 inhalt.userInfo = ["art": e["art"] as? String ?? ""]
+                // Jede Mitteilung lässt sich direkt beantworten, wie bei WhatsApp:
+                // lang drücken, tippen oder diktieren. Nur Timer und feste
+                // Auswahl haben eigene Knöpfe oder gar keine.
                 if let kategorie = e["kategorie"] as? String { inhalt.categoryIdentifier = kategorie }
+                else if (e["art"] as? String ?? "") != "satzpause" { inhalt.categoryIdentifier = "frage" }
 
                 var wann = DateComponents()
                 wann.year = teile[0]; wann.month = teile[1]; wann.day = teile[2]

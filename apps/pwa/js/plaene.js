@@ -15,6 +15,7 @@ import {
 import { UEBUNGEN } from "./uebungen-daten.js";
 import { GRUPPEN, vorschauPfad } from "./uebungen.js";
 import { trendKurz } from "./uebungskurve.js";
+import { satzText } from "./masse.js";
 import { naechsteEinheit } from "./vorhaben.js";
 import { spueren } from "./haptik.js";
 
@@ -76,7 +77,10 @@ export function planFuer(wunsch) {
 export function gespeicherterPlan(roh) {
   if (!roh || !Array.isArray(roh.einheiten)) return null;
   const einheiten = roh.einheiten
-    .map((e) => ({ ...e, positionen: (Array.isArray(e.positionen) ? e.positionen : []).filter((p) => nachId.has(p.id)) }))
+    // Eigene Übungen aus einem diktierten oder importierten Plan tragen
+    // `eigen-` und stehen in keiner Datenbank. Sie bleiben, sonst fehlte nach
+    // dem Import genau das, was die Datenbank nicht kennt.
+    .map((e) => ({ ...e, positionen: (Array.isArray(e.positionen) ? e.positionen : []).filter((p) => nachId.has(p.id) || String(p.id).startsWith("eigen-")) }))
     .filter((e) => e.positionen.length);
   if (!einheiten.length) return null;
   return { ...roh, wunsch: wunschPruefen(roh.wunsch), einheiten };
@@ -126,7 +130,7 @@ export function zeileHtml(p, { bearbeiten = false, ei = 0, pi = 0, tausch = null
   const attr = tauschAttr ?? `data-aktion="tauschen" ${ort}`;
   const offen = tausch && tausch.ei === ei && tausch.pi === pi;
   const zeile = `<div class="pl-zeile-rahmen"><button type="button" class="pl-zeile" data-uebung="${esc(p.id)}">${bild}
-    <span class="pl-text"><b>${esc(p.name)}</b><span>${p.saetze} × ${esc(p.wdh)}<i></i>Pause ${pause}<i></i>${p.reserve} in Reserve</span>${trend ? trend(p.id) : ""}</span></button>
+    <span class="pl-text"><b>${esc(p.name)}</b><span>${p.saetze} × ${esc(p.wdh)}<i></i>${p.superset ? `Supersatz ${esc(p.superset)}` : `Pause ${pause}`}<i></i>${p.reserve} in Reserve</span>${trend ? trend(p.id) : ""}</span></button>
     ${ohneTausch ? "" : `<button type="button" class="pl-tausch-knopf" ${attr} aria-expanded="${Boolean(offen)}" aria-label="${esc(p.name)} tauschen">${TAUSCH_SVG}</button>`}</div>`;
   const nehmenAttr = (a) => (tauschAttr ? `data-heute-nehmen="${esc(a.id)}" data-alt="${esc(p.id)}"` : `data-aktion="nehmen" data-id="${esc(a.id)}" ${ort}`);
   const auswahl = offen
@@ -321,12 +325,13 @@ export function planKopfHtml(plan, { woche, naechste, kurz = false }) {
 }
 
 /** Ohne gespeicherten Plan: was der Plan ist und ein Knopf, der ihn anlegt. */
-export function planEinstiegHtml() {
+export function planEinstiegHtml({ profilText = "" } = {}) {
   return `<div class="pl-plankopf pl-einstieg">
     <p class="pl-ueber">Dein Trainingsplan</p>
     <h3>Ein Plan, der zu deinem Alltag passt</h3>
     <p>Sag daevo, wie oft und wie lange du trainierst, wo und was dir wichtig ist. Daraus rechnet daevo deinen Plan für die nächsten zwölf Wochen. Er bleibt gespeichert, und jedes Training startet mit deinen Gewichten, Wiederholungen und RIR vom letzten Mal.</p>
-    <button type="button" class="primary breit" data-pl-anpassen>Plan erstellen</button>
+    ${profilText ? `<button type="button" class="primary breit" data-pl-profil>Plan aus meinen Daten anlegen</button><p class="pl-ueber">${profilText}</p>` : ""}
+    <button type="button" class="${profilText ? "pl-knopf breit" : "primary breit"}" data-pl-anpassen>${profilText ? "Plan selbst einstellen" : "Plan erstellen"}</button>
   </div>`;
 }
 
@@ -429,8 +434,9 @@ export function heuteHtml(stand, einheit) {
   }).join("");
   const ergebnis = einheit
     ? `<section class="pl-einheit pl-heute-einheit"><header><div><h3>${esc(einheit.fokus)}</h3><p>${einheit.positionen.length} Übungen · etwa ${einheit.dauerMin} Min.</p></div>
-        <div class="pl-knoepfe"><button type="button" class="pl-mini pl-start" data-heute-start>Starten</button><button type="button" class="pl-mini" data-heute-andere>Andere Übungen</button></div></header>
-        <ol class="pl-liste">${einheit.positionen.map((p, pi) => zeileHtml(p, { pi, tausch: stand.tausch ?? null, tauschAttr: `data-heute-tausch="${pi}"` })).join("")}</ol></section>`
+        <div class="pl-knoepfe"><button type="button" class="pl-mini pl-start" data-heute-start>Starten</button>${stand.fest ? "" : '<button type="button" class="pl-mini" data-heute-andere>Andere Übungen</button>'}</div></header>
+        <ol class="pl-liste">${einheit.positionen.map((p, pi) => zeileHtml(p, { pi, tausch: stand.tausch ?? null, tauschAttr: `data-heute-tausch="${pi}"` })).join("")}</ol>
+        ${(einheit.cardio ?? []).map((c) => `<p class="pl-legende">Danach ${esc([c.art, c.minuten ? `${c.minuten} Minuten` : "", c.km ? `${String(c.km).replace(".", ",")} km` : ""].filter(Boolean).join(", "))}</p>`).join("")}</section>`
     : stand.gruppen.length ? "" : '<p class="pl-legende">Wähl mindestens eine Partie.</p>';
   return `<h3 class="ue-abschnitt">Training für heute</h3>
     <p class="sub">Wenn der Plan heute nicht passt: wie viel Zeit du hast und was diese Woche noch fehlt.</p>
@@ -490,10 +496,15 @@ export function verlaufHtml(log, grenze = 10) {
     const saetze = liste.reduce((s, e) => s + e.saetze.length, 0);
     const details = liste.map((e) => {
       const name = nachId.get(e.uebung)?.name ?? e.uebung;
-      const s2 = e.saetze.map((x) => `${String(x.kg).replace(".", ",")} kg × ${x.wdh}${x.rir !== null && x.rir !== undefined ? `, ${x.rir} RIR` : ""}`).join(" · ");
+      const s2 = e.masse
+        ? e.saetze.map((x) => satzText(x, e.masse)).join(" · ")
+        : e.saetze.map((x) => `${String(x.kg).replace(".", ",")} kg × ${x.wdh}${x.rir !== null && x.rir !== undefined ? `, ${x.rir} RIR` : ""}`).join(" · ");
       return `<li><b>${esc(name)}</b><span>${esc(s2)}</span></li>`;
     }).join("");
-    return `<details class="pl-verlauf-tag"><summary><b>${esc(tag)}</b><span>${esc(einheit || "Training")} · ${liste.length} ${liste.length === 1 ? "Übung" : "Übungen"}, ${saetze} ${saetze === 1 ? "Satz" : "Sätze"}</span></summary><ul>${details}</ul><button type="button" class="ghost pl-abschluss" data-pl-abschluss="${esc(k)}">Muskelkarte und Teilen</button></details>`;
+    // Ein Tipp öffnet das Training so, wie es im Training aussah, mit allen
+    // Sätzen. Vorher klappte nur eine Liste auf, und wer sehen wollte, was er
+    // am Samstag am Kabel gemacht hat, las eine Zeile mit Punkten.
+    return `<div class="pl-verlauf-tag"><button type="button" class="pl-verlauf-knopf" data-pl-ansehen="${esc(k)}" aria-label="${esc(`${tag}, ${einheit || "Training"} öffnen`)}"><b>${esc(tag)}</b><span>${esc(einheit || "Training")} · ${liste.length} ${liste.length === 1 ? "Übung" : "Übungen"}, ${saetze} ${saetze === 1 ? "Satz" : "Sätze"}</span><i aria-hidden="true">›</i></button><ul hidden>${details}</ul><button type="button" class="link-knopf pl-abschluss" data-pl-abschluss="${esc(k)}">Muskelkarte und Teilen</button></div>`;
   });
   if (!zeilen.length) return "";
   return `<h3 class="ue-abschnitt">Deine letzten Trainings</h3>${zeilen.join("")}`;
@@ -598,7 +609,7 @@ export function zeilenZiehen(behaelter, anwenden, spuer = () => {}) {
 export function plaeneStarten({
   speicher, kurz: kurzSpeicher = { lesen: () => null, schreiben: () => {} }, woche: wocheSpeicher = { lesen: () => null, schreiben: () => {} },
   oeffne, melde, starte = () => {}, frei = () => {}, starteEinheit = () => {}, log = () => [], heute = () => new Date().toISOString().slice(0, 10),
-  heuteBestellt = () => null, abschluss = () => {}, mitwachsen = () => true, proOeffnen = () => {}, zuModus = () => {},
+  profilWunsch = () => null, heuteBestellt = () => null, abschluss = () => {}, ansehen = () => {}, mitwachsen = () => true, proOeffnen = () => {}, zuModus = () => {},
 }) {
   // Acht Wochen um: Fortschritt prüfen, bevor irgendetwas gezeigt wird. Den
   // Plan, der mitwächst, gibt es mit Pro. Ohne Pro bleibt der Plan, wie er
@@ -637,12 +648,18 @@ export function plaeneStarten({
   // Hat der Coach heute schon eine Einheit gerechnet, steht genau die hier,
   // aufgeklappt, denn dann ist sie das Training des Tages.
   const bestellt = heuteBestellt();
-  if (bestellt?.tag === heute() && Array.isArray(bestellt.gruppen) && bestellt.gruppen.length) {
+  // Eine diktierte Einheit steht genau so da, wie sie gesagt wurde. Sie aus
+  // Partien neu zu rechnen hiesse, die Einheit des Nutzers zu ersetzen.
+  if (bestellt?.tag === heute() && bestellt.eigen && bestellt.einheit?.positionen?.length) {
+    heuteStand = { minuten: bestellt.minuten, gruppen: [], text: "So wie du sie daevo gesagt hast.", variante: 0, fest: bestellt.einheit };
+    $("plEinzeln").open = true;
+  } else if (bestellt?.tag === heute() && Array.isArray(bestellt.gruppen) && bestellt.gruppen.length) {
     heuteStand = { minuten: bestellt.minuten, gruppen: bestellt.gruppen.flatMap((g) => (g === "arme" ? ["bizeps", "trizeps"] : [g])), text: "Im Gespräch mit daevo zusammengestellt.", variante: 0 };
     $("plEinzeln").open = true;
   }
+  const heuteAktuell = () => heuteStand.fest ?? (heuteStand.gruppen.length ? heuteEinheit(heuteStand, wunsch) : null);
   const heuteZeichnen = () => {
-    $("plHeute").innerHTML = heuteHtml(heuteStand, heuteStand.gruppen.length ? heuteEinheit(heuteStand, wunsch) : null);
+    $("plHeute").innerHTML = heuteHtml(heuteStand, heuteAktuell());
   };
 
   // Welche Einheit gerade bearbeitet wird und welche Tauschliste offen ist.
@@ -665,7 +682,7 @@ export function plaeneStarten({
         + `<div class="pl-update-knoepfe"><button type="button" class="pl-mini" data-pro-anpassung>Pro ansehen</button></div></div>`
       : aktualisierungHtml(gespeichert, heute());
     if (!plan) {
-      $("plStart").innerHTML = planEinstiegHtml();
+      $("plStart").innerHTML = planEinstiegHtml({ profilText: profilWunsch()?.text ?? "" });
       $("plEinheiten").innerHTML = "";
       $("plStress").innerHTML = "";
     } else {
@@ -808,6 +825,8 @@ export function plaeneStarten({
 
   $("plFrei").addEventListener("click", () => frei());
   $("plVerlauf").addEventListener("click", (event) => {
+    const offen = event.target.closest("[data-pl-ansehen]");
+    if (offen) { const [d, e] = offen.dataset.plAnsehen.split("|"); ansehen?.(d, e); return; }
     const knopf = event.target.closest("[data-pl-abschluss]");
     if (!knopf) return;
     const [datum, einheit] = knopf.dataset.plAbschluss.split("|");
@@ -819,25 +838,32 @@ export function plaeneStarten({
     if ((x = k("[data-heute-tausch]"))) {
       const pi = Number(x.dataset.heuteTausch);
       const offen = heuteStand.tausch?.pi === pi;
-      heuteStand = { ...heuteStand, tausch: offen ? null : { ei: 0, pi, liste: heuteTauschListe(heuteEinheit(heuteStand, wunsch), pi, wunsch) } };
+      heuteStand = { ...heuteStand, tausch: offen ? null : { ei: 0, pi, liste: heuteTauschListe(heuteAktuell(), pi, wunsch) } };
     } else if ((x = k("[data-heute-nehmen]"))) {
       // Getauscht wird über die ursprüngliche Kennung, damit ein zweiter
       // Tausch derselben Zeile den ersten ersetzt und nicht verkettet.
+      if (heuteStand.fest) {
+        const neu = nachId.get(x.dataset.heuteNehmen);
+        const fest = neu ? { ...heuteStand.fest, positionen: heuteStand.fest.positionen.map((p) => (p.id === x.dataset.alt ? { ...p, id: neu.id, name: neu.name } : p)) } : heuteStand.fest;
+        heuteStand = { ...heuteStand, fest, tausch: null };
+        heuteZeichnen();
+        return;
+      }
       const ersetzt = { ...(heuteStand.ersetzt ?? {}) };
       const ursprung = Object.keys(ersetzt).find((alt) => ersetzt[alt] === x.dataset.alt) ?? x.dataset.alt;
       ersetzt[ursprung] = x.dataset.heuteNehmen;
       heuteStand = { ...heuteStand, ersetzt, tausch: null };
-    } else if ((x = k("[data-heute-min]"))) heuteStand = { ...heuteStand, minuten: Number(x.dataset.heuteMin), variante: 0, ersetzt: {}, tausch: null };
+    } else if ((x = k("[data-heute-min]"))) heuteStand = { ...heuteStand, minuten: Number(x.dataset.heuteMin), variante: 0, ersetzt: {}, tausch: null, fest: undefined };
     else if ((x = k("[data-heute-gruppe]"))) {
       const g = x.dataset.heuteGruppe;
       const gruppen = heuteStand.gruppen.includes(g) ? heuteStand.gruppen.filter((y) => y !== g) : [...heuteStand.gruppen, g];
-      heuteStand = { ...heuteStand, gruppen, variante: 0, ersetzt: {}, tausch: null };
-    } else if (k("[data-heute-andere]")) heuteStand = { ...heuteStand, variante: heuteStand.variante + 1, ersetzt: {}, tausch: null };
+      heuteStand = { ...heuteStand, gruppen, variante: 0, ersetzt: {}, tausch: null, fest: undefined };
+    } else if (k("[data-heute-andere]")) heuteStand = { ...heuteStand, variante: heuteStand.variante + 1, ersetzt: {}, tausch: null, fest: undefined };
     else if (k("[data-heute-start]")) {
-      const einheit = heuteEinheit(heuteStand, wunsch);
+      const einheit = heuteAktuell();
       if (einheit) starteEinheit(einheit);
       return;
-    } else if ((x = k("[data-uebung]"))) { oeffne(x.dataset.uebung); return; }
+    } else if ((x = k("[data-uebung]"))) { if (nachId.has(x.dataset.uebung)) oeffne(x.dataset.uebung); return; }
     else return;
     heuteZeichnen();
   });
@@ -876,6 +902,21 @@ export function plaeneStarten({
   /** Klicks auf Kopf, Einheiten und Kurzplan, alle auf "Mein Plan". */
   const planKlick = (event) => {
     if (event.target.closest("[data-pl-anpassen]")) { zuModus("anpassen"); return; }
+    // Ein Tipp legt den Plan aus Krafttagen und Dauer im Profil an und
+    // speichert ihn. Anpassen bleibt der Weg, ihn danach zu ändern.
+    if (event.target.closest("[data-pl-profil]")) {
+      const aus = profilWunsch();
+      if (!aus) { zuModus("anpassen"); return; }
+      const w = wunschPruefen({ ...wunsch, ...aus.wunsch });
+      const neuerPlan = { ...planFuer(w), beginn: heute(), gespeichertAm: new Date().toISOString() };
+      speicher.schreiben(neuerPlan);
+      gespeichert = gespeicherterPlan(speicher.lesen());
+      entwurf = gespeichert;
+      wunsch = wunschPruefen(gespeichert.wunsch);
+      zeichnen();
+      melde("Dein Plan steht für zwölf Wochen. Unter Anpassen änderst du ihn.");
+      return;
+    }
     const kurzStart = event.target.closest("[data-kurz-start]");
     if (kurzStart) {
       const e = kurzplan?.einheiten[Number(kurzStart.dataset.kurzStart)];

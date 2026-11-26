@@ -1,13 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { einheitHaeltZns, positionFuer } from "@daevo/core";
+import { abdeckungsLuecken, einheitHaeltZns, positionFuer, reizVon, uebungsplanBauen } from "@daevo/core";
 import { UEBUNGEN } from "./uebungen-daten.js";
 import { STANDARD_WUNSCH, aktualisierungHtml, planFuer, planPruefen, verlaufHtml } from "./plaene.js";
 import {
   FREI_TITEL, auswahlHtml, auswahlListe, entwurfFrei, uebungHinzu, uebungRaus, uebungVerschieben,
   entwurfAbschliessen, entwurfBegonnen, entwurfNeu, entwurfTauschen, ersatzVorschlaege, satzAbhaken, satzDazu, satzSetzen,
   trainingHtml, zahlAus,
+  supersatzWeiter, masseSetzen, satzText, standardMasse,
 } from "./training.js";
+import { abschlussDaten, abschlussHtml } from "./abschluss.js";
 
 const HEUTE = "2026-10-21";
 const plan = { ...planFuer({ tage: 3, minuten: 60, niveau: "intermediate", ziel: "muskel" }), gespeichertAm: "2026-08-01T10:00:00Z" };
@@ -126,7 +128,8 @@ test("Die Auswahl findet über den Namen und zeigt zuletzt Gemachtes zuerst", ()
   assert.equal(leer[0].id, "klimmzug");
   assert.ok(leer[0].zuletzt);
   const bank = auswahlListe("bankdrücken", entwurfFrei(HEUTE), log);
-  assert.ok(bank.length > 0 && bank.every((u) => /bank/i.test(u.name)));
+  // Die Brustpresse heisst im Studio auch "Bankdrücken Maschine" und trifft über ihren Alias.
+  assert.ok(bank.length > 0 && bank.every((u) => /bank/i.test([u.name, ...(u.alias ?? [])].join(" "))));
   const ohne = auswahlListe("bankdrücken", uebungHinzu(entwurfFrei(HEUTE), "bankdruecken", []), log);
   assert.ok(!ohne.some((u) => u.id === "bankdruecken"));
 });
@@ -145,7 +148,7 @@ test("Der Verlauf zeigt gespeicherte Trainings mit Sätzen, neuestes zuerst", ()
 
 /* ---------- Fokus und Training für heute, gegen die echte Datenbank ---------- */
 
-import { einzeltrainingBauen, fehlendePartien, uebungsplanBauen, wocheTrainiert } from "@daevo/core";
+import { einzeltrainingBauen, fehlendePartien, wocheTrainiert } from "@daevo/core";
 import { heuteEinheit, heuteVorschlag } from "./plaene.js";
 
 const partieVon = (id) => {
@@ -267,13 +270,47 @@ test("Push ohne Curl und hintere Schulter, Pull mit hinterer Schulter und ohne T
   assert.ok(pull.positionen.some((p) => UEBUNGEN.find((u) => u.id === p.id).primaryMuscles.some((m) => /hintere Schulter/.test(m)) || p.id === "face-pull"));
 });
 
-test("60 Minuten Arme füllen die Zeit mit drei Bizeps und drei Trizepsübungen", () => {
+test("60 Minuten Arme füllen die Zeit und treffen alle Köpfe", () => {
   const e = einzeltrainingBauen({ minuten: 60, gruppen: ["bizeps", "trizeps"], niveau: "intermediate", ziel: "muskel" }, UEBUNGEN);
   const muster = e.positionen.map((p) => UEBUNGEN.find((u) => u.id === p.id).pattern);
-  assert.equal(muster.filter((m) => m === "elbow_flexion").length, 3);
-  assert.equal(muster.filter((m) => m === "elbow_extension").length, 3);
+  assert.ok(muster.filter((m) => m === "elbow_flexion").length >= 3);
+  assert.ok(muster.filter((m) => m === "elbow_extension").length >= 2);
   assert.equal(new Set(e.positionen.map((p) => p.id)).size, e.positionen.length, "keine Übung doppelt");
   assert.ok(e.dauerMin >= 45, `nur ${e.dauerMin} Minuten`);
+});
+
+test("Wer eine Partie nennt, bekommt sie ganz: Latissimus und oberer Rücken, alle Köpfe, obere Brust", () => {
+  const erwartet = { ruecken: ["lat", "oben"], bizeps: ["kurz", "lang", "brachialis"], trizeps: ["kurz", "lang"], brust: ["mitte", "oben"] };
+  for (const minuten of [30, 45, 60, 75, 90]) {
+    for (const gruppen of [["ruecken", "bizeps"], ["brust", "schultern", "trizeps"], ["ruecken"], ["bizeps", "trizeps"], ["brust"], ["ruecken", "bizeps", "schultern"]]) {
+      // Drei Partien mit je zwei bis drei Übungen passen in 30 Minuten nicht.
+      if (minuten < 45 && gruppen.length > 2) continue;
+      const e = einzeltrainingBauen({ minuten, gruppen, niveau: "intermediate", ziel: "muskel" }, UEBUNGEN);
+      const reize = {};
+      for (const p of e.positionen) { const r = reizVon(nachId.get(p.id)); if (r) (reize[r.familie] ??= new Set()).add(r.reiz); }
+      for (const g of gruppen) for (const f of Object.keys(erwartet).filter((k) => k === g)) {
+        for (const r of erwartet[f]) assert.ok(reize[f]?.has(r), `${minuten}/${gruppen}: ${f} ohne ${r}: ${e.positionen.map((p) => p.id)}`);
+      }
+      assert.ok(e.dauerMin <= minuten + 5, `${minuten}/${gruppen}: ${e.dauerMin}`);
+    }
+  }
+});
+
+test("Fehlt einer selbst diktierten Einheit ein Teil des Muskels, sagt die App es und ändert nichts", () => {
+  const luecken = abdeckungsLuecken(["t-bar-rudern", "face-pull", "incline-curl", "curl-kabel-liegend"], UEBUNGEN);
+  assert.ok(luecken.includes("Latissimus"), luecken.join(","));
+  assert.ok(!luecken.includes("oberer Rücken"));
+  assert.ok(luecken.includes("Brachialis"));
+  assert.ok(!luecken.includes("langer Kopf des Bizeps"));
+  assert.deepEqual(abdeckungsLuecken(["bankdruecken"], UEBUNGEN), ["obere Brust"]);
+  // Ohne Bizeps in der Einheit gibt es keine Lücke im Bizeps.
+  assert.deepEqual(abdeckungsLuecken(["kniebeuge-langhantel"], UEBUNGEN), []);
+});
+
+test("Über die Woche kommen alle Köpfe des Bizeps vor", () => {
+  const plan = uebungsplanBauen({ tage: 5, minuten: 75, niveau: "intermediate", ziel: "muskel" }, UEBUNGEN);
+  const koepfe = new Set(plan.einheiten.flatMap((e) => e.positionen).map((p) => reizVon(nachId.get(p.id))).filter((r) => r?.familie === "bizeps").map((r) => r.reiz));
+  assert.deepEqual([...koepfe].sort(), ["brachialis", "kurz", "lang"]);
 });
 
 test("Pull mit Schultern ist ein Zugtag: kein Drücken, nur die hintere Schulter", () => {
@@ -314,4 +351,125 @@ test("Ersetzen geht mit jeder Übung, eine andere Bewegung bekommt ihre eigene D
   assert.match(html, /data-tr-ersatz="hammer-curl-sitzend"/);
   assert.match(html, /Kniebeuge ersetzen durch/);
   assert.ok(!html.includes("data-tr-dazu"));
+});
+
+test("Supersatz: nach dem Satz ohne Pause zum Partner, nach beiden Pause und zurück zur ersten", () => {
+  const satz = (fertig = false) => ({ kg: 20, wdh: 10, rir: 1, fertig });
+  const e = { aktiv: 0, uebungen: [
+    { id: "a", name: "Pushdown", superset: "A", ziel: {}, saetze: [satz(true), satz()] },
+    { id: "b", name: "Cable Crunch", superset: "A", ziel: {}, saetze: [satz(), satz()] },
+    { id: "c", name: "Bankdrücken", ziel: {}, saetze: [satz()] },
+  ] };
+  assert.deepEqual(supersatzWeiter(e, 0, 0), { ziel: 1, pause: false });
+  e.uebungen[1].saetze[0].fertig = true;
+  assert.deepEqual(supersatzWeiter(e, 1, 0), { ziel: 0, pause: true });
+  assert.equal(supersatzWeiter(e, 2, 0), null);
+});
+
+test("Halteübungen laufen in Sekunden, Ausdauer in Minuten auf einer Stufe", () => {
+  assert.deepEqual(standardMasse(nachId.get("plank"), { wdh: "20-60s" }, "Plank"), { last: "ohne", menge: "sek" });
+  assert.deepEqual(standardMasse(null, { wdh: "10" }, "Fahrrad"), { last: "stufe", menge: "min" });
+  assert.deepEqual(standardMasse(null, { wdh: "10" }, "Rudergerät"), { last: "stufe", menge: "min" });
+  assert.deepEqual(standardMasse(nachId.get("bankdruecken"), { wdh: "6-10" }, "Bankdrücken"), { last: "kg", menge: "wdh" });
+});
+
+test("Ein Plank steht in Sekunden da, ohne Wdh und ohne RIR, und geht so ins Protokoll", () => {
+  const p = { ...positionFuer(nachId.get("plank"), STANDARD_WUNSCH), id: "plank", name: "Plank" };
+  let e = entwurfNeu({ einheiten: [{ titel: "Core", positionen: [p] }] }, 0, [], HEUTE);
+  const u = e.uebungen[0];
+  assert.deepEqual(u.masse, { last: "ohne", menge: "sek" });
+  assert.equal(u.saetze[0].menge, 20);
+  assert.equal(u.saetze[0].rir, null);
+  const html = trainingHtml(e, []);
+  assert.ok(html.includes(">SEK<"), "Kopf zeigt Sekunden");
+  assert.ok(!/Wdh ·/.test(html), "kein Wdh im Ziel");
+  assert.ok(html.includes("Sek"), html.match(/tr-ziel">[^<]*/)?.[0]);
+  e = satzSetzen(e, 0, 0, "menge", 45);
+  e = satzAbhaken(e, 0, 0);
+  const r = entwurfAbschliessen(e, [], Date.parse(e.start) + 600000);
+  assert.equal(r.eintraege.length, 1);
+  assert.deepEqual(r.eintraege[0].masse, { last: "ohne", menge: "sek" });
+  assert.equal(r.eintraege[0].saetze[0].menge, 45);
+  assert.equal(r.eintraege[0].saetze[0].wdh, 0);
+  // Das nächste Mal beginnt mit denselben Massen und dem Wert von damals.
+  const naechster = entwurfNeu({ einheiten: [{ titel: "Core", positionen: [p] }] }, 0, r.log, "2026-10-23");
+  assert.equal(naechster.uebungen[0].saetze[0].menge, 45);
+  // Im Abschluss steht der beste Satz in Sekunden, nicht "0 Wdh".
+  const d = abschlussDaten(r.eintraege, { titel: "Core", datum: HEUTE });
+  assert.ok(abschlussHtml(d).includes("bester 45 s"));
+});
+
+test("Die Einheit lässt sich je Spalte wechseln, Kilo und Wiederholungen bleiben unberührt", () => {
+  let e = entwurfNeu(plan, 0, [], HEUTE);
+  e = satzSetzen(e, 0, 0, "kg", 60);
+  e = masseSetzen(e, 0, "menge", "min");
+  e = masseSetzen(e, 0, "last", "stufe");
+  assert.deepEqual(e.uebungen[0].masse, { last: "stufe", menge: "min" });
+  assert.equal(e.uebungen[0].saetze[0].kg, 60);
+  const html = trainingHtml(e, [], { einheitWahl: "last" });
+  assert.ok(html.includes('data-tr-masse="last:kmh"'));
+  assert.ok(html.includes(">STUFE<") && html.includes(">MIN<"));
+  e = satzSetzen(e, 0, 0, "menge", 20);
+  e = satzSetzen(e, 0, 0, "last", 8);
+  e = satzAbhaken(e, 0, 0);
+  const r = entwurfAbschliessen(e, []);
+  assert.deepEqual(r.eintraege[0].saetze[0], { kg: 0, wdh: 0, rir: null, menge: 20, last: 8 });
+  assert.equal(satzText(r.eintraege[0].saetze[0], r.eintraege[0].masse), "20 min · Stufe 8");
+  // Unbekannte Einheiten ändern nichts.
+  assert.equal(masseSetzen(e, 0, "last", "pfund"), e);
+});
+
+test("Kilo und Wiederholungen bleiben im Protokoll wie bisher, ohne Masse", () => {
+  let e = entwurfNeu(plan, 0, [], HEUTE);
+  e = satzSetzen(e, 0, 0, "kg", 50);
+  e = satzSetzen(e, 0, 0, "wdh", 8);
+  e = satzAbhaken(e, 0, 0);
+  const r = entwurfAbschliessen(e, []);
+  assert.equal("masse" in r.eintraege[0], false);
+  assert.deepEqual(r.eintraege[0].saetze[0], { kg: 50, wdh: 8, rir: e.uebungen[0].saetze[0].rir });
+  assert.equal(satzText({ kg: 50, wdh: 8 }), "50 kg × 8");
+});
+
+import { entwurfAusLog as ausLog, rueckblickSpeichern as rbSpeichern, notizSetzen as notizS, letzteNotiz as lNotiz } from "./training.js";
+
+test("Notiz je Übung geht ins Protokoll und kommt beim nächsten Mal wieder", () => {
+  const plan = planFuer({ ...STANDARD_WUNSCH, tage: 2, minuten: 45 });
+  let e = entwurfNeu(plan, 0, [], "2026-11-10", "2026-11-10T10:00:00Z");
+  e = notizS(e, 0, "Sitz auf 4");
+  e = satzAbhaken(e, 0, 0);
+  const r = entwurfAbschliessen(e, [], Date.parse("2026-11-10T11:00:00Z"));
+  assert.equal(r.eintraege.find((x) => x.uebung === e.uebungen[0].id).notiz, "Sitz auf 4");
+  assert.equal(lNotiz(r.log, e.uebungen[0].id, "2026-11-12"), "Sitz auf 4");
+  const neu = entwurfNeu(plan, 0, r.log, "2026-11-12", "2026-11-12T10:00:00Z");
+  assert.equal(neu.uebungen[0].notiz, "Sitz auf 4");
+});
+
+test("Ein früheres Training lässt sich öffnen und korrigieren", () => {
+  const log = [
+    { datum: "2026-11-14", uebung: "bankdruecken", einheit: "Freies Training", saetze: [{ kg: 80, wdh: 8, rir: 2 }] },
+    { datum: "2026-11-14", uebung: "kniebeuge", einheit: "Freies Training", saetze: [{ kg: 100, wdh: 5, rir: 2 }] },
+    { datum: "2026-11-12", uebung: "bankdruecken", einheit: "Freies Training", saetze: [{ kg: 77.5, wdh: 8, rir: 2 }] },
+  ];
+  const e = ausLog(log, "2026-11-14", "Freies Training");
+  assert.equal(e.rueckblick, true);
+  assert.equal(e.uebungen.length, 2);
+  assert.ok(e.uebungen.every((u) => u.saetze.every((s) => s.fertig)));
+  let k = satzDazu(e, 0);
+  k = satzSetzen(k, 0, 1, "kg", 80); k = satzSetzen(k, 0, 1, "wdh", 7); k = satzAbhaken(k, 0, 1);
+  k = { ...k, uebungen: k.uebungen.filter((u) => u.id !== "kniebeuge") };
+  const neu = rbSpeichern(k, log);
+  assert.equal(neu.filter((x) => x.datum === "2026-11-14").length, 1, "entfernte Übung ist weg");
+  assert.equal(neu.find((x) => x.datum === "2026-11-14").saetze.length, 2);
+  assert.ok(neu.some((x) => x.datum === "2026-11-12"), "andere Tage bleiben");
+});
+
+import { schmerzHinweis, trainingHtml as tHtml, entwurfFrei as eFrei } from "./training.js";
+
+test("eine Notiz mit Schmerz wird beim nächsten Mal ein Hinweis, eine Einstellung nicht", () => {
+  assert.match(schmerzHinweis("Leichtes Ziehen in der rechten Schulter"), /ersten Satz leichter/);
+  assert.match(schmerzHinweis("Ist mir in den Rücken reingefahren"), /Letztes Mal notiert/);
+  assert.match(schmerzHinweis("Knie tut weh bei tiefer Position"), /Achtung|ersten Satz/);
+  assert.match(schmerzHinweis("Schmerzen im Ellbogen"), /ersten Satz/);
+  assert.equal(schmerzHinweis("Sitz auf 4, Griff eng"), "");
+  assert.equal(schmerzHinweis(""), "");
 });

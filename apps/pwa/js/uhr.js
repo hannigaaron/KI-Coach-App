@@ -125,15 +125,23 @@ export function uhrAufgaben({ plan, zeiten } = {}) {
  * Trainings kommen in dieser Reihenfolge: ein offener Entwurf von heute,
  * das Training für heute aus dem Gespräch, dann die Einheiten des Plans.
  */
-export function uhrPaket({ settings, zahlen, heute, gestrichen = false, ki = null, termine = [], aufgaben = [] }) {
+export function uhrPaket({ settings, zahlen, heute, gestrichen = false, ki = null, termine = [], aufgaben = [], todoistToken = "" }) {
   const log = Array.isArray(settings.trainingslog) ? settings.trainingslog : [];
   const trainings = [];
   const offen = settings.trainingEntwurf;
-  if (offen?.datum === heute && offen.uebungen?.length) {
-    trainings.push({ schluessel: `offen-${offen.start || heute}`, quelle: "offen", titel: offen.titel, entwurf: schlank(offen) });
+  const offenDa = offen?.datum === heute && offen.uebungen?.length && !offen.rueckblick;
+  if (offenDa) {
+    // Das laufende Training mit Beginn und laufender Pause. Die Uhr zeigt
+    // damit dieselben Übungen wie das iPhone, auch die eben dazugenommenen,
+    // und zählt eine Pause vom iPhone mit herunter.
+    const pauseBis = Number(settings.trainingPause?.bis) > Date.now() ? Number(settings.trainingPause.bis) : undefined;
+    trainings.push(ohneLeeres({ schluessel: `offen-${offen.start || heute}`, quelle: "offen", titel: offen.titel, start: offen.start || undefined, pauseBis, entwurf: schlank(offen) }));
   }
   const ht = bestellteEinheit(settings, heute);
-  if (ht?.einheit?.positionen?.length) {
+  // Läuft das Training für heute schon, steht es nicht ein zweites Mal da.
+  // Im Betrieb zeigte die Uhr "Training für heute, 6 Übungen", während am
+  // iPhone dasselbe Training mit 9 Übungen lief.
+  if (ht?.einheit?.positionen?.length && !(offenDa && offen.titel === "Training für heute")) {
     const e = entwurfNeu({ einheiten: [ht.einheit] }, 0, log, heute);
     if (e) trainings.push({ schluessel: `heute-${ht.schluessel || heute}`, quelle: "heute", titel: "Training für heute", entwurf: schlank({ ...e, titel: "Training für heute" }) });
   }
@@ -141,6 +149,7 @@ export function uhrPaket({ settings, zahlen, heute, gestrichen = false, ki = nul
   // dort Einheiten, die diese Woche niemand trainiert.
   const plan = aktiverPlan(settings, heute);
   (plan?.einheiten || []).forEach((einheit, ei) => {
+    if (offenDa && offen.titel === einheit.titel) return;
     const e = entwurfNeu(plan, ei, log, heute);
     if (e) trainings.push({ schluessel: `plan-${ei}`, quelle: "plan", titel: einheit.titel, entwurf: schlank(e) });
   });
@@ -161,6 +170,11 @@ export function uhrPaket({ settings, zahlen, heute, gestrichen = false, ki = nul
     // Wann gerechnet wurde. Die Uhr sagt damit, wie alt ein Stand ist,
     // statt einen von gestern als heutigen zu zeigen.
     stamp: Date.now(),
+    // Der Todoist Schlüssel für die Uhr. Sie fragt Todoist damit selbst, wenn
+    // das iPhone nicht vorn ist, und blendet aus, was dort schon erledigt
+    // ist. Er geht nur an die eigene Uhr und liegt dort im Schlüsselbund.
+    // Leer heisst: Verbindung gelöst, die Uhr löscht ihn.
+    todoistToken: String(todoistToken || ""),
     // Ohne Einwilligung oder Konto fehlt das Feld, und die Uhr fragt nur über das iPhone.
     ...(ki && alsPropertyList(ki) ? { ki } : {}),
   };
@@ -174,7 +188,7 @@ export function uhrPaket({ settings, zahlen, heute, gestrichen = false, ki = nul
 export function uhrEreignisseAnwenden(ereignisse, { store, heute, neueId, jetzt = () => new Date() }) {
   const settings = store.getSettings();
   const erledigt = new Set(Array.isArray(settings.uhrErledigt) ? settings.uhrErledigt : []);
-  const ergebnis = { wasserMl: 0, trainings: [], saetze: [], gespraech: [], erledigt: [] };
+  const ergebnis = { wasserMl: 0, trainings: [], saetze: [], gespraech: [], erledigt: [], stand: null };
   let log = Array.isArray(settings.trainingslog) ? settings.trainingslog : [];
 
   for (const e of Array.isArray(ereignisse) ? ereignisse : []) {
@@ -208,6 +222,14 @@ export function uhrEreignisseAnwenden(ereignisse, { store, heute, neueId, jetzt 
       continue;
     }
 
+    // Der Stand eines Trainings, das gerade auf der Uhr läuft, nach jedem
+    // Satz. Gespeichert wird hier nichts, die App führt ihn in das laufende
+    // Training am iPhone, `entwurfMitUhr`. Nur der jüngste zählt.
+    if (e.art === "trainingStand" && Array.isArray(e.uebungen)) {
+      ergebnis.stand = { titel: String(e.titel || "Training"), datum: /^\d{4}-\d{2}-\d{2}$/.test(String(e.datum)) ? e.datum : heute, start: Date.parse(e.start) ? e.start : null, uebungen: uhrUebungen(e.uebungen) };
+      continue;
+    }
+
     if (e.art === "wasser") {
       const ml = Math.max(0, Math.min(2000, r(e.ml)));
       const tag = /^\d{4}-\d{2}-\d{2}$/.test(String(e.tag)) ? e.tag : heute;
@@ -223,27 +245,68 @@ export function uhrEreignisseAnwenden(ereignisse, { store, heute, neueId, jetzt 
         titel: String(e.titel || "Training"),
         datum,
         start,
-        uebungen: e.uebungen.map((u) => ({
-          id: String(u.id || ""),
-          name: String(u.name || ""),
-          saetze: (Array.isArray(u.saetze) ? u.saetze : []).map((s) => ({
-            kg: s.kg === null || s.kg === undefined ? null : Number(s.kg),
-            wdh: r(s.wdh),
-            rir: s.rir === null || s.rir === undefined ? null : r(s.rir),
-            fertig: Boolean(s.fertig),
-          })),
-        })).filter((u) => u.id),
+        uebungen: uhrUebungen(e.uebungen),
       };
       const fertig = entwurfAbschliessen(entwurf, log, ende);
       if (!fertig.saetze) continue;
       log = fertig.log;
       store.addTraining(datum, { id: neueId(), type: "strength", minutes: fertig.minuten, at: new Date(start).toTimeString().slice(0, 5), note: `${entwurf.titel}, Apple Watch` });
-      ergebnis.trainings.push({ titel: entwurf.titel, saetze: fertig.saetze, minuten: fertig.minuten });
+      ergebnis.trainings.push({ titel: entwurf.titel, datum, start, ende: new Date(ende).toISOString(), saetze: fertig.saetze, minuten: fertig.minuten });
+      // Ein beendetes Training ist kein laufendes mehr.
+      if (ergebnis.stand?.titel === entwurf.titel) ergebnis.stand = null;
     }
   }
 
   store.setSettings({ ...store.getSettings(), trainingslog: log, uhrErledigt: [...erledigt].slice(-MERKEN) });
   return ergebnis;
+}
+
+/** Übungen, wie die Uhr sie schickt, in der Form eines Entwurfs. */
+function uhrUebungen(liste) {
+  return (Array.isArray(liste) ? liste : []).map((u) => ({
+    id: String(u.id || ""),
+    name: String(u.name || ""),
+    saetze: (Array.isArray(u.saetze) ? u.saetze : []).map((s) => ({
+      kg: s.kg === null || s.kg === undefined ? null : Number(s.kg),
+      wdh: r(s.wdh),
+      rir: s.rir === null || s.rir === undefined ? null : r(s.rir),
+      fertig: Boolean(s.fertig),
+    })),
+  })).filter((u) => u.id);
+}
+
+/**
+ * Führt den Stand von der Uhr in das laufende Training am iPhone. Ein Satz,
+ * der auf der Uhr abgehakt ist und hier noch offen, wird mit den Werten der
+ * Uhr übernommen. Was hier schon abgehakt ist, bleibt: abgehakt ist
+ * abgehakt, egal wo. Eine Übung, die das iPhone nicht kennt, kommt hinten
+ * dazu. Ohne laufendes Training wird der Stand der Uhr selbst zum Training,
+ * damit man am iPhone weitermachen kann.
+ */
+export function entwurfMitUhr(entwurf, stand) {
+  if (!stand) return entwurf;
+  if (!entwurf || entwurf.titel !== stand.titel || entwurf.datum !== stand.datum) {
+    return {
+      ei: -1, frei: true, titel: stand.titel, datum: stand.datum, start: stand.start || new Date().toISOString(), aktiv: 0,
+      uebungen: stand.uebungen.map((u) => ({ ...u, ziel: { saetze: u.saetze.length, wdh: "8-12", reserve: 2, pauseSek: 90 } })),
+    };
+  }
+  const uebungen = entwurf.uebungen.map((u) => {
+    const von = stand.uebungen.find((x) => x.id === u.id);
+    if (!von) return u;
+    const saetze = u.saetze.map((s, i) => {
+      const w = von.saetze[i];
+      return w?.fertig && !s.fertig ? { ...s, kg: w.kg, wdh: w.wdh, rir: w.rir ?? s.rir, fertig: true } : s;
+    });
+    for (let i = u.saetze.length; i < von.saetze.length; i++) if (von.saetze[i].fertig) saetze.push({ ...von.saetze[i] });
+    return { ...u, saetze };
+  });
+  for (const u of stand.uebungen) {
+    if (!uebungen.some((x) => x.id === u.id)) uebungen.push({ ...u, ziel: { saetze: u.saetze.length, wdh: "8-12", reserve: 2, pauseSek: 90 } });
+  }
+  // Die aktive Übung folgt der ersten offenen, wie auf der Uhr.
+  const aktiv = uebungen.findIndex((u) => u.saetze.some((s) => !s.fertig));
+  return { ...entwurf, uebungen, aktiv: aktiv >= 0 ? aktiv : entwurf.aktiv };
 }
 
 /** Ein Satz für die Meldung nach dem Abholen, oder leer. */

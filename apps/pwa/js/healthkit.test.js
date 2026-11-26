@@ -13,7 +13,7 @@ class SpeicherAttrappe {
 globalThis.localStorage = new SpeicherAttrappe();
 
 const { store } = await import("./storage.js");
-const { healthkitAbgleichen, healthkitSchreiben, workoutsSchreiben } = await import("./healthkit.js");
+const { healthEinfangen, healthkitAbgleichen, healthkitSchreiben, workoutsSchreiben } = await import("./healthkit.js");
 const { brauchtWiederherstellung, schnappschuss } = await import("./nativ.js");
 
 const HEUTE = "2026-10-19";
@@ -92,7 +92,8 @@ test("der Plan der Mitteilungen: Impulse, Runterfahren zur eigenen Schlafenszeit
   const heute = plan.filter((m) => m.tag === HEUTE);
   assert.ok(heute.every((m) => m.uhrzeit > "12:00"), "nichts vor jetzt");
   const runter = plan.find((m) => m.art === "runterfahren" && m.tag === HEUTE);
-  assert.equal(runter.uhrzeit, "22:15", "45 Minuten vor 23:00");
+  assert.equal(runter.uhrzeit, "21:30", "90 Minuten vor 23:00");
+  assert.match(runter.text, /Handy weg/);
   assert.ok(plan.some((m) => m.tag > HEUTE && m.art === "protein"));
 });
 
@@ -107,7 +108,7 @@ test("die Lücke steht mit Antwortknöpfen im Plan und geht vor, wenn gekürzt w
 
 test("wer selbst ausgeschaltet hat, bekommt nichts geplant", async () => {
   frisch();
-  store.setSettings({ ...store.getSettings(), mitteilungenAus: { impulse: true, runterfahren: true, morgen: true, rueckblick: true } });
+  store.setSettings({ ...store.getSettings(), mitteilungenAus: { impulse: true, runterfahren: true, morgen: true, rueckblick: true, wochencheck: true } });
   const { mitteilungsPlan } = await import("./mitteilungen.js");
   assert.equal(mitteilungsPlan({ store, jetzt: { tag: HEUTE, uhrzeit: "06:00" } }).length, 0);
 });
@@ -154,7 +155,7 @@ test("vor dem Schlafen folgt der Schlafenszeit des Tages, auch aus einem SLEEP E
   assert.equal(zeit("2026-10-20"), "23:30", "SLEEP um 00:30 in der Nacht danach");
   assert.equal(zeit("2026-10-21"), "22:00", "ohne Eintrag die Schlafenszeit aus dem Profil");
   assert.equal(zeit("2026-10-22"), "20:30", "die Ausnahme des Tages");
-  assert.equal(plan.find((m) => m.id === `runterfahren-${HEUTE}`).uhrzeit, "23:00", "Runterfahren 45 Minuten vor 23:45");
+  assert.equal(plan.find((m) => m.id === `runterfahren-${HEUTE}`).uhrzeit, "22:15", "Abendroutine 90 Minuten vor 23:45");
 });
 
 test("die Schlafenszeit je Wochentag aus daevo geht dem Kalender vor", async () => {
@@ -327,4 +328,71 @@ test("Wochenrückblick mittwochs und sonntags im Plan, ohne Zahlen in der Mittei
   const r = mitteilungsPlan({ store, jetzt: { tag: HEUTE, uhrzeit: "08:00" } }).filter((m) => m.art === "rueckblick");
   assert.deepEqual(r.map((m) => [m.tag, m.uhrzeit]), [["2026-10-21", "18:30"], ["2026-10-25", "20:00"]]);
   assert.ok(r.every((m) => !/\d/.test(m.text)));
+});
+
+test("Kalorien und Puls aus Health kommen an ein schon eingetragenes Training, statt mit ihm wegzufallen", () => {
+  frisch();
+  store.addTraining("2026-10-18", { id: "eigen", type: "strength", minutes: 60, at: "12:00", note: "Freies Training" });
+  const w = [{ id: "B2", tag: "2026-10-18", uhrzeit: "12:02", minuten: 61, art: "strength", kcal: 287, puls: 118, pulsMax: 162 }];
+  assert.equal(workoutsSchreiben(w, { store, heute: HEUTE }), 0);
+  const t = store.getDay("2026-10-18").trainings;
+  assert.equal(t.length, 1);
+  assert.equal(t[0].kcal, 287);
+  assert.equal(t[0].puls, 118);
+  assert.equal(t[0].pulsMax, 162);
+  // Beim nächsten Lesen nicht noch einmal und nicht als zweites Training.
+  workoutsSchreiben(w, { store, heute: HEUTE });
+  assert.equal(store.getDay("2026-10-18").trainings.length, 1);
+});
+
+test("Aktive Kalorien über der Planung heben das Tagesziel, darunter bleibt es", async () => {
+  frisch();
+  const { dayNumbers } = await import("./assistant.js");
+  const ohne = dayNumbers("2026-10-18").targets.kcal;
+  healthkitSchreiben({ tage: [{ tag: "2026-10-18", aktivKcal: 100 }] }, { store, heute: HEUTE });
+  assert.equal(dayNumbers("2026-10-18").targets.kcal, ohne);
+  healthkitSchreiben({ tage: [{ tag: "2026-10-18", aktivKcal: 2500 }] }, { store, heute: HEUTE });
+  const n = dayNumbers("2026-10-18");
+  assert.ok(n.targets.kcal > ohne, `${n.targets.kcal} > ${ohne}`);
+  assert.equal(n.targets.kcal - ohne, n.aktivitaet.zuschlagKcal);
+  store.setSettings({ ...store.getSettings(), aktivZumZiel: false });
+  assert.equal(dayNumbers("2026-10-18").targets.kcal, ohne);
+});
+
+const lokalISO = (h, m) => { const d = new Date(); d.setHours(h, m, 0, 0); return d.toISOString(); };
+
+test("Läuft ein Training in daevo, wartet die kurze Aufzeichnung der Uhr", () => {
+  frisch();
+  const tag = HEUTE;
+  store.setSettings({ ...store.getSettings(), trainingEntwurf: { datum: tag, titel: "Pull", start: lokalISO(14, 9), uebungen: [] } });
+  const w = [{ id: "K1", tag, uhrzeit: "14:59", minuten: 10, art: "strength", kcal: 60 }];
+  assert.equal(workoutsSchreiben(w, { store, heute: HEUTE }), 0);
+  assert.equal((store.getDay(tag).trainings || []).length, 0);
+});
+
+test("Beim Beenden geht die Uhr in den Eintrag aus daevo, Kalorien auf die Dauer hochgerechnet", () => {
+  frisch();
+  const tag = HEUTE;
+  // Die Uhr war schon eingetragen, etwa von einem früheren Abgleich.
+  store.addTraining(tag, { id: "hk-K1", type: "strength", minutes: 10, at: "14:59", quelle: "health", kcal: 60, puls: 118 });
+  store.addTraining(tag, { id: "d1", type: "strength", minutes: 55, at: "14:09", note: "Pull" });
+  const neu = healthEinfangen(store, tag, store.getDay(tag).trainings.at(-1));
+  const t = store.getDay(tag).trainings;
+  assert.equal(t.length, 1);
+  assert.equal(neu.minutes, 55);
+  assert.equal(neu.kcal, 330);
+  assert.equal(neu.kcalHochgerechnet, true);
+  assert.equal(neu.puls, 118);
+  // Der nächste Abgleich legt die Aufzeichnung nicht noch einmal an.
+  assert.equal(workoutsSchreiben([{ id: "K1", tag, uhrzeit: "14:59", minuten: 10, art: "strength", kcal: 60 }], { store, heute: HEUTE }), 0);
+  assert.equal(store.getDay(tag).trainings.length, 1);
+});
+
+test("Eine Aufzeichnung in passender Länge wird nicht hochgerechnet", () => {
+  frisch();
+  store.addTraining(HEUTE, { id: "hk-K2", type: "strength", minutes: 50, at: "14:15", quelle: "health", kcal: 300 });
+  store.addTraining(HEUTE, { id: "d2", type: "strength", minutes: 55, at: "14:09", note: "Pull" });
+  const neu = healthEinfangen(store, HEUTE, store.getDay(HEUTE).trainings.at(-1));
+  assert.equal(neu.kcal, 300);
+  assert.equal(neu.kcalHochgerechnet, undefined);
 });
