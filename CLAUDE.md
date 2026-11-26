@@ -1011,7 +1011,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1553 Tests
+npm test           # 1555 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1552,9 +1552,14 @@ in den Tag, sondern als geplante Mahlzeit in `settings.essenWahl`,
 Eintrag stünde es heute schon in den Zahlen. `tagesessen` nimmt sie über
 `gewaehlt` wie gegessen für den Rest, die übrigen Mahlzeiten werden um sie
 herum gerechnet, und sie steht mit eigenen Werten und "deine Wahl" im Plan.
-Ist die Mahlzeit dieser Art eingetragen, gilt der Eintrag. Offen: eine
-gewählte Mahlzeit lässt sich noch nicht mit einem Tipp als gegessen
-eintragen.
+Ist die Mahlzeit dieser Art eingetragen, gilt der Eintrag.
+
+Für heute steht ganz oben im Blatt "So gegessen, jetzt eintragen",
+`geplanteMahlzeitEintragen` in `assistant.js`: die eigene Wahl oder der
+Vorschlag von daevo in der gerechneten Portion, mit allen Posten, zur
+geplanten Uhrzeit, aber nie später als jetzt. Danach fällt die Wahl weg,
+und sechs Sekunden gibt es Rückgängig. Für morgen fehlt der Knopf, morgen
+ist noch nichts gegessen.
 
 Geöffnet wird sie oben auf Dein Tag, ab 17 Uhr steht "Briefing für morgen"
 vorn, auf der Kalenderseite unter dem Briefing, über die Mitteilung am Abend

@@ -1962,6 +1962,34 @@ export function essenWahlSetzen(tagIso, art, wahl) {
   store.setSettings({ ...store.getSettings(), essenWahl: liste });
 }
 
+/**
+ * Eine geplante Mahlzeit von heute mit einem Tipp als gegessen eintragen,
+ * die eigene Wahl oder den Vorschlag von daevo in der gerechneten Portion.
+ * Die Uhrzeit ist die geplante, aber nie später als jetzt: gegessen ist, was
+ * schon passiert ist. Danach fällt die Wahl weg, denn ab jetzt gilt der
+ * Eintrag. Gibt die Kennung der Mahlzeit zurück, oder null, wenn es für
+ * diese Art heute nichts zum Eintragen gibt.
+ */
+export function geplanteMahlzeitEintragen(art, jetzt = Date.now()) {
+  const tag = todayIso();
+  const m = tagesessenFuer(tag, jetzt).mahlzeiten.find((x) => x.art === art);
+  if (!m) return null;
+  const quelle = m.gewaehlt?.posten?.length ? m.gewaehlt.posten
+    : (m.rezept?.posten || []).map((p) => ({ name: p.name, quantity: p.menge || `${p.gramm} g`, kcal: p.kcal, proteinG: p.proteinG, fatG: p.fatG, carbsG: p.carbsG }));
+  const entries = quelle.map((p) => ({ name: p.name, quantity: p.quantity, kcal: Number(p.kcal) || 0, proteinG: Number(p.proteinG) || 0, fatG: Number(p.fatG) || 0, carbsG: Number(p.carbsG) || 0 }));
+  if (!entries.length) return null;
+  const d = new Date(m.um);
+  const geplant = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  const { at } = nachtragZeit(tag, geplant, new Date(jetzt));
+  const id = newId();
+  store.addMeal(tag, { id, text: m.gewaehlt?.name || m.rezept?.name || m.name, at, source: m.gewaehlt ? "wahl" : "rezept", entries, feeling: null });
+  const daten = store.getDay(tag);
+  daten.meals.sort((a, b) => String(a.at).localeCompare(String(b.at)));
+  store.setDay(tag, daten);
+  essenWahlSetzen(tag, art, null);
+  return { id, tag, at, kcal: Math.round(entries.reduce((s, e) => s + e.kcal, 0)) };
+}
+
 /** Text oder Diktat zu Posten, über denselben Weg wie beim Eintragen, ohne etwas einzutragen. */
 export async function essenWahlAusText(tagIso, art, text) {
   const coach = new Coach(provider({ ohneZaehlung: true }));

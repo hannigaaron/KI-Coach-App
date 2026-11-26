@@ -43,7 +43,7 @@ import {
   schluesselPruefen, tagesnutzungFuer,
   trainingsplanUebernehmen, trainingsplanVorschlag, widerspruchListe,
   kalenderEntfernen, kalenderImportieren, kalenderStand, tagesbriefingFuer, wochenrueckblickFuer, tagesessenFuer,
-  briefingTag, essenWahlAusFoto, essenWahlAusText, essenWahlFuer, essenWahlSetzen, fokusKandidaten, fokusWaehlen,
+  briefingTag, essenWahlAusFoto, essenWahlAusText, essenWahlFuer, essenWahlSetzen, geplanteMahlzeitEintragen, fokusKandidaten, fokusWaehlen,
   kostenUebersicht, recommendations, standardsUebersicht, tagesErinnerungen, verlaufPunkte,
   berichtFuer,
   berichtZeitraeume,
@@ -4895,6 +4895,9 @@ function bsaOeffnen(zeile) {
   $("bsaText").value = "";
   $("bsaHinweis").textContent = "";
   $("bsaVorschlagZurueck").hidden = !gewaehlt;
+  // Eintragen gibt es nur für heute: morgen ist noch nichts gegessen.
+  $("bsaGegessen").hidden = tag !== todayIso();
+  $("bsaGegessen").textContent = gewaehlt ? "Gegessen, jetzt eintragen" : "So gegessen, jetzt eintragen";
   bsaBeschaeftigt(false);
   $("bsAendern").hidden = false;
 }
@@ -4906,7 +4909,7 @@ function bsaSchliessen({ weiter = true } = {}) {
 }
 
 function bsaBeschaeftigt(an, text = "") {
-  for (const id of ["bsaUebernehmen", "bsaFoto", "bsaScan", "bsaSuchen", "bsaMikro"]) $(id).disabled = an;
+  for (const id of ["bsaGegessen", "bsaUebernehmen", "bsaFoto", "bsaScan", "bsaSuchen", "bsaMikro"]) $(id).disabled = an;
   $("bsaUebernehmen").textContent = an ? "daevo rechnet" : "Übernehmen";
   if (text) $("bsaHinweis").textContent = text;
 }
@@ -4971,6 +4974,22 @@ function bsaImEditor(fokus) {
 }
 $("bsaScan").addEventListener("click", () => bsaImEditor("barcode"));
 $("bsaSuchen").addEventListener("click", () => bsaImEditor("suche"));
+$("bsaGegessen").addEventListener("click", () => {
+  if (!bsaZeile) return;
+  const art = bsaZeile.art;
+  const vorher = essenWahlFuer(todayIso()).find((w) => w.art === art);
+  const r = geplanteMahlzeitEintragen(art);
+  if (!r) { $("bsaHinweis").textContent = "Dazu gibt es nichts zum Eintragen. Sag oder tipp oben, was du gegessen hast."; return; }
+  bsaSchliessen();
+  briefingNeu();
+  refreshAll();
+  toastAktion(`${MAHLZEIT_NAME[art] || "Mahlzeit"} eingetragen, ${r.kcal} kcal um ${r.at}.`, "Rückgängig", () => {
+    store.removeMeal(r.tag, r.id);
+    if (vorher) essenWahlSetzen(r.tag, art, vorher);
+    briefingNeu();
+    refreshAll();
+  });
+});
 $("bsaVorschlagZurueck").addEventListener("click", () => {
   if (!bsaZeile) return;
   essenWahlSetzen(briefingTag(bsArt), bsaZeile.art, null);

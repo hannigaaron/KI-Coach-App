@@ -1013,6 +1013,8 @@ button.messwert:active { opacity: 0.65; }
 .toast-aktion {
   background: none; border: 0; padding: 0; min-height: 0; box-shadow: none;
   color: var(--accent); font: inherit; font-weight: 700; cursor: pointer;
+  /* Der Knopf bricht nie mitten im Wort: "Rüc kgä ngig" stand im Betrieb da. */
+  white-space: nowrap; flex-shrink: 0;
 }
 body:has([data-view="assistant"]:not([hidden])) .toast {
   bottom: calc(var(--composer) + env(safe-area-inset-bottom) + 18px);
@@ -4871,3 +4873,9 @@ button { overflow-wrap: anywhere; text-wrap: balance; }
   font-family: var(--schrift-text); font-size: 16px; line-height: 1.35; letter-spacing: normal;
 }
 .bsf-wahl.an { box-shadow: inset 0 0 0 2px #96d8f0; }
+
+/* Eine geplante Mahlzeit mit einem Tipp als gegessen eintragen. Der
+   wichtigste Weg im Blatt, deshalb voll in der Markenfarbe und ganz oben. */
+.bsa-gegessen { display: block; width: 100%; min-height: 48px; margin: 4px 0 14px; padding: 10px 16px; border: 0; border-radius: 999px; background: #96d8f0; color: #0b0d10; font: inherit; font-size: 16px; font-weight: 600; cursor: pointer; }
+.bsa-gegessen:active { transform: scale(0.98); }
+.bsa-gegessen[hidden] { display: none; }

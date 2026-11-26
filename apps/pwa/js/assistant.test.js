@@ -1063,3 +1063,26 @@ test("eine Frist vom Modell bleibt, auch ohne Wichtigkeit", async () => {
   assert.equal(a.faellig, "2026-12-01");
   assert.equal(a.minuten, 15);
 });
+
+test("eine gewählte Mahlzeit von heute geht mit einem Tipp in den Tag, nie in die Zukunft", () => {
+  const tag = frischerTag();
+  const frueh = new Date(`${tag}T07:00:00`).getTime();
+  importe.essenWahlSetzen(tag, "abendessen", { name: "Reis mit Hähnchen", posten: [{ name: "Reis", quantity: "200 g", kcal: 260, proteinG: 5, fatG: 1, carbsG: 57 }] });
+  const r = importe.geplanteMahlzeitEintragen("abendessen", frueh);
+  assert.ok(r);
+  assert.equal(r.kcal, 260);
+  assert.equal(r.at, "07:00", "eine geplante Uhrzeit nach jetzt wird jetzt");
+  const mahlzeit = store.getDay(tag).meals.find((m) => m.id === r.id);
+  assert.equal(mahlzeit.entries[0].name, "Reis");
+  assert.equal(importe.essenWahlFuer(tag).length, 0, "die Wahl fällt weg, der Eintrag gilt");
+});
+
+test("der Vorschlag von daevo lässt sich ebenso eintragen", () => {
+  const tag = frischerTag();
+  const frueh = new Date(`${tag}T06:30:00`).getTime();
+  const plan = importe.tagesessenFuer(tag, frueh).mahlzeiten.find((m) => m.rezept?.posten?.length);
+  if (!plan) return;
+  const r = importe.geplanteMahlzeitEintragen(plan.art, frueh);
+  assert.ok(r);
+  assert.equal(store.getDay(tag).meals.find((m) => m.id === r.id).entries.length, plan.rezept.posten.length);
+});
