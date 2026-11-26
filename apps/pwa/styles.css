@@ -4883,3 +4883,22 @@ button { overflow-wrap: anywhere; text-wrap: balance; }
 .bsa-gegessen { display: block; width: 100%; min-height: 48px; margin: 4px 0 14px; padding: 10px 16px; border: 0; border-radius: 999px; background: #96d8f0; color: #0b0d10; font: inherit; font-size: 16px; font-weight: 600; cursor: pointer; }
 .bsa-gegessen:active { transform: scale(0.98); }
 .bsa-gegessen[hidden] { display: none; }
+
+/* Austauschen an jedem Essen. Leise Tonfläche, damit der Haken bei Aufgaben
+   die stärkere Handlung bleibt, aber gross genug für den Daumen. */
+button.essen-tauschen {
+  display: inline-flex; align-items: center; gap: 6px; align-self: flex-start;
+  min-height: 36px; padding: 6px 14px; margin-top: var(--s-3, 12px);
+  border-radius: 999px; border: 0; box-shadow: none;
+  background: var(--flaeche, rgba(128,128,128,.16)); color: var(--text);
+  font-family: inherit; font-size: var(--t-sm, 14px); font-weight: 600; letter-spacing: 0;
+}
+button.essen-tauschen svg { flex: none; }
+.kb-jetzt button.essen-tauschen { margin-top: var(--s-3, 12px); }
+.ke-karte button.essen-tauschen { margin: var(--s-2, 8px) 0 0; }
+/* In der sortierten Liste nur das Zeichen, als Kreis wie der Haken. */
+.so button.so-tauschen {
+  flex: none; box-sizing: border-box; width: 36px; height: 36px; min-width: 36px; min-height: 36px;
+  padding: 0; margin: 0; border-radius: 50%; display: grid; place-items: center; gap: 0;
+  font-size: 0; line-height: 0; background: color-mix(in srgb, currentColor 10%, transparent); color: inherit;
+}

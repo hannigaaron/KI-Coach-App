@@ -30,6 +30,12 @@ export function sortiertHtml(gruppen, opt = {}) {
   const haken = (p) => (opt.mitHaken && p.art === "aufgabe" && p.id
     ? `<button type="button" class="so-haken" data-erledigt="${esc(p.id)}" aria-label="Erledigt: ${esc(p.titel)}"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>`
     : "");
+  // Ein Essen lässt sich dort tauschen, wo es steht. Vorher ging das nur in
+  // der Präsentation, und auf der Kalenderseite stand das Frühstück für morgen
+  // ohne jeden Weg, es zu ändern.
+  const tauschen = (p) => (opt.mitTauschen && p.art === "essen" && p.mahlzeit
+    ? `<button type="button" class="essen-tauschen so-tauschen" data-essen-tauschen="${esc(p.mahlzeit)}" data-gericht="${esc(p.titel)}" data-kcal="${Number(String(p.unter).match(/(\d+) kcal/)?.[1]) || 0}" data-um="${esc(uhr(p.um))}" aria-label="${esc(p.titel)} austauschen"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg></button>`
+    : "");
   const gruppe = (g, gi) => {
     const punkte = g.punkte.map((p, i) => {
       const verz = (nr++ * 0.09 + 0.25).toFixed(2);
@@ -40,7 +46,7 @@ export function sortiertHtml(gruppen, opt = {}) {
         // Ohne Uhrzeit keine leere Spalte: sie schob jede Aufgabe ohne Zeit um
         // siebzig Pixel nach rechts, und der Text brach dreimal mehr um.
         + (zeit ? `<span class="so-zeit">${esc(zeit)}</span>` : "")
-        + `<span class="so-was"><b>${esc(p.titel)}</b><small>${esc(p.unter || ART[p.art] || "")}</small></span>${haken(p)}</li>`;
+        + `<span class="so-was"><b>${esc(p.titel)}</b><small>${esc(p.unter || ART[p.art] || "")}</small></span>${haken(p)}${tauschen(p)}</li>`;
     }).join("");
     const marke = g.nr ? `<span class="so-nr">${g.nr}</span>` : `<span class="so-nr so-ohne" aria-hidden="true"></span>`;
     return `<section class="so-gruppe so-g-${esc(g.id)}" style="--gi:${gi}">`

@@ -1554,6 +1554,13 @@ Eintrag stünde es heute schon in den Zahlen. `tagesessen` nimmt sie über
 herum gerechnet, und sie steht mit eigenen Werten und "deine Wahl" im Plan.
 Ist die Mahlzeit dieser Art eingetragen, gilt der Eintrag.
 
+Dasselbe Blatt öffnet "Austauschen" auf der Kalenderseite: an der grossen
+Karte oben, als Kreis neben jedem Essen in der sortierten Liste und an den
+Mahlzeitkarten, `tauschKnopf` und `tauschOeffnen` in `app.js`, `mitTauschen`
+in `sortierung.js`. Vorher ging das nur in der Präsentation, und auf der
+Kalenderseite stand das Frühstück für morgen ohne Weg, es zu ändern. Das
+Blatt kennt dafür seinen Tag, `bsaTag`, und die Punkte tragen `mahlzeit`.
+
 Für heute steht ganz oben im Blatt "So gegessen, jetzt eintragen",
 `geplanteMahlzeitEintragen` in `assistant.js`: die eigene Wahl oder der
 Vorschlag von daevo in der gerechneten Portion, mit allen Posten, zur

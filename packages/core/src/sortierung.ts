@@ -76,6 +76,8 @@ export interface SortierPunkt {
   id?: string;
   rezeptId?: string;
   foto?: boolean;
+  /** Bei Essen die Art der Mahlzeit, damit sie sich dort austauschen lässt. */
+  mahlzeit?: string;
 }
 
 export interface SortierGruppe {

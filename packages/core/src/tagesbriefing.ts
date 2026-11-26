@@ -88,6 +88,10 @@ export interface BriefingPunkt {
   wichtig?: boolean;
   rezeptId?: string;
   foto?: boolean;
+  /** Bei Essen die Art der Mahlzeit, fruehstueck bis abendessen, zum Austauschen. */
+  mahlzeit?: string;
+  /** Bei Essen die Kalorien, für das Blatt zum Austauschen. */
+  kcal?: number;
 }
 
 export interface BriefingEingaben {
@@ -473,7 +477,7 @@ export function briefingPunkte(e: BriefingEingaben): BriefingPunkt[] {
     punkte.push({
       art: "essen", um: m.um, titel: m.rezept ? m.rezept.name : m.gewaehlt ? m.gewaehlt.name : m.name,
       unter: `${m.name}, ${m.kcal} kcal, ${m.proteinG} g Protein${rolle}`,
-      rezeptId: m.rezept?.id, foto: m.rezept?.foto,
+      rezeptId: m.rezept?.id, foto: m.rezept?.foto, mahlzeit: m.art, kcal: m.kcal,
     });
   }
   // Das Training nur, wenn es nicht schon als Termin im Kalender steht.
@@ -528,7 +532,7 @@ export function reihenfolgeBauen(e: BriefingEingaben, feierabend: number | null)
 
   const alle = briefingPunkte(e).filter((p) => p.art !== "aufgabe" && p.art !== "feierabend");
   const vorFeierabend = (p: BriefingPunkt) => feierabend === null || p.um === null || p.um < feierabend;
-  const alsSort = (p: BriefingPunkt): SortierPunkt => ({ art: p.art as SortierPunkt["art"], titel: p.titel, unter: p.unter, um: p.um, rezeptId: p.rezeptId, foto: p.foto });
+  const alsSort = (p: BriefingPunkt): SortierPunkt => ({ art: p.art as SortierPunkt["art"], titel: p.titel, unter: p.unter, um: p.um, rezeptId: p.rezeptId, foto: p.foto, ...(p.mahlzeit ? { mahlzeit: p.mahlzeit } : {}) });
   const dazwischen = alle.filter(vorFeierabend).map(alsSort);
   const abends = alle.filter((p) => !vorFeierabend(p) && p.art === "termin").map(alsSort);
 
