@@ -1244,12 +1244,20 @@ try {
   <section class="view" data-view="kalender" hidden>
     <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Kalender</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
+      <!-- Die Präsentation steht oben und nicht unter allem: abends ist sie
+           der Grund, die Seite zu öffnen. Die Liste darunter ist zum
+           Nachschlagen. Text setzt kalShowSetzen nach der Uhrzeit. -->
+      <button type="button" class="kal-show" id="kalShowHaupt">
+        <span class="kal-show-balken" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+        <span class="kal-show-text"><b id="kalShowTitel">Tagesbriefing ansehen</b><small id="kalShowUnter">Dein Tag in Karten</small></span>
+        <span class="kal-show-play" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></span>
+      </button>
+      <button type="button" class="kal-show-neben" id="kalShowNeben"></button>
       <div class="seg" id="kalBriefingWahl" role="tablist">
         <button class="seg-btn is-on" role="tab" aria-selected="true" data-briefing="morgen">Heute</button>
         <button class="seg-btn" role="tab" aria-selected="false" data-briefing="abend">Morgen</button>
       </div>
       <div class="kb" id="kalBriefing"></div>
-      <button type="button" class="secondary bs-als-show" id="kalBriefingShow">Als Präsentation ansehen</button>
 
       <h2 class="abschnitt">Tag im Detail</h2>
       <div class="field"><label for="kalTag">Tag</label><input id="kalTag" type="date"></div>
