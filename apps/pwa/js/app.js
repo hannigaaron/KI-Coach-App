@@ -4853,11 +4853,19 @@ diktatKnopf("btnKopfDiktat", "kopfText", "Sprich in Ruhe. Tipp auf Fertig, wenn 
  */
 let bsArt = "morgen";
 let bsSteuerung = null;
+// Der Tagesabschluss ist das Briefing vom Abend ohne den Blick nach vorn:
+// wie heute lief, was von der Untergrenze offen ist, Schluss.
+const ABSCHLUSS_KARTEN = ["rueckblick", "untergrenze", "ende"];
+let bsNur = null;
 function briefingRechnen() {
-  return tagesbriefingFuer(bsArt === "abend" ? "abend" : "morgen");
+  const b = tagesbriefingFuer(bsArt === "abend" ? "abend" : "morgen");
+  if (!bsNur) return b;
+  const folien = (b.folien || []).filter((f) => bsNur.includes(f.art));
+  return { ...b, folien: folien.length > 1 ? folien : b.folien };
 }
-function briefingShowOeffnen(art) {
+function briefingShowOeffnen(art, { nur = null } = {}) {
   bsArt = art === "abend" ? "abend" : "morgen";
+  bsNur = nur;
   let b;
   try { b = briefingRechnen(); } catch (e) { console.error(e); toast("Das Briefing liess sich nicht rechnen."); return; }
   bsSteuerung = briefingZeigen(b, $("briefingShow"), {
@@ -5068,7 +5076,25 @@ $("bsfZurueck").addEventListener("click", () => bsfSetzen(null));
 for (const k of document.querySelectorAll(".bs-wahl [data-briefing-zeigen]")) {
   k.addEventListener("click", () => briefingShowOeffnen(k.dataset.briefingZeigen));
 }
-$("kalBriefingShow").addEventListener("click", () => briefingShowOeffnen(briefingArt));
+/**
+ * Die beiden Wege in die Präsentation oben auf der Kalenderseite. Ab 17 Uhr
+ * zählt der Blick auf morgen, darunter der Abschluss von heute. Vorher der
+ * Tag heute, darunter schon morgen.
+ */
+function kalShowSetzen() {
+  const abends = new Date().getHours() >= 17;
+  $("kalShowHaupt").dataset.art = abends ? "abend" : "morgen";
+  $("kalShowTitel").textContent = abends ? "Briefing für morgen ansehen" : "Tagesbriefing ansehen";
+  $("kalShowUnter").textContent = abends ? "Morgen in Karten, eine Minute" : "Dein Tag in Karten, eine Minute";
+  $("kalShowNeben").dataset.art = abends ? "abschluss" : "abend";
+  $("kalShowNeben").textContent = abends ? "Tagesabschluss von heute" : "Schon mal auf morgen schauen";
+}
+$("kalShowHaupt").addEventListener("click", () => briefingShowOeffnen($("kalShowHaupt").dataset.art));
+$("kalShowNeben").addEventListener("click", () => {
+  const art = $("kalShowNeben").dataset.art;
+  if (art === "abschluss") briefingShowOeffnen("abend", { nur: ABSCHLUSS_KARTEN });
+  else briefingShowOeffnen(art);
+});
 
 $("btnMittag").addEventListener("click", () => {
   const zahl = (id, min, max) => Math.max(min, Math.min(max, Number($(id).value) || min));
@@ -5294,6 +5320,7 @@ const PUNKT_ART = { aufgabe: "Aufgabe", termin: "Termin", essen: "Essen", traini
  * Aufgaben lassen sich direkt abhaken, dann rückt das Nächste nach oben.
  */
 function briefingZeichnen() {
+  kalShowSetzen();
   const ziel = $("kalBriefing");
   let b;
   try { b = tagesbriefingFuer(briefingArt); } catch (e) { ziel.textContent = "Das Briefing liess sich nicht rechnen."; console.error(e); return; }

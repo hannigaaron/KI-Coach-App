@@ -1569,7 +1569,11 @@ und sechs Sekunden gibt es Rückgängig. Für morgen fehlt der Knopf, morgen
 ist noch nichts gegessen.
 
 Geöffnet wird sie oben auf Dein Tag, ab 17 Uhr steht "Briefing für morgen"
-vorn, auf der Kalenderseite unter dem Briefing, über die Mitteilung am Abend
+vorn, auf der Kalenderseite ganz oben als dunkle Karte mit Story Balken,
+`kalShowSetzen`: ab 17 Uhr "Briefing für morgen ansehen" und darunter
+"Tagesabschluss von heute", das ist das Abendbriefing nur mit Rückblick,
+Untergrenze und Schluss, `ABSCHLUSS_KARTEN`. Vorher stand "Als Präsentation
+ansehen" unter der ganzen Liste, und niemand scrollte dorthin. Ausserdem über die Mitteilung am Abend
 und unter einer Antwort mit Briefing im Chat, Vermerk "Briefing erstellt".
 
 Snacks in den Mahlzeiten nach dem Kalender folgen derselben Regel wie im
