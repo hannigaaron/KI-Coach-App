@@ -1903,7 +1903,16 @@ export async function kopfSortieren(text) {
     brain.add({ text: `Offene Entscheidung: ${d}`, art: "hinweis", wichtigkeit: 4, schlagworte: ["entscheidung"], quelle: "kopf" });
   }
 
+  // Gemerkt für die Präsentation unter der Antwort. Nur das letzte, und
+  // nur einen Tag: am nächsten Morgen ist ein anderer Kopf leer zu machen.
+  store.setSettings({ ...store.getSettings(), kopfLetzt: { am: Date.now(), ergebnis } });
   return { ergebnis, angelegt, text: kopfText(ergebnis) };
+}
+
+/** Das letzte Kopf leeren, solange es jünger als ein Tag ist. */
+export function kopfLetzter(jetzt = Date.now()) {
+  const k = store.getSettings().kopfLetzt;
+  return k?.ergebnis && jetzt - Number(k.am) < 86_400_000 ? k.ergebnis : null;
 }
 
 /**
@@ -2779,6 +2788,12 @@ export function musterTage(tage = 60) {
 export function musterUebersicht(tage = 60) {
   const reihe = musterTage(tage);
   return musterText(muster(reihe), reihe.length);
+}
+
+/** Die Befunde selbst, für die Präsentation unter Auswertung. */
+export function musterBefunde(tage = 60) {
+  const reihe = musterTage(tage);
+  return { befunde: muster(reihe), tage: reihe.length };
 }
 
 export function widerspruchListe(tage = 28) {

@@ -4826,6 +4826,31 @@ button { overflow-wrap: anywhere; text-wrap: balance; }
 .bs-anpassen:active { transform: scale(.97); }
 .bs-folie.fest .bs-rein { animation: none; opacity: 1; transform: none; }
 
+/* Die allgemeinen Karten der übrigen Präsentationen. Eine Zahl gross, der
+   Rest klein darunter: wer eine Story ansieht, liest eine Zahl, keinen Satz. */
+.bs-grosszahl { margin: 0; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.bs-grosszahl b { font-family: var(--schrift-akzent); font-weight: 400; font-size: 96px; line-height: .95; letter-spacing: -.02em; color: var(--ton); font-variant-numeric: tabular-nums; }
+.bs-grosszahl.lang b { font-size: 64px; }
+.bs-grosszahl span { font-size: 22px; color: rgba(255,255,255,.75); }
+.bs-zahl-unter { margin: 12px 0 0; font-size: 19px; line-height: 1.4; color: #fff; }
+.bs-f-zahl .bs-pille, .bs-f-frage .bs-pille { margin-top: 16px; }
+.bs-linie { display: block; width: 100%; height: 64px; margin-top: 20px; overflow: visible; }
+.bs-linie polyline { fill: none; stroke: var(--ton); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.bs-linie circle { fill: var(--ton); }
+.bs-werte { list-style: none; margin: 18px 0 0; padding: 0; }
+.bs-werte li { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid rgba(255,255,255,.08); font-size: 16px; }
+.bs-werte li span { color: rgba(255,255,255,.7); }
+.bs-werte li b { font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+.bs-frage { display: flex; gap: 10px; align-items: flex-start; margin: 22px 0 0; padding: 14px 16px; border-radius: 18px; background: rgba(255,255,255,.07); font-size: 17px; line-height: 1.42; }
+.bs-frage .bs-zeichen { width: 20px; height: 20px; color: var(--ton); margin-top: 1px; }
+.bs-bild { display: flex; justify-content: center; margin: 4px 0 0; }
+.bs-bild svg { width: 100%; max-width: 330px; height: auto; max-height: 52vh; }
+.bs-mitte { text-align: center; }
+.bs-f-titel, .bs-f-schluss { align-items: center; text-align: center; }
+.bs-f-titel .bs-etikett { justify-content: center; }
+.bs-f-titel .bs-zeile, .bs-f-schluss .bs-zeile { margin-left: auto; margin-right: auto; }
+.bs-knoepfe.drei { flex-direction: column; }
+
 /* Das Blatt zum Ändern, über der Präsentation. Dunkel wie sie. */
 .bsa {
   position: fixed; inset: 0; z-index: 97; display: flex; align-items: flex-end; justify-content: center;
@@ -4921,6 +4946,9 @@ button.kal-show {
 .kal-show-text small { font-family: var(--schrift-text); font-size: var(--t-sm); color: rgba(255,255,255,.7); }
 .kal-show-play { position: absolute; right: 18px; bottom: 18px; width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: #96d8f0; color: #0b0d10; }
 .kal-show-play svg { width: 22px; height: 22px; margin-left: 3px; }
+/* Dieselbe Karte vor den übrigen Präsentationen, mit etwas Luft dazwischen. */
+button.story-start { margin-bottom: var(--s-3); }
+button.story-start + button.story-start { margin-top: 0; }
 button.kal-show-neben {
   display: block; width: 100%; min-height: 48px; margin: var(--s-3) 0 var(--s-5); padding: 12px 18px;
   border: 0; border-radius: 999px; background: var(--flaeche); box-shadow: var(--haarlinie); color: var(--text);

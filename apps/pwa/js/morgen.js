@@ -229,6 +229,7 @@ export function ergebnisHtml(r) {
       <h3 class="mg-titel">Training</h3>${liste(r.training)}
       ${r.tipps.length ? `<h3 class="mg-titel">Für heute</h3>${liste(r.tipps)}` : ""}
       <p class="mg-grenze">Das ist keine Messung, sondern deine eigene Einschätzung, zusammengefasst.</p>
+      <button type="button" class="ghost mg-show" data-morgen-show>Als Präsentation ansehen</button>
     </div>`;
 }
 

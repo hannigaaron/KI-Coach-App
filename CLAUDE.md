@@ -1011,7 +1011,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1559 Tests
+npm test           # 1569 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1575,6 +1575,46 @@ vorn, auf der Kalenderseite ganz oben als dunkle Karte mit Story Balken,
 Untergrenze und Schluss, `ABSCHLUSS_KARTEN`. Vorher stand "Als Präsentation
 ansehen" unter der ganzen Liste, und niemand scrollte dorthin. Ausserdem über die Mitteilung am Abend
 und unter einer Antwort mit Briefing im Chat, Vermerk "Briefing erstellt".
+
+### Sieben weitere Präsentationen
+
+`apps/pwa/js/storys.js` baut die Karten, gezeigt wird über dieselbe Bühne
+wie das Briefing, `briefingZeigen` mit `name`, `storyOeffnen` in `app.js`.
+Der Nutzer wollte überall dort Karten statt Text, wo etwas zusammengefasst
+wird. Dafür kennt `folieHtml` allgemeine Karten: `titel`, `zahl` (grosse
+Zahl, Einheit, Trend, Linie, Zeilen), `ringe`, `punkte`, `frage` (Zahl,
+Satz, Frage), `bild` (SVG der App) und `schluss` mit eigenen Knöpfen. Jede
+Karte kann `anpassen: { id, text }` tragen. Ein Knopf am Schluss, dessen
+`aktion` "bleiben" zurückgibt, lässt die Präsentation offen, so bei Teilen.
+
+1. Wochenrückblick, `rueckblickFolien`. `wochenrueckblick` im Kern liefert
+   dafür `zahlen` einzeln, damit nichts aus Sätzen gelesen wird. Aus dem
+   Bericht, der Mitteilung am Mittwoch und Sonntag und unter der Antwort im
+   Chat. Der Fokus lässt sich als Aufgabe merken.
+2. Morgen Check-in, `morgenFolien`, öffnet nach dem Absenden von selbst und
+   endet mit dem Knopf zum Tagesbriefing. Im Ergebnis steht "Als
+   Präsentation ansehen".
+3. Auswertung, `auswertungFolien`, eine Karte je Widerspruch und Muster mit
+   grosser Zahl und Frage. `Widerspruch` trägt dafür `zahl` und `einheit`.
+   Jedes Muster sagt, dass ein Zusammenhang keine Ursache ist.
+4. Bericht als Story, `monatsFolien`, im Monat wie ein Jahresrückblick. Am
+   Ende ein Bild 1080 mal 1920, `monatsBild`, höchstens sechs Zahlen und
+   nie das Gewicht: wer seinen Monat teilt, zeigt nicht automatisch sein
+   Körpergewicht.
+5. Trainingsblock nach acht und zwölf Wochen, `blockDaten` und
+   `blockFolien`, je einmal beim Öffnen der Pläne, `blockVielleicht`,
+   gemerkt in `settings.blockGezeigt`. Getauschte Übungen kommen aus
+   `aktualisierung.vorher` am Plan.
+6. Nach Beenden eines Trainings drei Karten statt des Blatts: Dauer und
+   Volumen, Bestwerte, Muskelkarte, `trainingFolien`. Ein Bestwert ist der
+   beste Satz gegen alle früheren derselben Übung nach Epley, `rekorde`.
+   Ohne frühere Einheit ist es kein Rekord. "Alle Übungen" öffnet das Blatt.
+7. Kopf leeren, `kopfFolien`: eine Karte je Schublade, dann genau ein
+   erster Schritt. Öffnet nach dem Sortieren von selbst, das Ergebnis liegt
+   einen Tag in `settings.kopfLetzt`, `kopfLetzter` in `assistant.js`.
+
+Ungeprüft auf dem Gerät. Im Browser geprüft: jede Karte aller sieben bei
+390 Pixeln ohne Überlauf, Teilen als Download.
 
 Snacks in den Mahlzeiten nach dem Kalender folgen derselben Regel wie im
 Wochenplan: Standard zuerst, Zucker nur ums Training, `snackRegel` in
