@@ -4942,7 +4942,7 @@ let bsArt = "morgen";
 let bsSteuerung = null;
 // Der Tagesabschluss ist das Briefing vom Abend ohne den Blick nach vorn:
 // wie heute lief, was von der Untergrenze offen ist, Schluss.
-const ABSCHLUSS_KARTEN = ["rueckblick", "untergrenze", "ende"];
+const ABSCHLUSS_KARTEN = ["rueckblick", "untergrenze", "feierabend", "abend", "ende"];
 let bsNur = null;
 function briefingRechnen() {
   const b = tagesbriefingFuer(bsArt === "abend" ? "abend" : "morgen");
@@ -4956,7 +4956,7 @@ function briefingShowOeffnen(art, { nur = null } = {}) {
   let b;
   try { b = briefingRechnen(); } catch (e) { console.error(e); toast("Das Briefing liess sich nicht rechnen."); return; }
   bsSteuerung = briefingZeigen(b, $("briefingShow"), {
-    aktion: (was) => { if (was === "tag") showView("tag"); },
+    aktion: (was) => { if (was === "tag") showView("tag"); else if (was === "abend") abend.oeffnen(); },
     anpassen: briefingAnpassen,
   });
 }

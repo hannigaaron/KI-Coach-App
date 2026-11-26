@@ -38,3 +38,15 @@ test("jede Karte mit Inhalt lässt sich anpassen, jede Mahlzeit ändern", () => 
   assert.equal((essen.match(/data-bs-essen=/g) || []).length, 2);
   assert.match(essen, /bs-mahlzeit gewaehlt/);
 });
+
+test("Abends Feierabend und Abendroutine als Karten, Gute Nacht führt zur Abendroutine", () => {
+  const fa = folieHtml({ art: "feierabend", um: "21:00", heuteWichtig: ["Rechnung Müller"], wartet: 3 });
+  assert.match(fa, /21:00/);
+  assert.match(fa, /3 Aufgaben warten bis morgen/);
+  assert.match(fa, /Rechnung Müller/);
+  const ab = folieHtml({ art: "abend", schlafen: "23:00", wecker: "06:30", dauer: "7 h 30", morgenLicht: "Morgen um 06:30: 5 Minuten raus ins Tageslicht.", schritte: [{ um: "22:00", titel: "Handy weg, Blaulicht runter", text: "Blaulichtfilterbrille" }] });
+  assert.match(ab, /Handy weg/);
+  assert.match(ab, /Tageslicht/);
+  assert.ok(Number.isFinite(folieDauer({ art: "abend", schritte: [] })));
+  assert.match(folieHtml({ art: "ende", morgens: false, satz: "Schlaf gut." }), /data-bs="abend"/);
+});

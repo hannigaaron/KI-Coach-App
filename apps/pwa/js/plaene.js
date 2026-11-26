@@ -18,6 +18,7 @@ import { trendKurz } from "./uebungskurve.js";
 import { satzText } from "./masse.js";
 import { naechsteEinheit } from "./vorhaben.js";
 import { spueren } from "./haptik.js";
+import { uebungWahlOeffnen } from "./uebung-wahl.js";
 
 export const STANDARD_WUNSCH = {
   tage: 3, minuten: 45, niveau: "intermediate", ziel: "muskel", deload: false, variante: 0,
@@ -136,7 +137,8 @@ export function zeileHtml(p, { bearbeiten = false, ei = 0, pi = 0, tausch = null
   const auswahl = offen
     ? `<div class="pl-tausch">${tausch.liste.length
       ? tausch.liste.map((a) => `<button type="button" class="ue-tab" ${nehmenAttr(a)}>${esc(a.name)}</button>`).join("")
-      : "<p>Für diese Bewegung gibt es hier keine andere Übung, die zu Ort und Beschwerden passt.</p>"}</div>`
+      : "<p>Für diese Bewegung gibt es hier keine andere Übung, die zu Ort und Beschwerden passt.</p>"}${
+      tauschAttr ? "" : `<button type="button" class="ue-tab pl-alle" data-aktion="suchen" ${ort}>Alle Übungen durchsuchen</button>`}</div>`
     : "";
   // Ziehbar heisst: lange drücken hebt die Zeile an, danach lässt sie sich
   // nach oben oder unten ziehen, `zeilenZiehen`.
@@ -160,9 +162,10 @@ export function einheitHtml(e, ei = 0, { bearbeitet = -1, tausch = null, zusatz 
   const knopf = ohneKnoepfe ? ""
     : nurStart ? `<div class="pl-knoepfe">${startKnopf}</div>`
     : `<div class="pl-knoepfe">${an ? "" : startKnopf}<button type="button" class="pl-mini pl-bearb" data-bearbeiten="${ei}">${an ? "Fertig" : "Bearbeiten"}</button></div>`;
+  // Ein Knopf statt eines Auswahlfelds mit jeder Übung: dahinter liegt die
+  // Suche mit Filtern, `uebungWahlOeffnen`.
   const dazu = an && zusatz.length
-    ? `<label class="pl-dazu"><span>Übung hinzufügen</span><select data-dazu="${ei}"><option value="">Auswählen</option>${
-      zusatz.map((u) => `<option value="${esc(u.id)}">${esc(u.name)}</option>`).join("")}</select></label>`
+    ? `<button type="button" class="pl-dazu-knopf" data-dazu-suche="${ei}"><span aria-hidden="true">+</span>Übung hinzufügen</button>`
     : "";
   return `<section class="pl-einheit"><header><div><h3>${esc(e.titel)}</h3><p>${esc(e.fokus)} · etwa ${e.dauerMin} Min.</p></div>${knopf}</header>
     <ol class="pl-liste">${e.positionen.map((p, pi) => zeileHtml(p, { bearbeiten: an, ei, pi, tausch, trend, ohneTausch: ohneKnoepfe || nurStart, ziehbar: !ohneKnoepfe && !nurStart })).join("")}</ol>${dazu}</section>`;
@@ -199,7 +202,15 @@ export function uebungTauschen(plan, ei, pi, neueId) {
   if (!neu) return plan;
   return mitEinheit(plan, ei, (pos) => {
     const p = pos[pi];
-    if (p) pos[pi] = { ...p, id: neu.id, name: neu.name };
+    if (!p) return pos;
+    // Aus einer anderen Bewegung kommen Wiederholungen, Reserve und Pause
+    // aus der Regel für diese Übung, die Zahl der Sätze bleibt. Fünf
+    // Wiederholungen Kniebeuge als Bizeps Curl wären falsch.
+    const alt = nachId.get(p.id);
+    pos[pi] = alt && alt.pattern !== neu.pattern
+      ? { ...p, ...positionFuer(neu, plan.wunsch), saetze: p.saetze, superset: p.superset }
+      : { ...p, id: neu.id, name: neu.name };
+    if (!pos[pi].superset) delete pos[pi].superset;
     return pos;
   });
 }
@@ -229,6 +240,11 @@ export function zusatzListe(plan, ei) {
   const schon = new Set((plan.einheiten[ei]?.positionen ?? []).map((p) => p.id));
   return UEBUNGEN.filter((u) => !schon.has(u.id) && uebungErlaubt(u, plan.wunsch))
     .sort((a, b) => a.name.localeCompare(b.name, "de"));
+}
+
+/** Alles, was für eine Stelle in Frage kommt: nach Ort und Beschwerden, ohne die Übungen der Einheit. */
+export function suchListe(plan, ei) {
+  return zusatzListe(plan, ei);
 }
 
 /** Sätze je Gruppe als Balken. Der Strich bei 10 ist der Richtwert, keine Pflicht. */
@@ -770,6 +786,28 @@ export function plaeneStarten({
       konfigZeichnen();
       return;
     }
+    const dazuSuche = event.target.closest("[data-dazu-suche]");
+    if (dazuSuche) {
+      const ei = Number(dazuSuche.dataset.dazuSuche);
+      uebungWahlOeffnen({ titel: "Übung hinzufügen", unter: entwurf.einheiten[ei]?.titel ?? "", liste: suchListe(entwurf, ei), aufWahl: (id) => {
+        if (entwurf === gespeichert) entwurfVomPlan = true;
+        entwurf = uebungHinzufuegen(entwurf, ei, id);
+        konfigZeichnen();
+      } });
+      return;
+    }
+    const sucheTausch = event.target.closest('[data-aktion="suchen"]');
+    if (sucheTausch) {
+      const ei = Number(sucheTausch.dataset.ei), pi = Number(sucheTausch.dataset.pi);
+      const p = entwurf.einheiten[ei]?.positionen[pi];
+      uebungWahlOeffnen({ titel: `${p?.name ?? "Übung"} ersetzen`, unter: "Alle Übungen, nach Ort und Beschwerden gefiltert", liste: suchListe(entwurf, ei), aufWahl: (id) => {
+        if (entwurf === gespeichert) entwurfVomPlan = true;
+        entwurfTausch = null;
+        entwurf = uebungTauschen(entwurf, ei, pi, id);
+        konfigZeichnen();
+      } });
+      return;
+    }
     const aktion = event.target.closest("[data-aktion]");
     if (aktion) {
       const vorher = entwurf;
@@ -784,13 +822,6 @@ export function plaeneStarten({
     }
     const knopf = event.target.closest("[data-uebung]");
     if (knopf) oeffne(knopf.dataset.uebung);
-  });
-  $("plVorschau").addEventListener("change", (event) => {
-    const feld = event.target.closest("[data-dazu]");
-    if (!feld || !feld.value) return;
-    if (entwurf === gespeichert) entwurfVomPlan = true;
-    entwurf = uebungHinzufuegen(entwurf, Number(feld.dataset.dazu), feld.value);
-    konfigZeichnen();
   });
   $("plAndere").addEventListener("click", () => neu({ variante: wunsch.variante + 1 }));
   $("plSpeichern").addEventListener("click", () => {
@@ -938,6 +969,27 @@ export function plaeneStarten({
       if (bearbeitet === -1) melde("Plan gespeichert");
       return;
     }
+    const dazuSuche = event.target.closest("[data-dazu-suche]");
+    if (dazuSuche && gespeichert) {
+      const ei = Number(dazuSuche.dataset.dazuSuche);
+      uebungWahlOeffnen({ titel: "Übung hinzufügen", unter: gespeichert.einheiten[ei]?.titel ?? "", liste: suchListe(gespeichert, ei), aufWahl: (id) => {
+        planSichern(uebungHinzufuegen(gespeichert, ei, id));
+        ansichtZeichnen();
+      } });
+      return;
+    }
+    const sucheTausch = event.target.closest('[data-aktion="suchen"]');
+    if (sucheTausch) {
+      const ei = Number(sucheTausch.dataset.ei), pi = Number(sucheTausch.dataset.pi);
+      const p = plan.einheiten[ei]?.positionen[pi];
+      uebungWahlOeffnen({ titel: `${p?.name ?? "Übung"} ersetzen`, unter: "Alle Übungen, nach Ort und Beschwerden gefiltert", liste: suchListe(plan, ei), aufWahl: (id) => {
+        tausch = null;
+        planSichern(uebungTauschen(plan, ei, pi, id));
+        melde("Übung getauscht");
+        ansichtZeichnen();
+      } });
+      return;
+    }
     const aktion = event.target.closest("[data-aktion]");
     if (aktion) {
       const r = bearbeitenAnwenden(plan, aktion, tausch);
@@ -968,12 +1020,6 @@ export function plaeneStarten({
     entwurf = positionVerschieben(entwurf, ei, von, nach);
     konfigZeichnen();
   }, () => spueren("leicht"));
-  $("plEinheiten").addEventListener("change", (event) => {
-    const feld = event.target.closest("[data-dazu]");
-    if (!feld || !feld.value || !gespeichert) return;
-    planSichern(uebungHinzufuegen(gespeichert, Number(feld.dataset.dazu), feld.value));
-    ansichtZeichnen();
-  });
 
   $("plStress").addEventListener("click", (event) => {
     const k = (sel) => event.target.closest(sel);

@@ -73,6 +73,8 @@ export type BriefingFolie =
   | { art: "achtung"; titel: string; punkte: Array<{ art: string; kurz: string; tun: string }> }
   | { art: "essen"; zielKcal: number; zielProteinG: number; mahlzeiten: Array<{ art: string; um: string; name: string; gericht: string; kcal: number; proteinG: number; rolle: string; gewaehlt?: boolean; rezeptId?: string; foto?: boolean }> }
   | { art: "untergrenze"; punkte: Array<{ titel: string; stand: string }>; geburtstage: string[] }
+  | { art: "feierabend"; um: string; heuteWichtig: string[]; wartet: number }
+  | { art: "abend"; schritte: Array<{ um: string; titel: string; text: string }>; schlafen: string; wecker: string; dauer: string; morgenLicht: string }
   | { art: "ende"; morgens: boolean; satz: string };
 
 export interface BriefingPunkt {
@@ -120,6 +122,12 @@ export interface BriefingEingaben {
   standards: string[];
   /** Ein selbst gewählter Fokus aus dem Briefing, schlägt die Rechnung. */
   fokusWahl?: string;
+  /**
+   * Nur abends: Feierabend und Abendroutine von heute. `wichtig` sind die
+   * Aufgaben von heute, die nicht bis morgen warten dürfen, `wartet` die
+   * Zahl der übrigen offenen.
+   */
+  abendroutine?: { feierabend: string; wichtig: string[]; wartet: number; schritte: Array<{ uhrzeit: string; titel: string; text: string }>; schlafenszeit: string; wecker: string; dauer: string };
 }
 
 const MAX_TERMINE = 6;
@@ -272,6 +280,21 @@ function briefingFolien(e: BriefingEingaben, g: { tagWort: string; feierabend: n
   const geb = e.ablauf?.geburtstage ?? [];
   if (e.standards.length || geb.length) {
     folien.push({ art: "untergrenze", punkte: e.standards.slice(0, 3).map(standardTeile), geburtstage: geb });
+  }
+
+  // Abends vor dem Schluss: ab wann Feierabend ist und was bis zum Schlafen
+  // dran ist. Der Nutzer wollte nach "Gute Nacht" nicht ins Leere fallen,
+  // sondern wissen, was jetzt für den Schlaf zu tun ist.
+  const r = e.abendroutine;
+  if (!morgens && r) {
+    folien.push({ art: "feierabend", um: r.feierabend, heuteWichtig: r.wichtig.slice(0, 3), wartet: r.wartet });
+    folien.push({
+      art: "abend", schlafen: r.schlafenszeit, wecker: r.wecker, dauer: r.dauer,
+      schritte: r.schritte.map((s) => ({ um: s.uhrzeit, titel: s.titel, text: s.text })),
+      // Tageslicht am Morgen: Blume, Garbazza und Spitschan, Somnologie 2019.
+      // Tageslichtlampe mit 10.000 Lux: Golden und andere, Am J Psychiatry 2005.
+      morgenLicht: `Morgen um ${r.wecker}: 5 Minuten raus ins Tageslicht. Ist es noch dunkel, 20 bis 30 Minuten vor eine Tageslichtlampe mit 10.000 Lux.`,
+    });
   }
 
   const erster = g.tagTermine[0];

@@ -85,6 +85,8 @@ export function folieDauer(f) {
     case "achtung": return 4000 + 1500 * (f.punkte?.length ?? 0);
     case "essen": return 4000 + 1000 * (f.mahlzeiten?.length ?? 0);
     case "untergrenze": return 4000 + 1200 * ((f.punkte?.length ?? 0) + (f.geburtstage?.length ? 1 : 0));
+    case "feierabend": return 5000 + 1000 * (f.heuteWichtig?.length ?? 0);
+    case "abend": return 5000 + 1100 * (f.schritte?.length ?? 0);
     case "ende": return Infinity;
     // Die Karten der übrigen Präsentationen: Rückblick, Morgen, Auswertung,
     // Monat, Planende, Training und Kopf leeren.
@@ -127,6 +129,7 @@ function linie(werte) {
 const TON = {
   start: "#96d8f0", rueckblick: "#2ec28c", fokus: "#96d8f0", tag: "#42bad3", tun: "#2ec379",
   achtung: "#e5b55c", essen: "#e694ad", untergrenze: "#b6a0e9", ende: "#96d8f0",
+  feierabend: "#2ec28c", abend: "#b6a0e9",
 };
 
 /** Eine Karte als HTML. `art` des Briefings entscheidet über morgens oder abends. */
@@ -218,13 +221,33 @@ export function folieHtml(f) {
         ${f.geburtstage.length ? `<div class="bs-geburtstag" ${rein(5)}>${zeichen("geschenk")}<span><b>${esc(f.geburtstage.join(", "))}</b> ${f.geburtstage.length === 1 ? "hat" : "haben"} Geburtstag</span></div>` : ""}`;
       break;
     }
+    case "feierabend": {
+      const wichtig = (f.heuteWichtig ?? []).map((t, i) => `<li ${rein(4 + i)}>${zeichen("achtung", "bs-zeichen-rund")}<div><b>${esc(t)}</b><span>Darf nicht warten</span></div></li>`).join("");
+      innen = `
+        <p class="bs-etikett" ${rein(0)}>${zeichen("mond")} Feierabend</p>
+        <p class="bs-grosszahl" ${rein(1)}><span>ab</span><b>${esc(f.um)}</b></p>
+        <p class="bs-zahl-unter" ${rein(2)}>Den hast du dir verdient. Ab jetzt zählt Erholung.</p>
+        <p class="bs-satz" ${rein(3)}>${f.wartet ? `${f.wartet} ${f.wartet === 1 ? "Aufgabe wartet" : "Aufgaben warten"} bis morgen, und das ist in Ordnung.` : "Für heute ist nichts mehr offen."}${wichtig ? " Nur das hier noch:" : ""}</p>
+        ${wichtig ? `<ul class="bs-hinweise">${wichtig}</ul>` : ""}`;
+      break;
+    }
+    case "abend": {
+      const zeilen = (f.schritte ?? []).map((s, i) => `
+        <li ${rein(2 + i)}><time>${esc(s.um)}</time><span class="bs-punkt"></span><span class="bs-termin"><b>${esc(s.titel)}</b><small>${esc(s.text)}</small></span></li>`).join("");
+      innen = `
+        <p class="bs-etikett" ${rein(0)}>${zeichen("mond")} Für deinen Schlaf</p>
+        <p class="bs-unter" ${rein(1)}>Schlafen ${esc(f.schlafen)}, Wecker ${esc(f.wecker)}, ${esc(f.dauer)} Schlaf möglich</p>
+        <ol class="bs-zeitleiste bs-abendliste">${zeilen}</ol>
+        <div class="bs-frei" ${rein(9)}><b>${zeichen("sonne")} Morgen früh</b><span>${esc(f.morgenLicht)}</span></div>`;
+      break;
+    }
     case "ende":
       innen = `
         <div ${rein(0)}>${zeichen(f.morgens ? "sonne" : "mond", "bs-gross-zeichen")}</div>
         <h2 class="bs-gruss" ${rein(1)}>${f.morgens ? "Los geht’s" : "Gute Nacht"}</h2>
         <p class="bs-zeile" ${rein(2)}>${esc(f.satz)}</p>
         <div class="bs-knoepfe" ${rein(3)}>
-          <button type="button" class="bs-knopf zweit" data-bs="nochmal">Nochmal</button>
+          ${f.morgens ? `<button type="button" class="bs-knopf zweit" data-bs="nochmal">Nochmal</button>` : `<button type="button" class="bs-knopf zweit" data-bs="abend">Abendroutine</button>`}
           <button type="button" class="bs-knopf" data-bs="${f.morgens ? "tag" : "fertig"}">${f.morgens ? "Zu deinem Tag" : "Fertig"}</button>
         </div>`;
       break;
