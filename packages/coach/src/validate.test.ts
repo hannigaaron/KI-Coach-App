@@ -32,3 +32,19 @@ test("Einträge ohne Namen werden verworfen", () => {
 test("nicht Listen ergeben eine Warnung", () => {
   assert.equal(validateEntries({} as unknown).warnings.length, 1);
 });
+
+test("ein Posten mit null in allem ist eine Lücke und kommt nicht in den Tag", () => {
+  const r = validateEntries([
+    { name: "Yufka (Teigfladen)", quantity: "1 Stück", kcal: 160, proteinG: 5, fatG: 4, carbsG: 26 },
+    { name: "Hähnchenfleisch", quantity: "<UNKNOWN>", kcal: 0, proteinG: 0, fatG: 0, carbsG: 0 },
+    { name: "Cocktailsauce", quantity: "<UNKNOWN>", kcal: 0, proteinG: 0, fatG: 0, carbsG: 0 },
+    { name: "Mineralwasser", quantity: "500 ml", kcal: 0, proteinG: 0, fatG: 0, carbsG: 0 },
+  ]);
+  assert.deepEqual(r.entries.map((e) => e.name), ["Yufka (Teigfladen)", "Mineralwasser"]);
+  assert.deepEqual(r.offen, ["Hähnchenfleisch", "Cocktailsauce"]);
+});
+
+test("ein Platzhalter als Menge steht nie im Tag", () => {
+  const r = validateEntries([{ name: "Reis", quantity: "<UNKNOWN>", kcal: 200, proteinG: 4, fatG: 1, carbsG: 44 }]);
+  assert.equal(r.entries[0]?.quantity, "geschätzt");
+});

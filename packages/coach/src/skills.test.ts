@@ -160,3 +160,35 @@ test("Tabelle schlägt die Schätzung des Modells, wenn der Name eindeutig ist",
   const roh = { name: "Reis", quantity: "80 g", kcal: 280, proteinG: 6, fatG: 0.5, carbsG: 62 };
   assert.deepEqual(mitTabellenwert(roh), roh);
 });
+
+class ReihenProvider implements CoachProvider {
+  readonly name = "reihe";
+  available = true;
+  aufrufe = 0;
+  constructor(private readonly antworten: unknown[]) {}
+  async generateJson<T>(): Promise<T> {
+    return this.antworten[Math.min(this.aufrufe++, this.antworten.length - 1)] as T;
+  }
+  async converse(): Promise<never> {
+    throw new Error("in diesem Test nicht benutzt");
+  }
+}
+
+test("Posten ohne Werte werden einmal nachgeschätzt und nie mit 0 kcal eingetragen", async () => {
+  const provider = new ReihenProvider([
+    { entries: [
+      { name: "Yufka", quantity: "1 Stück", kcal: 160, proteinG: 5, fatG: 4, carbsG: 26 },
+      { name: "Hähnchenfleisch", quantity: "<UNKNOWN>", kcal: 0, proteinG: 0, fatG: 0, carbsG: 0 },
+      { name: "Cocktailsauce", quantity: "<UNKNOWN>", kcal: 0, proteinG: 0, fatG: 0, carbsG: 0 },
+    ], assumption: "", followUpQuestion: "" },
+    { entries: [
+      { name: "Hähnchenfleisch", quantity: "150 g", kcal: 248, proteinG: 39, fatG: 10, carbsG: 0 },
+      { name: "Cocktailsauce", quantity: "0 g", kcal: 0, proteinG: 0, fatG: 0, carbsG: 0 },
+    ] },
+  ]);
+  const r = await new Coach(provider).parseMeal("Lufka Dürüm mit Hähnchen und Cocktailsauce");
+  assert.equal(provider.aufrufe, 2);
+  assert.ok(r.entries.every((e) => e.kcal > 0));
+  assert.deepEqual(r.entries.map((e) => e.name), ["Yufka", "Hähnchenfleisch"]);
+  assert.match(r.followUpQuestion, /Cocktailsauce/);
+});

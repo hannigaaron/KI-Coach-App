@@ -25,3 +25,8 @@ test("Wortliste: feste Wörter vorn, Übungen ohne Klammern, höchstens 100, kei
   assert.equal(new Set(w.map((x) => x.toLowerCase())).size, w.length);
   assert.deepEqual(diktatWoerter([{ name: "Kniebeuge (Langhantel)" }, { name: "Kniebeuge (Frontal)" }]).slice(-1), ["Kniebeuge"]);
 });
+
+test("Lufka wird Yufka, sonst findet die Suche nichts", () => {
+  assert.equal(diktatKorrektur("eine Lufka mit Hähnchen"), "eine Yufka mit Hähnchen");
+  assert.equal(diktatKorrektur("Durum mit Cocktailsauce"), "Dürüm mit Cocktailsauce");
+});

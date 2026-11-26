@@ -2,6 +2,7 @@ import type { FoodEntry } from "@daevo/core";
 import type { Anhang, CoachProvider } from "./provider.js";
 import { validateEntries } from "./validate.js";
 import { COACH_PERSONA } from "./prompts.js";
+import { nachschaetzen } from "./skills.js";
 
 /**
  * Fotos auswerten.
@@ -67,7 +68,11 @@ Beschreibung, was stattdessen zu sehen ist. Erfinde nichts.
 Setz die Sicherheit ehrlich:
 hoch, wenn du Bezugsgrössen hast und die Lebensmittel eindeutig sind,
 mittel, wenn du die Menge aus der Erfahrung schätzt,
-niedrig, wenn das Bild unscharf ist, Teile verdeckt sind oder du raten müsstest.`;
+niedrig, wenn das Bild unscharf ist, Teile verdeckt sind oder du raten müsstest.
+
+Jeder Posten trägt Werte. Nie 0 kcal, ausser bei Wasser, Tee, schwarzem
+Kaffee und Zero Getränken, und nie einen Platzhalter wie <UNKNOWN> als Menge:
+schätze die übliche Portion und nenne die Schätzung in annahme.`;
 
 export const FOTO_VORRAT_SYSTEM = `${COACH_PERSONA}
 
@@ -147,13 +152,19 @@ export async function mahlzeitAusFoto(
   });
 
   const geprueft = validateEntries(roh.entries);
+  // Was das Bild nicht hergab, wird nach dem Namen geschätzt und sonst
+  // gefragt, nie mit 0 kcal eingetragen.
+  const nach = geprueft.offen.length
+    ? await nachschaetzen(provider, geprueft.offen, [roh.beschreibung, hinweis].filter(Boolean).join(". "))
+    : { entries: [], offen: [] };
   const sicherheit = roh.sicherheit === "hoch" || roh.sicherheit === "niedrig" ? roh.sicherheit : "mittel";
+  const frage = nach.offen.length ? `Für ${nach.offen.join(", ")} kenne ich die Werte nicht. Sag mir Menge oder Kalorien.` : "";
   return {
-    entries: geprueft.entries,
+    entries: [...geprueft.entries, ...nach.entries],
     beschreibung: (roh.beschreibung ?? "").trim(),
     annahme: (roh.annahme ?? "").trim(),
     sicherheit,
-    rueckfrage: (roh.rueckfrage ?? "").trim(),
+    rueckfrage: [(roh.rueckfrage ?? "").trim(), frage].filter(Boolean).join(" "),
     warnings: geprueft.warnings,
   };
 }

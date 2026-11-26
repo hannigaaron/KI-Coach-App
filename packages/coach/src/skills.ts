@@ -104,6 +104,36 @@ export interface MealSuggestion {
   source: "model" | "offline";
 }
 
+/**
+ * Ein zweiter, kleiner Aufruf nur für die Posten, für die das Modell im
+ * ersten Durchgang nichts geliefert hat. Ein Posten mit 0 kcal im Tag ist der
+ * teuerste Fehler beim Tracken: die Zahlen sehen richtig aus und sind es
+ * nicht. Scheitert der Aufruf, bleiben die Namen offen und werden gefragt.
+ */
+export async function nachschaetzen(
+  provider: CoachProvider,
+  namen: string[],
+  satz: string,
+): Promise<{ entries: FoodEntry[]; offen: string[] }> {
+  if (!provider.available || namen.length === 0) return { entries: [], offen: namen };
+  try {
+    const raw = await provider.generateJson<{ entries: unknown }>({
+      system: MEAL_PARSE_SYSTEM,
+      user: `Der Nutzer hat gesagt: ${satz}\n\nFür diese Posten fehlen Menge und Nährwerte: ${namen.join(", ")}. `
+        + "Schätze für jeden eine übliche Portion, so wie sie in diesem Gericht vorkommt, und die Werte dazu. "
+        + "Nie 0 kcal, nie ein Platzhalter als Menge.",
+      schema: MEAL_SCHEMA as unknown as Record<string, unknown>,
+      schemaName: "mahlzeit_erfassen",
+      modell: HAIKU,
+    });
+    const v = validateEntries(raw.entries);
+    return { entries: v.entries.map(mitTabellenwert), offen: v.offen.filter((n) => !v.entries.some((e) => e.name === n)) };
+  } catch (error) {
+    debugLog("nachschaetzen Modellfehler", error);
+    return { entries: [], offen: namen };
+  }
+}
+
 export class Coach {
   constructor(private readonly provider: CoachProvider) {}
 
@@ -128,13 +158,22 @@ export class Coach {
           modell: HAIKU,
         });
         const validated = validateEntries(raw.entries);
-        if (validated.entries.length > 0) {
+        // Posten mit null in allem gehen einmal zurück ans Modell, nur mit
+        // ihrem Namen und dem Satz. Was danach noch leer ist, wird gefragt
+        // und nicht eingetragen.
+        const nach = validated.offen.length ? await nachschaetzen(this.provider, validated.offen, text) : { entries: [], offen: [] };
+        const alle = [...validated.entries, ...nach.entries];
+        if (alle.length > 0) {
+          const frage = nach.offen.length
+            ? `Für ${nach.offen.join(", ")} kenne ich die Werte nicht. Sag mir Menge oder Kalorien, dann trage ich es nach.`
+            : "";
           return {
-            entries: validated.entries.map(mitTabellenwert),
+            entries: alle.map(mitTabellenwert),
             assumption: raw.assumption ?? "",
-            followUpQuestion: raw.followUpQuestion ?? "",
+            followUpQuestion: [raw.followUpQuestion ?? "", frage].filter(Boolean).join(" "),
             warnings: validated.warnings,
             source: "model",
+            ...(nach.offen.length ? { unresolved: nach.offen } : {}),
           };
         }
       } catch (error) {
