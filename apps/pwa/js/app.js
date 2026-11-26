@@ -4337,11 +4337,13 @@ function diktatKnopf(knopfId, feldId, hinweis, { nachFertig } = {}) {
       onPartial: (t) => { $(feldId).value = mit(t); },
       onFinal: (t) => {
         $(feldId).value = mit(t);
-        // Wer auf Fertig drückt, ist fertig. Ein zweiter Knopf zum Erfassen
-        // war ein Schritt, den niemand braucht. Erst hier und nicht beim
-        // Wechsel auf "idle": die native Erkennung liefert das letzte Wort
-        // nach dem Anhalten.
-        if (fertigGedrueckt && nachFertig && $(feldId).value.trim()) { fertigGedrueckt = false; nachFertig(); }
+        // Fertig hält an und lässt den Text stehen, wie das Viereck im
+        // Chat. Eingetragen wird erst mit dem Knopf daneben: im Betrieb
+        // stand "Lufka" statt Yufka da, die Suche fand nichts, und der Fehler
+        // war schon eingetragen, bevor man ihn sehen konnte. Erst hier und
+        // nicht beim Wechsel auf "idle": die native Erkennung liefert das
+        // letzte Wort nach dem Anhalten.
+        if (fertigGedrueckt && $(feldId).value.trim()) { fertigGedrueckt = false; nachFertig?.(); }
       },
       onState: (state, detail) => {
         const an = state === "listening";
@@ -4354,8 +4356,14 @@ function diktatKnopf(knopfId, feldId, hinweis, { nachFertig } = {}) {
     if (diktatErstesMal()) toast(hinweis);
   });
 }
-diktatKnopf("btnVoice", "mealText", "Sprich in Ruhe. Tipp auf Fertig, dann trägt daevo ein.", {
-  nachFertig: () => $("btnParse").click(),
+/** Nach dem Diktat: Feld mit dem Cursor am Ende, damit ein falsches Wort ein Tipp ist. */
+function zumKorrigieren(feldId) {
+  const feld = $(feldId);
+  feld.focus();
+  try { feld.setSelectionRange(feld.value.length, feld.value.length); } catch { /* nicht jedes Feld kann das */ }
+}
+diktatKnopf("btnVoice", "mealText", "Sprich in Ruhe. Tipp auf Fertig, prüf den Text, dann Erfassen.", {
+  nachFertig: () => zumKorrigieren("mealText"),
 });
 
 $("feelingRow").addEventListener("click", (event) => {
@@ -4923,8 +4931,8 @@ function bsaFertig(satz) {
 
 $("bsaZu").addEventListener("click", () => bsaSchliessen());
 $("bsAendern").addEventListener("click", (ev) => { if (ev.target === $("bsAendern")) bsaSchliessen(); });
-diktatKnopf("bsaMikro", "bsaText", "Sag, was du stattdessen isst, mit Menge. Tipp auf Fertig, dann übernimmt daevo.", {
-  nachFertig: () => $("bsaUebernehmen").click(),
+diktatKnopf("bsaMikro", "bsaText", "Sag, was du stattdessen isst, mit Menge. Tipp auf Fertig, prüf den Text, dann Übernehmen.", {
+  nachFertig: () => zumKorrigieren("bsaText"),
 });
 
 $("bsaUebernehmen").addEventListener("click", async () => {

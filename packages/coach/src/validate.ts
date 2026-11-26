@@ -3,6 +3,26 @@ import type { FoodEntry } from "@daevo/core";
 export interface ValidationResult {
   entries: FoodEntry[];
   warnings: string[];
+  /**
+   * Posten ohne jede Angabe: null Kalorien und null Makros. Sie kommen nicht
+   * in den Tag, sondern zurück an den Aufrufer, der nachschätzen lässt oder
+   * fragt. Im Betrieb standen "Hähnchenfleisch" und "Cocktailsauce" mit 0
+   * kcal und der Menge "<UNKNOWN>" in einem Dürüm, und der Tag war um
+   * mehrere hundert Kalorien zu niedrig, ohne dass es jemand sah.
+   */
+  offen: string[];
+}
+
+/**
+ * Was wirklich keine Kalorien hat. Nur dafür ist 0 kcal eine Angabe und
+ * keine Lücke. Abgeglichen wird auf ganze Wörter im kleingeschriebenen Namen.
+ */
+const OHNE_KALORIEN = /\b(wasser|mineralwasser|sprudel|tee|kräutertee|kaffee schwarz|espresso|zero|süßstoff|suessstoff|salz|pfeffer|gewürz|gewuerz|gewürze|essig|eiswürfel|eis würfel|kaugummi zuckerfrei)\b/;
+
+/** Eine Menge, die keine ist: Platzhalter des Modells statt einer Angabe. */
+export function istPlatzhalter(menge: unknown): boolean {
+  if (typeof menge !== "string") return true;
+  return /^\s*(<[^>]*>|unknown|unbekannt|n\/?a|null|undefined|\?+|-+)?\s*$/i.test(menge);
 }
 
 const MAX_KCAL_PER_ENTRY = 3000;
@@ -17,7 +37,8 @@ const MAX_KCAL_PER_ENTRY = 3000;
 export function validateEntries(raw: unknown): ValidationResult {
   const warnings: string[] = [];
   const entries: FoodEntry[] = [];
-  if (!Array.isArray(raw)) return { entries, warnings: ["Antwort enthielt keine Liste von Einträgen."] };
+  const offen: string[] = [];
+  if (!Array.isArray(raw)) return { entries, warnings: ["Antwort enthielt keine Liste von Einträgen."], offen };
 
   for (const item of raw) {
     if (typeof item !== "object" || item === null) continue;
@@ -40,16 +61,23 @@ export function validateEntries(raw: unknown): ValidationResult {
       warnings.push(`${name}: ${kcal} kcal für einen Posten ist unplausibel. Bitte Menge prüfen.`);
     }
 
+    // Null in allem ist keine Angabe, sondern eine Lücke. Eingetragen
+    // stünde sie wie gegessen und nichts gekostet.
+    if (kcal === 0 && proteinG === 0 && fatG === 0 && carbsG === 0 && !OHNE_KALORIEN.test(name.toLowerCase())) {
+      offen.push(name);
+      continue;
+    }
+
     entries.push({
       name,
-      quantity: typeof rec.quantity === "string" ? rec.quantity : "unbekannt",
+      quantity: istPlatzhalter(rec.quantity) ? "geschätzt" : String(rec.quantity).trim(),
       kcal,
       proteinG: round1(proteinG),
       fatG: round1(fatG),
       carbsG: round1(carbsG),
     });
   }
-  return { entries, warnings };
+  return { entries, warnings, offen };
 }
 
 function nonNegative(value: unknown): number {

@@ -52,6 +52,10 @@ const KORREKTUREN = [
   [/\b(?:seit|seid)\s+(?:eben|heben)\b/gi, "Seitheben"],
   [/\bkabel\s+rudern\b/gi, "Kabelrudern"],
   [/\b(?:r\s?i\s?r|er\s+ihr\s+er)\b/gi, "RIR"],
+  // "Lufka" für Yufka, im Betrieb beim Diktat eines Dürüm. Die Suche fand
+  // damit nichts. "Jufka" ist die Schreibweise nach dem Klang.
+  [/\b(?:lufka|jufka|yufca|jufca)\b/gi, "Yufka"],
+  [/\b(?:dürüm|duerum|durum|dürum)\b/gi, "Dürüm"],
 ];
 
 /** Korrigiert, was die Erkennung im Training regelmässig falsch schreibt. */

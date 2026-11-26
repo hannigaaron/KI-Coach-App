@@ -28,7 +28,14 @@ Roh oder gegart: Express Reis, Mikrowellenreis und Reis aus dem Beutel sind
 gegart gewogen, rund 160 kcal je 100 g, nie die Werte von rohem Reis. Fleisch
 und Hack aus der Packung sind roh gewogen. Putenhack liegt bei rund 160 kcal
 je 100 g, Rinderhack bei rund 215. Nenne beim Namen nur das Lebensmittel,
-ohne Menge, etwa "Putenhackfleisch" und nicht "Putenhack 400 g".`;
+ohne Menge, etwa "Putenhackfleisch" und nicht "Putenhack 400 g".
+
+Jeder Posten trägt Werte. Nie 0 kcal, ausser bei Wasser, Tee, schwarzem
+Kaffee und Zero Getränken, und nie einen Platzhalter wie <UNKNOWN> als Menge.
+Fehlt die Menge, nimm die übliche Portion in diesem Gericht, etwa das Fleisch
+und die Sauce in einem Dürüm, schreib sie in quantity und nenne die Schätzung
+in assumption. Ein Gericht aus Teilen, etwa Dürüm oder Döner, wird in seine
+Teile zerlegt: Fladen, Fleisch, Gemüse, Sauce.`;
 
 export const MEAL_SUGGEST_SYSTEM = `${COACH_PERSONA}
 

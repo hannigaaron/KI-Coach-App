@@ -1011,7 +1011,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1555 Tests
+npm test           # 1559 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -2157,15 +2157,28 @@ den Startbildschirm. Der Weg aus Siri läuft über das Postfach.
 
 `?sag=` bleibt ebenfalls, in Safari und auf dem Rechner funktioniert es.
 
-## Essen sprechen: Fertig heisst eintragen
+## Essen sprechen: Fertig hält an, Erfassen trägt ein
 
-Beim Diktieren auf der Essen Seite trägt "Fertig" sofort ein, `nachFertig`
-an `diktatKnopf`. Vorher folgte auf Fertig ein zweiter Knopf, Erfassen.
-Ausgelöst wird beim letzten Text und nicht beim Wechsel auf Ruhe: die native
-Erkennung liefert das letzte Wort erst nach dem Anhalten. Danach steht acht
-Sekunden "Eingetragen. Mengen prüfen?" mit "Ändern", das die Mahlzeit im
-Editor öffnet. Gesprochene Mengen sind eine Schätzung, und korrigieren soll
-ein Tipp sein.
+Beim Diktieren auf der Essen Seite und im Blatt "Ändern" des Briefings hält
+"Fertig" die Aufnahme an und lässt den Text im Feld, der Cursor steht am
+Ende, `zumKorrigieren` in `app.js`. Eingetragen wird erst mit Erfassen oder
+Übernehmen, wie beim Viereck im Chat. Eine Fassung davor trug sofort ein,
+und im Betrieb stand "Lufka" statt Yufka da: die Suche fand nichts, und der
+Fehler war eingetragen, bevor man ihn sehen konnte. `diktatKorrektur`
+macht aus Lufka und Jufka jetzt Yufka.
+
+## Kein Posten mit 0 kcal
+
+`validateEntries` in `packages/coach/src/validate.ts` nimmt keinen Posten
+an, der in Kalorien und allen Makros null trägt, ausser Wasser, Tee,
+schwarzem Kaffee, Zero Getränken und Gewürzen, `OHNE_KALORIEN`. Solche
+Posten stehen in `offen`, `nachschaetzen` in `skills.ts` fragt das Modell
+einmal nur nach ihnen, mit dem ganzen Satz, und was danach noch leer ist,
+wird gefragt und nicht eingetragen. Ein Platzhalter wie `<UNKNOWN>` als
+Menge wird "geschätzt". Im Betrieb standen Hähnchenfleisch und Cocktailsauce
+mit 0 kcal in einem Dürüm. Text, Foto und Gespräch laufen alle durch diese
+Prüfung. Die Prompts sagen dazu: ein Gericht aus Teilen wird zerlegt, eine
+fehlende Menge ist die übliche Portion.
 
 ## Diktieren bis zum Stopp
 
