@@ -4869,7 +4869,22 @@ function briefingShowOeffnen(art) {
 /** Nach einer Änderung neu rechnen und auf derselben Karte weiter. */
 function briefingNeu() {
   try { bsSteuerung?.aktualisieren(briefingRechnen()); } catch (e) { console.error(e); }
+  // Auch die Kalenderseite, von der aus getauscht werden kann.
+  try { briefingZeichnen(); essenZeichnen(essenTag); } catch (e) { console.error(e); }
   refreshAll();
+}
+
+/** Der Knopf zum Austauschen an einem Essen, überall gleich. */
+function tauschKnopf(mahlzeit, gericht, kcal, um) {
+  if (!mahlzeit) return "";
+  return `<button type="button" class="essen-tauschen" data-essen-tauschen="${escapeHtml(mahlzeit)}" data-gericht="${escapeHtml(gericht)}" data-kcal="${Number(kcal) || 0}" data-um="${escapeHtml(um)}">`
+    + `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg>Austauschen</button>`;
+}
+
+/** Ein Tipp auf Austauschen öffnet das Blatt aus dem Briefing für diesen Tag. */
+function tauschOeffnen(knopf, tag) {
+  const art = knopf.dataset.essenTauschen;
+  bsaOeffnen({ art, name: MAHLZEIT_NAME[art] || "Mahlzeit", gericht: knopf.dataset.gericht, kcal: Number(knopf.dataset.kcal) || 0, um: knopf.dataset.um }, tag);
 }
 
 /**
@@ -4892,11 +4907,14 @@ function briefingAnpassen(art, zeile, steuerung) {
 /* ---------- Eine Mahlzeit im Briefing ändern ---------- */
 
 let bsaZeile = null;
+// Der Tag, für den das Blatt gerade ändert. Aus der Präsentation der Tag des
+// Briefings, von der Kalenderseite der Tag, der dort gezeigt wird.
+let bsaTag = todayIso();
 const MAHLZEIT_NAME = { fruehstueck: "Frühstück", mittagessen: "Mittagessen", snack: "Snack", abendessen: "Abendessen" };
 
-function bsaOeffnen(zeile) {
+function bsaOeffnen(zeile, tag = briefingTag(bsArt)) {
   bsaZeile = zeile;
-  const tag = briefingTag(bsArt);
+  bsaTag = tag;
   const gewaehlt = essenWahlFuer(tag).some((w) => w.art === zeile.art);
   $("bsaTitel").textContent = `${MAHLZEIT_NAME[zeile.art] || zeile.name} ändern`;
   $("bsaVorschlag").textContent = `${gewaehlt ? "Gerade" : "Vorschlag"}: ${zeile.gericht}, ${zeile.kcal} kcal um ${zeile.um}`;
@@ -4940,7 +4958,7 @@ $("bsaUebernehmen").addEventListener("click", async () => {
   if (!bsaZeile) return;
   if (!text) { $("bsaHinweis").textContent = "Schreib oder sag, was du isst, etwa 200 g Reis mit Hähnchen."; $("bsaText").focus(); return; }
   bsaBeschaeftigt(true, "");
-  const r = await essenWahlAusText(briefingTag(bsArt), bsaZeile.art, text);
+  const r = await essenWahlAusText(bsaTag, bsaZeile.art, text);
   bsaBeschaeftigt(false);
   if (!r.ok) { $("bsaHinweis").textContent = r.text; return; }
   bsaFertig(r.text ? `Geändert. ${r.text}` : "");
@@ -4957,7 +4975,7 @@ $("bsaDatei").addEventListener("change", async () => {
   bsaBeschaeftigt(true, "daevo schaut sich das Foto an.");
   const anhang = await anhangAusDatei(datei);
   if (anhang.fehler) { bsaBeschaeftigt(false, anhang.fehler); return; }
-  const r = await essenWahlAusFoto(briefingTag(bsArt), bsaZeile.art, anhang);
+  const r = await essenWahlAusFoto(bsaTag, bsaZeile.art, anhang);
   bsaBeschaeftigt(false, r.ok ? "" : r.text);
   if (r.ok) bsaFertig();
 });
@@ -4966,15 +4984,18 @@ $("bsaDatei").addEventListener("change", async () => {
 function bsaImEditor(fokus) {
   const zeile = bsaZeile;
   if (!zeile) return;
-  const tag = briefingTag(bsArt);
+  const tag = bsaTag;
   const vorher = essenWahlFuer(tag).find((w) => w.art === zeile.art);
+  // Von der Kalenderseite aus war keine Präsentation offen, und sie darf nach
+  // dem Editor auch nicht plötzlich erscheinen.
+  const showOffen = !$("briefingShow").hidden;
   bsaSchliessen({ weiter: false });
   $("briefingShow").hidden = true;
   wahlEditorOeffnen({
     tag, art: zeile.art, um: vorher?.um || zeile.um, posten: vorher?.posten || [],
     titel: `${MAHLZEIT_NAME[zeile.art] || zeile.name} ändern`, fokus,
     fertig: (gespeichert) => {
-      $("briefingShow").hidden = false;
+      if (showOffen) $("briefingShow").hidden = false;
       if (gespeichert) briefingNeu();
       bsSteuerung?.anhalten(false);
     },
@@ -5000,7 +5021,7 @@ $("bsaGegessen").addEventListener("click", () => {
 });
 $("bsaVorschlagZurueck").addEventListener("click", () => {
   if (!bsaZeile) return;
-  essenWahlSetzen(briefingTag(bsArt), bsaZeile.art, null);
+  essenWahlSetzen(bsaTag, bsaZeile.art, null);
   bsaFertig("Wieder der Vorschlag von daevo.");
 });
 
@@ -5303,6 +5324,7 @@ function briefingZeichnen() {
       <span class="kb-label">${heute ? "Als Nächstes" : "Morgen zuerst"} · ${zeit(haupt)}</span>
       <div class="kb-jetzt-zeile">${bild}<div class="kb-jetzt-text"><h3>${escapeHtml(haupt.titel)}</h3>
       <p>${escapeHtml(haupt.unter)}</p></div>${haken(haupt, true)}</div>
+      ${haupt.art === "essen" ? tauschKnopf(haupt.mahlzeit, haupt.titel, haupt.kcal, zeit(haupt)) : ""}
     </section>`;
   } else {
     html += `<section class="kb-jetzt"><span class="kb-label">${heute ? "Heute" : "Morgen"}</span><div class="kb-jetzt-text"><h3>${heute ? "Für heute ist nichts mehr offen." : "Morgen steht noch nichts an."}</h3></div></section>`;
@@ -5313,7 +5335,7 @@ function briefingZeichnen() {
 
   if (b.reihenfolge?.length) {
     // daevo zeigt, was er sortiert hat: Stufe 1, Stufe 2, dazwischen, warten, abends.
-    html += sortiertHtml(b.reihenfolge, { schluessel: `kal-${briefingArt}`, mitHaken: true, hinweis: b.musterHinweis });
+    html += sortiertHtml(b.reihenfolge, { schluessel: `kal-${briefingArt}`, mitHaken: true, mitTauschen: true, hinweis: b.musterHinweis });
   } else if (rest.length) {
     const sichtbar = briefingAlles ? rest : rest.slice(0, 4);
     html += `<h3 class="kb-danach">Danach</h3><ol class="kb-liste">${sichtbar.map((p) => `<li class="kb-${p.art}"${p.art === "essen" && p.rezeptId ? ` data-rezept="${escapeHtml(p.rezeptId)}" role="button" tabindex="0"` : ""}>
@@ -5336,6 +5358,8 @@ function briefingZeichnen() {
 }
 $("kalBriefing").addEventListener("click", async (event) => {
   if (event.target.closest("[data-mehr]")) { briefingAlles = !briefingAlles; briefingZeichnen(); return; }
+  const tauschen = event.target.closest("[data-essen-tauschen]");
+  if (tauschen) { tauschOeffnen(tauschen, briefingArt === "morgen" ? todayIso() : folgetag(todayIso())); return; }
   const rezept = event.target.closest("[data-rezept]");
   if (rezept && !event.target.closest("[data-erledigt]")) {
     const tag = briefingArt === "morgen" ? todayIso() : folgetag(todayIso());
@@ -5371,6 +5395,8 @@ document.querySelectorAll("#kalBriefingWahl [data-briefing]").forEach((k) => {
  */
 let essenTag = todayIso();
 $("kalEssen").addEventListener("click", (ev) => {
+  const tauschen = ev.target.closest("[data-essen-tauschen]");
+  if (tauschen) { tauschOeffnen(tauschen, essenTag); return; }
   const k = ev.target.closest("[data-rezept]");
   if (!k) return;
   const m = vorschlagFuer(essenTag, k.dataset.rezept);
@@ -5403,6 +5429,7 @@ function essenZeichnen(tag) {
           <span class="ke-werte">${m.kcal} kcal · ${m.proteinG} g Protein${marke ? ` · <em>${escapeHtml(marke)}</em>` : ""}</span>
           <span class="ke-grund">${escapeHtml(m.grund)}</span>
         </div></div>${zutaten}
+        ${tauschKnopf(m.art, m.gewaehlt?.name || r?.name || "Freie Wahl", m.kcal, uhrzeit(m.um))}
       </div>
     </li>`;
   }).join("") + (t.hinweise.length ? `<li class="ke-hinweis">${escapeHtml(t.hinweise.join(" "))}</li>` : "");
