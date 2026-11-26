@@ -3498,8 +3498,40 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):focus, sele
 @media (prefers-reduced-motion: reduce) { .pl-liste.sortieren > li { transition: none; } }
 .pl-tausch { display: flex; flex-wrap: wrap; gap: var(--s-2); padding: 0 0 var(--s-3); border-bottom: 1px solid var(--linie); }
 .pl-tausch p { margin: 0; font-size: var(--t-xs); color: var(--muted); }
-.pl-dazu { display: grid; gap: var(--s-2); margin-top: var(--s-3); font-size: var(--t-xs); color: var(--muted); }
-.pl-dazu select { width: 100%; }
+/* "Übung hinzufügen" öffnet die Suche mit Filtern, kein Auswahlfeld mit hundert Zeilen. */
+button.pl-dazu-knopf {
+  display: flex; align-items: center; justify-content: center; gap: var(--s-2); width: 100%; min-height: 48px; margin-top: var(--s-3);
+  border: 0; border-radius: var(--r-pill); background: var(--flaeche); box-shadow: var(--haarlinie); color: var(--text);
+}
+button.pl-dazu-knopf span { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--accent-text, #1e7fa8); color: var(--bg, #fff); font-family: var(--schrift-text); font-size: 18px; line-height: 1; }
+.pl-tausch .pl-alle { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent-text, #1e7fa8) 55%, transparent); }
+
+/* Die Übungssuche über allem: Suchfeld, zwei Filterzeilen, Liste mit Foto. */
+.uw { z-index: 97; }
+.uw-innen {
+  width: 100%; max-width: 560px; height: 88vh; display: flex; flex-direction: column; gap: var(--s-3);
+  padding: var(--s-4) var(--s-4) 0; background: var(--panel-2); border-radius: var(--r-lg) var(--r-lg) 0 0;
+  box-shadow: var(--schatten-3); animation: blatt-hoch 260ms var(--kurve-start) both;
+}
+.uw-kopf { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-3); }
+.uw-kopf h2 { margin: 0; font-family: var(--schrift-akzent); font-weight: 400; font-size: 26px; line-height: 1.1; }
+.uw-kopf p { margin: 4px 0 0; font-size: var(--t-sm); color: var(--muted); }
+.uw-suche { width: 100%; min-height: 46px; }
+.uw-filter { display: flex; gap: var(--s-2); overflow-x: auto; scrollbar-width: none; flex: none; padding-bottom: 2px; }
+.uw-filter::-webkit-scrollbar { display: none; }
+.uw-filter .ue-tab { flex: none; white-space: nowrap; }
+.uw-liste { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--s-4)); }
+.uw-zeile {
+  display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: var(--s-3); align-items: center; width: 100%; min-height: 0;
+  padding: var(--s-2) 0; border: 0; border-bottom: 1px solid var(--linie); border-radius: 0; background: none; box-shadow: none;
+  color: var(--text); text-align: left; font-family: var(--schrift-text); font-size: var(--t-md); letter-spacing: 0;
+}
+.uw-zeile img { width: 44px; height: 55px; object-fit: cover; border-radius: var(--r-sm); }
+.uw-zeile span { display: flex; flex-direction: column; min-width: 0; }
+.uw-zeile b { font-weight: 600; overflow-wrap: anywhere; }
+.uw-zeile small { color: var(--muted); font-size: var(--t-xs); margin-top: 2px; }
+.uw-zeile em { font-style: normal; color: var(--accent-text, #1e7fa8); }
+.uw-leer { color: var(--muted); padding: var(--s-4) 0; }
 
 /* Der erste Plan auf der Abschlussseite des Fragebogens. */
 .setup-einheit { display: grid; gap: 2px; padding: var(--s-2) 0; border-bottom: 1px solid var(--linie); }
@@ -4825,6 +4857,16 @@ button { overflow-wrap: anywhere; text-wrap: balance; }
 .bs-anpassen .bs-zeichen { width: 15px; height: 15px; color: var(--ton); }
 .bs-anpassen:active { transform: scale(.97); }
 .bs-folie.fest .bs-rein { animation: none; opacity: 1; transform: none; }
+
+/* Die Abendroutine im Briefing: Zeitleiste mit kleinem Text darunter. */
+.bs-abendliste li { align-items: start; padding: 7px 0; }
+.bs-abendliste time { padding-top: 2px; }
+.bs-abendliste .bs-punkt { margin-top: 7px; }
+.bs-abendliste .bs-termin b { display: block; font-size: 16px; font-weight: 600; line-height: 1.25; }
+.bs-abendliste .bs-termin small { display: block; margin-top: 2px; font-size: 13px; line-height: 1.35; color: rgba(255,255,255,.6); }
+.bs-f-abend .bs-frei b { display: flex; align-items: center; gap: 6px; }
+.bs-f-abend .bs-frei .bs-zeichen { width: 16px; height: 16px; }
+.bs-f-feierabend .bs-grosszahl span { order: -1; }
 
 /* Die allgemeinen Karten der übrigen Präsentationen. Eine Zahl gross, der
    Rest klein darunter: wer eine Story ansieht, liest eine Zahl, keinen Satz. */

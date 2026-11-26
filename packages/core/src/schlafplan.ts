@@ -72,7 +72,8 @@ export function abendplan(schlafenszeit: string, wecker: string): Abendplan {
     wecker,
     schlafMinuten: schlafDauer(schlafenszeit, wecker),
     schritte: [
-      { id: "handy", uhrzeit: uhrzeit(s - 60), titel: "Handy weg", text: "Bildschirm aus, das Handy ausserhalb vom Bett laden." },
+      { id: "fruehstueck", uhrzeit: uhrzeit(s - 75), titel: "Frühstück für morgen hinrichten", text: "Was morgens schon dasteht, wird gegessen, statt übersprungen." },
+      { id: "handy", uhrzeit: uhrzeit(s - 60), titel: "Handy weg, Blaulicht runter", text: "Bildschirm aus, das Handy ausserhalb vom Bett laden. Musst du noch an einen Bildschirm, mit Blaulichtfilterbrille." },
       { id: "supplements", uhrzeit: uhrzeit(s - 55), titel: "Supplements nehmen", text: "Deine abendlichen Supplements." },
       { id: "lueften", uhrzeit: uhrzeit(s - 50), titel: "Zimmer lüften", text: "Fenster auf, kühl schläft es sich leichter ein." },
       { id: "licht", uhrzeit: uhrzeit(s - 45), titel: "Licht dimmen", text: "Nur noch warmes, gedimmtes Licht." },

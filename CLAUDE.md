@@ -992,6 +992,16 @@ wieder weg.
 
 ### Den Plan von Hand ändern
 
+"Übung hinzufügen" ist ein Knopf und kein Auswahlfeld mehr. Dahinter liegt
+`uebungWahlOeffnen` in `apps/pwa/js/uebung-wahl.js`: Suchfeld, eine Zeile
+für die Gruppe, eine für das Gerät, Liste mit Foto, dieselbe Suche wie in
+der Ansicht Übungen, `uebungenFiltern`. Vorher stand dort jede Übung
+alphabetisch, und das Suchen dauerte im Studio Minuten. Unter den
+Vorschlägen beim Tauschen steht "Alle Übungen durchsuchen" mit derselben
+Wahl, `suchListe` nach Ort und Beschwerden. Aus einer anderen Bewegung
+bekommt die Übung Wiederholungen, Reserve und Pause aus `positionFuer`, die
+Sätze bleiben, `uebungTauschen`.
+
 Je Einheit ein Knopf "Bearbeiten". Dann stehen unter jeder Übung Sätze minus
 und plus, Tauschen und Entfernen, unten "Übung hinzufügen". Bearbeiten ist ein
 Zustand der Einheit und kein eigenes Blatt: wer tauscht, will die anderen
@@ -1011,7 +1021,7 @@ nicht mehr gibt, fallen beim Laden heraus.
 
 ```bash
 npm install
-npm test           # 1569 Tests
+npm test           # 1572 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1615,6 +1625,19 @@ Karte kann `anpassen: { id, text }` tragen. Ein Knopf am Schluss, dessen
 
 Ungeprüft auf dem Gerät. Im Browser geprüft: jede Karte aller sieben bei
 390 Pixeln ohne Überlauf, Teilen als Download.
+
+### Feierabend und Schlaf im Abendbriefing
+
+Vor "Gute Nacht" stehen abends zwei Karten, `feierabend` und `abend` in
+`briefingFolien`, gerechnet in `abendroutineFuer` in `assistant.js`. Unter
+der Woche ist um 21 Uhr Feierabend, eine Regel des Nutzers, am Wochenende
+gilt `feierabendZeitpunkt`, nie nach dem Beginn der Abendroutine. Was heute
+Stufe 1 ist, steht als "darf nicht warten" da, der Rest nur als Zahl. Die
+zweite Karte ist die Abendroutine aus `abendplan` mit Uhrzeiten, dazu
+Frühstück für morgen hinrichten und Blaulichtfilterbrille, und am Ende der
+Morgen: 5 Minuten Tageslicht oder 20 bis 30 Minuten Tageslichtlampe mit
+10.000 Lux. "Gute Nacht" trägt abends "Abendroutine" statt "Nochmal" und
+öffnet das Blatt zum Abhaken. Beide Karten stehen auch im Tagesabschluss.
 
 Snacks in den Mahlzeiten nach dem Kalender folgen derselben Regel wie im
 Wochenplan: Standard zuerst, Zucker nur ums Training, `snackRegel` in

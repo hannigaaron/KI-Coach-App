@@ -97,6 +97,8 @@ import {
   zeitplan,
   feierabendZeitpunkt,
   darfNachFeierabend,
+  abendplan,
+  stundenText,
   zeitplanText,
   lueckenOhne,
   wochenplan,
@@ -117,6 +119,7 @@ import { NACHTRAG_TAGE, tageZurueck } from "./exif.js";
 import { eigeneLebensmittel, eigenerPosten, eigenesIn, lebensmittelSpeichern, rezeptGrenze, rezeptSpeichern } from "./bibliothek.js";
 import { newId, nowTime, store, todayIso } from "./storage.js";
 import { aktiverPlan, bestellteEinheit, planEinheitFuer } from "./vorhaben.js";
+import { randMitKalender } from "./mitteilungen.js";
 
 const WEEKDAYS = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
 
@@ -2108,6 +2111,46 @@ function trainingFuerBriefing(tagIso) {
 }
 
 /**
+ * Feierabend und Abendroutine für das Briefing am Abend. Unter der Woche ist
+ * um 21 Uhr Feierabend, eine Regel des Nutzers. Am Wochenende gilt die
+ * Rechnung aus `feierabend.ts`. Was heute nicht warten darf, steht als
+ * wichtig da, alles andere zählt nur als Zahl: wer abends eine lange Liste
+ * liest, schläft schlechter, nicht besser.
+ */
+function abendroutineFuer(heute, morgenIso, jetzt) {
+  const profil = store.getProfile();
+  if (!profil) return undefined;
+  const termine = store.getKalender().termine || [];
+  const randHeute = randMitKalender(profil, heute, termine);
+  const randMorgen = randMitKalender(profil, morgenIso, termine);
+  const plan = abendplan(randHeute.sleepTime, randMorgen.wakeTime);
+  const wt = new Date(`${heute}T12:00:00`).getDay();
+  const min = (u) => { const [h = 0, m = 0] = String(u).split(":").map(Number); return h * 60 + m; };
+  let feierabend = "21:00";
+  if (wt === 0 || wt === 6) {
+    const f = feierabendZeitpunkt(min(randHeute.wakeTime), min(randHeute.sleepTime) <= min(randHeute.wakeTime) ? min(randHeute.sleepTime) + 1440 : min(randHeute.sleepTime));
+    feierabend = `${String(Math.floor((f % 1440) / 60)).padStart(2, "0")}:${String(f % 60).padStart(2, "0")}`;
+  }
+  // Feierabend nie nach dem Beginn der Abendroutine.
+  if (min(feierabend) > min(plan.start) && min(plan.start) > 12 * 60) feierabend = plan.start;
+  let wichtig = [];
+  let wartet = 0;
+  try {
+    const { plan: p } = tagesplan(jetzt);
+    for (const a of p.heute || []) {
+      if (a.erledigt) continue;
+      const st = aufgabeStufe({ text: a.text, wichtigkeit: a.wichtigkeit, faellig: a.faellig || undefined }, heute).stufe;
+      if (st === 1) wichtig.push(a.text);
+      else wartet++;
+    }
+  } catch { /* ohne Aufgaben steht nur der Feierabend da */ }
+  return {
+    feierabend, wichtig, wartet,
+    schritte: plan.schritte, schlafenszeit: plan.schlafenszeit, wecker: plan.wecker, dauer: stundenText(plan.schlafMinuten),
+  };
+}
+
+/**
  * Das Briefing als Struktur, morgens für heute, abends für morgen.
  * Abschnitte für die Ansicht, `kurz` für die Mitteilung, `text` für den Chat.
  */
@@ -2189,6 +2232,7 @@ export function tagesbriefingFuer(artVorgabe = "morgen", jetzt = Date.now(), fue
       ? { kcal: h.totals.kcal, zielKcal: h.targets.kcal, proteinG: h.totals.proteinG, zielProteinG: h.targets.proteinG, erledigt }
       : undefined,
     standards: status.filter((s) => !s.aktuell).map((s) => s.satz),
+    abendroutine: art === "abend" && tag === morgenIso && !opt.ohneRueckblick ? abendroutineFuer(heute, morgenIso, jetzt) : undefined,
     // Ein gewählter Fokus gilt nur für seinen Tag und nur, solange die Aufgabe offen ist.
     fokusWahl: (() => {
       const f = store.getSettings().briefingFokus;

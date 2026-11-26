@@ -5,8 +5,9 @@ import { abendplan, schlafDauer, schlafWoche, spaeterAls, stundenText, type Nach
 test("Die Mitteilung kommt 90 Minuten vor der Schlafenszeit", () => {
   const p = abendplan("23:00", "06:30");
   assert.equal(p.start, "21:30");
-  assert.equal(p.schritte[0]?.id, "handy");
-  assert.equal(p.schritte[0]?.uhrzeit, "22:00");
+  assert.equal(p.schritte[0]?.id, "fruehstueck");
+  assert.equal(p.schritte[0]?.uhrzeit, "21:45");
+  assert.equal(p.schritte.find((x) => x.id === "handy")?.uhrzeit, "22:00");
   assert.equal(p.schritte.at(-1)?.uhrzeit, "23:00");
   assert.equal(p.schlafMinuten, 450);
 });
