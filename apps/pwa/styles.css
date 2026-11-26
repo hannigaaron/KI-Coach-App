@@ -4578,8 +4578,12 @@ button { overflow-wrap: anywhere; text-wrap: balance; }
 .so-was { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .so-was b { font-weight: 600; overflow-wrap: anywhere; }
 .so-was small { font-size: var(--t-xs); color: var(--muted); }
-.so-haken { flex: none; width: 32px; height: 32px; border-radius: 50%; border: 1.5px solid currentColor; background: transparent; color: inherit; display: grid; place-items: center; opacity: .7; }
-.so-haken.an { background: var(--so-ton); color: var(--so-auf); opacity: 1; }
+/* Ein Kreis bleibt ein Kreis: ohne padding 0 und feste Mindestmasse erbte der
+   Haken die Polsterung jedes Knopfs und wurde im Betrieb ein Oval mit dem
+   Haken unten rechts. */
+.so .so-haken { flex: none; box-sizing: border-box; width: 36px; height: 36px; min-width: 36px; min-height: 36px; max-height: 36px; padding: 0; margin: 0; border-radius: 50%; border: 1.5px solid currentColor; background: transparent; box-shadow: none; color: inherit; display: grid; place-items: center; opacity: .7; font-size: 0; line-height: 0; aspect-ratio: 1; }
+.so .so-haken svg { display: block; width: 16px; height: 16px; }
+.so .so-haken.an { background: var(--so-ton); color: var(--so-auf); opacity: 1; }
 .so-punkt[data-rezept] { cursor: pointer; }
 /* Der Flug: nur beim ersten Zeigen, jeder Punkt der Reihe nach. */
 .so-neu .so-punkt { animation: soFlug .62s var(--kurve, cubic-bezier(.2,.8,.2,1)) both; animation-delay: var(--d); }

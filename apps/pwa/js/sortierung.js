@@ -37,7 +37,9 @@ export function sortiertHtml(gruppen, opt = {}) {
       const dx = ((i % 3) - 1) * 18;
       const zeit = uhr(p.um);
       return `<li class="so-punkt so-${esc(p.art)}${g.id === "zuerst" && i === 0 ? " so-erster" : ""}"${p.art === "essen" && p.rezeptId ? ` data-rezept="${esc(p.rezeptId)}" role="button" tabindex="0"` : ""} style="--d:${verz}s;--dx:${dx}px">`
-        + `<span class="so-zeit">${esc(zeit)}</span>`
+        // Ohne Uhrzeit keine leere Spalte: sie schob jede Aufgabe ohne Zeit um
+        // siebzig Pixel nach rechts, und der Text brach dreimal mehr um.
+        + (zeit ? `<span class="so-zeit">${esc(zeit)}</span>` : "")
         + `<span class="so-was"><b>${esc(p.titel)}</b><small>${esc(p.unter || ART[p.art] || "")}</small></span>${haken(p)}</li>`;
     }).join("");
     const marke = g.nr ? `<span class="so-nr">${g.nr}</span>` : `<span class="so-nr so-ohne" aria-hidden="true"></span>`;
