@@ -113,6 +113,12 @@ nächsten Termine auf der Uhr. Ohne die Zeile fragt die Uhr nicht nach dem
 Kalender und zeigt die Termine vom iPhone. Danach Play mit dem Schema
 **App** wie immer, die Uhr App kommt mit.
 
+### Ab jetzt
+
+`npm run ios` kopiert die Dateien der Uhr und der Komplikation selbst und
+nennt neue, die in Xcode noch hinzugefügt werden müssen. Die `cp` Befehle
+oben braucht es danach nicht mehr.
+
 ### Hast du die Uhr schon eingerichtet
 
 Dann nur die neuen Dateien nachholen: den `cp` Befehl aus Schritt 4 noch

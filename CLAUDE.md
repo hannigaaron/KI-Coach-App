@@ -4726,6 +4726,11 @@ Nichts davon ist auf einem Gerät gelaufen, bevor es eingecheckt wurde. In
 diesem Repository gibt es kein Xcode. Die erste Runde auf dem iPhone ist
 deshalb ein Test und kein Betrieb.
 
+`vorbereiten.mjs` kopiert ausserdem die Quellen aus `apps/ios/watch` in die
+Ordner der Uhr Ziele, wenn es sie in Xcode gibt, und nennt neue Dateien. Die
+Ziele liegen nur auf dem Mac des Betreibers, und eine vergessene Kopie hiess:
+iPhone neu, Uhr alt.
+
 `build:demo` ersetzt in `konfig.js` nur das Objekt `KONFIG` und behält den
 Rest der Datei. Vorher schrieb es die Hilfsfunktionen von Hand nach, und
 `istNativ` wäre in der Fassung für Nutzer gefehlt. Deren Import bricht dann
