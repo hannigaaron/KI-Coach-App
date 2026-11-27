@@ -1064,7 +1064,7 @@ der Präsentation, im Chat und im Morgen Check-in.
 
 ```bash
 npm install
-npm test           # 1584 Tests
+npm test           # 1585 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -3532,6 +3532,12 @@ auf einen Satz gekürzt, Gründe je Posten in der Einkaufsliste und Datumsangabe
 an Standards sind weg. Gemessen über die sichtbaren Erklärsätze: Einkauf von
 300 auf 30 Wörter, Bericht von 253 auf 11, Kalender von 323 auf 47. Neue
 Erklärungen kommen in ein `info-klapp`, nicht als offener Absatz.
+
+Bereitschaft als Beispiel: die Belastung steht als grosse Zahl mit einem
+Urteil und einem Satz, `belastungKurz` im Kern, statt sechs Zeilen Text.
+`belastungText` bleibt für den Coach. Partien ohne Training stehen als eine
+Reihe Chips, `#regenOhne`, nicht als neunzehn Zeilen "nicht trainiert". Die
+Quelle je Teil der Bereitschaft steht im Tooltip, nicht als dritte Zeile.
 
 ## Die Tabelle schlägt die Schätzung
 

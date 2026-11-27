@@ -4072,7 +4072,7 @@ button, .chip, .pill {
   font-family: var(--schrift-akzent); font-weight: 400; letter-spacing: 0.005em;
   font-synthesis: none;
 }
-button:not(.seg-btn):not([role="tab"]):not(.bib-knopf):not(.balken-zeile):not(.icon-btn):not(.tr-masse):not(.pl-verlauf-knopf):not([data-water]):not(.rz-mini):not([data-rz-neu]):not([data-rz-weg]):not([data-rz-zurueck]) { font-size: 1.15em; }
+button:not(.seg-btn):not([role="tab"]):not(.bib-knopf):not(.balken-zeile):not(.icon-btn):not(.tr-masse):not(.pl-verlauf-knopf):not([data-water]):not(.rz-mini):not([data-rz-neu]):not([data-rz-weg]):not([data-rz-zurueck]):not(.regen-chip) { font-size: 1.15em; }
 .menu-zeile b, .menu-kachel b, .erfassen-titel, .weg-titel { font-family: var(--schrift-akzent); font-weight: 400; font-size: 1.1em; }
 .seg-btn, [role="tab"], .bib-knopf, .bib-knopf *, .pl-verlauf-knopf, .pl-verlauf-knopf *, .pl-tausch .ue-tab, .tr-ersatz b, .balken-zeile, .balken-zeile *, .tr-masse,
 button small, button .erfassen-sub, button .me-werte, button .me-werte *,
@@ -4639,6 +4639,16 @@ button { overflow-wrap: anywhere; text-wrap: balance; }
 .regen-text small { color: var(--muted); font-size: var(--t-xs); line-height: 1.35; }
 .regen-wert { flex: none; display: flex; flex-direction: column; align-items: flex-end; font-weight: 600; font-variant-numeric: tabular-nums; }
 .regen-wert small { font-weight: 400; font-size: var(--t-2xs, 11px); color: var(--muted); }
+.regen-ohne { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-4); }
+.regen-ohne small { flex-basis: 100%; color: var(--muted); font-size: var(--t-xs); }
+.regen-chip { padding: 6px 12px; border: 0; border-radius: var(--r-pill, 999px); background: var(--flaeche, var(--panel)); color: var(--muted); font: inherit; font-size: var(--t-xs); cursor: pointer; }
+.last-kopf { display: flex; align-items: center; gap: var(--s-4); margin: var(--s-3) 0 var(--s-2); }
+.last-kopf > b { flex: none; white-space: nowrap; font-size: var(--t-3xl, 36px); font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.last-kopf > b[data-lage="sprung"] { color: var(--warn); }
+.last-kopf > b[data-lage="aufbau"], .last-kopf > b[data-lage="stabil"] { color: var(--brand-text, var(--brand)); }
+.last-kopf span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.last-kopf strong { font-weight: 600; font-size: var(--t-sm); }
+.last-kopf small { color: var(--muted); font-size: var(--t-xs); line-height: 1.35; }
 .regen-tempo { display: flex; flex-direction: column; gap: var(--s-2); margin: var(--s-4) 0; font-size: var(--t-sm); color: var(--muted); }
 
 /* Hinweis aus einer Notiz mit Schmerz, über den Sätzen. Warnfarbe nur als

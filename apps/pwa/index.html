@@ -1059,6 +1059,7 @@ try {
       <div class="regen-karte" id="regenKarte"></div>
       <div class="regen-legende" aria-hidden="true"><span>Belastet</span><i></i><span>Frisch</span></div>
       <div class="regen-liste" id="regenListe"></div>
+      <div class="regen-ohne" id="regenOhne" hidden></div>
       <label class="regen-tempo">Wie schnell erholst du dich?
         <select id="regenTempo">
           <option value="schnell">Schneller als die meisten</option>
@@ -1074,9 +1075,8 @@ try {
         Rechnung nicht.</p></details>
 
       <h2 class="abschnitt">Belastung</h2>
-      <p class="sub">7 Tage gegen deinen Schnitt aus 28.</p>
-      <pre class="pre" id="belastungText">Wird beim Öffnen gerechnet.</pre>
-      <details class="info-klapp"><summary>So rechnet daevo</summary><p class="fineprint">Das Verfahren stammt aus dem Leistungssport und heißt dort acute chronic workload
+      <div class="last-kopf"><b id="belastungZahl">–</b><span><strong id="belastungUrteil"></strong><small id="belastungSatz"></small></span></div>
+      <details class="info-klapp"><summary>So rechnet daevo</summary><p class="fineprint">Die Minuten der letzten 7 Tage gegen deinen Schnitt aus 28 Tagen. Das Verfahren stammt aus dem Leistungssport und heißt dort acute chronic workload
         ratio. Die Schwellen 0,8 und 1,5 stammen aus Gabbett, British Journal of Sports Medicine 2016. Genau
         diese Arbeit ist seit 2020 stark kritisiert worden, unter anderem von Impellizzeri und anderen. Der
         Quotient beschreibt zuverlässig, wie deine Woche zu deinem Schnitt steht. Dass ein hoher Wert zu
