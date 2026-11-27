@@ -77,7 +77,7 @@ test("der schwächste Teil trägt die Empfehlung", () => {
   const b = bereitschaft({ schlafQualitaet: 2, energie: 8, belastung: stabil });
   assert.ok(b);
   assert.equal(b.schwaechster.name, "Schlaf");
-  assert.match(bereitschaftText(b), /liegt Schlaf/);
+  assert.match(bereitschaftText(b), /schwächsten: Schlaf/);
 });
 
 test("der Text nennt jede Quelle und die Grenze der Zahl", () => {

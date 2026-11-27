@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { belastung, belastungText, MIN_EINHEITEN, type BelastungsEingabe } from "./belastung.js";
+import { belastung, belastungKurz, belastungText, MIN_EINHEITEN, type BelastungsEingabe } from "./belastung.js";
 
 const HEUTE = "2026-09-29";
 
@@ -98,4 +98,12 @@ test("der Text nennt immer die Zahlen, aus denen er kommt", () => {
 
 test("ein ungültiges Datum wirft, statt still falsch zu rechnen", () => {
   assert.throws(() => belastung({ tage: {}, heute: "gestern" }), /Ungültiges Datum/);
+});
+
+test("belastungKurz: eine Zahl und ein kurzer Satz statt eines Absatzes", () => {
+  assert.equal(belastungKurz(null).prozent, null);
+  const k = belastungKurz({ akutMinuten: 240, chronischMinuten: 79, verhaeltnis: 3.04, einheitenAkut: 4, einheitenChronisch: 6, lage: "sprung" });
+  assert.equal(k.prozent, 304);
+  assert.equal(k.urteil, "Deutlich mehr als sonst");
+  assert.ok(k.satz.split(" ").length < 20);
 });

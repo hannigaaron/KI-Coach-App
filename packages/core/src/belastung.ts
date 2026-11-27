@@ -125,6 +125,23 @@ export function belastungText(b: Belastung | null): string {
 }
 
 /**
+ * Dasselbe für die Oberfläche: eine Zahl, ein Urteil, ein Satz. Der Text oben
+ * stand als Absatz von sechs Zeilen in der Ansicht, und gelesen wurde nur die
+ * erste. Der Vorbehalt zur Quelle steht dort zugeklappt.
+ */
+export interface BelastungKurz { prozent: number | null; urteil: string; satz: string; lage: BelastungsLageArt | null }
+
+export function belastungKurz(b: Belastung | null): BelastungKurz {
+  if (!b) return { prozent: null, urteil: "Noch zu wenig Daten", satz: `Ab ${MIN_EINHEITEN} Einheiten in ${CHRONISCH_TAGE} Tagen.`, lage: null };
+  const prozent = Math.round(b.verhaeltnis * 100);
+  const satz = `${b.akutMinuten} min diese Woche, Schnitt ${b.chronischMinuten} min`;
+  if (b.lage === "sprung") return { prozent, urteil: "Deutlich mehr als sonst", satz: `${satz}. Weit über dem, was dein Körper kennt.`, lage: b.lage };
+  if (b.lage === "aufbau") return { prozent, urteil: "Aufbau", satz: `${satz}. Eine Woche halten, dann erhöhen.`, lage: b.lage };
+  if (b.lage === "rueckgang") return { prozent, urteil: "Weniger als sonst", satz: `${satz}. ${Math.max(0, b.chronischMinuten - b.akutMinuten)} min fehlen.`, lage: b.lage };
+  return { prozent, urteil: "Im gewohnten Bereich", satz: `${satz}.`, lage: b.lage };
+}
+
+/**
  * Die Schwellen.
  *
  * 0,8 und 1,5 stehen so in der Quelle, 1,3 ist die Grenze, ab der die App von

@@ -7,7 +7,7 @@ import {
   ORDNER, mengeSetzen, nachOrdnern, naehrwerteFuer, offeneMahlzeiten, portionsVorschlag, skalierbar,
   impulseFuerTag, naechsterPunkt, planFuer, saubereUrl, uhrzeit, undListe, weckwortGehoert, weightTrend,
   belastung,
-  belastungText,
+  belastungKurz,
   regeneration, regenFarbton, regenSatz, schlafwert, schlafZiel, PHASEN_SPANNE, koerperlage, essensUhrzeiten, tagesrandFuer,
   bereitschaft,
   bereitschaftText,
@@ -1836,17 +1836,27 @@ function renderRegeneration() {
   const bekannt = partien.filter((p) => p.stand !== "keine");
   $("regenSub").textContent = bekannt.length
     ? `${bekannt.filter((p) => p.stand === "erholt" || p.stand === "faellig").length} von ${bekannt.length} trainierten Partien sind wieder frisch.`
-    : "Noch keine Trainings mit Übungen in den letzten vier Wochen. Sobald du eins im Trainingsmodus beendest, steht hier die Regeneration.";
+    : "Noch kein Training mit Übungen in den letzten 4 Wochen.";
   // Müde zuerst, dann fällig: das sind die zwei, nach denen man plant.
   const rang = { muede: 0, faellig: 1, fast: 2, erholt: 3, keine: 4 };
   const liste = $("regenListe");
   liste.innerHTML = "";
+  // Partien ohne Training stehen als eine Reihe kleiner Chips und nicht als
+  // eigene Zeile: neunzehnmal "nicht trainiert" untereinander war eine
+  // Bildschirmhöhe ohne Information. Antippen geht dort genauso.
+  const ohne = $("regenOhne");
+  ohne.innerHTML = "";
+  const ohneListe = partien.filter((p) => p.stand === "keine" && !p.gefuehl);
+  ohne.hidden = !ohneListe.length;
+  if (ohneListe.length) ohne.insertAdjacentHTML("afterbegin", `<small>${bekannt.length ? "Nicht trainiert in 4 Wochen" : "Muskelkater? Tippe die Partie an"}</small>`);
   for (const p of [...partien].sort((a, b) => rang[a.stand] - rang[b.stand] || (a.prozent ?? 101) - (b.prozent ?? 101))) {
+    const chip = ohneListe.includes(p);
     const zeile = document.createElement("button");
     zeile.type = "button";
-    zeile.className = "regen-zeile";
+    zeile.className = chip ? "regen-chip" : "regen-zeile";
     const farbe = p.prozent === null ? "var(--muted)" : `hsl(${regenFarbton(p.prozent)} 72% 50%)`;
-    zeile.innerHTML = `<span class="regen-punkt" style="background:${farbe}"></span>
+    if (chip) zeile.textContent = REGIONEN[p.id] ?? p.id;
+    else zeile.innerHTML = `<span class="regen-punkt" style="background:${farbe}"></span>
       <span class="regen-text"><b>${REGIONEN[p.id] ?? p.id}</b><small>${regenSatz(p)}</small></span>
       <span class="regen-wert">${p.prozent === null ? "–" : `${p.prozent}%`}${p.gefuehl ? `<small>${p.gefuehl === "frisch" ? "frisch" : "Kater"}</small>` : ""}</span>`;
     zeile.setAttribute("aria-label", `${REGIONEN[p.id] ?? p.id}, tippen ändert dein Gefühl für heute`);
@@ -1858,14 +1868,18 @@ function renderRegeneration() {
       store.setSettings({ ...st, regenGefuehl: { datum: todayIso(), werte: heute } });
       renderRegeneration();
     });
-    liste.appendChild(zeile);
+    (chip ? ohne : liste).appendChild(zeile);
   }
 }
 
 function renderBereitschaft() {
   renderRegeneration();
   const last = belastung({ tage: tageFuerBelastung(), heute: todayIso() });
-  $("belastungText").textContent = belastungText(last);
+  const lk = belastungKurz(last);
+  $("belastungZahl").textContent = lk.prozent === null ? "–" : `${lk.prozent} %`;
+  $("belastungZahl").dataset.lage = lk.lage ?? "";
+  $("belastungUrteil").textContent = lk.urteil;
+  $("belastungSatz").textContent = lk.satz;
 
   // Der Morgen Check-in von heute. Gibt es mehrere, gilt der letzte: wer
   // zweimal antwortet, hat sich korrigiert.
@@ -1903,11 +1917,10 @@ function renderBereitschaft() {
   // Aussage: wie voll ist dieser Teil.
   teile.innerHTML = "";
   for (const t of b.teile) {
+    // Die Quelle je Teil steht im Tooltip und unter "So rechnet daevo", nicht
+    // als dritte Zeile: dreimal "aus deinem Morgen Check-in" war Lärm.
     const zeile = messwert({ name: t.name, wert: t.wert, zusatz: "von 100", anteil: t.wert / 100, ton: TEIL_TON[t.name] });
-    const quelle = document.createElement("p");
-    quelle.className = "messwert-quelle";
-    quelle.textContent = `aus ${t.quelle}`;
-    zeile.appendChild(quelle);
+    zeile.title = `aus ${t.quelle}`;
     teile.appendChild(zeile);
   }
 }

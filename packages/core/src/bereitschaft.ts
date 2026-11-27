@@ -158,11 +158,9 @@ function empfehlung(b: Bereitschaft): string {
   const s = b.schwaechster;
   if (b.urteil === "bereit") return "Nimm dir heute das Schwerste vor, was ansteht.";
   if (b.urteil === "runterfahren") {
-    return `Am weitesten unten liegt ${s.name}. Nimm heute Umfang raus statt Intensität: `
-      + "dieselben Übungen, weniger Sätze.";
+    return `Am schwächsten: ${s.name}. Dieselben Übungen, weniger Sätze.`;
   }
-  return `Das trägt einen normalen Tag. Am weitesten unten liegt ${s.name}, `
-    + "dort lohnt sich heute die Aufmerksamkeit.";
+  return `Ein normaler Tag. Am schwächsten: ${s.name}.`;
 }
 
 function urteilen(wert: number): BereitschaftsUrteil {
