@@ -18,7 +18,7 @@ import {
   MAX_EIGENE,
   erinnerungZeile,
   istEinmalig,
-  bilanzSatz, tageListe, tagStand, zeitraumText, uebungsTrend,
+  bilanzKurz, bilanzSatz, tageListe, tagStand, zeitraumText, uebungsTrend,
 } from "@daevo/core";
 import { MODELL_JE_MODUS, MODELL_OPTIONEN, MODELLE, PREISE_STAND, aktuellesModell, produktPerBarcode, produkteSuchen } from "@daevo/coach";
 import { Coach, AnthropicProvider, FOODS } from "@daevo/coach";
@@ -1724,10 +1724,10 @@ function koerperHtml() {
     ${stufe ? `<p class="ks-lage ks-${lage.stufe}"><b>${stufe}</b> ${escapeHtml(lage.text)}</p>` : `<p class="sub">${escapeHtml(lage.text)}</p>`}
     <div class="ks-liste">${zeilen}</div>
     ${extra.length ? `<div class="ks-zahlen">${extra.map(([n, w, u]) => `<div><small>${n}</small><b>${w}</b><span>${escapeHtml(u)}</span></div>`).join("")}</div>` : ""}
-    <p class="fineprint">Einen Stresswert speichert Apple Health nicht, und Garmin, Oura und Whoop geben ihren nicht weiter.
+    <details class="info-klapp"><summary>So rechnet daevo</summary><p class="fineprint">Einen Stresswert speichert Apple Health nicht, und Garmin, Oura und Whoop geben ihren nicht weiter.
       daevo leitet die Lage aus HRV, Ruhepuls, Atmung und Temperatur gegen deinen eigenen Schnitt der letzten 28 Tage ab.
       Eine niedrigere HRV und ein höherer Ruhepuls treten bei Stress, wenig Schlaf, viel Training und beginnenden Infekten
-      auf (Kim und andere 2018, Buchheit 2014). Das ist eine Ableitung und keine Messung.</p>`;
+      auf (Kim und andere 2018, Buchheit 2014). Das ist eine Ableitung und keine Messung.</p></details>`;
 }
 
 function renderSchlaf() {
@@ -1770,8 +1770,7 @@ function renderSchlaf() {
   if (!n || !w) {
     rest.innerHTML = `${Number.isFinite(g.schlafMinuten)
       ? `<p class="sub">In dieser Nacht stehen ${kurzDauer(g.schlafMinuten)} Schlaf in Apple Health, aber keine Phasen.</p>` : ""}
-      <p class="sub">Phasen kommen aus Apple Health. Dort schreiben die Apple Watch und auch Oura, Garmin und Whoop,
-        wenn du in deren App das Teilen mit Apple Health einschaltest.</p>${koerperHtml()}`;
+      <p class="sub">Schlafphasen kommen aus Apple Health, auch von Oura, Garmin und Whoop.</p>${koerperHtml()}`;
     inhalt.appendChild(rest);
     return;
   }
@@ -2059,9 +2058,8 @@ function renderToday() {
   const list = upcoming.length ? upcoming : reminders.slice(-2);
   $("reminderList").innerHTML = list.length
     ? list.map((r) =>
-        `<li><div class="li-main"><div class="li-title">${escapeHtml(r.title)}</div>` +
-        `<div class="li-sub">${escapeHtml(r.body)}</div></div>` +
-        `<div class="li-side"><b>${r.at}</b>${r.at < time ? "vorbei" : "geplant"}</div></li>`).join("")
+        `<li><div class="li-main"><div class="li-title">${escapeHtml(r.title)}</div></div>` +
+        `<div class="li-side"><b>${r.at}</b></div></li>`).join("")
     : `<li><div class="li-main"><div class="li-sub">Für heute ist alles erledigt.</div></div></li>`;
 
   renderBewegung(n, istHeute);
@@ -2101,17 +2099,15 @@ function renderWeight() {
   $("gewichtZeitraum").hidden = !jahr.some((p) => p.weightKg !== null);
   const trend = weightTrend(verlaufPunkte(56));
   if (trend.messungen === 0) {
-    $("weightTrend").textContent = "Noch keine Wiegung. Wieg dich am besten morgens nach dem Klo, dann schwankt es am wenigsten.";
+    $("weightTrend").textContent = "Am besten morgens nach dem Klo wiegen.";
     return;
   }
   if (!trend.belastbar) {
     // Mit vier und mehr Wiegungen fehlt nur noch Zeit, nicht die Zahl. Der
     // Satz sagt dann das, sonst liest man "8 Wiegungen, ab vier" als Fehler.
     $("weightTrend").textContent = trend.messungen >= 4
-      ? `${trend.messungen} Wiegungen über ${trend.spanneTage} ${trend.spanneTage === 1 ? "Tag" : "Tage"}. ` +
-        "Ab zwei Wochen Abstand zwischen erster und letzter Wiegung kann ich eine Richtung sagen."
-      : `${trend.messungen} ${trend.messungen === 1 ? "Wiegung" : "Wiegungen"} bisher. ` +
-        "Ab vier Wiegungen über zwei Wochen kann ich eine Richtung sagen.";
+      ? `${trend.messungen} Wiegungen in ${trend.spanneTage} ${trend.spanneTage === 1 ? "Tag" : "Tagen"}, Trend ab 14 Tagen.`
+      : `${trend.messungen} ${trend.messungen === 1 ? "Wiegung" : "Wiegungen"}, Trend ab 4 Wiegungen in 14 Tagen.`;
     return;
   }
   const richtung = trend.kgProWoche > 0 ? "plus" : "minus";
@@ -2290,8 +2286,8 @@ function renderVerlauf() {
   makros.innerHTML = "";
   if (t.mahlzeiten) makroZeilen(makros, t, { proteinG: t.zielProteinG, fatG: t.zielFatG, carbsG: t.zielCarbsG });
   $("evTagHinweis").textContent = evTag !== heute && tagStand(t) === "unvollstaendig"
-    ? "Unter der Hälfte deines Ziels. Das sieht unvollständig aus und zählt nicht in den Wochenschnitt."
-    : "Tipp auf eine Mahlzeit, um sie zu ändern. Das Kreuz löscht sie.";
+    ? "Unvollständig, zählt nicht in den Wochenschnitt."
+    : "";
   renderMeals("mealList2", evTag);
   $("evNachtragen").hidden = evTag === heute;
 
@@ -2299,7 +2295,7 @@ function renderVerlauf() {
   const gemessen = gemessenerVerbrauch();
   const w = wochenschnittFuer(evTag, gemessen);
   $("evWocheZeitraum").textContent = w.tage
-    ? `${zeitraumText(w.von, w.bis)}, gezählt an ${w.gezaehlt} von ${w.tage} ${w.tage === 1 ? "Tag" : "Tagen"}.${isoPlus(w.bis, 1) === heute ? " Heute zählt erst, wenn er vorbei ist." : ""}`
+    ? `${zeitraumText(w.von, w.bis)}, ${w.gezaehlt} von ${w.tage} ${w.tage === 1 ? "Tag" : "Tagen"} gezählt`
     : "Die Woche hat heute begonnen. Der Schnitt zählt abgeschlossene Tage.";
   const woche = $("evWoche");
   woche.innerHTML = "";
@@ -2311,7 +2307,7 @@ function renderVerlauf() {
     kz.classList.add("gross");
     woche.appendChild(kz);
     makroZeilen(woche, w.schnitt, w.ziel);
-    $("evBilanz").textContent = bilanzSatz(w);
+    $("evBilanz").textContent = bilanzKurz(w);
     $("evBilanz").hidden = false;
   } else {
     woche.innerHTML = w.tage ? `<p class="sub">${w.mitEintrag ? "In dieser Woche ist noch kein Tag vollständig eingetragen." : "In dieser Woche ist nichts eingetragen."}</p>` : "";
@@ -2321,7 +2317,6 @@ function renderVerlauf() {
   const liste = tageListe;
   if (w.leer.length && w.mitEintrag) hinweise.push(`Ohne Eintrag: ${liste(w.leer)}`);
   if (w.unvollstaendig.length) hinweise.push(`Wohl unvollständig, zählt nicht: ${liste(w.unvollstaendig)}`);
-  if (w.schnitt) hinweise.push("Tage ohne Eintrag zählen nicht als Tage ohne Essen.");
   $("evWocheHinweis").textContent = hinweise.join(" ");
 
   // Die letzten acht Wochen, jede antippbar
@@ -2329,8 +2324,8 @@ function renderVerlauf() {
   for (let i = 0; i < 8; i++) {
     const x = wochenschnittFuer(isoPlus(heute, -7 * i), gemessen);
     if (!x.mitEintrag) continue;
-    const bilanz = x.bilanzKcal === null ? "" : Math.abs(x.bilanzKcal) < 50 ? ", ausgeglichen" : x.bilanzKcal < 0 ? `, Defizit ${-x.bilanzKcal} kcal am Tag` : `, Überschuss ${x.bilanzKcal} kcal am Tag`;
-    const sub = x.schnitt ? `Protein ${x.schnitt.proteinG} g, ${x.gezaehlt} von ${x.tage} Tagen gezählt${bilanz}` : `${x.mitEintrag} ${x.mitEintrag === 1 ? "Tag" : "Tage"} eingetragen, keiner vollständig`;
+    const bilanz = x.bilanzKcal === null ? "" : Math.abs(x.bilanzKcal) < 50 ? " · ausgeglichen" : ` · ${x.bilanzKcal < 0 ? "−" : "+"}${Math.abs(x.bilanzKcal)} kcal am Tag`;
+    const sub = x.schnitt ? `${x.schnitt.proteinG} g Protein${bilanz}` : "nicht vollständig eingetragen";
     const aktiv = evTag >= x.von && evTag <= x.bis;
     zeilen.push(`<li class="tippbar${aktiv ? " aktiv" : ""}" data-ev-woche="${x.bis}"><div class="li-main"><div class="li-title">${escapeHtml(zeitraumText(x.von, x.bis))}</div>`
       + `<div class="li-sub">${escapeHtml(sub)}</div></div><div class="li-side">${x.schnitt ? `<b>${x.schnitt.kcal}</b>kcal` : ""}</div></li>`);
@@ -2410,7 +2405,7 @@ function renderEinkauf() {
   $("einkaufTage").value = liste.tage;
   const offen = liste.items.filter((i) => i.stand === "offen").length;
   $("einkaufSub").textContent =
-    `${liste.items.length} Posten, ${offen} noch offen. Tipp auf Gekauft oder auf Hab ich noch.`;
+    `${offen} von ${liste.items.length} noch offen`;
   $("einkaufHinweis").textContent = liste.hinweis +
     (liste.gemieden.length ? ` Ausgelassen: ${liste.gemieden.join(", ")}.` : "");
 
@@ -2420,7 +2415,6 @@ function renderEinkauf() {
       <div class="li-main">
         <span class="ek-stand ${item.stand}">${EK_TITEL[item.kategorie]}${item.stand === "offen" ? "" : `, ${EK_STAND[item.stand]}`}</span>
         <div class="li-title">${escapeHtml(item.name)}${item.menge ? `, ${escapeHtml(item.menge)}` : ""}</div>
-        <div class="li-sub">${escapeHtml(item.grund)}</div>
       </div>
       <div class="li-side ek-knoepfe">
         <button class="ghost" data-ek="${item.key}" data-stand="${item.stand === "gekauft" ? "offen" : "gekauft"}">${item.stand === "gekauft" ? "Zurück" : "Gekauft"}</button>
@@ -2446,7 +2440,7 @@ function renderStandards() {
     return `<li>
       <div class="li-main">
         <div class="li-title">${escapeHtml(s.standard.text)}</div>
-        <div class="li-sub">${escapeHtml(s.zahlen)}, seit ${s.standard.seit.slice(8, 10)}.${s.standard.seit.slice(5, 7)}.</div>
+        <div class="li-sub">${escapeHtml(s.zahlen)}</div>
         <div class="std-quote">
           <div class="std-bar"><i class="${klasse}" style="width:${prozent}%"></i></div>
           <span class="std-zahl">${prozent} %</span>

@@ -282,7 +282,7 @@ function haeltTag(standard: Standard, tag: StandardTag, messbar: boolean): boole
 
 function zahlenTaeglich(gehalten: number, moeglich: number, serie: number): string {
   if (moeglich === 0) return "noch keine Daten";
-  if (serie >= 3) return `${serie} Tage in Folge gehalten, ${gehalten} von ${moeglich} insgesamt`;
+  if (serie >= 3) return `${serie} Tage in Folge, ${gehalten} von ${moeglich} gehalten`;
   return `an ${gehalten} von ${moeglich} Tagen gehalten`;
 }
 
