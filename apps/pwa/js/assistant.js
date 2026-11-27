@@ -2301,10 +2301,13 @@ export function rezeptVorschlaege({ art, jetzt = new Date() } = {}) {
     return { art: gewaehlt, offen, morgen, rest: n.rest, ziel: null, empfehlungen: [], ausgeblendet: [], hinweis };
   }
   const ziel = { kcal: anteil.kcal, proteinG: anteil.proteinG, fatG: anteil.fatG, carbsG: anteil.carbsG };
+  const ernaehrung = ernaehrungMitNotizen(profil);
   const { empfehlungen, ausgeblendet } = rezeptEmpfehlungen({
-    ziel, art: gewaehlt, ernaehrung: ernaehrungMitNotizen(profil), vorrat: store.getFridge(),
+    ziel, art: gewaehlt, ernaehrung, vorrat: store.getFridge(),
   });
-  return { art: gewaehlt, offen, morgen, rest: n.rest, ziel, empfehlungen, ausgeblendet, hinweis };
+  // Die Ernährung geht mit, damit die Ansicht beim Tauschen einer Zutat
+  // dieselben Ausschlüsse anwendet wie beim Wählen des Rezepts.
+  return { art: gewaehlt, offen, morgen, rest: n.rest, ziel, empfehlungen, ausgeblendet, hinweis, ernaehrung };
 }
 
 /**

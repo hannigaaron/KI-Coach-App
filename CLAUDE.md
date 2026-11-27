@@ -1064,7 +1064,7 @@ der Präsentation, im Chat und im Morgen Check-in.
 
 ```bash
 npm install
-npm test           # 1581 Tests
+npm test           # 1584 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -3489,6 +3489,31 @@ Bewertet wird ein Tag so, wie er nach dem Verkleinern wirklich aussieht.
 Wraps und Eier gibt es nur ganz, und ein linear verkleinerter Tag lag im
 Plan bei 1700 und auf dem Teller bei 1815 kcal. Über 5 Prozent neben dem
 Kalorienziel nimmt der Plan einen Tag nur, wenn es keinen besseren gibt.
+
+### Eiweiss nach Wertigkeit, Zutaten tauschen
+
+`HUELSENFRUECHTE`, `huelsenMalus`, `eiweissHinweis`, `tauschOptionen` und
+`postenTauschen` in `packages/core/src/rezepte.ts`. Im Betrieb kamen Linsen
+fast bei jeder Mahlzeit, weil sie Protein und Kohlenhydrate zugleich gut
+treffen. Ihr Protein ist schlechter verwertbar: DIAAS nach FAO 2013, Milch,
+Ei, Rind und Whey um oder über 100, Soja um 90, Linsen, Kichererbsen und
+Bohnen meist 50 bis 75 (Herreman und andere, Food Sci Nutr 2020). Eine Regel
+von Coach Aaron: kommt ab 40 Prozent des Proteins aus Hülsenfrüchten, rückt
+das Rezept 30 Punkte nach hinten, im Essensplan zahlt es 0,15, ausser bei
+vegan und vegetarisch. Die angezeigte Passung bleibt ehrlich, nur die
+Reihenfolge ändert sich.
+
+Auf der Rezeptkarte trägt jede Zutat Minus, Plus und Tauschen, `zutatHtml`
+in `rezepte-ui.js`. Getauscht wird innerhalb derselben Rolle, `zutatRolle`:
+Eiweiss behält sein Protein, Beilage und Obst die Kohlenhydrate, Fett das
+Fett, Gemüse die Menge, höchstens das Dreifache der alten Menge. Bei Eiweiss
+stehen hochwertige Quellen vorn, Hülsenfrüchte nur bei vegan und
+vegetarisch. "Weglassen" nimmt eine Zutat heraus, "Original" stellt das
+Rezept wieder her, eingetragen wird, was dasteht. Fehlt danach eine
+Eiweissquelle oder liegt das Protein unter `EIWEISS_MIN_G`, sagt
+`eiweissHinweis` das mit dem Ausweg: Shake, Skyr oder Protein Snack
+nachholen oder bei der nächsten Hauptmahlzeit Fokus auf Protein. Eine Regel
+von Coach Aaron.
 
 ## Die Tabelle schlägt die Schätzung
 
