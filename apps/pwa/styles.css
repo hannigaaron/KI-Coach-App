@@ -4071,7 +4071,7 @@ button, .chip, .pill {
   font-family: var(--schrift-akzent); font-weight: 400; letter-spacing: 0.005em;
   font-synthesis: none;
 }
-button:not(.seg-btn):not([role="tab"]):not(.bib-knopf):not(.balken-zeile):not(.icon-btn):not(.tr-masse):not(.pl-verlauf-knopf):not([data-water]) { font-size: 1.15em; }
+button:not(.seg-btn):not([role="tab"]):not(.bib-knopf):not(.balken-zeile):not(.icon-btn):not(.tr-masse):not(.pl-verlauf-knopf):not([data-water]):not(.rz-mini):not([data-rz-neu]):not([data-rz-weg]):not([data-rz-zurueck]) { font-size: 1.15em; }
 .menu-zeile b, .menu-kachel b, .erfassen-titel, .weg-titel { font-family: var(--schrift-akzent); font-weight: 400; font-size: 1.1em; }
 .seg-btn, [role="tab"], .bib-knopf, .bib-knopf *, .pl-verlauf-knopf, .pl-verlauf-knopf *, .pl-tausch .ue-tab, .tr-ersatz b, .balken-zeile, .balken-zeile *, .tr-masse,
 button small, button .erfassen-sub, button .me-werte, button .me-werte *,
@@ -5150,3 +5150,22 @@ button.kz-haken.an { background: var(--makro-protein); border-color: var(--makro
 .kz-tausch-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 #kalQuellen button.ghost { white-space: nowrap; }
 .kz-essen .kz-karte[data-rezept] { cursor: pointer; }
+
+/* ---------- Rezept: Zutaten ändern und tauschen, rezepte-ui.js ---------- */
+.rz-zutaten-kopf { display: flex; justify-content: space-between; align-items: baseline; }
+.rz-bearbeitbar li.rz-zeile { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 0; }
+.rz-zeile .rz-name { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.rz-zeile .rz-name small { color: var(--muted); font-size: 12.5px; }
+.rz-menge { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+.rz-menge b { min-width: 64px; text-align: center; font-size: 14.5px; }
+button.rz-mini { display: grid; place-items: center; width: 30px; height: 30px; min-height: 0; padding: 0; border: 0; border-radius: 50%; background: var(--flaeche); box-shadow: var(--haarlinie); color: var(--text); font-family: var(--schrift-text); font-size: 18px; line-height: 1; cursor: pointer; }
+button.rz-mini.rz-tausch { color: var(--accent-text); }
+.rz-zeile.offen button.rz-tausch { background: var(--accent-text); color: var(--bg); }
+.rz-optionen { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 0 2px; }
+.rz-optionen .pill { min-height: 32px; padding: 5px 12px; font-family: var(--schrift-text); font-size: 13.5px; }
+.rz-optionen .rz-weg { color: var(--danger, #e5534b); }
+.rz-eiweiss { display: flex; gap: 10px; align-items: flex-start; margin: 0 0 var(--s-4); padding: 12px 14px; border-radius: 16px; background: color-mix(in srgb, var(--warn) 14%, var(--flaeche)); font-size: 14px; line-height: 1.45; }
+.rz-eiweiss .sym { flex: none; margin-top: 1px; color: color-mix(in srgb, var(--warn) 80%, var(--text)); }
+.rz-bearbeitbar .rz-menge { flex: none; }
+.rz-bearbeitbar .rz-name { flex: 1; }
+.rz-zutaten-kopf [data-rz-zurueck] { font-family: var(--schrift-text); font-size: 14px; }

@@ -8,7 +8,7 @@
  * Die Zahlen kommen aus `rezeptVorschlaege` in assistant.js und damit aus dem
  * Rechenkern. Diese Datei rechnet nichts, sie zeigt nur.
  */
-import { MAHLZEITEN } from "@daevo/core";
+import { MAHLZEITEN, ZUTATEN, eiweissHinweis, mengenSchritt, passung, postenMenge, postenSumme, postenTauschen, tauschOptionen } from "@daevo/core";
 import { essensplanEinkauf, essensplanRechnen, rezeptEintragen, rezeptVorschlaege } from "./assistant.js";
 import { todayIso } from "./storage.js";
 import { symbol } from "./symbole.js";
@@ -31,7 +31,10 @@ const zahl = (n) => Math.round(n).toLocaleString("de-DE");
  * soll nicht wissen, welche Ansichten es sonst noch gibt.
  */
 export function rezepteAnsicht({ wurzel, toast, beiEintrag, planFrei = () => true, proOeffnen = () => {}, inKalender = null }) {
-  const zustand = { art: null, index: 0, verworfen: new Set(), modus: "einzeln", tag: 0, offen: -1 };
+  // `anpassung` hält die geänderten Zutaten je Rezept: wer Linsen gegen
+  // Hähnchen tauscht und dann das nächste Rezept ansieht, findet beim
+  // Zurückkommen seinen Tausch wieder. `tausch` ist die offene Zeile.
+  const zustand = { art: null, index: 0, verworfen: new Set(), modus: "einzeln", tag: 0, offen: -1, anpassung: new Map(), tausch: -1 };
 
   const el = (id) => wurzel.querySelector(`#${id}`);
 
@@ -182,6 +185,7 @@ export function rezepteAnsicht({ wurzel, toast, beiEintrag, planFrei = () => tru
       return;
     }
     if (!e) {
+      zustand.aktuell = null;
       el("rzKarte").innerHTML = `<div class="rz-leer">${r.empfehlungen.length
         ? "Das waren alle passenden Rezepte. Tipp auf eine andere Mahlzeit oder komm später wieder."
         : "Zu deinen Angaben passt für diese Mahlzeit keines meiner Rezepte."}</div>`;
@@ -192,6 +196,12 @@ export function rezepteAnsicht({ wurzel, toast, beiEintrag, planFrei = () => tru
     }
 
     el("rzAktionen").hidden = false;
+    const eigene = zustand.anpassung.get(e.rezept.id);
+    if (eigene) {
+      const summe = postenSumme(eigene);
+      Object.assign(e, { posten: eigene, summe, passung: passung(summe, e.ziel), angepasst: true });
+    }
+    zustand.ernaehrung = r.ernaehrung;
     el("rzKarte").innerHTML = `
       ${e.rezept.foto
         ? `<img class="rz-foto" src="./img/rezepte/${encodeURIComponent(e.rezept.id)}.jpg" alt="" width="800" height="600" decoding="async">`
@@ -215,15 +225,54 @@ export function rezepteAnsicht({ wurzel, toast, beiEintrag, planFrei = () => tru
         ${zeile("Kohlenhydrate", s.carbsG, z.carbsG, "g")}
         ${zeile("Fett", s.fatG, z.fatG, "g")}
       </div>
-      <h3 class="section-title">Zutaten für deine Portion</h3>
-      <ul class="rz-zutaten">${e.posten.map((p) =>
-        `<li><span>${escapeHtml(p.name)}</span><b>${escapeHtml(p.menge)}</b>${e.imVorrat.includes(p.name) ? '<i class="rz-vorrat">im Vorrat</i>' : ""}</li>`).join("")}</ul>
+      ${hinweisHtml(e, r)}
+      <div class="rz-zutaten-kopf"><h3 class="section-title">Zutaten für deine Portion</h3>${e.angepasst ? '<button type="button" class="link-knopf" data-rz-zurueck>Original</button>' : ""}</div>
+      <ul class="rz-zutaten rz-bearbeitbar">${e.posten.map((p, i) => zutatHtml(e, p, i)).join("")}</ul>
       <h3 class="section-title">So geht es</h3>
       <ol class="rz-schritte">${e.rezept.schritte.map((t) => `<li>${escapeHtml(t)}</li>`).join("")}</ol>`;
     zeigeAusgeblendet(r);
     el("rzEintragen").dataset.index = String(zustand.index);
     zustand.aktuell = e;
     zustand.morgen = r.morgen;
+  }
+
+  /**
+   * Eine Zutat mit Menge zum Ändern und Tauschen. Minus und Plus in Schritten
+   * von 10 g oder einem Stück, Tauschen zeigt Zutaten mit derselben Aufgabe,
+   * bei Eiweiss die hochwertigen zuerst, `tauschOptionen` im Kern.
+   */
+  function zutatHtml(e, p, i) {
+    const offen = zustand.tausch === i;
+    const optionen = offen
+      ? tauschOptionen(p.key, zustand.ernaehrung, e.posten.map((x) => x.key)).slice(0, 10)
+        .map((k) => `<button type="button" class="pill" data-rz-neu="${k}">${escapeHtml(ZUTATEN[k].name)}</button>`).join("")
+      : "";
+    return `<li class="rz-zeile${offen ? " offen" : ""}">
+      <span class="rz-name">${escapeHtml(p.name)}${e.imVorrat.includes(p.name) ? '<i class="rz-vorrat">im Vorrat</i>' : ""}<small>${Math.round(p.kcal)} kcal · ${Math.round(p.proteinG)} g Protein</small></span>
+      <span class="rz-menge">
+        <button type="button" class="rz-mini" data-rz-weniger="${i}" aria-label="Weniger ${escapeHtml(p.name)}">−</button>
+        <b>${escapeHtml(p.menge)}</b>
+        <button type="button" class="rz-mini" data-rz-mehr="${i}" aria-label="Mehr ${escapeHtml(p.name)}">+</button>
+        <button type="button" class="rz-mini rz-tausch" data-rz-tausch="${i}" aria-expanded="${offen}" aria-label="${escapeHtml(p.name)} austauschen"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg></button>
+      </span>
+      ${offen ? `<div class="rz-optionen">${optionen || '<span class="sub">Nichts Passendes zum Tauschen.</span>'}<button type="button" class="pill rz-weg" data-rz-weg="${i}">Weglassen</button></div>` : ""}
+    </li>`;
+  }
+
+  /** Der Hinweis zum Eiweiss, `eiweissHinweis` im Kern, nur wenn es einen gibt. */
+  function hinweisHtml(e, r) {
+    const t = eiweissHinweis(e.posten, e.rezept.art, r.ernaehrung);
+    return t ? `<p class="rz-eiweiss">${symbol("idee", { groesse: 18 })}<span>${escapeHtml(t)}</span></p>` : "";
+  }
+
+  /** Ändert die Zutaten des aktuellen Rezepts und zeichnet neu. */
+  function anpassen(aendern) {
+    const e = zustand.aktuell;
+    if (!e) return;
+    const neu = aendern(e.posten);
+    if (!neu.length) { toast("Mindestens eine Zutat muss bleiben."); return; }
+    zustand.anpassung.set(e.rezept.id, neu);
+    zeichnen();
   }
 
   function zeigeAusgeblendet(r) {
@@ -278,14 +327,47 @@ export function rezepteAnsicht({ wurzel, toast, beiEintrag, planFrei = () => tru
       toast(`${n} Zutaten für die Woche stehen in der Einkaufsliste. Was im Vorrat liegt, steht dort als zuhause.`);
       return;
     }
+    const weniger = event.target.closest("[data-rz-weniger]");
+    const mehr = event.target.closest("[data-rz-mehr]");
+    if ((weniger || mehr) && zustand.aktuell) {
+      const i = Number((weniger || mehr).dataset[weniger ? "rzWeniger" : "rzMehr"]);
+      const p = zustand.aktuell.posten[i];
+      const schritt = mengenSchritt(p);
+      return anpassen((liste) => postenMenge(liste, i, p.gramm + (mehr ? schritt : -schritt)));
+    }
+    const tausch = event.target.closest("[data-rz-tausch]");
+    if (tausch) {
+      const i = Number(tausch.dataset.rzTausch);
+      zustand.tausch = zustand.tausch === i ? -1 : i;
+      return zeichnen();
+    }
+    const neu = event.target.closest("[data-rz-neu]");
+    if (neu && zustand.tausch >= 0) {
+      const i = zustand.tausch;
+      zustand.tausch = -1;
+      return anpassen((liste) => postenTauschen(liste, i, neu.dataset.rzNeu));
+    }
+    const weg = event.target.closest("[data-rz-weg]");
+    if (weg) {
+      const i = Number(weg.dataset.rzWeg);
+      zustand.tausch = -1;
+      return anpassen((liste) => liste.filter((_, j) => j !== i));
+    }
+    if (event.target.closest("[data-rz-zurueck]") && zustand.aktuell) {
+      zustand.anpassung.delete(zustand.aktuell.rezept.id);
+      zustand.tausch = -1;
+      return zeichnen();
+    }
     const art = event.target.closest("[data-rz-art]");
     if (art) {
       zustand.art = art.dataset.rzArt;
       zustand.index = 0;
+      zustand.tausch = -1;
       return zeichnen();
     }
     if (event.target.closest("#rzWeiter")) {
       if (zustand.aktuell) zustand.verworfen.add(zustand.aktuell.rezept.id);
+      zustand.tausch = -1;
       return zeichnen();
     }
     if (event.target.closest("#rzEintragen") && zustand.aktuell) {
@@ -295,6 +377,7 @@ export function rezepteAnsicht({ wurzel, toast, beiEintrag, planFrei = () => tru
       const tag = zustand.morgen ? morgenIso() : undefined;
       rezeptEintragen(e, tag ? { day: tag } : {});
       toast(`${e.rezept.name} ${tag ? "für morgen " : ""}eingetragen, ${e.summe.kcal} kcal und ${e.summe.proteinG} g Protein.`);
+      zustand.anpassung.delete(e.rezept.id);
       zustand.verworfen.clear();
       zustand.index = 0;
       beiEintrag();

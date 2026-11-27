@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { REZEPTE, ZUTATEN } from "./rezepte-daten.js";
-import { passung, rezeptEmpfehlungen, rezeptGesperrt, rezeptPortion } from "./rezepte.js";
+import { HUELSENFRUECHTE, eiweissHinweis, hochwertig, huelsenAnteil, huelsenMalus, passung, postenAus, postenMenge, postenTauschen, rezeptEmpfehlungen, rezeptGesperrt, rezeptPortion, tauschOptionen, zutatRolle } from "./rezepte.js";
 
 const MITTAG = { kcal: 750, proteinG: 55, fatG: 22, carbsG: 80 };
 
@@ -99,8 +99,10 @@ test("sortiert nach Passung, und für jede Mahlzeit gibt es etwas", () => {
     const ziel = art === "snack" ? { kcal: 300, proteinG: 30, fatG: 8, carbsG: 25 } : MITTAG;
     const { empfehlungen } = rezeptEmpfehlungen({ ziel, art });
     assert.ok(empfehlungen.length >= 4, art);
+    // Sortiert wird nach Passung abzüglich des Abzugs für Hülsenfrüchte.
+    const rang = (x: (typeof empfehlungen)[number]) => x.passung - huelsenMalus(x.posten);
     for (let i = 1; i < empfehlungen.length; i++) {
-      assert.ok(empfehlungen[i - 1]!.passung >= empfehlungen[i]!.passung - 3, art);
+      assert.ok(rang(empfehlungen[i - 1]!) >= rang(empfehlungen[i]!) - 3, art);
     }
   }
 });
@@ -120,3 +122,37 @@ test("jedes Rezept mit Foto hat eine Datei dazu", async () => {
     assert.ok(existsSync(pfad), `${r.id}: ${pfad}`);
   }
 });
+
+test("Linsen nur für Vegetarier und Veganer weit vorn", () => {
+  const ziel = { kcal: 700, proteinG: 45, fatG: 20, carbsG: 80 };
+  const omni = rezeptEmpfehlungen({ ziel, art: "mittagessen" }).empfehlungen.slice(0, 5);
+  assert.ok(omni.every((x) => huelsenAnteil(x.posten) < 0.4), omni.map((x) => x.rezept.name).join(", "));
+  const veg = rezeptEmpfehlungen({ ziel, art: "mittagessen", ernaehrung: { form: "vegan" } }).empfehlungen;
+  assert.ok(veg.some((x) => huelsenAnteil(x.posten) >= 0.4));
+});
+
+test("Tauschen hält die Aufgabe der Zutat, Hülsenfrüchte nur für Vegetarier", () => {
+  const posten = [postenAus("linsen", 250), postenAus("reis", 70)];
+  const opt = tauschOptionen("linsen");
+  assert.ok(!opt.some((k) => HUELSENFRUECHTE.includes(k)));
+  assert.ok(hochwertig(opt[0]!));
+  assert.ok(tauschOptionen("linsen", { form: "vegetarisch" }).includes("kichererbsen"));
+  assert.ok(!tauschOptionen("linsen", { form: "vegetarisch" }).includes("haehnchen"));
+  const neu = postenTauschen(posten, 0, "haehnchen");
+  assert.equal(neu[0]!.key, "haehnchen");
+  assert.ok(Math.abs(neu[0]!.proteinG - posten[0]!.proteinG) <= 2, String(neu[0]!.proteinG));
+  assert.equal(postenMenge(posten, 1, 100)[1]!.gramm, 100);
+  assert.equal(postenAus("ei", 130).menge, "2 Eier");
+  assert.equal(zutatRolle("reis"), "beilage");
+});
+
+test("Ohne Eiweissquelle kommt ein Hinweis mit Ausweg", () => {
+  const ohne = [postenAus("reis", 80), postenAus("brokkoli", 150), postenAus("olivenoel", 10)];
+  assert.match(eiweissHinweis(ohne, "hauptmahlzeit")!, /fehlt eine Eiweißquelle.*Shake, Skyr oder Protein Snack.*nächsten Hauptmahlzeit/);
+  const gut = [postenAus("haehnchen", 180), postenAus("reis", 80)];
+  assert.equal(eiweissHinweis(gut, "hauptmahlzeit"), null);
+  const linsen = [postenAus("linsen", 300), postenAus("reis", 40)];
+  assert.match(eiweissHinweis(linsen, "hauptmahlzeit")!, /Hülsenfrüchten/);
+  assert.equal(eiweissHinweis(linsen, "hauptmahlzeit", { form: "vegan" }), null);
+});
+

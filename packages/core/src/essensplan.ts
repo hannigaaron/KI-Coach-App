@@ -13,7 +13,7 @@
  */
 import type { Zutat, ZutatKey } from "./rezepte-daten.js";
 import { REZEPTE, ZUTATEN, type Rezept } from "./rezepte-daten.js";
-import { type Ernaehrung, type Posten, type RezeptEmpfehlung, passung, rezeptArtFuer, rezeptEmpfehlungen, rezeptGesperrt, rezeptPortion } from "./rezepte.js";
+import { type Ernaehrung, type Posten, type RezeptEmpfehlung, passung, rezeptArtFuer, rezeptEmpfehlungen, huelsenMalus, rezeptGesperrt, rezeptPortion } from "./rezepte.js";
 import { type MahlzeitArt, type Rest, mahlzeitInfo, verteileRest } from "./verteilung.js";
 
 export interface EssensplanEingabe {
@@ -277,7 +277,10 @@ export function essensplanBauen(e: EssensplanEingabe): Essensplan {
       // Eiweissquelle zweimal am Tag zahlt mehr als vorher: mit 0,03 standen
       // zwei Linsengerichte trotzdem nebeneinander.
       const veg = isstFleisch ? wahl.filter((w) => w.rezept.art === "hauptmahlzeit" && fleischlos(w.rezept)).length : 0;
-      return { ergaenzung, faktor: f, fehler: tagesfehler(gesamt, tagesziel) + doppelt * 0.06 + Math.max(0, veg - 1) * 0.08 + wahl.filter((w) => reserve(w.rezept)).length * 0.05 + ergaenzung.length * 0.01 + wieder * 0.04 };
+      // Hülsenfrüchte als Hauptquelle zahlen für alle, die nicht vegan oder
+      // vegetarisch essen, siehe `huelsenMalus` in rezepte.ts.
+      const huelsen = wahl.filter((w) => huelsenMalus(w.posten, e.ernaehrung) > 0).length;
+      return { ergaenzung, faktor: f, fehler: tagesfehler(gesamt, tagesziel) + huelsen * 0.15 + doppelt * 0.06 + Math.max(0, veg - 1) * 0.08 + wahl.filter((w) => reserve(w.rezept)).length * 0.05 + ergaenzung.length * 0.01 + wieder * 0.04 };
     };
     // Gibt es keine Kombination ohne doppeltes Gericht am selben Tag, wird
     // das in Kauf genommen. Ein doppeltes Gericht ist besser als ein leerer Tag.
