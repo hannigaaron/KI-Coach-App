@@ -250,14 +250,25 @@ export class Agent {
         },
       });
       const strom = params.strom ? { neu: () => params.strom!.neu(), text: (t: string) => { geschrieben++; params.strom!.text(t); } } : undefined;
+      // Sagt er "trag ein", steht es danach im Tag, auch wenn das Modell das
+      // Werkzeug nicht gerufen hat. Im Betrieb kam "trag ein, dass ich zum
+      // Mittag ... esse" als Plan an, die Antwort klang nach erledigt, und in
+      // Ernährung stand fünf Stunden später nichts.
+      const sicherEingetragen = async (r: AgentReply): Promise<AgentReply> => {
+        if (!mahlzeitAuftrag(params.nachricht)) return r;
+        if (r.ausgeführt.some((n) => /Mahlzeit|Eintrag|Foto/.test(n))) return r;
+        const text = await params.aktionen.mahlzeitErfassen(params.nachricht);
+        if (!/kcal/.test(text)) return r;
+        return { ...r, text: [r.text, text].filter(Boolean).join("\n\n"), ausgeführt: [...r.ausgeführt, "Mahlzeit eingetragen"] };
+      };
       try {
         try {
-          return await this.runModel({ ...params, aktionen, strom });
+          return await sicherEingetragen(await this.runModel({ ...params, aktionen, strom }));
         } catch (erster) {
           const art = fehlerErklaerung(erster).art;
           if ((art !== "netz" && art !== "ueberlastet") || gerufen || geschrieben) throw erster;
           await new Promise((fertig) => setTimeout(fertig, 1500));
-          return await this.runModel({ ...params, aktionen, strom });
+          return await sicherEingetragen(await this.runModel({ ...params, aktionen, strom }));
         }
       } catch (error) {
         if (isDebug()) console.error("Agent Modellfehler", error);
@@ -1473,6 +1484,24 @@ function foldUmlauts(text: string): string {
  * meint die Vergangenheit, obwohl "möchte" darin steht. Deshalb reicht ein
  * Absichtswort allein nicht.
  */
+/**
+ * Ein ausdrücklicher Auftrag, Essen einzutragen: "trag ein, dass ich zum
+ * Mittag Reis mit Hähnchen esse". Ein Wort fürs Eintragen und eines fürs
+ * Essen müssen beide dastehen. Nicht für Kalender, Aufgaben, Korrekturen,
+ * Pläne und nicht für morgen: "trag morgen Pizza ein" ist kein Eintrag für
+ * heute.
+ */
+export function mahlzeitAuftrag(roh: string): boolean {
+  const t = foldUmlauts(String(roh ?? "").toLowerCase());
+  const eintragen = /\b(trag\w*|eintrag\w*|einzutragen|track\w*|logg\w*|notier\w*|erfass\w*)\b/.test(t);
+  if (!eintragen) return false;
+  const essen = /\b(gegessen|esse|isst|essen|fruehstueck\w*|mittag\w*|abendessen|abendbrot|snack|getrunken|trinke|mahlzeit)\b/.test(t);
+  if (!essen) return false;
+  const anderes = /\b(kalender|termin\w*|aufgaben?|to ?dos?|todoist|einkauf\w*|statt|korrigier\w*|aender\w*|loesch\w*|zurueck\w*|austrag\w*|gewicht|wiege|training|vorschlag\w*)\b|plan|\btrag\w* (\w+ )?aus\b/.test(t);
+  if (anderes) return false;
+  return !/(?<!heute )\b(morgen|uebermorgen)\b/.test(t);
+}
+
 export function istAbsicht(roh: string): boolean {
   // Gefaltet, wie überall sonst im Regelpfad. `pattern` faltet seine Wörter,
   // also muss auch die andere Seite gefaltet sein, sonst trifft "möchte" nie.

@@ -111,6 +111,9 @@ export function tabellenPosten(f, gramm = f.pieceG ?? 100) {
     proteinG: r1(f.per100.proteinG),
     fatG: r1(f.per100.fatG),
     carbsG: r1(f.per100.carbsG),
+    // Das Stückgewicht geht mit, damit sich im Editor "Stück" wählen lässt:
+    // zwei Waffeln statt 120 g. Getränke zählen in Gläsern, nicht in Stück.
+    ...(f.pieceG && !f.fluessig ? { stueckG: f.pieceG } : {}),
     ...((bildFuerKey(f.key) || tabellenBild(f.label)) ? { bild: bildFuerKey(f.key) || tabellenBild(f.label) } : {}),
   };
 }

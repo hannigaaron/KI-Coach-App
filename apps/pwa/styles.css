@@ -2039,6 +2039,14 @@ body.blatt-offen { overflow: hidden; }
   font-variant-numeric: tabular-nums;
 }
 .me-einheit, .me-fest { font-size: var(--t-sm); color: var(--muted); }
+/* Die Einheit als Auswahl neben der Zahl: g, ml, EL, TL, Glas, Schüssel,
+   Teller, Stück. Gleiche Höhe und Rundung wie das Feld davor. */
+.me-einheit-wahl {
+  max-width: 150px;
+  background: var(--panel); border: 1px solid var(--border); color: var(--text);
+  border-radius: var(--r-md); padding: 7px 8px; font-size: var(--t-sm);
+}
+.me-karte .me-einheit-wahl { padding: 8px 10px; border-radius: 12px; background: var(--bg); }
 .me-weg {
   flex: none; width: 32px; height: 32px; display: grid; place-items: center;
   background: transparent; border: none; color: var(--muted); border-radius: var(--r-pill);

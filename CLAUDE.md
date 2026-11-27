@@ -6100,3 +6100,41 @@ Im Regelweg zählen dazu: "heute Pull, 45 min" und "ich mach heute Beine" als
 Training für heute, nie mit gegessen oder getrunken im Satz. "Was steht
 morgen an" ist das Briefing für morgen. "Was soll ich heute Abend essen"
 zeigt aus dem Essensplan nur das Abendessen.
+
+## Einheiten im Mahlzeit Editor
+
+`EINHEITEN`, `mengeInEinheitSetzen` und `mengeInEinheitLesen` in
+`packages/core/src/portion.ts`. Jeder Posten mit Gramm hinter der Menge
+bekommt neben der Zahl eine Auswahl: g, ml, Stück (wenn das Stückgewicht
+bekannt ist, `stueckG`), EL 15 g, TL 5 g, Tasse 150, Glas 250, Handvoll 30,
+kleine Schüssel 250, Schüssel 400, Teller 350. Die Zahl nimmt Komma, 0,5 EL.
+Gerechnet wird immer von `basis` am Posten, nicht vom letzten Stand, sonst
+rundet jedes Umstellen. Löffel und Glas sind dieselben Faustwerte wie im
+Regelweg, Tasse, Schüssel, Teller und Handvoll Annahmen der App, deshalb
+stehen die Gramm in jeder Menge: "1 Teller (350 g)". Der Regelweg liest
+dieselben Wörter im Satz.
+
+## Alltagsgerichte in der Tabelle
+
+Im November 2026 fand "Waffel" nichts, Pfannkuchen, Maultaschen und
+Spätzle ebenso. `FOODS` in `packages/coach/src/foods.ts` trägt jetzt rund 80
+Alltagsgerichte, Süsses, Obst, Gemüse und Getränke mit gerundeten
+Richtwerten, nicht je Zeile gegen den BLS geprüft. Die Produktsuche trifft
+ein Wort ab fünf Zeichen auch im zusammengesetzten Namen, "waffel" findet
+"Butterwaffeln", `trefferWerten` in `produkt.ts`.
+
+## Was im Chat eingetragen wird, steht sofort da
+
+Essen: sagt der Nutzer "trag ein" und nennt Essen, steht es danach im Tag,
+auch wenn das Modell `mahlzeit_erfassen` nicht gerufen hat,
+`mahlzeitAuftrag` und `sicherEingetragen` in `agent.ts`. Im Betrieb kam
+"trag ein, dass ich zum Mittagessen ... esse" als Plan an, und in Ernährung
+stand fünf Stunden später nichts. Nicht für morgen, Kalender, Aufgaben,
+Pläne und Korrekturen.
+
+Aufgaben: mit verbundenem Todoist geht jede Aufgabe, die über daevo
+entsteht, sofort nach Todoist, `aufgabeNachTodoist` in `assistant.js`,
+`todoistAnlegen` in `todoist.ts`. Aus Chat, Dein Tag, Kopf leeren und
+Wochenrückblick. Danach liegt sie nur als Todoist Aufgabe vor, nicht
+doppelt. Wichtig wird P2, P1 setzt der Nutzer selbst. Scheitert Todoist,
+bleibt sie in daevo und die Antwort sagt es.

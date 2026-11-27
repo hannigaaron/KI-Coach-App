@@ -2,7 +2,7 @@ import {
   Agent, AnthropicProvider, Coach, addiere, buildShoppingList, cacheQuote, denktiefe, dollarText,
   einstufeAufgabe, einstufungText, ersparnis, extractGrams, NICHT_GESPEICHERT, fehlerErklaerung, hochrechnung, kopfLeeren, kopfText, leereSumme,
   mahlzeitAusFoto, modellFuerBilder, naehrwerteImNetz, produktPerBarcode, produkteSuchen, summiere, vorratAusFoto,
-  todoistAbhaken, todoistAufgaben, todoistIdVon, todoistWiederOeffnen, PERSONA_TEILE,
+  todoistAbhaken, todoistAnlegen, todoistAufgaben, todoistIdVon, todoistWiederOeffnen, PERSONA_TEILE,
 } from "@daevo/coach";
 import { essenszeitAus, foldUmlauts, schlafwert, schlafZiel, wochenrueckblick, wochenbeginn, wochenschnitt, wochenschnittText, tagKurz, tagStand, rueckblickArt, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, freienPlatzFinden, platzText, tagLang, tagWort, tagAufloesen, tagVerschieben, tagAusText, aufgabeStufe, vernachlaessigteBereiche, bereichDerAufgabe, familienNamenAus, anheben, einzeltrainingBauen, abdeckungsLuecken, FOKUS_NAME, alternativen, planNachrechnen, positionFuer, regeneration, regenText, koerperlage, koerperlageText,
 } from "@daevo/core";
@@ -1582,8 +1582,34 @@ export async function aufgabeEinstufen(text) {
   });
 }
 
+/**
+ * Schiebt eine in daevo angelegte Aufgabe nach Todoist, wenn es verbunden ist.
+ *
+ * Wer Todoist verbunden hat, führt seine Liste dort. Im Betrieb stand eine
+ * Aufgabe, die er im Chat angelegt hatte, nur in daevo und fehlte in Todoist.
+ * Danach liegt sie nur noch als Todoist Aufgabe vor, nicht zweimal. Klappt
+ * das Anlegen dort nicht, bleibt sie in daevo, und der Satz sagt es.
+ */
+export async function aufgabeNachTodoist(a, { fetchImpl } = {}) {
+  if (!a || !todoistVerbunden() || todoistIdVon(String(a.id))) return { aufgabe: a, todoist: false };
+  try {
+    const neu = await todoistAnlegen(
+      { text: a.text, faellig: a.faellig, wichtigkeit: a.wichtigkeit, minuten: a.minuten },
+      todayIso(),
+      { token: store.getSettings().todoistToken, fetchImpl },
+    );
+    const aufgabe = { ...neu, ...(a.warum ? { warum: a.warum } : {}) };
+    store.setAufgaben(store.getAufgaben().filter((x) => x.id !== a.id));
+    const stand = store.getTodoist();
+    store.setTodoist({ ...stand, aufgaben: [...(stand.aufgaben || []).filter((x) => x.id !== aufgabe.id), aufgabe] });
+    return { aufgabe, todoist: true };
+  } catch (e) {
+    return { aufgabe: a, todoist: false, fehler: `In Todoist konnte ich sie nicht anlegen, sie steht in daevo. ${e?.message || ""}`.trim() };
+  }
+}
+
 /** Legt eine Aufgabe an und lässt den Coach einstufen. Gibt beides zurück. */
-export async function aufgabeAnlegenEingestuft(text, quelle = "nutzer") {
+export async function aufgabeAnlegenEingestuft(text, quelle = "nutzer", { nachTodoist = true } = {}) {
   const sauber = String(text || "").trim();
   if (sauber.length < 3) return null;
   const e = await aufgabeEinstufen(sauber);
@@ -1596,7 +1622,9 @@ export async function aufgabeAnlegenEingestuft(text, quelle = "nutzer") {
     regelbasiert: e.regelbasiert,
     quelle,
   });
-  return a ? { aufgabe: a, einstufung: e, text: einstufungText(e) } : null;
+  if (!a) return null;
+  const t = nachTodoist ? await aufgabeNachTodoist(a) : { aufgabe: a, todoist: false };
+  return { aufgabe: t.aufgabe, einstufung: e, text: [einstufungText(e), t.fehler].filter(Boolean).join(" "), todoist: t.todoist };
 }
 
 export function aufgabeAnlegen({ text, minuten, faellig, wichtigkeit, warum, regelbasiert, quelle = "nutzer" }) {
@@ -1896,7 +1924,7 @@ export async function kopfSortieren(text) {
     const neu = aufgabeAnlegen({
       text: a.text, minuten: a.minuten, wichtigkeit: a.wichtigkeit, quelle: "kopf",
     });
-    if (neu) angelegt.push(neu);
+    if (neu) angelegt.push((await aufgabeNachTodoist(neu)).aufgabe);
   }
 
   for (const s of ergebnis.sorgen) {
@@ -3621,7 +3649,7 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
       // morgen" stand im Briefing für morgen nicht da.
       let a = Number.isFinite(Number(wichtigkeit)) && Number.isFinite(Number(minuten))
         ? aufgabeAnlegen({ text, minuten, faellig, wichtigkeit, warum: "vom Coach gesetzt", quelle: "coach" })
-        : (await aufgabeAnlegenEingestuft(text, "coach"))?.aufgabe;
+        : (await aufgabeAnlegenEingestuft(text, "coach", { nachTodoist: false }))?.aufgabe;
       if (a) {
         const gesetzt = {
           ...(faellig && /^\d{4}-\d{2}-\d{2}$/.test(String(faellig)) ? { faellig } : {}),
@@ -3634,8 +3662,11 @@ export function buildActions({ onChange, anhaenge = [], anbieter = provider() } 
         }
       }
       if (!a) return "Das war zu kurz für eine Aufgabe.";
+      // Erst mit allen Werten vom Modell nach Todoist, damit die Frist mitgeht.
+      const t = await aufgabeNachTodoist(a);
+      a = t.aufgabe;
       changed();
-      return `Steht auf der Liste: ${a.text}, ${a.minuten} Minuten, ` +
+      return `${t.fehler ? `${t.fehler} ` : ""}Steht ${t.todoist ? "in Todoist" : "auf der Liste"}: ${a.text}, ${a.minuten} Minuten, ` +
         `${["nebensächlich", "normal", "wichtig"][a.wichtigkeit - 1]}` +
         `${a.faellig ? `, fällig ${datumKurz(a.faellig)}` : ""}.`;
     },

@@ -94,3 +94,13 @@ test("ein diktierter Satz mit Bitte am Ende: Pute erkannt, die Bitte ist kein Po
   // Ohne "Hab grad" vorn und ohne die Bitte als offenen Posten.
   assert.deepEqual(unresolved, ["300g Bio TK Sommergemüsemix von gutbio"]);
 });
+
+test("Haushaltsmasse im Satz: Glas, Teller und Waffel", () => {
+  const { entries } = parseMealOffline("ein Glas Orangensaft und ein Teller Spätzle");
+  assert.deepEqual(entries.map((e) => e.name), ["Orangensaft", "Spätzle"]);
+  assert.equal(entries[0]!.quantity, "250 ml");
+  assert.equal(entries[1]!.quantity, "350 g");
+  const waffel = parseMealOffline("2 Waffeln");
+  assert.equal(waffel.entries[0]?.name, "Waffel");
+  assert.equal(waffel.entries[0]?.quantity, "120 g");
+});

@@ -235,7 +235,12 @@ export function trefferWerten(suche: string, produkte: Produkt[]): Wertung[] {
     if (marke.length && !markeStimmt) continue;
     const namensWoerter = new Set([...suchWoerter(p.name), ...mw]);
     // Ein Wort trifft auch als Anfang: "puddings" findet "pudding".
-    const trifft = (w: string) => [...namensWoerter].some((n) => n === w || (w.length >= 4 && (n.startsWith(w) || w.startsWith(n)) && n.length >= 4));
+    // Ab fünf Zeichen auch als Teil eines zusammengesetzten Worts:
+    // "waffel" trifft "Butterwaffeln" und "Eiswaffel". Im Deutschen steht
+    // das Grundwort hinten, und "Waffel" fand im Betrieb nichts.
+    const trifft = (w: string) => [...namensWoerter].some((n) => n === w
+      || (w.length >= 4 && (n.startsWith(w) || w.startsWith(n)) && n.length >= 4)
+      || (w.length >= 5 && n.includes(w)));
     const treffer = rest.filter(trifft).length;
     const passung = rest.length ? treffer / rest.length : 1;
     if (passung < 0.5) continue;
