@@ -1017,11 +1017,54 @@ Er trägt die Positionen und nicht nur die Eingaben: ändert sich die Datenbank,
 bleibt der Plan, den jemand gespeichert hat, wie er war. Übungen, die es später
 nicht mehr gibt, fallen beim Laden heraus.
 
+## Vier Seiten nach den Entwürfen
+
+Der Nutzer hat im November 2026 fünf Entwürfe gesehen und vier davon
+übernommen. Heute blieb, wie es war, nur die Wasserknöpfe sind kleiner.
+
+Check-ins, `apps/pwa/js/checkin-ansicht.js`: zwei Kacheln oben, Guten Morgen
+mit Stand (offen, erledigt mit Wert, Ruhetag) und Abendroutine ab ihrer
+Uhrzeit, `kachelStand`. Darunter "Deine Woche": Energie Montag bis Sonntag
+als Säulen, ab 8 grün, ab 6 Markenblau, darunter gelb, mit dem Unterschied
+zur Vorwoche, `wocheEnergie`. Tage ohne Check-in zählen nicht. Der tägliche
+Bogen ist zugeklappt unter "Wie geht's dir gerade?". Das Tagebuch hat je Tag
+eine Zeile mit Marken (Morgenwert, Energie, Schlaf, Mittag) und der eigenen
+Notiz oder dem ersten Satz von daevo, aufgeklappt jeder Check-in einzeln.
+Vorher eine Karte je Check-in, dreissig für zwei Wochen.
+
+Profil, `apps/pwa/js/profil-ansicht.js`: zwei Kacheln (Zielkalorien mit
+Bedarf, Protein mit g je kg) und eine Liste in drei Gruppen, Du, App, Deine
+Daten, je Abschnitt eine Zeile mit Zeichen und dem, was eingestellt ist. Ein
+Tipp öffnet nur diesen Abschnitt, Zurück schliesst ihn zuerst. Die
+Abschnitte bleiben im HTML, `gruppieren` fasst sie beim ersten Öffnen über
+die Überschriften `h2.abschnitt` zusammen. Eine versteckte Überschrift,
+etwa für den Betreiber, hängt ihren Inhalt an den Teil davor. Wer einen
+Abschnitt hinzufügt, trägt ihn in `PROFIL_TEILE` ein, sonst steht er ohne
+eigenes Zeichen unter App.
+
+Dein Tag: Aufgaben als Liste mit Kreis zum Abhaken, Dauer und Frist
+darunter, rechts "Zuerst" oder "Heute", Verschieben und Streichen hinter
+drei Punkten. Die Kopfzeile nennt Zahl und Summe der Minuten. Neue Aufgabe
+in einer Zeile ohne Erklärung. Der Mittags Check-in steht in einer Karte
+mit fünf Stufen statt zehn, gespeichert als Stufe mal zwei wie beim Morgen
+Check-in, `data-stufen-fuenf`. Kopf leeren und Herausforderung sind zwei
+Kacheln, die ihren Bereich aufklappen.
+
+Kalender, `apps/pwa/js/kalender-zeitleiste.js`: sieben Tage zum Antippen,
+darunter "5 h verplant · frei 15:45 bis 22:45" und eine Zeitleiste mit
+Terminen, Essen (Foto, Kalorien, Austauschen als Zeichen), Aufgaben zum
+Abhaken und Training, je in ihrer Farbe. Der nächste Punkt ist umrandet.
+Die Punkte kommen aus `tagesbriefingFuer` mit Tag, also derselben Rechnung
+wie im Briefing. Das sortierte Briefing, Tag im Detail, Termine und die
+Mahlzeitenkarten liegen versteckt in `#kalAlt`, weil Briefing und
+Austauschen sie weiter füllen. Die Sortierung nach Stufen steht weiter in
+der Präsentation, im Chat und im Morgen Check-in.
+
 ## Befehle
 
 ```bash
 npm install
-npm test           # 1572 Tests
+npm test           # 1581 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages

@@ -1286,6 +1286,14 @@ try {
         <span class="kal-show-play" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></span>
       </button>
       <button type="button" class="kal-show-neben" id="kalShowNeben"></button>
+      <!-- Sieben Tage und eine Zeitleiste, kalender-zeitleiste.js. Das
+           sortierte Briefing, die Termine und die Mahlzeiten standen vorher
+           als vier Listen untereinander. Die alten Bausteine bleiben
+           versteckt, weil Briefing und Austauschen sie weiter füllen. -->
+      <div class="kz-tage" id="kalTage" role="group" aria-label="Tag wählen"></div>
+      <p class="kz-zeile" id="kalTagZeile"></p>
+      <div id="kalZeitleiste"></div>
+      <div id="kalAlt" hidden>
       <div class="seg" id="kalBriefingWahl" role="tablist">
         <button class="seg-btn is-on" role="tab" aria-selected="true" data-briefing="morgen">Heute</button>
         <button class="seg-btn" role="tab" aria-selected="false" data-briefing="abend">Morgen</button>
@@ -1307,6 +1315,8 @@ try {
       <h2 class="section-title">Mahlzeiten nach deinem Kalender</h2>
       <p class="sub" id="kalEssenSub">Zeit und Grösse richten sich nach deinen Terminen und deinem Training. Tipp auf ein Gericht für die Zutaten.</p>
       <ul class="kal-essen" id="kalEssen"></ul>
+
+      </div>
 
       <h2 class="section-title">Was auffällt</h2>
       <ul class="list" id="kalHinweise"></ul>

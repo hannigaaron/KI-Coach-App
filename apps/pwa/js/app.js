@@ -96,6 +96,7 @@ import { UEBUNGEN } from "./uebungen-daten.js";
 import { sortiertHtml, sortiertGezeigt } from "./sortierung.js";
 import { kachelStand, tagebuchHtml, wocheEnergie, wocheHtml } from "./checkin-ansicht.js";
 import { gruppieren, profilUnter, profilZeilen, uebersichtHtml } from "./profil-ansicht.js";
+import { tageLeisteHtml, tagZeile, zeitleisteHtml } from "./kalender-zeitleiste.js";
 import { bewegungStarten, wischenZumLoeschen, zahlenZaehlen, zeileRaus } from "./bewegung.js";
 import { einwilligungOffen, einwilligungSetzen, einwilligungText, kiErlaubt } from "./einwilligung.js";
 import { ABO_STUFEN, ABO_TAKTE, aboPreis, ersparnisProzent, aboAnlass, aboAnlassLeer, aboLeiste, aboLink, kontoLoeschen, kontoSicherstellen, kontoStand, kontoText, sperreFuer } from "./konto.js";
@@ -5108,7 +5109,7 @@ function kopfShow(ergebnis = kopfLetzter()) {
 function briefingNeu() {
   try { bsSteuerung?.aktualisieren(briefingRechnen()); } catch (e) { console.error(e); }
   // Auch die Kalenderseite, von der aus getauscht werden kann.
-  try { briefingZeichnen(); essenZeichnen(essenTag); } catch (e) { console.error(e); }
+  try { briefingZeichnen(); essenZeichnen(essenTag); zeitleisteZeichnen(); } catch (e) { console.error(e); }
   refreshAll();
 }
 
@@ -5469,6 +5470,7 @@ function renderKalender() {
   }
 
   const a = ablaufFuer(kalenderTag);
+  zeitleisteZeichnen(a);
   // Als Dauer gesagt, nicht als Minutenzahl: "975 Minuten" rechnet jeder
   // Leser selbst um.
   $("kalBelegt").textContent = kurzDauer(a.belegtMinuten);
@@ -5506,6 +5508,47 @@ $("btnPlanUebernehmen").addEventListener("click", () => {
   renderKalender();
   refreshAll();
   toast(`${anzahl} ${anzahl === 1 ? "Einheit" : "Einheiten"} ins Profil übernommen`);
+});
+
+/** Tagesleiste und Zeitleiste oben auf der Kalenderseite, kalender-zeitleiste.js. */
+function zeitleisteZeichnen(a = ablaufFuer(kalenderTag)) {
+  if (kalenderTag < todayIso()) kalenderTag = todayIso();
+  $("kalTage").innerHTML = tageLeisteHtml(todayIso(), kalenderTag);
+  $("kalTage").querySelector(".an")?.scrollIntoView?.({ block: "nearest", inline: "center" });
+  $("kalTagZeile").textContent = tagZeile(a, { uhr: uhrzeit, dauer: kurzDauer });
+  let b;
+  try { b = tagesbriefingFuer(kalenderTag === todayIso() ? "morgen" : "abend", Date.now(), kalenderTag); }
+  catch (e) { console.error(e); $("kalZeitleiste").innerHTML = '<p class="kz-leer">Der Tag liess sich nicht rechnen.</p>'; return; }
+  const punkte = b.punkte;
+  const jetzt = kalenderTag === todayIso() ? naechsterPunkt(punkte, Date.now()) : -1;
+  $("kalZeitleiste").innerHTML = zeitleisteHtml(punkte, {
+    jetzt, uhr: uhrzeit,
+    tausch: (p, zeit) => tauschKnopf(p.mahlzeit, p.titel, p.kcal, zeit).replace("Austauschen</button>", '<span class="kz-tausch-text">Austauschen</span></button>'),
+  });
+}
+$("kalTage").addEventListener("click", (ev) => {
+  const k = ev.target.closest("[data-kal-tag]");
+  if (!k) return;
+  kalenderTag = k.dataset.kalTag;
+  essenTag = kalenderTag;
+  spueren("leicht");
+  renderKalender();
+});
+$("kalZeitleiste").addEventListener("click", async (ev) => {
+  const tauschen = ev.target.closest("[data-essen-tauschen]");
+  if (tauschen) { tauschOeffnen(tauschen, kalenderTag); return; }
+  const knopf = ev.target.closest("[data-erledigt]");
+  if (knopf) {
+    knopf.disabled = true;
+    knopf.classList.add("an");
+    spueren("erfolg");
+    const ergebnis = await aufgabeErledigen(knopf.dataset.erledigt);
+    setTimeout(() => { zeitleisteZeichnen(); refreshAll(); }, 450);
+    abgehaktMelden(ergebnis, () => { zeitleisteZeichnen(); refreshAll(); });
+    return;
+  }
+  const rezept = ev.target.closest("[data-rezept]");
+  if (rezept) { const m = vorschlagFuer(kalenderTag, rezept.dataset.rezept); if (m) rezeptBlattOeffnen(m); }
 });
 
 /** Baut eine Liste aus drei Feldern. Spart drei fast gleiche Schleifen. */
@@ -7942,6 +7985,7 @@ function impulsOeffnen(daten, { still = false } = {}) {
     else if (ziel.aktion === "rueckblick") { renderBericht(); $("berichtRueckblick").open = true; setTimeout(rueckblickShow, 260); }
     else if (ziel.aktion === "morgen") {
       document.querySelector('#kalBriefingWahl [data-briefing="abend"]')?.click();
+      document.querySelector(`#kalTage [data-kal-tag="${folgetag(todayIso())}"]`)?.click();
       // Abends kommt der Blick auf morgen als Präsentation, darunter liegt der Kalender.
       setTimeout(() => briefingShowOeffnen("abend"), 260);
     }

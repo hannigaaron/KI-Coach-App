@@ -5008,6 +5008,7 @@ button.kal-show-neben {
 .ci-woche-kopf b { font-size: 17px; }
 .ci-diff { font-size: 14px; }
 .ci-diff.hoch { color: color-mix(in srgb, var(--makro-protein) 70%, var(--text)); }
+.ci-kachel.an small, .tag-marke:not(.zuerst) { color: var(--accent-text); }
 .ci-diff.runter { color: color-mix(in srgb, var(--warn) 70%, var(--text)); }
 .ci-woche-leer { margin: 0; color: var(--muted); font-size: 14px; }
 .ci-saeulen { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
@@ -5064,7 +5065,11 @@ button.kal-show-neben {
 button.pf-zeile { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 66px; padding: 12px 16px; border: 0; border-radius: 0; background: none; box-shadow: none; color: var(--text); text-align: left; font-family: var(--schrift-text); font-size: 16px; cursor: pointer; }
 .pf-zeile + .pf-zeile { border-top: 1px solid var(--border); }
 .pf-zeile:active { background: var(--flaeche-druck, rgba(127,127,127,.12)); }
-.pf-sym { display: grid; place-items: center; width: 32px; height: 32px; flex: none; border-radius: 9px; background: var(--ton); color: #0b0d10; }
+.pf-sym { display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 10px; background: var(--ton); color: #0b0d10; }
+/* Im Hellen sind die Farben dunkler, schwarze Zeichen darauf verschwinden.
+   Dort eine zarte Fläche mit farbigem Zeichen. */
+:root[data-theme="light"] .pf-sym { background: color-mix(in srgb, var(--ton) 18%, transparent); color: var(--ton); }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .pf-sym { background: color-mix(in srgb, var(--ton) 18%, transparent); color: var(--ton); } }
 .pf-sym .sym { width: 19px; height: 19px; }
 .pf-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 .pf-text b { font-weight: 600; font-size: 16px; }
@@ -5085,7 +5090,7 @@ button.tag-haken { flex: none; width: 26px; height: 26px; min-height: 0; padding
 .tag-aufgabe:first-child button.tag-haken { border-color: var(--brand); }
 .tag-aufgabe.erledigt button.tag-haken { background: var(--brand); border-color: var(--brand); }
 .tag-aufgabe.erledigt .li-title { text-decoration: line-through; color: var(--muted); }
-.tag-marke { flex: none; padding: 4px 10px; border-radius: 999px; background: color-mix(in srgb, var(--brand) 14%, transparent); color: var(--brand); font-size: 13px; font-weight: 600; }
+.tag-marke { flex: none; padding: 4px 10px; border-radius: 999px; background: color-mix(in srgb, var(--brand) 14%, transparent); color: var(--accent-text); font-size: 13px; font-weight: 600; }
 .tag-marke.zuerst { background: color-mix(in srgb, var(--warn) 18%, transparent); color: color-mix(in srgb, var(--warn) 80%, var(--text)); }
 button.tag-mehr { flex: none; display: inline-flex; gap: 3px; align-items: center; justify-content: center; width: 28px; height: 28px; min-height: 0; padding: 0; border: 0; border-radius: 50%; background: none; box-shadow: none; cursor: pointer; }
 .tag-mehr i { width: 4px; height: 4px; border-radius: 50%; background: var(--muted); }
@@ -5108,3 +5113,40 @@ button.tag-neu-knopf { display: grid; place-items: center; width: 40px; height: 
 .ci-kachel.an { background: color-mix(in srgb, var(--brand) 14%, var(--flaeche)); }
 .tag-werkzeug > h2.abschnitt:first-child { margin-top: var(--s-4); }
 .tag-werkzeuge .ci-kachel b { font-size: 21px; overflow-wrap: normal; hyphens: none; }
+
+/* ---------- Kalender als eine Zeitleiste, kalender-zeitleiste.js ---------- */
+.kz-tage { display: flex; gap: 8px; margin: var(--s-4) calc(-1 * var(--s-4)) 0; padding: 0 var(--s-4); overflow-x: auto; scrollbar-width: none; }
+.kz-tage::-webkit-scrollbar { display: none; }
+button.kz-tag { flex: 1 0 44px; display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 0; padding: 8px 4px; border: 0; border-radius: 16px; background: var(--flaeche); box-shadow: var(--haarlinie); color: var(--text); font-family: var(--schrift-text); cursor: pointer; }
+.kz-tag small { font-size: 13px; color: var(--muted); }
+.kz-tag b { font-size: 20px; font-weight: 700; line-height: 1.1; }
+.kz-tag.an { background: var(--brand); color: #0b0d10; box-shadow: none; }
+.kz-tag.an small { color: rgba(11,13,16,.7); }
+.kz-zeile { margin: 10px 0 0; color: var(--muted); font-size: 14px; }
+.kz-leer { margin: var(--s-4) 0 0; color: var(--muted); font-size: 14px; }
+.kz-leiste { position: relative; list-style: none; margin: var(--s-4) 0 0; padding: 0; }
+.kz-leiste::before { content: ""; position: absolute; left: 61px; top: 8px; bottom: 8px; width: 2px; border-radius: 2px; background: var(--border); }
+.kz-punkt { position: relative; display: grid; grid-template-columns: 46px 14px 1fr; align-items: center; column-gap: 8px; margin-bottom: 10px; }
+.kz-punkt time { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.kz-dot { width: 10px; height: 10px; margin-left: 2px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 0 3px var(--bg); }
+.kz-essen .kz-dot { background: var(--makro-fett); }
+.kz-aufgabe .kz-dot { background: var(--makro-protein); }
+.kz-training .kz-dot { background: var(--makro-kohlenhydrate); }
+.kz-karte { display: flex; align-items: center; gap: 12px; min-height: 58px; padding: 12px 14px; border-radius: 18px; background: var(--flaeche); box-shadow: var(--haarlinie); }
+.kz-punkt.jetzt .kz-karte { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--brand) 60%, transparent); background: color-mix(in srgb, var(--brand) 8%, var(--flaeche)); }
+.kz-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.kz-text b { font-size: 16px; font-weight: 600; line-height: 1.25; }
+.kz-text small { color: var(--muted); font-size: 13.5px; }
+.kz-art { flex: none; align-self: center; font-size: 13px; font-weight: 600; color: var(--accent-text); }
+.kz-essen .kz-art { color: color-mix(in srgb, var(--makro-fett) 75%, var(--text)); }
+.kz-aufgabe .kz-art { color: color-mix(in srgb, var(--makro-protein) 75%, var(--text)); }
+.kz-training .kz-art { color: color-mix(in srgb, var(--makro-kohlenhydrate) 75%, var(--text)); }
+.kz-bild { flex: none; width: 48px; height: 48px; border-radius: 12px; object-fit: cover; }
+button.kz-haken { flex: none; width: 24px; height: 24px; min-height: 0; padding: 0; border: 2px solid var(--muted); border-radius: 50%; background: none; box-shadow: none; cursor: pointer; }
+button.kz-haken.an { background: var(--makro-protein); border-color: var(--makro-protein); }
+.kz-text small { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.kz-text button.essen-tauschen { display: inline-grid; place-items: center; width: 26px; height: 22px; min-height: 0; margin: 0 0 0 2px; padding: 0; border: 0; border-radius: 8px; background: none; box-shadow: none; color: var(--muted); font-size: 0; }
+.kz-text button.essen-tauschen svg { width: 15px; height: 15px; }
+.kz-tausch-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+#kalQuellen button.ghost { white-space: nowrap; }
+.kz-essen .kz-karte[data-rezept] { cursor: pointer; }
