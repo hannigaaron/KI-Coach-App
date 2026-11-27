@@ -226,7 +226,10 @@ export function rezeptEmpfehlungen(e: RezeptEingabe): RezeptErgebnis {
   }
 
   // Hülsenfrüchte als Hauptquelle rücken nach hinten, siehe `huelsenMalus`.
-  const rang = (x: RezeptEmpfehlung) => x.passung - huelsenMalus(x.posten, e.ernaehrung);
+  // Eine Mahlzeit unter dem Mindestprotein rückt ebenfalls nach hinten,
+  // `EIWEISS_MIN_G`. Eine Regel von Coach Aaron: 25 g in jede Mahlzeit.
+  const rang = (x: RezeptEmpfehlung) => x.passung - huelsenMalus(x.posten, e.ernaehrung)
+    - (x.summe.proteinG < EIWEISS_MIN_G[x.rezept.art] ? 15 : 0);
   empfehlungen.sort((a, b) => {
     const d = rang(b) - rang(a);
     if (Math.abs(d) > 3) return d;
@@ -309,8 +312,8 @@ export function huelsenMalus(posten: Posten[], e?: Ernaehrung): number {
   return huelsenAnteil(posten) >= 0.4 ? 30 : 0;
 }
 
-/** Mindestprotein je Mahlzeit, ab dem sie als eiweissreich gilt. Eine Regel der App. */
-export const EIWEISS_MIN_G: Record<RezeptArt, number> = { hauptmahlzeit: 20, fruehstueck: 15, snack: 10 };
+/** Mindestprotein je Mahlzeit, eine Regel von Coach Aaron: 25 g in jede Mahlzeit, auch ins Frühstück. Snacks 10 g. */
+export const EIWEISS_MIN_G: Record<RezeptArt, number> = { hauptmahlzeit: 25, fruehstueck: 25, snack: 10 };
 
 /**
  * Was zum Eiweiss einer Mahlzeit zu sagen ist, oder null. Eine Regel von

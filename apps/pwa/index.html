@@ -327,7 +327,6 @@ try {
       </div>
 
       <h2 class="abschnitt" id="heuteGegessenTitel">Heute gegessen</h2>
-      <p class="sub">Tipp auf eine Mahlzeit, um sie zu ändern. Das Kreuz löscht sie.</p>
       <ul id="mealList" class="list"></ul>
       <button type="button" id="btnVerlaufOeffnen" class="ghost breit">Frühere Tage und Wochenschnitt</button>
     </div>
@@ -372,8 +371,6 @@ try {
 
       <div class="field"><label for="fridgeInput">Was hast du zu Hause</label>
         <textarea id="fridgeInput" rows="2" placeholder="Eier, Reis, Brokkoli, Magerquark"></textarea>
-        <p class="feld-hilfe">Leer lassen heißt: ich schlage ohne Rücksicht auf deinen Vorrat vor.
-        Was du hier einträgst, merke ich mir.</p>
       </div>
 
       <button id="btnRestPlanen" class="primary breit">Rest aufteilen und Vorschläge holen</button>
@@ -405,7 +402,7 @@ try {
         <span id="evTagSumme"></span>
       </div>
       <div id="evTagMakros" class="messwerte"></div>
-      <p class="sub" id="evTagHinweis">Tipp auf eine Mahlzeit, um sie zu ändern. Das Kreuz löscht sie.</p>
+      <p class="sub" id="evTagHinweis"></p>
       <ul id="mealList2" class="list"></ul>
       <button type="button" id="evNachtragen" class="ghost breit" hidden>Für diesen Tag nachtragen</button>
 
@@ -955,7 +952,7 @@ try {
   <section class="view" data-view="empfehlungen" hidden>
     <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Auswertung</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
-      <p class="sub">Abgeleitet aus deinen eigenen Zahlen. Jede Empfehlung nennt den Wert, auf dem sie beruht.</p>
+      <p class="sub">Aus deinen eigenen Zahlen.</p>
       <button type="button" class="kal-show story-start" id="btnAuswertungShow">
         <span class="kal-show-balken" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
         <span class="kal-show-text"><b>Auswertung ansehen</b><small id="btnAuswertungShowUnter">Eine Karte je Befund, jede mit einer Frage</small></span>
@@ -964,11 +961,11 @@ try {
       <div id="recoList"></div>
 
       <h2 class="abschnitt">Woran es bei dir wirklich hängt</h2>
-      <p class="sub">Zusammenhänge über die letzten Wochen. Ein Zusammenhang ist keine Ursache, und unter zehn gemeinsamen Tagen sage ich nichts.</p>
+      <p class="sub">Zusammenhänge der letzten Wochen, keine Ursachen.</p>
       <pre class="pre" id="musterText">Wird beim Öffnen gerechnet.</pre>
 
       <h2 class="abschnitt">Anspruch gegen Wirklichkeit</h2>
-      <p class="sub">Wo das, was du dir vornimmst, und das, was deine Daten zeigen, auseinanderlaufen. Kein Vorwurf, eine anstehende Entscheidung.</p>
+      <p class="sub">Wo Vorhaben und Daten auseinanderlaufen.</p>
       <div id="widerspruchListe"></div>
       <div id="empfehlungenAngebot"></div>
     </div>
@@ -1030,9 +1027,9 @@ try {
 
       <pre class="pre" id="berichtFazit"></pre>
       <button id="btnBerichtTeilen" class="ghost breit">Bericht als Text kopieren</button>
-      <p class="fineprint">Ein Schnitt aus weniger als einem Drittel der Tage steht nicht da. Er beschreibt
+      <details class="info-klapp"><summary>So rechnet daevo</summary><p class="fineprint">Ein Schnitt aus weniger als einem Drittel der Tage steht nicht da. Er beschreibt
         dann nicht den Zeitraum, sondern die Tage, an denen du Lust zum Eintragen hattest, und das sind fast
-        immer die guten. Ein Trend unter fünf Prozent gilt als unverändert.</p>
+        immer die guten. Ein Trend unter fünf Prozent gilt als unverändert.</p></details>
     </div>
   </section>
 
@@ -1052,8 +1049,8 @@ try {
       <div class="wertung"><div id="bereitschaftRing"></div></div>
       <p class="sub" id="bereitschaftSub">Wird beim Öffnen gerechnet.</p>
       <div class="messwerte" id="bereitschaftTeile"></div>
-      <p class="fineprint">Das ist keine Messung. daevo hat keinen Sensor. Die Zahl fasst zusammen, was du selbst
-        angegeben hast, plus deine eigene Trainingslast. Jeder Teil nennt seine Quelle.</p>
+      <details class="info-klapp"><summary>So rechnet daevo</summary><p class="fineprint">Das ist keine Messung. daevo hat keinen Sensor. Die Zahl fasst zusammen, was du selbst
+        angegeben hast, plus deine eigene Trainingslast. Jeder Teil nennt seine Quelle.</p></details>
 
       <button type="button" class="ghost breit" data-go="schlaf">Schlaf und Körpersignale</button>
 
@@ -1069,21 +1066,21 @@ try {
           <option value="langsam">Langsamer, etwa mit wenig Schlaf</option>
         </select>
       </label>
-      <p class="fineprint">Ein Modell aus deinem Trainingsprotokoll, keine Messung. Gerechnet wird mit 36 bis 72
+      <details class="info-klapp"><summary>So rechnet daevo</summary><p class="fineprint">Ein Modell aus deinem Trainingsprotokoll, keine Messung. Gerechnet wird mit 36 bis 72
         Stunden Erholung je Muskel, länger nach vielen Sätzen. Gestützt auf MacDougall 1995 und Damas 2016
         (Proteinsynthese 24 bis 48 Stunden erhöht) und Schoenfeld 2016 (zwei Reize je Woche). Ab fünf Tagen
         ohne Reiz steht eine Partie auf fällig. Tipp auf eine Partie, wenn du es anders spürst: frisch oder
         Muskelkater gilt für heute. Trainings ohne Übungen, etwa Volleyball aus Apple Health, kennt die
-        Rechnung nicht.</p>
+        Rechnung nicht.</p></details>
 
       <h2 class="abschnitt">Belastung</h2>
-      <p class="sub">Deine letzten sieben Tage gegen deinen Schnitt der letzten achtundzwanzig, beide in Minuten.</p>
+      <p class="sub">7 Tage gegen deinen Schnitt aus 28.</p>
       <pre class="pre" id="belastungText">Wird beim Öffnen gerechnet.</pre>
-      <p class="fineprint">Das Verfahren stammt aus dem Leistungssport und heißt dort acute chronic workload
+      <details class="info-klapp"><summary>So rechnet daevo</summary><p class="fineprint">Das Verfahren stammt aus dem Leistungssport und heißt dort acute chronic workload
         ratio. Die Schwellen 0,8 und 1,5 stammen aus Gabbett, British Journal of Sports Medicine 2016. Genau
         diese Arbeit ist seit 2020 stark kritisiert worden, unter anderem von Impellizzeri und anderen. Der
         Quotient beschreibt zuverlässig, wie deine Woche zu deinem Schnitt steht. Dass ein hoher Wert zu
-        Verletzungen führt, ist umstritten, und daevo behauptet es deshalb nicht.</p>
+        Verletzungen führt, ist umstritten, und daevo behauptet es deshalb nicht.</p></details>
     </div>
   </section>
 
@@ -1121,7 +1118,7 @@ try {
         </button>
       </div>
       <div id="rzDetail"></div>
-      <p class="fineprint" id="rzHinweis"></p>
+      <details class="info-klapp"><summary>So rechnet daevo</summary><p class="fineprint" id="rzHinweis"></p></details>
       </div>
     </div>
   </section>
@@ -1137,14 +1134,14 @@ try {
           <button id="btnEinkaufNeu" class="primary" style="width:100%">Liste rechnen</button></div>
       </div>
       <ul class="list" id="einkaufList"></ul>
-      <p class="fineprint" id="einkaufHinweis"></p>
+      <details class="info-klapp"><summary>So rechnet daevo</summary><p class="fineprint" id="einkaufHinweis"></p></details>
     </div>
   </section>
 
   <section class="view" data-view="balance" hidden>
     <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Balance</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
-      <p class="sub">Fünf Bereiche, die zusammen ein Leben ergeben. Gemessen wird, was im Kalender steht und was du eingetragen hast. Nichts wird geschätzt.</p>
+      <p class="sub">Gemessen aus Kalender und Einträgen, nichts geschätzt.</p>
 
       <div class="seg" id="balanceZeitraum">
         <button class="seg-btn is-on" data-tage="1">Heute</button>
@@ -1175,7 +1172,7 @@ try {
         </div>
       </div>
       <div class="hinweis" id="balanceRatSchieflage" hidden></div>
-      <p class="fineprint" id="netzHinweis"></p>
+      <details class="info-klapp"><summary>Wie das Netz zu lesen ist</summary><p class="fineprint" id="netzHinweis"></p></details>
 
       <h2 class="abschnitt">Stunden gegen Ziel</h2>
       <div class="messwerte" id="balanceKacheln"></div>
@@ -1192,7 +1189,7 @@ try {
       <div class="reco" id="balanceRat"></div>
 
       <h2 class="abschnitt">Wochenziele</h2>
-      <p class="sub">In Stunden je Woche. Der Tageswert wird daraus heruntergerechnet.</p>
+      <p class="sub">Stunden je Woche.</p>
       <div id="balanceZiele"></div>
       <button id="btnBalanceZiele" class="ghost">Ziele speichern</button>
     </div>
@@ -1337,16 +1334,16 @@ try {
         <small>Mahlzeiten, die YAZIO, MyFitnessPal und andere Apps nach Health schreiben. Was du in der Nähe
           selbst in daevo einträgst, zählt nicht doppelt.</small></label>
       <div data-nur-web>
-      <p class="sub">HealthKit gibt es nur für native Apps. Der Weg für eine Web App ist der Export, den die
+      <details class="info-klapp"><summary>Wie der Export geht</summary><p class="sub">HealthKit gibt es nur für native Apps. Der Weg für eine Web App ist der Export, den die
         Health App selbst anbietet: Profil oben rechts, ganz unten "Alle Gesundheitsdaten exportieren".
-        Dann das ZIP hier auswählen. Es geht nichts an einen Server, alles läuft auf deinem Gerät.</p>
+        Dann das ZIP hier auswählen. Es geht nichts an einen Server, alles läuft auf deinem Gerät.</p></details>
       <input id="healthDatei" type="file" accept=".zip,.xml,application/zip,text/xml" hidden>
       <button id="btnHealthDatei" class="primary">Export auswählen</button>
       <p class="sub" id="healthStand"></p>
       <pre class="pre" id="healthBericht" hidden></pre>
-      <p class="fineprint">Übernommen werden Schritte, Schlafdauer, Ruhepuls, Herzfrequenzvariabilität und
+      <details class="info-klapp"><summary>Was übernommen wird</summary><p class="fineprint">Übernommen werden Schritte, Schlafdauer, Ruhepuls, Herzfrequenzvariabilität und
         Gewicht, höchstens für die letzten zwei Jahre. Ein Gewicht, das du selbst eingetragen hast, bleibt
-        stehen. Das ist eine Kopie und kein Abo: was nach dem Export dazukommt, kennt daevo nicht.</p>
+        stehen. Das ist eine Kopie und kein Abo: was nach dem Export dazukommt, kennt daevo nicht.</p></details>
       </div>
 
       <!-- Nur für den Betreiber: der Kurzbefehl schickt an den eigenen
@@ -1390,9 +1387,9 @@ try {
       <div class="field"><label for="kalAboUrl">Kalender abonnieren</label>
         <input id="kalAboUrl" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="Adresse im iCal Format"></div>
       <button id="btnKalAbo" class="ghost breit">Abonnieren</button>
-      <p class="fineprint" id="kalAboHilfe">Google: Kalender Einstellungen, dein Kalender, Kalender integrieren, Geheime Adresse im iCal Format.
+      <details class="info-klapp"><summary>Wo finde ich die Adresse?</summary><p class="fineprint" id="kalAboHilfe">Google: Kalender Einstellungen, dein Kalender, Kalender integrieren, Geheime Adresse im iCal Format.
         iCloud: Kalender App, Info neben dem Kalender, Öffentlicher Kalender, Link teilen. Abonnierte Kalender gleichen sich
-        beim Öffnen von selbst ab, höchstens alle 30 Minuten. Die Adresse geht dafür über den daevo Server, gespeichert wird dort nichts.</p>
+        beim Öffnen von selbst ab, höchstens alle 30 Minuten. Die Adresse geht dafür über den daevo Server, gespeichert wird dort nichts.</p></details>
       <button id="btnKalAbgleich" class="ghost breit" hidden>Jetzt abgleichen</button>
 
       <details class="kal-datei">
@@ -1407,24 +1404,24 @@ try {
         <div class="field"><label for="btnKalText">&nbsp;</label>
           <button id="btnKalText" class="ghost" style="width:100%">Text einlesen</button></div>
       </div>
-      <p class="fineprint" id="kalAnleitung"></p>
+      <details class="info-klapp"><summary>Anleitung</summary><p class="fineprint" id="kalAnleitung"></p></details>
       </details>
 
       <h2 class="abschnitt">Todoist verbinden</h2>
-      <p class="sub" id="todoistStand">Wer seine Aufgaben in Todoist führt, pflegt sie nicht zweimal. daevo liest sie dort, legt sie in deinen Tag und hakt sie dort ab.</p>
+      <p class="sub" id="todoistStand">daevo liest deine Aufgaben aus Todoist und hakt sie dort ab.</p>
       <div class="field"><label for="todoistToken">Persönlicher Token</label>
         <input id="todoistToken" type="password" autocomplete="off" spellcheck="false" placeholder="In Todoist kopieren und hier einfügen"></div>
       <button id="btnTodoistVerbinden" class="primary breit">Verbinden und prüfen</button>
       <button id="btnTodoistTrennen" class="ghost breit" hidden>Verbindung trennen</button>
-      <p class="fineprint">Den Token findest du in Todoist unter Einstellungen, Integrationen, Entwickler. Er bleibt auf
-        deinem Gerät. Die Aufgaben gehen direkt von Todoist zu dir, ohne Umweg über einen Server.</p>
+      <details class="info-klapp"><summary>Wo finde ich den Token?</summary><p class="fineprint">Den Token findest du in Todoist unter Einstellungen, Integrationen, Entwickler. Er bleibt auf
+        deinem Gerät. Die Aufgaben gehen direkt von Todoist zu dir, ohne Umweg über einen Server.</p></details>
     </div>
   </section>
 
   <section class="view" data-view="standards" hidden>
     <header class="bar"><button class="icon-btn back" data-back aria-label="Zurück"><span class="chev"></span></button><h1>Mindeststandards</h1><div class="bar-spacer"></div></header>
     <div class="scroll">
-      <p class="sub">Deine Untergrenze, nicht dein Ziel. Was auch in einer schlechten Woche steht.</p>
+      <p class="sub">Deine Untergrenze, auch in schlechten Wochen.</p>
       <ul class="list" id="standardList"></ul>
 
       <h2 class="abschnitt">Neuen Standard setzen</h2>
@@ -1437,7 +1434,6 @@ try {
           <input id="stdZiel" type="number" inputmode="numeric" min="1" value="5"></div>
       </div>
       <button id="btnStdAdd" class="ghost">Standard hinzufügen</button>
-      <p class="fineprint">Standards, die die App nicht selbst messen kann, hakst du hier oder im Gespräch selbst ab.</p>
       <div id="standardsAngebot"></div>
     </div>
   </section>

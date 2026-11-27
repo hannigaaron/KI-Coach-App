@@ -189,6 +189,19 @@ export function bilanzSatz(w: Wochenschnitt): string {
   return `${kern}. Verbrauch ${w.verbrauchKcal} kcal, ${quelle}.${rechnung}`;
 }
 
+/**
+ * Die Bilanz in einer Zeile für die Ansicht: "Defizit 874 kcal am Tag, etwa
+ * 0,8 kg je Woche". Woher der Verbrauch kommt, steht im Satz für den Coach,
+ * auf dem Bildschirm las sich das als Absatz unter jeder Woche.
+ */
+export function bilanzKurz(w: Wochenschnitt): string {
+  if (w.bilanzKcal === null || w.verbrauchKcal === null) return "";
+  const b = w.bilanzKcal;
+  if (Math.abs(b) < 50) return "Ausgeglichen";
+  const kg = w.kgJeWoche !== null ? `, etwa ${String(Math.abs(Math.round(w.kgJeWoche * 10) / 10)).replace(".", ",")} kg je Woche` : "";
+  return `${b < 0 ? "Defizit" : "Überschuss"} ${Math.abs(b)} kcal am Tag${kg}`;
+}
+
 /** Der Wochenschnitt als Text für Coach und Regelweg. */
 export function wochenschnittText(w: Wochenschnitt): string {
   if (w.tage === 0) return "Wochenschnitt: noch kein abgeschlossener Tag in dieser Woche. Heute zählt mit, sobald er vorbei ist.";

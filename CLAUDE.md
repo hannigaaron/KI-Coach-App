@@ -3515,6 +3515,24 @@ Eiweissquelle oder liegt das Protein unter `EIWEISS_MIN_G`, sagt
 nachholen oder bei der nächsten Hauptmahlzeit Fokus auf Protein. Eine Regel
 von Coach Aaron.
 
+### Mindestens 25 g Protein je Mahlzeit
+
+`EIWEISS_MIN_G` in `rezepte.ts`: 25 g für jede Hauptmahlzeit und das
+Frühstück, 10 g für Snacks. Eine Regel von Coach Aaron. Ein Rezept darunter
+rückt in den Vorschlägen 15 Punkte nach hinten, und `eiweissHinweis` sagt,
+wie es nachgeholt wird.
+
+## Weniger Text auf jeder Seite
+
+Der Nutzer fand die App zu textlastig, sie las sich wie eine KI. Erklärungen,
+wie daevo rechnet, stehen jetzt zugeklappt in `details.info-klapp` mit einem
+kleinen i davor, "So rechnet daevo" oder ähnlich. Offen steht nur, was man
+zum Handeln braucht: die Zahl, ein kurzer Satz, der Knopf. Einleitungen sind
+auf einen Satz gekürzt, Gründe je Posten in der Einkaufsliste und Datumsangaben
+an Standards sind weg. Gemessen über die sichtbaren Erklärsätze: Einkauf von
+300 auf 30 Wörter, Bericht von 253 auf 11, Kalender von 323 auf 47. Neue
+Erklärungen kommen in ein `info-klapp`, nicht als offener Absatz.
+
 ## Die Tabelle schlägt die Schätzung
 
 `tabellenTreffer` in `packages/coach/src/foods.ts`, `mitTabellenwert` in

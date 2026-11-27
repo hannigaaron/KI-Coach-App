@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { REZEPTE, ZUTATEN } from "./rezepte-daten.js";
-import { HUELSENFRUECHTE, eiweissHinweis, hochwertig, huelsenAnteil, huelsenMalus, passung, postenAus, postenMenge, postenTauschen, rezeptEmpfehlungen, rezeptGesperrt, rezeptPortion, tauschOptionen, zutatRolle } from "./rezepte.js";
+import { EIWEISS_MIN_G, HUELSENFRUECHTE, eiweissHinweis, hochwertig, huelsenAnteil, huelsenMalus, passung, postenAus, postenMenge, postenTauschen, rezeptEmpfehlungen, rezeptGesperrt, rezeptPortion, tauschOptionen, zutatRolle } from "./rezepte.js";
 
 const MITTAG = { kcal: 750, proteinG: 55, fatG: 22, carbsG: 80 };
 
@@ -100,7 +100,7 @@ test("sortiert nach Passung, und für jede Mahlzeit gibt es etwas", () => {
     const { empfehlungen } = rezeptEmpfehlungen({ ziel, art });
     assert.ok(empfehlungen.length >= 4, art);
     // Sortiert wird nach Passung abzüglich des Abzugs für Hülsenfrüchte.
-    const rang = (x: (typeof empfehlungen)[number]) => x.passung - huelsenMalus(x.posten);
+    const rang = (x: (typeof empfehlungen)[number]) => x.passung - huelsenMalus(x.posten) - (x.summe.proteinG < EIWEISS_MIN_G[x.rezept.art] ? 15 : 0);
     for (let i = 1; i < empfehlungen.length; i++) {
       assert.ok(rang(empfehlungen[i - 1]!) >= rang(empfehlungen[i]!) - 3, art);
     }

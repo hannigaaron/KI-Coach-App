@@ -353,7 +353,8 @@ body { padding-top: env(safe-area-inset-top); }
 .list li.erledigt .li-title { text-decoration: line-through; opacity: 0.55; }
 .list li.erledigt .li-sub { opacity: 0.55; }
 .ek-knoepfe { display: flex; gap: 6px; }
-.ek-knoepfe button { padding: 6px 10px; font-size: 12.5px; font-weight: 500; }
+.ek-knoepfe { flex-shrink: 0; }
+.ek-knoepfe button { padding: 6px 10px; font-size: 12.5px; font-weight: 500; white-space: nowrap; }
 
 /* Mindeststandards */
 .std-quote {
@@ -5169,3 +5170,13 @@ button.rz-mini.rz-tausch { color: var(--accent-text); }
 .rz-bearbeitbar .rz-menge { flex: none; }
 .rz-bearbeitbar .rz-name { flex: 1; }
 .rz-zutaten-kopf [data-rz-zurueck] { font-family: var(--schrift-text); font-size: 14px; }
+
+/* ---------- Erklärungen zugeklappt ----------
+   Wie daevo rechnet und wo eine Adresse steht, braucht man einmal. Offen
+   machte es jede Seite zu einem Text mit Zahlen darin. */
+.info-klapp { margin: var(--s-2) 0 var(--s-3); }
+.info-klapp > summary { display: inline-flex; align-items: center; gap: 6px; list-style: none; cursor: pointer; color: var(--muted); font-size: 13px; }
+.info-klapp > summary::-webkit-details-marker { display: none; }
+.info-klapp > summary::before { content: "i"; display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid currentColor; font-size: 10px; font-weight: 700; font-style: normal; line-height: 1; }
+.info-klapp[open] > summary { color: var(--text); margin-bottom: 6px; }
+.info-klapp > p { margin-top: 0; }
