@@ -1639,6 +1639,12 @@ Morgen: 5 Minuten Tageslicht oder 20 bis 30 Minuten Tageslichtlampe mit
 10.000 Lux. "Gute Nacht" trägt abends "Abendroutine" statt "Nochmal" und
 öffnet das Blatt zum Abhaken. Beide Karten stehen auch im Tagesabschluss.
 
+Die Schlafkarte ist keine Liste zum Abarbeiten: abends will niemand sieben
+Punkte mit Uhrzeit lesen. Sie trägt gross die Schlafenszeit, darunter
+Schlafdauer und Wecker, einen Satz ab wann das Handy weg ist und die übrigen
+Schritte als leise Wörter ohne Uhrzeit, `kurz` am `AbendSchritt`. Der Morgen
+ist eine Zeile. Abgehakt wird im Blatt der Abendroutine, nicht auf der Karte.
+
 Snacks in den Mahlzeiten nach dem Kalender folgen derselben Regel wie im
 Wochenplan: Standard zuerst, Zucker nur ums Training, `snackRegel` in
 `tagesessen.ts`.
@@ -4386,6 +4392,10 @@ Das Erfassen Blatt zeigt die vier Wege als Raster aus zwei mal zwei, mit
 runden Symbolen von 56 Pixeln in der Mitte. Ab 700 Pixeln Breite läuft die
 App in einer mittigen Spalte, sonst zieht sich jede Zeile über den ganzen
 Laptop.
+
+Die Wasserknöpfe auf Heute sind klein, in Satoshi und nicht über die ganze
+Breite, `[data-water]` ist aus der Regel für Knöpfe in Serife genommen. Der
+Nutzer wollte Heute sonst genau so behalten.
 
 Die Kennzahlen oben auf Heute sind antippbar und führen in die Ansicht dahinter.
 Eine Zahl, auf die man tippen kann, spart den Umweg über das Menü.

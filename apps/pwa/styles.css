@@ -4071,7 +4071,7 @@ button, .chip, .pill {
   font-family: var(--schrift-akzent); font-weight: 400; letter-spacing: 0.005em;
   font-synthesis: none;
 }
-button:not(.seg-btn):not([role="tab"]):not(.bib-knopf):not(.balken-zeile):not(.icon-btn):not(.tr-masse):not(.pl-verlauf-knopf) { font-size: 1.15em; }
+button:not(.seg-btn):not([role="tab"]):not(.bib-knopf):not(.balken-zeile):not(.icon-btn):not(.tr-masse):not(.pl-verlauf-knopf):not([data-water]) { font-size: 1.15em; }
 .menu-zeile b, .menu-kachel b, .erfassen-titel, .weg-titel { font-family: var(--schrift-akzent); font-weight: 400; font-size: 1.1em; }
 .seg-btn, [role="tab"], .bib-knopf, .bib-knopf *, .pl-verlauf-knopf, .pl-verlauf-knopf *, .pl-tausch .ue-tab, .tr-ersatz b, .balken-zeile, .balken-zeile *, .tr-masse,
 button small, button .erfassen-sub, button .me-werte, button .me-werte *,
@@ -4859,11 +4859,10 @@ button { overflow-wrap: anywhere; text-wrap: balance; }
 .bs-folie.fest .bs-rein { animation: none; opacity: 1; transform: none; }
 
 /* Die Abendroutine im Briefing: Zeitleiste mit kleinem Text darunter. */
-.bs-abendliste li { align-items: start; padding: 7px 0; }
-.bs-abendliste time { padding-top: 2px; }
-.bs-abendliste .bs-punkt { margin-top: 7px; }
-.bs-abendliste .bs-termin b { display: block; font-size: 16px; font-weight: 600; line-height: 1.25; }
-.bs-abendliste .bs-termin small { display: block; margin-top: 2px; font-size: 13px; line-height: 1.35; color: rgba(255,255,255,.6); }
+/* Abendkarte: leise Wörter statt einer Liste, siehe case "abend" in briefing-show.js. */
+.bs-woerter { margin: 14px 0 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.bs-woerter span { padding: 6px 12px; border-radius: 999px; background: rgba(255,255,255,.07); color: rgba(255,255,255,.78); font-size: 14px; line-height: 1.2; }
+.bs-leise { margin: 22px 0 0; font-size: 14px; line-height: 1.4; color: rgba(255,255,255,.55); display: flex; gap: 8px; align-items: center; }
 .bs-f-abend .bs-frei b { display: flex; align-items: center; gap: 6px; }
 .bs-f-abend .bs-frei .bs-zeichen { width: 16px; height: 16px; }
 .bs-f-feierabend .bs-grosszahl span { order: -1; }
@@ -4995,3 +4994,9 @@ button.kal-show-neben {
   display: block; width: 100%; min-height: 48px; margin: var(--s-3) 0 var(--s-5); padding: 12px 18px;
   border: 0; border-radius: 999px; background: var(--flaeche); box-shadow: var(--haarlinie); color: var(--text);
 }
+
+/* Wasser auf Heute: drei kleine Knöpfe statt drei grosser Pillen. Der
+   Nutzer wollte den übrigen Aufbau von Heute genau so behalten, nur das
+   Wasser sollte weniger Platz nehmen. */
+[data-view="heute"] .quick { margin-top: 10px; gap: 6px; }
+[data-view="heute"] .quick .chip[data-water] { flex: 0 0 auto; min-height: 32px; padding: 5px 12px; font-family: var(--schrift-text); font-size: 13px; }

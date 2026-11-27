@@ -22,6 +22,8 @@ export interface AbendSchritt {
   id: string;
   uhrzeit: string;
   titel: string;
+  /** Zwei Wörter für die Karte im Abendbriefing, wo kein ganzer Satz hingehört. */
+  kurz: string;
   text: string;
 }
 
@@ -72,13 +74,13 @@ export function abendplan(schlafenszeit: string, wecker: string): Abendplan {
     wecker,
     schlafMinuten: schlafDauer(schlafenszeit, wecker),
     schritte: [
-      { id: "fruehstueck", uhrzeit: uhrzeit(s - 75), titel: "Frühstück für morgen hinrichten", text: "Was morgens schon dasteht, wird gegessen, statt übersprungen." },
-      { id: "handy", uhrzeit: uhrzeit(s - 60), titel: "Handy weg, Blaulicht runter", text: "Bildschirm aus, das Handy ausserhalb vom Bett laden. Musst du noch an einen Bildschirm, mit Blaulichtfilterbrille." },
-      { id: "supplements", uhrzeit: uhrzeit(s - 55), titel: "Supplements nehmen", text: "Deine abendlichen Supplements." },
-      { id: "lueften", uhrzeit: uhrzeit(s - 50), titel: "Zimmer lüften", text: "Fenster auf, kühl schläft es sich leichter ein." },
-      { id: "licht", uhrzeit: uhrzeit(s - 45), titel: "Licht dimmen", text: "Nur noch warmes, gedimmtes Licht." },
-      { id: "ruhe", uhrzeit: uhrzeit(s - 40), titel: "Lesen, Journal oder Meditation", text: "Was dich runterbringt, ohne Bildschirm." },
-      { id: "schlafen", uhrzeit: schlafenszeit, titel: "Schlafen", text: `Wecker auf ${wecker}.` },
+      { id: "fruehstueck", kurz: "Frühstück hinrichten", uhrzeit: uhrzeit(s - 75), titel: "Frühstück für morgen hinrichten", text: "Was morgens schon dasteht, wird gegessen, statt übersprungen." },
+      { id: "handy", kurz: "Handy weg", uhrzeit: uhrzeit(s - 60), titel: "Handy weg, Blaulicht runter", text: "Bildschirm aus, das Handy ausserhalb vom Bett laden. Musst du noch an einen Bildschirm, mit Blaulichtfilterbrille." },
+      { id: "supplements", kurz: "Supplements", uhrzeit: uhrzeit(s - 55), titel: "Supplements nehmen", text: "Deine abendlichen Supplements." },
+      { id: "lueften", kurz: "Lüften", uhrzeit: uhrzeit(s - 50), titel: "Zimmer lüften", text: "Fenster auf, kühl schläft es sich leichter ein." },
+      { id: "licht", kurz: "Licht dimmen", uhrzeit: uhrzeit(s - 45), titel: "Licht dimmen", text: "Nur noch warmes, gedimmtes Licht." },
+      { id: "ruhe", kurz: "Lesen oder Journal", uhrzeit: uhrzeit(s - 40), titel: "Lesen, Journal oder Meditation", text: "Was dich runterbringt, ohne Bildschirm." },
+      { id: "schlafen", kurz: "Schlafen", uhrzeit: schlafenszeit, titel: "Schlafen", text: `Wecker auf ${wecker}.` },
     ],
   };
 }

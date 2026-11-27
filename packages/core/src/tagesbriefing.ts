@@ -74,7 +74,7 @@ export type BriefingFolie =
   | { art: "essen"; zielKcal: number; zielProteinG: number; mahlzeiten: Array<{ art: string; um: string; name: string; gericht: string; kcal: number; proteinG: number; rolle: string; gewaehlt?: boolean; rezeptId?: string; foto?: boolean }> }
   | { art: "untergrenze"; punkte: Array<{ titel: string; stand: string }>; geburtstage: string[] }
   | { art: "feierabend"; um: string; heuteWichtig: string[]; wartet: number }
-  | { art: "abend"; schritte: Array<{ um: string; titel: string; text: string }>; schlafen: string; wecker: string; dauer: string; morgenLicht: string }
+  | { art: "abend"; schritte: Array<{ um: string; titel: string; kurz?: string; text: string }>; schlafen: string; wecker: string; dauer: string; morgenLicht: string }
   | { art: "ende"; morgens: boolean; satz: string };
 
 export interface BriefingPunkt {
@@ -127,7 +127,7 @@ export interface BriefingEingaben {
    * Aufgaben von heute, die nicht bis morgen warten dürfen, `wartet` die
    * Zahl der übrigen offenen.
    */
-  abendroutine?: { feierabend: string; wichtig: string[]; wartet: number; schritte: Array<{ uhrzeit: string; titel: string; text: string }>; schlafenszeit: string; wecker: string; dauer: string };
+  abendroutine?: { feierabend: string; wichtig: string[]; wartet: number; schritte: Array<{ uhrzeit: string; titel: string; kurz?: string; text: string }>; schlafenszeit: string; wecker: string; dauer: string };
 }
 
 const MAX_TERMINE = 6;
@@ -290,10 +290,10 @@ function briefingFolien(e: BriefingEingaben, g: { tagWort: string; feierabend: n
     folien.push({ art: "feierabend", um: r.feierabend, heuteWichtig: r.wichtig.slice(0, 3), wartet: r.wartet });
     folien.push({
       art: "abend", schlafen: r.schlafenszeit, wecker: r.wecker, dauer: r.dauer,
-      schritte: r.schritte.map((s) => ({ um: s.uhrzeit, titel: s.titel, text: s.text })),
+      schritte: r.schritte.map((s) => ({ um: s.uhrzeit, titel: s.titel, kurz: s.kurz, text: s.text })),
       // Tageslicht am Morgen: Blume, Garbazza und Spitschan, Somnologie 2019.
       // Tageslichtlampe mit 10.000 Lux: Golden und andere, Am J Psychiatry 2005.
-      morgenLicht: `Morgen um ${r.wecker}: 5 Minuten raus ins Tageslicht. Ist es noch dunkel, 20 bis 30 Minuten vor eine Tageslichtlampe mit 10.000 Lux.`,
+      morgenLicht: "Morgen früh 5 Minuten Tageslicht, im Dunkeln die Lampe.",
     });
   }
 
