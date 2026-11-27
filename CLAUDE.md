@@ -1490,6 +1490,14 @@ der 28 Tage davor, ab sieben Werten. HRV und Ruhepuls zählen bis zwei
 Punkte, die anderen einen, ab drei angespannt. Ableitung, keine Messung,
 und so steht es da. Der Coach bekommt Werte und Lage über `koerperText`.
 
+Die Phasen der Nacht stehen als Treppe, `hypnogramm` in `app.js`: oben
+wach, unten tief, die Phasen als Balken auf ihrer Ebene, verbunden mit einer
+dünnen Linie. Ein Tipp auf eine Phase nennt Uhrzeit und Dauer darüber,
+`schlafPhaseZeigen`. Gewählt vom Nutzer aus drei Entwürfen. Die Farben sind
+eigene Token, `--schlaf-wach`, `--schlaf-rem`, `--schlaf-kern` und
+`--schlaf-tief`: Rose, Lavendel, Himmelblau und Minze, die Familie der Makros
+eine Stufe heller. Dunkles Lila neben dunklem Grün biss sich.
+
 Gestaltung: kein Nachbau von Thalos. Der Nutzer will den Stil von daevo,
 also `wertungsRing` für den Schlafwert, kleine Ringe in der Markenfarbe für
 die Woche, Balkenzeilen `messwert` für die Phasen, die Linie aus dem Bericht

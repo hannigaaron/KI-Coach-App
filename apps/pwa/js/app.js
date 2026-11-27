@@ -1641,34 +1641,57 @@ function letzterStress() {
  */
 
 let schlafTag = null;
+let schlafNacht = null;
 
-/** Phase, Name und Farbe aus der Familie der Bereiche, von wach nach tief. */
+/** Phase, Name und Farbe, von wach nach tief. Eigene Töne aus der Familie der Makros, heller. */
 const PHASEN = [
-  ["w", "Wach", "var(--makro-fett)"],
-  ["r", "REM", "var(--bereich-me_time)"],
-  ["c", "Kern", "var(--bereich-karriere)"],
-  ["d", "Tief", "var(--bereich-wellbeing)"],
+  ["w", "Wach", "var(--schlaf-wach)"],
+  ["r", "REM", "var(--schlaf-rem)"],
+  ["c", "Kern", "var(--schlaf-kern)"],
+  ["d", "Tief", "var(--schlaf-tief)"],
 ];
 const PHASE_FARBE = Object.fromEntries(PHASEN.map(([k, , f]) => [k, f]));
+const uhrAus = (ms) => new Date(ms).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
 
-/** Der Verlauf der Nacht als Treppe: oben wach, unten tief, wie man es von Schlaf Apps kennt, in daevo Farben. */
+/**
+ * Der Verlauf der Nacht als Treppe: oben wach, unten tief, verbunden mit
+ * einer dünnen Linie, wie in Apple Health. Ein Tipp auf eine Phase nennt
+ * Uhrzeit und Dauer darüber. Gewählt vom Nutzer aus drei Entwürfen.
+ */
 function hypnogramm(nacht) {
-  const B = 320, H = 118, L = 34;
+  const B = 326, L = 38, R = 4, oben = 6, h = 30;
+  const H = oben + 4 * h + 20;
   const ebene = { w: 0, r: 1, c: 2, d: 3 };
   const gesamt = Math.max(1, (nacht.ende - nacht.beginn) / 60000);
-  const x = (m) => L + (m / gesamt) * (B - L);
-  const y = (p) => 10 + ebene[p] * 24;
-  const flaechen = nacht.phasen.map(([von, dauer, p]) =>
-    `<rect x="${x(von).toFixed(1)}" y="${y(p) - 7}" width="${Math.max(1, x(von + dauer) - x(von)).toFixed(1)}" height="14" rx="4" fill="${PHASE_FARBE[p]}"/>`).join("");
-  const namen = PHASEN.map(([k, n]) => `<text x="0" y="${y(k) + 4}" font-size="10" fill="currentColor" fill-opacity="0.5">${n}</text>`).join("");
-  const start = new Date(nacht.beginn);
-  const erste = new Date(start); erste.setMinutes(60, 0, 0);
+  const x = (m) => L + (m / gesamt) * (B - L - R);
+  const y = (p) => oben + ebene[p] * h + h / 2;
+  const linien = PHASEN.map(([k, n]) => `<text x="0" y="${y(k) + 4}" font-size="11" fill="currentColor" fill-opacity="0.55">${n}</text>`
+    + `<line x1="${L}" x2="${B - R}" y1="${y(k)}" y2="${y(k)}" stroke="currentColor" stroke-opacity="0.06"/>`).join("");
+  let d = "";
+  nacht.phasen.forEach(([von, dauer, p], i) => { d += `${i ? "L" : "M"}${x(von).toFixed(1)},${y(p)}L${x(von + dauer).toFixed(1)},${y(p)}`; });
+  const treppe = `<path d="${d}" fill="none" stroke="currentColor" stroke-opacity="0.18" stroke-width="1.5"/>`;
+  const flaechen = nacht.phasen.map(([von, dauer, p], i) =>
+    `<rect data-ph="${i}" x="${x(von).toFixed(1)}" y="${y(p) - 6}" width="${Math.max(3, x(von + dauer) - x(von)).toFixed(1)}" height="12" rx="4" fill="${PHASE_FARBE[p]}"/>`).join("");
+  const erste = new Date(nacht.beginn); erste.setMinutes(60, 0, 0);
   let achse = "";
   for (let t = erste.getTime(); t < nacht.ende; t += 3600000) {
     const m = (t - nacht.beginn) / 60000;
-    achse += `<text x="${x(m)}" y="${H - 4}" font-size="10" text-anchor="middle" fill="currentColor" fill-opacity="0.45">${String(new Date(t).getHours()).padStart(2, "0")}</text>`;
+    achse += `<text x="${x(m)}" y="${H - 4}" font-size="11" text-anchor="middle" fill="currentColor" fill-opacity="0.45">${String(new Date(t).getHours()).padStart(2, "0")}</text>`;
   }
-  return `<svg class="schlaf-verlauf" viewBox="0 0 ${B} ${H}" role="img" aria-label="Schlafphasen im Verlauf der Nacht">${namen}${flaechen}${achse}</svg>`;
+  const legende = PHASEN.map(([k, n]) => `<span><i style="background:${PHASE_FARBE[k]}"></i>${n}</span>`).join("");
+  return `<div class="schlaf-tipp"><span>${uhrAus(nacht.beginn)} bis ${uhrAus(nacht.ende)}</span><b>Tippe auf eine Phase</b></div>`
+    + `<svg class="schlaf-verlauf" viewBox="0 0 ${B} ${H}" role="img" aria-label="Schlafphasen im Verlauf der Nacht">${linien}${treppe}${flaechen}${achse}</svg>`
+    + `<div class="schlaf-legende" aria-hidden="true">${legende}</div>`;
+}
+
+/** Zeigt die angetippte Phase über der Kurve. */
+function schlafPhaseZeigen(nacht, i) {
+  const [von, dauer, p] = nacht.phasen[i] ?? [];
+  if (p === undefined) return;
+  const name = PHASEN.find(([k]) => k === p)?.[1] ?? "";
+  const a = nacht.beginn + von * 60000;
+  $("schlafInhalt").querySelector(".schlaf-tipp").innerHTML = `<span>${uhrAus(a)} bis ${uhrAus(a + dauer * 60000)}</span><b style="color:${PHASE_FARBE[p]}">${name}, ${kurzDauer(Math.round(dauer))}</b>`;
+  $("schlafInhalt").querySelectorAll("[data-ph]").forEach((r) => r.classList.toggle("an", r.dataset.ph === String(i)));
 }
 
 const SIGNAL = {
@@ -1764,6 +1787,7 @@ function renderSchlaf() {
   inhalt.appendChild(woche);
 
   const n = nacht(schlafTag);
+  schlafNacht = n;
   const w = werte[schlafTag];
   const g = store.getDay(schlafTag).gesundheit || {};
   const rest = document.createElement("div");
@@ -1789,7 +1813,7 @@ function renderSchlaf() {
       <div><small>Eingeschlafen</small><b>${uhr(n.beginn)}</b></div>
       <div><small>Aufgewacht</small><b>${uhr(n.ende)}</b></div>
       <div><small>Effizienz</small><b>${w.effizienz} %</b></div>
-      <div><small>Wach geworden</small><b>${n.wachPhasen}×</b></div>
+      <div><small>Wach geworden</small><b>${n.wachPhasen ?? (n.phasen ?? []).filter((p) => p[2] === "w").length}×</b></div>
     </div>
     <h2 class="abschnitt">Phasen</h2>
     <div class="schlaf-balken">${PHASEN.map(([k]) => (phase[k][0] ? `<span style="flex:${phase[k][0]};background:${PHASE_FARBE[k]}"></span>` : "")).join("")}</div>
@@ -1817,6 +1841,8 @@ function renderSchlaf() {
 }
 
 $("schlafInhalt").addEventListener("click", (e) => {
+  const ph = e.target.closest("[data-ph]");
+  if (ph && schlafNacht) { schlafPhaseZeigen(schlafNacht, Number(ph.dataset.ph)); return; }
   const t = e.target.closest("[data-schlaf-tag]");
   if (!t) return;
   schlafTag = t.dataset.schlafTag;
