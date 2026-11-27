@@ -1497,7 +1497,7 @@ dünnen Linie. Ein Tipp auf eine Phase nennt Uhrzeit und Dauer darüber,
 eigene Token, `--schlaf-wach`, `--schlaf-rem`, `--schlaf-kern` und
 `--schlaf-tief`: Rose, Lavendel, Himmelblau und Minze, die Familie der Makros
 eine Stufe heller. Dunkles Lila neben dunklem Grün biss sich.
-Alle Flächen der Phasen sind scharfkantig und dünn, 8 Pixel je Phase und 6
+Alle Flächen der Phasen sind scharfkantig und schmal, 10 Pixel je Phase und 6
 im Streifen darüber, ohne Rundung: abgerundet und dick sah es
 billig aus, Wunsch des Nutzers.
 
