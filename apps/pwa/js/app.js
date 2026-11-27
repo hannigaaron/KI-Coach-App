@@ -8,7 +8,7 @@ import {
   impulseFuerTag, naechsterPunkt, planFuer, saubereUrl, uhrzeit, undListe, weckwortGehoert, weightTrend,
   belastung,
   belastungKurz,
-  regeneration, regenFarbton, regenSatz, schlafwert, schlafZiel, PHASEN_SPANNE, koerperlage, essensUhrzeiten, tagesrandFuer,
+  regeneration, regenFarbton, regenSatz, schlafwert, schlafZiel, PHASEN_SPANNE, schlafIndex, koerperlage, essensUhrzeiten, tagesrandFuer,
   bereitschaft,
   bereitschaftText,
   berichtText,
@@ -65,7 +65,7 @@ import { Orb } from "./orb.js";
 import { anhangAusDatei, grossInKb } from "./media.js";
 import { EXIF_LESEN_BYTES, aufnahmezeit, tagVor, tageZurueck, zeitVorschlag } from "./exif.js";
 import { gewichtsKurve, gewichtsSpanne } from "./gewichtkurve.js";
-import { bereichFarbe, anteilsRing, kurzDauer, netzDiagramm, ringMitZahl, wertungsRing } from "./rings.js";
+import { bereichFarbe, anteilsRing, kurzDauer, netzDiagramm, ringMitZahl, schlafIndexHtml, wertungsRing } from "./rings.js";
 import {
   Listener, alleStimmen, istDeutsch, istMaennlich, speak, stimmQualitaet, stimmSchluessel, stimmenBereit, stopSpeaking,
   voiceSupport, waehlbareStimmen,
@@ -1753,6 +1753,11 @@ function koerperHtml() {
       auf (Kim und andere 2018, Buchheit 2014). Das ist eine Ableitung und keine Messung.</p></details>`;
 }
 
+// Je Teil des Schlafindex eine Farbe aus der Familie der Schlafphasen, als
+// Variable, damit Hell und Dunkel ohne eigene Fassung stimmen. Ruhe trägt
+// die Farbe der Wachphasen, denn sie misst, wie lange du wach im Bett lagst.
+const SCHLAF_FARBE_CSS = { dauer: "var(--schlaf-kern)", ruhe: "var(--schlaf-wach)", tief: "var(--schlaf-tief)", rem: "var(--schlaf-rem)" };
+
 function renderSchlaf() {
   const profil = store.getProfile();
   const heute = todayIso();
@@ -1801,7 +1806,7 @@ function renderSchlaf() {
 
   const held = document.createElement("div");
   held.className = "wertung";
-  held.appendChild(wertungsRing({ wert: w.wert, etikett: "SCHLAF", urteil: w.wert >= 80 ? "erholsam" : w.wert >= 60 ? "okay" : "zu wenig", groesse: 220 }));
+  held.innerHTML = schlafIndexHtml(schlafIndex(w), SCHLAF_FARBE_CSS);
   inhalt.appendChild(held);
 
   const uhr = (ms) => { const d = new Date(ms); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
@@ -1821,8 +1826,8 @@ function renderSchlaf() {
     <div class="messwerte" id="schlafPhasen"></div>
     ${koerperHtml()}
     <p class="fineprint">Gemessen von ${escapeHtml(n.quelle || "deiner Uhr")}, gelesen aus Apple Health. Uhren und Ringe erkennen Schlaf und
-      Wachsein recht gut, die Phasen deutlich ungenauer (de Zambotti und andere 2019). Der Schlafwert ist eine Regel
-      von daevo: Dauer gegen dein Ziel 50, Effizienz 20, Tief 15 und REM 15 Punkte. Das Ziel ist dein Plan aus
+      Wachsein recht gut, die Phasen deutlich ungenauer (de Zambotti und andere 2019). Der Schlafindex ist eine Regel
+      von daevo: Dauer gegen dein Ziel 50, Ruhe 20 (wie viel der Zeit im Bett du schläfst), Tief 15 und REM 15 Punkte. Das Ziel ist dein Plan aus
       Schlafens und Aufstehzeit, nie unter sieben Stunden (Watson und andere 2015). Die üblichen Spannen sind
       Richtwerte für junge Erwachsene nach Ohayon und andere 2004, keine Diagnose.</p>`;
   inhalt.appendChild(rest);

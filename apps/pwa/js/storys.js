@@ -1,3 +1,5 @@
+import { schlafIndexHtml } from "./rings.js";
+
 /**
  * Die Präsentationen ausser dem Briefing: Wochenrückblick, Morgen Check-in,
  * Auswertung, Monatsrückblick, Ende eines Trainingsblocks, Abschluss eines
@@ -22,6 +24,9 @@ export const STORY_TON = {
   marke: "#96d8f0", gruen: "#2ec28c", tuerkis: "#42bad3", rose: "#e694ad",
   violett: "#b6a0e9", gelb: "#e5b55c", gruen2: "#2ec379",
 };
+
+/** Die Farben der Schlafphasen aus dem dunklen Modus, siehe `--schlaf-*`. */
+const SCHLAF_TON = { dauer: "#8ed2f0", ruhe: "#f2a7be", tief: "#74dcb0", rem: "#c7b6f5" };
 
 const zahlDe = (x, stellen = 1) => new Intl.NumberFormat("de-DE", { maximumFractionDigits: stellen }).format(x);
 const mehrzahl = (n, eins, viele) => `${n} ${n === 1 ? eins : viele}`;
@@ -76,6 +81,14 @@ export function rueckblickFolien(r) {
     });
   } else if (zeilen.length) {
     folien.push({ art: "zahl", zeichen: "bett", ton: STORY_TON.violett, etikett: "Dazu", zahl: zeilen[0].wert, einheit: zeilen[0].name, zeilen: zeilen.slice(1) });
+  }
+  // Der Schlafindex der Woche: derselbe Ring wie je Nacht, mit dem Schnitt.
+  // Echte Farben statt Variablen, die Bühne ist in beiden Modi dunkel.
+  if (z.schlafIndex) {
+    folien.push({
+      art: "bild", zeichen: "mond", ton: STORY_TON.violett, etikett: `Schlaf, ${mehrzahl(z.schlafIndex.naechte ?? 0, "Nacht", "Nächte")}`,
+      html: schlafIndexHtml(z.schlafIndex, SCHLAF_TON, { groesse: 200 }),
+    });
   }
   if (r.gut?.length) folien.push({ art: "punkte", zeichen: "haken", ton: STORY_TON.gruen2, etikett: "Das lief gut", punkte: r.gut.slice(0, 4).map((t) => ({ titel: t })) });
   if (r.besser?.length) folien.push({ art: "punkte", zeichen: "achtung", ton: STORY_TON.gelb, etikett: "Das geht besser", punkte: r.besser.slice(0, 4).map((t) => ({ titel: t })) });

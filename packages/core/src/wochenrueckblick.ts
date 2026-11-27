@@ -23,6 +23,7 @@
  */
 
 import type { Goal } from "./types.js";
+import { schlafIndex, schlafwertSchnitt, type SchlafIndex, type Schlafwert } from "./schlafwert.js";
 
 export interface RueckblickTag {
   /** JJJJ-MM-TT */
@@ -40,6 +41,8 @@ export interface RueckblickTag {
   geplant: number;
   gewichtKg?: number | null;
   schlafMin?: number | null;
+  /** Der Schlafwert der Nacht davor, wenn Apple Health Phasen hat. */
+  schlafwert?: Schlafwert | null;
 }
 
 export interface Wochenrueckblick {
@@ -76,6 +79,8 @@ export interface RueckblickZahlen {
   geplant: number;
   gewichtDiff: number | null;
   schlafStunden: number | null;
+  /** Der Schlafindex im Schnitt der Nächte, ab drei Nächten mit Phasen. */
+  schlafIndex: SchlafIndex | null;
 }
 
 const PROTEIN_GEDECKT = 0.9;
@@ -113,7 +118,7 @@ export function wochenrueckblick(tage: RueckblickTag[], { art, ziel }: { art: Wo
     tage: n, eingetragen: mitEssen.length, gezaehlt: vollstaendig.length,
     proteinGedeckt: null, proteinSchnitt: null, proteinZiel: null,
     kcalSchnitt: null, kcalZiel: null, kcalGetroffen: null, wasserProzent: null,
-    trainiert: 0, geplant: 0, gewichtDiff: null, schlafStunden: null,
+    trainiert: 0, geplant: 0, gewichtDiff: null, schlafStunden: null, schlafIndex: null,
   };
 
   bilanz.push(`Ernährung eingetragen an ${mitEssen.length} von ${n} Tagen.`);
@@ -202,6 +207,9 @@ export function wochenrueckblick(tage: RueckblickTag[], { art, ziel }: { art: Wo
       besser.push(`Das Gewicht ging hoch, obwohl Abnehmen dein Ziel ist.`);
     }
   }
+
+  const schnitt = schlafwertSchnitt(tage.map((t) => t.schlafwert));
+  if (schnitt) zahlen.schlafIndex = schlafIndex(schnitt, { woche: true });
 
   const mitSchlaf = tage.filter((t) => t.schlafMin != null && Number(t.schlafMin) > 0);
   if (mitSchlaf.length >= 3) {

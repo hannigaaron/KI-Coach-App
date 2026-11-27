@@ -418,3 +418,65 @@ export function netzDiagramm({ bereiche, groesse = 300, beschriftet = true }) {
 
   return svg;
 }
+
+/**
+ * Ein Ring aus Teilen, für den Schlafindex.
+ *
+ * Jeder Teil bekommt einen Bogen, so lang wie sein Höchstwert, und füllt ihn
+ * so weit, wie er Punkte hat. Damit sieht man im Ring, woher die Zahl kommt,
+ * und nicht nur, wie gross sie ist. Ein voller Ring mit einem kurzen Teil
+ * sagt "fast alles gut, das hier nicht".
+ *
+ * Als Zeichenkette und nicht als Knoten: dieselbe Zeichnung steht in der
+ * Schlafansicht und auf einer Karte der Präsentation, und die Karten werden
+ * als Text gebaut. Die Farben kommen deshalb als echte Werte oder als CSS
+ * Variablen herein, je nachdem wo der Ring steht.
+ *
+ * `teile`: [{ wert, max, farbe, name }]. Die Summe der Höchstwerte ist 100.
+ */
+export function segmentRingSvg({ teile, wert, urteil, etikett = "SCHLAFINDEX", groesse = 220, spur = "currentColor" }) {
+  const mitte = groesse / 2;
+  const breite = Math.max(8, Math.round(groesse / 18));
+  const r = mitte - breite / 2 - 2;
+  const summe = teile.reduce((s, t) => s + t.max, 0) || 100;
+  // Die Lücke rechnet die runden Enden mit ein: ein Ende ragt eine halbe
+  // Strichbreite über den Bogen, und ohne Ausgleich stiessen zwei Teile
+  // aneinander und die Lücke wäre weg.
+  const luecke = (breite + 5) / r;
+  const voll = Math.PI * 2 - luecke * teile.length;
+  const punkt = (w) => [mitte + r * Math.sin(w), mitte - r * Math.cos(w)];
+  const bogen = (von, bis) => {
+    const [x1, y1] = punkt(von);
+    const [x2, y2] = punkt(bis);
+    return `M${x1.toFixed(2)} ${y1.toFixed(2)}A${r} ${r} 0 ${bis - von > Math.PI ? 1 : 0} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`;
+  };
+  let w = luecke / 2;
+  const pfade = teile.map((t) => {
+    const laenge = voll * (t.max / summe);
+    const anteil = Math.max(0, Math.min(1, t.max ? t.wert / t.max : 0));
+    const teil = `<path d="${bogen(w, w + laenge)}" stroke="${spur}" stroke-opacity="0.12"/>`
+      + (anteil > 0.01 ? `<path d="${bogen(w, w + Math.max(0.001, laenge * anteil))}" stroke="${t.farbe}"/>` : "");
+    w += laenge + luecke;
+    return teil;
+  }).join("");
+  const text = (y, groesseText, gewicht, inhalt, deckung = 1, abstand = 0) =>
+    `<text x="${mitte}" y="${y.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" font-size="${Math.round(groesseText)}" font-weight="${gewicht}" letter-spacing="${abstand.toFixed(2)}" fill="currentColor" fill-opacity="${deckung}">${inhalt}</text>`;
+  return `<svg class="segment-ring" viewBox="0 0 ${groesse} ${groesse}" width="${groesse}" height="${groesse}" role="img" aria-label="${etikett} ${wert} von 100, ${urteil}">`
+    + `<g fill="none" stroke-width="${breite}" stroke-linecap="round">${pfade}</g>`
+    + text(mitte - groesse * 0.2, groesse / 23, 620, etikett, 0.5, groesse / 130)
+    + text(mitte + groesse * 0.02, groesse / 3, 250, String(wert), 1, -groesse / 90)
+    + text(mitte + groesse * 0.2, groesse / 15, 520, urteil, 0.6)
+    + `</svg>`;
+}
+
+/**
+ * Der Schlafindex mit Legende und Satz. `index` kommt aus `schlafIndex` im
+ * Kern, `farben` je Teil als Wert oder Variable.
+ */
+export function schlafIndexHtml(index, farben, { groesse = 220 } = {}) {
+  const esc = (x) => String(x).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  const teile = index.teile.map((t) => ({ ...t, farbe: farben[t.id] }));
+  return `${segmentRingSvg({ teile, wert: index.wert, urteil: index.urteil, groesse })}
+    <div class="schlaf-index">${teile.map((t) => `<span><i style="background:${t.farbe}"></i>${esc(t.name)}<b>${t.wert}/${t.max}</b></span>`).join("")}</div>
+    <p class="schlaf-index-satz">${esc(index.satz)}</p>`;
+}

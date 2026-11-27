@@ -4681,6 +4681,13 @@ button { overflow-wrap: anywhere; text-wrap: balance; }
 .schlaf-tipp b { font-weight: 600; white-space: nowrap; }
 .schlaf-legende { display: flex; flex-wrap: wrap; gap: var(--s-3); margin: 0 0 var(--s-4); font-size: var(--t-xs); color: var(--muted); }
 .schlaf-legende i { display: inline-block; width: 9px; height: 9px; margin-right: 5px; }
+.segment-ring { display: block; margin: 0 auto; color: var(--text); }
+/* Legende des Schlafindex: vier Teile in zwei Spalten, Punkte rechtsbündig. */
+.schlaf-index { display: grid; grid-template-columns: 1fr 1fr; gap: 6px var(--s-5); max-width: 320px; margin: var(--s-3) auto 0; font-size: var(--t-sm); color: var(--muted); }
+.schlaf-index span { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+.schlaf-index i { flex: none; width: 8px; height: 8px; border-radius: 50%; }
+.schlaf-index b { margin-left: auto; color: var(--text); font-weight: 600; }
+.schlaf-index-satz { max-width: 320px; margin: var(--s-3) auto var(--s-4); text-align: center; font-size: var(--t-sm); color: var(--muted); }
 .ks-zahlen { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-4) var(--s-3); margin: var(--s-3) 0 var(--s-5); }
 .ks-zahlen div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .ks-zahlen small { color: var(--muted); font-size: var(--t-xs); }
@@ -4907,6 +4914,11 @@ button { overflow-wrap: anywhere; text-wrap: balance; }
 .bs-frage .bs-zeichen { width: 20px; height: 20px; color: var(--ton); margin-top: 1px; }
 .bs-bild { display: flex; justify-content: center; margin: 4px 0 0; }
 .bs-bild svg { width: 100%; max-width: 330px; height: auto; max-height: 52vh; }
+.bs-bild:has(.segment-ring) { flex-direction: column; align-items: center; }
+.bs-bild svg.segment-ring { max-width: 200px; color: #fff; }
+.bs-bild .schlaf-index { color: rgba(255, 255, 255, 0.62); width: 100%; }
+.bs-bild .schlaf-index b { color: #fff; }
+.bs-bild .schlaf-index-satz { color: rgba(255, 255, 255, 0.72); margin-bottom: 0; }
 .bs-mitte { text-align: center; }
 .bs-f-titel, .bs-f-schluss { align-items: center; text-align: center; }
 .bs-f-titel .bs-etikett { justify-content: center; }
