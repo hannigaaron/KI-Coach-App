@@ -40,6 +40,19 @@ test("Wochenrückblick: Zahlen als Karten, Fokus mit Anpassen, Werte aus `zahlen
   assert.match(folien.at(-2).satz, /Magerquark/);
 });
 
+test("Wochenrückblick: der Schlafindex der Woche als Ring mit Teilen", () => {
+  const schlafIndex = { wert: 82, urteil: "Hoch", satz: "Am meisten kostet die Dauer: im Schnitt 40 min unter deinem Ziel.", naechte: 6,
+    teile: [{ id: "dauer", name: "Dauer", max: 50, wert: 44 }, { id: "ruhe", name: "Ruhe", max: 20, wert: 18 }, { id: "tief", name: "Tiefschlaf", max: 15, wert: 10 }, { id: "rem", name: "REM", max: 15, wert: 10 }] };
+  const folien = rueckblickFolien({ ...RUECKBLICK, zahlen: { ...RUECKBLICK.zahlen, schlafIndex } });
+  pruefen(folien);
+  const karte = folien.find((f) => f.art === "bild");
+  assert.match(karte.etikett, /6 Nächte/);
+  const html = folieHtml(karte);
+  assert.match(html, /segment-ring/);
+  assert.match(html, /Dauer<b>44\/50<\/b>/);
+  assert.match(html, /40 min unter deinem Ziel/);
+});
+
 test("Wochenrückblick ohne Ernährung: keine Ringe, kein Training ohne Plan", () => {
   const leer = { ...RUECKBLICK, gut: [], besser: [], tipps: ["Trag mehr ein."], fokus: "Trag mehr ein.",
     zahlen: { tage: 3, eingetragen: 0, gezaehlt: 0, proteinGedeckt: null, proteinSchnitt: null, proteinZiel: null, kcalSchnitt: null, kcalZiel: null, kcalGetroffen: null, wasserProzent: null, trainiert: 0, geplant: 0, gewichtDiff: null, schlafStunden: null } };

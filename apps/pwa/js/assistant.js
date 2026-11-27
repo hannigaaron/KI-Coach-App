@@ -4,7 +4,7 @@ import {
   mahlzeitAusFoto, modellFuerBilder, naehrwerteImNetz, produktPerBarcode, produkteSuchen, summiere, vorratAusFoto,
   todoistAbhaken, todoistAufgaben, todoistIdVon, todoistWiederOeffnen, PERSONA_TEILE,
 } from "@daevo/coach";
-import { essenszeitAus, foldUmlauts, wochenrueckblick, wochenbeginn, wochenschnitt, wochenschnittText, tagKurz, tagStand, rueckblickArt, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, freienPlatzFinden, platzText, tagLang, tagWort, tagAufloesen, tagVerschieben, tagAusText, aufgabeStufe, vernachlaessigteBereiche, bereichDerAufgabe, familienNamenAus, anheben, einzeltrainingBauen, abdeckungsLuecken, FOKUS_NAME, alternativen, planNachrechnen, positionFuer, regeneration, regenText, koerperlage, koerperlageText,
+import { essenszeitAus, foldUmlauts, schlafwert, schlafZiel, wochenrueckblick, wochenbeginn, wochenschnitt, wochenschnittText, tagKurz, tagStand, rueckblickArt, periodeBeenden, periodeBeginnen, suchWoerter, symptomUmschalten, trefferWerten, zyklusText, SYMPTOME, uebungErlaubt, vorausblick, vorausblickText, vorausblickUhrzeit, tagesessen, tagesessenText, trainingAusProfil, tagesbriefing, freienPlatzFinden, platzText, tagLang, tagWort, tagAufloesen, tagVerschieben, tagAusText, aufgabeStufe, vernachlaessigteBereiche, bereichDerAufgabe, familienNamenAus, anheben, einzeltrainingBauen, abdeckungsLuecken, FOKUS_NAME, alternativen, planNachrechnen, positionFuer, regeneration, regenText, koerperlage, koerperlageText,
 } from "@daevo/core";
 import { REGIONEN } from "./muskelkarte.js";
 import { regenTrainings, regenGefuehlHeute } from "./regeneration-daten.js";
@@ -4783,6 +4783,7 @@ export function wochenrueckblickFuer(heute = todayIso()) {
   const w = new Date(`${heute}T12:00:00`).getDay();
   const art = rueckblickArt(heute) ?? (w >= 1 && w <= 3 ? "zwischenstand" : "woche");
   const naechster = (t) => { const d = new Date(`${t}T12:00:00`); d.setDate(d.getDate() + 1); return todayIso(d); };
+  const vorher = (t) => { const d = new Date(`${t}T12:00:00`); d.setDate(d.getDate() - 1); return todayIso(d); };
   const tage = [];
   const weitere = new Set(trainingsTageAusQuellen(store, heute));
   for (let t = wochenbeginn(heute); t <= heute; t = naechster(t)) {
@@ -4798,6 +4799,9 @@ export function wochenrueckblickFuer(heute = todayIso()) {
       geplant: (n.profile?.sessions || []).filter((x) => x.weekday === n.weekday).length,
       gewichtKg: d.weightKg ?? null,
       schlafMin: d.gesundheit?.schlafMinuten ?? null,
+      schlafwert: d.gesundheit?.nacht
+        ? schlafwert({ tag: t, ...d.gesundheit.nacht }, schlafZiel(tagesrandFuer(n.profile ?? {}, vorher(t)).sleepTime, tagesrandFuer(n.profile ?? {}, t).wakeTime))
+        : null,
     });
   }
   return wochenrueckblick(tage, { art, ziel: store.getProfile()?.goal });

@@ -1064,7 +1064,7 @@ der Präsentation, im Chat und im Morgen Check-in.
 
 ```bash
 npm install
-npm test           # 1585 Tests
+npm test           # 1589 Tests
 npm run serve:pwa  # Web App auf http://localhost:8080
 npm run dev        # API auf http://localhost:8787
 npm run build:pwa  # statische Ausgabe nach dist-pages
@@ -1476,6 +1476,21 @@ ungenau (de Zambotti 2019), die Ansicht sagt das. Eigene Anbindungen an
 Garmin, Oura oder Whoop gibt es nicht, deren Schnittstellen brauchen eine
 Registrierung beim Anbieter, siehe `docs/ROADMAP.md`. Ungeprüft: der Swift
 Teil ist nicht kompiliert.
+
+### Der Schlafindex
+
+`schlafIndex` und `schlafwertSchnitt` in `schlafwert.ts`, gezeichnet über
+`segmentRingSvg` und `schlafIndexHtml` in `rings.js`, nach einer Vorlage
+des Nutzers. Der Ring ist in vier Bögen geteilt, so lang wie die
+Höchstpunkte: Dauer 50, Ruhe 20 (die Effizienz, wach im Bett), Tiefschlaf
+15, REM 15, in den Farben der Schlafphasen. Jeder Bogen füllt sich mit
+seinen Punkten, darunter die Legende mit Punkten je Teil und ein Satz, der
+den teuersten Teil mit Zahl nennt, `schlafSatz`. Die Teile sind so
+gerundet, dass sie genau den Wert ergeben, `teileRunden`. Stufen: ab 90
+Sehr hoch, ab 75 Hoch, ab 60 Mittel, ab 40 Niedrig, eine Regel der App. Im
+Wochenrückblick steht derselbe Ring mit dem Schnitt der Nächte als Karte,
+ab drei Nächten mit Phasen, mit festen Farben, weil die Bühne immer dunkel
+ist.
 
 ## Körpersignale und Erholung
 
