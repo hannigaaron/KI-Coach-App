@@ -394,7 +394,10 @@ test("Belastung rechnet über die wirklich gespeicherten Tage", async () => {
   // Vier Wochen, jeden zweiten Tag eine Stunde. Danach liegt die letzte Woche
   // im gewohnten Bereich.
   for (let i = 0; i < 28; i += 2) {
-    const tag = new Date(heute.getTime() - i * 86400000).toISOString().slice(0, 10);
+    // Ortszeit wie todayIso: mit toISOString lag der Tag kurz nach
+    // Mitternacht in Berlin noch auf gestern, und der Test fiel um.
+    const d = new Date(heute.getFullYear(), heute.getMonth(), heute.getDate() - i);
+    const tag = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     store.addTraining(tag, { id: `t${i}`, type: "strength", minutes: 60, at: "18:00", note: "" });
   }
   const text = await aktionen.belastungAbrufen();

@@ -13,8 +13,10 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     name: "mahlzeit_erfassen",
     description:
       "Trägt eine gegessene Mahlzeit ein und rechnet Kalorien und Makros aus. " +
-      "Nur nehmen, wenn der Nutzer sagt, dass er etwas gegessen oder getrunken hat, das Kalorien liefert. " +
-      "Nicht nehmen für Pläne oder Fragen wie was soll ich essen. " +
+      "Nehmen, wenn der Nutzer sagt, dass er etwas gegessen oder getrunken hat, das Kalorien liefert, " +
+      "dass er es gerade isst (ich esse zum Mittag ..., gibt gerade ...), oder wenn er ausdrücklich sagt, trag ein. " +
+      "Ein ausdrückliches trag ein gilt immer, sofort, ohne Rückfrage. " +
+      "Nicht nehmen für Pläne für später oder Fragen wie was soll ich essen. " +
       "Nur das eintragen, was der Nutzer in DIESER Nachricht neu nennt. " +
       "Nie wiederholen, was heute schon eingetragen ist, auch nicht, wenn er nach dem Tagesstand fragt " +
       "oder seine Mahlzeit aufzählt. Doppelt Eingetragenes verfälscht seinen ganzen Tag.",

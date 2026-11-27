@@ -1151,3 +1151,39 @@ test("Eine diktierte Einheit erkennt der Regelweg mit Sätzen, Supersatz und Car
   await runOffline(satz, stubActions(log));
   assert.deepEqual(log, ["diktat:3xBankdrücken+2xSchrägbank Brustpresse+3xSeitheben im Kabelzug+3xPushdowns+3xCable Crunches:Fahrrad"]);
 });
+
+test("mahlzeitAuftrag: ausdrückliches Eintragen von Essen, sonst nicht", async () => {
+  const { mahlzeitAuftrag } = await import("./agent.js");
+  assert.equal(mahlzeitAuftrag("Trag ein, dass ich zum Mittagessen 200 g Reis mit Hähnchen esse"), true);
+  assert.equal(mahlzeitAuftrag("bitte eintragen: heute Morgen zwei Waffeln gegessen"), true);
+  assert.equal(mahlzeitAuftrag("trag morgen Pizza zum Mittag ein"), false);
+  assert.equal(mahlzeitAuftrag("trag das Mittagessen in den Kalender ein"), false);
+  assert.equal(mahlzeitAuftrag("trag als Aufgabe ein: Essen für Samstag einkaufen"), false);
+  assert.equal(mahlzeitAuftrag("trag den Essensplan ein"), false);
+  assert.equal(mahlzeitAuftrag("ich hab Reis gegessen"), false);
+});
+
+test("trag ein: steht im Tag, auch wenn das Modell kein Werkzeug ruft", async () => {
+  const provider = {
+    available: true,
+    async converse() {
+      return { content: [{ type: "text", text: "Klingt gut, guten Appetit." }], stopReason: "end_turn" };
+    },
+  };
+  const gerufen: string[] = [];
+  const aktionen = new Proxy({}, {
+    get: (_z, name) => async (...args: unknown[]) => {
+      gerufen.push(String(name));
+      return name === "mahlzeitErfassen" ? `Eingetragen: ${String(args[0]).slice(0, 10)}, 420 kcal.` : "";
+    },
+  });
+  const antwort = await new Agent(provider as never).respond({
+    nachricht: "Trag ein, dass ich zum Mittagessen 150 g Reis und 200 g Hähnchenbrust esse",
+    verlauf: [],
+    kontext: { zeit: "", profil: "", tag: "", gedächtnis: "" } as never,
+    aktionen: aktionen as never,
+  });
+  assert.ok(gerufen.includes("mahlzeitErfassen"));
+  assert.ok(antwort.ausgeführt.includes("Mahlzeit eingetragen"));
+  assert.match(antwort.text, /420 kcal/);
+});

@@ -130,7 +130,38 @@ export async function todoistWiederOeffnen(todoistId: string, o: TodoistOptionen
   await anfrage(`${BASIS}/tasks/${encodeURIComponent(todoistId)}/reopen`, "POST", o);
 }
 
-async function anfrage(url: string, methode: "GET" | "POST", o: TodoistOptionen): Promise<any> {
+/**
+ * Legt eine Aufgabe in Todoist an und gibt sie als daevo Aufgabe zurück.
+ *
+ * Wer Todoist verbunden hat, führt seine Liste dort. Eine Aufgabe, die er
+ * über daevo anlegt und die nur in daevo steht, fehlt ihm in Todoist, und
+ * genau das ist im Betrieb passiert. Wichtig wird P2 und nicht P1: P1 ist in
+ * Todoist das Rote, und das setzt er selbst. Die Dauer geht nur mit Frist
+ * mit, Todoist hängt sie an das Datum.
+ */
+export async function todoistAnlegen(
+  a: { text: string; faellig?: string | null; wichtigkeit?: number; minuten?: number },
+  heute: string,
+  o: TodoistOptionen,
+): Promise<Aufgabe> {
+  const body: Record<string, unknown> = {
+    content: a.text,
+    priority: (a.wichtigkeit ?? 2) >= 3 ? 3 : 1,
+  };
+  if (a.faellig && /^\d{4}-\d{2}-\d{2}$/.test(a.faellig)) {
+    body.due_date = a.faellig;
+    if (Number(a.minuten) > 0) { body.duration = Math.round(Number(a.minuten)); body.duration_unit = "minute"; }
+  }
+  const json = await anfrage(`${BASIS}/tasks`, "POST", o, body);
+  const neu = aufgabeAusTodoist(json, heute);
+  if (!neu) throw new TodoistFehler("Todoist hat die Aufgabe nicht bestätigt.");
+  // Ohne Frist geht keine Dauer mit, die Schätzung aus daevo bleibt aber.
+  return Number(a.minuten) > 0 && neu.dauerAngenommen
+    ? { ...neu, minuten: Math.round(Number(a.minuten)), dauerAngenommen: false }
+    : neu;
+}
+
+async function anfrage(url: string, methode: "GET" | "POST", o: TodoistOptionen, body?: unknown): Promise<any> {
   const token = o.token.trim();
   if (!token) throw new TodoistFehler("Kein Todoist Token hinterlegt.");
   const holen = o.fetchImpl ?? fetch;
@@ -140,7 +171,10 @@ async function anfrage(url: string, methode: "GET" | "POST", o: TodoistOptionen)
   try {
     antwort = await holen(url, {
       method: methode,
-      headers: { Authorization: `Bearer ${token}` },
+      headers: body === undefined
+        ? { Authorization: `Bearer ${token}` }
+        : { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       signal: abbruch.signal,
     });
   } catch {

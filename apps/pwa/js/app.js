@@ -4,7 +4,7 @@ import { briefingZeigen } from "./briefing-show.js";
 import {
   BEREICHE, BEREICH_NAME, CHECKIN_BOEGEN, CHECKIN_MITTE, STANDARD_ZIELE, WOCHENTAGE,
   MAHLZEITEN, bogenAmTag, bogenFuer, eintragAus100g, energyBreakdown, hatAngebot, mengeLesen,
-  ORDNER, mengeSetzen, nachOrdnern, naehrwerteFuer, offeneMahlzeiten, portionsVorschlag, skalierbar,
+  ORDNER, einheitenFuer, mengeInEinheitLesen, mengeInEinheitSetzen, mengeSetzen, nachOrdnern, naehrwerteFuer, offeneMahlzeiten, portionsVorschlag, skalierbar,
   impulseFuerTag, naechsterPunkt, planFuer, saubereUrl, uhrzeit, undListe, weckwortGehoert, weightTrend,
   belastung,
   belastungKurz,
@@ -5008,6 +5008,7 @@ $("btnAufgabe").addEventListener("click", async () => {
     $("aufgabeEcho").textContent = ergebnis.einstufung.regelbasiert
       ? `${ergebnis.text} Ohne KI Schlüssel nach Wortgruppen sortiert, nicht verstanden.`
       : ergebnis.text;
+    if (ergebnis.todoist) $("aufgabeEcho").textContent += " Steht in Todoist.";
     renderTag();
     refreshAll();
   } catch (error) {
@@ -6491,9 +6492,19 @@ function mePostenZeichnen() {
     liste.innerHTML = mePosten.map((e, i) => {
       const menge = mengeLesen(e.quantity);
       const kann = skalierbar(e);
+      // Mit Gramm hinter der Menge gibt es die Einheiten: g, ml, EL, TL,
+      // Glas, Schüssel, Teller, Stück. Die Zahl davor nimmt auch 0,5.
       // Ohne lesbare Menge lässt sich nichts skalieren. Dann steht die Angabe
       // als Text da, statt ein Feld anzubieten, das nichts bewirkt.
-      const feld = kann
+      const einheiten = einheitenFuer(e);
+      const jetzt = einheiten ? mengeInEinheitLesen(e) : null;
+      const feld = jetzt
+        ? `<input class="me-menge" type="text" inputmode="decimal" autocomplete="off"
+                  value="${komma(jetzt.anzahl)}" data-i="${i}" data-einheiten="1" aria-label="Menge von ${escapeHtml(e.name)}">
+           <select class="me-einheit-wahl" data-i="${i}" aria-label="Einheit von ${escapeHtml(e.name)}">
+             ${einheiten.map((x) => `<option value="${x.id}"${x.id === jetzt.einheit.id ? " selected" : ""}>${escapeHtml(x.name)}${x.id === "g" || x.id === "ml" ? "" : ` · ${komma(Math.round(x.gramm * 10) / 10)} g`}</option>`).join("")}
+           </select>`
+        : kann
         ? `<input class="me-menge" type="number" inputmode="decimal" min="0" step="1"
                   value="${menge.zahl}" data-i="${i}" aria-label="Menge von ${escapeHtml(e.name)}">
            <span class="me-einheit">${escapeHtml(menge.einheit)}</span>`
@@ -6962,16 +6973,36 @@ $("mePosten").addEventListener("input", (event) => {
   const feld = event.target.closest(".me-menge");
   if (!feld) return;
   const i = Number(feld.dataset.i);
-  const zahl = Number(feld.value);
+  // Komma wie auf der deutschen Tastatur: "0,5" EL.
+  const zahl = Number(String(feld.value).replace(",", ".").trim());
   if (!Number.isFinite(zahl) || zahl <= 0) return;
   const alt = mePosten[i];
   if (!alt) return;
-  mePosten[i] = mengeSetzen(alt, zahl);
+  const wahl = feld.dataset.einheiten ? feld.closest("li")?.querySelector(".me-einheit-wahl") : null;
+  mePosten[i] = wahl ? mengeInEinheitSetzen(alt, zahl, wahl.value) : mengeSetzen(alt, zahl);
   // Nur die Werte neu schreiben, nicht die ganze Liste. Ein Neuaufbau würde
   // dem Nutzer mitten im Tippen den Fokus aus dem Feld nehmen.
   const zeile = feld.closest("li")?.querySelector(".me-werte");
   const e = mePosten[i];
   if (zeile) zeile.innerHTML = postenWerte(e, dayNumbers(meTag).targets);
+  meSummeZeichnen();
+});
+
+// Eine andere Einheit beginnt bei einer, bei Gramm und Milliliter bei der
+// Menge, die gerade dasteht. 100 aus "100 g" als 100 Teller wären 35 kg.
+$("mePosten").addEventListener("change", (event) => {
+  const wahl = event.target.closest(".me-einheit-wahl");
+  if (!wahl) return;
+  const i = Number(wahl.dataset.i);
+  const alt = mePosten[i];
+  if (!alt) return;
+  const vorher = mengeInEinheitLesen(alt);
+  const anzahl = wahl.value === "g" || wahl.value === "ml" ? Math.round(vorher?.gramm ?? 100) : 1;
+  mePosten[i] = mengeInEinheitSetzen(alt, anzahl, wahl.value);
+  const feld = wahl.closest("li")?.querySelector(".me-menge");
+  if (feld) feld.value = komma(anzahl);
+  const zeile = wahl.closest("li")?.querySelector(".me-werte");
+  if (zeile) zeile.innerHTML = postenWerte(mePosten[i], dayNumbers(meTag).targets);
   meSummeZeichnen();
 });
 

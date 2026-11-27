@@ -3,7 +3,7 @@ import { findFood, normalize } from "./foods.js";
 
 // Zahl, dann optional ein Beiwort wie "gehäuft", dann die Einheit. Das
 // Beiwort steht beim Löffel fast immer dazwischen: "1 gehäufter Teelöffel".
-const QUANTITY = /(\d+(?:[.,]\d+)?)\s*(gehaeuft\w*|gestrichen\w*)?\s*(g|gr|gramm|kg|kilo|ml|milliliter|l|liter|stk|stueck|scheiben?|el|essloeffeln?|tl|teeloeffeln?|messloeffeln?|scoops?|portionen?)?\b/;
+const QUANTITY = /(\d+(?:[.,]\d+)?)\s*(gehaeuft\w*|gestrichen\w*)?\s*(g|gr|gramm|kg|kilo|ml|milliliter|l|liter|stk|stueck|scheiben?|el|essloeffeln?|tl|teeloeffeln?|messloeffeln?|scoops?|portionen?|glas|glaeser|tassen?|teller|kleinen? schuesseln?|schuesseln?|handvoll)?\b/;
 
 // Haushaltsmasse sind Faustwerte und keine Messung. Ein Teelöffel fasst
 // rund 5 Gramm, ein Esslöffel rund 15, gehäuft etwa das Doppelte. Bei
@@ -25,6 +25,15 @@ const UNIT_TO_GRAM: Record<string, number> = {
   // Ein Messlöffel Proteinpulver liegt bei den gängigen Dosen bei 30 Gramm.
   messloeffel: 30,
   scoop: 30,
+  // Dieselben Annahmen wie die Einheiten im Editor, `EINHEITEN` im Kern.
+  glas: 250,
+  glaeser: 250,
+  tasse: 150,
+  teller: 350,
+  schuessel: 400,
+  "kleine schuessel": 250,
+  "kleinen schuessel": 250,
+  handvoll: 30,
 };
 
 const LOEFFEL = new Set(["el", "essloeffel", "tl", "teeloeffel"]);
@@ -131,14 +140,14 @@ function mengenText(chunk: string): string {
   return gefaltet.replace(/\b[a-z]+\b/g, (w) => ZAHLWORT[w] ?? w);
 }
 
-const FLUESSIG = new Set(["ml", "milliliter", "l", "liter"]);
+const FLUESSIG = new Set(["ml", "milliliter", "l", "liter", "glas", "glaeser", "tasse"]);
 
 export function extractGrams(chunk: string, pieceG?: number): { grams: number; explizit: boolean; ml?: boolean } | null {
   const match = QUANTITY.exec(mengenText(chunk));
   if (!match) return pieceG ? { grams: pieceG, explizit: false } : null;
   const amount = Number((match[1] ?? "").replace(",", "."));
   if (!Number.isFinite(amount) || amount <= 0) return pieceG ? { grams: pieceG, explizit: false } : null;
-  const unit = (match[3] ?? "").replace(/n$/, "").replace(/s$/, "");
+  const unit = (match[3] ?? "").replace(/n$/, "").replace(/s$/, "").replace(/(schuessel)e$/, "$1");
   const einheit = unit in UNIT_TO_GRAM ? unit : (match[3] ?? "");
   if (einheit && einheit in UNIT_TO_GRAM) {
     const gehaeuft = Boolean(match[2]?.startsWith("gehaeuft")) && LOEFFEL.has(einheit);

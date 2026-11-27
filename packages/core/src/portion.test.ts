@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { eintragAus100g, je100gAus, mengeLesen, mengeSchreiben, mengeSetzen, skalierbar } from "./portion.js";
+import { eintragAus100g, einheitenFuer, grammVonMenge, je100gAus, mengeInEinheitLesen, mengeInEinheitSetzen, mengeLesen, mengeSchreiben, mengeSetzen, skalierbar, stueckGramm } from "./portion.js";
 import type { FoodEntry } from "./types.js";
 
 function e(name: string, quantity: string, kcal: number, p: number, f: number, k: number): FoodEntry {
@@ -85,4 +85,41 @@ test("hin und zurück ergibt wieder dasselbe", () => {
   const zurueck = mengeSetzen(mengeSetzen(alt, 350), 200);
   assert.equal(zurueck.quantity, alt.quantity);
   assert.equal(zurueck.kcal, alt.kcal);
+});
+
+test("Haushaltsmasse: 0,5 EL Erdnussbutter aus 100 g", () => {
+  const eintrag = { name: "Erdnussbutter", quantity: "100 g", kcal: 600, proteinG: 25, fatG: 50, carbsG: 12 };
+  const halb = mengeInEinheitSetzen(eintrag, 0.5, "el");
+  assert.equal(halb.quantity, "0,5 EL (8 g)");
+  assert.equal(halb.kcal, 45);
+  assert.equal(halb.proteinG, 1.9);
+  // Zurück auf Gramm rechnet von der Grundlage, nicht vom gerundeten Stand.
+  const zurueck = mengeInEinheitSetzen(halb, 100, "g");
+  assert.equal(zurueck.kcal, 600);
+  assert.equal(zurueck.quantity, "100 g");
+});
+
+test("Haushaltsmasse: Glas, Teller und kleine Schüssel werden gelesen", () => {
+  const milch = { name: "Milch", quantity: "200 ml", kcal: 94, proteinG: 6.8, fatG: 3, carbsG: 9.8 };
+  const glas = mengeInEinheitSetzen(milch, 2, "glas");
+  assert.equal(glas.quantity, "2 Glas (500 g)");
+  assert.equal(glas.kcal, 235);
+  const gelesen = mengeInEinheitLesen(glas);
+  assert.equal(gelesen?.einheit.id, "glas");
+  assert.equal(gelesen?.anzahl, 2);
+  assert.equal(mengeInEinheitLesen(milch)?.einheit.id, "ml");
+  const schuessel = mengeInEinheitSetzen(milch, 1, "schuessel_klein");
+  assert.equal(mengeInEinheitLesen(schuessel)?.einheit.id, "schuessel_klein");
+  assert.equal(grammVonMenge("1 Teller"), 350);
+});
+
+test("Haushaltsmasse: Stück aus der Angabe der Packung", () => {
+  const reis = { name: "Reiswaffeln", quantity: "4 Stück (ca. 36 g)", kcal: 140, proteinG: 3, fatG: 1, carbsG: 29 };
+  assert.equal(stueckGramm(reis), 9);
+  assert.ok(einheitenFuer(reis)?.some((e) => e.id === "stueck"));
+  const zwei = mengeInEinheitSetzen(reis, 2, "stueck");
+  assert.equal(zwei.kcal, 70);
+  assert.equal(mengeInEinheitLesen(zwei)?.einheit.id, "stueck");
+  // Ohne Gramm geht keine Einheit, dann bleibt die Zahl allein.
+  assert.equal(einheitenFuer({ name: "Ei", quantity: "2 Eier", kcal: 160, proteinG: 13, fatG: 11, carbsG: 1 }), null);
 });
