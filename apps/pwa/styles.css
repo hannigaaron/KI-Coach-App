@@ -162,6 +162,10 @@
   --makro-fett: #e694ad;
   --makro-kohlenhydrate: #b6a0e9;
   --makro-wasser: #4cb9d5;
+  /* Schlafphasen: dieselbe Familie wie die Makros, eine Stufe heller und
+     weicher. Das dunkle Lila und Grün daneben bissen sich, Wunsch des Nutzers. */
+  --schlaf-wach: #f2a7be; --schlaf-rem: #c7b6f5;
+  --schlaf-kern: #8ed2f0; --schlaf-tief: #74dcb0;
   /* Die Spur hinter dem Balken. Stand vorher als fester Wert in der Regel und
      war damit im hellen Modus nur über eine zweite Regel zu retten. */
   --spur: #1b2230;
@@ -1034,6 +1038,8 @@ body:has([data-view="assistant"]:not([hidden])) .toast {
     --text: #141a24; --muted: #5b6675;
     --makro-protein: #1e7f5c; --makro-fett: #cf3161;
     --makro-kohlenhydrate: #7e58d8; --makro-wasser: #227a91;
+    --schlaf-wach: #c94a72; --schlaf-rem: #8662d6;
+    --schlaf-kern: #2a86ad; --schlaf-tief: #22895f;
     --bereich-karriere: #217b8c; --bereich-fitness: #1e804f;
     --bereich-wellbeing: #5167d6; --bereich-me_time: #924ed5;
     --bereich-beziehung: #c72f94;
@@ -1059,6 +1065,8 @@ body:has([data-view="assistant"]:not([hidden])) .toast {
     --text: #141a24; --muted: #5b6675;
     --makro-protein: #1e7f5c; --makro-fett: #cf3161;
     --makro-kohlenhydrate: #7e58d8; --makro-wasser: #227a91;
+    --schlaf-wach: #c94a72; --schlaf-rem: #8662d6;
+    --schlaf-kern: #2a86ad; --schlaf-tief: #22895f;
     --bereich-karriere: #217b8c; --bereich-fitness: #1e804f;
     --bereich-wellbeing: #5167d6; --bereich-me_time: #924ed5;
     --bereich-beziehung: #c72f94;
@@ -4666,7 +4674,13 @@ button { overflow-wrap: anywhere; text-wrap: balance; }
 .schlaf-satz { margin: 0 0 var(--s-4); text-align: center; color: var(--muted); font-size: var(--t-sm); }
 .schlaf-satz b { color: var(--text); font-weight: 650; }
 .schlaf-balken { display: flex; height: 8px; border-radius: 4px; overflow: hidden; gap: 2px; margin: var(--s-3) 0 var(--s-2); }
-.schlaf-verlauf { display: block; width: 100%; height: auto; margin: var(--s-2) 0 var(--s-4); color: var(--text); }
+.schlaf-verlauf { display: block; width: 100%; height: auto; margin: var(--s-1) 0 var(--s-2); color: var(--text); }
+.schlaf-verlauf [data-ph] { cursor: pointer; }
+.schlaf-verlauf [data-ph].an { stroke: var(--text); stroke-width: 1.5; }
+.schlaf-tipp { display: flex; justify-content: space-between; gap: var(--s-2); margin-top: var(--s-3); padding: 8px 12px; border-radius: 12px; background: var(--flaeche, var(--panel-2)); font-size: var(--t-sm); }
+.schlaf-tipp b { font-weight: 600; white-space: nowrap; }
+.schlaf-legende { display: flex; flex-wrap: wrap; gap: var(--s-3); margin: 0 0 var(--s-4); font-size: var(--t-xs); color: var(--muted); }
+.schlaf-legende i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; }
 .ks-zahlen { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-4) var(--s-3); margin: var(--s-3) 0 var(--s-5); }
 .ks-zahlen div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .ks-zahlen small { color: var(--muted); font-size: var(--t-xs); }
