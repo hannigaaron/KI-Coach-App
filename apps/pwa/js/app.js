@@ -1671,7 +1671,7 @@ function hypnogramm(nacht) {
   nacht.phasen.forEach(([von, dauer, p], i) => { d += `${i ? "L" : "M"}${x(von).toFixed(1)},${y(p)}L${x(von + dauer).toFixed(1)},${y(p)}`; });
   const treppe = `<path d="${d}" fill="none" stroke="currentColor" stroke-opacity="0.18" stroke-width="1.5"/>`;
   const flaechen = nacht.phasen.map(([von, dauer, p], i) =>
-    `<rect data-ph="${i}" x="${x(von).toFixed(1)}" y="${y(p) - 6}" width="${Math.max(3, x(von + dauer) - x(von)).toFixed(1)}" height="12" rx="4" fill="${PHASE_FARBE[p]}"/>`).join("");
+    `<rect data-ph="${i}" x="${x(von).toFixed(1)}" y="${y(p) - 6}" width="${Math.max(3, x(von + dauer) - x(von)).toFixed(1)}" height="12" fill="${PHASE_FARBE[p]}"/>`).join("");
   const erste = new Date(nacht.beginn); erste.setMinutes(60, 0, 0);
   let achse = "";
   for (let t = erste.getTime(); t < nacht.ende; t += 3600000) {

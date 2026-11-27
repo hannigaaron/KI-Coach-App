@@ -1497,6 +1497,8 @@ dünnen Linie. Ein Tipp auf eine Phase nennt Uhrzeit und Dauer darüber,
 eigene Token, `--schlaf-wach`, `--schlaf-rem`, `--schlaf-kern` und
 `--schlaf-tief`: Rose, Lavendel, Himmelblau und Minze, die Familie der Makros
 eine Stufe heller. Dunkles Lila neben dunklem Grün biss sich.
+Alle Flächen der Phasen sind scharfkantig, ohne Rundung: abgerundet sah es
+billig aus, Wunsch des Nutzers.
 
 Gestaltung: kein Nachbau von Thalos. Der Nutzer will den Stil von daevo,
 also `wertungsRing` für den Schlafwert, kleine Ringe in der Markenfarbe für

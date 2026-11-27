@@ -4673,14 +4673,14 @@ button { overflow-wrap: anywhere; text-wrap: balance; }
 .schlaf-tag.an { background: var(--flaeche, var(--panel)); color: var(--text); }
 .schlaf-satz { margin: 0 0 var(--s-4); text-align: center; color: var(--muted); font-size: var(--t-sm); }
 .schlaf-satz b { color: var(--text); font-weight: 650; }
-.schlaf-balken { display: flex; height: 8px; border-radius: 4px; overflow: hidden; gap: 2px; margin: var(--s-3) 0 var(--s-2); }
+.schlaf-balken { display: flex; height: 8px; overflow: hidden; gap: 2px; margin: var(--s-3) 0 var(--s-2); }
 .schlaf-verlauf { display: block; width: 100%; height: auto; margin: var(--s-1) 0 var(--s-2); color: var(--text); }
 .schlaf-verlauf [data-ph] { cursor: pointer; }
 .schlaf-verlauf [data-ph].an { stroke: var(--text); stroke-width: 1.5; }
 .schlaf-tipp { display: flex; justify-content: space-between; gap: var(--s-2); margin-top: var(--s-3); padding: 8px 12px; border-radius: 12px; background: var(--flaeche, var(--panel-2)); font-size: var(--t-sm); }
 .schlaf-tipp b { font-weight: 600; white-space: nowrap; }
 .schlaf-legende { display: flex; flex-wrap: wrap; gap: var(--s-3); margin: 0 0 var(--s-4); font-size: var(--t-xs); color: var(--muted); }
-.schlaf-legende i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; }
+.schlaf-legende i { display: inline-block; width: 9px; height: 9px; margin-right: 5px; }
 .ks-zahlen { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-4) var(--s-3); margin: var(--s-3) 0 var(--s-5); }
 .ks-zahlen div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .ks-zahlen small { color: var(--muted); font-size: var(--t-xs); }
