@@ -31,7 +31,7 @@ import {
 } from "./storys.js";
 import { trainingStarten } from "./training.js";
 import { morgenStarten, morgenVonHeute, trainingGestrichen } from "./morgen.js";
-import { abendStarten, schlafWocheFuer, schlafWocheHtml } from "./abend.js";
+import { abendplanFuer, abendStarten, schlafWocheFuer, schlafWocheHtml } from "./abend.js";
 import {
   antwortVerarbeiten, antwortenAbholen, lueckeAusSpeicher, lueckeMelden,
   schieflageAusSpeicher, schieflageMelden,
@@ -94,6 +94,8 @@ import { anteilAmZiel, eigeneLebensmittel, eigeneSuche, eigenerPosten, lebensmit
 import { abschlussDaten, abschlussHtml, storyTeilen } from "./abschluss.js";
 import { UEBUNGEN } from "./uebungen-daten.js";
 import { sortiertHtml, sortiertGezeigt } from "./sortierung.js";
+import { kachelStand, tagebuchHtml, wocheEnergie, wocheHtml } from "./checkin-ansicht.js";
+import { gruppieren, profilUnter, profilZeilen, uebersichtHtml } from "./profil-ansicht.js";
 import { bewegungStarten, wischenZumLoeschen, zahlenZaehlen, zeileRaus } from "./bewegung.js";
 import { einwilligungOffen, einwilligungSetzen, einwilligungText, kiErlaubt } from "./einwilligung.js";
 import { ABO_STUFEN, ABO_TAKTE, aboPreis, ersparnisProzent, aboAnlass, aboAnlassLeer, aboLeiste, aboLink, kontoLoeschen, kontoSicherstellen, kontoStand, kontoText, sperreFuer } from "./konto.js";
@@ -1104,7 +1106,7 @@ function showView(name) {
   if (name === "gespraeche") renderGespraeche();
   if (name === "wochencheck") wcStart();
   if (name === "empfehlungen") { renderRecommendations(); zeigeAngebot("empfehlungenAngebot"); }
-  if (name === "profil") { renderProfile(); healthStandZeigen(); eigeneErinnerungenZeigen(); }
+  if (name === "profil") { const pv = document.querySelector('[data-view="profil"]'); if (pv.dataset.pfOffen) { delete pv.dataset.pfOffen; pv.querySelector(".bar h1").textContent = "Profil"; } renderProfile(); healthStandZeigen(); eigeneErinnerungenZeigen(); }
   if (name === "assistant") renderTranscript();
   // Werte, die beim Öffnen gesetzt werden, etwa der Vorrat, lösen kein input
   // aus. Ohne das hier stand die zweite Zeile halb abgeschnitten im Feld.
@@ -2347,32 +2349,24 @@ function verlaufZeigen(tag) {
  * die eigene Notiz und die Antwort von daevo.
  */
 function renderCheckins() {
-  const eintraege = [];
+  const tage = [];
   for (let i = 0; i < 30; i++) {
     const d = new Date(`${todayIso()}T12:00:00`);
     d.setDate(d.getDate() - i);
     const tag = todayIso(d);
-    for (const c of (store.getDay(tag).checkins || []).slice().reverse()) {
-      if (c.kind === "herausforderung") continue;
-      eintraege.push({ tag, c });
-    }
+    tage.push({ tag, checkins: (store.getDay(tag).checkins || []).filter((c) => c.kind !== "herausforderung").slice().reverse() });
   }
-  const art = (c) => (c.kind === "midday" ? "Mittags Check-in" : c.morgen ? "Guten Morgen Check-in" : c.kind === "evening" ? "Abend Check-in" : "Check-in");
-  $("checkinList").innerHTML = eintraege.length
-    ? eintraege.map(({ tag, c }) => {
-        const wann = new Date(`${tag}T12:00:00`).toLocaleDateString("de-DE", { weekday: "short", day: "numeric", month: "long" });
-        const werte = [["Energie", c.energy], ["Schlaf", c.sleepQuality], ["Stimmung", c.mood], ["Konzentration", c.concentration], ["Sättigung", c.satiety], ["Morgenwert", c.morgenWert]]
-          .filter(([, w]) => w !== null && w !== undefined);
-        const notiz = c.note && c.note !== "Check-in ohne Notiz" ? c.note : "";
-        const paare = [
-          ...werte.map(([n, w]) => `<div class="wc-tb-paar"><dt>${escapeHtml(n)}</dt><dd>${escapeHtml(String(w))}${n === "Morgenwert" ? " von 100" : " von 10"}</dd></div>`),
-          ...(notiz ? [`<div class="wc-tb-paar"><dt>Notiz</dt><dd>${escapeHtml(notiz)}</dd></div>`] : []),
-        ].join("");
-        const daevo = c.antwort ? `<div class="wc-tb-daevo"><p class="wc-tb-von">daevo</p><div class="msg-text">${chatHtml(c.antwort)}</div></div>` : "";
-        const seite = c.energy !== null && c.energy !== undefined ? `Energie ${c.energy}` : "";
-        return `<li class="wc-tb"><details><summary><span><b>${escapeHtml(wann)}, ${escapeHtml(c.at || "")}</b><small>${escapeHtml(art(c))}${notiz ? `, ${escapeHtml(notiz.slice(0, 40))}${notiz.length > 40 ? "…" : ""}` : ""}</small></span><span class="meta">${escapeHtml([seite, c.antwort ? "mit Antwort" : ""].filter(Boolean).join(", "))}</span></summary><dl>${paare}</dl>${daevo}</details></li>`;
-      }).join("")
-    : `<li class="wc-tb"><p class="sub" style="margin:0;padding:var(--s-4)">Noch kein Check-in. Dein erster steht danach hier, mit der Antwort von daevo.</p></li>`;
+  $("checkinList").innerHTML = tagebuchHtml(tage, chatHtml);
+  $("ciWoche").innerHTML = wocheHtml(wocheEnergie(todayIso(), (tag) => store.getDay(tag).checkins || []));
+  const m = morgenVonHeute(store, todayIso());
+  let abendStart = "";
+  try { abendStart = abendplanFuer(store, todayIso())?.start ?? ""; } catch { /* ohne Profil keine Uhrzeit */ }
+  const jetzt = new Date();
+  const k = kachelStand({ morgen: m ? { wert: m.morgenWert, gestrichen: m.trainingGestrichen } : null, abendStart, jetzt: `${String(jetzt.getHours()).padStart(2, "0")}:${String(jetzt.getMinutes()).padStart(2, "0")}` });
+  $("ciMorgenStand").textContent = k.morgen;
+  $("ciAbendStand").textContent = k.abend;
+  $("btnMorgenCheckin").classList.toggle("an", k.morgenOffen && jetzt.getHours() < 12);
+  $("btnAbendroutine").classList.toggle("an", k.abendJetzt);
 }
 
 function renderMemories() {
@@ -3116,6 +3110,68 @@ function zeigeAngebot(id) {
   if (block) ziel.appendChild(block);
 }
 
+/* ---------- Profil als Einstellungsliste, profil-ansicht.js ---------- */
+
+let profilTeile = null;
+function profilUebersicht(energy, targets) {
+  const view = document.querySelector('[data-view="profil"]');
+  // Gruppiert wird erst, wenn die Seite offen ist: vorher hat die Fassung
+  // noch nicht entschieden, welche Abschnitte für den Betreiber sind.
+  if (!profilTeile && view.hidden) return;
+  if (!profilTeile) {
+    profilTeile = gruppieren(view.querySelector(".scroll"), $("pfGedaechtnis"));
+    // Die Werte gehören zu Körper und Ziel, die Kacheln oben nennen das Wichtigste.
+    const koerper = view.querySelector('[data-pf-teil="koerper"]');
+    if (koerper) koerper.firstElementChild.after($("pfWerte"));
+  }
+  const kg = Number(profile.weightKg);
+  $("pfKacheln").innerHTML = `<div class="pf-kachel"><small>Zielkalorien</small><b>${targets.kcal}</b><small>Bedarf ${energy.tdeeKcal} kcal</small></div>`
+    + `<div class="pf-kachel"><small>Protein</small><b>${targets.proteinG} g</b><small>${kg > 0 ? `${(targets.proteinG / kg).toFixed(1).replace(".", ",")} g je kg` : ""}</small></div>`;
+  const s = store.getSettings();
+  const tempo = { schnell: "Schnell", normal: "Ausgewogen", gruendlich: "Immer gründlich" }[$("tempoSel").value] ?? "";
+  const stimme = $("e-stimme").selectedOptions?.[0]?.textContent ?? "";
+  const unter = profilUnter(profile, {
+    denken: tempo, stimme,
+    mitteilungen: istNativ() ? `Abendroutine ${abendplanFuerSicher()}` : "Impulse am Tag",
+    konto: $("kontoStand").textContent && $("kontoStand").textContent !== "Wird geladen." ? $("kontoStand").textContent.split(".")[0] : "",
+    sicherung: "Daten sichern und einspielen",
+    aussehen: { system: "Wie das Gerät", light: "Hell", dark: "Dunkel" }[$("themeSel").value] ?? "",
+    anweisungen: s.anweisungen ? `${String(s.anweisungen).slice(0, 40)}${String(s.anweisungen).length > 40 ? "…" : ""}` : "Noch keine",
+  });
+  const teile = [...profilTeile];
+  teile.splice(3, 0, { titel: "Gedächtnis", schluessel: "gedaechtnis" });
+  $("pfUebersicht").innerHTML = uebersichtHtml(profilZeilen(teile, unter));
+}
+function abendplanFuerSicher() {
+  try { return abendplanFuer(store, todayIso())?.start ?? ""; } catch { return ""; }
+}
+function profilTeilOeffnen(schluessel) {
+  const view = document.querySelector('[data-view="profil"]');
+  if (schluessel === "gedaechtnis") { showView("reflexion"); return; }
+  for (const t of view.querySelectorAll(".pf-teil")) t.classList.toggle("offen", t.dataset.pfTeil === schluessel);
+  const titel = view.querySelector(`[data-pf-oeffnen="${schluessel}"] b`)?.textContent ?? "Profil";
+  view.dataset.pfOffen = schluessel;
+  view.querySelector(".bar h1").textContent = titel;
+  view.querySelector(".scroll").scrollTop = 0;
+}
+function profilTeilZu() {
+  const view = document.querySelector('[data-view="profil"]');
+  if (!view.dataset.pfOffen) return false;
+  delete view.dataset.pfOffen;
+  view.querySelector(".bar h1").textContent = "Profil";
+  renderProfile();
+  return true;
+}
+document.addEventListener("click", (ev) => {
+  const k = ev.target.closest("[data-pf-oeffnen]");
+  if (k) profilTeilOeffnen(k.dataset.pfOeffnen);
+});
+// Zurück schliesst erst den offenen Abschnitt, dann die Seite. Der Lauscher
+// liegt in der Fangphase an der Ansicht und kommt so vor dem am Knopf.
+document.querySelector('[data-view="profil"]').addEventListener("click", (ev) => {
+  if (ev.target.closest("[data-back]") && profilTeilZu()) { ev.stopPropagation(); ev.preventDefault(); }
+}, true);
+
 function renderProfile() {
   const energy = energyBreakdown(profile);
   const targets = dayNumbers(day).targets;
@@ -3123,6 +3179,7 @@ function renderProfile() {
   $("pAf").textContent = String(energy.activityFactor);
   $("pTdee").textContent = `${energy.tdeeKcal} kcal`;
   $("pTarget").textContent = `${targets.kcal} kcal, ${targets.proteinG} g Protein`;
+  profilUebersicht(energy, targets);
 
   $("e-weight").value = profile.weightKg;
   $("e-steps").value = profile.dailySteps;
@@ -4505,9 +4562,15 @@ $("btnSuggest").addEventListener("click", async () => {
 function stufenZeichnen() {
   for (const reihe of document.querySelectorAll("[data-stufen]")) {
     const feld = $(reihe.dataset.stufen);
-    const wert = Number(feld.value);
-    reihe.innerHTML = Array.from({ length: 10 }, (_, i) => i + 1)
-      .map((v) => `<button type="button" class="mg-punkt${v === wert ? " an" : ""}" role="radio" aria-checked="${v === wert}" data-stufe="${v}">${v}</button>`)
+    // Fünf Stufen, wo eine Frage nach dem Essen keine zehn braucht: niemand
+    // trennt mittags 6 von 7. Gespeichert wird weiter auf 1 bis 10, Stufe
+    // mal zwei, wie beim Morgen Check-in, damit Verlauf und Auswertung
+    // dieselbe Skala lesen.
+    const fuenf = "stufenFuenf" in reihe.dataset;
+    const wert = fuenf ? Math.round(Number(feld.value) / 2) : Number(feld.value);
+    reihe.classList.toggle("fuenf", fuenf);
+    reihe.innerHTML = Array.from({ length: fuenf ? 5 : 10 }, (_, i) => i + 1)
+      .map((v) => `<button type="button" class="mg-punkt${v === wert ? " an" : ""}" role="radio" aria-checked="${v === wert}" data-stufe="${fuenf ? v * 2 : v}">${v}</button>`)
       .join("");
     reihe.setAttribute("role", "radiogroup");
     reihe.setAttribute("aria-label", reihe.closest("fieldset")?.querySelector("legend")?.textContent ?? "");
@@ -4733,8 +4796,13 @@ $("btnBalanceZiele").addEventListener("click", () => {
 function renderTag() {
   const plan = aufgabenPlan();
 
-  fuelleAufgaben("aufgabenHeute", plan.heute, "Heute steht nichts mehr an.");
-  fuelleAufgaben("aufgabenMorgen", [...plan.morgen, ...plan.spaeter], "Nichts, was warten müsste.");
+  fuelleAufgaben("aufgabenHeute", plan.heute, "Heute steht nichts mehr an.", { heute: true });
+  const warten = [...plan.morgen, ...plan.spaeter];
+  fuelleAufgaben("aufgabenMorgen", warten, "Nichts, was warten müsste.");
+  const summe = plan.heute.reduce((n, a) => n + (Number(a.minuten) || 0), 0);
+  $("aufgabenKopf").textContent = plan.heute.length ? `Aufgaben · ${plan.heute.length} offen, ${minutenKurz(summe)}` : "Aufgaben";
+  $("aufgabenMorgenKopf").hidden = warten.length === 0;
+  $("aufgabenMorgen").hidden = warten.length === 0;
   $("aufgabenGrund").textContent = plan.begruendung.join(" ");
 
   const heute = dayNumbers(todayIso());
@@ -4799,56 +4867,51 @@ function verschiebenZeile(a) {
   return zeile;
 }
 
-function fuelleAufgaben(id, aufgaben, leerText) {
+/** "1 h 55" oder "40 min". */
+function minutenKurz(m) {
+  const h = Math.floor(m / 60), r = Math.round(m % 60);
+  return h ? (r ? `${h} h ${String(r).padStart(2, "0")}` : `${h} h`) : `${r} min`;
+}
+
+/**
+ * Eine Aufgabe je Zeile: Kreis zum Abhaken links, Titel und darunter Dauer
+ * und Frist, rechts eine Marke, ob sie zuerst oder heute dran ist. Vorher
+ * trug jede Aufgabe eine Karte mit drei Zeichen, und drei Aufgaben füllten
+ * den Bildschirm. Verschieben und Streichen liegen hinter den drei Punkten.
+ */
+function fuelleAufgaben(id, aufgaben, leerText, { heute = false } = {}) {
   const el = $(id);
   el.innerHTML = "";
   if (aufgaben.length === 0) {
     el.innerHTML = `<li class="empty">${escapeHtml(leerText)}</li>`;
     return;
   }
-  for (const a of aufgaben) {
+  aufgaben.forEach((a, i) => {
     const li = document.createElement("li");
-    const frist = (a.faellig ? `, fällig ${a.faellig === todayIso() ? "heute" : tagGesagt(a.faellig)}` : "") + (a.ab && a.ab > todayIso() ? `, ab ${tagGesagt(a.ab)}` : "");
+    li.className = "aufgabe tag-aufgabe";
+    const frist = a.faellig ? `fällig ${a.faellig === todayIso() ? "heute" : tagGesagt(a.faellig)}` : "";
+    const ab = a.ab && a.ab > todayIso() ? `ab ${tagGesagt(a.ab)}` : "";
     const wichtig = ["nebensächlich", "normal", "wichtig"][a.wichtigkeit - 1] || "normal";
-    const grund = a.warum ? ` (${a.warum})` : "";
     const ausTodoist = a.quelle === "todoist";
-    const dauer = a.dauerAngenommen ? `etwa ${a.minuten} Minuten` : `${a.minuten} Minuten`;
+    const dauer = `${a.dauerAngenommen ? "etwa " : ""}${a.minuten} min`;
+    const meta = [dauer, frist, ab, ausTodoist ? "Todoist" : ""].filter(Boolean).join(" · ");
+    const marke = heute ? (i === 0 ? `<span class="tag-marke zuerst">Zuerst</span>` : `<span class="tag-marke">Heute</span>`) : "";
     li.innerHTML =
-      `<div class="li-main"><div class="li-title">${escapeHtml(a.text)}</div>` +
-      (ausTodoist
-        // Aus Todoist: Einstufung nur anzeigen. Eine Änderung hier wäre beim
-        // nächsten Lesen wieder weg, und ein Knopf, dessen Wirkung verschwindet,
-        // ist schlimmer als keiner. Die Priorität stellt man in Todoist um.
-        ? `<div class="li-sub">${dauer}, ${wichtig}${escapeHtml(frist)}, aus Todoist</div></div>`
-        : `<button class="stufe" data-stufe="${a.wichtigkeit}" type="button">` +
-          `${dauer}, ${wichtig}${escapeHtml(frist)}${escapeHtml(grund)}</button></div>`);
-
-    // Ein Tipp auf die Einstufung schaltet sie weiter. Eine Einschätzung, die
-    // man nicht korrigieren kann, ist eine Bevormundung.
-    li.querySelector(".stufe")?.addEventListener("click", () => {
-      aufgabeUmstufen(a.id);
-      renderTag();
-      refreshAll();
-    });
-    // Drei Handlungen als Zeichen statt als Wörter. "Erledigt", "Streichen" und
-    // "Verschieben" nebeneinander nehmen dem Titel auf dem Handy die halbe
-    // Breite. Der Name steht im aria-label und im Tooltip.
-    li.classList.add("aufgabe");
-    const knoepfe = document.createElement("div");
-    knoepfe.className = "aufgabe-knoepfe";
-    const knopf = (name, zeichen, klick) => {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "aufgabe-knopf";
-      b.title = name;
-      b.setAttribute("aria-label", `${name}: ${a.text}`);
-      b.innerHTML = AUFGABE_ZEICHEN[zeichen];
-      b.addEventListener("click", klick);
-      knoepfe.appendChild(b);
-      return b;
-    };
-    const fertig = knopf("Erledigt", "haken", async () => {
-      fertig.disabled = true;
+      `<button type="button" class="tag-haken" aria-label="Erledigt: ${escapeHtml(a.text)}"></button>`
+      + `<div class="li-main"><div class="li-title">${escapeHtml(a.text)}</div>`
+      // Ein Tipp auf die Zeile darunter schaltet die Wichtigkeit weiter. Eine
+      // Einschätzung, die man nicht korrigieren kann, ist eine Bevormundung.
+      + (ausTodoist
+        ? `<div class="li-sub">${escapeHtml(meta)}</div>`
+        : `<button class="stufe tag-meta" data-stufe="${a.wichtigkeit}" type="button" title="Tipp ändert die Wichtigkeit, jetzt ${wichtig}${a.warum ? `: ${escapeHtml(a.warum)}` : ""}">${escapeHtml(meta)}${a.wichtigkeit === 3 ? " · wichtig" : ""}</button>`)
+      + `</div>${marke}`
+      + (ausTodoist ? "" : `<button type="button" class="tag-mehr" aria-label="Verschieben oder streichen: ${escapeHtml(a.text)}" aria-expanded="false"><i></i><i></i><i></i></button>`);
+    li.querySelector(".stufe")?.addEventListener("click", () => { aufgabeUmstufen(a.id); renderTag(); refreshAll(); });
+    const haken = li.querySelector(".tag-haken");
+    haken.addEventListener("click", async () => {
+      haken.disabled = true;
+      li.classList.add("erledigt");
+      spueren("leicht");
       const ergebnis = await aufgabeErledigen(a.id);
       renderTag();
       refreshAll();
@@ -4857,23 +4920,39 @@ function fuelleAufgaben(id, aufgaben, leerText) {
     // Streichen und Verschieben nur bei eigenen Aufgaben. Eine Aufgabe in
     // Todoist auf einen Tipp hin zu löschen wäre ein Eingriff in eine fremde
     // Liste, und ein hier gesetzter Tag wäre beim nächsten Lesen wieder weg.
-    if (!ausTodoist) {
-      const schieben = knopf("Verschieben", "kalender", () => {
-        const offen = li.querySelector(".verschieben");
-        if (offen) { offen.remove(); schieben.setAttribute("aria-expanded", "false"); return; }
-        schieben.setAttribute("aria-expanded", "true");
-        li.appendChild(verschiebenZeile(a));
-      });
-      schieben.setAttribute("aria-expanded", "false");
-      knopf("Streichen", "kreuz", () => {
-        aufgabeLoeschen(a.id);
-        renderTag();
-        toast(`Gestrichen: ${a.text}`);
-      });
-    }
-    li.appendChild(knoepfe);
+    const mehr = li.querySelector(".tag-mehr");
+    mehr?.addEventListener("click", () => {
+      const offen = li.querySelector(".verschieben");
+      if (offen) { offen.remove(); mehr.setAttribute("aria-expanded", "false"); return; }
+      mehr.setAttribute("aria-expanded", "true");
+      const zeile = verschiebenZeile(a);
+      const weg = document.createElement("button");
+      weg.type = "button";
+      weg.className = "pill tag-streichen";
+      weg.textContent = "Streichen";
+      weg.addEventListener("click", () => { aufgabeLoeschen(a.id); renderTag(); toast(`Gestrichen: ${a.text}`); });
+      zeile.append(weg);
+      li.appendChild(zeile);
+    });
     el.appendChild(li);
-  }
+  });
+}
+
+// Enter im Feld schickt das Formular ab, und das löst den Klick auf den Knopf
+// aus. Das Formular selbst darf die Seite nicht neu laden.
+$("aufgabeForm").addEventListener("submit", (ev) => ev.preventDefault());
+for (const k of document.querySelectorAll("[data-tag-werkzeug]")) {
+  k.addEventListener("click", () => {
+    const name = k.dataset.tagWerkzeug;
+    const bereich = document.querySelector(`[data-werkzeug="${name}"]`);
+    const auf = bereich.hidden;
+    for (const b of document.querySelectorAll("[data-werkzeug]")) b.hidden = true;
+    for (const x of document.querySelectorAll("[data-tag-werkzeug]")) { x.setAttribute("aria-expanded", "false"); x.classList.remove("an"); }
+    bereich.hidden = !auf;
+    k.setAttribute("aria-expanded", String(auf));
+    k.classList.toggle("an", auf);
+    if (auf) bereich.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
 }
 
 $("btnAufgabe").addEventListener("click", async () => {
@@ -4881,7 +4960,7 @@ $("btnAufgabe").addEventListener("click", async () => {
   if (text.length < 3) { toast("Schreib kurz, was zu tun ist."); return; }
   const knopf = $("btnAufgabe");
   knopf.disabled = true;
-  knopf.textContent = "Stuft ein";
+  knopf.classList.add("laeuft");
   $("aufgabeEcho").textContent = "daevo schaut sich das an.";
   try {
     const ergebnis = await aufgabeAnlegenEingestuft(text);
@@ -4896,7 +4975,7 @@ $("btnAufgabe").addEventListener("click", async () => {
     $("aufgabeEcho").textContent = `Einstufung nicht möglich: ${error.message}`;
   } finally {
     knopf.disabled = false;
-    knopf.textContent = "Aufgabe anlegen";
+    knopf.classList.remove("laeuft");
   }
 });
 
