@@ -86,7 +86,7 @@ export function folieDauer(f) {
     case "essen": return 4000 + 1000 * (f.mahlzeiten?.length ?? 0);
     case "untergrenze": return 4000 + 1200 * ((f.punkte?.length ?? 0) + (f.geburtstage?.length ? 1 : 0));
     case "feierabend": return 5000 + 1000 * (f.heuteWichtig?.length ?? 0);
-    case "abend": return 5000 + 1100 * (f.schritte?.length ?? 0);
+    case "abend": return 9000;
     case "ende": return Infinity;
     // Die Karten der übrigen Präsentationen: Rückblick, Morgen, Auswertung,
     // Monat, Planende, Training und Kopf leeren.
@@ -232,13 +232,21 @@ export function folieHtml(f) {
       break;
     }
     case "abend": {
-      const zeilen = (f.schritte ?? []).map((s, i) => `
-        <li ${rein(2 + i)}><time>${esc(s.um)}</time><span class="bs-punkt"></span><span class="bs-termin"><b>${esc(s.titel)}</b><small>${esc(s.text)}</small></span></li>`).join("");
+      // Abends keine Liste zum Abarbeiten. Der Nutzer wollte nach "Gute Nacht"
+      // runterkommen und nicht sieben Aufgaben lesen. Eine Uhrzeit trägt die
+      // Karte, die Schlafenszeit. Was davor hilft, steht als leise Wörter
+      // nebeneinander, ohne Uhrzeit und ohne Haken. Abhaken geht im Blatt.
+      const schritte = f.schritte ?? [];
+      const handy = schritte.find((s) => /handy/i.test(s.titel));
+      const rest = schritte.filter((s) => s !== handy && !/^schlafen$/i.test(s.titel));
+      const woerter = rest.map((s) => `<span>${esc(s.kurz ?? s.titel)}</span>`).join("");
       innen = `
-        <p class="bs-etikett" ${rein(0)}>${zeichen("mond")} Für deinen Schlaf</p>
-        <p class="bs-unter" ${rein(1)}>Schlafen ${esc(f.schlafen)}, Wecker ${esc(f.wecker)}, ${esc(f.dauer)} Schlaf möglich</p>
-        <ol class="bs-zeitleiste bs-abendliste">${zeilen}</ol>
-        <div class="bs-frei" ${rein(9)}><b>${zeichen("sonne")} Morgen früh</b><span>${esc(f.morgenLicht)}</span></div>`;
+        <p class="bs-etikett" ${rein(0)}>${zeichen("mond")} Ruhig runterfahren</p>
+        <p class="bs-grosszahl" ${rein(1)}><b>${esc(f.schlafen)}</b><span>ins Bett</span></p>
+        <p class="bs-unter" ${rein(2)}>${esc(f.dauer)} Schlaf, Wecker ${esc(f.wecker)}</p>
+        ${handy ? `<p class="bs-satz" ${rein(3)}>Ab ${esc(handy.um)} Handy weg. Danach nur, was dir guttut.</p>` : ""}
+        ${woerter ? `<p class="bs-woerter" ${rein(4)}>${woerter}</p>` : ""}
+        <p class="bs-leise" ${rein(5)}>${zeichen("sonne")} ${esc(f.morgenLicht)}</p>`;
       break;
     }
     case "ende":
